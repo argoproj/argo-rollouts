@@ -3,6 +3,7 @@ package rollout
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -89,21 +90,26 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Update(ctx, modifiedRS, metav1.UpdateOptions{})
 	if err != nil {
 		if errors.IsConflict(err) {
-			rsGet, err := c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Get(ctx, modifiedRS.Name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			patch, changed, err := diff.CreateTwoWayMergePatch(rsGet, modifiedRS, appsv1.ReplicaSet{})
-			if err != nil {
-				return err
-			}
-
-			if changed {
-				c.log.Infof("Patching replicaset with patch in syncEphemeralMetadata: %s", string(patch))
-				rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Patch(ctx, modifiedRS.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+			// Retry with a merge patch
+			errConflict := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Get(ctx, modifiedRS.Name, metav1.GetOptions{})
 				if err != nil {
 					return err
 				}
+				patch, changed, err := diff.CreateTwoWayMergePatch(rs, modifiedRS, appsv1.ReplicaSet{})
+				if err != nil {
+					return err
+				}
+				if changed {
+					rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Patch(ctx, modifiedRS.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+					if err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+			if errConflict != nil {
+				return fmt.Errorf("error updating replicaset in syncEphemeralMetadata in RetryOnConflict: %w", errConflict)
 			}
 		}
 		return fmt.Errorf("error updating replicaset in syncEphemeralMetadata: %w", err)
