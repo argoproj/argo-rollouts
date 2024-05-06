@@ -400,7 +400,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 
 		rs, err := c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
 		if err != nil {
-			c.log.Infof("Error syncing replica set revision %s: %v", rsCopy.Name, err)
+			c.log.Infof("Error scaling replicasets %s: %v", rsCopy.Name, err)
 			return scaled, nil, err
 		}
 
