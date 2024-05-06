@@ -90,8 +90,9 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Update(ctx, modifiedRS, metav1.UpdateOptions{})
 	if err != nil {
 		if errors.IsConflict(err) {
-			// Retry with a merge patch
+			retryCount := 0
 			errConflict := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				c.log.Infof("conflict when adding ephemeralmetadata %s, retrying the scale operation with new replicaset from cluster, attempt: %d", rs.Name, retryCount)
 				rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Get(ctx, modifiedRS.Name, metav1.GetOptions{})
 				if err != nil {
 					return err
