@@ -1050,7 +1050,7 @@ func (c *rolloutContext) updateRolloutWithRetry(ctx context.Context, ro *v1alpha
 			retryCount := 0
 			errRetry := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 				retryCount++
-				c.log.Infof("conflict when updating rollout %s, retrying the update operation with new rollout from cluster via a patch, attempt: %d", c.rollout.Name, retryCount)
+				c.log.Infof("conflict when updating rollout %s, retrying the update operation with new rollout from cluster, attempt: %d", c.rollout.Name, retryCount)
 				roGet, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Get(context.TODO(), c.rollout.Name, metav1.GetOptions{})
 				if err != nil {
 					return fmt.Errorf("error getting rollout %s: %w", c.rollout.Name, err)
