@@ -89,49 +89,10 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
 		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
 
-		rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+		rs, err := c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
 		if err != nil {
-			if errors.IsConflict(err) {
-				retryCount := 0
-				errRetry := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-					retryCount++
-					c.log.Infof("conflict when setting revision on replicaset %s, retrying the set revision operation with new replicaset from cluster, attempt: %d", rsCopy.Name, retryCount)
-					rsGet, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
-					if err != nil {
-						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
-					}
-
-					rsCopy.ObjectMeta.ResourceVersion = ""
-					rsGet.ObjectMeta.ResourceVersion = ""
-					rsCopy.ObjectMeta.ManagedFields = nil
-					rsGet.ObjectMeta.ManagedFields = nil
-					patch, changed, err := diff.CreateTwoWayMergePatch(rsGet, rsCopy, appsv1.ReplicaSet{})
-					if err != nil {
-						return err
-					}
-
-					if changed {
-						c.log.Infof("Patching replicaset with patch in syncReplicaSetRevision: %s", string(patch))
-						rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
-						if err != nil {
-							return err
-						}
-					}
-
-					return nil
-				})
-				if errRetry != nil {
-					return nil, errRetry
-				}
-			} else {
-				c.log.WithError(err).Error("Error: updating replicaset revision")
-				return nil, fmt.Errorf("error updating replicaset revision: %v", err)
-			}
-		}
-		c.log.Infof("Synced revision on ReplicaSet '%s' to '%s'", rs.Name, newRevision)
-		err = c.replicaSetInformer.GetIndexer().Update(rs)
-		if err != nil {
-			return nil, fmt.Errorf("error updating replicaset informer in syncReplicaSetRevision: %w", err)
+			c.log.Infof("Error syncing replica set revision %s: %v", rsCopy.Name, err)
+			return nil, err
 		}
 		return rs, nil
 	}
@@ -428,8 +389,6 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 	annotationsNeedUpdate := annotations.ReplicasAnnotationsNeedUpdate(rs, rolloutReplicas)
 
 	scaled := false
-	var err error
-	var updatedRS *appsv1.ReplicaSet
 	if sizeNeedsUpdate || annotationsNeedUpdate {
 		rsCopy := rs.DeepCopy()
 		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
@@ -439,47 +398,9 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
 
-		updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+		rs, err := c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
 		if err != nil {
-			if errors.IsConflict(err) {
-				retryCount := 0
-				errConflict := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-					retryCount++
-					c.log.Infof("conflict when scaling replicaset %s, retrying the scale operation with new replicaset from cluster, attempt: %d", rsCopy.Name, retryCount)
-					rsGet, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
-					if err != nil {
-						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
-					}
-
-					rsCopy.ObjectMeta.ResourceVersion = ""
-					rsGet.ObjectMeta.ResourceVersion = ""
-					rsCopy.ObjectMeta.ManagedFields = nil
-					rsGet.ObjectMeta.ManagedFields = nil
-					patch, changed, err := diff.CreateTwoWayMergePatch(rsGet, rsCopy, appsv1.ReplicaSet{})
-					if err != nil {
-						return err
-					}
-
-					if changed {
-						c.log.Infof("Patching replicaset with patch in scaleReplicaset: %s", string(patch))
-						updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
-						if err != nil {
-							return err
-						}
-					}
-
-					return nil
-				})
-				if errConflict != nil {
-					return scaled, nil, fmt.Errorf("error updating replicaset in scaleReplicaSet during RetryOnConflict: %w", errConflict)
-				}
-			} else {
-				return scaled, nil, fmt.Errorf("error updating replicaset in scaleReplicaSet: %w", err)
-			}
-		}
-		err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
-		if err != nil {
-			err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
+			c.log.Infof("Error syncing replica set revision %s: %v", rsCopy.Name, err)
 			return scaled, nil, err
 		}
 
@@ -489,7 +410,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, conditions.ScalingReplicaSetMessage, scalingOperation, rs.Name, revision, oldScale, newScale)
 		}
 	}
-	return scaled, updatedRS, err
+	return scaled, rs, nil
 }
 
 // calculateStatus calculates the common fields for all rollouts by looking into the provided replica sets.
