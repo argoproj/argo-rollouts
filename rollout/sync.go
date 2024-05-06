@@ -122,7 +122,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 
 func (c *rolloutContext) setRolloutRevision(revision string) error {
 	if annotations.SetRolloutRevision(c.rollout, revision) {
-		updatedRollout, err := c.updateRolloutFallbackToPatch(context.TODO(), c.rollout)
+		updatedRollout, err := c.updateRolloutFallbackToPatchWithoutStatus(context.TODO(), c.rollout)
 		if err != nil {
 			c.log.WithError(err).Errorf("Error: setting rollout revision %s", revision)
 			return err

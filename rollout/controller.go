@@ -995,9 +995,9 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 	return updatedRS, err
 }
 
-// updateRolloutFallbackToPatch updates the rollout with a patch if there is a conflict from an update operation, be careful using this
+// updateRolloutFallbackToPatchWithoutStatus updates the rollout with a patch if there is a conflict from an update operation, be careful using this
 // because you might still be updating the rollout with stale data, this is a last resort.
-func (c *rolloutContext) updateRolloutFallbackToPatch(ctx context.Context, ro *v1alpha1.Rollout) (*v1alpha1.Rollout, error) {
+func (c *rolloutContext) updateRolloutFallbackToPatchWithoutStatus(ctx context.Context, ro *v1alpha1.Rollout) (*v1alpha1.Rollout, error) {
 	roCopy := ro.DeepCopy()
 	updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
 	if err != nil {
@@ -1015,7 +1015,9 @@ func (c *rolloutContext) updateRolloutFallbackToPatch(ctx context.Context, ro *v
 				roGet.ObjectMeta.ResourceVersion = ""
 				roCopy.ObjectMeta.ManagedFields = nil
 				roGet.ObjectMeta.ManagedFields = nil
-				patch, changed, err := diff.CreateTwoWayMergePatch(roGet, roCopy, appsv1.ReplicaSet{})
+				roCopy.Status = v1alpha1.RolloutStatus{}
+				roGet.Status = v1alpha1.RolloutStatus{}
+				patch, changed, err := diff.CreateTwoWayMergePatch(roGet.Spec, roCopy.Spec, appsv1.ReplicaSet{})
 				if err != nil {
 					return err
 				}
