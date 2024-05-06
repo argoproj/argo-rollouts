@@ -96,6 +96,11 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 				if err != nil {
 					return err
 				}
+
+				rs.ObjectMeta.ResourceVersion = ""
+				rs.ObjectMeta.ResourceVersion = ""
+				rs.ObjectMeta.ManagedFields = nil
+				rs.ObjectMeta.ManagedFields = nil
 				patch, changed, err := diff.CreateTwoWayMergePatch(rs, modifiedRS, appsv1.ReplicaSet{})
 				if err != nil {
 					return err
