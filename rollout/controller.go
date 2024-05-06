@@ -1022,7 +1022,7 @@ func (c *rolloutContext) updateRolloutFallbackToPatch(ctx context.Context, ro *v
 
 				if changed {
 					c.log.Infof("Patching rollout with patch: %s", string(patch))
-					updatedRollout, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(roCopy.Namespace).Patch(ctx, roCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+					updatedRollout, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(roCopy.Namespace).Patch(ctx, roCopy.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 					if err != nil {
 						return err
 					}

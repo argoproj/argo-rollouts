@@ -89,7 +89,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 
 		rs, err := c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
 		if err != nil {
-			c.log.Infof("Error syncing replica set revision %s: %v", rsCopy.Name, err)
+			c.log.WithError(err).Error("Error: syncing replicaset revision on %s", rsCopy.Name)
 			return nil, err
 		}
 		return rs, nil
@@ -124,7 +124,7 @@ func (c *rolloutContext) setRolloutRevision(revision string) error {
 	if annotations.SetRolloutRevision(c.rollout, revision) {
 		updatedRollout, err := c.updateRolloutFallbackToPatch(context.TODO(), c.rollout)
 		if err != nil {
-			c.log.Infof("Error setting rollout revision %s: %v", revision, err)
+			c.log.WithError(err).Error("Error: setting rollout revision %s", revision)
 			return err
 		}
 		c.rollout = updatedRollout.DeepCopy()
