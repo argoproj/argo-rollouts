@@ -556,7 +556,7 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 
 			if test.expected == v1alpha1.AnalysisPhaseFailed {
 				// No scale down delay actions since scaleDownDelay seconds is 0
-				f.expectUpdateReplicaSetAction(rs)
+				f.expectPatchReplicaSetAction(rs)
 			}
 			patchIdx := f.expectPatchExperimentAction(e)
 			f.run(getKey(e, t))
@@ -599,7 +599,7 @@ func TestCompleteExperimentOnSuccessfulRequiredAnalysisRun(t *testing.T) {
 	f := newFixture(t, e, rs, ar)
 	defer f.Close()
 	f.expectGetReplicaSetAction(rs)
-	f.expectUpdateReplicaSetAction(rs)
+	f.expectPatchReplicaSetAction(rs)
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
@@ -650,7 +650,7 @@ func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
 	f := newFixture(t, e, rs, ar, ar2)
 	defer f.Close()
 	f.expectGetReplicaSetAction(rs)
-	f.expectUpdateReplicaSetAction(rs)
+	f.expectPatchReplicaSetAction(rs)
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIndex)

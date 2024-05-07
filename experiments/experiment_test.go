@@ -10,10 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
@@ -146,7 +144,7 @@ func TestRemoveScaleDownDelayFromRS(t *testing.T) {
 	f.expectPatchExperimentAction(e)
 	patchRs1Index := f.expectPatchReplicaSetAction(rs) // Remove scaleDownDelaySeconds
 	f.expectGetReplicaSetAction(rs)                    // Get RS after patch to modify updated version
-	f.expectUpdateReplicaSetAction(rs)
+	f.expectPatchReplicaSetAction(rs)
 	f.run(getKey(e, t))
 
 	f.verifyPatchedReplicaSetRemoveScaleDownDelayAnnotation(patchRs1Index)
@@ -179,17 +177,17 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	f := newFixture(t, e, rs1, rs2, s1)
 	defer f.Close()
 
-	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
+	updateRs1Index := f.expectPatchReplicaSetAction(rs1)
 	f.expectDeleteServiceAction(s1)
-	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
+	updateRs2Index := f.expectPatchReplicaSetAction(rs2)
 	expPatchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
-	updatedRs1 := f.getUpdatedReplicaSet(updateRs1Index)
+	updatedRs1 := f.getPatchedReplicaSet(updateRs1Index)
 	assert.NotNil(t, updatedRs1)
 	assert.Equal(t, int32(0), *updatedRs1.Spec.Replicas)
 
-	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	updatedRs2 := f.getPatchedReplicaSet(updateRs2Index)
 	assert.NotNil(t, updatedRs2)
 	assert.Equal(t, int32(0), *updatedRs2.Spec.Replicas)
 
@@ -424,32 +422,6 @@ func TestFailAddScaleDownDelay(t *testing.T) {
 	assert.Equal(t, v1alpha1.TemplateStatusError, newStatus.TemplateStatuses[0].Status)
 	assert.Contains(t, newStatus.TemplateStatuses[0].Message, "Unable to scale ReplicaSet for template 'bar' to desired replica count '0'")
 	assert.Equal(t, newStatus.Phase, v1alpha1.AnalysisPhaseError)
-}
-
-func TestFailAddScaleDownDelayIsConflict(t *testing.T) {
-	templates := generateTemplates("bar")
-	ex := newExperiment("foo", templates, "")
-	ex.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
-	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
-	}
-	rs := templateToRS(ex, templates[0], 1)
-	rs.Spec.Replicas = pointer.Int32(0)
-
-	exCtx := newTestContext(ex, rs)
-	exCtx.templateRSs["bar"] = rs
-
-	fakeClient := exCtx.kubeclientset.(*k8sfake.Clientset)
-	updateCalled := false
-	fakeClient.PrependReactor("update", "replicasets", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		updateCalled = true
-		return true, nil, k8serrors.NewConflict(schema.GroupResource{}, "guestbook", errors.New("intentional-error"))
-	})
-	newStatus := exCtx.reconcile()
-	assert.True(t, updateCalled)
-	assert.Equal(t, v1alpha1.TemplateStatusRunning, newStatus.TemplateStatuses[0].Status)
-	assert.Equal(t, "", newStatus.TemplateStatuses[0].Message)
-	assert.Equal(t, newStatus.Phase, v1alpha1.AnalysisPhaseRunning)
 }
 
 // TestDeleteOutdatedService verifies that outdated service for Template in templateServices map is deleted and new service is created

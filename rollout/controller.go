@@ -955,7 +955,6 @@ func (c *rolloutContext) updateReplicaSetWithPatch(ctx context.Context, rs *apps
 
 	patchRS.Spec.Template.Labels = rs.Spec.Template.Labels
 	patchRS.Spec.Template.Annotations = rs.Spec.Template.Annotations
-	//patchRS.Spec.Selector = rs.Spec.Selector // Needed for TestCanaryRolloutScaleDownStableToMatchWeight
 
 	patch, changed, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
 	if err != nil {
@@ -970,11 +969,6 @@ func (c *rolloutContext) updateReplicaSetWithPatch(ctx context.Context, rs *apps
 			return nil, err
 		}
 	}
-
-	//updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Get(ctx, rs.Name, metav1.GetOptions{})
-	//if err != nil {
-	//	return nil, err
-	//}
 
 	err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
 	if err != nil {

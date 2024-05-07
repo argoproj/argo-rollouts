@@ -792,7 +792,7 @@ func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) i
 	return len
 }
 
-func (f *fixture) expectGetReplicaSetAction(r *appsv1.ReplicaSet) int {
+func (f *fixture) expectGetReplicaSetAction(r *appsv1.ReplicaSet) int { //nolint:unused
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r.Name))
 	return len
@@ -804,7 +804,7 @@ func (f *fixture) expectCreateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	return len
 }
 
-func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) int {
+func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) int { //nolint:unused
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewUpdateAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r))
 	return len
@@ -942,7 +942,7 @@ func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
+func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet { //nolint:unused
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {

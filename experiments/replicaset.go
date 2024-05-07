@@ -8,8 +8,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/utils/diff"
 
-	"k8s.io/client-go/util/retry"
-
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -295,43 +293,31 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 	if sizeNeedsUpdate {
 		rsCopy := rs.DeepCopy()
 		*(rsCopy.Spec.Replicas) = newScale
-		updatedRS, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+
+		patchRS := appsv1.ReplicaSet{}
+		patchRS.Name = rsCopy.Name
+		patchRS.Namespace = rsCopy.Namespace
+		patchRS.Spec.Replicas = rsCopy.Spec.Replicas
+		patchRS.Annotations = rsCopy.Annotations
+		patchRS.Labels = rsCopy.Labels
+
+		patchRS.Spec.Template.Labels = rs.Spec.Template.Labels
+		patchRS.Spec.Template.Annotations = rs.Spec.Template.Annotations
+
+		patch, changed, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
 		if err != nil {
-			if errors.IsConflict(err) {
-				retryCount := 0
-				errRetry := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					retryCount++
-					ec.log.Infof("conflict when scaling replicaset %s, retrying the scale operation with new replicaset from cluster, attempt: %d", rsCopy.Name, retryCount)
-					rsGet, err := ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
-					if err != nil {
-						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
-					}
+			return scaled, nil, err
+		}
 
-					rsCopy.ObjectMeta.ResourceVersion = ""
-					rsGet.ObjectMeta.ResourceVersion = ""
-					rsCopy.ObjectMeta.ManagedFields = nil
-					rsGet.ObjectMeta.ManagedFields = nil
-					patch, changed, err := diff.CreateTwoWayMergePatch(rsCopy, rsGet, appsv1.ReplicaSet{})
-					if err != nil {
-						return err
-					}
-
-					if changed {
-						ec.log.Infof("Patching replicaset with patch in scaleReplicaSets(expirments): %s", string(patch))
-						updatedRS, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Patch(ctx, rsCopy.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
-						if err != nil {
-							return err
-						}
-					}
-					return nil
-				})
-				if errRetry != nil {
-					return scaled, nil, errRetry
-				}
-			} else {
+		if changed {
+			ec.log.Infof("Patching expirment replicaset with patch: %s", string(patch))
+			updatedRS, err = ec.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+			if err != nil {
 				return scaled, nil, err
 			}
+			scaled = true
 		}
+
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
 			ec.recorder.Eventf(ec.ex, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled %s ReplicaSet %s from %d to %d", scalingOperation, rs.Name, oldScale, newScale)
