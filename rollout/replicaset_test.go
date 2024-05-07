@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
@@ -305,8 +306,15 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 				t.Errorf("expected 1 action during scale, got: %v", fake.Actions())
 				return
 			}
-			updated := k8sfake.Actions()[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
-			if e, a := test.expectedNewReplicas, int(*(updated.Spec.Replicas)); e != a {
+
+			patchAction := k8sfake.Actions()[0].(core.PatchAction)
+			rs := appsv1.ReplicaSet{}
+			err = json.Unmarshal(patchAction.GetPatch(), &rs)
+			if err != nil {
+				panic(err)
+			}
+
+			if e, a := test.expectedNewReplicas, int(*(rs.Spec.Replicas)); e != a {
 				t.Errorf("expected update to %d replicas, got %d", e, a)
 			}
 		})

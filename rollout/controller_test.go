@@ -956,6 +956,39 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
+func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	rs := appsv1.ReplicaSet{}
+	err := json.Unmarshal(patchAction.GetPatch(), &rs)
+	if err != nil {
+		panic(err)
+	}
+	return &rs
+}
+
+func (f *fixture) getPatchedReplicaSetAndObjectFromClient(index int) (patched *appsv1.ReplicaSet, rsGet *appsv1.ReplicaSet) {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	rs := appsv1.ReplicaSet{}
+	err := json.Unmarshal(patchAction.GetPatch(), &rs)
+	if err != nil {
+		panic(err)
+	}
+	rsGet, err = f.kubeclient.AppsV1().ReplicaSets(rs.Namespace).Get(context.Background(), rs.Name, metav1.GetOptions{})
+	if err != nil {
+		panic(err)
+
+	}
+	return &rs, rsGet
+}
+
 func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)

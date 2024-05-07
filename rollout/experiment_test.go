@@ -511,7 +511,7 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 	f.expectCreateReplicaSetAction(rs2)
 	f.expectUpdateRolloutAction(r2)       // update revision
 	f.expectUpdateRolloutStatusAction(r2) // update progressing condition
-	f.expectUpdateReplicaSetAction(rs2)   // scale replicaset
+	f.expectPatchReplicaSetAction(rs2)    // scale replicaset
 	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r2, t))
 }

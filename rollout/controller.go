@@ -943,49 +943,39 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 	return &remarshalled
 }
 
-// updateReplicaSetFallbackToPatch updates the replicaset with a patch if there is a conflict from an update operation, be careful using this
-// because you might still be updating the replicaset with stale data, this is a last resort.
-func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
-	rsCopy := rs.DeepCopy()
+// updateReplicaSetWithPatch updates the replicaset using patch and on
+func (c *rolloutContext) updateReplicaSetWithPatch(ctx context.Context, rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
 
-	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+	patchRS := appsv1.ReplicaSet{}
+	patchRS.Name = rs.Name
+	patchRS.Namespace = rs.Namespace
+	patchRS.Spec.Replicas = rs.Spec.Replicas
+	patchRS.Annotations = rs.Annotations
+	patchRS.Labels = rs.Labels
+
+	patchRS.Spec.Template.Labels = rs.Spec.Template.Labels
+	patchRS.Spec.Template.Annotations = rs.Spec.Template.Annotations
+	//patchRS.Spec.Selector = rs.Spec.Selector // Needed for TestCanaryRolloutScaleDownStableToMatchWeight
+
+	patch, changed, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
 	if err != nil {
-		if errors.IsConflict(err) {
-			retryCount := 0
-			errConflict := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-				retryCount++
-				c.log.Infof("conflict when scaling replicaset %s, retrying the scale operation with new replicaset from cluster via a patch, attempt: %d", rsCopy.Name, retryCount)
-				rsGet, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
-				if err != nil {
-					return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
-				}
+		return nil, err
+	}
 
-				rsCopy.ObjectMeta.ResourceVersion = ""
-				rsGet.ObjectMeta.ResourceVersion = ""
-				rsCopy.ObjectMeta.ManagedFields = nil
-				rsGet.ObjectMeta.ManagedFields = nil
-				patch, changed, err := diff.CreateTwoWayMergePatch(rsGet, rsCopy, appsv1.ReplicaSet{})
-				if err != nil {
-					return err
-				}
-
-				if changed {
-					c.log.Infof("Patching replicaset with patch: %s", string(patch))
-					updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
-					if err != nil {
-						return err
-					}
-				}
-
-				return nil
-			})
-			if errConflict != nil {
-				return nil, fmt.Errorf("error updating replicaset during RetryOnConflict: %w", errConflict)
-			}
-		} else {
-			return nil, fmt.Errorf("error updating replicaset: %w", err)
+	var updatedRS = &appsv1.ReplicaSet{}
+	if changed {
+		c.log.Infof("Patching replicaset with patch: %s", string(patch))
+		updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			return nil, err
 		}
 	}
+
+	//updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Get(ctx, rs.Name, metav1.GetOptions{})
+	//if err != nil {
+	//	return nil, err
+	//}
+
 	err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
 	if err != nil {
 		err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
@@ -994,53 +984,6 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 
 	return updatedRS, err
 }
-
-// updateRolloutFallbackToPatchWithoutStatus updates the rollout with a patch if there is a conflict from an update operation, be careful using this
-// because you might still be updating the rollout with stale data, this is a last resort.
-//func (c *rolloutContext) updateRolloutFallbackToPatchWithoutStatus(ctx context.Context, ro *v1alpha1.Rollout) (*v1alpha1.Rollout, error) {
-//	roCopy := ro.DeepCopy()
-//	updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
-//	if err != nil {
-//		if errors.IsConflict(err) {
-//			retryCount := 0
-//			errRetry := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-//				retryCount++
-//				c.log.Infof("conflict when updating rollout %s, retrying the update operation with new rollout from cluster via a patch, attempt: %d", c.rollout.Name, retryCount)
-//				roGet, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Get(context.TODO(), c.rollout.Name, metav1.GetOptions{})
-//				if err != nil {
-//					return fmt.Errorf("error getting rollout %s: %w", c.rollout.Name, err)
-//				}
-//
-//				roCopy.ObjectMeta.ResourceVersion = ""
-//				roGet.ObjectMeta.ResourceVersion = ""
-//				roCopy.ObjectMeta.ManagedFields = nil
-//				roGet.ObjectMeta.ManagedFields = nil
-//				patch, changed, err := diff.CreateTwoWayMergePatch(roGet.Spec, roCopy.Spec, appsv1.ReplicaSet{})
-//				if err != nil {
-//					return err
-//				}
-//
-//				if changed {
-//					c.log.Infof("Patching rollout with patch: %s", string(patch))
-//					updatedRollout, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(roCopy.Namespace).Patch(ctx, roCopy.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
-//					if err != nil {
-//						return err
-//					}
-//				}
-//
-//				return nil
-//
-//			})
-//			if errRetry != nil {
-//				return nil, errRetry
-//			}
-//		} else {
-//			c.log.WithError(err).Error("Error: updating rollout revision")
-//			return nil, err
-//		}
-//	}
-//	return updatedRollout, nil
-//}
 
 // updateRolloutWithRetry updates the rollout with a retry if there is a conflict from an update operation, it runs the modifyRollout function to update a fresh rollout from the cluster.
 func (c *rolloutContext) updateRolloutWithRetry(ctx context.Context, ro *v1alpha1.Rollout, modifyRollout func(ro *v1alpha1.Rollout) *v1alpha1.Rollout) (*v1alpha1.Rollout, error) {
