@@ -605,4 +605,6 @@ type DatadogMetric struct {
 	// +kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area
 	// Aggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2
 	Aggregator string `json:"aggregator,omitempty" protobuf:"bytes,6,opt,name=aggregator"`
+	// +kubebuilder:validation:Type=object
+	Datasources map[string]string `json:"datasources,omitempty" protobuf:"bytes,7,opt,name=datasource"`
 }
