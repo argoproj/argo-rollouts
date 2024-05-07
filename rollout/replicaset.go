@@ -43,6 +43,7 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 	if err != nil {
 		return fmt.Errorf("error updating replicaset informer in removeScaleDownDelay: %w", err)
 	}
+	delete(c.newRS.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 	return err
 }
 
@@ -72,6 +73,7 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 	if err != nil {
 		return fmt.Errorf("error updating replicaset informer in addScaleDownDelay: %w", err)
 	}
+	c.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
 	return err
 }
 

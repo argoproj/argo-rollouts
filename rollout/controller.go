@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/diff"
+
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -25,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -946,37 +947,43 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 // updateReplicaSetWithPatch updates the replicaset using patch and on
 func (c *rolloutContext) updateReplicaSetWithPatch(ctx context.Context, rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
 
-	patchRS := appsv1.ReplicaSet{}
-	patchRS.Name = rs.Name
-	patchRS.Namespace = rs.Namespace
-	patchRS.Spec.Replicas = rs.Spec.Replicas
-	patchRS.Annotations = rs.Annotations
-	patchRS.Labels = rs.Labels
-
-	patchRS.Spec.Template.Labels = rs.Spec.Template.Labels
-	patchRS.Spec.Template.Annotations = rs.Spec.Template.Annotations
-
-	patch, changed, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
+	rs, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
 	if err != nil {
-		return nil, err
-	}
+		if errors.IsConflict(err) {
+			patchRS := appsv1.ReplicaSet{}
+			patchRS.Name = rs.Name
+			patchRS.Namespace = rs.Namespace
+			patchRS.Spec.Replicas = rs.Spec.Replicas
+			patchRS.Annotations = rs.Annotations
+			patchRS.Labels = rs.Labels
+			patchRS.Spec.Template.Labels = rs.Spec.Template.Labels
+			patchRS.Spec.Template.Annotations = rs.Spec.Template.Annotations
 
-	var updatedRS = &appsv1.ReplicaSet{}
-	if changed {
-		c.log.Infof("Patching replicaset with patch: %s", string(patch))
-		updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
-		if err != nil {
-			return nil, err
+			patch, changed, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
+			if err != nil {
+				return nil, err
+			}
+
+			var updatedRS = &appsv1.ReplicaSet{}
+			if changed {
+				c.log.Infof("Patching replicaset with patch: %s", string(patch))
+				updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
+			if err != nil {
+				err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
+				return nil, err
+			}
+
+			return updatedRS, err
 		}
 	}
 
-	err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
-	if err != nil {
-		err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
-		return nil, err
-	}
-
-	return updatedRS, err
+	return rs, err
 }
 
 // updateRolloutWithRetry updates the rollout with a retry if there is a conflict from an update operation, it runs the modifyRollout function to update a fresh rollout from the cluster.
