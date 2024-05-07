@@ -381,7 +381,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		rs, err = c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
 		if err != nil {
 			c.log.Infof("Error scaling replicasets %s: %v", rsCopy.Name, err)
-			return scaled, nil, err
+			return scaled, rs, err
 		}
 
 		if sizeNeedsUpdate {
@@ -390,7 +390,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, conditions.ScalingReplicaSetMessage, scalingOperation, rs.Name, revision, oldScale, newScale)
 		}
 	}
-	return scaled, rs, nil
+	return scaled, rs, err
 }
 
 // calculateStatus calculates the common fields for all rollouts by looking into the provided replica sets.

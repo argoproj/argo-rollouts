@@ -982,36 +982,3 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 
 	return updatedRS, err
 }
-
-// updateRolloutWithRetry updates the rollout with a retry if there is a conflict from an update operation, it runs the modifyRollout function to update a fresh rollout from the cluster.
-//func (c *rolloutContext) updateRolloutWithRetry(ctx context.Context, ro *v1alpha1.Rollout, modifyRollout func(ro *v1alpha1.Rollout) *v1alpha1.Rollout) (*v1alpha1.Rollout, error) {
-//	updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
-//	if err != nil {
-//		if errors.IsConflict(err) {
-//			retryCount := 0
-//			errRetry := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-//				retryCount++
-//				c.log.Infof("conflict when updating rollout %s, retrying the update operation with new rollout from cluster, attempt: %d", c.rollout.Name, retryCount)
-//				roGet, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Get(context.TODO(), c.rollout.Name, metav1.GetOptions{})
-//				if err != nil {
-//					return fmt.Errorf("error getting rollout %s: %w", c.rollout.Name, err)
-//				}
-//
-//				roCopy := modifyRollout(roGet)
-//				updatedRollout, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), roCopy, metav1.UpdateOptions{})
-//				if err != nil {
-//					return err
-//				}
-//
-//				return nil
-//			})
-//			if errRetry != nil {
-//				return nil, errRetry
-//			}
-//		} else {
-//			c.log.WithError(err).Error("Error: updating rollout revision")
-//			return nil, err
-//		}
-//	}
-//	return updatedRollout, nil
-//}
