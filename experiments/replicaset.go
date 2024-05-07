@@ -308,7 +308,7 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 				}
 
 				if changed {
-					ec.log.Infof("Patching expirment replicaset with patch: %s", string(patch))
+					ec.log.Infof("Patching experiment replicaset with patch: %s", string(patch))
 					updatedRS, err = ec.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
 					if err != nil {
 						return scaled, nil, err
