@@ -205,6 +205,9 @@ spec:
       prePromotionAnalysis:
         templates:
         - templateName: sleep-job
+        args:
+        - name: duration
+          value: "6"
       postPromotionAnalysis:
         templates:
         - templateName: sleep-job
@@ -229,6 +232,7 @@ spec:
 		WaitForRolloutStatus("Healthy").
 		UpdateSpec().
 		Sleep(3 * time.Second).
+		WaitForPrePromotionAnalysisRunPhase("Running").
 		PromoteRolloutFull().
 		WaitForRolloutStatus("Healthy").
 		Then().
