@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"runtime/debug"
 	"time"
 
@@ -155,6 +156,9 @@ func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingIn
 		// Run the syncHandler, passing it the namespace/name string of the
 		// Rollout resource to be synced.
 		if err := runSyncHandler(); err != nil {
+			if errors.IsNotFound(err) {
+				workqueue.Forget(obj)
+			}
 			logCtx.Errorf("%s syncHandler error: %v", objType, err)
 			metricsServer.IncError(namespace, name, objType)
 			// Put the item back on

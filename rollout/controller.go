@@ -950,6 +950,12 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
 	if err != nil {
 		if errors.IsConflict(err) {
+			rsGet, _ := c.replicaSetLister.ReplicaSets(rs.Namespace).Get(rs.Name)
+			patch, changed, _ := diff.CreateTwoWayMergePatch(rsGet, rs, appsv1.ReplicaSet{})
+			c.log.Infof("Conflict patch: %s", string(patch))
+			c.log.Infof("rsGet: %v", rsGet)
+			c.log.Infof("rs: %v", rs)
+
 			c.log.Infof("Conflict when updating replicaset %s, falling back to patch", rs.Name)
 
 			patchRS := appsv1.ReplicaSet{}
@@ -962,21 +968,24 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 
 			patchRS.Annotations = make(map[string]string)
 			patchRS.Labels = make(map[string]string)
-			//patchRS.Spec.Selector = &metav1.LabelSelector{
-			//	MatchLabels: make(map[string]string),
-			//}
+			patchRS.Spec.Selector = &metav1.LabelSelector{
+				MatchLabels: make(map[string]string),
+			}
 
-			//if _, found := rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
-			//	patchRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-			//}
+			if _, found := rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
+				c.log.Infof("zz - Found %s label in replicaset labels %s", v1alpha1.DefaultRolloutUniqueLabelKey, rsCopy.Name)
+				patchRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			}
 
-			//if _, found := rsCopy.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; found {
-			//	patchRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = rsCopy.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
-			//}
+			if _, found := rsCopy.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; found {
+				c.log.Infof("zz - Found %s annotation in replicaset %s", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rsCopy.Name)
+				patchRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = rsCopy.Labels[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+			}
 
-			//if _, found := rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
-			//	patchRS.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]
-			//}
+			if _, found := rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
+				c.log.Infof("zz - Found %s label in replicaset selector %s value %s", v1alpha1.DefaultRolloutUniqueLabelKey, rsCopy.Name, rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey])
+				patchRS.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			}
 
 			for key, value := range rsCopy.Annotations {
 				if strings.HasPrefix(key, annotations.RolloutLabel) ||
