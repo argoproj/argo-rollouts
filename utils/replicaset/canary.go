@@ -2,6 +2,7 @@ package replicaset
 
 import (
 	"encoding/json"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"math"
 
 	log "github.com/sirupsen/logrus"
@@ -15,7 +16,7 @@ import (
 
 const (
 	// EphemeralMetadataAnnotation denotes pod metadata which is ephemerally injected to canary/stable pods
-	EphemeralMetadataAnnotation = "rollout.argoproj.io/ephemeral-metadata"
+	EphemeralMetadataAnnotation = annotations.RolloutLabel + "/ephemeral-metadata"
 )
 
 func allDesiredAreAvailable(rs *appsv1.ReplicaSet, desired int32) bool {

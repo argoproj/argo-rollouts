@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -951,11 +953,44 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 
 			patchRS := appsv1.ReplicaSet{}
 			patchRS.Spec.Replicas = rsCopy.Spec.Replicas
-			patchRS.Annotations = rsCopy.Annotations
-			patchRS.Labels = rsCopy.Labels
+			//patchRS.Annotations = rsCopy.Annotations
+			//patchRS.Labels = rsCopy.Labels
 			patchRS.Spec.Template.Labels = rsCopy.Spec.Template.Labels
 			patchRS.Spec.Template.Annotations = rsCopy.Spec.Template.Annotations
-			patchRS.Spec.Selector = rsCopy.Spec.Selector
+			//patchRS.Spec.Selector = rsCopy.Spec.Selector
+
+			patchRS.Annotations = make(map[string]string)
+			patchRS.Labels = make(map[string]string)
+			patchRS.Spec.Selector = &metav1.LabelSelector{
+				MatchLabels: make(map[string]string),
+			}
+
+			if _, found := rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
+				patchRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			}
+
+			if _, found := rsCopy.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; found {
+				patchRS.Labels[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = rsCopy.Labels[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+			}
+
+			if _, found := rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
+				patchRS.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			}
+
+			for key, value := range rsCopy.Annotations {
+				if strings.HasPrefix(key, annotations.RolloutLabel) ||
+					strings.HasPrefix(key, "argo-rollouts.argoproj.io") ||
+					strings.HasPrefix(key, "experiment.argoproj.io") {
+					patchRS.Annotations[key] = value
+				}
+			}
+			for key, value := range rsCopy.Labels {
+				if strings.HasPrefix(key, annotations.RolloutLabel) ||
+					strings.HasPrefix(key, "argo-rollouts.argoproj.io") ||
+					strings.HasPrefix(key, "experiment.argoproj.io") {
+					patchRS.Annotations[key] = value
+				}
+			}
 
 			patch, changed, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
 			if err != nil {
