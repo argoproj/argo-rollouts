@@ -375,6 +375,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		*(rsCopy.Spec.Replicas) = newScale
 		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
 		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
+			// This bypasses the normal call to removeScaleDownDelay and then depends on the removal via an update in updateReplicaSetFallbackToPatch
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
 

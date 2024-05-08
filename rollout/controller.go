@@ -962,21 +962,21 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 
 			patchRS.Annotations = make(map[string]string)
 			patchRS.Labels = make(map[string]string)
-			patchRS.Spec.Selector = &metav1.LabelSelector{
-				MatchLabels: make(map[string]string),
-			}
+			//patchRS.Spec.Selector = &metav1.LabelSelector{
+			//	MatchLabels: make(map[string]string),
+			//}
 
-			if _, found := rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
-				patchRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-			}
+			//if _, found := rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
+			//	patchRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			//}
 
-			if _, found := rsCopy.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; found {
-				patchRS.Labels[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = rsCopy.Labels[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
-			}
+			//if _, found := rsCopy.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; found {
+			//	patchRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = rsCopy.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+			//}
 
-			if _, found := rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
-				patchRS.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]
-			}
+			//if _, found := rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
+			//	patchRS.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			//}
 
 			for key, value := range rsCopy.Annotations {
 				if strings.HasPrefix(key, annotations.RolloutLabel) ||
