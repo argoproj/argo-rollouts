@@ -950,21 +950,19 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
 	if err != nil {
 		if errors.IsConflict(err) {
-			rsGet, _ := c.replicaSetLister.ReplicaSets(rs.Namespace).Get(rs.Name)
-			patch, changed, _ := diff.CreateTwoWayMergePatch(rsGet, rs, appsv1.ReplicaSet{})
-			c.log.Infof("Conflict patch: %s", string(patch))
-			c.log.Infof("rsGet: %v", rsGet)
-			c.log.Infof("rs: %v", rs)
+			rsGet, err := c.replicaSetLister.ReplicaSets(rs.Namespace).Get(rs.Name)
+			if err != nil {
+				return nil, fmt.Errorf("error getting replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+			}
+			c.log.Infof("Informer RS: %v", rsGet)
+			c.log.Infof("Memory   RS: %v", rs)
 
 			c.log.Infof("Conflict when updating replicaset %s, falling back to patch", rs.Name)
 
 			patchRS := appsv1.ReplicaSet{}
 			patchRS.Spec.Replicas = rsCopy.Spec.Replicas
-			//patchRS.Annotations = rsCopy.Annotations
-			//patchRS.Labels = rsCopy.Labels
 			patchRS.Spec.Template.Labels = rsCopy.Spec.Template.Labels
 			patchRS.Spec.Template.Annotations = rsCopy.Spec.Template.Annotations
-			//patchRS.Spec.Selector = rsCopy.Spec.Selector
 
 			patchRS.Annotations = make(map[string]string)
 			patchRS.Labels = make(map[string]string)
@@ -973,17 +971,14 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 			}
 
 			if _, found := rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
-				c.log.Infof("zz - Found %s label in replicaset labels %s", v1alpha1.DefaultRolloutUniqueLabelKey, rsCopy.Name)
 				patchRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 			}
 
 			if _, found := rsCopy.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; found {
-				c.log.Infof("zz - Found %s annotation in replicaset %s", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rsCopy.Name)
 				patchRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = rsCopy.Labels[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
 			}
 
 			if _, found := rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
-				c.log.Infof("zz - Found %s label in replicaset selector %s value %s", v1alpha1.DefaultRolloutUniqueLabelKey, rsCopy.Name, rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey])
 				patchRS.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]
 			}
 
@@ -1004,21 +999,20 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 
 			patch, changed, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error creating patch for conflict log in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
 			}
 
 			if changed {
 				c.log.Infof("Patching replicaset with patch: %s", string(patch))
 				updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("error patching replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
 				}
 			}
 
 			err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
 			if err != nil {
-				err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
-				return nil, err
+				return nil, fmt.Errorf("error updating replicaset informer in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
 			}
 
 			return updatedRS, err
