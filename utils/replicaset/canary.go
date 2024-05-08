@@ -2,8 +2,9 @@ package replicaset
 
 import (
 	"encoding/json"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"math"
+
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
