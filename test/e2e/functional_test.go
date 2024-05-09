@@ -166,8 +166,8 @@ spec:
 		UpdateSpec().
 		WaitForRolloutStatus("Paused"). // At step 1 (pause: {duration: 24h})
 		PromoteRollout().
-		WaitForRolloutAvailableReplicas(3).
-		Sleep(2*time.Second).
+		Sleep(3*time.Second).
+		WaitForInlineAnalysisRunPhase("Running").
 		Then().
 		ExpectRolloutStatus("Progressing"). // At step 2 (analysis: sleep-job - 24h)
 		ExpectAnalysisRunCount(1).
