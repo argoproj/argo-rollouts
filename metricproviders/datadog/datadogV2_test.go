@@ -61,7 +61,7 @@ func newQueriesDefaultProviderDataSources() v1alpha1.MetricProvider {
 				"b": "source:deployment_analysis",
 			},
 			Datasources: map[string]string{
-				"a": "metrics",
+				"a": "events",
 				"b": "events",
 			},
 			Formula:    "a/b",
