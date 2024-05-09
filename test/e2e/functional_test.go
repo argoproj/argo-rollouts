@@ -166,13 +166,14 @@ spec:
 		UpdateSpec().
 		WaitForRolloutStatus("Paused"). // At step 1 (pause: {duration: 24h})
 		PromoteRollout().
+		WaitForRolloutAvailableReplicas(3).
 		Sleep(2*time.Second).
 		Then().
+		ExpectRolloutStatus("Progressing"). // At step 2 (analysis: sleep-job - 24h)
+		ExpectAnalysisRunCount(1).
 		ExpectRollout("status.currentStepIndex == 1", func(r *v1alpha1.Rollout) bool {
 			return *r.Status.CurrentStepIndex == 1
 		}).
-		ExpectRolloutStatus("Progressing"). // At step 2 (analysis: sleep-job - 24h)
-		ExpectAnalysisRunCount(1).
 		When().
 		PromoteRollout().
 		Sleep(2 * time.Second).
