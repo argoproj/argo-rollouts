@@ -89,8 +89,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 
 		rs, err := c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
 		if err != nil {
-			c.log.WithError(err).Errorf("Error: syncing replicaset revision on %s", rsCopy.Name)
-			return nil, err
+			return nil, fmt.Errorf("failed to update replicaset revision on %s: %w", rsCopy.Name, err)
 		}
 		return rs, nil
 	}
@@ -381,8 +380,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 
 		rs, err = c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
 		if err != nil {
-			c.log.Infof("Error scaling replicasets %s: %v", rsCopy.Name, err)
-			return scaled, rs, err
+			return scaled, rs, fmt.Errorf("failed to updateReplicaSetFallbackToPatch in scaleReplicaSet: %w", err)
 		}
 
 		if sizeNeedsUpdate {
