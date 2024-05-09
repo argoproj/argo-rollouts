@@ -960,12 +960,12 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 				if err != nil {
 					return nil, fmt.Errorf("error marshalling informer replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
 				}
-				rsJson, err := json.Marshal(rsGet)
+				rsCopyJson, err := json.Marshal(rsCopy)
 				if err != nil {
 					return nil, fmt.Errorf("error marshalling memory replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
 				}
 				c.log.Infof("Informer RS: %s", rsGetJson)
-				c.log.Infof("Memory   RS: %s", rsJson)
+				c.log.Infof("Memory   RS: %s", rsCopyJson)
 			}
 
 			c.log.Infof("Conflict when updating replicaset %s, falling back to patch", rs.Name)
