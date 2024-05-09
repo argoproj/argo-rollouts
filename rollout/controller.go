@@ -945,7 +945,9 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 	return &remarshalled
 }
 
-// updateReplicaSetWithPatch updates the replicaset using patch and on
+// updateReplicaSetWithPatch updates the replicaset using Update and on failure falls back to a patch this function only exists to make sure we always can update
+// replicasets and to not get into an conflict loop updating replicasets. We should really look into a complete refactor of how rollouts handles replicasets such
+// that we do not keep a fully replicaset on the rollout context under newRS and instead switch to a patch only based approach.
 func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
 	rsCopy := rs.DeepCopy()
 	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})

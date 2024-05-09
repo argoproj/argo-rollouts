@@ -149,7 +149,10 @@ spec:
     spec:
       containers:
       - name: updatescaling
-        command: [/bad-command]`).
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 2m`).
 		WaitForRolloutReplicas(7).
 		Then().
 		ExpectCanaryStablePodCount(4, 3).
