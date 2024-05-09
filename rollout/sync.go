@@ -378,12 +378,13 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
 
-		rs, err = c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
+		updatedRsCopy, err := c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
 		if err != nil {
 			return scaled, rs, fmt.Errorf("failed to updateReplicaSetFallbackToPatch in scaleReplicaSet: %w", err)
 		}
 
 		if sizeNeedsUpdate {
+			rs.Spec.Replicas = updatedRsCopy.Spec.Replicas
 			scaled = true
 			revision, _ := replicasetutil.Revision(rs)
 			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, conditions.ScalingReplicaSetMessage, scalingOperation, rs.Name, revision, oldScale, newScale)
