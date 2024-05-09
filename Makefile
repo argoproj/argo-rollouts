@@ -235,7 +235,7 @@ test-kustomize: ## run kustomize tests
 
 .PHONY: start-e2e
 start-e2e: ## start e2e test environment
-	go run ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6
+	ARGO_ROLLOUTS_LOG_DIFF_CONFLICT="true" go run ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6
 
 .PHONY: test-e2e
 test-e2e: install-devtools-local

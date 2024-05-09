@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -950,12 +951,22 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
 	if err != nil {
 		if errors.IsConflict(err) {
-			rsGet, err := c.replicaSetLister.ReplicaSets(rs.Namespace).Get(rs.Name)
-			if err != nil {
-				return nil, fmt.Errorf("error getting replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+			if os.Getenv("ARGO_ROLLOUTS_LOG_DIFF_CONFLICT") == "true" {
+				rsGet, err := c.replicaSetLister.ReplicaSets(rs.Namespace).Get(rs.Name)
+				if err != nil {
+					return nil, fmt.Errorf("error getting replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+				}
+				rsGetJson, err := json.Marshal(rsGet)
+				if err != nil {
+					return nil, fmt.Errorf("error marshalling informer replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+				}
+				rsJson, err := json.Marshal(rsGet)
+				if err != nil {
+					return nil, fmt.Errorf("error marshalling memory replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+				}
+				c.log.Infof("Informer RS: %s", rsGetJson)
+				c.log.Infof("Memory   RS: %s", rsJson)
 			}
-			c.log.Infof("Informer RS: %v", rsGet)
-			c.log.Infof("Memory   RS: %v", rs)
 
 			c.log.Infof("Conflict when updating replicaset %s, falling back to patch", rs.Name)
 
