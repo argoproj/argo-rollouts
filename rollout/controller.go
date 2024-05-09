@@ -951,7 +951,7 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
 	if err != nil {
 		if errors.IsConflict(err) {
-			if os.Getenv("ARGO_ROLLOUTS_LOG_DIFF_CONFLICT") == "true" {
+			if os.Getenv("ARGO_ROLLOUTS_LOG_RS_DIFF_CONFLICT") == "true" {
 				rsGet, err := c.replicaSetLister.ReplicaSets(rs.Namespace).Get(rs.Name)
 				if err != nil {
 					return nil, fmt.Errorf("error getting replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
