@@ -949,7 +949,6 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 // replicasets and to not get into an conflict loop updating replicasets. We should really look into a complete refactor of how rollouts handles replicasets such
 // that we do not keep a fully replicaset on the rollout context under newRS and instead switch to a patch only based approach.
 func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
-	rsCopy := rs.DeepCopy()
 	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
 	if err != nil {
 		if errors.IsConflict(err) {
@@ -962,7 +961,7 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 				if err != nil {
 					return nil, fmt.Errorf("error marshalling informer replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
 				}
-				rsCopyJson, err := json.Marshal(rsCopy)
+				rsCopyJson, err := json.Marshal(rs)
 				if err != nil {
 					return nil, fmt.Errorf("error marshalling memory replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
 				}
@@ -973,9 +972,9 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 			c.log.Infof("Conflict when updating replicaset %s, falling back to patch", rs.Name)
 
 			patchRS := appsv1.ReplicaSet{}
-			patchRS.Spec.Replicas = rsCopy.Spec.Replicas
-			patchRS.Spec.Template.Labels = rsCopy.Spec.Template.Labels
-			patchRS.Spec.Template.Annotations = rsCopy.Spec.Template.Annotations
+			patchRS.Spec.Replicas = rs.Spec.Replicas
+			patchRS.Spec.Template.Labels = rs.Spec.Template.Labels
+			patchRS.Spec.Template.Annotations = rs.Spec.Template.Annotations
 
 			patchRS.Annotations = make(map[string]string)
 			patchRS.Labels = make(map[string]string)
@@ -983,26 +982,26 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 				MatchLabels: make(map[string]string),
 			}
 
-			if _, found := rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
-				patchRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			if _, found := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
+				patchRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 			}
 
-			if _, found := rsCopy.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; found {
-				patchRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = rsCopy.Labels[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+			if _, found := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; found {
+				patchRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = rs.Labels[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
 			}
 
-			if _, found := rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
-				patchRS.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCopy.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			if _, found := rs.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
+				patchRS.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = rs.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]
 			}
 
-			for key, value := range rsCopy.Annotations {
+			for key, value := range rs.Annotations {
 				if strings.HasPrefix(key, annotations.RolloutLabel) ||
 					strings.HasPrefix(key, "argo-rollouts.argoproj.io") ||
 					strings.HasPrefix(key, "experiment.argoproj.io") {
 					patchRS.Annotations[key] = value
 				}
 			}
-			for key, value := range rsCopy.Labels {
+			for key, value := range rs.Labels {
 				if strings.HasPrefix(key, annotations.RolloutLabel) ||
 					strings.HasPrefix(key, "argo-rollouts.argoproj.io") ||
 					strings.HasPrefix(key, "experiment.argoproj.io") {
@@ -1031,6 +1030,8 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 			return updatedRS, err
 		}
 	}
-
-	return updatedRS, err
+	if updatedRS != nil {
+		updatedRS.DeepCopyInto(rs)
+	}
+	return rs, err
 }
