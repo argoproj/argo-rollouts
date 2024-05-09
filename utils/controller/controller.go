@@ -3,9 +3,10 @@ package controller
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"runtime/debug"
 	"time"
+
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
