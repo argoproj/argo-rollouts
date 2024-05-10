@@ -314,7 +314,6 @@ func (c *rolloutContext) syncReplicasOnly() error {
 		}
 		newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
-		newStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{c.newRS})
 	}
 	return c.persistRolloutStatus(newStatus)
 }
