@@ -4,7 +4,9 @@
 package e2e
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -725,4 +727,71 @@ func (s *CanarySuite) TestCanaryDynamicStableScaleRollbackToStable() {
 			assert.Equal(s.T(), int32(100), ro.Status.Canary.Weights.Stable.Weight)
 
 		})
+}
+
+func (s *CanarySuite) TestCanarySetCanaryScaleSimulateHPA() {
+	canarySteps := `
+- setWeight: %d
+- pause: {duration: 10s}
+`
+	//	canaryStepsPatch := `
+	//spec:
+	//  strategy:
+	//    canary:
+	//      steps:
+	//        - setWeight: %d
+	//        - pause: {duration: 10s}
+	//`
+	s.T().Run("TestCanarySetCanaryScaleSimulateHPAWaitForRolloutReplicas", func(t *testing.T) {
+		w := s.Given().
+			RolloutTemplate("@functional/nginx-template.yaml", "set-canary-scale-hpa-waitforrolloutreplicas").
+			SetSteps(fmt.Sprintf(canarySteps, 25)).
+			When().
+			ApplyManifests().
+			WaitForRolloutStatus("Healthy")
+
+		startTime := time.Now()
+		completed := false
+		scale := 0
+		for {
+			if time.Now().After(startTime.Add(60 * time.Second)) {
+				completed = true
+				break
+			}
+			scaleOld := scale
+			scale = rand.Intn(10-2) + 2
+			if scaleOld == scale {
+				scale++
+			}
+			//w.UpdateSpec(fmt.Sprintf(canaryStepsPatch, scale)).UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutReplicas(int32(scale)) //.WaitForRolloutAvailableReplicas(int32(scale))
+			w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutReplicas(int32(scale))
+		}
+		assert.True(s.T(), completed)
+	})
+	s.T().Run("TestCanarySetCanaryScaleSimulateHPAWaitForRolloutAvailableReplicas", func(t *testing.T) {
+		w := s.Given().
+			RolloutTemplate("@functional/nginx-template.yaml", "set-canary-scale-hpa-waitforrolloutavailablereplicas").
+			SetSteps(fmt.Sprintf(canarySteps, 25)).
+			When().
+			ApplyManifests().
+			WaitForRolloutStatus("Healthy")
+
+		startTime := time.Now()
+		completed := false
+		scale := 0
+		for {
+			if time.Now().After(startTime.Add(60 * time.Second)) {
+				completed = true
+				break
+			}
+			scaleOld := scale
+			scale = rand.Intn(10-2) + 2
+			if scaleOld == scale {
+				scale++
+			}
+			//w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
+			w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
+		}
+		assert.True(s.T(), completed)
+	})
 }

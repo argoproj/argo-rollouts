@@ -109,7 +109,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		conditions.SetRolloutCondition(&c.rollout.Status, *condition)
 		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).UpdateStatus(ctx, c.rollout, metav1.UpdateOptions{})
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout revision")
+			c.log.WithError(err).Error("Error: updating rollout status in syncReplicaSetRevision")
 			return nil, err
 		}
 		c.rollout = updatedRollout
