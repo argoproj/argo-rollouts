@@ -744,7 +744,7 @@ func (s *CanarySuite) TestCanarySetCanaryScaleSimulateHPA() {
 	//`
 	s.T().Run("TestCanarySetCanaryScaleSimulateHPAWaitForRolloutReplicas", func(t *testing.T) {
 		w := s.Given().
-			RolloutTemplate("@functional/nginx-template.yaml", "set-canary-scale-hpa-waitforrolloutreplicas").
+			RolloutTemplate("@functional/nginx-template.yaml", "scale-waitforrolloutreplicas").
 			SetSteps(fmt.Sprintf(canarySteps, 25)).
 			When().
 			ApplyManifests().
@@ -754,7 +754,7 @@ func (s *CanarySuite) TestCanarySetCanaryScaleSimulateHPA() {
 		completed := false
 		scale := 0
 		for {
-			if time.Now().After(startTime.Add(60 * time.Second)) {
+			if time.Now().After(startTime.Add(250 * time.Second)) {
 				completed = true
 				break
 			}
@@ -768,9 +768,10 @@ func (s *CanarySuite) TestCanarySetCanaryScaleSimulateHPA() {
 		}
 		assert.True(s.T(), completed)
 	})
+
 	s.T().Run("TestCanarySetCanaryScaleSimulateHPAWaitForRolloutAvailableReplicas", func(t *testing.T) {
 		w := s.Given().
-			RolloutTemplate("@functional/nginx-template.yaml", "set-canary-scale-hpa-waitforrolloutavailablereplicas").
+			RolloutTemplate("@functional/nginx-template.yaml", "scale-waitforrolloutavailablereplicas").
 			SetSteps(fmt.Sprintf(canarySteps, 25)).
 			When().
 			ApplyManifests().
@@ -780,7 +781,7 @@ func (s *CanarySuite) TestCanarySetCanaryScaleSimulateHPA() {
 		completed := false
 		scale := 0
 		for {
-			if time.Now().After(startTime.Add(60 * time.Second)) {
+			if time.Now().After(startTime.Add(250 * time.Second)) {
 				completed = true
 				break
 			}
@@ -791,6 +792,68 @@ func (s *CanarySuite) TestCanarySetCanaryScaleSimulateHPA() {
 			}
 			//w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
 			w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
+		}
+		assert.True(s.T(), completed)
+	})
+
+	s.T().Run("TestCanarySetCanaryScaleSimulateHPAWaitForRolloutAvailableReplicasNoUpdate", func(t *testing.T) {
+		w := s.Given().
+			RolloutTemplate("@functional/nginx-template.yaml", "scale-waitforrolloutavailablereplicas-noupdate").
+			SetSteps(fmt.Sprintf(canarySteps, 25)).
+			When().
+			ApplyManifests().
+			WaitForRolloutStatus("Healthy").
+			UpdateSpec().
+			WaitForRolloutStatus("Paused").
+			PromoteRollout().
+			WaitForRolloutStatus("Healthy")
+
+		startTime := time.Now()
+		completed := false
+		scale := 0
+		for {
+			if time.Now().After(startTime.Add(250 * time.Second)) {
+				completed = true
+				break
+			}
+			scaleOld := scale
+			scale = rand.Intn(10-2) + 2
+			if scaleOld == scale {
+				scale++
+			}
+			//w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
+			w.ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
+		}
+		assert.True(s.T(), completed)
+	})
+
+	s.T().Run("TestCanarySetCanaryScaleSimulateHPAWaitForRolloutReplicasNoUpdate", func(t *testing.T) {
+		w := s.Given().
+			RolloutTemplate("@functional/nginx-template.yaml", "scale-waitforrolloutreplicas-noupdate").
+			SetSteps(fmt.Sprintf(canarySteps, 25)).
+			When().
+			ApplyManifests().
+			WaitForRolloutStatus("Healthy").
+			UpdateSpec().
+			WaitForRolloutStatus("Paused").
+			PromoteRollout().
+			WaitForRolloutStatus("Healthy")
+
+		startTime := time.Now()
+		completed := false
+		scale := 0
+		for {
+			if time.Now().After(startTime.Add(250 * time.Second)) {
+				completed = true
+				break
+			}
+			scaleOld := scale
+			scale = rand.Intn(10-2) + 2
+			if scaleOld == scale {
+				scale++
+			}
+			//w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
+			w.ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
 		}
 		assert.True(s.T(), completed)
 	})
