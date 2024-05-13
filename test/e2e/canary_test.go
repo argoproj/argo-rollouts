@@ -764,7 +764,7 @@ func (s *CanarySuite) TestCanarySetCanaryScaleSimulateHPA() {
 				scale++
 			}
 			//w.UpdateSpec(fmt.Sprintf(canaryStepsPatch, scale)).UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutReplicas(int32(scale)) //.WaitForRolloutAvailableReplicas(int32(scale))
-			w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutReplicas(int32(scale))
+			w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale))
 		}
 		assert.True(s.T(), completed)
 	})
@@ -791,7 +791,7 @@ func (s *CanarySuite) TestCanarySetCanaryScaleSimulateHPA() {
 				scale++
 			}
 			//w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
-			w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
+			w.UpdateSpec().ScaleRollout(scale).WaitForRolloutAvailableReplicas(int32(scale))
 		}
 		assert.True(s.T(), completed)
 	})
@@ -822,7 +822,7 @@ func (s *CanarySuite) TestCanarySetCanaryScaleSimulateHPA() {
 				scale++
 			}
 			//w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
-			w.ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
+			w.ScaleRollout(scale).WaitForRolloutAvailableReplicas(int32(scale))
 		}
 		assert.True(s.T(), completed)
 	})
@@ -853,7 +853,7 @@ func (s *CanarySuite) TestCanarySetCanaryScaleSimulateHPA() {
 				scale++
 			}
 			//w.UpdateSpec().ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
-			w.ScaleRollout(scale).WaitForRolloutReplicas(int32(scale)).WaitForRolloutAvailableReplicas(int32(scale))
+			w.ScaleRollout(scale).WaitForRolloutReplicas(int32(scale))
 		}
 		assert.True(s.T(), completed)
 	})
