@@ -9,6 +9,7 @@ import (
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 	smiv1alpha2 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha2"
 	smiv1alpha3 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha3"
+	smiv1alpha4 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha4"
 	fake "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned/fake"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -170,6 +171,37 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 		objectMeta := objectMeta("traffic-split-name", ro, r.cfg.ControllerKind)
 		expectedTs3 := trafficSplitV1Alpha3(ro, objectMeta, "root-service", desiredWeight)
 		assert.Equal(t, expectedTs3, ts3)
+	})
+
+	t.Run("v1alpha4", func(t *testing.T) {
+		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
+		client := fake.NewSimpleClientset()
+		defaults.SetSMIAPIVersion("v1alpha4")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetWeight(desiredWeight)
+		assert.Nil(t, err)
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "create", actions[1].GetVerb())
+
+		obj := actions[1].(core.CreateAction).GetObject()
+		ts4 := &smiv1alpha4.TrafficSplit{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(obj)
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts4)
+
+		objectMeta := objectMeta("traffic-split-name", ro, r.cfg.ControllerKind)
+		expectedTs4 := trafficSplitV1Alpha4(ro, objectMeta, "root-service", desiredWeight)
+		assert.Equal(t, expectedTs4, ts4)
 	})
 }
 
