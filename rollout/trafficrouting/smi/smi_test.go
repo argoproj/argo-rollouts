@@ -306,6 +306,38 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 		assert.Equal(t, 50, ts3Patched.Spec.Backends[0].Weight)
 		assert.Equal(t, 50, ts3Patched.Spec.Backends[1].Weight)
 	})
+
+	t.Run("v1alpha4", func(t *testing.T) {
+		ts4 := trafficSplitV1Alpha4(ro, objectMeta, "root-service", int32(10))
+		client := fake.NewSimpleClientset(ts4)
+		defaults.SetSMIAPIVersion("v1alpha4")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetWeight(50)
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "patch", actions[1].GetVerb())
+
+		patchAction := actions[1].(core.PatchAction)
+		ts4Patched := &smiv1alpha4.TrafficSplit{}
+		err = json.Unmarshal(patchAction.GetPatch(), &ts4Patched)
+		if err != nil {
+			panic(err)
+		}
+
+		assert.Equal(t, 50, ts4Patched.Spec.Backends[0].Weight)
+		assert.Equal(t, 50, ts4Patched.Spec.Backends[1].Weight)
+	})
 }
 
 func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
@@ -382,6 +414,31 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		logMessage := buf.String()
 		assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha3` was not modified"))
 	})
+
+	t.Run("v1alpha4", func(t *testing.T) {
+		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-v1alpha4")
+		objMeta := objectMeta("traffic-split-v1alpha4", ro, schema.GroupVersionKind{})
+		ts4 := trafficSplitV1Alpha4(ro, objMeta, "root-service", int32(10))
+		client := fake.NewSimpleClientset(ts4)
+		defaults.SetSMIAPIVersion("v1alpha4")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		buf := bytes.NewBufferString("")
+		logger := log.New()
+		logger.SetOutput(buf)
+		r.log.Logger = logger
+		err = r.SetWeight(10)
+		assert.Nil(t, err)
+		logMessage := buf.String()
+		assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha4` was not modified"))
+	})
 }
 
 func TestReconcileGetTrafficSplitError(t *testing.T) {
@@ -451,6 +508,25 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
 		client := fake.NewSimpleClientset(ts3)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetWeight(10)
+		assert.EqualError(t, err, "Rollout does not own TrafficSplit `traffic-split-name`")
+	})
+
+	t.Run("v1alpha4", func(t *testing.T) {
+		ts4 := trafficSplitV1Alpha4(ro, objMeta, "root-service", int32(10))
+		ts4.OwnerReferences = nil
+		defaults.SetSMIAPIVersion("v1alpha4")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+
+		client := fake.NewSimpleClientset(ts4)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -606,6 +682,50 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 		// check stable backend
 		assert.Equal(t, "stable-service", ts3.Spec.Backends[3].Service)
 		assert.Equal(t, 80, ts3.Spec.Backends[3].Weight)
+	})
+
+	t.Run("v1alpha4", func(t *testing.T) {
+		defaults.SetSMIAPIVersion("v1alpha4")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+
+		client := fake.NewSimpleClientset()
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetWeight(10, weightDestinations...)
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "create", actions[1].GetVerb())
+
+		// Get newly created TrafficSplit
+		obj := actions[1].(core.CreateAction).GetObject()
+		ts4 := &smiv1alpha4.TrafficSplit{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(obj)
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts4)
+
+		// check canary backend
+		assert.Equal(t, "canary-service", ts4.Spec.Backends[0].Service)
+		assert.Equal(t, 10, ts4.Spec.Backends[0].Weight)
+
+		// check experiment service backends
+		assert.Equal(t, weightDestinations[0].ServiceName, ts4.Spec.Backends[1].Service)
+		assert.Equal(t, int(weightDestinations[0].Weight), ts4.Spec.Backends[1].Weight)
+
+		assert.Equal(t, weightDestinations[1].ServiceName, ts4.Spec.Backends[2].Service)
+		assert.Equal(t, int(weightDestinations[1].Weight), ts4.Spec.Backends[2].Weight)
+
+		// check stable backend
+		assert.Equal(t, "stable-service", ts4.Spec.Backends[3].Service)
+		assert.Equal(t, 80, ts4.Spec.Backends[3].Weight)
 	})
 }
 
