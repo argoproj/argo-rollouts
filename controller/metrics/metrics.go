@@ -195,7 +195,6 @@ func recordBuildInfo() {
 	buildInfo.WithLabelValues(vers.Version, runtime.Version(), runtime.GOARCH, vers.GitCommit).Set(1)
 }
 
-
 func boolFloat64(b bool) float64 {
 	if b {
 		return 1
