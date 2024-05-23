@@ -30,6 +30,9 @@ kubectl argo rollouts get rollout guestbook
 
 # Watch progress of a rollout
 kubectl argo rollouts get rollout guestbook -w
+
+# Watch the rollout, fail if it takes more than 60 seconds
+kubectl argo rollouts get rollout guestbook -w --timeout-seconds 60
 ```
 
 ## Options
