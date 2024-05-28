@@ -6,22 +6,24 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
-
-	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/mitchellh/mapstructure"
-	log "github.com/sirupsen/logrus"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/dynamic"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	"k8s.io/client-go/dynamic/dynamiclister"
+
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	evalUtils "github.com/argoproj/argo-rollouts/utils/evaluate"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	jsonpatch "github.com/evanphx/json-patch/v5"
+	"github.com/mitchellh/mapstructure"
+	log "github.com/sirupsen/logrus"
+	appvs1 "k8s.io/api/apps/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/dynamic"
 )
 
 const Http = "http"
@@ -314,7 +316,18 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 	return newObj, len(patches) > 0, err
 }
 
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, replicaSets []*appvs1.ReplicaSet, additionalDestinations ...v1alpha1.WeightDestination) error {
+	// We need to check if the replicasets are ready here as well if we didn't define any services in the rollout
+	// See: https://github.com/argoproj/argo-rollouts/issues/2507
+	if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" {
+
+		for _, rs := range replicaSets {
+			if *rs.Spec.Replicas > 0 && !replicasetutil.IsReplicaSetAvailable(rs) {
+				return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
+			}
+		}
+	}
+
 	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
 	if dRuleSpec == nil {
 		return nil

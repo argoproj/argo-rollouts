@@ -468,7 +468,7 @@ func TestUpdateHash(t *testing.T) {
 			}
 			r := NewReconciler(cfg)
 
-			err := r.UpdateHash(fixture.args.newCanaryHash, fixture.args.newStableHash)
+			err := r.UpdateHash(fixture.args.newCanaryHash, fixture.args.newStableHash, nil)
 			assert.Nil(t, err)
 			actions := client.Actions()
 			assert.Len(t, actions, 4)
@@ -552,7 +552,7 @@ func TestUpdateHashWhenGetStableVirtualNodeFails(t *testing.T) {
 	}
 	r := NewReconciler(cfg)
 
-	err := r.UpdateHash(canaryHash, stableHash)
+	err := r.UpdateHash(canaryHash, stableHash, nil)
 	assert.Equal(t, ErrVirtualNodeMissing, err.Error())
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -572,7 +572,7 @@ func TestUpdateHashWhenGetCanaryVirtualNodeFails(t *testing.T) {
 	}
 	r := NewReconciler(cfg)
 
-	err := r.UpdateHash(canaryHash, stableHash)
+	err := r.UpdateHash(canaryHash, stableHash, nil)
 	assert.Equal(t, ErrVirtualNodeMissing, err.Error())
 	actions := client.Actions()
 	assert.Len(t, actions, 3)
@@ -606,7 +606,7 @@ func TestUpdateHashWhenUpdateStableVirtualNodeFails(t *testing.T) {
 	}
 	r := NewReconciler(cfg)
 
-	err := r.UpdateHash(canaryHash, stableHash)
+	err := r.UpdateHash(canaryHash, stableHash, nil)
 	assert.Equal(t, updateError.Error(), err.Error())
 	actions := client.Actions()
 	assert.Len(t, actions, 2)
@@ -639,7 +639,7 @@ func TestUpdateHashWhenUpdateCanaryVirtualNodeFails(t *testing.T) {
 	}
 	r := NewReconciler(cfg)
 
-	err := r.UpdateHash(canaryHash, stableHash)
+	err := r.UpdateHash(canaryHash, stableHash, nil)
 	assert.Equal(t, updateError.Error(), err.Error())
 	actions := client.Actions()
 	assert.Len(t, actions, 4)
@@ -667,7 +667,7 @@ func TestUpdateHashWithVirtualNodeMissingMatchLabels(t *testing.T) {
 
 	canaryHash := sampleNewCanaryHash
 	stableHash := sampleNewStableHash
-	err := r.UpdateHash(canaryHash, stableHash)
+	err := r.UpdateHash(canaryHash, stableHash, nil)
 	assert.Nil(t, err)
 	actions := client.Actions()
 	assert.Len(t, actions, 4)

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	appvs1 "k8s.io/api/apps/v1"
+
 	"github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -65,7 +67,7 @@ func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 // virtual-nodes with appropriate match-labels in pod-selector. It will mutate the pod-selector in two ways.
 // Firstly it will update a label with name v1alpha1.DefaultRolloutUniqueLabelKey if one exists. Secondly it will add a
 // new label with name v1alpha1.DefaultRolloutUniqueLabelKey if one does not exist.
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, replicaSets []*appvs1.ReplicaSet, additionalDestinations ...v1alpha1.WeightDestination) error {
 	ctx := context.TODO()
 
 	r.log.Debugf("UpdateHash: canaryHash (%s), stableHash (%s)", canaryHash, stableHash)

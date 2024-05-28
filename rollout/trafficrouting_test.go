@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix"
 
 	"github.com/stretchr/testify/assert"
@@ -93,7 +95,7 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	f, ro := newTrafficWeightFixture(t)
 	defer f.Close()
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("Error message"))
 	f.runExpectError(getKey(ro, t), true)
 }
@@ -103,7 +105,7 @@ func TestReconcileTrafficRoutingVerifyWeightErr(t *testing.T) {
 	f, ro := newTrafficWeightFixture(t)
 	defer f.Close()
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), errors.New("Error message"))
@@ -116,7 +118,7 @@ func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
 	f, ro := newTrafficWeightFixture(t)
 	defer f.Close()
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), nil)
@@ -174,7 +176,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 		// make sure SetWeight was called with correct value
 		assert.Equal(t, int32(10), desiredWeight)
@@ -223,7 +225,7 @@ func TestRolloutUseDesiredWeight100(t *testing.T) {
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 		// make sure SetWeight was called with correct value
 		assert.Equal(t, int32(100), desiredWeight)
@@ -301,7 +303,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 	t.Run("Experiment Running - WeightDestination created", func(t *testing.T) {
 		ex.Status.Phase = v1alpha1.AnalysisPhaseRunning
 		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
 			// make sure SetWeight was called with correct value
 			assert.Equal(t, int32(10), desiredWeight)
@@ -319,7 +321,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 	t.Run("Experiment Pending - no WeightDestination created", func(t *testing.T) {
 		ex.Status.Phase = v1alpha1.AnalysisPhasePending
 		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
 			// make sure SetWeight was called with correct value
 			assert.Equal(t, int32(10), desiredWeight)
@@ -371,7 +373,7 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 		// make sure SetWeight was called with correct value
 		assert.Equal(t, int32(10), desiredWeight)
@@ -438,7 +440,7 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 	t.Run("DynamicStableScale true", func(t *testing.T) {
 		r2.Spec.Strategy.Canary.DynamicStableScale = true
 		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 			assert.Equal(t, int32(50), desiredWeight)
 			return nil
@@ -452,7 +454,7 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 	t.Run("DynamicStableScale false", func(t *testing.T) {
 		r2.Spec.Strategy.Canary.DynamicStableScale = false
 		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 			assert.Equal(t, int32(5), desiredWeight)
 			return nil
@@ -496,7 +498,7 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	f.expectPatchRolloutAction(r1)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 		// make sure SetWeight was called with correct value
 		assert.Equal(t, int32(0), desiredWeight)
@@ -902,7 +904,7 @@ func TestDynamicScalingDontIncreaseWeightWhenAborted(t *testing.T) {
 	f.expectPatchServiceAction(canarySvc, rs1PodHash)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 		// make sure SetWeight was called with correct value
 		assert.Equal(t, int32(0), desiredWeight)
@@ -973,7 +975,7 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAborted(t 
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 		// make sure SetWeight was called with correct value
 		assert.Equal(t, int32(80), desiredWeight)
@@ -1046,7 +1048,7 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAbortedAnd
 	f.expectPatchServiceAction(canarySvc, rs1PodHash)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 		// make sure SetWeight was called with correct value
 		assert.Equal(t, int32(0), desiredWeight)
@@ -1223,7 +1225,7 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 	f.expectPatchRolloutAction(r2)                      // Updates the rollout status from the scaling to 10 action
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(func(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(canaryHash, stableHash string, replicaSets []*appsv1.ReplicaSet, additionalDestinations ...v1alpha1.WeightDestination) error {
 		// make sure UpdateHash was called with previous desired hash (not current pod hash)
 		if canaryHash != rs2PodHash {
 			return fmt.Errorf("UpdateHash was called with canary hash: %s. Expected: %s", canaryHash, rs2PodHash)

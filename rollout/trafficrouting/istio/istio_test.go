@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
+
 	"github.com/stretchr/testify/assert"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -2026,7 +2029,7 @@ spec:
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
 
-	err := r.UpdateHash("abc123", "def456")
+	err := r.UpdateHash("abc123", "def456", nil)
 	assert.NoError(t, err)
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -2073,7 +2076,7 @@ spec:
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
 
-	err := r.UpdateHash("abc123", "def456")
+	err := r.UpdateHash("abc123", "def456", nil)
 	assert.NoError(t, err)
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -2114,7 +2117,7 @@ spec:
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
 
-	err := r.UpdateHash("abc123", "def456")
+	err := r.UpdateHash("abc123", "def456", nil)
 	assert.NoError(t, err)
 	actions := client.Actions()
 	assert.Len(t, actions, 0)
@@ -2138,7 +2141,7 @@ spec:
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil)
 	client.ClearActions()
 
-	err := r.UpdateHash("abc123", "def456")
+	err := r.UpdateHash("abc123", "def456", nil)
 	assert.NoError(t, err)
 	actions := client.Actions()
 	assert.Len(t, actions, 2)
@@ -2161,7 +2164,7 @@ func TestUpdateHashDestinationRuleNotFound(t *testing.T) {
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
 
-	err := r.UpdateHash("abc123", "def456")
+	err := r.UpdateHash("abc123", "def456", nil)
 	actions := client.Actions()
 	assert.Len(t, actions, 0)
 	assert.EqualError(t, err, "destinationrules.networking.istio.io \"istio-destrule\" not found")
@@ -2193,7 +2196,7 @@ spec:
 			Weight:          20,
 		},
 	}
-	err := r.UpdateHash("abc123", "def456", additionalDestinations...)
+	err := r.UpdateHash("abc123", "def456", nil, additionalDestinations...)
 	assert.NoError(t, err)
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -2220,7 +2223,7 @@ spec:
 		Weight:          40,
 	},
 	)
-	err = r.UpdateHash("abc123", "def456", additionalDestinations...)
+	err = r.UpdateHash("abc123", "def456", nil, additionalDestinations...)
 	assert.NoError(t, err)
 	actions = client.Actions()
 	assert.Len(t, actions, 1)
@@ -2238,7 +2241,7 @@ spec:
 	vsvcLister, druleLister = getIstioListers(client)
 	r = NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
-	err = r.UpdateHash("abc123", "def456", additionalDestinations[1])
+	err = r.UpdateHash("abc123", "def456", nil, additionalDestinations[1])
 	assert.NoError(t, err)
 	actions = client.Actions()
 	assert.Len(t, actions, 1)
@@ -2250,6 +2253,90 @@ spec:
 	assert.Len(t, dRule.Spec.Subsets, 3)
 	assert.Equal(t, "exp-svc2", dRule.Spec.Subsets[2].Name)
 	assert.Equal(t, "exp-hash2", dRule.Spec.Subsets[2].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+}
+
+// TestUpdateHashNoReadyReplicaSets verifies we don't change rules when the destination ReplicaSets are not fully Ready yet
+func TestUpdateHashNoReadyReplicaSets(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+
+	client := testutil.NewFakeDynamicClient()
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	replicaSets := []*appsv1.ReplicaSet{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ReplicaSetForTesting",
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: func() *int32 { i := int32(1); return &i }(),
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{
+				Replicas:          1,
+				AvailableReplicas: 0,
+			},
+		},
+	}
+
+	err := r.UpdateHash("abc123", "def456", replicaSets)
+	assert.Error(t, err, "delaying destination rule switch: ReplicaSet ReplicaSetForTesting not fully available")
+	actions := client.Actions()
+	assert.Len(t, actions, 0)
+}
+
+// TestUpdateHashReadyReplicaSets verifies we do change rules when the destination ReplicaSets are fully Ready
+func TestUpdateHashReadyReplicaSets(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+  annotations:
+    argo-rollouts.argoproj.io/managed-by-rollouts: rollout
+spec:
+  host: ratings.prod.svc.cluster.local
+  subsets:
+  - name: stable
+    labels:
+      rollouts-pod-template-hash: def456
+  - name: canary
+    labels:
+      rollouts-pod-template-hash: abc123
+`)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	replicaSets := []*appsv1.ReplicaSet{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ReplicaSetForTesting",
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: func() *int32 { i := int32(1); return &i }(),
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{
+				Replicas:          1,
+				AvailableReplicas: 1,
+			},
+		},
+	}
+
+	err := r.UpdateHash("abc123", "def456", replicaSets)
+	assert.NoError(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 0)
 }
 
 //Multiple Virtual Service Support Unit Tests

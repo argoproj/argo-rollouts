@@ -194,7 +194,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			if err != nil {
 				return err
 			}
-
 		} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
 			// when newRS is not available or replicas num is 0. never weight to canary
 			weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
@@ -250,7 +249,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			}
 		}
 
-		err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
+		err = reconciler.UpdateHash(canaryHash, stableHash, c.allRSs, weightDestinations...)
 		if err != nil {
 			return err
 		}
