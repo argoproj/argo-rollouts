@@ -39,7 +39,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tj/assert v0.0.3
 	github.com/valyala/fasttemplate v1.2.2
-	golang.org/x/oauth2 v0.19.0
+	golang.org/x/oauth2 v0.20.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.34.1
@@ -61,8 +61,7 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute v1.24.0 // indirect
-	cloud.google.com/go/compute/metadata v0.2.3 // indirect
+	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/PagerDuty/go-pagerduty v1.7.0 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.5.0 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 // indirect
