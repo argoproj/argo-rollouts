@@ -45,7 +45,7 @@ func NewReconciler(cfg *ReconcilerConfig) (*Reconciler, error) {
 
 // UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes
 func (r *Reconciler) UpdateHash(canaryHash, stableHash string, replicaSets []*appvs1.ReplicaSet, additionalDestinations ...v1alpha1.WeightDestination) error {
-	resp := r.TrafficRouterPlugin.UpdateHash(r.Rollout, canaryHash, stableHash, additionalDestinations)
+	resp := r.TrafficRouterPlugin.UpdateHash(r.Rollout, canaryHash, stableHash, replicaSets, additionalDestinations)
 	if resp.HasError() {
 		return fmt.Errorf("failed to update hash via plugin: %w", resp)
 	}
