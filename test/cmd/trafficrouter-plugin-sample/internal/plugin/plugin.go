@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	appvs1 "k8s.io/api/apps/v1"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -317,7 +319,7 @@ func (r *RpcPlugin) VerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32, addi
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
-func (r *RpcPlugin) UpdateHash(ro *v1alpha1.Rollout, canaryHash, stableHash string, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
+func (r *RpcPlugin) UpdateHash(ro *v1alpha1.Rollout, canaryHash, stableHash string, replicaSets []*appvs1.ReplicaSet, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
 	return pluginTypes.RpcError{}
 }
 

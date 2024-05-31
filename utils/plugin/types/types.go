@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/gob"
+
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -70,7 +71,7 @@ type RpcMetricProvider interface {
 
 type RpcTrafficRoutingReconciler interface {
 	// UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes
-	UpdateHash(rollout *v1alpha1.Rollout, canaryHash, stableHash string, replicaSets []appsv1.ReplicaSet, additionalDestinations []v1alpha1.WeightDestination) RpcError
+	UpdateHash(rollout *v1alpha1.Rollout, canaryHash, stableHash string, replicaSets []*appsv1.ReplicaSet, additionalDestinations []v1alpha1.WeightDestination) RpcError
 	// SetWeight sets the canary weight to the desired weight
 	SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) RpcError
 	// SetHeaderRoute sets the header routing step
