@@ -1095,3 +1095,16 @@ func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateHash(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", nil)
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+	})
+	err := r.UpdateHash("", "", nil)
+	assert.NoError(t, err)
+}
