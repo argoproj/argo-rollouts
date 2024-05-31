@@ -2307,6 +2307,7 @@ func TestUpdateHash(t *testing.T) {
 		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 	})
+	assert.NoError(t, err)
 	err = r.UpdateHash("", "", nil)
 	assert.NoError(t, err)
 }
