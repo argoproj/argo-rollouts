@@ -2161,6 +2161,7 @@ func TestSyncRolloutWithConflictInScaleReplicaSet(t *testing.T) {
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Template.Labels["rollout.argoproj.io/foo"] = "bar"
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 9, 9)
