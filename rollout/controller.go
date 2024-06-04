@@ -1005,7 +1005,7 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 				if strings.HasPrefix(key, annotations.RolloutLabel) ||
 					strings.HasPrefix(key, "argo-rollouts.argoproj.io") ||
 					strings.HasPrefix(key, "experiment.argoproj.io") {
-					patchRS.Annotations[key] = value
+					patchRS.Labels[key] = value
 				}
 			}
 
