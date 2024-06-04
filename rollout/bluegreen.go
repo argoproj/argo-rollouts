@@ -245,13 +245,11 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 			continue
 		}
 		// Scale down.
-		scaled, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
+		_, _, err = c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
 		if err != nil {
 			return false, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in scaleDownOldReplicaSetsForBlueGreen: %w", err)
 		}
-		if scaled {
-			hasScaled = true
-		}
+		hasScaled = true
 	}
 
 	return hasScaled, nil
