@@ -239,7 +239,7 @@ func (s *AWSSuite) TestALBExperimentStepMultiIngress() {
 }
 
 func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
-	s.T().SkipNow()
+	//s.T().SkipNow() this test is flaky
 	s.Given().
 		RolloutObjects("@alb/rollout-alb-experiment-no-setweight.yaml").
 		When().
@@ -273,7 +273,7 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 }
 
 func (s *AWSSuite) TestALBExperimentStepNoSetWeightMultiIngress() {
-	s.T().SkipNow()
+	//s.T().SkipNow() this test is flaky
 	s.Given().
 		RolloutObjects("@alb/rollout-alb-multi-ingress-experiment-no-setweight.yaml").
 		When().
