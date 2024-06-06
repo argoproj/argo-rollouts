@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -2148,6 +2149,9 @@ func TestCanaryReplicaAndSpecChangedTogether(t *testing.T) {
 }
 
 func TestSyncRolloutWithConflictInScaleReplicaSet(t *testing.T) {
+	os.Setenv("ARGO_ROLLOUTS_LOG_RS_DIFF_CONFLICT", "true")
+	defer os.Unsetenv("ARGO_ROLLOUTS_LOG_RS_DIFF_CONFLICT")
+
 	f := newFixture(t)
 	defer f.Close()
 
@@ -2192,6 +2196,9 @@ func TestSyncRolloutWithConflictInScaleReplicaSet(t *testing.T) {
 }
 
 func TestSyncRolloutWithConflictInSyncReplicaSetRevision(t *testing.T) {
+	os.Setenv("ARGO_ROLLOUTS_LOG_RS_DIFF_CONFLICT", "true")
+	defer os.Unsetenv("ARGO_ROLLOUTS_LOG_RS_DIFF_CONFLICT")
+
 	f := newFixture(t)
 	defer f.Close()
 
