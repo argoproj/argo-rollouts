@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,7 +85,7 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	rs, err = c.updateReplicaSetFallbackToPatch(ctx, modifiedRS)
 	if err != nil {
 		c.log.Infof("failed to sync ephemeral metadata %v to ReplicaSet %s: %v", podMetadata, rs.Name, err)
-		return err
+		return fmt.Errorf("failed to sync ephemeral metadata: %w", err)
 	}
 
 	c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
