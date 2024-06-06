@@ -19,3 +19,5 @@ ignore:
   - 'pkg/client/.*'
   - 'vendor/.*'
   - '**/mocks/*'
+  - 'hack/gen-crd-spec/main.go'
+  - 'hack/gen-docs/main.go'
