@@ -2187,7 +2187,7 @@ func TestSyncRolloutWithConflictInScaleReplicaSet(t *testing.T) {
 
 	f.runController(key, true, false, c, i, k8sI)
 
-	updatedRs := f.getPatchedReplicaSetSpec(patchIndex) // minus one because update did not happen because conflict
+	updatedRs := f.getPatchedReplicaSet(patchIndex) // minus one because update did not happen because conflict
 	assert.Equal(t, int32(2), *updatedRs.Spec.Replicas)
 }
 
@@ -2228,14 +2228,18 @@ func TestSyncRolloutWithConflictInSyncReplicaSetRevision(t *testing.T) {
 	})
 
 	f.expectPatchRolloutAction(r2)
-	f.expectUpdateReplicaSetAction(rs1) // attempt to update replicaset revision but conflict
-	f.expectPatchReplicaSetAction(rs1)  // instead of update patch replicaset
+	f.expectUpdateReplicaSetAction(rs1)               // attempt to update replicaset revision but conflict
+	patchIndex1 := f.expectPatchReplicaSetAction(rs1) // instead of update patch replicaset
 
-	f.expectUpdateReplicaSetAction(rs2)              // attempt to scale replicaset but conflict
-	patchIndex := f.expectPatchReplicaSetAction(rs2) // instead of update patch replicaset
+	f.expectUpdateReplicaSetAction(rs2)               // attempt to scale replicaset but conflict
+	patchIndex2 := f.expectPatchReplicaSetAction(rs2) // instead of update patch replicaset
 
 	f.runController(key, true, false, c, i, k8sI)
 
-	updatedRs := f.getPatchedReplicaSetSpec(patchIndex)
-	assert.Equal(t, "2", updatedRs.Annotations["rollout.argoproj.io/revision"])
+	updatedRs1 := f.getPatchedReplicaSet(patchIndex1)
+	assert.Equal(t, "2", updatedRs1.Annotations["rollout.argoproj.io/revision"])
+	assert.Equal(t, int32(3), *updatedRs1.Spec.Replicas)
+
+	updatedRs2 := f.getPatchedReplicaSet(patchIndex2)
+	assert.Equal(t, int32(0), *updatedRs2.Spec.Replicas)
 }
