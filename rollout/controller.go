@@ -4,11 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/annotations"
+
+	"github.com/argoproj/argo-rollouts/utils/diff"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
@@ -16,11 +21,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -936,4 +943,93 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 		panic(err)
 	}
 	return &remarshalled
+}
+
+// updateReplicaSetWithPatch updates the replicaset using Update and on failure falls back to a patch this function only exists to make sure we always can update
+// replicasets and to not get into an conflict loop updating replicasets. We should really look into a complete refactor of how rollouts handles replicasets such
+// that we do not keep a fully replicaset on the rollout context under newRS and instead switch to a patch only based approach.
+func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
+	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
+	if err != nil {
+		if errors.IsConflict(err) {
+			if os.Getenv("ARGO_ROLLOUTS_LOG_RS_DIFF_CONFLICT") == "true" {
+				rsGet, err := c.replicaSetLister.ReplicaSets(rs.Namespace).Get(rs.Name)
+				if err != nil {
+					return nil, fmt.Errorf("error getting replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+				}
+				rsGetJson, err := json.Marshal(rsGet)
+				if err != nil {
+					return nil, fmt.Errorf("error marshalling informer replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+				}
+				rsCopyJson, err := json.Marshal(rs)
+				if err != nil {
+					return nil, fmt.Errorf("error marshalling memory replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+				}
+				c.log.Infof("Informer RS: %s", rsGetJson)
+				c.log.Infof("Memory   RS: %s", rsCopyJson)
+			}
+
+			c.log.Infof("Conflict when updating replicaset %s, falling back to patch", rs.Name)
+
+			patchRS := appsv1.ReplicaSet{}
+			patchRS.Spec.Replicas = rs.Spec.Replicas
+			patchRS.Spec.Template.Labels = rs.Spec.Template.Labels
+			patchRS.Spec.Template.Annotations = rs.Spec.Template.Annotations
+
+			patchRS.Annotations = make(map[string]string)
+			patchRS.Labels = make(map[string]string)
+			patchRS.Spec.Selector = &metav1.LabelSelector{
+				MatchLabels: make(map[string]string),
+			}
+
+			if _, found := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
+				patchRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			}
+
+			if _, found := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; found {
+				patchRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = rs.Labels[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+			}
+
+			if _, found := rs.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
+				patchRS.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = rs.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			}
+
+			for key, value := range rs.Annotations {
+				if strings.HasPrefix(key, annotations.RolloutLabel) ||
+					strings.HasPrefix(key, "argo-rollouts.argoproj.io") ||
+					strings.HasPrefix(key, "experiment.argoproj.io") {
+					patchRS.Annotations[key] = value
+				}
+			}
+			for key, value := range rs.Labels {
+				if strings.HasPrefix(key, annotations.RolloutLabel) ||
+					strings.HasPrefix(key, "argo-rollouts.argoproj.io") ||
+					strings.HasPrefix(key, "experiment.argoproj.io") {
+					patchRS.Labels[key] = value
+				}
+			}
+
+			patch, _, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
+			if err != nil {
+				return nil, fmt.Errorf("error creating patch for conflict log in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+			}
+
+			c.log.Infof("Patching replicaset with patch: %s", string(patch))
+			updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+			if err != nil {
+				return nil, fmt.Errorf("error patching replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+			}
+
+			err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
+			if err != nil {
+				return nil, fmt.Errorf("error updating replicaset informer in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+			}
+
+			return updatedRS, err
+		}
+	}
+	if updatedRS != nil {
+		updatedRS.DeepCopyInto(rs)
+	}
+	return rs, err
 }

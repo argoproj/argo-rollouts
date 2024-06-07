@@ -97,4 +97,4 @@ jobs:
         with:
           name: e2e-controller-k8s-${{ matrix.kubernetes-minor-version }}.log
           path: /tmp/e2e-controller.log
-        if: ${{ failure() }}
+        if: ${{ always() }}

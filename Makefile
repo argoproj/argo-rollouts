@@ -22,7 +22,7 @@ DEV_IMAGE ?= false
 E2E_INSTANCE_ID ?= argo-rollouts-e2e
 E2E_TEST_OPTIONS ?=
 E2E_PARALLEL ?= 1
-E2E_WAIT_TIMEOUT ?= 120
+E2E_WAIT_TIMEOUT ?= 90
 GOPATH ?= $(shell go env GOPATH)
 
 override LDFLAGS += \
