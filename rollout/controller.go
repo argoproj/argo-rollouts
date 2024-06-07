@@ -1009,17 +1009,15 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 				}
 			}
 
-			patch, changed, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
+			patch, _, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
 			if err != nil {
 				return nil, fmt.Errorf("error creating patch for conflict log in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
 			}
 
-			if changed {
-				c.log.Infof("Patching replicaset with patch: %s", string(patch))
-				updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
-				if err != nil {
-					return nil, fmt.Errorf("error patching replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
-				}
+			c.log.Infof("Patching replicaset with patch: %s", string(patch))
+			updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+			if err != nil {
+				return nil, fmt.Errorf("error patching replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
 			}
 
 			err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
