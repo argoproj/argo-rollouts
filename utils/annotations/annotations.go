@@ -28,6 +28,8 @@ const (
 	DesiredReplicasAnnotation = RolloutLabel + "/desired-replicas"
 	// WorkloadGenerationAnnotation is the generation of the referenced workload
 	WorkloadGenerationAnnotation = RolloutLabel + "/workload-generation"
+	// NotificationEngineAnnotation the annotation notification engine uses to determine if it should notify
+	NotificationEngineAnnotation = "notified.notifications.argoproj.io"
 )
 
 // GetDesiredReplicasAnnotation returns the number of desired replicas
@@ -219,6 +221,7 @@ var annotationsToSkip = map[string]bool{
 	RevisionAnnotation:                 true,
 	RevisionHistoryAnnotation:          true,
 	DesiredReplicasAnnotation:          true,
+	NotificationEngineAnnotation:       true,
 }
 
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key
