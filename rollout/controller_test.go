@@ -786,6 +786,12 @@ func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) i
 	return len
 }
 
+func (f *fixture) expectGetReplicaSetAction(r *appsv1.ReplicaSet) int { //nolint:unused
+	len := len(f.kubeactions)
+	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r.Name))
+	return len
+}
+
 func (f *fixture) expectCreateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewCreateAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r))
@@ -942,6 +948,21 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	objMap, _ := converter.ToUnstructured(obj)
 	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rs)
 	return rs
+}
+
+func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+
+	rs := appsv1.ReplicaSet{}
+	err := json.Unmarshal(patchAction.GetPatch(), &rs)
+	if err != nil {
+		panic(err)
+	}
+	return &rs
 }
 
 func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {

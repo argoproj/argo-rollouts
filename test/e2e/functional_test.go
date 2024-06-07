@@ -166,13 +166,14 @@ spec:
 		UpdateSpec().
 		WaitForRolloutStatus("Paused"). // At step 1 (pause: {duration: 24h})
 		PromoteRollout().
-		Sleep(2*time.Second).
+		Sleep(3*time.Second).
+		WaitForInlineAnalysisRunPhase("Running").
 		Then().
+		ExpectRolloutStatus("Progressing"). // At step 2 (analysis: sleep-job - 24h)
+		ExpectAnalysisRunCount(1).
 		ExpectRollout("status.currentStepIndex == 1", func(r *v1alpha1.Rollout) bool {
 			return *r.Status.CurrentStepIndex == 1
 		}).
-		ExpectRolloutStatus("Progressing"). // At step 2 (analysis: sleep-job - 24h)
-		ExpectAnalysisRunCount(1).
 		When().
 		PromoteRollout().
 		Sleep(2 * time.Second).
@@ -205,6 +206,9 @@ spec:
       prePromotionAnalysis:
         templates:
         - templateName: sleep-job
+        args:
+        - name: duration
+          value: "10"
       postPromotionAnalysis:
         templates:
         - templateName: sleep-job
@@ -228,7 +232,8 @@ spec:
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
 		UpdateSpec().
-		Sleep(time.Second).
+		Sleep(5 * time.Second).
+		WaitForPrePromotionAnalysisRunPhase("Running").
 		PromoteRolloutFull().
 		WaitForRolloutStatus("Healthy").
 		Then().

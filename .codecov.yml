@@ -8,13 +8,16 @@ coverage:
       default:
         threshold: 0.1
 ignore:
-  - "pkg/apis/rollouts/v1alpha1"
-  - "test"
-  - "**/*.pb.go"
-  - "**/*.pb.gw.go"
-  - "**/*generated.go"
-  - "**/*generated.deepcopy.go"
-  - "**/*_test.go"
-  - "pkg/apis/client/.*"
-  - "pkg/client/.*"
-  - "vendor/.*"
+  - 'pkg/apis/rollouts/v1alpha1'
+  - 'test'
+  - '**/*.pb.go'
+  - '**/*.pb.gw.go'
+  - '**/*generated.go'
+  - '**/*generated.deepcopy.go'
+  - '**/*_test.go'
+  - 'pkg/apis/client/.*'
+  - 'pkg/client/.*'
+  - 'vendor/.*'
+  - '**/mocks/*'
+  - 'hack/gen-crd-spec/main.go'
+  - 'hack/gen-docs/main.go'

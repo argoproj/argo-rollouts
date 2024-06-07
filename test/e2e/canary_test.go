@@ -149,7 +149,10 @@ spec:
     spec:
       containers:
       - name: updatescaling
-        command: [/bad-command]`).
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 2m`).
 		WaitForRolloutReplicas(7).
 		Then().
 		ExpectCanaryStablePodCount(4, 3).
@@ -633,6 +636,7 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		When().
 		MarkPodsReady("1", 1). // mark last remaining stable pod as ready (4/4 stable are ready)
 		WaitForRevisionPodCount("2", 0).
+		Sleep(2*time.Second). //WaitForRevisionPodCount does not wait for terminating pods and so ExpectServiceSelector fails sleep a bit for the terminating pods to be deleted
 		Then().
 		// Expect that the canary service selector is now set to stable because of dynamic stable scale is over and we have all pods up on stable rs
 		ExpectServiceSelector("dynamic-stable-scale-canary", map[string]string{"app": "dynamic-stable-scale", "rollouts-pod-template-hash": "868d98995b"}, false).

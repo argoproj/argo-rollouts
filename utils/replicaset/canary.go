@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"math"
 
+	"github.com/argoproj/argo-rollouts/utils/annotations"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +16,7 @@ import (
 
 const (
 	// EphemeralMetadataAnnotation denotes pod metadata which is ephemerally injected to canary/stable pods
-	EphemeralMetadataAnnotation = "rollout.argoproj.io/ephemeral-metadata"
+	EphemeralMetadataAnnotation = annotations.RolloutLabel + "/ephemeral-metadata"
 )
 
 func allDesiredAreAvailable(rs *appsv1.ReplicaSet, desired int32) bool {

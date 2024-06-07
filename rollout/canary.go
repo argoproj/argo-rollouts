@@ -112,7 +112,7 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
-		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileCanaryStableReplicaSet:L %w", err)
+		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileCanaryStableReplicaSet: %w", err)
 	}
 	return scaled, err
 }
