@@ -93,6 +93,9 @@ jobs:
         uses: codecov/codecov-action@v4.4.1
         with:
           file: coverage.out
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   codegen:
     name: Verify Codegen
