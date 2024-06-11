@@ -3,9 +3,10 @@ package alb
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/weightutil"
 	"strconv"
 	"strings"
+
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 
