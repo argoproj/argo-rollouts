@@ -2062,7 +2062,7 @@
         },
         "selector": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector",
-          "title": "Label selector for pods. Existing ReplicaSets whose pods are\nselected by this will be the ones affected by this rollout.\nIt must match the pod template's labels.\n+optional"
+          "title": "Label selector for pods. Existing ReplicaSets whose pods are\nselected by this will be the ones affected by this rollout.\nIt must match the pod template's labels.\n+kubebuilder:validation:Required\n+kubebuilder:validation:XValidation:rule=\"self == oldSelf\",message=\"field is immutable\""
         },
         "template": {
           "$ref": "#/definitions/k8s.io.api.core.v1.PodTemplateSpec",
