@@ -125,7 +125,7 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []any, tlsRo
 }
 
 func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []string, httpRoutes []VirtualServiceHTTPRoute, rolloutVsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute, rolloutVsvcTCPRoutes []v1alpha1.TCPRoute, tcpRoutes []VirtualServiceTCPRoute, desiredWeight int64, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
-	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout)
+	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout, false)
 	canarySubset := ""
 	stableSubset := ""
 	if r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule != nil {
@@ -718,7 +718,7 @@ func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(virtualService v1alpha1
 		return err
 	}
 
-	_, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout)
+	_, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout, false)
 	if destRuleHost != "" {
 		canarySvc = destRuleHost
 	}
@@ -1023,7 +1023,7 @@ func searchTcpRoute(tcpRoute v1alpha1.TCPRoute, istioTcpRoutes []VirtualServiceT
 
 // ValidateHTTPRoutes ensures that all the routes in the rollout exist
 func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []VirtualServiceHTTPRoute) error {
-	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r)
+	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r, false)
 
 	routeIndexesToPatch, err := getHttpRouteIndexesToPatch(routeNames, httpRoutes)
 	if err != nil {
@@ -1060,7 +1060,7 @@ func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []V
 
 // ValidateTlsRoutes ensures that all the routes in the rollout exist and they only have two destinations
 func ValidateTlsRoutes(r *v1alpha1.Rollout, vsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute) error {
-	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r)
+	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r, false)
 
 	routeIndexesToPatch, err := getTlsRouteIndexesToPatch(vsvcTLSRoutes, tlsRoutes)
 	if err != nil {
@@ -1081,7 +1081,7 @@ func ValidateTlsRoutes(r *v1alpha1.Rollout, vsvcTLSRoutes []v1alpha1.TLSRoute, t
 
 // ValidateTcpRoutes ensures that all the routes in the rollout exist and they only have two destinations
 func ValidateTcpRoutes(r *v1alpha1.Rollout, vsvcTCPRoutes []v1alpha1.TCPRoute, tcpRoutes []VirtualServiceTCPRoute) error {
-	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r)
+	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r, false)
 
 	routeIndexesToPatch, err := getTcpRouteIndexesToPatch(vsvcTCPRoutes, tcpRoutes)
 	if err != nil {
@@ -1189,7 +1189,7 @@ func (r *Reconciler) reconcileVirtualServiceMirrorRoutes(virtualService v1alpha1
 	if err != nil {
 		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to get destination rule host: %w", err)
 	}
-	_, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout)
+	_, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout, false)
 	if destRuleHost != "" {
 		canarySvc = destRuleHost
 	}
