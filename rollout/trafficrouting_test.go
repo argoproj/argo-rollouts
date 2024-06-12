@@ -130,7 +130,7 @@ func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
 	assert.True(t, enqueued)
 }
 
-func TestReconcileTrafficRoutingVerifyWeightDesiredWeight100(t *testing.T) {
+func TestReconcileTrafficRoutingVerifyWeightEndOfRollout(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
