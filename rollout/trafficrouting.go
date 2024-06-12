@@ -274,12 +274,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.WeightVerifyErrorReason}, conditions.WeightVerifyErrorMessage, err)
 			return nil // return nil instead of error since we want to continue with normal reconciliation
 		}
-		// At the end of the rollout we need to verify the weight is correct, and return an error if not because we don't want the rest of the
-		// reconcile process to continue. We don't need to do this if we are in the middle of the rollout because the rest of the reconcile
-		// process won't scale down the old replicasets yet due to being in the middle of some steps.
-		if weightVerified != nil && *weightVerified == false && desiredWeight == weightutil.MaxTrafficWeight(c.rollout) && len(c.rollout.Spec.Strategy.Canary.Steps) >= int(*c.rollout.Status.CurrentStepIndex) {
-			return fmt.Errorf("end of rollout, desired weight %d not yet verified", desiredWeight)
-		}
 
 		var indexString string
 		if index != nil {
@@ -294,6 +288,12 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			} else {
 				c.log.Infof("Desired weight (stepIdx: %s) %d not yet verified", indexString, desiredWeight)
 				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
+				// At the end of the rollout we need to verify the weight is correct, and return an error if not because we don't want the rest of the
+				// reconcile process to continue. We don't need to do this if we are in the middle of the rollout because the rest of the reconcile
+				// process won't scale down the old replicasets yet due to being in the middle of some steps.
+				if *weightVerified == false && desiredWeight == weightutil.MaxTrafficWeight(c.rollout) && len(c.rollout.Spec.Strategy.Canary.Steps) >= int(*c.rollout.Status.CurrentStepIndex) {
+					return fmt.Errorf("end of rollout, desired weight %d not yet verified", desiredWeight)
+				}
 			}
 		}
 	}
