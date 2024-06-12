@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
+
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -184,13 +186,13 @@ func CanaryStepString(c v1alpha1.CanaryStep) string {
 
 // ShouldVerifyWeight We use this to test if we should verify weights because weight verification could involve
 // API calls to the cloud provider which could incur rate limiting
-func ShouldVerifyWeight(ro *v1alpha1.Rollout) bool {
+func ShouldVerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32) bool {
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(ro)
 	// If we are in the middle of an update at a setWeight step, also perform weight verification.
 	// Note that we don't do this every reconciliation because weight verification typically involves
 	// API calls to the cloud provider which could incur rate limitingq
-	shouldVerifyWeight := ro.Status.StableRS != "" &&
-		!IsFullyPromoted(ro) &&
-		currentStep != nil && currentStep.SetWeight != nil
+	shouldVerifyWeight := (ro.Status.StableRS != "" && !IsFullyPromoted(ro) && currentStep != nil && currentStep.SetWeight != nil) ||
+		(ro.Status.StableRS != "" && !IsFullyPromoted(ro) && currentStep == nil && desiredWeight == weightutil.MaxTrafficWeight(ro)) // We are at end of rollout
+
 	return shouldVerifyWeight
 }
