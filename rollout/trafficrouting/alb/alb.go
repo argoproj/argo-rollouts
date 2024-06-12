@@ -242,7 +242,7 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 		}
 		resourceIDToDest := map[string]v1alpha1.WeightDestination{}
 
-		stableService, canaryService := trafficrouting.GetStableAndCanaryServices(rollout)
+		stableService, canaryService := trafficrouting.GetStableAndCanaryServices(rollout, true)
 		canaryResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 		stableResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), stableService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 
@@ -347,7 +347,7 @@ func updateTargetGroupStatus(status *v1alpha1.ALBStatus, tg *aws.TargetGroupMeta
 }
 
 func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (string, error) {
-	stableService, canaryService := trafficrouting.GetStableAndCanaryServices(r)
+	stableService, canaryService := trafficrouting.GetStableAndCanaryServices(r, true)
 	portStr := strconv.Itoa(int(port))
 	stableWeight := int32(100)
 	targetGroups := make([]ingressutil.ALBTargetGroup, 0)
@@ -479,7 +479,7 @@ func removeValue(array []string, key string) []string {
 }
 
 func getTrafficForwardActionString(r *v1alpha1.Rollout, port int32) (string, error) {
-	_, canaryService := trafficrouting.GetStableAndCanaryServices(r)
+	_, canaryService := trafficrouting.GetStableAndCanaryServices(r, true)
 	portStr := strconv.Itoa(int(port))
 	weight := int64(100)
 	targetGroups := make([]ingressutil.ALBTargetGroup, 0)
