@@ -1,4 +1,3 @@
-
 <a name="v1.7.0"></a>
 ## [v1.7.0](https://github.com/argoproj/argo-rollouts/compare/v1.7.0-rc1...v1.7.0) (2024-06-12)
 
