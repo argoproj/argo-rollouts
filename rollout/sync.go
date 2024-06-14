@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -88,6 +89,22 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
 			c.log.WithError(err).Error("Error: updating replicaset revision")
+
+			rsGet, err := c.replicaSetLister.ReplicaSets(rs.Namespace).Get(rs.Name)
+			if err != nil {
+				return nil, fmt.Errorf("error getting replicaset in logging %s: %w", rs.Name, err)
+			}
+			rsGetJson, err := json.Marshal(rsGet)
+			if err != nil {
+				return nil, fmt.Errorf("error marshalling informer replicaset in logging %s: %w", rs.Name, err)
+			}
+			rsCopyJson, err := json.Marshal(rs)
+			if err != nil {
+				return nil, fmt.Errorf("error marshalling memory replicaset in logging %s: %w", rs.Name, err)
+			}
+			c.log.Infof("Informer RS: %s", rsGetJson)
+			c.log.Infof("Memory   RS: %s", rsCopyJson)
+
 			return nil, fmt.Errorf("error updating replicaset revision: %v", err)
 		}
 		c.log.Infof("Synced revision on ReplicaSet '%s' to '%s'", rs.Name, newRevision)
@@ -1007,6 +1024,7 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 // promoteStable will take appropriate action once we have promoted the current ReplicaSet as stable
 // e.g. reset status conditions, emit Kubernetes events, start scaleDownDelay, etc...
 func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason string) error {
+	c.log.Infof("Promoting stable %s", reason)
 	c.pauseContext.ClearPauseConditions()
 	c.pauseContext.RemoveAbort()
 	newStatus.PromoteFull = false

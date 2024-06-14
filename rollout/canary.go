@@ -361,6 +361,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
 
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
+		c.log.Infof("PodTemplate or Steps changed, resetting step index")
 		c.resetRolloutStatus(&newStatus)
 		if c.newRS != nil && stepCount > 0 {
 			if c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS) {
@@ -386,7 +387,9 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		}
 	}
 
-	if reason := c.shouldFullPromote(newStatus); reason != "" {
+	reason := c.shouldFullPromote(newStatus)
+	c.log.Infof("shouldFullPromote: %s", reason)
+	if reason != "" {
 		err := c.promoteStable(&newStatus, reason)
 		if err != nil {
 			return err

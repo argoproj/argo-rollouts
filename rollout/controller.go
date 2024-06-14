@@ -265,7 +265,7 @@ func NewController(cfg ControllerConfig) *Controller {
 				logCtx := logutil.WithRollout(ro)
 				logCtx.Info("rollout deleted")
 				controller.metricsServer.Remove(ro.Namespace, ro.Name, logutil.RolloutKey)
-				// Rollout is deleted, queue up the referenced Service and/or DestinationRules so
+				// Rollout is deleted, queue up the referenced Service and/or DestinationRules so'
 				// that the rollouts-pod-template-hash can be cleared from each
 				for _, s := range serviceutil.GetRolloutServiceKeys(ro) {
 					controller.serviceWorkqueue.AddRateLimited(s)

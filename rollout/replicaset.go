@@ -323,6 +323,11 @@ func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 	return annotationedRSs, desiredReplicaCount, nil
 }
 
+type RefCheck struct {
+	Name string
+	Val  string
+}
+
 // isReplicaSetReferenced returns if the given ReplicaSet is still being referenced by any of
 // the current, stable, blue-green services. Used to determine if the ReplicaSet can
 // safely be scaled to zero, or deleted.
@@ -332,17 +337,18 @@ func (c *rolloutContext) isReplicaSetReferenced(rs *appsv1.ReplicaSet) bool {
 		return false
 	}
 	ro := c.rollout
-	referencesToCheck := []string{
-		ro.Status.StableRS,
-		ro.Status.CurrentPodHash,
-		ro.Status.BlueGreen.ActiveSelector,
-		ro.Status.BlueGreen.PreviewSelector,
+	referencesToCheck := []RefCheck{
+		{Name: "ro.Status.StableRS", Val: ro.Status.StableRS},
+		{Name: "ro.Status.CurrentPodHash", Val: ro.Status.CurrentPodHash},
+		{Name: "ro.Status.BlueGreen.ActiveSelector", Val: ro.Status.BlueGreen.ActiveSelector},
+		{Name: "ro.Status.BlueGreen.PreviewSelector", Val: ro.Status.BlueGreen.PreviewSelector},
 	}
 	if ro.Status.Canary.Weights != nil {
-		referencesToCheck = append(referencesToCheck, ro.Status.Canary.Weights.Canary.PodTemplateHash, ro.Status.Canary.Weights.Stable.PodTemplateHash)
+		referencesToCheck = append(referencesToCheck, RefCheck{Name: "ro.Status.Canary.Weights.Canary.PodTemplateHash", Val: ro.Status.Canary.Weights.Canary.PodTemplateHash}, RefCheck{Name: "ro.Status.Canary.Weights.Stable.PodTemplateHash", Val: ro.Status.Canary.Weights.Stable.PodTemplateHash})
 	}
 	for _, ref := range referencesToCheck {
-		if ref == rsPodHash {
+		if ref.Val == rsPodHash {
+			c.log.Infof("ReplicaSet '%s' is still referenced by rollout %s", rsPodHash, ref.Name)
 			return true
 		}
 	}
@@ -351,17 +357,17 @@ func (c *rolloutContext) isReplicaSetReferenced(rs *appsv1.ReplicaSet) bool {
 	// still referencing the ReplicaSet in question. Those checks aren't always enough. Next, we do
 	// a deeper check to look up the actual service objects, and see if they are still referencing
 	// the ReplicaSet. If so, we cannot scale it down.
-	var servicesToCheck []string
+	var servicesToCheck []RefCheck
 	if ro.Spec.Strategy.Canary != nil {
-		servicesToCheck = []string{ro.Spec.Strategy.Canary.CanaryService, ro.Spec.Strategy.Canary.StableService}
+		servicesToCheck = []RefCheck{{Name: "ro.Spec.Strategy.Canary.CanaryService", Val: ro.Spec.Strategy.Canary.CanaryService}, {Name: "ro.Spec.Strategy.Canary.StableService", Val: ro.Spec.Strategy.Canary.StableService}}
 	} else {
-		servicesToCheck = []string{ro.Spec.Strategy.BlueGreen.ActiveService, ro.Spec.Strategy.BlueGreen.PreviewService}
+		servicesToCheck = []RefCheck{{Name: "ro.Spec.Strategy.BlueGreen.ActiveService", Val: "ro.Spec.Strategy.BlueGreen.ActiveService"}, {Name: "ro.Spec.Strategy.BlueGreen.PreviewService", Val: "ro.Spec.Strategy.BlueGreen.PreviewService"}}
 	}
 	for _, svcName := range servicesToCheck {
-		if svcName == "" {
+		if svcName.Val == "" {
 			continue
 		}
-		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(svcName)
+		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(svcName.Val)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				// service doesn't exist
@@ -370,6 +376,7 @@ func (c *rolloutContext) isReplicaSetReferenced(rs *appsv1.ReplicaSet) bool {
 			return true
 		}
 		if serviceutil.GetRolloutSelectorLabel(svc) == rsPodHash {
+			c.log.Infof("ReplicaSet '%s' is still referenced by service %s", rsPodHash, svc.Name)
 			return true
 		}
 	}
