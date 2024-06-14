@@ -1135,6 +1135,13 @@ func (in *DatadogMetric) DeepCopyInto(out *DatadogMetric) {
 			(*out)[key] = val
 		}
 	}
+	if in.Datasources != nil {
+		in, out := &in.Datasources, &out.Datasources
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

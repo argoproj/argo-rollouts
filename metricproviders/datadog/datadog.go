@@ -187,8 +187,11 @@ func (p *Provider) createRequest(dd *v1alpha1.DatadogMetric, now int64, interval
 	if dd.Query != "" {
 		dd.Queries = map[string]string{"query": dd.Query}
 	}
+	if dd.Datasources == nil {
+		dd.Datasources = make(map[string]string)
+	}
 
-	return p.createRequestV2(dd.Queries, dd.Formula, now, interval, dd.Aggregator, url)
+	return p.createRequestV2(dd.Queries, dd.Formula, now, interval, dd.Aggregator, url, dd.Datasources)
 }
 
 func (p *Provider) createRequestV1(query string, now int64, interval int64, url *url.URL) (*http.Request, error) {
@@ -201,12 +204,16 @@ func (p *Provider) createRequestV1(query string, now int64, interval int64, url 
 	return &http.Request{Method: "GET"}, nil
 }
 
-func buildQueriesPayload(queries map[string]string, aggregator string) []map[string]string {
+func buildQueriesPayload(queries map[string]string, aggregator string, datasources map[string]string) []map[string]string {
 	qp := make([]map[string]string, 0, len(queries))
 	for k, v := range queries {
+		datasource := "metrics"
+		if datasources[k] != "" {
+			datasource = datasources[k]
+		}
 		p := map[string]string{
 			"aggregator":  aggregator,
-			"data_source": "metrics",
+			"data_source": datasource,
 			"name":        k,
 			"query":       v,
 		}
@@ -215,7 +222,7 @@ func buildQueriesPayload(queries map[string]string, aggregator string) []map[str
 	return qp
 }
 
-func (p *Provider) createRequestV2(queries map[string]string, formula string, now int64, interval int64, aggregator string, url *url.URL) (*http.Request, error) {
+func (p *Provider) createRequestV2(queries map[string]string, formula string, now int64, interval int64, aggregator string, url *url.URL, datasources map[string]string) (*http.Request, error) {
 	formulas := []map[string]string{}
 	// ddAPI supports multiple formulas but doesn't make sense in our context
 	// can't have a 'blank' formula, so have to guard
@@ -229,7 +236,7 @@ func (p *Provider) createRequestV2(queries map[string]string, formula string, no
 		// Datadog requires milliseconds for v2 api
 		From:     (now - interval) * 1000,
 		To:       now * 1000,
-		Queries:  buildQueriesPayload(queries, aggregator),
+		Queries:  buildQueriesPayload(queries, aggregator, datasources),
 		Formulas: formulas,
 	}
 

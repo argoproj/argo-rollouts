@@ -52,6 +52,24 @@ func newQueryProviderInterval10m() v1alpha1.MetricProvider {
 	}
 }
 
+func newQueriesDefaultProviderDataSources() v1alpha1.MetricProvider {
+	return v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Interval: "5m",
+			Queries: map[string]string{
+				"a": "avg:error_requests{*}",
+				"b": "source:deployment_analysis",
+			},
+			Datasources: map[string]string{
+				"a": "events",
+				"b": "events",
+			},
+			Formula:    "a/b",
+			ApiVersion: "v2",
+		},
+	}
+}
+
 func TestRunSuiteV2(t *testing.T) {
 	const expectedApiKey = "0123456789abcdef0123456789abcdef"
 	const expectedAppKey = "0123456789abcdef0123456789abcdef01234567"
@@ -66,6 +84,7 @@ func TestRunSuiteV2(t *testing.T) {
 		metric                  v1alpha1.Metric
 		expectedIntervalSeconds int64
 		expectedValue           string
+		expectedDatasource      string
 		expectedPhase           v1alpha1.AnalysisPhase
 		expectedErrorMessage    string
 		useEnvVarForKeys        bool
@@ -82,6 +101,7 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0006332881882246533",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedDatasource:      "metrics",
 			useEnvVarForKeys:        false,
 		},
 		{
@@ -95,6 +115,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0003332881882246533",
+			expectedDatasource:      "metrics",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        true,
 		},
@@ -109,6 +130,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.006121374442186943",
+			expectedDatasource:      "metrics",
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
 			useEnvVarForKeys:        false,
 		},
@@ -123,6 +145,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedDatasource:      "metrics",
 			expectedErrorMessage:    "received non 2xx response code: 400 {\"status\":\"error\",\"error\":\"error messsage\"}",
 			useEnvVarForKeys:        false,
 		},
@@ -137,6 +160,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedDatasource:      "metrics",
 			expectedErrorMessage:    "received authentication error response code: 401 {\"errors\": [\"No authenticated user.\"]}",
 			useEnvVarForKeys:        false,
 		},
@@ -151,6 +175,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.006121378742186943",
+			expectedDatasource:      "metrics",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
@@ -165,6 +190,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedDatasource:      "metrics",
 			expectedErrorMessage:    `invalid operation: < (mismatched types <nil> and float64)`,
 			useEnvVarForKeys:        false,
 		},
@@ -179,6 +205,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           `[]`,
+			expectedDatasource:      "metrics",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
@@ -193,6 +220,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           `[]`,
+			expectedDatasource:      "metrics",
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
 			useEnvVarForKeys:        false,
 		},
@@ -207,6 +235,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           `0.006721378742186999`,
+			expectedDatasource:      "metrics",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
@@ -222,6 +251,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedDatasource:      "metrics",
 			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field .Data.Attributes.Columns.Values of type []float64",
 			useEnvVarForKeys:        false,
 		},
@@ -233,6 +263,7 @@ func TestRunSuiteV2(t *testing.T) {
 				Provider: newQueryProviderInterval10m(),
 			},
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
+			expectedDatasource:   "metrics",
 			expectedErrorMessage: "parse \"://wrong.schema\": missing protocol scheme",
 			useEnvVarForKeys:     false,
 		},
@@ -249,6 +280,21 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.0006444881882246533",
+			expectedDatasource:      "metrics",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"data": {"attributes": {"columns": [ {"values": [0.0006444881882246533]}]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "expect success queries and formula",
+				SuccessCondition: "default(result, 0) < 0.05",
+				Provider:         newQueriesDefaultProviderDataSources(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "0.0006444881882246533",
+			expectedDatasource:      "events",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
@@ -280,6 +326,7 @@ func TestRunSuiteV2(t *testing.T) {
 
 				actualFormulas := reqBody.Data.Attributes.Formulas
 				actualQuery := reqBody.Data.Attributes.Queries[0]["query"]
+				actualDataSource := reqBody.Data.Attributes.Queries[0]["data_source"]
 				actualQueries := reqBody.Data.Attributes.Queries
 				actualFrom := reqBody.Data.Attributes.From
 				actualTo := reqBody.Data.Attributes.To
@@ -297,6 +344,10 @@ func TestRunSuiteV2(t *testing.T) {
 					if usesFormula && len(actualFormulas) == 0 {
 						t.Errorf("\nExpected formula but no Formulas in request: %+v", actualFormulas)
 					}
+				}
+
+				if actualDataSource != test.expectedDatasource {
+					t.Errorf("\ndatasource %s expected be equal to %s", actualDataSource, test.expectedDatasource)
 				}
 
 				if actualFrom != (unixNow()-test.expectedIntervalSeconds)*1000 {

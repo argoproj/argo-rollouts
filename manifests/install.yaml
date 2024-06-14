@@ -198,6 +198,10 @@ spec:
                               - v1
                               - v2
                               type: string
+                            datasources:
+                              additionalProperties:
+                                type: string
+                              type: object
                             formula:
                               type: string
                             interval:
@@ -3488,6 +3492,10 @@ spec:
                               - v1
                               - v2
                               type: string
+                            datasources:
+                              additionalProperties:
+                                type: string
+                              type: object
                             formula:
                               type: string
                             interval:
@@ -6656,6 +6664,10 @@ spec:
                               - v1
                               - v2
                               type: string
+                            datasources:
+                              additionalProperties:
+                                type: string
+                              type: object
                             formula:
                               type: string
                             interval:
