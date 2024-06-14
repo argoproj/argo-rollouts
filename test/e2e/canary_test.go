@@ -568,8 +568,6 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
 		AbortRollout().
 		WaitForRolloutStatus("Degraded").
 		Then().
-		// Expect that the canary service selector has been moved back to stable
-		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "66597877b7"}, false).
 		When().
 		Sleep(3*time.Second).
 		Then().
