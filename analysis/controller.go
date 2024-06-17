@@ -5,6 +5,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/metric"
+	jobProvider "github.com/argoproj/argo-rollouts/metricproviders/job"
+	"github.com/aws/smithy-go/ptr"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
 	log "github.com/sirupsen/logrus"
@@ -29,6 +35,10 @@ import (
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
+var (
+	analysisRunGVK = v1alpha1.SchemeGroupVersion.WithKind("AnalysisRun")
+)
+
 // Controller is the controller implementation for Analysis resources
 type Controller struct {
 	// kubeclientset is a standard kubernetes clientset
@@ -44,11 +54,11 @@ type Controller struct {
 
 	metricsServer *metrics.MetricsServer
 
-	newProvider func(logCtx log.Entry, metric v1alpha1.Metric) (metricproviders.Provider, error)
+	newProvider func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error)
 
 	// used for unit testing
-	enqueueAnalysis      func(obj interface{})
-	enqueueAnalysisAfter func(obj interface{}, duration time.Duration)
+	enqueueAnalysis      func(obj any)
+	enqueueAnalysisAfter func(obj any, duration time.Duration)
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -89,10 +99,10 @@ func NewController(cfg ControllerConfig) *Controller {
 		resyncPeriod:         cfg.ResyncPeriod,
 	}
 
-	controller.enqueueAnalysis = func(obj interface{}) {
+	controller.enqueueAnalysis = func(obj any) {
 		controllerutil.Enqueue(obj, cfg.AnalysisRunWorkQueue)
 	}
-	controller.enqueueAnalysisAfter = func(obj interface{}, duration time.Duration) {
+	controller.enqueueAnalysisAfter = func(obj any, duration time.Duration) {
 		controllerutil.EnqueueAfter(obj, duration, cfg.AnalysisRunWorkQueue)
 	}
 
@@ -103,14 +113,14 @@ func NewController(cfg ControllerConfig) *Controller {
 	controller.newProvider = providerFactory.NewProvider
 
 	cfg.JobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			controller.enqueueIfCompleted(obj)
+		AddFunc: func(obj any) {
+			controller.enqueueJobIfCompleted(obj)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			controller.enqueueIfCompleted(newObj)
+		UpdateFunc: func(oldObj, newObj any) {
+			controller.enqueueJobIfCompleted(newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
-			controller.enqueueIfCompleted(obj)
+		DeleteFunc: func(obj any) {
+			controller.enqueueJobIfCompleted(obj)
 		},
 	})
 
@@ -118,10 +128,10 @@ func NewController(cfg ControllerConfig) *Controller {
 	// Set up an event handler for when analysis resources change
 	cfg.AnalysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueAnalysis,
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			controller.enqueueAnalysis(new)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controller.enqueueAnalysis(obj)
 			if ar := unstructuredutil.ObjectToAnalysisRun(obj); ar != nil {
 				logCtx := logutil.WithAnalysisRun(ar)
@@ -184,7 +194,35 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	return c.persistAnalysisRunStatus(run, newRun.Status)
 }
 
-func (c *Controller) enqueueIfCompleted(obj interface{}) {
+func (c *Controller) jobParentReference(obj any) (*v1.OwnerReference, string) {
+	job, ok := obj.(*batchv1.Job)
+	if !ok {
+		return nil, ""
+	}
+	// if it has owner reference, return it as is
+	ownerRef := v1.GetControllerOf(job)
+	// else if it's missing owner reference check if analysis run uid is set and
+	// if it is there use labels/annotations to create owner reference
+	if ownerRef == nil && job.Labels[jobProvider.AnalysisRunUIDLabelKey] != "" {
+		ownerRef = &v1.OwnerReference{
+			APIVersion:         analysisRunGVK.GroupVersion().String(),
+			Kind:               analysisRunGVK.Kind,
+			Name:               job.Annotations[jobProvider.AnalysisRunNameAnnotationKey],
+			UID:                types.UID(job.Labels[jobProvider.AnalysisRunUIDLabelKey]),
+			BlockOwnerDeletion: ptr.Bool(true),
+			Controller:         ptr.Bool(true),
+		}
+	}
+	ns := job.GetNamespace()
+	if job.Annotations != nil {
+		if job.Annotations[jobProvider.AnalysisRunNamespaceAnnotationKey] != "" {
+			ns = job.Annotations[jobProvider.AnalysisRunNamespaceAnnotationKey]
+		}
+	}
+	return ownerRef, ns
+}
+
+func (c *Controller) enqueueJobIfCompleted(obj any) {
 	job, ok := obj.(*batchv1.Job)
 	if !ok {
 		return
@@ -192,7 +230,7 @@ func (c *Controller) enqueueIfCompleted(obj interface{}) {
 	for _, condition := range job.Status.Conditions {
 		switch condition.Type {
 		case batchv1.JobFailed, batchv1.JobComplete:
-			controllerutil.EnqueueParentObject(job, register.AnalysisRunKind, c.enqueueAnalysis)
+			controllerutil.EnqueueParentObject(job, register.AnalysisRunKind, c.enqueueAnalysis, c.jobParentReference)
 			return
 		}
 	}

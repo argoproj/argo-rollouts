@@ -256,7 +256,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		assert.Equal(t, "rollout is restarting", message)
 	}
 	{
-		//Rollout observed workload generation is not updated
+		// Rollout observed workload generation is not updated
 		ro := newCanaryRollout()
 		ro.Spec.TemplateResolvedFromRef = true
 		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
@@ -330,7 +330,7 @@ func TestRolloutStatusHealthy(t *testing.T) {
 		assert.Equal(t, "", message)
 	}
 	{
-		//Rollout observed workload generation is updated
+		// Rollout observed workload generation is updated
 		ro := newCanaryRollout()
 		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
 		ro.Status.Replicas = 5
@@ -422,13 +422,80 @@ func TestShouldVerifyWeight(t *testing.T) {
 	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
 		SetWeight: pointer.Int32Ptr(20),
 	}}
-	assert.Equal(t, true, ShouldVerifyWeight(ro))
+	assert.Equal(t, true, ShouldVerifyWeight(ro, 20))
 
 	ro.Status.StableRS = ""
-	assert.Equal(t, false, ShouldVerifyWeight(ro))
+	assert.Equal(t, false, ShouldVerifyWeight(ro, 20))
 
 	ro.Status.StableRS = "34feab23f"
 	ro.Status.CurrentStepIndex = nil
 	ro.Spec.Strategy.Canary.Steps = nil
-	assert.Equal(t, false, ShouldVerifyWeight(ro))
+	assert.Equal(t, false, ShouldVerifyWeight(ro, 20))
+
+	// Test when the weight is 100, because we are at end of rollout
+	ro.Status.StableRS = "34feab23f"
+	ro.Status.CurrentStepIndex = nil
+	ro.Spec.Strategy.Canary.Steps = nil
+	assert.Equal(t, true, ShouldVerifyWeight(ro, 100))
+}
+
+func Test_isGenerationObserved(t *testing.T) {
+	tests := []struct {
+		name string
+		ro   *v1alpha1.Rollout
+		want bool
+	}{
+		{
+			name: "test parse generation failed",
+			ro: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "invalid",
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test status.generation more than spec.generation",
+			ro: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Generation: 9,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test status.generation equal to spec.generation",
+			ro: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Generation: 10,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test status.generation less than spec.generation",
+			ro: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Generation: 11,
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isGenerationObserved(tt.ro); got != tt.want {
+				t.Errorf("isGenerationObserved() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

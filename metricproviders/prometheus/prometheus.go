@@ -2,16 +2,23 @@ package prometheus
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/sigv4"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
@@ -30,8 +37,9 @@ const (
 
 // Provider contains all the required components to run a prometheus query
 type Provider struct {
-	api    v1.API
-	logCtx log.Entry
+	api     v1.API
+	logCtx  log.Entry
+	timeout time.Duration
 }
 
 // Type indicates provider is a prometheus provider
@@ -55,8 +63,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	//TODO(dthomson) make timeout configurable
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
 	defer cancel()
 
 	response, warnings, err := p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
@@ -135,16 +142,31 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 }
 
 // NewPrometheusProvider Creates a new Prometheus client
-func NewPrometheusProvider(api v1.API, logCtx log.Entry) *Provider {
-	return &Provider{
+func NewPrometheusProvider(api v1.API, logCtx log.Entry, metric v1alpha1.Metric) (*Provider, error) {
+	provider := &Provider{
 		logCtx: logCtx,
 		api:    api,
 	}
+
+	if metric.Provider.Prometheus == nil || metric.Provider.Prometheus.Timeout == nil {
+		provider.timeout = 30 * time.Second
+		return provider, nil
+	}
+
+	metricTimeout := metric.Provider.Prometheus.Timeout
+
+	if *metricTimeout < 0 {
+		return nil, errors.New("prometheus timeout should not be negative")
+	}
+
+	provider.timeout = time.Duration(*metricTimeout * int64(time.Second))
+	return provider, nil
 }
 
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	envValuesByKey := make(map[string]string)
+
 	if value, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsPrometheusAddress)); ok {
 		envValuesByKey[EnvVarArgoRolloutsPrometheusAddress] = value
 		log.Debugf("ARGO_ROLLOUTS_PROMETHEUS_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsPrometheusAddress])
@@ -162,13 +184,72 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	} else {
 		return nil, errors.New("prometheus address is not configured")
 	}
-	client, err := api.NewClient(api.Config{
+
+	var roundTripper http.RoundTripper
+
+	roundTripper = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: metric.Provider.Prometheus.Insecure},
+	}
+
+	// attach custom headers to api requests, if specified
+	customHeaders := metric.Provider.Prometheus.Headers
+	if len(customHeaders) > 0 {
+		roundTripper = httpHeadersRoundTripper{
+			headers:      customHeaders,
+			roundTripper: roundTripper,
+		}
+	}
+
+	//Check if using Amazon Managed Prometheus if true build sigv4 client
+	if strings.Contains(metric.Provider.Prometheus.Address, "aps-workspaces") && (v1alpha1.Sigv4Config{}) != metric.Provider.Prometheus.Authentication.Sigv4 {
+		cfg := sigv4.SigV4Config{
+			Region:  metric.Provider.Prometheus.Authentication.Sigv4.Region,
+			Profile: metric.Provider.Prometheus.Authentication.Sigv4.Profile,
+			RoleARN: metric.Provider.Prometheus.Authentication.Sigv4.RoleARN,
+		}
+		sigv4RoundTripper, err := sigv4.NewSigV4RoundTripper(&cfg, roundTripper)
+		if err != nil {
+			log.Errorf("Error creating SigV4 RoundTripper: %v", err)
+			return nil, err
+		}
+		roundTripper = sigv4RoundTripper
+	}
+
+	httpClient := &http.Client{
+		Transport: roundTripper,
+	}
+
+	if metric.Provider.Prometheus.Authentication.OAuth2.TokenURL != "" {
+		if metric.Provider.Prometheus.Authentication.OAuth2.ClientID == "" || metric.Provider.Prometheus.Authentication.OAuth2.ClientSecret == "" {
+			return nil, errors.New("missing mandatory parameter in metric for OAuth2 setup")
+		}
+		oauthCfg := &clientcredentials.Config{
+			ClientID:     metric.Provider.Prometheus.Authentication.OAuth2.ClientID,
+			ClientSecret: metric.Provider.Prometheus.Authentication.OAuth2.ClientSecret,
+			TokenURL:     metric.Provider.Prometheus.Authentication.OAuth2.TokenURL,
+			Scopes:       metric.Provider.Prometheus.Authentication.OAuth2.Scopes,
+		}
+		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)
+		httpClient = oauthCfg.Client(ctx)
+	}
+
+	prometheusApiConfig := api.Config{
 		Address: metric.Provider.Prometheus.Address,
-	})
+		Client:  httpClient,
+	}
+
+	client, err := api.NewClient(prometheusApiConfig)
 	if err != nil {
 		log.Errorf("Error in getting prometheus client: %v", err)
 		return nil, err
 	}
+
 	return v1.NewAPI(client), nil
 }
 

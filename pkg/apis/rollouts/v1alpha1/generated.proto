@@ -1,6 +1,4 @@
 /*
-Copyright 2023 The Kubernetes sample-controller Authors.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -37,6 +35,8 @@ message ALBStatus {
   optional AwsResourceRef canaryTargetGroup = 2;
 
   optional AwsResourceRef stableTargetGroup = 3;
+
+  optional string ingress = 4;
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
@@ -50,13 +50,17 @@ message ALBTrafficRouting {
   // RootService references the service in the ingress to the controller should add the action to
   optional string rootService = 3;
 
-  // AdditionalForwardConfig allows to specify further settings on the ForwaredConfig
-  // +optional
-  optional StickinessConfig stickinessConfig = 5;
-
   // AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller
   // +optional
   optional string annotationPrefix = 4;
+
+  // StickinessConfig refers to the duration-based stickiness of the target groups associated with an `Ingress`
+  // +optional
+  optional StickinessConfig stickinessConfig = 5;
+
+  // Ingresses refers to the name of an `Ingress` resource in the same namespace as the `Rollout` in a multi ingress scenario
+  // +optional
+  repeated string ingresses = 6;
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
@@ -101,6 +105,17 @@ message AnalysisRunList {
   repeated AnalysisRun items = 2;
 }
 
+// AnalysisRunMetadata extra labels to add to the AnalysisRun
+message AnalysisRunMetadata {
+  // Labels Additional labels to add to the AnalysisRun
+  // +optional
+  map<string, string> labels = 1;
+
+  // Annotations additional annotations to add to the AnalysisRun
+  // +optional
+  map<string, string> annotations = 2;
+}
+
 // AnalysisRunSpec is the spec for a AnalysisRun resource
 message AnalysisRunSpec {
   // Metrics contains the list of metrics to query as part of an analysis run
@@ -128,6 +143,10 @@ message AnalysisRunSpec {
   // +patchStrategy=merge
   // +optional
   repeated MeasurementRetention measurementRetention = 5;
+
+  // TTLStrategy object contains the strategy for the time to live depending on if the analysis succeeded or failed
+  // +optional
+  optional TTLStrategy ttlStrategy = 6;
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource
@@ -149,6 +168,9 @@ message AnalysisRunStatus {
 
   // DryRunSummary contains the final results from the metric executions in the dry-run mode
   optional RunSummary dryRunSummary = 6;
+
+  // CompletedAt indicates when the analysisRun completed
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time completedAt = 7;
 }
 
 // AnalysisRunStrategy configuration for the analysis runs and experiments to retain
@@ -180,6 +202,16 @@ message AnalysisTemplateList {
   repeated AnalysisTemplate items = 2;
 }
 
+message AnalysisTemplateRef {
+  // TemplateName name of template to use in AnalysisRun
+  // +optional
+  optional string templateName = 1;
+
+  // Whether to look for the templateName at cluster scope or namespace scope
+  // +optional
+  optional bool clusterScope = 2;
+}
+
 // AnalysisTemplateSpec is the specification for a AnalysisTemplate resource
 message AnalysisTemplateSpec {
   // Metrics contains the list of metrics to query as part of an analysis run
@@ -204,6 +236,11 @@ message AnalysisTemplateSpec {
   // +patchStrategy=merge
   // +optional
   repeated MeasurementRetention measurementRetention = 4;
+
+  // Templates reference to a list of analysis templates to combine with the rest of the metrics for an AnalysisRun
+  // +patchMergeKey=templateName
+  // +patchStrategy=merge
+  repeated AnalysisTemplateRef templates = 5;
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection
@@ -286,10 +323,25 @@ message ArgumentValueFrom {
   optional FieldRef fieldRef = 2;
 }
 
+// Authentication method
+message Authentication {
+  // Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
+  // +optional
+  optional Sigv4Config sigv4 = 1;
+
+  // OAuth2 config
+  // +optional
+  optional OAuth2Config oauth2 = 2;
+}
+
 message AwsResourceRef {
   optional string name = 1;
 
   optional string arn = 2;
+
+  // FullName is the full name of the resource
+  // +optional
+  optional string fullName = 3;
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
@@ -585,9 +637,28 @@ message ClusterAnalysisTemplateList {
 }
 
 message DatadogMetric {
+  // +kubebuilder:default="5m"
+  // Interval refers to the Interval time window in Datadog (default: 5m). Not to be confused with the polling rate for the metric.
   optional string interval = 1;
 
   optional string query = 2;
+
+  // Queries is a map of query_name_as_key: query. You can then use query_name_as_key inside Formula.Used for v2
+  // +kubebuilder:validation:Type=object
+  map<string, string> queries = 3;
+
+  // Formula refers to the Formula made up of the queries. Only useful with Queries. Used for v2
+  optional string formula = 4;
+
+  // ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.
+  // +kubebuilder:validation:Enum=v1;v2
+  // +kubebuilder:default=v1
+  optional string apiVersion = 5;
+
+  // +kubebuilder:default="last"
+  // +kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area
+  // Aggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2
+  optional string aggregator = 6;
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.
@@ -721,6 +792,10 @@ message ExperimentSpec {
   // +patchStrategy=merge
   // +optional
   repeated MeasurementRetention measurementRetention = 8;
+
+  // AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+  // +optional
+  optional AnalysisRunMetadata analysisRunMetadata = 9;
 }
 
 // ExperimentStatus is the status for a Experiment resource
@@ -976,6 +1051,15 @@ message MetricProvider {
 
   // Influxdb specifies the influxdb metric to query
   optional InfluxdbMetric influxdb = 10;
+
+  // SkyWalking specifies the skywalking metric to query
+  optional SkyWalkingMetric skywalking = 11;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // Plugin specifies the hashicorp go-plugin metric to query
+  map<string, bytes> plugin = 12;
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with
@@ -1042,6 +1126,25 @@ message NginxTrafficRouting {
 
   // +optional
   map<string, string> additionalIngressAnnotations = 3;
+
+  // StableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario
+  // +optional
+  repeated string stableIngresses = 4;
+}
+
+message OAuth2Config {
+  // OAuth2 provider token URL
+  optional string tokenUrl = 1;
+
+  // OAuth2 client ID
+  optional string clientId = 2;
+
+  // OAuth2 client secret
+  optional string clientSecret = 3;
+
+  // OAuth2 scopes
+  // +optional
+  repeated string scopes = 4;
 }
 
 // ObjectRef holds a references to the Kubernetes object
@@ -1054,6 +1157,9 @@ message ObjectRef {
 
   // Name of the referent
   optional string name = 3;
+
+  // Automatically scale down deployment
+  optional string scaleDown = 4;
 }
 
 // PauseCondition the reason for a pause and when it started
@@ -1096,6 +1202,23 @@ message PrometheusMetric {
 
   // Query is a raw prometheus query to perform
   optional string query = 2;
+
+  // Authentication details
+  // +optional
+  optional Authentication authentication = 3;
+
+  // Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.
+  // +optional
+  optional int64 timeout = 4;
+
+  // Insecure skips host TLS verification
+  optional bool insecure = 5;
+
+  // Headers are optional HTTP headers to use in the request
+  // +optional
+  // +patchMergeKey=key
+  // +patchStrategy=merge
+  repeated WebMetricHeader headers = 6;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
@@ -1118,7 +1241,9 @@ message Rollout {
 // RolloutAnalysis defines a template that is used to create a analysisRun
 message RolloutAnalysis {
   // Templates reference to a list of analysis templates to combine for an AnalysisRun
-  repeated RolloutAnalysisTemplate templates = 1;
+  // +patchMergeKey=templateName
+  // +patchStrategy=merge
+  repeated AnalysisTemplateRef templates = 1;
 
   // Args the arguments that will be added to the AnalysisRuns
   // +patchMergeKey=name
@@ -1136,6 +1261,10 @@ message RolloutAnalysis {
   // +patchStrategy=merge
   // +optional
   repeated MeasurementRetention measurementRetention = 4;
+
+  // AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+  // +optional
+  optional AnalysisRunMetadata analysisRunMetadata = 5;
 }
 
 // RolloutAnalysisBackground defines a template that is used to create a background analysisRun
@@ -1153,16 +1282,6 @@ message RolloutAnalysisRunStatus {
   optional string status = 2;
 
   optional string message = 3;
-}
-
-message RolloutAnalysisTemplate {
-  // TemplateName name of template to use in AnalysisRun
-  // +optional
-  optional string templateName = 1;
-
-  // Whether to look for the templateName at cluster scope or namespace scope
-  // +optional
-  optional bool clusterScope = 2;
 }
 
 // RolloutCondition describes the state of a rollout at a certain point.
@@ -1201,6 +1320,16 @@ message RolloutExperimentStep {
   // +patchMergeKey=name
   // +patchStrategy=merge
   repeated RolloutExperimentStepAnalysisTemplateRef analyses = 3;
+
+  // DryRun object contains the settings for running the analysis in Dry-Run mode
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated DryRun dryRun = 4;
+
+  // AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+  // +optional
+  optional AnalysisRunMetadata analysisRunMetadata = 5;
 }
 
 message RolloutExperimentStepAnalysisTemplateRef {
@@ -1246,6 +1375,9 @@ message RolloutExperimentTemplate {
 
   // Weight sets the percentage of traffic the template's replicas should receive
   optional int32 weight = 6;
+
+  // Service controls the optionally generated service
+  optional TemplateService service = 7;
 }
 
 // RolloutList is a list of Rollout resources
@@ -1430,6 +1562,9 @@ message RolloutStatus {
 
   // / ALB keeps information regarding the ALB and TargetGroups
   optional ALBStatus alb = 25;
+
+  // / ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario
+  repeated ALBStatus albs = 26;
 }
 
 // RolloutStrategy defines strategy to apply during next rollout
@@ -1464,12 +1599,21 @@ message RolloutTrafficRouting {
   // Traefik holds specific configuration to use Traefik to route traffic
   optional TraefikTrafficRouting traefik = 7;
 
-  // A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
+  // ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
   // traffic router.
   repeated MangedRoutes managedRoutes = 8;
 
   // Apisix holds specific configuration to use Apisix to route traffic
   optional ApisixTrafficRouting apisix = 9;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // Plugins holds specific configuration that traffic router plugins can use for routing traffic
+  map<string, bytes> plugins = 10;
+
+  // MaxTrafficWeight The total weight of traffic. If unspecified, it defaults to 100
+  optional int32 maxTrafficWeight = 11;
 }
 
 message RouteMatch {
@@ -1574,6 +1718,25 @@ message SetMirrorRoute {
   optional int32 percentage = 4;
 }
 
+message Sigv4Config {
+  // Region is the AWS Region to sign the SigV4 Request
+  optional string address = 1;
+
+  // Profile is the Credential Profile used to sign the SigV4 Request
+  optional string profile = 2;
+
+  // RoleARN is the IAM role used to sign the SIgV4 Request
+  optional string roleArn = 3;
+}
+
+message SkyWalkingMetric {
+  optional string address = 1;
+
+  optional string query = 2;
+
+  optional string interval = 3;
+}
+
 message StickinessConfig {
   optional bool enabled = 1;
 
@@ -1607,7 +1770,21 @@ message TLSRoute {
   repeated string sniHosts = 2;
 }
 
+// TTLStrategy defines the strategy for the time to live depending on if the analysis succeeded or failed
+message TTLStrategy {
+  // SecondsAfterCompletion is the number of seconds to live after completion.
+  optional int32 secondsAfterCompletion = 1;
+
+  // SecondsAfterFailure is the number of seconds to live after failure.
+  optional int32 secondsAfterFailure = 2;
+
+  // SecondsAfterSuccess is the number of seconds to live after success.
+  optional int32 secondsAfterSuccess = 3;
+}
+
 message TemplateService {
+  // Name of the service generated by the experiment
+  optional string name = 1;
 }
 
 message TemplateSpec {
@@ -1748,6 +1925,10 @@ message WebMetric {
   // +kubebuilder:validation:Type=object
   // JSONBody is the body of the web metric in a json format (method must be POST/PUT)
   optional bytes jsonBody = 8;
+
+  // Authentication details
+  // +optional
+  optional Authentication authentication = 9;
 }
 
 message WebMetricHeader {

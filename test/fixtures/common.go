@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -15,7 +14,6 @@ import (
 
 	a6util "github.com/argoproj/argo-rollouts/utils/apisix"
 
-	"github.com/ghodss/yaml"
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	"github.com/sirupsen/logrus"
@@ -32,6 +30,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -72,11 +71,19 @@ func (c *Common) CheckError(err error) {
 	}
 }
 
+// Rollout returns the original rollout manifest used in the test
 func (c *Common) Rollout() *rov1.Rollout {
 	var ro rov1.Rollout
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(c.rollout.Object, &ro)
 	c.CheckError(err)
 	return &ro
+}
+
+// GetRollout returns the live rollout object in the cluster
+func (c *Common) GetRollout() *rov1.Rollout {
+	ro, err := c.rolloutClient.ArgoprojV1alpha1().Rollouts(c.namespace).Get(context.TODO(), c.Rollout().GetName(), metav1.GetOptions{})
+	c.CheckError(err)
+	return ro
 }
 
 func (c *Common) PrintRollout(name string) {
@@ -207,7 +214,7 @@ func (c *Common) MarkPodsReady(revision string, quantity int) int {
 				}
 				time.Sleep(500 * time.Millisecond)
 			}
-			//c.log.Infof("Conditions: %v", pod.Status.Conditions)
+			// c.log.Infof("Conditions: %v", pod.Status.Conditions)
 			marked += 1
 		}
 	}
@@ -446,7 +453,7 @@ func (c *Common) yamlBytes(text string) []byte {
 	var err error
 	if strings.HasPrefix(text, "@") {
 		file := strings.TrimPrefix(text, "@")
-		yamlBytes, err = ioutil.ReadFile(file)
+		yamlBytes, err = os.ReadFile(file)
 		c.CheckError(err)
 	} else {
 		yamlBytes = []byte(text)
@@ -537,6 +544,18 @@ func (c *Common) GetALBIngress() *networkingv1.Ingress {
 	return ingress
 }
 
+func (c *Common) GetALBIngresses() []*networkingv1.Ingress {
+	ro := c.Rollout()
+	names := ro.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses
+	ingresses := []*networkingv1.Ingress{}
+	for _, name := range names {
+		ingress, err := c.kubeClient.NetworkingV1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+		c.CheckError(err)
+		ingresses = append(ingresses, ingress)
+	}
+	return ingresses
+}
+
 func (c *Common) GetNginxIngressStable() *networkingv1.Ingress {
 	ro := c.Rollout()
 	name := ro.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
@@ -581,6 +600,21 @@ func (c *Common) GetApisixRoute() *unstructured.Unstructured {
 	a6Route, err := dyClient.Get(ctx, name, metav1.GetOptions{})
 	c.CheckError(err)
 	return a6Route
+}
+
+func (c *Common) GetApisixSetHeaderRoute() *unstructured.Unstructured {
+	ctx := context.TODO()
+	rollout, err := c.rolloutClient.ArgoprojV1alpha1().Rollouts(c.Rollout().GetNamespace()).Get(ctx, c.Rollout().GetName(), metav1.GetOptions{})
+	c.CheckError(err)
+	dyClient := a6util.NewDynamicClient(c.dynamicClient, c.Rollout().GetNamespace())
+	index := *rollout.Status.CurrentStepIndex
+	if step := rollout.Spec.Strategy.Canary.Steps[index]; step.SetHeaderRoute != nil {
+		name := step.SetHeaderRoute.Name
+		a6Route, err := dyClient.Get(ctx, name, metav1.GetOptions{})
+		c.CheckError(err)
+		return a6Route
+	}
+	return nil
 }
 
 func (c *Common) GetAppMeshVirtualRouter() *unstructured.Unstructured {

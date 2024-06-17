@@ -35,10 +35,10 @@ var (
 	ErrorTraefikServiceObj *unstructured.Unstructured
 )
 
-func (f *FakeRecorder) Eventf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...interface{}) {
+func (f *FakeRecorder) Eventf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...any) {
 }
 
-func (f *FakeRecorder) Warnf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...interface{}) {
+func (f *FakeRecorder) Warnf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...any) {
 }
 
 func (f *FakeRecorder) K8sRecorder() record.EventRecorder {
@@ -96,4 +96,12 @@ func (f *FakeClient) Namespace(string) dynamic.ResourceInterface {
 
 func (f *FakeDynamicClient) Resource(schema.GroupVersionResource) dynamic.NamespaceableResourceInterface {
 	return &FakeClient{}
+}
+
+func (f *FakeClient) Apply(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	return nil, nil
+}
+
+func (f *FakeClient) ApplyStatus(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions) (*unstructured.Unstructured, error) {
+	return nil, nil
 }

@@ -4,17 +4,20 @@ import (
 	"encoding/json"
 	"math"
 
+	"github.com/argoproj/argo-rollouts/utils/annotations"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
 const (
-	// EphemeralMetadataAnnotation denotes pod metadata which are ephemerally injected to canary/stable pods
-	EphemeralMetadataAnnotation = "rollout.argoproj.io/ephemeral-metadata"
+	// EphemeralMetadataAnnotation denotes pod metadata which is ephemerally injected to canary/stable pods
+	EphemeralMetadataAnnotation = annotations.RolloutLabel + "/ephemeral-metadata"
 )
 
 func allDesiredAreAvailable(rs *appsv1.ReplicaSet, desired int32) bool {
@@ -41,8 +44,13 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 			return false
 		}
 	}
-	if GetAvailableReplicaCountForReplicaSets(olderRSs) != int32(0) {
-		return false
+	if ro.Spec.Strategy.Canary.TrafficRouting == nil {
+		// For basic canary, all older ReplicaSets must be scaled to zero since they serve traffic.
+		// For traffic weighted canary, it's okay if they are still scaled up, since the traffic
+		// router will prevent them from serving traffic
+		if GetAvailableReplicaCountForReplicaSets(olderRSs) != int32(0) {
+			return false
+		}
 	}
 	return true
 }
@@ -51,11 +59,12 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 // when using the basic canary strategy. The function calculates the desired number of replicas for
 // the new and stable RS using the following equations:
 //
-// newRS Replica count = spec.Replica * (setweight / 100)
-// stableRS Replica count = spec.Replica * (1 - setweight / 100)
+// desired newRS Replica count = spec.Replica * (setweight / maxweight)
+// desired stableRS Replica count = spec.Replica - newRS
 //
-// In both equations, the function rounds the desired replica count up if the math does not divide into whole numbers
-// because the rollout guarantees at least one replica for both the stable and new RS when the setWeight is not 0 or 100.
+// The function for newRS finds the closest whole number of replicas based on the weight percentage
+// and rounds up the desired replica count in case of a tie.
+//
 // Then, the function finds the number of replicas it can scale up using the following equation:
 //
 // scaleUpCount := (maxSurge + rollout.Spec.Replica) - sum of rollout's RSs spec.Replica
@@ -86,8 +95,9 @@ func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *apps
 	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	_, desiredWeight := GetCanaryReplicasOrWeight(rollout)
 	maxSurge := MaxSurge(rollout)
+	maxWeight := weightutil.MaxTrafficWeight(rollout)
 
-	desiredNewRSReplicaCount, desiredStableRSReplicaCount := approximateWeightedCanaryStableReplicaCounts(rolloutSpecReplica, desiredWeight, maxSurge)
+	desiredNewRSReplicaCount, desiredStableRSReplicaCount := approximateWeightedCanaryStableReplicaCounts(rolloutSpecReplica, desiredWeight, maxWeight, maxSurge)
 
 	stableRSReplicaCount := int32(0)
 	newRSReplicaCount := int32(0)
@@ -175,7 +185,7 @@ func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *apps
 // canary/stable replica counts might sum to either spec.replicas or spec.replicas + 1 but will not
 // exceed spec.replicas if maxSurge is 0. If the canary weight is between 1-99, and spec.replicas is > 1,
 // we will always return a minimum of 1 for stable and canary as to not return 0.
-func approximateWeightedCanaryStableReplicaCounts(specReplicas, desiredWeight, maxSurge int32) (int32, int32) {
+func approximateWeightedCanaryStableReplicaCounts(specReplicas, desiredWeight, maxWeight, maxSurge int32) (int32, int32) {
 	if specReplicas == 0 {
 		return 0, 0
 	}
@@ -187,14 +197,14 @@ func approximateWeightedCanaryStableReplicaCounts(specReplicas, desiredWeight, m
 	}
 	var options []canaryOption
 
-	ceilWeightedCanaryCount := int32(math.Ceil(float64(specReplicas*desiredWeight) / 100.0))
-	floorWeightedCanaryCount := int32(math.Floor(float64(specReplicas*desiredWeight) / 100.0))
+	ceilWeightedCanaryCount := int32(math.Ceil(float64(specReplicas*desiredWeight) / float64(maxWeight)))
+	floorWeightedCanaryCount := int32(math.Floor(float64(specReplicas*desiredWeight) / float64(maxWeight)))
 
-	tied := floorCeilingTied(desiredWeight, specReplicas)
+	tied := floorCeilingTied(desiredWeight, maxWeight, specReplicas)
 
 	// zeroAllowed indicates if are allowed to return the floored value if it is zero. We don't allow
 	// the value to be zero if when user has a weight from 1-99, and they run 2+ replicas (surge included)
-	zeroAllowed := desiredWeight == 100 || desiredWeight == 0 || (specReplicas == 1 && maxSurge == 0)
+	zeroAllowed := desiredWeight == (maxWeight) || desiredWeight == 0 || (specReplicas == 1 && maxSurge == 0)
 
 	if ceilWeightedCanaryCount < specReplicas || zeroAllowed {
 		options = append(options, canaryOption{ceilWeightedCanaryCount, specReplicas})
@@ -208,7 +218,7 @@ func approximateWeightedCanaryStableReplicaCounts(specReplicas, desiredWeight, m
 	// in order to achieve a closer canary weight
 	if maxSurge > 0 {
 		options = append(options, canaryOption{ceilWeightedCanaryCount, specReplicas + 1})
-		surgeIsTied := floorCeilingTied(desiredWeight, specReplicas+1)
+		surgeIsTied := floorCeilingTied(desiredWeight, maxWeight, specReplicas+1)
 		if !surgeIsTied && (floorWeightedCanaryCount != 0 || zeroAllowed) {
 			options = append(options, canaryOption{floorWeightedCanaryCount, specReplicas + 1})
 		}
@@ -220,10 +230,10 @@ func approximateWeightedCanaryStableReplicaCounts(specReplicas, desiredWeight, m
 	}
 
 	bestOption := options[0]
-	bestDelta := weightDelta(desiredWeight, bestOption.canary, bestOption.total)
+	bestDelta := weightDelta(desiredWeight, maxWeight, bestOption.canary, bestOption.total)
 	for i := 1; i < len(options); i++ {
 		currOption := options[i]
-		currDelta := weightDelta(desiredWeight, currOption.canary, currOption.total)
+		currDelta := weightDelta(desiredWeight, maxWeight, currOption.canary, currOption.total)
 		if currDelta < bestDelta {
 			bestOption = currOption
 			bestDelta = currDelta
@@ -236,15 +246,15 @@ func approximateWeightedCanaryStableReplicaCounts(specReplicas, desiredWeight, m
 // For example: replicas: 3, desiredWeight: 50%
 // A canary count of 1 (33.33%) or 2 (66.66%) are both equidistant from desired weight of 50%.
 // When this happens, we will pick the larger canary count
-func floorCeilingTied(desiredWeight, totalReplicas int32) bool {
-	_, frac := math.Modf(float64(totalReplicas) * (float64(desiredWeight) / 100))
+func floorCeilingTied(desiredWeight, maxWeight, totalReplicas int32) bool {
+	_, frac := math.Modf(float64(totalReplicas) * (float64(desiredWeight) / float64(maxWeight)))
 	return frac == 0.5
 }
 
 // weightDelta calculates the difference that the canary replicas will be from the desired weight
 // This is used to pick the closest approximation of canary counts.
-func weightDelta(desiredWeight, canaryReplicas, totalReplicas int32) float64 {
-	actualWeight := float64(canaryReplicas*100) / float64(totalReplicas)
+func weightDelta(desiredWeight, maxWeight, canaryReplicas, totalReplicas int32) float64 {
+	actualWeight := float64(canaryReplicas*maxWeight) / float64(totalReplicas)
 	return math.Abs(actualWeight - float64(desiredWeight))
 }
 
@@ -332,11 +342,12 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 	var canaryCount, stableCount int32
 	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	setCanaryScaleReplicas, desiredWeight := GetCanaryReplicasOrWeight(rollout)
+	maxWeight := weightutil.MaxTrafficWeight(rollout)
 	if setCanaryScaleReplicas != nil {
 		// a canary count was explicitly set
 		canaryCount = *setCanaryScaleReplicas
 	} else {
-		canaryCount = CheckMinPodsPerReplicaSet(rollout, trafficWeightToReplicas(rolloutSpecReplica, desiredWeight))
+		canaryCount = CheckMinPodsPerReplicaSet(rollout, trafficWeightToReplicas(rolloutSpecReplica, desiredWeight, maxWeight))
 	}
 
 	if !rollout.Spec.Strategy.Canary.DynamicStableScale {
@@ -352,9 +363,10 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 	// high, until we reduce traffic to it.
 	// Case 2 occurs when we are going from high to low canary weight. In this scenario,
 	// we need to increase the stable scale in preparation for increase of traffic to stable.
-	stableCount = trafficWeightToReplicas(rolloutSpecReplica, 100-desiredWeight)
+	// TODO calculate the replica set count from the max traffic weight.
+	stableCount = trafficWeightToReplicas(rolloutSpecReplica, maxWeight-desiredWeight, maxWeight)
 	if weights != nil {
-		actualStableWeightReplicaCount := trafficWeightToReplicas(rolloutSpecReplica, weights.Stable.Weight)
+		actualStableWeightReplicaCount := trafficWeightToReplicas(rolloutSpecReplica, weights.Stable.Weight, maxWeight)
 		stableCount = max(stableCount, actualStableWeightReplicaCount)
 
 		if rollout.Status.Abort {
@@ -363,7 +375,7 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 			//  1. actual canary traffic weight
 			//  2. desired canary traffic weight
 			// This if block makes sure we don't scale down the canary prematurely
-			trafficWeightReplicaCount := trafficWeightToReplicas(rolloutSpecReplica, weights.Canary.Weight)
+			trafficWeightReplicaCount := trafficWeightToReplicas(rolloutSpecReplica, weights.Canary.Weight, maxWeight)
 			canaryCount = max(trafficWeightReplicaCount, canaryCount)
 		}
 	}
@@ -372,8 +384,8 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 
 // trafficWeightToReplicas returns the appropriate replicas given the full spec.replicas and a weight
 // Rounds up if not evenly divisible.
-func trafficWeightToReplicas(replicas, weight int32) int32 {
-	return int32(math.Ceil(float64(weight*replicas) / 100))
+func trafficWeightToReplicas(replicas, weight, maxWeight int32) int32 {
+	return int32(math.Ceil(float64(weight) * float64(replicas) / float64(maxWeight)))
 }
 
 func max(left, right int32) int32 {
@@ -425,8 +437,8 @@ func GetReplicasForScaleDown(rs *appsv1.ReplicaSet, ignoreAvailability bool) int
 		// The ReplicaSet is already going to scale down replicas since the availableReplica count is bigger
 		// than the spec count. The controller uses the .Spec.Replicas to prevent the controller from
 		// assuming the extra replicas (availableReplica - .Spec.Replicas) are going to remain available.
-		// Otherwise, the controller use those extra replicas to scale down more replicas and potentially
-		// violate the min available.
+		// Otherwise, the controller uses those extra replicas to scale down more replicas and potentially
+		// violates the min available.
 		return *rs.Spec.Replicas
 	}
 	if ignoreAvailability {
@@ -454,7 +466,7 @@ func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int
 // GetCanaryReplicasOrWeight either returns a static set of replicas or a weight percentage
 func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout) (*int32, int32) {
 	if rollout.Status.PromoteFull || rollout.Status.StableRS == "" || rollout.Status.CurrentPodHash == rollout.Status.StableRS {
-		return nil, 100
+		return nil, weightutil.MaxTrafficWeight(rollout)
 	}
 	if scs := UseSetCanaryScale(rollout); scs != nil {
 		if scs.Replicas != nil {
@@ -475,7 +487,7 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 	}
 	currentStep, currentStepIndex := GetCurrentCanaryStep(rollout)
 	if currentStep == nil {
-		return 100
+		return weightutil.MaxTrafficWeight(rollout)
 	}
 
 	for i := *currentStepIndex; i >= 0; i-- {

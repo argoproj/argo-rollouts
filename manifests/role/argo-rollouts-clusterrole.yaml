@@ -135,6 +135,7 @@ rules:
   - get
   - list
   - watch
+  - update
   - patch
 # job access needed for analysis template job metrics
 - apiGroups:
@@ -223,6 +224,7 @@ rules:
   - patch
 - apiGroups:
   - traefik.containo.us
+  - traefik.io
   resources:
   - traefikservices
   verbs:

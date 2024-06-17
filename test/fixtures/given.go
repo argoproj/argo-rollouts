@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -44,7 +44,7 @@ func (g *Given) SetSteps(text string) *Given {
 	steps := make([]rov1.CanaryStep, 0)
 	err := yaml.Unmarshal([]byte(text), &steps)
 	g.CheckError(err)
-	var stepsUn []interface{}
+	var stepsUn []any
 	for _, step := range steps {
 		stepUn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&step)
 		g.CheckError(err)

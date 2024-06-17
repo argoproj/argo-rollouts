@@ -1,14 +1,14 @@
 ####################################################################################################
 # argo-rollouts-dev
 ####################################################################################################
-FROM golang:1.19 as builder
+FROM golang:1.20 as builder
 
 RUN apt-get update && apt-get install -y \
     ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-FROM scratch    
+FROM gcr.io/distroless/static-debian11
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY rollouts-controller-linux-amd64 /bin/rollouts-controller

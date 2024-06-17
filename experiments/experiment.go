@@ -46,7 +46,7 @@ type experimentContext struct {
 	replicaSetLister              appslisters.ReplicaSetLister
 	serviceLister                 v1.ServiceLister
 	recorder                      record.EventRecorder
-	enqueueExperimentAfter        func(obj interface{}, duration time.Duration)
+	enqueueExperimentAfter        func(obj any, duration time.Duration)
 	resyncPeriod                  time.Duration
 
 	// calculated values during reconciliation
@@ -70,7 +70,7 @@ func newExperimentContext(
 	serviceLister v1.ServiceLister,
 	recorder record.EventRecorder,
 	resyncPeriod time.Duration,
-	enqueueExperimentAfter func(obj interface{}, duration time.Duration),
+	enqueueExperimentAfter func(obj any, duration time.Duration),
 ) *experimentContext {
 
 	exCtx := experimentContext{
@@ -101,7 +101,7 @@ func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
 	}
 
 	for _, analysis := range ec.ex.Spec.Analyses {
-		ec.reconcileAnalysisRun(analysis, ec.ex.Spec.DryRun, ec.ex.Spec.MeasurementRetention)
+		ec.reconcileAnalysisRun(analysis, ec.ex.Spec.DryRun, ec.ex.Spec.MeasurementRetention, &ec.ex.Spec.AnalysisRunMetadata)
 	}
 
 	newStatus := ec.calculateStatus()
@@ -294,14 +294,21 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 				Port:       port.ContainerPort,
 				TargetPort: intstr.FromInt(int(port.ContainerPort)),
 			}
+			if port.Name != "" {
+				servicePort.Name = port.Name
+			}
 			ports = append(ports, servicePort)
 		}
 	}
 	if (svc == nil || svc.Name != rs.Name) && len(ports) > 0 {
-		newService, err := ec.CreateService(rs.Name, *template, rs.Labels, ports)
+		serviceName := rs.Name
+		if template.Service.Name != "" {
+			serviceName = template.Service.Name
+		}
+		newService, err := ec.CreateService(serviceName, *template, rs.Labels, ports)
 		if err != nil {
 			templateStatus.Status = v1alpha1.TemplateStatusError
-			templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)
+			templateStatus.Message = fmt.Sprintf("Failed to create Service %s for template '%s': %v", serviceName, template.Name, err)
 		} else {
 			ec.templateServices[template.Name] = newService
 			templateStatus.ServiceName = newService.Name
@@ -383,7 +390,7 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.Exper
 
 // reconcileAnalysisRun reconciles a single analysis run, creating or terminating it as necessary.
 // Updates the analysis run statuses, which may subsequently fail the experiment.
-func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) {
+func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, analysisRunMetadata *v1alpha1.AnalysisRunMetadata) {
 	logCtx := ec.log.WithField("analysis", analysis.Name)
 	logCtx.Infof("Reconciling analysis")
 	prevStatus := experimentutil.GetAnalysisRunStatus(ec.ex.Status, analysis.Name)
@@ -439,7 +446,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 			logCtx.Warnf("Skipping AnalysisRun creation for analysis %s: experiment is terminating", analysis.Name)
 			return
 		}
-		run, err := ec.createAnalysisRun(analysis, dryRunMetrics, measurementRetentionMetrics)
+		run, err := ec.createAnalysisRun(analysis, dryRunMetrics, measurementRetentionMetrics, analysisRunMetadata)
 		if err != nil {
 			msg := fmt.Sprintf("Failed to create AnalysisRun for analysis '%s': %v", analysis.Name, err.Error())
 			newStatus.Phase = v1alpha1.AnalysisPhaseError
@@ -486,13 +493,13 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 // createAnalysisRun creates the analysis run. If an existing runs exists with same name, is
 // semantically equal, and is not complete, returns the existing one, otherwise creates a new
 // run with a collision counter increase.
-func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) (*v1alpha1.AnalysisRun, error) {
+func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, analysisRunMetadata *v1alpha1.AnalysisRunMetadata) (*v1alpha1.AnalysisRun, error) {
 	analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
 	args, err := ec.ResolveAnalysisRunArgs(analysis.Args)
 	if err != nil {
 		return nil, err
 	}
-	run, err := ec.newAnalysisRun(analysis, args, dryRunMetrics, measurementRetentionMetrics)
+	run, err := ec.newAnalysisRun(analysis, args, dryRunMetrics, measurementRetentionMetrics, analysisRunMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -628,45 +635,156 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 }
 
 // newAnalysisRun generates an AnalysisRun from the experiment and template
-func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) (*v1alpha1.AnalysisRun, error) {
+func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, analysisRunMetadata *v1alpha1.AnalysisRunMetadata) (*v1alpha1.AnalysisRun, error) {
 
 	if analysis.ClusterScope {
-		clusterTemplate, err := ec.clusterAnalysisTemplateLister.Get(analysis.TemplateName)
+		analysisTemplates, clusterAnalysisTemplates, err := ec.getAnalysisTemplatesFromClusterAnalysis(analysis)
 		if err != nil {
 			return nil, err
 		}
 		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
-		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{clusterTemplate}
-		run, err := analysisutil.NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, dryRunMetrics, measurementRetentionMetrics, name, "", ec.ex.Namespace)
+		runLabels := map[string]string{}
+		runAnnotations := map[string]string{}
+
+		instanceID := analysisutil.GetInstanceID(ec.ex)
+		if instanceID != "" {
+			runLabels[v1alpha1.LabelKeyControllerInstanceID] = ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]
+		}
+		if analysisRunMetadata != nil {
+			for k, v := range analysisRunMetadata.Labels {
+				runLabels[k] = v
+			}
+			for k, v := range analysisRunMetadata.Annotations {
+				runAnnotations[k] = v
+			}
+		}
+		run, err := analysisutil.NewAnalysisRunFromTemplates(analysisTemplates, clusterAnalysisTemplates, args, dryRunMetrics, measurementRetentionMetrics, runLabels, runAnnotations, name, "", ec.ex.Namespace)
 		if err != nil {
 			return nil, err
 		}
-		instanceID := analysisutil.GetInstanceID(ec.ex)
-		if instanceID != "" {
-			run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
-		}
+
 		run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
 		return run, nil
 	} else {
-		template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
+		analysisTemplates, clusterAnalysisTemplates, err := ec.getAnalysisTemplatesFromAnalysis(analysis)
 		if err != nil {
 			return nil, err
 		}
 		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
-		analysisTemplates := []*v1alpha1.AnalysisTemplate{template}
-		run, err := analysisutil.NewAnalysisRunFromTemplates(analysisTemplates, nil, args, dryRunMetrics, measurementRetentionMetrics, name, "", ec.ex.Namespace)
+		runLabels := map[string]string{}
+		runAnnotations := map[string]string{}
+		instanceID := analysisutil.GetInstanceID(ec.ex)
+		if instanceID != "" {
+			runLabels[v1alpha1.LabelKeyControllerInstanceID] = ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]
+		}
+		if analysisRunMetadata != nil {
+			for k, v := range analysisRunMetadata.Labels {
+				runLabels[k] = v
+			}
+			for k, v := range analysisRunMetadata.Annotations {
+				runAnnotations[k] = v
+			}
+		}
+
+		run, err := analysisutil.NewAnalysisRunFromTemplates(analysisTemplates, clusterAnalysisTemplates, args, dryRunMetrics, measurementRetentionMetrics, runLabels, runAnnotations, name, "", ec.ex.Namespace)
 		if err != nil {
 			return nil, err
 		}
-		instanceID := analysisutil.GetInstanceID(ec.ex)
-		if instanceID != "" {
-			run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
-		}
+
 		run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
 		return run, nil
 	}
+}
+
+func (ec *experimentContext) getAnalysisTemplatesFromClusterAnalysis(analysis v1alpha1.ExperimentAnalysisTemplateRef) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate, error) {
+	clusterTemplate, err := ec.clusterAnalysisTemplateLister.Get(analysis.TemplateName)
+	if err != nil {
+		return nil, nil, err
+	}
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	clusterTemplates = append(clusterTemplates, clusterTemplate)
+
+	if clusterTemplate.Spec.Templates != nil {
+		innerTemplates, innerClusterTemplates, innerErr := ec.getAnalysisTemplatesFromRefs(&clusterTemplate.Spec.Templates)
+		if innerErr != nil {
+			return nil, nil, innerErr
+		}
+		clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+		templates = append(templates, innerTemplates...)
+	}
+	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
+	return uniqueTemplates, uniqueClusterTemplates, nil
+}
+
+func (ec *experimentContext) getAnalysisTemplatesFromAnalysis(analysis v1alpha1.ExperimentAnalysisTemplateRef) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate, error) {
+	template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
+	if err != nil {
+		return nil, nil, err
+	}
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	templates = append(templates, template)
+
+	if template.Spec.Templates != nil {
+		innerTemplates, innerClusterTemplates, innerErr := ec.getAnalysisTemplatesFromRefs(&template.Spec.Templates)
+		if innerErr != nil {
+			return nil, nil, innerErr
+		}
+		clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+		templates = append(templates, innerTemplates...)
+	}
+	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
+	return uniqueTemplates, uniqueClusterTemplates, nil
+}
+
+func (ec *experimentContext) getAnalysisTemplatesFromRefs(templateRefs *[]v1alpha1.AnalysisTemplateRef) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate, error) {
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	for _, templateRef := range *templateRefs {
+		if templateRef.ClusterScope {
+			template, err := ec.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					ec.log.Warnf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName)
+				}
+				return nil, nil, err
+			}
+			clusterTemplates = append(clusterTemplates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerTemplates, innerClusterTemplates, innerErr := ec.getAnalysisTemplatesFromRefs(&template.Spec.Templates)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
+		} else {
+			template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					ec.log.Warnf("AnalysisTemplate '%s' not found", templateRef.TemplateName)
+				}
+				return nil, nil, err
+			}
+			templates = append(templates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerTemplates, innerClusterTemplates, innerErr := ec.getAnalysisTemplatesFromRefs(&template.Spec.Templates)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
+		}
+
+	}
+	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
+	return uniqueTemplates, uniqueClusterTemplates, nil
 }
 
 // verifyAnalysisTemplate verifies an AnalysisTemplate. For now, it simply means that it exists

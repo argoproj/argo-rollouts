@@ -6,6 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/metricproviders"
+	"github.com/argoproj/argo-rollouts/utils/record"
+	"github.com/argoproj/pkg/kubeclientmetrics"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -19,8 +22,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/argoproj/pkg/kubeclientmetrics"
 
 	"github.com/argoproj/argo-rollouts/controller"
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -41,35 +42,43 @@ const (
 	cliName    = "argo-rollouts"
 	jsonFormat = "json"
 	textFormat = "text"
+
+	controllerAnalysis = "analysis"
 )
+
+var supportedControllers = map[string]bool{controllerAnalysis: true}
 
 func newCommand() *cobra.Command {
 	var (
-		clientConfig         clientcmd.ClientConfig
-		rolloutResyncPeriod  int64
-		logLevel             string
-		logFormat            string
-		klogLevel            int
-		metricsPort          int
-		healthzPort          int
-		instanceID           string
-		qps                  float32
-		burst                int
-		rolloutThreads       int
-		experimentThreads    int
-		analysisThreads      int
-		serviceThreads       int
-		ingressThreads       int
-		istioVersion         string
-		trafficSplitVersion  string
-		ambassadorVersion    string
-		ingressVersion       string
-		appmeshCRDVersion    string
-		albIngressClasses    []string
-		nginxIngressClasses  []string
-		awsVerifyTargetGroup bool
-		namespaced           bool
-		printVersion         bool
+		clientConfig                   clientcmd.ClientConfig
+		rolloutResyncPeriod            int64
+		logLevel                       string
+		logFormat                      string
+		klogLevel                      int
+		metricsPort                    int
+		healthzPort                    int
+		instanceID                     string
+		qps                            float32
+		burst                          int
+		rolloutThreads                 int
+		experimentThreads              int
+		analysisThreads                int
+		serviceThreads                 int
+		ingressThreads                 int
+		istioVersion                   string
+		trafficSplitVersion            string
+		traefikAPIGroup                string
+		traefikVersion                 string
+		ambassadorVersion              string
+		ingressVersion                 string
+		appmeshCRDVersion              string
+		albIngressClasses              []string
+		nginxIngressClasses            []string
+		awsVerifyTargetGroup           bool
+		namespaced                     bool
+		printVersion                   bool
+		selfServiceNotificationEnabled bool
+		controllersEnabled             []string
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
@@ -80,10 +89,13 @@ func newCommand() *cobra.Command {
 				fmt.Println(version.GetVersion())
 				return nil
 			}
+			logger := log.New()
 			setLogLevel(logLevel)
 			if logFormat != "" {
 				log.SetFormatter(createFormatter(logFormat))
+				logger.SetFormatter(createFormatter(logFormat))
 			}
+			logutil.SetKLogLogger(logger)
 			logutil.SetKLogLevel(klogLevel)
 			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 
@@ -95,6 +107,8 @@ func newCommand() *cobra.Command {
 			defaults.SetAmbassadorAPIVersion(ambassadorVersion)
 			defaults.SetSMIAPIVersion(trafficSplitVersion)
 			defaults.SetAppMeshCRDVersion(appmeshCRDVersion)
+			defaults.SetTraefikAPIGroup(traefikAPIGroup)
+			defaults.SetTraefikVersion(traefikVersion)
 
 			config, err := clientConfig.ClientConfig()
 			checkError(err)
@@ -120,6 +134,7 @@ func newCommand() *cobra.Command {
 			discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
 			checkError(err)
 			smiClient, err := smiclientset.NewForConfig(config)
+			checkError(err)
 			resyncDuration := time.Duration(rolloutResyncPeriod) * time.Second
 			kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
@@ -129,10 +144,17 @@ func newCommand() *cobra.Command {
 			instanceIDTweakListFunc := func(options *metav1.ListOptions) {
 				options.LabelSelector = instanceIDSelector.String()
 			}
+			jobKubeClient, _, err := metricproviders.GetAnalysisJobClientset(kubeClient)
+			checkError(err)
+			jobNs := metricproviders.GetAnalysisJobNamespace()
+			if jobNs == "" {
+				// if not set explicitly use the configured ns
+				jobNs = namespace
+			}
 			jobInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-				kubeClient,
+				jobKubeClient,
 				resyncDuration,
-				kubeinformers.WithNamespace(namespace),
+				kubeinformers.WithNamespace(jobNs),
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
@@ -151,54 +173,98 @@ func newCommand() *cobra.Command {
 			}
 			istioDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(istioPrimaryDynamicClient, resyncDuration, namespace, nil)
 
-			controllerNamespaceInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+			var notificationConfigNamespace string
+			if selfServiceNotificationEnabled {
+				notificationConfigNamespace = metav1.NamespaceAll
+			} else {
+				notificationConfigNamespace = defaults.Namespace()
+			}
+			notificationSecretInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
 				resyncDuration,
-				kubeinformers.WithNamespace(defaults.Namespace()))
-			configMapInformer := controllerNamespaceInformerFactory.Core().V1().ConfigMaps()
-			secretInformer := controllerNamespaceInformerFactory.Core().V1().Secrets()
+				kubeinformers.WithNamespace(notificationConfigNamespace),
+				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
+					options.Kind = "Secret"
+					options.FieldSelector = fmt.Sprintf("metadata.name=%s", record.NotificationSecret)
+				}),
+			)
+
+			notificationConfigMapInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+				kubeClient,
+				resyncDuration,
+				kubeinformers.WithNamespace(notificationConfigNamespace),
+				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
+					options.Kind = "ConfigMap"
+					options.FieldSelector = fmt.Sprintf("metadata.name=%s", record.NotificationConfigMap)
+				}),
+			)
 
 			mode, err := ingressutil.DetermineIngressMode(ingressVersion, kubeClient.DiscoveryClient)
 			checkError(err)
 			ingressWrapper, err := ingressutil.NewIngressWrapper(mode, kubeClient, kubeInformerFactory)
 			checkError(err)
 
-			cm := controller.NewManager(
-				namespace,
-				kubeClient,
-				argoprojClient,
-				dynamicClient,
-				smiClient,
-				discoveryClient,
-				kubeInformerFactory.Apps().V1().ReplicaSets(),
-				kubeInformerFactory.Core().V1().Services(),
-				ingressWrapper,
-				jobInformerFactory.Batch().V1().Jobs(),
-				tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory),
-				tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory),
-				tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
-				tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
-				tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
-				istioPrimaryDynamicClient,
-				istioDynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer(),
-				istioDynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer(),
-				configMapInformer,
-				secretInformer,
-				resyncDuration,
-				instanceID,
-				metricsPort,
-				healthzPort,
-				k8sRequestProvider,
-				nginxIngressClasses,
-				albIngressClasses,
-				dynamicInformerFactory,
-				clusterDynamicInformerFactory,
-				istioDynamicInformerFactory,
-				namespaced,
-				kubeInformerFactory,
-				controllerNamespaceInformerFactory,
-				jobInformerFactory)
+			var cm *controller.Manager
 
+			enabledControllers, err := getEnabledControllers(controllersEnabled)
+			checkError(err)
+
+			// currently only supports running analysis controller independently
+			if enabledControllers[controllerAnalysis] {
+				log.Info("Running only analysis controller")
+				cm = controller.NewAnalysisManager(
+					namespace,
+					kubeClient,
+					argoprojClient,
+					jobInformerFactory.Batch().V1().Jobs(),
+					tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
+					resyncDuration,
+					metricsPort,
+					healthzPort,
+					k8sRequestProvider,
+					dynamicInformerFactory,
+					clusterDynamicInformerFactory,
+					namespaced,
+					kubeInformerFactory,
+					jobInformerFactory)
+			} else {
+				cm = controller.NewManager(
+					namespace,
+					kubeClient,
+					argoprojClient,
+					dynamicClient,
+					smiClient,
+					discoveryClient,
+					kubeInformerFactory.Apps().V1().ReplicaSets(),
+					kubeInformerFactory.Core().V1().Services(),
+					ingressWrapper,
+					jobInformerFactory.Batch().V1().Jobs(),
+					tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
+					istioPrimaryDynamicClient,
+					istioDynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer(),
+					istioDynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer(),
+					notificationConfigMapInformerFactory,
+					notificationSecretInformerFactory,
+					resyncDuration,
+					instanceID,
+					metricsPort,
+					healthzPort,
+					k8sRequestProvider,
+					nginxIngressClasses,
+					albIngressClasses,
+					dynamicInformerFactory,
+					clusterDynamicInformerFactory,
+					istioDynamicInformerFactory,
+					namespaced,
+					kubeInformerFactory,
+					jobInformerFactory)
+			}
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
 			}
@@ -228,6 +294,8 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	command.Flags().StringVar(&ambassadorVersion, "ambassador-api-version", defaults.DefaultAmbassadorVersion, "Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings.")
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
+	command.Flags().StringVar(&traefikAPIGroup, "traefik-api-group", defaults.DefaultTraefikAPIGroup, "Set the default Traerfik apiGroup that controller uses.")
+	command.Flags().StringVar(&traefikVersion, "traefik-api-version", defaults.DefaultTraefikVersion, "Set the default Traerfik apiVersion that controller uses.")
 	command.Flags().StringVar(&ingressVersion, "ingress-api-version", "", "Set the Ingress apiVersion that the controller should use.")
 	command.Flags().StringVar(&appmeshCRDVersion, "appmesh-crd-version", defaults.DefaultAppMeshCRDVersion, "Set the default AppMesh CRD Version that controller uses when manipulating resources.")
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
@@ -240,6 +308,8 @@ func newCommand() *cobra.Command {
 	command.Flags().DurationVar(&electOpts.LeaderElectionLeaseDuration, "leader-election-lease-duration", controller.DefaultLeaderElectionLeaseDuration, "The duration that non-leader candidates will wait after observing a leadership renewal until attempting to acquire leadership of a led but unrenewed leader slot. This is effectively the maximum duration that a leader can be stopped before it is replaced by another candidate. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRenewDeadline, "leader-election-renew-deadline", controller.DefaultLeaderElectionRenewDeadline, "The interval between attempts by the acting master to renew a leadership slot before it stops leading. This must be less than or equal to the lease duration. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled.")
+	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", false, "Allows rollouts controller to pull notification config from the namespace that the rollout resource is in. This is useful for self-service notification.")
+	command.Flags().StringSliceVar(&controllersEnabled, "controllers", nil, "Explicitly specify the list of controllers to run, currently only supports 'analysis', eg. --controller=analysis. Default: all controllers are enabled")
 	return &command
 }
 
@@ -292,4 +362,16 @@ func checkError(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getEnabledControllers(controllersEnabled []string) (map[string]bool, error) {
+	enabledControllers := make(map[string]bool)
+	for _, controller := range controllersEnabled {
+		if supportedControllers[controller] {
+			enabledControllers[controller] = true
+		} else {
+			return nil, fmt.Errorf("unsupported controller: %s", controller)
+		}
+	}
+	return enabledControllers, nil
 }

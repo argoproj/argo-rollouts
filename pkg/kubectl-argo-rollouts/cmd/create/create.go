@@ -6,16 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"unicode"
 
-	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -54,7 +54,7 @@ const (
 	createAnalysisRunExample = `
   	# Create an AnalysisRun from a local AnalysisTemplate file
   	%[1]s create analysisrun --from-file my-analysis-template.yaml
-  
+
   	# Create an AnalysisRun from a AnalysisTemplate in the cluster
   	%[1]s create analysisrun --from my-analysis-template
 
@@ -127,7 +127,7 @@ func isJSON(fileBytes []byte) bool {
 	return false
 }
 
-func unmarshal(fileBytes []byte, obj interface{}) error {
+func unmarshal(fileBytes []byte, obj any) error {
 	if isJSON(fileBytes) {
 		decoder := json.NewDecoder(bytes.NewReader(fileBytes))
 		decoder.DisallowUnknownFields()
@@ -143,7 +143,7 @@ func (c *CreateOptions) getNamespace(un unstructured.Unstructured) string {
 		if md == nil {
 			return ns
 		}
-		metadata := md.(map[string]interface{})
+		metadata := md.(map[string]any)
 		if internalns, ok := metadata["namespace"]; ok {
 			ns = internalns.(string)
 		}
@@ -153,7 +153,7 @@ func (c *CreateOptions) getNamespace(un unstructured.Unstructured) string {
 
 func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 	ctx := context.TODO()
-	fileBytes, err := ioutil.ReadFile(path)
+	fileBytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*unstructured.Unstruct
 	if c.From != "" {
 		return c.DynamicClient.Resource(v1alpha1.AnalysisTemplateGVR).Namespace(c.Namespace()).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
-		fileBytes, err := ioutil.ReadFile(c.FromFile)
+		fileBytes, err := os.ReadFile(c.FromFile)
 		if err != nil {
 			return nil, err
 		}
@@ -350,7 +350,7 @@ func (c *CreateAnalysisRunOptions) getClusterAnalysisTemplate() (*unstructured.U
 	if c.From != "" {
 		return c.DynamicClient.Resource(v1alpha1.ClusterAnalysisTemplateGVR).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
-		fileBytes, err := ioutil.ReadFile(c.FromFile)
+		fileBytes, err := os.ReadFile(c.FromFile)
 		if err != nil {
 			return nil, err
 		}

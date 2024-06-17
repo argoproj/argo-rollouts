@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bombsimon/logrusr/v4"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,6 +29,11 @@ const (
 	// NamespaceKey defines the key for the namespace field
 	NamespaceKey = "namespace"
 )
+
+// SetKLogLogger set the klog logger for the k8s go-client
+func SetKLogLogger(logger *log.Logger) {
+	klog.SetLogger(logrusr.New(logger))
+}
 
 // SetKLogLevel set the klog level for the k8s go-client
 func SetKLogLevel(klogLevel int) {
@@ -67,7 +74,7 @@ func WithObject(obj runtime.Object) *log.Entry {
 // This is an optimization that callers can use to avoid inferring this again from a runtime.Object
 func KindNamespaceName(logCtx *log.Entry) (string, string, string) {
 	var kind string
-	var nameIf interface{}
+	var nameIf any
 	var ok bool
 	if nameIf, ok = logCtx.Data["rollout"]; ok {
 		kind = "Rollout"
@@ -111,7 +118,7 @@ func WithRedactor(entry log.Entry, secrets []string) *log.Entry {
 }
 
 func WithVersionFields(entry *log.Entry, r *v1alpha1.Rollout) *log.Entry {
-	return entry.WithFields(map[string]interface{}{
+	return entry.WithFields(map[string]any{
 		"resourceVersion": r.ResourceVersion,
 		"generation":      r.Generation,
 	})

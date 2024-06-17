@@ -36,7 +36,7 @@ const (
 type RolloutPodRestarter struct {
 	client       kubernetes.Interface
 	resyncPeriod time.Duration
-	enqueueAfter func(obj interface{}, duration time.Duration)
+	enqueueAfter func(obj any, duration time.Duration)
 }
 
 // checkEnqueueRollout enqueues a Rollout if the Rollout's restartedAt is within the next resync

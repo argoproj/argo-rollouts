@@ -170,17 +170,27 @@ func (c *ClientAdapter) GetTargetGroupMetadata(ctx context.Context, loadBalancer
 	}
 
 	// Enrich TargetGroups with tag information
-	tagsIn := elbv2.DescribeTagsInput{
-		ResourceArns: tgARNs,
-	}
-	tagsOut, err := c.ELBV2.DescribeTags(ctx, &tagsIn)
-	if err != nil {
-		return nil, err
-	}
-	for _, tagDesc := range tagsOut.TagDescriptions {
-		for _, tag := range tagDesc.Tags {
-			if _, ok := tgMetaMap[*tagDesc.ResourceArn]; ok {
-				tgMetaMap[*tagDesc.ResourceArn].Tags[*tag.Key] = *tag.Value
+	describeTagsLimit := defaults.GetDescribeTagsLimit()
+	tgARNsCount := len(tgARNs)
+	for i := 0; i < tgARNsCount; i += describeTagsLimit {
+		j := i + describeTagsLimit
+		if j > tgARNsCount {
+			// last batch
+			j = tgARNsCount
+		}
+
+		tagsIn := elbv2.DescribeTagsInput{
+			ResourceArns: tgARNs[i:j],
+		}
+		tagsOut, err := c.ELBV2.DescribeTags(ctx, &tagsIn)
+		if err != nil {
+			return nil, err
+		}
+		for _, tagDesc := range tagsOut.TagDescriptions {
+			for _, tag := range tagDesc.Tags {
+				if _, ok := tgMetaMap[*tagDesc.ResourceArn]; ok {
+					tgMetaMap[*tagDesc.ResourceArn].Tags[*tag.Key] = *tag.Value
+				}
 			}
 		}
 	}
@@ -290,7 +300,7 @@ func GetTargetGroupBindingsByService(ctx context.Context, dynamicClient dynamic.
 	return tgbs, nil
 }
 
-func toTargetGroupBinding(obj map[string]interface{}) (*TargetGroupBinding, error) {
+func toTargetGroupBinding(obj map[string]any) (*TargetGroupBinding, error) {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err
@@ -358,7 +368,7 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 		logCtx.Warn("Unable to match TargetGroupBinding spec.serviceRef.port to Service spec.ports")
 		return nil, nil
 	}
-	logCtx = logCtx.WithFields(map[string]interface{}{
+	logCtx = logCtx.WithFields(map[string]any{
 		"service":            svc.Name,
 		"targetgroupbinding": tgb.Name,
 		"tg":                 tgb.Spec.TargetGroupARN,

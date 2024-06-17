@@ -69,14 +69,14 @@ func TestRolloutCreateExperiment(t *testing.T) {
 		}
 	}`
 	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
 func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	cat := clusterAnalysisTemplate("bar")
+	cat := clusterAnalysisTemplate("bar", "cluster-example")
 	steps := []v1alpha1.CanaryStep{{
 		Experiment: &v1alpha1.RolloutExperimentStep{
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
@@ -126,7 +126,7 @@ func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
 		}
 	}`
 	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
 func TestCreateExperimentWithCollision(t *testing.T) {
@@ -178,7 +178,7 @@ func TestCreateExperimentWithCollision(t *testing.T) {
 		}
 	}`
 	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, createdEx.Name, conds)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, createdEx.Name, conds)), patch)
 }
 
 func TestCreateExperimentWithCollisionAndSemanticEquality(t *testing.T) {
@@ -229,7 +229,7 @@ func TestCreateExperimentWithCollisionAndSemanticEquality(t *testing.T) {
 		}
 	}`
 	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
 func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
@@ -267,7 +267,7 @@ func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 
 }
 
@@ -314,7 +314,7 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 	}`
 	now := timeutil.Now().UTC().Format(time.RFC3339)
 	generatedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))), patch)
 }
 
 func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
@@ -481,7 +481,7 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 	}`
 	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", false)
 
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, generatedConditions)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, generatedConditions)), patch)
 }
 
 func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
@@ -791,7 +791,7 @@ func TestRolloutCreateExperimentWithService(t *testing.T) {
 					Replicas: pointer.Int32Ptr(1),
 					Weight:   pointer.Int32Ptr(5),
 				},
-				// Service should also be created for "canary-template"
+				// Service should NOT be created for "canary-template"
 				{
 					Name:     "canary-template",
 					SpecRef:  v1alpha1.CanarySpecRef,
@@ -818,5 +818,166 @@ func TestRolloutCreateExperimentWithService(t *testing.T) {
 	assert.NotNil(t, ex.Spec.Templates[0].Service)
 
 	assert.Equal(t, "canary-template", ex.Spec.Templates[1].Name)
-	assert.NotNil(t, ex.Spec.Templates[1].Service)
+	assert.Nil(t, ex.Spec.Templates[1].Service)
+}
+
+// TestRolloutCreateWeightlessExperimentWithService does the same as TestRolloutCreateExperimentWithService, but when weight is not set.
+// CreateService is true when Service is set, even when Weight isn't, otherwise false.
+func TestRolloutCreateWeightlessExperimentWithServiceAndName(t *testing.T) {
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{
+				// Service should be created for "stable-weightless-named-template"
+				{
+					Name:     "stable-weightless-named-template",
+					SpecRef:  v1alpha1.StableSpecRef,
+					Replicas: pointer.Int32Ptr(1),
+					Service: &v1alpha1.TemplateService{
+						Name: "test-service",
+					},
+				},
+				// Service should NOT be created for "canary-weightless-named-template"
+				{
+					Name:     "canary-weightless-named-template",
+					SpecRef:  v1alpha1.CanarySpecRef,
+					Replicas: pointer.Int32Ptr(1),
+				},
+			},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.StableRS = rs1PodHash
+
+	ex, err := GetExperimentFromTemplate(r2, rs1, rs2)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "stable-weightless-named-template", ex.Spec.Templates[0].Name)
+	assert.NotNil(t, ex.Spec.Templates[0].Service)
+
+	assert.Equal(t, "canary-weightless-named-template", ex.Spec.Templates[1].Name)
+	assert.Nil(t, ex.Spec.Templates[1].Service)
+}
+
+// TestRolloutCreateWeightlessExperimentWithService does the same as TestRolloutCreateWeightlessExperimentWithServiceAndName, but when Name is not set.
+func TestRolloutCreateWeightlessExperimentWithService(t *testing.T) {
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{
+				// Service should be created for "stable-weightless-template"
+				{
+					Name:     "stable-weightless-template",
+					SpecRef:  v1alpha1.StableSpecRef,
+					Replicas: pointer.Int32Ptr(1),
+					Service:  &v1alpha1.TemplateService{},
+				},
+				// Service should NOT be created for "canary-weightless-template"
+				{
+					Name:     "canary-weightless-template",
+					SpecRef:  v1alpha1.CanarySpecRef,
+					Replicas: pointer.Int32Ptr(1),
+				},
+			},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.StableRS = rs1PodHash
+
+	ex, err := GetExperimentFromTemplate(r2, rs1, rs2)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "stable-weightless-template", ex.Spec.Templates[0].Name)
+	assert.NotNil(t, ex.Spec.Templates[0].Service)
+
+	assert.Equal(t, "canary-weightless-template", ex.Spec.Templates[1].Name)
+	assert.Nil(t, ex.Spec.Templates[1].Service)
+}
+
+// The Dry run and metadata should be forwarded from the rollout spec to the experiment spec
+func TestRolloutCreateExperimentWithDryRunAndMetadata(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{{
+				Name:     "stable-template",
+				SpecRef:  v1alpha1.StableSpecRef,
+				Replicas: pointer.Int32(1),
+			}},
+			Analyses: []v1alpha1.RolloutExperimentStepAnalysisTemplateRef{{
+				Name:         "test",
+				TemplateName: at.Name,
+			}},
+			AnalysisRunMetadata: v1alpha1.AnalysisRunMetadata{
+				Labels: map[string]string{
+					"foo":  "bar",
+					"foo2": "bar2",
+				},
+				Annotations: map[string]string{
+					"bar":  "foo",
+					"bar2": "foo2",
+				},
+			},
+			DryRun: []v1alpha1.DryRun{
+				{
+					MetricName: "someMetric",
+				},
+				{
+					MetricName: "someOtherMetric",
+				},
+			},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	createExIndex := f.expectCreateExperimentAction(ex)
+	f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdEx := f.getCreatedExperiment(createExIndex)
+	assert.Equal(t, createdEx.Name, ex.Name)
+	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, at.Name)
+	assert.Equal(t, createdEx.Spec.Analyses[0].Name, "test")
+
+	assert.Len(t, createdEx.Spec.AnalysisRunMetadata.Labels, 2)
+	assert.Equal(t, createdEx.Spec.AnalysisRunMetadata.Labels["foo"], "bar")
+	assert.Equal(t, createdEx.Spec.AnalysisRunMetadata.Labels["foo2"], "bar2")
+	assert.Len(t, createdEx.Spec.AnalysisRunMetadata.Annotations, 2)
+	assert.Equal(t, createdEx.Spec.AnalysisRunMetadata.Annotations["bar"], "foo")
+	assert.Equal(t, createdEx.Spec.AnalysisRunMetadata.Annotations["bar2"], "foo2")
+
+	assert.Len(t, createdEx.Spec.DryRun, 2)
+	assert.Equal(t, createdEx.Spec.DryRun[0].MetricName, "someMetric")
+	assert.Equal(t, createdEx.Spec.DryRun[1].MetricName, "someOtherMetric")
 }

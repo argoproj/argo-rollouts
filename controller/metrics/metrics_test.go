@@ -54,7 +54,7 @@ func newFakeServerConfig(objs ...runtime.Object) ServerConfig {
 	}
 }
 
-func testHttpResponse(t *testing.T, handler http.Handler, expectedResponse string, testFunc func(t assert.TestingT, s interface{}, contains interface{}, msgAndArgs ...interface{}) bool) {
+func testHttpResponse(t *testing.T, handler http.Handler, expectedResponse string, testFunc func(t assert.TestingT, s any, contains any, msgAndArgs ...any) bool) {
 	t.Helper()
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)

@@ -1,6 +1,8 @@
 package rollout
 
 import (
+	"context"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -8,6 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	k8sinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
 	"k8s.io/utils/pointer"
@@ -131,8 +136,9 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 		abortScaleDownAnnotated    bool
 		abortScaleDownDelayPassed  bool
 		expectedNewReplicas        int
+		failRSUpdate               bool
+		abort                      bool
 	}{
-
 		{
 			name:            "New Replica Set matches rollout replica: No scale",
 			rolloutReplicas: 10,
@@ -160,6 +166,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			newReplicas:     10,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    true,
 			abortScaleDownDelayPassed:  true,
 			scaleExpected:              true,
@@ -171,6 +178,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			newReplicas:     8,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    true,
 			abortScaleDownDelayPassed:  false,
 			scaleExpected:              false,
@@ -181,9 +189,19 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			rolloutReplicas:            10,
 			newReplicas:                10,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    false,
 			scaleExpected:              false,
 			expectedNewReplicas:        0,
+		},
+		{
+			name:                       "Fail to update RS: No scale and add default annotation",
+			rolloutReplicas:            10,
+			newReplicas:                10,
+			scaleExpected:              false,
+			failRSUpdate:               true,
+			abort:                      true,
+			abortScaleDownDelaySeconds: -1,
 		},
 	}
 	for i := range tests {
@@ -195,30 +213,56 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
+
+			if test.failRSUpdate {
+				k8sfake.PrependReactor("patch", "replicasets", func(action core.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &appsv1.ReplicaSet{}, fmt.Errorf("should not patch replica set")
+				})
+			}
+
+			f := newFixture(t)
+			defer f.Close()
+			f.objects = append(f.objects, rollout)
+			f.replicaSetLister = append(f.replicaSetLister, oldRS, newRS)
+			f.kubeobjects = append(f.kubeobjects, oldRS, newRS)
+			_, informers, k8sInformer := f.newController(noResyncPeriodFunc)
+			stopCh := make(chan struct{})
+			informers.Start(stopCh)
+			informers.WaitForCacheSync(stopCh)
+			close(stopCh)
+
 			roCtx := rolloutContext{
 				log:      logutil.WithRollout(rollout),
 				rollout:  rollout,
 				newRS:    newRS,
 				stableRS: oldRS,
 				reconcilerBase: reconcilerBase{
-					argoprojclientset: &fake,
-					kubeclientset:     &k8sfake,
-					recorder:          record.NewFakeEventRecorder(),
-					resyncPeriod:      30 * time.Second,
+					argoprojclientset:  &fake,
+					kubeclientset:      &k8sfake,
+					recorder:           record.NewFakeEventRecorder(),
+					resyncPeriod:       30 * time.Second,
+					replicaSetInformer: k8sInformer.Apps().V1().ReplicaSets().Informer(),
 				},
 				pauseContext: &pauseContext{
 					rollout: rollout,
 				},
 			}
-			roCtx.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {}
+			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
+
+			rollout.Status.Abort = test.abort
+			roCtx.stableRS.Status.AvailableReplicas = int32(test.rolloutReplicas)
+			rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
+				},
+			}
+
 			if test.abortScaleDownDelaySeconds > 0 {
-				rollout.Status.Abort = true
 				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
 					BlueGreen: &v1alpha1.BlueGreenStrategy{
 						AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
 					},
 				}
-
 				if test.abortScaleDownAnnotated {
 					var deadline string
 					if test.abortScaleDownDelayPassed {
@@ -230,7 +274,19 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 				}
 			}
 
+			if test.abortScaleDownDelaySeconds < 0 {
+				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+					BlueGreen: &v1alpha1.BlueGreenStrategy{
+						AbortScaleDownDelaySeconds: nil,
+					},
+				}
+			}
+
 			scaled, err := roCtx.reconcileNewReplicaSet()
+			if test.failRSUpdate {
+				assert.Error(t, err)
+				return
+			}
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
@@ -338,5 +394,251 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 				return
 			}
 		})
+	}
+}
+
+func TestIsReplicaSetReferenced(t *testing.T) {
+	newRSWithPodTemplateHash := func(hash string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
+			},
+		}
+	}
+
+	testCases := []struct {
+		name           string
+		status         v1alpha1.RolloutStatus
+		canaryService  string
+		stableService  string
+		activeService  string
+		previewService string
+		services       []runtime.Object
+		rsHash         string
+		expectedResult bool
+	}{
+		{
+			name:           "empty hash",
+			status:         v1alpha1.RolloutStatus{StableRS: "abc123"},
+			rsHash:         "",
+			expectedResult: false,
+		},
+		{
+			name:           "not referenced",
+			status:         v1alpha1.RolloutStatus{StableRS: "abc123"},
+			rsHash:         "def456",
+			expectedResult: false,
+		},
+		{
+			name:           "stable rs referenced",
+			status:         v1alpha1.RolloutStatus{StableRS: "abc123"},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name:           "current rs referenced",
+			status:         v1alpha1.RolloutStatus{CurrentPodHash: "abc123"},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name:           "active referenced",
+			status:         v1alpha1.RolloutStatus{BlueGreen: v1alpha1.BlueGreenStatus{ActiveSelector: "abc123"}},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name:           "active referenced",
+			status:         v1alpha1.RolloutStatus{BlueGreen: v1alpha1.BlueGreenStatus{PreviewSelector: "abc123"}},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name: "traffic routed canary current pod hash",
+			status: v1alpha1.RolloutStatus{Canary: v1alpha1.CanaryStatus{Weights: &v1alpha1.TrafficWeights{
+				Canary: v1alpha1.WeightDestination{
+					PodTemplateHash: "abc123",
+				},
+			}}},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name: "traffic routed canary current pod hash",
+			status: v1alpha1.RolloutStatus{Canary: v1alpha1.CanaryStatus{Weights: &v1alpha1.TrafficWeights{
+				Stable: v1alpha1.WeightDestination{
+					PodTemplateHash: "abc123",
+				},
+			}}},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name: "canary service still referenced",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+			},
+			canaryService:  "mysvc",
+			services:       []runtime.Object{newService("mysvc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"}, nil)},
+			rsHash:         "def456",
+			expectedResult: true,
+		},
+		{
+			name: "stable service still referenced",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+			},
+			stableService:  "mysvc",
+			services:       []runtime.Object{newService("mysvc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"}, nil)},
+			rsHash:         "def456",
+			expectedResult: true,
+		},
+		{
+			name: "active service still referenced",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+			},
+			activeService:  "mysvc",
+			services:       []runtime.Object{newService("mysvc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"}, nil)},
+			rsHash:         "def456",
+			expectedResult: true,
+		},
+		{
+			name: "preview service still referenced",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+			},
+			activeService:  "mysvc",
+			previewService: "mysvc2",
+			services:       []runtime.Object{newService("mysvc2", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"}, nil)},
+			rsHash:         "def456",
+			expectedResult: true,
+		},
+		{
+			name: "service not found",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+			},
+			activeService:  "mysvc",
+			previewService: "mysvc2",
+			rsHash:         "def456",
+			expectedResult: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			fake := fake.Clientset{}
+			k8sfake := k8sfake.NewSimpleClientset(tc.services...)
+			informers := k8sinformers.NewSharedInformerFactory(k8sfake, 0)
+			servicesLister := informers.Core().V1().Services().Lister()
+			stopchan := make(chan struct{})
+			defer close(stopchan)
+			informers.Start(stopchan)
+			informers.WaitForCacheSync(stopchan)
+
+			var r *v1alpha1.Rollout
+			if tc.activeService != "" {
+				r = newBlueGreenRollout("test", 1, nil, tc.activeService, tc.previewService)
+			} else {
+				r = newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+				r.Spec.Strategy.Canary.CanaryService = tc.canaryService
+				r.Spec.Strategy.Canary.StableService = tc.stableService
+			}
+			r.Status = tc.status
+
+			roCtx := &rolloutContext{
+				rollout: r,
+				log:     logutil.WithRollout(r),
+				reconcilerBase: reconcilerBase{
+					servicesLister:    servicesLister,
+					argoprojclientset: &fake,
+					kubeclientset:     k8sfake,
+					recorder:          record.NewFakeEventRecorder(),
+				},
+			}
+			rs := newRSWithPodTemplateHash(tc.rsHash)
+			stillReferenced := roCtx.isReplicaSetReferenced(rs)
+
+			assert.Equal(
+				t,
+				tc.expectedResult,
+				stillReferenced,
+			)
+		})
+	}
+}
+
+func TestScaleDownProgressively(t *testing.T) {
+
+	tests := []struct {
+		name                       string
+		deploymentReplicas         int32
+		newRSReplicas              int
+		newRSRevision              string
+		rolloutReplicas            int32
+		rolloutReadyReplicas       int32
+		abortScaleDownDelaySeconds int32
+		expectedDeploymentReplicas int32
+	}{
+		{
+			name:                       "Scale down deployment",
+			deploymentReplicas:         5,
+			newRSReplicas:              5,
+			newRSRevision:              "1",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       3,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 2,
+		},
+		{
+			name:                       "Scale up deployment",
+			deploymentReplicas:         0,
+			newRSReplicas:              5,
+			newRSRevision:              "1",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       1,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 4,
+		},
+		{
+			name:                       "Do not scale deployment",
+			deploymentReplicas:         5,
+			newRSReplicas:              5,
+			newRSRevision:              "2",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       3,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 5,
+		},
+	}
+
+	for _, test := range tests {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownProgressively, test.deploymentReplicas, true, nil)
+		ctx.rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+			BlueGreen: &v1alpha1.BlueGreenStrategy{
+				AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
+			},
+		}
+		ctx.newRS = rs("foo-v2", test.newRSReplicas, nil, noTimestamp, nil)
+		ctx.newRS.ObjectMeta.Annotations[annotations.RevisionAnnotation] = test.newRSRevision
+		ctx.pauseContext.removeAbort = true
+		ctx.rollout.Spec.Replicas = &test.rolloutReplicas
+		ctx.rollout.Status.ReadyReplicas = test.rolloutReadyReplicas
+
+		_, err := ctx.reconcileNewReplicaSet()
+		assert.Nil(t, err)
+		k8sfakeClient := ctx.kubeclientset.(*k8sfake.Clientset)
+		updatedDeployment, err := k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
+		assert.Nil(t, err)
+		assert.Equal(t, test.expectedDeploymentReplicas, *updatedDeployment.Spec.Replicas)
+
 	}
 }

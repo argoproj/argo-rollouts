@@ -43,15 +43,98 @@ func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
 	}
 }
 
-func clusterAnalysisTemplate(name string) *v1alpha1.ClusterAnalysisTemplate {
+func analysisTemplateWithNamespacedAnalysisRefs(name string, innerRefsName ...string) *v1alpha1.AnalysisTemplate {
+	return analysisTemplateWithAnalysisRefs(name, false, innerRefsName...)
+}
+
+func analysisTemplateWithClusterAnalysisRefs(name string, innerRefsName ...string) *v1alpha1.AnalysisTemplate {
+	return analysisTemplateWithAnalysisRefs(name, true, innerRefsName...)
+}
+
+func analysisTemplateWithAnalysisRefs(name string, clusterScope bool, innerRefsName ...string) *v1alpha1.AnalysisTemplate {
+	templatesRefs := []v1alpha1.AnalysisTemplateRef{}
+	for _, innerTplName := range innerRefsName {
+		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
+			TemplateName: innerTplName,
+			ClusterScope: clusterScope,
+		})
+	}
+	return &v1alpha1.AnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name: "example-" + name,
+			}},
+			DryRun: []v1alpha1.DryRun{{
+				MetricName: "example-" + name,
+			}},
+			MeasurementRetention: []v1alpha1.MeasurementRetention{{
+				MetricName: "example-" + name,
+			}},
+			Templates: templatesRefs,
+		},
+	}
+}
+
+func analysisTemplateWithOnlyNamespacedAnalysisRefs(name string, innerRefsName ...string) *v1alpha1.AnalysisTemplate {
+	return analysisTemplateWithOnlyRefs(name, false, innerRefsName...)
+}
+
+func analysisTemplateWithOnlyRefs(name string, clusterScope bool, innerRefsName ...string) *v1alpha1.AnalysisTemplate {
+	templatesRefs := []v1alpha1.AnalysisTemplateRef{}
+	for _, innerTplName := range innerRefsName {
+		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
+			TemplateName: innerTplName,
+			ClusterScope: clusterScope,
+		})
+	}
+	return &v1alpha1.AnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics:              []v1alpha1.Metric{},
+			DryRun:               []v1alpha1.DryRun{},
+			MeasurementRetention: []v1alpha1.MeasurementRetention{},
+			Templates:            templatesRefs,
+		},
+	}
+}
+
+func clusterAnalysisTemplate(name string, metricName string) *v1alpha1.ClusterAnalysisTemplate {
 	return &v1alpha1.ClusterAnalysisTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
 		Spec: v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{{
-				Name: "clusterexample",
+				Name: metricName,
 			}},
+		},
+	}
+}
+
+func clusterAnalysisTemplateWithAnalysisRefs(name string, innerRefsName ...string) *v1alpha1.ClusterAnalysisTemplate {
+	templatesRefs := []v1alpha1.AnalysisTemplateRef{}
+	for _, innerTplName := range innerRefsName {
+		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
+			TemplateName: innerTplName,
+			ClusterScope: true,
+		})
+	}
+	return &v1alpha1.ClusterAnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name: "clusterexample-" + name,
+			}},
+			Templates: templatesRefs,
 		},
 	}
 }
@@ -133,7 +216,7 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -180,7 +263,7 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
 func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
@@ -196,7 +279,7 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{{
+			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: at.Name,
 			}},
 		},
@@ -241,7 +324,7 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
 func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
@@ -251,13 +334,13 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 	steps := []v1alpha1.CanaryStep{{
 		SetWeight: int32Ptr(10),
 	}}
-	cat := clusterAnalysisTemplate("bar")
+	cat := clusterAnalysisTemplate("bar", "clusterexample")
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := clusterAnalysisRun(cat, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{{
+			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
 				ClusterScope: true,
 			}},
@@ -303,7 +386,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
 func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
@@ -313,7 +396,7 @@ func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
 	r := newCanaryRollout("foo", 10, nil, nil, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{{
+			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: "missing",
 				ClusterScope: true,
 			}},
@@ -339,7 +422,7 @@ func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T) {
@@ -350,7 +433,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 		SetWeight: int32Ptr(10),
 	}}
 	at := analysisTemplate("bar")
-	cat := clusterAnalysisTemplate("clusterbar")
+	cat := clusterAnalysisTemplate("clusterbar", "clusterexample")
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
@@ -367,7 +450,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 	}
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{{
+			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
 				ClusterScope: true,
 			}, {
@@ -416,7 +499,170 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+}
+
+func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplateAndInnerTemplates(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	at := analysisTemplateWithNamespacedAnalysisRefs("bar", "bar2")
+	at2 := analysisTemplateWithClusterAnalysisRefs("bar2", "clusterbar2", "clusterbar4")
+	cat := clusterAnalysisTemplateWithAnalysisRefs("clusterbar", "clusterbar2", "clusterbar3")
+	cat2 := clusterAnalysisTemplate("clusterbar2", "clusterexample-clusterbar2")
+	cat3 := clusterAnalysisTemplate("clusterbar3", "clusterexample-clusterbar3")
+	cat4 := clusterAnalysisTemplate("clusterbar4", "clusterexample-clusterbar4")
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	ar := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "run1",
+			Namespace:       metav1.NamespaceDefault,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r1, controllerKind)},
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: concatMultipleSlices([][]v1alpha1.Metric{at.Spec.Metrics, at2.Spec.Metrics, cat.Spec.Metrics, cat2.Spec.Metrics, cat3.Spec.Metrics, cat4.Spec.Metrics}),
+			Args:    at.Spec.Args,
+		},
+	}
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.AnalysisTemplateRef{{
+				TemplateName: cat.Name,
+				ClusterScope: true,
+			}, {
+				TemplateName: at.Name,
+			}},
+		},
+	}
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, cat, cat2, cat3, cat4)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at, at2)
+	f.objects = append(f.objects, r2, cat, at, at2, cat2, cat3, cat4)
+
+	createdIndex := f.expectCreateAnalysisRunAction(ar)
+	f.expectUpdateReplicaSetAction(rs2)
+	index := f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdAr := f.getCreatedAnalysisRun(createdIndex)
+	expectedArName := fmt.Sprintf("%s-%s-%s", r2.Name, rs2PodHash, "2")
+	assert.Equal(t, expectedArName, createdAr.Name)
+	assert.Len(t, createdAr.Spec.Metrics, 6)
+
+	patch := f.getPatchedRollout(index)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentBackgroundAnalysisRunStatus": {
+					"name": "%s",
+					"status": ""
+				}
+			}
+		}
+	}`
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+}
+
+// Test the case where the analysis template does't have metrics, but refences other templates
+func TestCreateBackgroundAnalysisRunWithTemplatesAndNoMetrics(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	at := analysisTemplateWithOnlyNamespacedAnalysisRefs("bar", "bar2")
+	at2 := analysisTemplateWithClusterAnalysisRefs("bar2", "clusterbar2", "clusterbar4")
+	cat := clusterAnalysisTemplateWithAnalysisRefs("clusterbar", "clusterbar2", "clusterbar3")
+	cat2 := clusterAnalysisTemplate("clusterbar2", "clusterexample-clusterbar2")
+	cat3 := clusterAnalysisTemplate("clusterbar3", "clusterexample-clusterbar3")
+	cat4 := clusterAnalysisTemplate("clusterbar4", "clusterexample-clusterbar4")
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	ar := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "run1",
+			Namespace:       metav1.NamespaceDefault,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r1, controllerKind)},
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: concatMultipleSlices([][]v1alpha1.Metric{at.Spec.Metrics, at2.Spec.Metrics, cat.Spec.Metrics, cat2.Spec.Metrics, cat3.Spec.Metrics, cat4.Spec.Metrics}),
+			Args:    at.Spec.Args,
+		},
+	}
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.AnalysisTemplateRef{{
+				TemplateName: cat.Name,
+				ClusterScope: true,
+			}, {
+				TemplateName: at.Name,
+			}},
+		},
+	}
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, cat, cat2, cat3, cat4)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at, at2)
+	f.objects = append(f.objects, r2, cat, at, at2, cat2, cat3, cat4)
+
+	createdIndex := f.expectCreateAnalysisRunAction(ar)
+	f.expectUpdateReplicaSetAction(rs2)
+	index := f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdAr := f.getCreatedAnalysisRun(createdIndex)
+	expectedArName := fmt.Sprintf("%s-%s-%s", r2.Name, rs2PodHash, "2")
+	assert.Equal(t, expectedArName, createdAr.Name)
+	assert.Len(t, createdAr.Spec.Metrics, 5)
+
+	patch := f.getPatchedRollout(index)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentBackgroundAnalysisRunStatus": {
+					"name": "%s",
+					"status": ""
+				}
+			}
+		}
+	}`
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
 // TestCreateAnalysisRunWithCollision ensures we will create an new analysis run with a new name
@@ -434,7 +680,7 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -487,7 +733,7 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedAR.Name)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedAR.Name)), patch)
 }
 
 // TestCreateAnalysisRunWithCollisionAndSemanticEquality will ensure we do not create an extra
@@ -505,7 +751,7 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -550,7 +796,7 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ar.Name)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ar.Name)), patch)
 }
 
 func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
@@ -560,7 +806,7 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -611,7 +857,85 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+}
+
+func TestCreateAnalysisRunOnPromotedAnalysisStepIfPreviousStepWasAnalysisToo(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{{
+		Analysis: &v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.AnalysisTemplateRef{
+				{
+					TemplateName: at.Name,
+				},
+			},
+		},
+	}, {
+		Analysis: &v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.AnalysisTemplateRef{
+				{
+					TemplateName: at.Name,
+				},
+			},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	ar0Step := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
+	ar0Step.Status.Phase = v1alpha1.AnalysisPhaseRunning
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	//rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name:   ar0Step.Name,
+		Status: "",
+	}
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar0Step)
+	f.objects = append(f.objects, r2, at, ar0Step)
+
+	patchOldAnalysisIndex := f.expectPatchAnalysisRunAction(ar0Step)
+	//createdIndex := f.expectCreateAnalysisRunAction(ar0Step)
+	index := f.expectPatchRolloutAction(r2)
+
+	// simulate promote action
+	r2.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+
+	f.run(getKey(r2, t))
+
+	assert.True(t, f.verifyPatchedAnalysisRun(patchOldAnalysisIndex, ar0Step))
+	// should terminate analysis run for old step
+	patchedOldAr := f.getPatchedAnalysisRun(patchOldAnalysisIndex)
+	assert.True(t, patchedOldAr.Spec.Terminate)
+
+	// should patch rollout with relevant currentStepAnalysisRun
+	patch := f.getPatchedRollout(index)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentStepAnalysisRunStatus":null
+			}
+		}
+	}`
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
@@ -620,7 +944,7 @@ func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: "bad-template",
 				},
@@ -653,7 +977,7 @@ func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
@@ -671,7 +995,7 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: "bad-template",
 				},
@@ -698,7 +1022,7 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
@@ -710,23 +1034,25 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 	}}
 
 	at := analysisTemplate("bad-template")
+	at2 := analysisTemplate("bad-template-2")
 	at.Spec.Metrics = append(at.Spec.Metrics, at.Spec.Metrics[0])
-	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	at2.Spec.Metrics = append(at2.Spec.Metrics, at2.Spec.Metrics[0])
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at, at2)
 
 	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				}, {
-					TemplateName: at.Name,
+					TemplateName: at2.Name,
 				},
 			},
 		},
 	}
 	f.rolloutLister = append(f.rolloutLister, r)
-	f.objects = append(f.objects, r, at)
+	f.objects = append(f.objects, r, at, at2)
 
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
@@ -738,14 +1064,14 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 			"message": "InvalidSpec: %s"
 		}
 	}`
-	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates: Invalid value: \"templateNames: [bad-template bad-template]\": two metrics have the same name 'example'"
+	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates: Invalid value: \"templateNames: [bad-template bad-template-2]\": two metrics have the same name 'example'"
 	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
 	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T) {
@@ -761,7 +1087,7 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -798,7 +1124,7 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
 func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
@@ -808,7 +1134,7 @@ func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -847,7 +1173,7 @@ func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
 func TestCancelOlderAnalysisRuns(t *testing.T) {
@@ -857,7 +1183,7 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -915,7 +1241,7 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
@@ -925,7 +1251,7 @@ func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -971,7 +1297,7 @@ func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
 	deletedAr := f.getDeletedAnalysisRun(deletedIndex)
 	assert.Equal(t, deletedAr, arWithDiffPodHash.Name)
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
 func TestDeleteAnalysisRunsAfterRSDelete(t *testing.T) {
@@ -981,7 +1307,7 @@ func TestDeleteAnalysisRunsAfterRSDelete(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -1038,7 +1364,7 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -1083,7 +1409,7 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", false)
 
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
 }
 
 func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
@@ -1102,7 +1428,7 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -1152,7 +1478,7 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
 }
 
 func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
@@ -1162,7 +1488,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -1215,7 +1541,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 		}
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
 }
 
 func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
@@ -1225,7 +1551,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -1282,7 +1608,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2) + ": " + ar.Status.Message
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, errmsg, false)
 	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, errmsg)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
@@ -1300,7 +1626,7 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -1358,7 +1684,7 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
 
 	now := timeutil.Now().UTC().Format(time.RFC3339)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg)), patch)
 }
 
 func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
@@ -1368,7 +1694,7 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -1419,7 +1745,7 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 	}`
 	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
 	now := timeutil.Now().UTC().Format(time.RFC3339)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, now, errmsg)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, now, errmsg)), patch)
 }
 
 func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
@@ -1435,7 +1761,7 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -1481,7 +1807,7 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -1521,7 +1847,7 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
 func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
@@ -1536,7 +1862,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -1571,7 +1897,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -1601,7 +1927,7 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -1647,7 +1973,7 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 			}
 		}
 	}`, ar.Name)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 // TestDoNotCreatePrePromotionAnalysisProgressedRollout ensures a pre-promotion analysis is not created after a Rollout
@@ -1659,7 +1985,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: "test",
 		}},
 	}
@@ -1708,7 +2034,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: "test",
 		}},
 	}
@@ -1741,7 +2067,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: "test",
 		}},
 	}
@@ -1771,7 +2097,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchRolloutIndex)
-	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
 func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
@@ -1783,7 +2109,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -1841,7 +2167,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 			}
 		}
 	}`, now, now)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
@@ -1853,7 +2179,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(true)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -1905,7 +2231,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 			"message": null
 		}
 	}`, rs2PodHash, rs2PodHash, rs2PodHash)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
@@ -1918,7 +2244,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.AutoPromotionSeconds = 10
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -1971,7 +2297,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 			"message": null
 		}
 	}`, rs2PodHash, rs2PodHash, rs2PodHash)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T) {
@@ -1983,7 +2309,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -2037,7 +2363,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -2096,7 +2422,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
 }
 
 func TestCreatePostPromotionAnalysisRun(t *testing.T) {
@@ -2107,7 +2433,7 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -2143,7 +2469,7 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 			}
 		}
 	}`, ar.Name)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
@@ -2154,7 +2480,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -2199,7 +2525,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 			"message": null
 		}
 	}`, rs2PodHash)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 // TestPostPromotionAnalysisRunHandleInconclusive ensures that the Rollout does not scale down a old ReplicaSet if
@@ -2212,7 +2538,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -2264,7 +2590,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 			"message": "InconclusiveAnalysisRun"
 		}
 	}`)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
@@ -2275,7 +2601,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: at.Name,
 		}},
 	}
@@ -2334,5 +2660,119 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
+}
+
+func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	at := analysisTemplate("bar")
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1.ObjectMeta.Labels = make(map[string]string)
+	r1.Spec.Selector.MatchLabels["my-label"] = "1234"
+	r2 := bumpVersion(r1)
+	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.AnalysisTemplateRef{
+				{
+					TemplateName: at.Name,
+				},
+			},
+			AnalysisRunMetadata: v1alpha1.AnalysisRunMetadata{
+				Annotations: map[string]string{"testAnnotationKey": "testAnnotationValue"},
+				Labels:      map[string]string{"testLabelKey": "testLabelValue"},
+			},
+		},
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	_, _ = newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, r2, at)
+
+	createdIndex := f.expectCreateAnalysisRunAction(ar)
+	f.expectUpdateReplicaSetAction(rs2)
+	_ = f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdAr := f.getCreatedAnalysisRun(createdIndex)
+	expectedArName := fmt.Sprintf("%s-%s-%s", r2.Name, rs2PodHash, "2")
+	assert.Equal(t, expectedArName, createdAr.Name)
+	assert.Equal(t, "testAnnotationValue", createdAr.Annotations["testAnnotationKey"])
+	assert.Equal(t, "testLabelValue", createdAr.Labels["testLabelKey"])
+	assert.Equal(t, "1234", createdAr.Labels["my-label"])
+}
+
+func TestCancelBackgroundAnalysisRunWhenRolloutAnalysisHasNoTemplate(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: pointer.Int32Ptr(10)},
+	}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 1, 1, 1, false)
+	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r1)
+	r1.Status.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name:   ar.Name,
+		Status: v1alpha1.AnalysisPhaseRunning,
+	}
+
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{}, // No templates provided.
+	}
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.objects = append(f.objects, r2, at, ar)
+
+	_ = f.expectPatchAnalysisRunAction(ar)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	_ = f.expectUpdateReplicaSetAction(rs1)
+	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(patchIndex)
+
+	assert.Contains(t, patch, `"currentBackgroundAnalysisRunStatus":null`)
+}
+
+func concatMultipleSlices[T any](slices [][]T) []T {
+	var totalLen int
+
+	for _, s := range slices {
+		totalLen += len(s)
+	}
+
+	result := make([]T, totalLen)
+
+	var i int
+
+	for _, s := range slices {
+		i += copy(result[i:], s)
+	}
+
+	return result
 }

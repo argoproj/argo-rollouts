@@ -33,6 +33,13 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: rollout-ref-deployment
+    # Specifies if the workload (Deployment) is scaled down after migrating to Rollout.
+    # The possible options are:
+    # "never": the Deployment is not scaled down
+    # "onsuccess": the Deployment is scaled down after the Rollout becomes healthy
+    # "progressively": as the Rollout is scaled up the Deployment is scaled down
+    # If the Rollout fails the Deployment will be scaled back up.
+    scaleDown: never|onsuccess|progressively
 
   # Template describes the pods that will be created. Same as deployment.
   # If used, then do not use Rollout workloadRef property. 
@@ -151,6 +158,18 @@ spec:
         requiredDuringSchedulingIgnoredDuringExecution: {}
         preferredDuringSchedulingIgnoredDuringExecution:
           weight: 1 # Between 1 - 100
+          
+      # activeMetadata will be merged and updated in-place into the ReplicaSet's spec.template.metadata
+      # of the active pods. +optional
+      activeMetadata:
+        labels:
+          role: active
+          
+      # Metadata which will be attached to the preview pods only during their preview phase.
+      # +optional
+      previewMetadata:
+        labels:
+          role: preview
 
     # Canary update strategy
     canary:
@@ -276,8 +295,8 @@ spec:
           matchTrafficWeight: true
 
       # Sets header based route with specified header values
-      # Setting header based route will send all 100 traffic to the canary for the requests 
-      # O with a specified header, in this case request header "version":"2"
+      # Setting header based route will send all traffic to the canary for the requests 
+      # with a specified header, in this case request header "version":"2"
       # (supported only with trafficRouting, for Istio only at the moment)
       - setHeaderRoute:
           # Name of the route that will be created by argo rollouts this must also be configured
@@ -337,6 +356,10 @@ spec:
           templates:
           - name: baseline
             specRef: stable
+            # optional, creates a service for the experiment if set
+            service:
+              # optional, service: {} is also acceptable if name is not included
+              name: test-service
           - name: canary
             specRef: canary
             # optional, set the weight of traffic routed to this version
@@ -344,6 +367,12 @@ spec:
           analyses:
           - name : mann-whitney
             templateName: mann-whitney
+            # Metadata which will be attached to the AnalysisRun.
+            analysisRunMetadata:
+              labels:
+                app.service.io/analysisType: smoke-test
+              annotations:
+                link.argocd.argoproj.io/external-link: http://my-loggin-platform.com/pre-generated-link
 
       # Anti-affinity configuration between desired and previous ReplicaSet.
       # Only one must be specified.
@@ -357,6 +386,9 @@ spec:
       # will achieve traffic split via a weighted replica counts between
       # the canary and stable ReplicaSet.
       trafficRouting:
+        # Supports nginx and plugins only: This lets you control the denominator or total weight of traffic.
+        # The total weight of traffic. If unspecified, it defaults to 100
+        maxTrafficWeight: 1000
         # This is a list of routes that Argo Rollouts has the rights to manage it is currently only required for
         # setMirrorRoute and setHeaderRoute. The order of managedRoutes array also sets the precedence of the route
         # in the traffic router. Argo Rollouts will place these routes in the order specified above any routes already
@@ -383,7 +415,12 @@ spec:
 
         # NGINX Ingress Controller routing configuration
         nginx:
-          stableIngress: primary-ingress  # required
+          # Either stableIngress or stableIngresses must be configured, but not both.
+          stableIngress: primary-ingress
+          stableIngresses:
+            - primary-ingress
+            - secondary-ingress
+            - tertiary-ingress
           annotationPrefix: customingress.nginx.ingress.kubernetes.io # optional
           additionalIngressAnnotations:   # optional
             canary-by-header: X-Canary

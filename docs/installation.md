@@ -2,6 +2,9 @@
 
 ## Controller Installation
 
+Two types of installation:
+
+* [install.yaml](https://github.com/argoproj/argo-rollouts/blob/master/manifests/install.yaml) - Standard installation method.
 ```bash
 kubectl create namespace argo-rollouts
 kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
@@ -10,25 +13,36 @@ kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/rele
 This will create a new namespace, `argo-rollouts`, where Argo Rollouts controller will run.
 
 !!! tip
-    If you are using another namspace name, please update `install.yaml` clusterrolebinding's serviceaccount namespace name.
+    If you are using another namespace name, please update `install.yaml` clusterrolebinding's serviceaccount namespace name.
 
 !!! tip
     When installing Argo Rollouts on Kubernetes v1.14 or lower, the CRD manifests must be kubectl applied with the --validate=false option. This is caused by use of new CRD fields introduced in v1.15, which are rejected by default in lower API servers.
 
 
-!!! tip 
+!!! tip
     On GKE, you will need grant your account the ability to create new cluster roles:
 
     ```shell
     kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
     ```
 
+* [namespace-install.yaml](https://github.com/argoproj/argo-rollouts/blob/master/manifests/namespace-install.yaml) - Installation of Argo Rollouts which requires
+only namespace level privileges. An example usage of this installation method would be to run several Argo Rollouts controller instances in different namespaces
+on the same cluster.
+
+  > Note: Argo Rollouts CRDs are not included into [namespace-install.yaml](https://github.com/argoproj/argo-rollouts/blob/master/manifests/namespace-install.yaml).
+  > and have to be installed separately. The CRD manifests are located in [manifests/crds](https://github.com/argoproj/argo-rollouts/blob/master/manifests/crds) directory.
+  > Use the following command to install them:
+  > ```bash
+  > kubectl apply -k https://github.com/argoproj/argo-rollouts/manifests/crds\?ref\=stable
+  > ```
+
 You can find released container images of the controller at [Quay.io](https://quay.io/repository/argoproj/argo-rollouts?tab=tags). There are also old releases
 at Dockerhub, but since the introduction of rate limiting, the Argo project has moved to Quay.
 
 ## Kubectl Plugin Installation
 
-The kubectl plugin is optional, but is convenient for managing and visualizing rollouts from the 
+The kubectl plugin is optional, but is convenient for managing and visualizing rollouts from the
 command line.
 
 ### Brew
@@ -44,7 +58,7 @@ brew install argoproj/tap/kubectl-argo-rollouts
     curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-darwin-amd64
     ```
 
-    !!! tip "" 
+    !!! tip ""
         For Linux dist, replace `darwin` with `linux`
 
 1. Make the kubectl-argo-rollouts binary executable.
@@ -67,7 +81,21 @@ kubectl argo rollouts version
 
 ## Shell auto completion
 
-The CLI can export shell completion code for several shells.
+To enable auto completion for the plugin when used with `kubectl` (version 1.26 or newer), you need to create a shell script on your PATH called `kubectl_complete-argo-rollouts` which will provide the completions.
+
+```shell
+cat <<EOF >kubectl_complete-argo-rollouts
+#!/usr/bin/env sh
+
+# Call the __complete command passing it all arguments
+kubectl argo rollouts __complete "\$@"
+EOF
+
+chmod +x kubectl_complete-argo-rollouts
+sudo mv ./kubectl_complete-argo-rollouts /usr/local/bin/
+```
+
+To enable auto completion for the CLI run as a standalone binary, the CLI can export shell completion code for several shells.
 
 For bash, ensure you have bash completions installed and enabled. To access completions in your current shell, run $ `source <(kubectl-argo-rollouts completion bash)`. Alternatively, write it to a file and source in `.bash_profile`.
 
@@ -88,12 +116,9 @@ docker run quay.io/argoproj/kubectl-argo-rollouts:master version
 
 ## Supported versions
 
-At any point in time the officially supported version of Argo Rollouts is the latest released one, on Kubernetes versions N and N-1 (as supported by the Kubernetes project itself).
+Check [e2e testing file]( https://github.com/argoproj/argo-rollouts/blob/master/.github/workflows/e2e.yaml#L40-L44) to see what the Kubernetes version is being fully tested.
 
-For example if the latest minor version of Argo Rollouts is 1.2.1 and supported Kubernetes versions are 1.24, 1.23 and 1.22 then the following combinations are supported:
-
-* Argo Rollouts 1.2.1 on Kubernetes 1.24
-* Argo Rollouts 1.2.1 on Kubernetes 1.23
+You can switch to different tags to see what relevant Kubernetes versions were being tested for the respective version.
 
 ## Upgrading Argo Rollouts
 
@@ -106,7 +131,6 @@ To upgrade Argo Rollouts:
 2. Delete the previous version of the controller and apply/install the new one
 3. When a new Rollout takes place the new controller will be activated.
 
-If deployments are happening while you upgrade the controller, then you shouldn't 
+If deployments are happening while you upgrade the controller, then you shouldn't
 have any downtime. Current Rollouts will be paused and as soon as the new controller becomes
 active it will resume all in-flight deployments.
-

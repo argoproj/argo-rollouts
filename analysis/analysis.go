@@ -9,6 +9,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
@@ -40,10 +41,15 @@ type metricTask struct {
 }
 
 func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun {
+	logger := logutil.WithAnalysisRun(origRun)
 	if origRun.Status.Phase.Completed() {
+		err := c.maybeGarbageCollectAnalysisRun(origRun, logger)
+		if err != nil {
+			// TODO(jessesuen): surface errors to controller so they can be retried
+			logger.Warnf("Failed to garbage collect analysis run: %v", err)
+		}
 		return origRun
 	}
-	logger := logutil.WithAnalysisRun(origRun)
 	run := origRun.DeepCopy()
 
 	if run.Status.MetricResults == nil {
@@ -108,6 +114,10 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		run.Status.Message = newMessage
 		if newStatus.Completed() {
 			c.recordAnalysisRunCompletionEvent(run)
+			if run.Status.CompletedAt == nil {
+				now := timeutil.MetaNow()
+				run.Status.CompletedAt = &now
+			}
 		}
 	}
 
@@ -321,26 +331,10 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 			//redact secret values from logs
 			logger := logutil.WithRedactor(*logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name), secrets)
 
-			resultsLock.Lock()
-			metricResult := analysisutil.GetResult(run, t.metric.Name)
-			resultsLock.Unlock()
-
-			provider, err := c.newProvider(*logger, t.metric)
-			if err != nil {
-				log.Errorf("Error in getting provider :%v", err)
-				return err
-			}
-			if metricResult == nil {
-				metricResult = &v1alpha1.MetricResult{
-					Name:     t.metric.Name,
-					Phase:    v1alpha1.AnalysisPhaseRunning,
-					DryRun:   dryRunMetricsMap[t.metric.Name],
-					Metadata: provider.GetMetadata(t.metric),
-				}
-			}
-
 			var newMeasurement v1alpha1.Measurement
-			if err != nil {
+			provider, providerErr := c.newProvider(*logger, t.metric)
+			if providerErr != nil {
+				log.Errorf("Error in getting metric provider :%v", providerErr)
 				if t.incompleteMeasurement != nil {
 					newMeasurement = *t.incompleteMeasurement
 				} else {
@@ -348,7 +342,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 					newMeasurement.StartedAt = &startedAt
 				}
 				newMeasurement.Phase = v1alpha1.AnalysisPhaseError
-				newMeasurement.Message = err.Error()
+				newMeasurement.Message = providerErr.Error()
 			} else {
 				if t.incompleteMeasurement == nil {
 					newMeasurement = provider.Run(run, t.metric)
@@ -366,12 +360,28 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 				}
 			}
 
+			resultsLock.Lock()
+			metricResult := analysisutil.GetResult(run, t.metric.Name)
+			resultsLock.Unlock()
+			if metricResult == nil {
+				metricResult = &v1alpha1.MetricResult{
+					Name:   t.metric.Name,
+					Phase:  v1alpha1.AnalysisPhaseRunning,
+					DryRun: dryRunMetricsMap[t.metric.Name],
+				}
+
+				if provider != nil && providerErr == nil {
+					metricResult.Metadata = provider.GetMetadata(t.metric)
+				}
+			}
+
 			if newMeasurement.Phase.Completed() {
 				logger.Infof("Measurement Completed. Result: %s", newMeasurement.Phase)
 				if newMeasurement.FinishedAt == nil {
 					finishedAt := timeutil.MetaNow()
 					newMeasurement.FinishedAt = &finishedAt
 				}
+
 				switch newMeasurement.Phase {
 				case v1alpha1.AnalysisPhaseSuccessful:
 					metricResult.Successful++
@@ -711,8 +721,13 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Me
 func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, measurementRetentionMetricNamesMap map[string]*v1alpha1.MeasurementRetention, limit int) error {
 	var errors []error
 
+	resolvedArgsMetric, err := getResolvedMetricsWithoutSecrets(run.Spec.Metrics, run.Spec.Args)
+	if err != nil {
+		return fmt.Errorf("failed to resolve args on metrics during garbage collection: %w", err)
+	}
+
 	metricsByName := make(map[string]v1alpha1.Metric)
-	for _, metric := range run.Spec.Metrics {
+	for _, metric := range resolvedArgsMetric {
 		metricsByName[metric.Name] = metric
 	}
 
@@ -746,4 +761,41 @@ func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, measu
 		return errors[0]
 	}
 	return nil
+}
+
+func (c *Controller) maybeGarbageCollectAnalysisRun(run *v1alpha1.AnalysisRun, logger *log.Entry) error {
+	ctx := context.TODO()
+	if run.DeletionTimestamp != nil || !isAnalysisRunTtlExceeded(run) {
+		return nil
+	}
+	logger.Infof("Trying to cleanup TTL exceeded analysis run")
+	err := c.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(run.Namespace).Delete(ctx, run.Name, metav1.DeleteOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+func isAnalysisRunTtlExceeded(run *v1alpha1.AnalysisRun) bool {
+	// TTL only counted for completed runs with TTL strategy.
+	if !run.Status.Phase.Completed() || run.Spec.TTLStrategy == nil {
+		return false
+	}
+	// Cannot determine TTL if run has no completion time.
+	if run.Status.CompletedAt == nil {
+		return false
+	}
+	secondsCompleted := timeutil.MetaNow().Sub(run.Status.CompletedAt.Time).Seconds()
+	var ttlSeconds *int32
+	if run.Status.Phase == v1alpha1.AnalysisPhaseSuccessful && run.Spec.TTLStrategy.SecondsAfterSuccess != nil {
+		ttlSeconds = run.Spec.TTLStrategy.SecondsAfterSuccess
+	} else if run.Status.Phase == v1alpha1.AnalysisPhaseFailed && run.Spec.TTLStrategy.SecondsAfterFailure != nil {
+		ttlSeconds = run.Spec.TTLStrategy.SecondsAfterFailure
+	} else if run.Spec.TTLStrategy.SecondsAfterCompletion != nil {
+		ttlSeconds = run.Spec.TTLStrategy.SecondsAfterCompletion
+	}
+	if ttlSeconds == nil {
+		return false
+	}
+	return int32(secondsCompleted) > *ttlSeconds
 }

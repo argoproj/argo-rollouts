@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -16,12 +17,15 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+
+	"context"
 )
 
 func rs(name string, replicas int, selector map[string]string, timestamp metav1.Time, ownerRef *metav1.OwnerReference) *appsv1.ReplicaSet {
@@ -309,7 +313,7 @@ func TestCanaryPromoteFull(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(10), intstr.FromInt(0))
 	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -355,14 +359,14 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 10, nil, "active", "preview")
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r1.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{
+		Templates: []v1alpha1.AnalysisTemplateRef{
 			{
 				TemplateName: at.Name,
 			},
 		},
 	}
 	r1.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{
+		Templates: []v1alpha1.AnalysisTemplateRef{
 			{
 				TemplateName: at.Name,
 			},
@@ -451,7 +455,7 @@ func TestSendStateChangeEvents(t *testing.T) {
 		recorder := record.NewFakeEventRecorder()
 		roCtx.recorder = recorder
 		roCtx.sendStateChangeEvents(&test.prevStatus, &test.newStatus)
-		assert.Equal(t, test.expectedEventReasons, recorder.Events)
+		assert.Equal(t, test.expectedEventReasons, recorder.Events())
 	}
 }
 
@@ -609,4 +613,29 @@ func Test_shouldFullPromote(t *testing.T) {
 
 	result = ctx.shouldFullPromote(newStatus)
 	assert.Equal(t, result, "Rollback within window")
+}
+
+func TestScaleDownDeploymentOnSuccess(t *testing.T) {
+	ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
+	newStatus := &v1alpha1.RolloutStatus{
+		CurrentPodHash: "2f646bf702",
+		StableRS:       "15fb5ffc01",
+	}
+	err := ctx.promoteStable(newStatus, "reason")
+
+	assert.Nil(t, err)
+	k8sfakeClient := ctx.kubeclientset.(*k8sfake.Clientset)
+	updatedDeployment, err := k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, int32(0), *updatedDeployment.Spec.Replicas)
+
+	// test scale deployment error
+	ctx = createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, false, nil)
+	newStatus = &v1alpha1.RolloutStatus{
+		CurrentPodHash: "2f646bf702",
+		StableRS:       "15fb5ffc01",
+	}
+	err = ctx.promoteStable(newStatus, "reason")
+
+	assert.NotNil(t, err)
 }

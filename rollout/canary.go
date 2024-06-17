@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"fmt"
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -21,14 +22,14 @@ func (c *rolloutContext) rolloutCanary() error {
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
 		c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary with PodTemplateOrStepsChanged: %w", err)
 		}
 		return c.syncRolloutStatusCanary()
 	}
 
 	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(true)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err)
 	}
 
 	err = c.podRestarter.Reconcile(c)
@@ -110,6 +111,9 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.rollout.Status.Canary.Weights)
 	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
+	if err != nil {
+		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileCanaryStableReplicaSet: %w", err)
+	}
 	return scaled, err
 }
 
@@ -180,10 +184,9 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 
 	annotationedRSs := int32(0)
 	for _, targetRS := range oldRSs {
-		if replicasetutil.IsStillReferenced(c.rollout.Status, targetRS) {
-			// We should technically never get here because we shouldn't be passing a replicaset list
-			// which includes referenced ReplicaSets. But we check just in case
-			c.log.Warnf("Prevented inadvertent scaleDown of RS '%s'", targetRS.Name)
+		if c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && c.isReplicaSetReferenced(targetRS) {
+			// We might get here if user interrupted an an update in order to move back to stable.
+			c.log.Infof("Skip scale down of older RS '%s': still referenced", targetRS.Name)
 			continue
 		}
 		if maxScaleDown <= 0 {
@@ -220,15 +223,8 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 				// and doesn't yet have scale down deadline. This happens when a user changes their
 				// mind in the middle of an V1 -> V2 update, and then applies a V3. We are deciding
 				// what to do with the defunct, intermediate V2 ReplicaSet right now.
-				if !c.replicaSetReferencedByCanaryTraffic(targetRS) {
-					// It is safe to scale the intermediate RS down, if no traffic is directed to it.
-					c.log.Infof("scaling down intermediate RS '%s'", targetRS.Name)
-				} else {
-					c.log.Infof("Skip scaling down intermediate RS '%s': still referenced by service", targetRS.Name)
-					// This ReplicaSet is still referenced by the service. It is not safe to scale
-					// this down.
-					continue
-				}
+				// It is safe to scale the intermediate RS down, since no traffic is directed to it.
+				c.log.Infof("scaling down intermediate RS '%s'", targetRS.Name)
 			}
 		}
 		if *targetRS.Spec.Replicas == desiredReplicaCount {
@@ -238,7 +234,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 		// Scale down.
 		_, _, err = c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
 		if err != nil {
-			return totalScaledDown, err
+			return totalScaledDown, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in scaleDownOldReplicaSetsForCanary: %w", err)
 		}
 		scaleDownCount := *targetRS.Spec.Replicas - desiredReplicaCount
 		maxScaleDown -= scaleDownCount
@@ -248,19 +244,26 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 	return totalScaledDown, nil
 }
 
-func (c *rolloutContext) replicaSetReferencedByCanaryTraffic(rs *appsv1.ReplicaSet) bool {
-	rsPodHash := replicasetutil.GetPodTemplateHash(rs)
-	ro := c.rollout
-
-	if ro.Status.Canary.Weights == nil {
-		return false
+// isDynamicallyRollingBackToStable returns true if we were in the middle of an canary update with
+// dynamic stable scaling, but was interrupted and are now rolling back to stable RS. This is similar
+// to, but different than aborting. With abort, desired hash != stable hash and so we know the
+// two hashes to balance traffic against. But with dynamically rolling back to stable, the
+// desired hash == stable hash, and so we must use the *previous* desired hash and balance traffic
+// between previous desired vs. stable hash, in order to safely shift traffic back to stable.
+// This function also returns the previous desired hash (where we are weighted to)
+func isDynamicallyRollingBackToStable(ro *v1alpha1.Rollout, desiredRS *appsv1.ReplicaSet) (bool, string) {
+	if rolloututil.IsFullyPromoted(ro) && ro.Spec.Strategy.Canary.TrafficRouting != nil && ro.Spec.Strategy.Canary.DynamicStableScale {
+		if ro.Status.Canary.Weights != nil {
+			currSelector := ro.Status.Canary.Weights.Canary.PodTemplateHash
+			desiredSelector := replicasetutil.GetPodTemplateHash(desiredRS)
+			if currSelector != desiredSelector {
+				if desiredRS.Status.AvailableReplicas < *ro.Spec.Replicas {
+					return true, currSelector
+				}
+			}
+		}
 	}
-
-	if ro.Status.Canary.Weights.Canary.PodTemplateHash == rsPodHash || ro.Status.Canary.Weights.Stable.PodTemplateHash == rsPodHash {
-		return true
-	}
-
-	return false
+	return false, ""
 }
 
 // canProceedWithScaleDownAnnotation returns whether or not it is safe to proceed with annotating
@@ -293,7 +296,7 @@ func (c *rolloutContext) canProceedWithScaleDownAnnotation(oldRSs []*appsv1.Repl
 		// AWS API calls.
 		return true, nil
 	}
-	stableSvcName, _ := trafficrouting.GetStableAndCanaryServices(c.rollout)
+	stableSvcName, _ := trafficrouting.GetStableAndCanaryServices(c.rollout, true)
 	stableSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(stableSvcName)
 	if err != nil {
 		return false, err
@@ -359,13 +362,18 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
 		c.resetRolloutStatus(&newStatus)
-		if c.newRS != nil && c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS) {
-			if stepCount > 0 {
+		if c.newRS != nil && stepCount > 0 {
+			if c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS) {
 				// If we get here, we detected that we've moved back to the stable ReplicaSet
-				c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "SkipSteps"}, "Rollback to stable")
+				c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "SkipSteps"}, "Rollback to stable ReplicaSets")
+				newStatus.CurrentStepIndex = &stepCount
+			} else if c.isRollbackWithinWindow() && replicasetutil.IsActive(c.newRS) {
+				// Else if we get here we detected that we are within the rollback window we can skip steps and move back to the active ReplicaSet
+				c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "SkipSteps"}, "Rollback to active ReplicaSets within RollbackWindow")
 				newStatus.CurrentStepIndex = &stepCount
 			}
 		}
+
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
@@ -429,6 +437,13 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 	if scaledStableRS {
 		c.log.Infof("Not finished reconciling stableRS")
 		return true, nil
+	}
+
+	// If we have updated both the replica count and the pod template hash c.newRS will be nil we want to reconcile the newRS so we look at the
+	// rollout status to get the newRS to reconcile it.
+	if c.newRS == nil && c.rollout.Status.CurrentPodHash != c.rollout.Status.StableRS {
+		rs, _ := replicasetutil.GetReplicaSetByTemplateHash(c.allRSs, c.rollout.Status.CurrentPodHash)
+		c.newRS = rs
 	}
 
 	scaledNewRS, err := c.reconcileNewReplicaSet()

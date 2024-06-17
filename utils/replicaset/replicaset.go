@@ -341,6 +341,15 @@ func FindActiveOrLatest(newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) *
 	}
 }
 
+// IsActive returns if replica set is active (has, or at least ought to have pods).
+func IsActive(rs *appsv1.ReplicaSet) bool {
+	if rs == nil {
+		return false
+	}
+
+	return len(controller.FilterActiveReplicaSets([]*appsv1.ReplicaSet{rs})) > 0
+}
+
 // GetReplicaCountForReplicaSets returns the sum of Replicas of the given replica sets.
 func GetReplicaCountForReplicaSets(replicaSets []*appsv1.ReplicaSet) int32 {
 	totalReplicas := int32(0)
@@ -581,17 +590,6 @@ func (o ReplicaSetsByRevisionNumber) Less(i, j int) bool {
 		return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
 	}
 	return iRevision < jRevision
-}
-
-// IsStillReferenced returns if the given ReplicaSet is still being referenced by any of
-// the current, stable, blue-green active references. Used to determine if the ReplicaSet can
-// safely be scaled to zero, or deleted.
-func IsStillReferenced(status v1alpha1.RolloutStatus, rs *appsv1.ReplicaSet) bool {
-	hash := GetPodTemplateHash(rs)
-	if hash != "" && (hash == status.StableRS || hash == status.CurrentPodHash || hash == status.BlueGreen.ActiveSelector) {
-		return true
-	}
-	return false
 }
 
 // HasScaleDownDeadline returns whether or not the given ReplicaSet is annotated with a scale-down delay

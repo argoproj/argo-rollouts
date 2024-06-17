@@ -3,9 +3,13 @@ package analysis
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/metric"
 
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
@@ -25,7 +29,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
-	"github.com/argoproj/argo-rollouts/metricproviders"
 	"github.com/argoproj/argo-rollouts/metricproviders/mocks"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -48,11 +51,18 @@ type fixture struct {
 	// Actions expected to happen on the client.
 	actions []core.Action
 	// Objects from here preloaded into NewSimpleFake.
-	objects         []runtime.Object
-	enqueuedObjects map[string]int
-	unfreezeTime    func() error
+	objects []runtime.Object
+
+	// Acquire 'enqueuedObjectMutex' before accessing enqueuedObjects
+	enqueuedObjects     map[string]int
+	enqueuedObjectMutex sync.Mutex
+
+	unfreezeTime func() error
 	// fake provider
 	provider *mocks.Provider
+
+	// Reference to frozen now
+	now time.Time
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -60,12 +70,12 @@ func newFixture(t *testing.T) *fixture {
 	f.t = t
 	f.objects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
-	now := time.Now()
-	timeutil.Now = func() time.Time {
-		return now
-	}
+	f.now = time.Now()
+	timeutil.SetNowTimeFunc(func() time.Time {
+		return f.now
+	})
 	f.unfreezeTime = func() error {
-		timeutil.Now = time.Now
+		timeutil.SetNowTimeFunc(time.Now)
 		return nil
 	}
 	return f
@@ -111,12 +121,16 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Recorder:             record.NewFakeEventRecorder(),
 	})
 
-	c.enqueueAnalysis = func(obj interface{}) {
+	c.enqueueAnalysis = func(obj any) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 			panic(err)
 		}
+
+		f.enqueuedObjectMutex.Lock()
+		defer f.enqueuedObjectMutex.Unlock()
+
 		count, ok := f.enqueuedObjects[key]
 		if !ok {
 			count = 0
@@ -125,11 +139,11 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		f.enqueuedObjects[key] = count
 		c.analysisRunWorkQueue.Add(obj)
 	}
-	c.enqueueAnalysisAfter = func(obj interface{}, duration time.Duration) {
+	c.enqueueAnalysisAfter = func(obj any, duration time.Duration) {
 		c.enqueueAnalysis(obj)
 	}
 	f.provider = &mocks.Provider{}
-	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metricproviders.Provider, error) {
+	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error) {
 		return f.provider, nil
 	}
 
@@ -284,6 +298,22 @@ func (f *fixture) getPatchedAnalysisRun(index int) v1alpha1.AnalysisRun { //noli
 	return ar
 }
 
+func (f *fixture) expectDeleteAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int { //nolint:unused
+	action := core.NewDeleteAction(schema.GroupVersionResource{Resource: "analysisrun"}, analysisRun.Namespace, analysisRun.Name)
+	len := len(f.actions)
+	f.actions = append(f.actions, action)
+	return len
+}
+
+func (f *fixture) getDeletedAnalysisRunNamespaceAndName(index int) string { //nolint:unused
+	action := filterInformerActions(f.client.Actions())[index]
+	deleteAction, ok := action.(core.DeleteAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	return fmt.Sprintf("%s/%s", deleteAction.GetNamespace(), deleteAction.GetName())
+}
+
 func TestNoReconcileForNotFoundAnalysisRun(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -314,6 +344,44 @@ func TestNoReconcileForAnalysisRunWithDeletionTimestamp(t *testing.T) {
 	f.objects = append(f.objects, ar)
 
 	f.run(getKey(ar, t))
+}
+
+func TestFailedToCreateProviderError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	ar := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "metric1",
+					Provider: v1alpha1.MetricProvider{
+						Plugin: map[string]json.RawMessage{"mypluginns/myplugin": []byte(`{"invalid": "json"}`)},
+					},
+				},
+			},
+		},
+	}
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.objects = append(f.objects, ar)
+
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error) {
+		return nil, fmt.Errorf("failed to create provider")
+	}
+
+	pi := f.expectPatchAnalysisRunAction(ar)
+
+	f.runController(getKey(ar, t), true, false, c, i, k8sI)
+
+	updatedAr := f.getPatchedAnalysisRun(pi)
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, updatedAr.Status.MetricResults[0].Measurements[0].Phase)
+	assert.Equal(t, "failed to create provider", updatedAr.Status.MetricResults[0].Measurements[0].Message)
 }
 
 func TestRun(t *testing.T) {

@@ -24,7 +24,6 @@ import (
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeAnalysisTemplates struct {
 	ns   string
 }
 
-var analysistemplatesResource = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "analysistemplates"}
+var analysistemplatesResource = v1alpha1.SchemeGroupVersion.WithResource("analysistemplates")
 
-var analysistemplatesKind = schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "AnalysisTemplate"}
+var analysistemplatesKind = v1alpha1.SchemeGroupVersion.WithKind("AnalysisTemplate")
 
 // Get takes name of the analysisTemplate, and returns the corresponding analysisTemplate object, and an error if there is any.
 func (c *FakeAnalysisTemplates) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.AnalysisTemplate, err error) {

@@ -56,7 +56,7 @@ type AnalysisTemplateSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
 	// +patchMergeKey=name
 	// +patchStrategy=merge
-	Metrics []Metric `json:"metrics" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,1,rep,name=metrics"`
+	Metrics []Metric `json:"metrics,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,1,rep,name=metrics"`
 	// Args are the list of arguments to the template
 	// +patchMergeKey=name
 	// +patchStrategy=merge
@@ -72,6 +72,10 @@ type AnalysisTemplateSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
+	// Templates reference to a list of analysis templates to combine with the rest of the metrics for an AnalysisRun
+	// +patchMergeKey=templateName
+	// +patchStrategy=merge
+	Templates []AnalysisTemplateRef `json:"templates,omitempty" patchStrategy:"merge" patchMergeKey:"templateName" protobuf:"bytes,5,rep,name=templates"`
 }
 
 // DurationString is a string representing a duration (e.g. 30s, 5m, 1h)
@@ -134,6 +138,16 @@ type MeasurementRetention struct {
 	Limit int32 `json:"limit" protobuf:"varint,2,opt,name=limit"`
 }
 
+// TTLStrategy defines the strategy for the time to live depending on if the analysis succeeded or failed
+type TTLStrategy struct {
+	// SecondsAfterCompletion is the number of seconds to live after completion.
+	SecondsAfterCompletion *int32 `json:"secondsAfterCompletion,omitempty" protobuf:"varint,1,opt,name=secondsAfterCompletion"`
+	// SecondsAfterFailure is the number of seconds to live after failure.
+	SecondsAfterFailure *int32 `json:"secondsAfterFailure,omitempty" protobuf:"varint,2,opt,name=secondsAfterFailure"`
+	// SecondsAfterSuccess is the number of seconds to live after success.
+	SecondsAfterSuccess *int32 `json:"secondsAfterSuccess,omitempty" protobuf:"varint,3,opt,name=secondsAfterSuccess"`
+}
+
 // EffectiveCount is the effective count based on whether or not count/interval is specified
 // If neither count or interval is specified, the effective count is 1
 // If only interval is specified, metric runs indefinitely and there is no effective count (nil)
@@ -173,6 +187,13 @@ type MetricProvider struct {
 	Graphite *GraphiteMetric `json:"graphite,omitempty" protobuf:"bytes,9,opt,name=graphite"`
 	// Influxdb specifies the influxdb metric to query
 	Influxdb *InfluxdbMetric `json:"influxdb,omitempty" protobuf:"bytes,10,opt,name=influxdb"`
+	// SkyWalking specifies the skywalking metric to query
+	SkyWalking *SkyWalkingMetric `json:"skywalking,omitempty" protobuf:"bytes,11,opt,name=skywalking"`
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Plugin specifies the hashicorp go-plugin metric to query
+	Plugin map[string]json.RawMessage `json:"plugin,omitempty" protobuf:"bytes,12,opt,name=plugin"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -203,6 +224,50 @@ type PrometheusMetric struct {
 	Address string `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
 	// Query is a raw prometheus query to perform
 	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+	// Authentication details
+	// +optional
+	Authentication Authentication `json:"authentication,omitempty" protobuf:"bytes,3,opt,name=authentication"`
+	// Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.
+	// +optional
+	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,4,opt,name=timeout"`
+	// Insecure skips host TLS verification
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// Headers are optional HTTP headers to use in the request
+	// +optional
+	// +patchMergeKey=key
+	// +patchStrategy=merge
+	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,6,opt,name=headers"`
+}
+
+// Authentication method
+type Authentication struct {
+	// Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
+	// +optional
+	Sigv4 Sigv4Config `json:"sigv4,omitempty" protobuf:"bytes,1,opt,name=sigv4"`
+	// OAuth2 config
+	// +optional
+	OAuth2 OAuth2Config `json:"oauth2,omitempty" protobuf:"bytes,2,opt,name=oauth2"`
+}
+
+type OAuth2Config struct {
+	// OAuth2 provider token URL
+	TokenURL string `json:"tokenUrl,omitempty" protobuf:"bytes,1,name=tokenUrl"`
+	// OAuth2 client ID
+	ClientID string `json:"clientId,omitempty" protobuf:"bytes,2,name=clientId"`
+	// OAuth2 client secret
+	ClientSecret string `json:"clientSecret,omitempty" protobuf:"bytes,3,name=clientSecret"`
+	// OAuth2 scopes
+	// +optional
+	Scopes []string `json:"scopes,omitempty" protobuf:"bytes,4,opt,name=scopes"`
+}
+
+type Sigv4Config struct {
+	// Region is the AWS Region to sign the SigV4 Request
+	Region string `json:"region,omitempty" protobuf:"bytes,1,opt,name=address"`
+	// Profile is the Credential Profile used to sign the SigV4 Request
+	Profile string `json:"profile,omitempty" protobuf:"bytes,2,opt,name=profile"`
+	// RoleARN is the IAM role used to sign the SIgV4 Request
+	RoleARN string `json:"roleArn,omitempty" protobuf:"bytes,3,opt,name=roleArn"`
 }
 
 // WavefrontMetric defines the wavefront query to perform canary analysis
@@ -298,6 +363,12 @@ type AnalysisRunList struct {
 	Items           []AnalysisRun `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+type SkyWalkingMetric struct {
+	Address  string         `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
+	Query    string         `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+	Interval DurationString `json:"interval,omitempty" protobuf:"bytes,3,opt,name=interval,casttype=DurationString"`
+}
+
 // AnalysisRunSpec is the spec for a AnalysisRun resource
 type AnalysisRunSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
@@ -321,6 +392,9 @@ type AnalysisRunSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,5,rep,name=measurementRetention"`
+	// TTLStrategy object contains the strategy for the time to live depending on if the analysis succeeded or failed
+	// +optional
+	TTLStrategy *TTLStrategy `json:"ttlStrategy,omitempty" protobuf:"bytes,6,opt,name=ttlStrategy"`
 }
 
 // Argument is an argument to an AnalysisRun
@@ -339,8 +413,8 @@ type ValueFrom struct {
 	// Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom
 	// +optional
 	SecretKeyRef *SecretKeyRef `json:"secretKeyRef,omitempty" protobuf:"bytes,1,opt,name=secretKeyRef"`
-	//FieldRef is a reference to the fields in metadata which we are referencing. This field is one of the fields with
-	//valueFrom
+	// FieldRef is a reference to the fields in metadata which we are referencing. This field is one of the fields with
+	// valueFrom
 	// +optional
 	FieldRef *FieldRef `json:"fieldRef,omitempty" protobuf:"bytes,2,opt,name=fieldRef"`
 }
@@ -366,6 +440,8 @@ type AnalysisRunStatus struct {
 	RunSummary RunSummary `json:"runSummary,omitempty" protobuf:"bytes,5,opt,name=runSummary"`
 	// DryRunSummary contains the final results from the metric executions in the dry-run mode
 	DryRunSummary *RunSummary `json:"dryRunSummary,omitempty" protobuf:"bytes,6,opt,name=dryRunSummary"`
+	// CompletedAt indicates when the analysisRun completed
+	CompletedAt *metav1.Time `json:"completedAt,omitempty" protobuf:"bytes,7,opt,name=completedAt"`
 }
 
 // RunSummary contains the final results from the metric executions
@@ -491,6 +567,9 @@ type WebMetric struct {
 	// +kubebuilder:validation:Type=object
 	// JSONBody is the body of the web metric in a json format (method must be POST/PUT)
 	JSONBody json.RawMessage `json:"jsonBody,omitempty" protobuf:"bytes,8,opt,name=jsonBody,casttype=encoding/json.RawMessage"`
+	// Authentication details
+	// +optional
+	Authentication Authentication `json:"authentication,omitempty" protobuf:"bytes,9,opt,name=authentication"`
 }
 
 // WebMetricMethod is the available HTTP methods
@@ -509,6 +588,21 @@ type WebMetricHeader struct {
 }
 
 type DatadogMetric struct {
+	// +kubebuilder:default="5m"
+	// Interval refers to the Interval time window in Datadog (default: 5m). Not to be confused with the polling rate for the metric.
 	Interval DurationString `json:"interval,omitempty" protobuf:"bytes,1,opt,name=interval,casttype=DurationString"`
-	Query    string         `json:"query" protobuf:"bytes,2,opt,name=query"`
+	Query    string         `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+	// Queries is a map of query_name_as_key: query. You can then use query_name_as_key inside Formula.Used for v2
+	// +kubebuilder:validation:Type=object
+	Queries map[string]string `json:"queries,omitempty" protobuf:"bytes,3,opt,name=queries"`
+	// Formula refers to the Formula made up of the queries. Only useful with Queries. Used for v2
+	Formula string `json:"formula,omitempty" protobuf:"bytes,4,opt,name=formula"`
+	// ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.
+	// +kubebuilder:validation:Enum=v1;v2
+	// +kubebuilder:default=v1
+	ApiVersion string `json:"apiVersion,omitempty" protobuf:"bytes,5,opt,name=apiVersion"`
+	// +kubebuilder:default="last"
+	// +kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area
+	// Aggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2
+	Aggregator string `json:"aggregator,omitempty" protobuf:"bytes,6,opt,name=aggregator"`
 }

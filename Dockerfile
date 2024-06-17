@@ -3,7 +3,7 @@
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.19 as builder
+FROM --platform=$BUILDPLATFORM golang:1.22 as builder
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install golangci-lint
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.49.0 && \
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.57.2 && \
     golangci-lint linters
 
 COPY .golangci.yml ${GOPATH}/src/dummy/.golangci.yml
@@ -24,7 +24,7 @@ RUN cd ${GOPATH}/src/dummy && \
 ####################################################################################################
 # UI build stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:12.18.4 as argo-rollouts-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:18 as argo-rollouts-ui
 
 WORKDIR /src
 ADD ["ui/package.json", "ui/yarn.lock", "./"]
@@ -40,7 +40,7 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.19 as argo-rollouts-build
+FROM --platform=$BUILDPLATFORM golang:1.22 as argo-rollouts-build
 
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
 
@@ -69,7 +69,7 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make ${MAKE_TARGET}
 ####################################################################################################
 # Kubectl plugin image
 ####################################################################################################
-FROM docker.io/library/ubuntu:20.10 as kubectl-argo-rollouts
+FROM gcr.io/distroless/static-debian11 as kubectl-argo-rollouts
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts /bin/kubectl-argo-rollouts
 
@@ -84,7 +84,7 @@ CMD ["dashboard"]
 ####################################################################################################
 # Final image
 ####################################################################################################
-FROM scratch
+FROM gcr.io/distroless/static-debian11
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/

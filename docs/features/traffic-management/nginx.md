@@ -24,7 +24,12 @@ spec:
       stableService: stable-service  # required
       trafficRouting:
         nginx:
-          stableIngress: primary-ingress  # required
+          # Either stableIngress or stableIngresses must be configured, but not both.
+          stableIngress: primary-ingress
+          stableIngresses:
+            - primary-ingress
+            - secondary-ingress
+            - tertiary-ingress
           annotationPrefix: customingress.nginx.ingress.kubernetes.io # optional
           additionalIngressAnnotations:   # optional
             canary-by-header: X-Canary
@@ -38,7 +43,11 @@ The controller routes traffic to the canary Service by creating a second Ingress
 Since the Nginx Ingress controller allows users to configure the annotation prefix used by the Ingress controller, Rollouts can specify the optional `annotationPrefix` field. The canary Ingress uses that prefix instead of the default `nginx.ingress.kubernetes.io` if the field set.
 
 
-## Using Argo Rollouts with multiple NGINX ingress controllers
+## Using Argo Rollouts with multiple NGINX ingress controllers per service
+Starting with v1.5, argo rollouts supports multiple Nginx ingress controllers pointing at one service with canary deployments. If only one ingress controller is needed, utilize the existing key `stableIngress`. If multiple ingress controllers are needed (e.g., separating internal vs external traffic), use the key `stableIngresses` instead. It takes an array of string values that are the names of the ingress controllers. Canary steps are applied identically across all ingress controllers.
+
+
+## Using Argo Rollouts with custom NGINX ingress controller names
 As a default, the Argo Rollouts controller only operates on ingresses with the `kubernetes.io/ingress.class` annotation or `spec.ingressClassName` set to `nginx`. A user can configure the controller to operate on Ingresses with different class name by specifying the `--nginx-ingress-classes` flag. A user can list the `--nginx-ingress-classes` flag multiple times if the Argo Rollouts controller should operate on multiple values. This solves the case where a cluster has multiple Ingress controllers operating on different class values.
 
 If the user would like the controller to operate on any Ingress without the `kubernetes.io/ingress.class` annotation or `spec.ingressClassName`, a user should add the following `--nginx-ingress-classes ''`.

@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
 func NewRolloutInfo(
@@ -29,6 +30,8 @@ func NewRolloutInfo(
 		ObjectMeta: &v1.ObjectMeta{
 			Name:              ro.Name,
 			Namespace:         ro.Namespace,
+			Labels:            ro.Labels,
+			Annotations:       ro.Annotations,
 			UID:               ro.UID,
 			CreationTimestamp: ro.CreationTimestamp,
 			ResourceVersion:   ro.ObjectMeta.ResourceVersion,
@@ -56,12 +59,12 @@ func NewRolloutInfo(
 		currentStep, _ := replicasetutil.GetCurrentCanaryStep(ro)
 
 		if currentStep == nil {
-			roInfo.ActualWeight = "100"
+			roInfo.ActualWeight = fmt.Sprintf("%d", weightutil.MaxTrafficWeight(ro))
 		} else if ro.Status.AvailableReplicas > 0 {
 			if ro.Spec.Strategy.Canary.TrafficRouting == nil {
 				for _, rs := range roInfo.ReplicaSets {
 					if rs.Canary {
-						roInfo.ActualWeight = fmt.Sprintf("%d", (rs.Available*100)/ro.Status.AvailableReplicas)
+						roInfo.ActualWeight = fmt.Sprintf("%d", (rs.Available*weightutil.MaxTrafficWeight(ro))/ro.Status.AvailableReplicas)
 					}
 				}
 			} else {
@@ -82,14 +85,21 @@ func NewRolloutInfo(
 	roInfo.Containers = []*rollout.ContainerInfo{}
 
 	var containerList []corev1.Container
+	var initContainerList []corev1.Container
 	if workloadRef != nil {
 		containerList = workloadRef.Spec.Template.Spec.Containers
+		initContainerList = workloadRef.Spec.Template.Spec.InitContainers
 	} else {
 		containerList = ro.Spec.Template.Spec.Containers
+		initContainerList = ro.Spec.Template.Spec.InitContainers
 	}
 
 	for _, c := range containerList {
 		roInfo.Containers = append(roInfo.Containers, &rollout.ContainerInfo{Name: c.Name, Image: c.Image})
+	}
+
+	for _, c := range initContainerList {
+		roInfo.InitContainers = append(roInfo.InitContainers, &rollout.ContainerInfo{Name: c.Name, Image: c.Image})
 	}
 
 	if ro.Status.RestartedAt != nil {

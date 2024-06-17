@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
-	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	goyaml "gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
@@ -19,6 +18,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/yaml"
 )
 
 type LintOptions struct {
@@ -53,24 +53,19 @@ func NewCmdLint(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return o.UsageErr(c)
 			}
 
-			err := lintOptions.lintResource(lintOptions.File)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return lintOptions.lintResource(lintOptions.File)
 		},
 	}
 	cmd.Flags().StringVarP(&lintOptions.File, "filename", "f", "", "File to lint")
 	return cmd
 }
 
-func unmarshal(fileBytes []byte, obj interface{}) error {
+func unmarshal(fileBytes []byte, obj any) error {
 	return yaml.UnmarshalStrict(fileBytes, &obj, yaml.DisallowUnknownFields)
 }
 
 func (l *LintOptions) lintResource(path string) error {
-	fileBytes, err := ioutil.ReadFile(path)
+	fileBytes, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -81,7 +76,7 @@ func (l *LintOptions) lintResource(path string) error {
 
 	decoder := goyaml.NewDecoder(bytes.NewReader(fileBytes))
 	for {
-		var value interface{}
+		var value any
 		if err := decoder.Decode(&value); err != nil {
 			if err != io.EOF {
 				return err

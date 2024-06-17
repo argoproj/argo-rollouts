@@ -5,21 +5,24 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"regexp"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
+	argoinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
-
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	k8sinformers "k8s.io/client-go/informers"
@@ -32,6 +35,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -58,8 +62,8 @@ type EventOptions struct {
 }
 
 type EventRecorder interface {
-	Eventf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{})
-	Warnf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{})
+	Eventf(object runtime.Object, opts EventOptions, messageFmt string, args ...any)
+	Warnf(object runtime.Object, opts EventOptions, messageFmt string, args ...any)
 	K8sRecorder() record.EventRecorder
 }
 
@@ -75,7 +79,7 @@ type EventRecorderAdapter struct {
 	NotificationSuccessCounter  *prometheus.CounterVec
 	NotificationSendPerformance *prometheus.HistogramVec
 
-	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{})
+	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...any)
 	// apiFactory is a notifications engine API factory
 	apiFactory api.Factory
 }
@@ -104,14 +108,36 @@ func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *p
 // reasons which were emitted
 type FakeEventRecorder struct {
 	EventRecorderAdapter
-	Events []string
+	// acquire eventsLock before using events
+	events     []string
+	eventsLock sync.Mutex
+}
+
+func (e *FakeEventRecorder) appendEvents(events ...string) {
+	e.eventsLock.Lock()
+	defer e.eventsLock.Unlock()
+
+	e.events = append(e.events, events...)
+}
+
+// Events returns a list of received events, with thread safety
+func (e *FakeEventRecorder) Events() []string {
+
+	e.eventsLock.Lock()
+	defer e.eventsLock.Unlock()
+
+	if e.events == nil {
+		return nil
+	}
+
+	return append(make([]string, 0), e.events...)
 }
 
 func NewFakeApiFactory() api.Factory {
 	var (
 		settings = api.Settings{ConfigMapName: "my-config-map", SecretName: "my-secret", InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
-			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
-				return map[string]interface{}{"obj": obj}
+			return func(obj map[string]any, dest services.Destination) map[string]any {
+				return map[string]any{"obj": obj}
 			}, nil
 		}}
 	)
@@ -173,29 +199,29 @@ func NewFakeEventRecorder() *FakeEventRecorder {
 	).(*EventRecorderAdapter)
 	recorder.Recorder = record.NewFakeRecorder(1000)
 	fakeRecorder := &FakeEventRecorder{}
-	recorder.eventf = func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{}) {
+	recorder.eventf = func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...any) {
 		recorder.defaultEventf(object, warn, opts, messageFmt, args...)
-		fakeRecorder.Events = append(fakeRecorder.Events, opts.EventReason)
+		fakeRecorder.appendEvents(opts.EventReason)
 	}
 	fakeRecorder.EventRecorderAdapter = *recorder
 	return fakeRecorder
 }
 
-func (e *EventRecorderAdapter) Eventf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{}) {
+func (e *EventRecorderAdapter) Eventf(object runtime.Object, opts EventOptions, messageFmt string, args ...any) {
 	if opts.EventType == "" {
 		opts.EventType = corev1.EventTypeNormal
 	}
 	e.eventf(object, opts.EventType == corev1.EventTypeWarning, opts, messageFmt, args...)
 }
 
-func (e *EventRecorderAdapter) Warnf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{}) {
+func (e *EventRecorderAdapter) Warnf(object runtime.Object, opts EventOptions, messageFmt string, args ...any) {
 	opts.EventType = corev1.EventTypeWarning
 	e.eventf(object, true, opts, messageFmt, args...)
 }
 
 // defaultEventf is the default implementation of eventf, which is able to be overwritten for
 // test purposes
-func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{}) {
+func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...any) {
 	logCtx := logutil.WithObject(object)
 
 	if opts.EventReason != "" {
@@ -207,14 +233,23 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 		if kind == "Rollout" {
 			e.RolloutEventCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 		}
-		err := e.sendNotifications(object, opts)
-		if err != nil {
-			logCtx.Errorf("Notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
-			e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
-		}
-		e.NotificationSuccessCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
-	}
 
+		if e.apiFactory != nil {
+			apis, err := e.apiFactory.GetAPIsFromNamespace(namespace)
+			if err != nil {
+				logCtx.Errorf("notifications failed to get apis for eventReason %s with error: %s", opts.EventReason, err)
+				e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
+			}
+
+			for _, api := range apis {
+				err := e.sendNotifications(api, object, opts)
+				if err != nil {
+					logCtx.Errorf("Notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
+				}
+			}
+		}
+
+	}
 	logFn := logCtx.Infof
 	if warn {
 		logFn = logCtx.Warnf
@@ -226,20 +261,99 @@ func (e *EventRecorderAdapter) K8sRecorder() record.EventRecorder {
 	return e.Recorder
 }
 
-func NewAPIFactorySettings() api.Settings {
+func getAnalysisRunsFilterWithLabels(ro v1alpha1.Rollout, arInformer argoinformers.AnalysisRunInformer) (any, error) {
+
+	set := labels.Set(map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: ro.Status.CurrentPodHash,
+	})
+
+	revision, _ := annotations.GetRevisionAnnotation(&ro)
+	ars, err := arInformer.Lister().AnalysisRuns(ro.Namespace).List(labels.SelectorFromSet(set))
+	if err != nil {
+		return nil, fmt.Errorf("error getting analysisruns from informer for namespace: %s error: %w", ro.Namespace, err)
+	}
+	if len(ars) == 0 {
+		return nil, nil
+	}
+
+	filteredArs := make([]*v1alpha1.AnalysisRun, 0, len(ars))
+	for _, ar := range ars {
+		arRevision, _ := annotations.GetRevisionAnnotation(ar)
+		if arRevision == revision {
+			filteredArs = append(filteredArs, ar)
+		}
+	}
+
+	sort.Slice(filteredArs, func(i, j int) bool {
+		ts1 := filteredArs[i].ObjectMeta.CreationTimestamp.Time
+		ts2 := filteredArs[j].ObjectMeta.CreationTimestamp.Time
+		return ts1.After(ts2)
+	})
+
+	var arsObj any
+	arBytes, err := json.Marshal(filteredArs)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to marshal analysisRuns for rollout revision: %s, err: %w", string(revision), err)
+	}
+
+	err = json.Unmarshal(arBytes, &arsObj)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal analysisRuns for rollout revision: %s, err: %w", string(revision), err)
+	}
+
+	return arsObj, nil
+}
+
+func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Settings {
 	return api.Settings{
 		SecretName:    NotificationSecret,
 		ConfigMapName: NotificationConfigMap,
 		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
-			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
-				return map[string]interface{}{"rollout": obj}
+			return func(obj map[string]any, dest services.Destination) map[string]any {
+
+				var vars = map[string]any{
+					"rollout": obj,
+					"time":    timeExprs,
+					"secrets": secret.Data,
+				}
+
+				if arInformer == nil {
+					log.Infof("Notification is not set for analysisRun Informer: %s", dest)
+					return vars
+				}
+
+				var ro v1alpha1.Rollout
+				err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, &ro)
+
+				if err != nil {
+					log.Errorf("unable to send notification: bad rollout object: %v", err)
+					return vars
+				}
+
+				arsObj, err := getAnalysisRunsFilterWithLabels(ro, arInformer)
+
+				if err != nil {
+					log.Errorf("Error calling getAnalysisRunsFilterWithLabels for namespace: %s",
+						ro.Namespace)
+					return vars
+
+				}
+
+				vars = map[string]any{
+					"rollout":      obj,
+					"analysisRuns": arsObj,
+					"time":         timeExprs,
+					"secrets":      secret.Data,
+				}
+				return vars
 			}, nil
 		},
 	}
 }
 
 // Send notifications for triggered event if user is subscribed
-func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts EventOptions) error {
+func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, object runtime.Object, opts EventOptions) []error {
 	logCtx := logutil.WithObject(object)
 	_, namespace, name := logutil.KindNamespaceName(logCtx)
 	startTime := timeutil.Now()
@@ -248,16 +362,11 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 		e.NotificationSendPerformance.WithLabelValues(namespace, name).Observe(duration.Seconds())
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Debug("Notification sent")
 	}()
-	notificationsAPI, err := e.apiFactory.GetAPI()
-	if err != nil {
-		// don't return error if notifications are not configured and rollout has no subscribers
-		subsFromAnnotations := subscriptions.Annotations(object.(metav1.Object).GetAnnotations())
-		logCtx.Infof("subsFromAnnotations: %s", subsFromAnnotations)
-		if errors.IsNotFound(err) && len(subsFromAnnotations.GetDestinations(nil, map[string][]string{})) == 0 {
-			return nil
-		}
-		return err
+
+	if notificationsAPI == nil {
+		return []error{fmt.Errorf("NotificationsAPI is nil")}
 	}
+
 	cfg := notificationsAPI.GetConfig()
 	destByTrigger := cfg.GetGlobalDestinations(object.(metav1.Object).GetLabels())
 	destByTrigger.Merge(subscriptions.NewAnnotations(object.(metav1.Object).GetAnnotations()).GetDestinations(cfg.DefaultTriggers, cfg.ServiceDefaultTriggers))
@@ -270,39 +379,53 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 
 	objMap, err := toObjectMap(object)
 	if err != nil {
-		return err
+		return []error{err}
 	}
 
 	emptyCondition := hash("")
 
+	// We should not return in these loops because we want other configured notifications to still send if they can.
+	errors := []error{}
 	for _, destination := range destinations {
 		res, err := notificationsAPI.RunTrigger(trigger, objMap)
 		if err != nil {
-			log.Errorf("Failed to execute condition of trigger %s: %v", trigger, err)
-			return err
+			log.Errorf("Failed to run trigger, trigger: %s, destination: %s, namespace config: %s : %v",
+				trigger, destination, notificationsAPI.GetConfig().Namespace, err)
+			errors = append(errors, err)
+			continue
 		}
 		log.Infof("Trigger %s result: %v", trigger, res)
 
 		for _, c := range res {
-			log.Infof("Res When Condition hash: %s, Templates: %s", c.Key, c.Templates)
+			log.Infof("Result when condition hash: %s, templates: %s", c.Key, c.Templates)
 			s := strings.Split(c.Key, ".")[1]
 			if s != emptyCondition && c.Triggered == true {
 				err = notificationsAPI.Send(objMap, c.Templates, destination)
 				if err != nil {
-					log.Errorf("notification error: %s", err.Error())
-					return err
+					log.Errorf("Failed to execute the sending of notification on not empty condition, trigger: %s, destination: %s, namespace config: %s : %v",
+						trigger, destination, notificationsAPI.GetConfig().Namespace, err)
+					e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
+					errors = append(errors, err)
+					continue
 				}
+				e.NotificationSuccessCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 			} else if s == emptyCondition {
 				err = notificationsAPI.Send(objMap, c.Templates, destination)
 				if err != nil {
-					log.Errorf("notification error: %s", err.Error())
-					return err
+					log.Errorf("Failed to execute the sending of notification on empty condition, trigger: %s, destination: %s, namespace config: %s : %v",
+						trigger, destination, notificationsAPI.GetConfig().Namespace, err)
+					e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
+					errors = append(errors, err)
+					continue
 				}
+				e.NotificationSuccessCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 			}
 		}
 	}
-
-	return nil
+	if len(errors) == 0 {
+		return nil
+	}
+	return errors
 }
 
 // This function is copied over from notification engine to make sure we honour emptyCondition
@@ -315,12 +438,12 @@ func hash(input string) string {
 }
 
 // toObjectMap converts an object to a map for the purposes of sending to the notification engine
-func toObjectMap(object interface{}) (map[string]interface{}, error) {
+func toObjectMap(object any) (map[string]any, error) {
 	objBytes, err := json.Marshal(object)
 	if err != nil {
 		return nil, err
 	}
-	var objMap map[string]interface{}
+	var objMap map[string]any
 	err = json.Unmarshal(objBytes, &objMap)
 	if err != nil {
 		return nil, err
@@ -334,7 +457,7 @@ func toObjectMap(object interface{}) (map[string]interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		var templateMap map[string]interface{}
+		var templateMap map[string]any
 		err = json.Unmarshal(templateBytes, &templateMap)
 		if err != nil {
 			return nil, err
@@ -348,7 +471,7 @@ func toObjectMap(object interface{}) (map[string]interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		var selectorMap map[string]interface{}
+		var selectorMap map[string]any
 		err = json.Unmarshal(selectorBytes, &selectorMap)
 		if err != nil {
 			return nil, err
@@ -367,4 +490,21 @@ func translateReasonToTrigger(reason string) string {
 	trigger := matchFirstCap.ReplaceAllString(reason, "${1}-${2}")
 	trigger = matchAllCap.ReplaceAllString(trigger, "${1}-${2}")
 	return "on-" + strings.ToLower(trigger)
+}
+
+var timeExprs = map[string]any{
+	"Parse": parse,
+	"Now":   now,
+}
+
+func parse(timestamp string) time.Time {
+	res, err := time.Parse(time.RFC3339, timestamp)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
+func now() time.Time {
+	return time.Now()
 }

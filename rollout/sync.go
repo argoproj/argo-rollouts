@@ -83,9 +83,15 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout)
 
 	if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
+
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
 		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
-		return c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+
+		rs, err := c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update replicaset revision on %s: %w", rsCopy.Name, err)
+		}
+		return rs, nil
 	}
 
 	// Should use the revision in existingNewRS's annotation, since it set by before
@@ -103,7 +109,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		conditions.SetRolloutCondition(&c.rollout.Status, *condition)
 		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).UpdateStatus(ctx, c.rollout, metav1.UpdateOptions{})
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout revision")
+			c.log.WithError(err).Error("Error: updating rollout status in syncReplicaSetRevision")
 			return nil, err
 		}
 		c.rollout = updatedRollout
@@ -235,7 +241,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.FailedRSCreateReason, msg)
 		patchErr := c.patchCondition(c.rollout, newStatus, cond)
 		if patchErr != nil {
-			c.log.Warnf("Error Patching Rollout: %s", patchErr.Error())
+			c.log.Warnf("Error Patching Rollout Conditions: %s", patchErr.Error())
 		}
 		return nil, err
 	default:
@@ -270,23 +276,33 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 // syncReplicasOnly is responsible for reconciling rollouts on scaling events.
 func (c *rolloutContext) syncReplicasOnly() error {
 	c.log.Infof("Syncing replicas only due to scaling event")
-	_, err := c.getAllReplicaSetsAndSyncRevision(false)
+	var err error
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in syncReplicasOnly: %w", err)
 	}
+	newStatus := c.rollout.Status.DeepCopy()
 
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
-		previewSvc, activeSvc, err := c.getPreviewAndActiveServices()
+		_, activeSvc, err := c.getPreviewAndActiveServices()
 		if err != nil {
 			return nil
 		}
 		if err := c.reconcileBlueGreenReplicaSets(activeSvc); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync
-			return err
+			return fmt.Errorf("failed to reconcileBlueGreenReplicaSets in syncReplicasOnly: %w", err)
 		}
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
+		activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.allRSs, newStatus.BlueGreen.ActiveSelector)
+		if activeRS != nil {
+			newStatus.HPAReplicas = activeRS.Status.Replicas
+			newStatus.AvailableReplicas = activeRS.Status.AvailableReplicas
+		} else {
+			// when we do not have an active replicaset, accounting is done on the default rollout selector
+			newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
+			newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
+		}
 	}
 	// The controller wants to use the rolloutCanary method to reconcile the rollout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
@@ -294,11 +310,12 @@ func (c *rolloutContext) syncReplicasOnly() error {
 		if _, err := c.reconcileCanaryReplicaSets(); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync
-			return err
+			return fmt.Errorf("failed to reconcileCanaryReplicaSets in syncReplicasOnly: %w", err)
 		}
-		return c.syncRolloutStatusCanary()
+		newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
+		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	}
-	return fmt.Errorf("no rollout strategy provided")
+	return c.persistRolloutStatus(newStatus)
 }
 
 // isScalingEvent checks whether the provided rollout has been updated with a scaling event
@@ -306,9 +323,10 @@ func (c *rolloutContext) syncReplicasOnly() error {
 //
 // rsList should come from getReplicaSetsForRollout(r).
 func (c *rolloutContext) isScalingEvent() (bool, error) {
-	_, err := c.getAllReplicaSetsAndSyncRevision(false)
+	var err error
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in isScalingEvent: %w", err)
 	}
 
 	for _, rs := range controller.FilterActiveReplicaSets(c.allRSs) {
@@ -335,6 +353,9 @@ func (c *rolloutContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, ne
 		scalingOperation = "down"
 	}
 	scaled, newRS, err := c.scaleReplicaSet(rs, newScale, c.rollout, scalingOperation)
+	if err != nil {
+		return scaled, newRS, fmt.Errorf("failed to scaleReplicaSet in scaleReplicaSetAndRecordEvent: %w", err)
+	}
 	return scaled, newRS, err
 }
 
@@ -345,18 +366,24 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	annotationsNeedUpdate := annotations.ReplicasAnnotationsNeedUpdate(rs, rolloutReplicas)
 
-	scaled := false
 	var err error
+	scaled := false
 	if sizeNeedsUpdate || annotationsNeedUpdate {
 		rsCopy := rs.DeepCopy()
 		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
 		*(rsCopy.Spec.Replicas) = newScale
 		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
 		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
+			// This bypasses the normal call to removeScaleDownDelay and then depends on the removal via an update in updateReplicaSetFallbackToPatch
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
-		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
-		if err == nil && sizeNeedsUpdate {
+
+		rs, err = c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
+		if err != nil {
+			return scaled, rs, fmt.Errorf("failed to updateReplicaSetFallbackToPatch in scaleReplicaSet: %w", err)
+		}
+
+		if sizeNeedsUpdate {
 			scaled = true
 			revision, _ := replicasetutil.Revision(rs)
 			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, conditions.ScalingReplicaSetMessage, scalingOperation, rs.Name, revision, oldScale, newScale)
@@ -543,6 +570,19 @@ func isIndefiniteStep(r *v1alpha1.Rollout) bool {
 	return false
 }
 
+// isWaitingForReplicaSetScaleDown returns whether or not the rollout still has other replica sets with a scale down deadline annotation
+func isWaitingForReplicaSetScaleDown(r *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, allRSs []*appsv1.ReplicaSet) bool {
+	otherRSs := replicasetutil.GetOtherRSs(r, newRS, stableRS, allRSs)
+
+	for _, rs := range otherRSs {
+		if replicasetutil.HasScaleDownDeadline(rs) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutStatus) v1alpha1.RolloutStatus {
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
 	isAborted := c.pauseContext.IsAborted()
@@ -628,7 +668,8 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 				conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutProgressing)
 			}
 			conditions.SetRolloutCondition(&newStatus, *condition)
-		case !isIndefiniteStep(c.rollout) && conditions.RolloutTimedOut(c.rollout, &newStatus):
+		case !isIndefiniteStep(c.rollout) && !isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs) && conditions.RolloutTimedOut(c.rollout, &newStatus):
+
 			// Update the rollout with a timeout condition. If the condition already exists,
 			// we ignore this update.
 			msg := fmt.Sprintf(conditions.RolloutTimeOutMessage, c.rollout.Name)
@@ -971,6 +1012,7 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 		}
 	}
 	previousStableHash := newStatus.StableRS
+	revision, _ := replicasetutil.Revision(c.rollout)
 	if previousStableHash != newStatus.CurrentPodHash {
 		// only emit this event when we switched stable
 		if trafficrouting.IsPingPongEnabled(c.rollout) {
@@ -982,9 +1024,17 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 		}
 		newStatus.StableRS = newStatus.CurrentPodHash
 
-		revision, _ := replicasetutil.Revision(c.rollout)
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},
 			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
 	}
+
+	if revision == 1 && c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownOnSuccess {
+		var targetScale int32 = 0
+		err := c.scaleDeployment(&targetScale)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

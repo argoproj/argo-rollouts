@@ -34,7 +34,7 @@ kind: Secret
 metadata:
   name: influxdb
 type: Opaque
-data:
+stringData:
   address: <infuxdb-url>
   authToken: <influxdb-auth-token>
   org: <influxdb-org>

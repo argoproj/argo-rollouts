@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	//ProviderType indicates the provider is kayenta
+	// ProviderType indicates the provider is kayenta
 	ProviderType   = "Kayenta"
 	scoreURLFormat = `%s/canary/%s`
 
@@ -67,26 +67,20 @@ func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 }
 
 func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
-
 	configIdLookupURL := fmt.Sprintf(configIdLookupURLFormat, metric.Provider.Kayenta.Address, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.StorageAccountName)
 
 	response, err := p.client.Get(configIdLookupURL)
-	if err != nil || response.Body == nil || response.StatusCode != 200 {
-		if err == nil {
-			err = errors.New("Invalid Response")
-		}
-		return "", err
-	}
-
-	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return "", err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		return "", fmt.Errorf("Invalid Response: HTTP %d", response.StatusCode)
 	}
 
 	var cc []canaryConfig
-
-	err = json.Unmarshal(data, &cc)
-	if err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&cc); err != nil {
 		return "", err
 	}
 
@@ -96,7 +90,7 @@ func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
 		}
 	}
 
-	return "", err
+	return "", errors.New("Canary config not found")
 }
 
 // Run queries kayentd for the metric
@@ -142,11 +136,11 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
 
-	data, err := ioutil.ReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
-	var dat map[string]interface{}
+	var dat map[string]any
 	if err := json.Unmarshal(data, &dat); err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -180,12 +174,12 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	data, err := ioutil.ReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	patch := make(map[string]interface{})
+	patch := make(map[string]any)
 
 	err = json.Unmarshal(data, &patch)
 	if err != nil {
@@ -194,7 +188,7 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 
 	status, ok, err := unstructured.NestedBool(patch, "complete")
 	if ok {
-		if !status { //resume later since it is incomplete
+		if !status { // resume later since it is incomplete
 			resumeTime := metav1.NewTime(timeutil.Now().Add(resumeDelay))
 			measurement.ResumeAt = &resumeTime
 			measurement.Phase = v1alpha1.AnalysisPhaseRunning

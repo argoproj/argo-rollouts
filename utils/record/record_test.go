@@ -2,12 +2,21 @@ package record
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	argofake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	argoinformersfactory "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	argoinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	"github.com/argoproj/notifications-engine/pkg/api"
+	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/mocks"
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/triggers"
@@ -17,11 +26,17 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes/fake"
+)
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+var (
+	noResyncPeriodFunc = func() time.Duration { return 0 }
 )
 
 func TestRecordLog(t *testing.T) {
@@ -82,7 +97,7 @@ func TestIncCounter(t *testing.T) {
 	buf := dto.Metric{}
 	m.Write(&buf)
 	assert.Equal(t, float64(3), *buf.Counter.Value)
-	assert.Equal(t, []string{"FooReason", "FooReason", "FooReason"}, rec.Events)
+	assert.Equal(t, []string{"FooReason", "FooReason", "FooReason"}, rec.Events())
 }
 
 func TestSendNotifications(t *testing.T) {
@@ -108,8 +123,8 @@ func TestSendNotifications(t *testing.T) {
 	rec := NewFakeEventRecorder()
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 	//ch := make(chan prometheus.HistogramVec, 1)
-	err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
-	assert.NoError(t, err)
+	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
+	assert.Nil(t, err)
 }
 
 func TestSendNotificationsWhenCondition(t *testing.T) {
@@ -135,8 +150,111 @@ func TestSendNotificationsWhenCondition(t *testing.T) {
 	rec := NewFakeEventRecorder()
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 	//ch := make(chan prometheus.HistogramVec, 1)
-	err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
-	assert.NoError(t, err)
+	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
+	assert.Nil(t, err)
+}
+
+func TestSendNotificationsWhenConditionTime(t *testing.T) {
+	tNow := metav1.NewTime(time.Now().Add(-time.Minute * 5))
+	r := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "guestbook",
+			Namespace:   "default",
+			Annotations: map[string]string{"notifications.argoproj.io/subscribe.on-foo-reason.console": "console"},
+		},
+		Spec: v1alpha1.RolloutSpec{
+			RestartAt: &tNow,
+		},
+	}
+
+	t.Run("Test when condition is true", func(t *testing.T) {
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-notification-secret",
+				Namespace: "argo-rollouts",
+			},
+			Data: nil,
+		}
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-notification-configmap",
+				Namespace: "argo-rollouts",
+			},
+			Data: map[string]string{
+				"trigger.on-foo-reason":  "- send: [on-foo-reason]\n  when: \"time.Now().Sub(time.Parse(rollout.spec.restartAt)).Minutes() > 4\"\n",
+				"template.on-foo-reason": "message: Rollout {{.rollout.metadata.name}}'s time check",
+			},
+		}
+
+		k8sClient := fake.NewSimpleClientset()
+		sharedInformers := informers.NewSharedInformerFactory(k8sClient, 0)
+
+		f := argofake.NewSimpleClientset()
+		rolloutsI := argoinformersfactory.NewSharedInformerFactory(f, noResyncPeriodFunc())
+		arInformer := rolloutsI.Argoproj().V1alpha1().AnalysisRuns()
+
+		cmInformer := sharedInformers.Core().V1().ConfigMaps().Informer()
+		secretInformer := sharedInformers.Core().V1().Secrets().Informer()
+
+		secretInformer.GetIndexer().Add(secret)
+		cmInformer.GetIndexer().Add(cm)
+
+		apiFactory := notificationapi.NewFactory(NewAPIFactorySettings(arInformer), defaults.Namespace(), secretInformer, cmInformer)
+		api, err := apiFactory.GetAPI()
+		assert.NoError(t, err)
+
+		objMap, err := toObjectMap(r)
+		assert.NoError(t, err)
+
+		cr, err := api.RunTrigger("on-foo-reason", objMap)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(cr))
+		assert.True(t, cr[0].Triggered)
+	})
+
+	t.Run("Test when condition parse panics", func(t *testing.T) {
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-notification-secret",
+				Namespace: "argo-rollouts",
+			},
+			Data: nil,
+		}
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-notification-configmap",
+				Namespace: "argo-rollouts",
+			},
+			Data: map[string]string{
+				"trigger.on-foo-reason":  "- send: [on-foo-reason]\n  when: \"time.Now().Sub(time.Parse(rollout.metadata.name)).Minutes() > 6\"\n",
+				"template.on-foo-reason": "message: Rollout {{.rollout.metadata.name}}'s time check",
+			},
+		}
+
+		k8sClient := fake.NewSimpleClientset()
+		sharedInformers := informers.NewSharedInformerFactory(k8sClient, 0)
+		cmInformer := sharedInformers.Core().V1().ConfigMaps().Informer()
+		secretInformer := sharedInformers.Core().V1().Secrets().Informer()
+
+		secretInformer.GetIndexer().Add(secret)
+		cmInformer.GetIndexer().Add(cm)
+		f := argofake.NewSimpleClientset()
+		rolloutsI := argoinformersfactory.NewSharedInformerFactory(f, noResyncPeriodFunc())
+		arInformer := rolloutsI.Argoproj().V1alpha1().AnalysisRuns()
+
+		apiFactory := notificationapi.NewFactory(NewAPIFactorySettings(arInformer), defaults.Namespace(), secretInformer, cmInformer)
+		api, err := apiFactory.GetAPI()
+		assert.NoError(t, err)
+
+		objMap, err := toObjectMap(r)
+		assert.NoError(t, err)
+
+		cr, err := api.RunTrigger("on-foo-reason", objMap)
+		assert.NoError(t, err)
+		assert.False(t, cr[0].Triggered)
+	})
 }
 
 func TestNotificationFailedCounter(t *testing.T) {
@@ -199,7 +317,13 @@ func TestNotificationSendPerformance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
-	log.Infof("mfs: %v, %v, %v, %v", *mfs[0], *mfs[0].Metric[0].Histogram.SampleCount, *mfs[0].Metric[0].Histogram.SampleSum, *mfs[0].Metric[0].Histogram.Bucket[0].CumulativeCount)
+	t.Logf(
+		"mfs: %s, %v, %v, %v",
+		mfs[0].GetName(),
+		mfs[0].GetMetric()[0].GetHistogram().GetSampleCount(),
+		mfs[0].GetMetric()[0].GetHistogram().GetSampleSum(),
+		mfs[0].GetMetric()[0].GetHistogram().GetBucket()[0].GetCumulativeCount(),
+	)
 	want := `# HELP notification_send_performance Notification send performance.
 			 # TYPE notification_send_performance histogram
 			 notification_send_performance_bucket{name="guestbook",namespace="default",le="0.01"} 0
@@ -240,8 +364,8 @@ func TestSendNotificationsFails(t *testing.T) {
 		rec := NewFakeEventRecorder()
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
-		err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
-		assert.Error(t, err)
+		err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
+		assert.Len(t, err, 1)
 	})
 
 	t.Run("GetAPIError", func(t *testing.T) {
@@ -249,8 +373,8 @@ func TestSendNotificationsFails(t *testing.T) {
 		rec := NewFakeEventRecorder()
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
-		err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
-		assert.Error(t, err)
+		err := rec.sendNotifications(nil, &r, EventOptions{EventReason: "FooReason"})
+		assert.NotNil(t, err)
 	})
 
 }
@@ -280,8 +404,8 @@ func TestSendNotificationsFailsWithRunTriggerError(t *testing.T) {
 		rec := NewFakeEventRecorder()
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
-		err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
-		assert.Error(t, err)
+		err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
+		assert.Len(t, err, 1)
 	})
 
 	t.Run("GetAPIError", func(t *testing.T) {
@@ -289,8 +413,8 @@ func TestSendNotificationsFailsWithRunTriggerError(t *testing.T) {
 		rec := NewFakeEventRecorder()
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
-		err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
-		assert.Error(t, err)
+		err := rec.sendNotifications(nil, &r, EventOptions{EventReason: "FooReason"})
+		assert.NotNil(t, err)
 	})
 
 }
@@ -319,21 +443,182 @@ func TestSendNotificationsNoTrigger(t *testing.T) {
 	rec := NewFakeEventRecorder()
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 
-	err := rec.sendNotifications(&r, EventOptions{EventReason: "MissingReason"})
-	assert.Error(t, err)
+	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "MissingReason"})
+	assert.Len(t, err, 1)
+}
+
+func createAnalysisRunInformer(ars []*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer {
+	f := argofake.NewSimpleClientset()
+	rolloutsI := argoinformersfactory.NewSharedInformerFactory(f, noResyncPeriodFunc())
+	arInformer := rolloutsI.Argoproj().V1alpha1().AnalysisRuns()
+	for _, ar := range ars {
+		_ = arInformer.Informer().GetStore().Add(ar)
+	}
+	return arInformer
 }
 
 func TestNewAPIFactorySettings(t *testing.T) {
-	settings := NewAPIFactorySettings()
-	assert.Equal(t, NotificationConfigMap, settings.ConfigMapName)
-	assert.Equal(t, NotificationSecret, settings.SecretName)
-	getVars, err := settings.InitGetVars(nil, nil, nil)
-	assert.NoError(t, err)
 
-	rollout := map[string]interface{}{"name": "hello"}
-	vars := getVars(rollout, services.Destination{})
+	ars := []*v1alpha1.AnalysisRun{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "analysis-run-1",
+				CreationTimestamp: metav1.NewTime(timeutil.Now().Add(-1 * time.Hour)),
+				Namespace:         "default",
+				Labels:            map[string]string{"rollouts-pod-template-hash": "85659df978"},
+				Annotations:       map[string]string{"rollout.argoproj.io/revision": "1"},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "analysis-run-2",
+				CreationTimestamp: metav1.NewTime(timeutil.Now().Add(-2 * time.Hour)),
+				Namespace:         "default",
+				Labels:            map[string]string{"rollouts-pod-template-hash": "85659df978"},
+				Annotations:       map[string]string{"rollout.argoproj.io/revision": "1"},
+			},
+		},
+	}
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "rollout",
+			Namespace:   "default",
+			Annotations: map[string]string{"rollout.argoproj.io/revision": "1"},
+		},
+		Status: v1alpha1.RolloutStatus{
+			CurrentPodHash: "85659df978",
+		},
+	}
 
-	assert.Equal(t, map[string]interface{}{"rollout": rollout}, vars)
+	expectedSecrets := map[string][]byte{
+		"notification-secret": []byte("secret-value"),
+	}
+
+	notificationsSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argo-rollouts-notification-secret",
+			Namespace: "default",
+		},
+		Data: expectedSecrets,
+	}
+
+	type expectedFunc func(obj map[string]interface{}, ar any) map[string]interface{}
+	type arInformerFunc func([]*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer
+
+	testcase := []struct {
+		name       string
+		arInformer arInformerFunc
+		rollout    v1alpha1.Rollout
+		ars        []*v1alpha1.AnalysisRun
+		expected   expectedFunc
+	}{
+		{
+			name: "Send notification with rollout and analysisRun",
+			arInformer: func(ars []*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer {
+				return createAnalysisRunInformer(ars)
+			},
+			rollout: ro,
+			ars:     ars,
+			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
+				return map[string]interface{}{
+					"rollout":      obj,
+					"analysisRuns": ar,
+					"time":         timeExprs,
+					"secrets":      expectedSecrets,
+				}
+			},
+		},
+		{
+			name: "Send notification rollout when revision  and label doesn't match",
+			arInformer: func(ars []*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer {
+				return createAnalysisRunInformer(ars)
+			},
+			rollout: ro,
+			ars: []*v1alpha1.AnalysisRun{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "analysis-run-3",
+						CreationTimestamp: metav1.NewTime(timeutil.Now().Add(-2 * time.Hour)),
+						Namespace:         "default",
+						Labels:            map[string]string{"rollouts-pod-template-hash": "1234"},
+						Annotations:       map[string]string{"rollout.argoproj.io/revision": "2"},
+					},
+				},
+			},
+			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
+				return map[string]interface{}{
+					"rollout":      obj,
+					"analysisRuns": nil,
+					"time":         timeExprs,
+					"secrets":      expectedSecrets,
+				}
+			},
+		},
+		{
+			name: "arInformer is nil",
+			arInformer: func(ars []*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer {
+				return nil
+			},
+			rollout: ro,
+			ars:     nil,
+			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
+				return map[string]interface{}{
+					"rollout": obj,
+					"time":    timeExprs,
+					"secrets": expectedSecrets,
+				}
+			},
+		},
+		{
+			name: "analysisRuns nil for no matching namespace",
+			arInformer: func(ars []*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer {
+				return createAnalysisRunInformer(ars)
+			},
+			rollout: ro,
+			ars: []*v1alpha1.AnalysisRun{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "analysis-run-1",
+						CreationTimestamp: metav1.NewTime(timeutil.Now().Add(-2 * time.Hour)),
+						Namespace:         "default-1",
+						Labels:            map[string]string{"rollouts-pod-template-hash": "1234"},
+						Annotations:       map[string]string{"rollout.argoproj.io/revision": "2"},
+					},
+				},
+			},
+			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
+				return map[string]interface{}{
+					"rollout":      obj,
+					"analysisRuns": nil,
+					"time":         timeExprs,
+					"secrets":      expectedSecrets,
+				}
+			},
+		},
+	}
+
+	for _, test := range testcase {
+		t.Run(test.name, func(t *testing.T) {
+
+			settings := NewAPIFactorySettings(test.arInformer(test.ars))
+			getVars, err := settings.InitGetVars(nil, nil, &notificationsSecret)
+			require.NoError(t, err)
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			obj, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(&test.rollout)
+
+			arBytes, err := json.Marshal(test.ars)
+			var arsObj any
+			_ = json.Unmarshal(arBytes, &arsObj)
+			vars := getVars(obj, services.Destination{})
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			assert.Equal(t, test.expected(obj, arsObj), vars)
+		})
+	}
 }
 
 func TestWorkloadRefObjectMap(t *testing.T) {

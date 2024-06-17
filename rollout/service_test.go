@@ -144,7 +144,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 			}
 		}`
 	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedActiveSvc, errmsg)
-	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
+	assert.JSONEq(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
 }
 
 func TestPreviewServiceNotFound(t *testing.T) {
@@ -158,7 +158,6 @@ func TestPreviewServiceNotFound(t *testing.T) {
 	activeSvc := newService("active-svc", 80, nil, nil)
 	notUsedPreviewSvc := newService("preview-svc", 80, nil, nil)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
-	f.serviceLister = append(f.serviceLister)
 
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
@@ -173,7 +172,7 @@ func TestPreviewServiceNotFound(t *testing.T) {
 			}
 		}`
 	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedPreviewSvc, errmsg)
-	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
+	assert.JSONEq(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
 
 }
 
@@ -437,26 +436,26 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("1.2.3.4"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("5.6.7.8"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(81),         // wrong port
+					Id:   pointer.String("2.4.6.8"), // irrelevant
+					Port: pointer.Int32(81),         // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("9.8.7.6"), // irrelevant ip
+					Port: pointer.Int32(80),
 				},
 			},
 		},
@@ -464,8 +463,8 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	fakeELB.On("DescribeTargetHealth", mock.Anything, mock.Anything).Return(&thOut, nil)
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
-	}}, pointer.Int32Ptr(0), intstr.FromString("25%"), intstr.FromString("25%"))
+		SetWeight: pointer.Int32(10),
+	}}, pointer.Int32(0), intstr.FromString("25%"), intstr.FromString("25%"))
 
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
@@ -491,6 +490,7 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	r2.Status.StableRS = rs2PodHash
+	r2.Status.CurrentStepIndex = pointer.Int32(1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	healthyCondition, _ := newHealthyCondition(false)
@@ -536,26 +536,26 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("1.2.3.4"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("5.6.7.8"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(80),         // wrong port
+					Id:   pointer.String("2.4.6.8"), // irrelevant
+					Port: pointer.Int32(80),         // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("9.8.7.6"), // irrelevant ip
+					Port: pointer.Int32(80),
 				},
 			},
 		},
@@ -563,8 +563,8 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	fakeELB.On("DescribeTargetHealth", mock.Anything, mock.Anything).Return(&thOut, nil)
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
-	}}, pointer.Int32Ptr(0), intstr.FromString("25%"), intstr.FromString("25%"))
+		SetWeight: pointer.Int32(10),
+	}}, pointer.Int32(0), intstr.FromString("25%"), intstr.FromString("25%"))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
@@ -589,6 +589,7 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	r2.Status.StableRS = rs2PodHash
+	r2.Status.CurrentStepIndex = pointer.Int32(1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	healthyCondition, _ := newHealthyCondition(false)
@@ -624,8 +625,8 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	defer f.Close()
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
-	}}, pointer.Int32Ptr(0), intstr.FromString("25%"), intstr.FromString("25%"))
+		SetWeight: pointer.Int32(10),
+	}}, pointer.Int32(0), intstr.FromString("25%"), intstr.FromString("25%"))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
@@ -652,6 +653,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	r2.Status.StableRS = rs2PodHash
+	r2.Status.CurrentStepIndex = pointer.Int32(1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	healthyCondition, _ := newHealthyCondition(false)

@@ -3,8 +3,12 @@ package prometheus
 import (
 	"fmt"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -13,6 +17,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const (
+	AccessToken = "MyAccessToken"
+)
+
+type OAuthResponse struct {
+	TokenType   string `json:"token_type,omitempty"`
+	AccessToken string `json:"access_token,omitempty"`
+	Expiry      string `json:"expires_in,omitempty"`
+}
 
 func newScalar(f float64) model.Value {
 	return &model.Scalar{
@@ -30,8 +44,22 @@ func TestType(t *testing.T) {
 	mock := mockAPI{
 		value: newScalar(10),
 	}
-	p := NewPrometheusProvider(mock, e)
+	timeout := int64(5)
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result == 10",
+		FailureCondition: "result != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query:   "test",
+				Timeout: &timeout,
+			},
+		},
+	}
+	p, err := NewPrometheusProvider(mock, e, metric)
+	assert.NoError(t, err)
 	assert.Equal(t, ProviderType, p.Type())
+	assert.Equal(t, p.timeout, time.Duration(timeout*int64(time.Second)))
 }
 
 func TestRunSuccessfully(t *testing.T) {
@@ -39,7 +67,6 @@ func TestRunSuccessfully(t *testing.T) {
 	mock := mockAPI{
 		value: newScalar(10),
 	}
-	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -50,8 +77,11 @@ func TestRunSuccessfully(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, e, metric)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
 	assert.Equal(t, "10", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
@@ -64,7 +94,6 @@ func TestRunSuccessfullyWithEnv(t *testing.T) {
 	}
 	address := "http://127.0.0.1:9090"
 	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, address)
-	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -75,8 +104,10 @@ func TestRunSuccessfullyWithEnv(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
 	assert.Equal(t, "10", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
@@ -88,7 +119,6 @@ func TestRunSuccessfullyWithWarning(t *testing.T) {
 		value:    newScalar(10),
 		warnings: v1.Warnings([]string{"warning", "warning2"}),
 	}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -99,8 +129,10 @@ func TestRunSuccessfullyWithWarning(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, *e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
 	assert.Equal(t, "10", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, `"warning", "warning2"`, measurement.Metadata["warnings"])
@@ -113,7 +145,6 @@ func TestRunSuccessfullyWithWarningWithEnv(t *testing.T) {
 		value:    newScalar(10),
 		warnings: v1.Warnings([]string{"warning", "warning2"}),
 	}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -124,8 +155,10 @@ func TestRunSuccessfullyWithWarningWithEnv(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, *e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
 	assert.Equal(t, "10", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, `"warning", "warning2"`, measurement.Metadata["warnings"])
@@ -138,7 +171,6 @@ func TestRunWithQueryError(t *testing.T) {
 	mock := mockAPI{
 		err: expectedErr,
 	}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -149,8 +181,10 @@ func TestRunWithQueryError(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, *e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, expectedErr.Error(), measurement.Message)
+	assert.NoError(t, err)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -163,7 +197,6 @@ func TestRunWithResolveArgsError(t *testing.T) {
 	mock := mockAPI{
 		err: expectedErr,
 	}
-	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name: "foo",
 		Provider: v1alpha1.MetricProvider{
@@ -172,8 +205,10 @@ func TestRunWithResolveArgsError(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, expectedErr.Error(), measurement.Message)
+	assert.NoError(t, err)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -183,7 +218,6 @@ func TestRunWithResolveArgsError(t *testing.T) {
 func TestGetStatusReturnsResolvedQuery(t *testing.T) {
 	e := log.Entry{}
 	mock := mockAPI{}
-	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name: "foo",
 		Provider: v1alpha1.MetricProvider{
@@ -192,15 +226,16 @@ func TestGetStatusReturnsResolvedQuery(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, e, metric)
 	metricsMetadata := p.GetMetadata(metric)
 	assert.NotNil(t, metricsMetadata)
+	assert.NoError(t, err)
 	assert.Equal(t, "resolved-query", metricsMetadata["ResolvedPrometheusQuery"])
 }
 
 func TestRunWithEvaluationError(t *testing.T) {
 	e := log.WithField("", "")
 	mock := mockAPI{}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -211,8 +246,10 @@ func TestRunWithEvaluationError(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, *e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, "Prometheus metric type not supported", measurement.Message)
+	assert.NoError(t, err)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -222,7 +259,6 @@ func TestRunWithEvaluationError(t *testing.T) {
 func TestResume(t *testing.T) {
 	e := log.WithField("", "")
 	mock := mockAPI{}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -233,6 +269,8 @@ func TestResume(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, *e, metric)
+	assert.NoError(t, err)
 	now := metav1.Now()
 	previousMeasurement := v1alpha1.Measurement{
 		StartedAt: &now,
@@ -245,8 +283,9 @@ func TestResume(t *testing.T) {
 func TestTerminate(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := mockAPI{}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{}
+	p, err := NewPrometheusProvider(mock, *e, metric)
+	assert.NoError(t, err)
 	now := metav1.Now()
 	previousMeasurement := v1alpha1.Measurement{
 		StartedAt: &now,
@@ -259,8 +298,10 @@ func TestTerminate(t *testing.T) {
 func TestGarbageCollect(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := mockAPI{}
-	p := NewPrometheusProvider(mock, *e)
-	err := p.GarbageCollect(nil, v1alpha1.Metric{}, 0)
+	metric := v1alpha1.Metric{}
+	p, err := NewPrometheusProvider(mock, *e, metric)
+	assert.NoError(t, err)
+	err = p.GarbageCollect(nil, v1alpha1.Metric{}, 0)
 	assert.NoError(t, err)
 }
 
@@ -425,6 +466,7 @@ func TestNewPrometheusAPI(t *testing.T) {
 	log.Infof("api:%v", api)
 
 	metric.Provider.Prometheus.Address = "https://www.example.com"
+	metric.Provider.Prometheus.Insecure = true
 	_, err = NewPrometheusAPI(metric)
 	assert.Nil(t, err)
 }
@@ -464,4 +506,230 @@ func TestNewPrometheusAddressNotConfigured(t *testing.T) {
 	api, err := NewPrometheusAPI(metric)
 	assert.NotNil(t, err)
 	log.Infof("api:%v", api)
+}
+
+func TestNewPrometheusNegativeTimeout(t *testing.T) {
+	e := log.Entry{}
+	mock := mockAPI{
+		value: newScalar(10),
+	}
+	timeout := int64(-20)
+	metric := v1alpha1.Metric{
+		Name: "foo",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query:   "test",
+				Timeout: &timeout,
+			},
+		},
+	}
+	p, err := NewPrometheusProvider(mock, e, metric)
+	assert.NotNil(t, err)
+	assert.Nil(t, p)
+}
+
+func TestRunSuccessfulWithOAuth(t *testing.T) {
+	e := log.Entry{}
+	promServer := mockPromServer(AccessToken)
+	oAuthServer := mockOAuthServer(AccessToken)
+	defer promServer.Close()
+	defer oAuthServer.Close()
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					OAuth2: v1alpha1.OAuth2Config{
+						TokenURL:     oAuthServer.URL + "/ok",
+						ClientID:     "someId",
+						ClientSecret: "mySecret",
+						Scopes: []string{
+							"myFirstScope",
+							"mySecondScope",
+						},
+					},
+				},
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	p, err := NewPrometheusProvider(api, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
+	assert.Equal(t, "[10]", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+}
+
+func TestNewPromApiErrorWithIncompleteOAuthParams(t *testing.T) {
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "http://promurl",
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					OAuth2: v1alpha1.OAuth2Config{
+						TokenURL:     "http://tokenurl",
+						ClientSecret: "mySecret",
+						Scopes: []string{
+							"myFirstScope",
+							"mySecondScope",
+						},
+					},
+				},
+			},
+		},
+	}
+	_, err := NewPrometheusAPI(metric)
+	assert.Error(t, err)
+
+	metric = v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "http://promurl",
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					OAuth2: v1alpha1.OAuth2Config{
+						TokenURL: "http://tokenurl",
+						ClientID: "someId",
+						Scopes: []string{
+							"myFirstScope",
+							"mySecondScope",
+						},
+					},
+				},
+			},
+		},
+	}
+	_, err = NewPrometheusAPI(metric)
+	assert.Error(t, err)
+
+	metric = v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "http://promurl",
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					OAuth2: v1alpha1.OAuth2Config{
+						TokenURL:     "http://tokenurl",
+						ClientID:     "someId",
+						ClientSecret: "mySecret",
+					},
+				},
+			},
+		},
+	}
+	_, err = NewPrometheusAPI(metric)
+	// scopes are optional
+	assert.NoError(t, err)
+}
+
+func TestRunErrorOAuthFailure(t *testing.T) {
+	e := log.Entry{}
+	promServer := mockPromServer(AccessToken)
+	oAuthServer := mockOAuthServer(AccessToken)
+	defer promServer.Close()
+	defer oAuthServer.Close()
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					OAuth2: v1alpha1.OAuth2Config{
+						TokenURL:     oAuthServer.URL + "/ko",
+						ClientID:     "someId",
+						ClientSecret: "mySecret",
+						Scopes: []string{
+							"myFirstScope",
+							"mySecondScope",
+						},
+					},
+				},
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	p, err := NewPrometheusProvider(api, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NoError(t, err)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
+
+func mockOAuthServer(accessToken string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.StandardLogger().Infof("Received oauth query")
+		switch strings.TrimSpace(r.URL.Path) {
+		case "/ok":
+			mockOAuthOKResponse(w, r, accessToken)
+		case "/ko":
+			mockOAuthKOResponse(w, r)
+		default:
+			http.NotFoundHandler().ServeHTTP(w, r)
+		}
+	}))
+}
+
+func mockOAuthOKResponse(w http.ResponseWriter, r *http.Request, accessToken string) {
+
+	oAuthResponse := fmt.Sprintf(`{"token_type":"Bearer","expires_in":3599,"access_token":"%s"}`, accessToken)
+
+	sc := http.StatusOK
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(sc)
+	w.Write([]byte(oAuthResponse))
+}
+
+func mockOAuthKOResponse(w http.ResponseWriter, r *http.Request) {
+	sc := http.StatusUnauthorized
+	w.WriteHeader(sc)
+}
+
+func mockPromServer(expectedAuthorizationHeader string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		log.StandardLogger().Infof("Received prom query")
+
+		authorizationHeader := r.Header.Get("Authorization")
+		// Reject call if we don't find the expected oauth token
+		if expectedAuthorizationHeader != "" && ("Bearer "+expectedAuthorizationHeader) != authorizationHeader {
+
+			log.StandardLogger().Infof("Authorization header not as expected, rejecting")
+			sc := http.StatusUnauthorized
+			w.WriteHeader(sc)
+
+		} else {
+			log.StandardLogger().Infof("Authorization header as expected, continuing")
+			promResponse := `{"data":{"result":[{"metric":{"__name__":"myMetric"},"value":[0, "10"]}],"resultType":"vector"},"status":"success"}`
+
+			sc := http.StatusOK
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(sc)
+			w.Write([]byte(promResponse))
+		}
+	}))
 }

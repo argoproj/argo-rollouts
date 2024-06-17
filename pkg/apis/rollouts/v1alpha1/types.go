@@ -58,7 +58,7 @@ type RolloutSpec struct {
 	MinReadySeconds int32 `json:"minReadySeconds,omitempty" protobuf:"varint,4,opt,name=minReadySeconds"`
 	// The window in which a rollback will be fast tracked (fully promoted)
 	// +optional
-	RollbackWindow *RollbackWindowSpec `json:"rollbackWindow,omtempty" protobuf:"bytes,13,opt,name=rollbackWindow"`
+	RollbackWindow *RollbackWindowSpec `json:"rollbackWindow,omitempty" protobuf:"bytes,13,opt,name=rollbackWindow"`
 	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
 	Strategy RolloutStrategy `json:"strategy" protobuf:"bytes,5,opt,name=strategy"`
@@ -137,6 +137,8 @@ type ObjectRef struct {
 	Kind string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
 	// Name of the referent
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	// Automatically scale down deployment
+	ScaleDown string `json:"scaleDown,omitempty" protobuf:"bytes,4,opt,name=scaleDown"`
 }
 
 const (
@@ -335,17 +337,20 @@ type AnalysisRunStrategy struct {
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
 type ALBTrafficRouting struct {
 	// Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
-	Ingress string `json:"ingress" protobuf:"bytes,1,opt,name=ingress"`
+	Ingress string `json:"ingress,omitempty" protobuf:"bytes,1,opt,name=ingress"`
 	// ServicePort refers to the port that the Ingress action should route traffic to
 	ServicePort int32 `json:"servicePort" protobuf:"varint,2,opt,name=servicePort"`
 	// RootService references the service in the ingress to the controller should add the action to
 	RootService string `json:"rootService,omitempty" protobuf:"bytes,3,opt,name=rootService"`
-	// AdditionalForwardConfig allows to specify further settings on the ForwaredConfig
-	// +optional
-	StickinessConfig *StickinessConfig `json:"stickinessConfig,omitempty" protobuf:"bytes,5,opt,name=stickinessConfig"`
 	// AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller
 	// +optional
 	AnnotationPrefix string `json:"annotationPrefix,omitempty" protobuf:"bytes,4,opt,name=annotationPrefix"`
+	// StickinessConfig refers to the duration-based stickiness of the target groups associated with an `Ingress`
+	// +optional
+	StickinessConfig *StickinessConfig `json:"stickinessConfig,omitempty" protobuf:"bytes,5,opt,name=stickinessConfig"`
+	// Ingresses refers to the name of an `Ingress` resource in the same namespace as the `Rollout` in a multi ingress scenario
+	// +optional
+	Ingresses []string `json:"ingresses,omitempty" protobuf:"bytes,6,opt,name=ingresses"`
 }
 
 type StickinessConfig struct {
@@ -369,11 +374,20 @@ type RolloutTrafficRouting struct {
 	AppMesh *AppMeshTrafficRouting `json:"appMesh,omitempty" protobuf:"bytes,6,opt,name=appMesh"`
 	// Traefik holds specific configuration to use Traefik to route traffic
 	Traefik *TraefikTrafficRouting `json:"traefik,omitempty" protobuf:"bytes,7,opt,name=traefik"`
-	// A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
+	// ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
 	// traffic router.
 	ManagedRoutes []MangedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
 	// Apisix holds specific configuration to use Apisix to route traffic
 	Apisix *ApisixTrafficRouting `json:"apisix,omitempty" protobuf:"bytes,9,opt,name=apisix"`
+
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Plugins holds specific configuration that traffic router plugins can use for routing traffic
+	Plugins map[string]json.RawMessage `json:"plugins,omitempty" protobuf:"bytes,10,opt,name=plugins"`
+
+	// MaxTrafficWeight The total weight of traffic. If unspecified, it defaults to 100
+	MaxTrafficWeight *int32 `json:"maxTrafficWeight,omitempty" protobuf:"varint,11,opt,name=maxTrafficWeight"`
 }
 
 type MangedRoutes struct {
@@ -426,9 +440,12 @@ type NginxTrafficRouting struct {
 	// +optional
 	AnnotationPrefix string `json:"annotationPrefix,omitempty" protobuf:"bytes,1,opt,name=annotationPrefix"`
 	// StableIngress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
-	StableIngress string `json:"stableIngress" protobuf:"bytes,2,opt,name=stableIngress"`
+	StableIngress string `json:"stableIngress,omitempty" protobuf:"bytes,2,opt,name=stableIngress"`
 	// +optional
 	AdditionalIngressAnnotations map[string]string `json:"additionalIngressAnnotations,omitempty" protobuf:"bytes,3,rep,name=additionalIngressAnnotations"`
+	// StableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario
+	// +optional
+	StableIngresses []string `json:"stableIngresses,omitempty" protobuf:"bytes,4,rep,name=stableIngresses"`
 }
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
@@ -520,6 +537,14 @@ type RolloutExperimentStep struct {
 	// +patchMergeKey=name
 	// +patchStrategy=merge
 	Analyses []RolloutExperimentStepAnalysisTemplateRef `json:"analyses,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,3,rep,name=analyses"`
+	// DryRun object contains the settings for running the analysis in Dry-Run mode
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	// +optional
+	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=dryRun"`
+	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+	// +optional
+	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
 }
 
 type RolloutExperimentStepAnalysisTemplateRef struct {
@@ -556,6 +581,8 @@ type RolloutExperimentTemplate struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,5,opt,name=selector"`
 	// Weight sets the percentage of traffic the template's replicas should receive
 	Weight *int32 `json:"weight,omitempty" protobuf:"varint,6,opt,name=weight"`
+	// Service controls the optionally generated service
+	Service *TemplateService `json:"service,omitempty" protobuf:"bytes,7,opt,name=service"`
 }
 
 // PodTemplateMetadata extra labels to add to the template
@@ -564,6 +591,16 @@ type PodTemplateMetadata struct {
 	// +optional
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,1,rep,name=labels"`
 	// Annotations additional annotations to add to the experiment
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,rep,name=annotations"`
+}
+
+// AnalysisRunMetadata extra labels to add to the AnalysisRun
+type AnalysisRunMetadata struct {
+	// Labels Additional labels to add to the AnalysisRun
+	// +optional
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,1,rep,name=labels"`
+	// Annotations additional annotations to add to the AnalysisRun
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,rep,name=annotations"`
 }
@@ -675,8 +712,10 @@ type RolloutAnalysisBackground struct {
 
 // RolloutAnalysis defines a template that is used to create a analysisRun
 type RolloutAnalysis struct {
-	//Templates reference to a list of analysis templates to combine for an AnalysisRun
-	Templates []RolloutAnalysisTemplate `json:"templates,omitempty" protobuf:"bytes,1,rep,name=templates"`
+	// Templates reference to a list of analysis templates to combine for an AnalysisRun
+	// +patchMergeKey=templateName
+	// +patchStrategy=merge
+	Templates []AnalysisTemplateRef `json:"templates,omitempty" patchStrategy:"merge" patchMergeKey:"templateName" protobuf:"bytes,1,rep,name=templates"`
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
 	// +patchStrategy=merge
@@ -691,9 +730,12 @@ type RolloutAnalysis struct {
 	// +patchStrategy=merge
 	// +optional
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
+	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+	// +optional
+	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
 }
 
-type RolloutAnalysisTemplate struct {
+type AnalysisTemplateRef struct {
 	//TemplateName name of template to use in AnalysisRun
 	// +optional
 	TemplateName string `json:"templateName" protobuf:"bytes,1,opt,name=templateName"`
@@ -909,6 +951,8 @@ type RolloutStatus struct {
 	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,24,opt,name=workloadObservedGeneration"`
 	/// ALB keeps information regarding the ALB and TargetGroups
 	ALB *ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
+	/// ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario
+	ALBs []ALBStatus `json:"albs,omitempty" protobuf:"bytes,26,opt,name=albs"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
@@ -981,11 +1025,15 @@ type ALBStatus struct {
 	LoadBalancer      AwsResourceRef `json:"loadBalancer,omitempty" protobuf:"bytes,1,opt,name=loadBalancer"`
 	CanaryTargetGroup AwsResourceRef `json:"canaryTargetGroup,omitempty" protobuf:"bytes,2,opt,name=canaryTargetGroup"`
 	StableTargetGroup AwsResourceRef `json:"stableTargetGroup,omitempty" protobuf:"bytes,3,opt,name=stableTargetGroup"`
+	Ingress           string         `json:"ingress,omitempty" protobuf:"bytes,4,opt,name=ingress"`
 }
 
 type AwsResourceRef struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	ARN  string `json:"arn" protobuf:"bytes,2,opt,name=arn"`
+	// FullName is the full name of the resource
+	// +optional
+	FullName string `json:"fullName" protobuf:"bytes,3,opt,name=fullName"`
 }
 
 // RolloutConditionType defines the conditions of Rollout
@@ -1047,3 +1095,9 @@ type RolloutList struct {
 type RollbackWindowSpec struct {
 	Revisions int32 `json:"revisions,omitempty" protobuf:"varint,1,opt,name=revisions"`
 }
+
+const (
+	ScaleDownNever         string = "never"
+	ScaleDownOnSuccess     string = "onsuccess"
+	ScaleDownProgressively string = "progressively"
+)

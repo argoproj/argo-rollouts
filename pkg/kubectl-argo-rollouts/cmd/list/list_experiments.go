@@ -62,7 +62,7 @@ func NewCmdListExperiments(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&listOptions.allNamespaces, "all-namespaces", false, "Include all namespaces")
+	cmd.Flags().BoolVarP(&listOptions.allNamespaces, "all-namespaces", "A", false, "Include all namespaces")
 	return cmd
 }
 
@@ -99,7 +99,7 @@ func (o *ListOptions) PrintExperimentTable(expList *v1alpha1.ExperimentList) err
 				}
 			}
 		}
-		var cols []interface{}
+		var cols []any
 		if o.allNamespaces {
 			cols = append(cols, exp.Namespace)
 		}

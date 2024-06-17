@@ -25,7 +25,7 @@ const TraefikServiceUpdateError = "TraefikServiceUpdateError"
 
 var (
 	apiGroupToResource = map[string]string{
-		defaults.DefaultTraefikAPIGroup: traefikServices,
+		defaults.GetTraefikAPIGroup(): traefikServices,
 	}
 )
 
@@ -68,8 +68,8 @@ func NewDynamicClient(di dynamic.Interface, namespace string) dynamic.ResourceIn
 }
 
 func GetMappingGVR() schema.GroupVersionResource {
-	group := defaults.DefaultTraefikAPIGroup
-	parts := strings.Split(defaults.DefaultTraefikVersion, "/")
+	group := defaults.GetTraefikAPIGroup()
+	parts := strings.Split(defaults.GetTraefikVersion(), "/")
 	version := parts[len(parts)-1]
 	resourceName := apiGroupToResource[group]
 	return schema.GroupVersionResource{
@@ -134,10 +134,10 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return err
 }
 
-func getService(serviceName string, services []interface{}) (map[string]interface{}, error) {
-	var selectedService map[string]interface{}
+func getService(serviceName string, services []any) (map[string]any, error) {
+	var selectedService map[string]any
 	for _, service := range services {
-		typedService, ok := service.(map[string]interface{})
+		typedService, ok := service.(map[string]any)
 		if !ok {
 			return nil, errors.New("Failed type assertion setting weight for traefik service")
 		}

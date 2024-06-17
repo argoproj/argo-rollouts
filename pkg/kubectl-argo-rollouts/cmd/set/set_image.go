@@ -19,8 +19,8 @@ import (
 
 const (
 	setImageExample = `
-  # Set rollout image
-  %[1]s set image my-rollout www=image:v2`
+  # Set rollout image (containers contains 'initContainer', 'container', 'ephemeralContainer')
+  %[1]s set image my-rollout containerName=imageName`
 )
 
 const (
@@ -124,9 +124,9 @@ func newRolloutSetImage(orig *unstructured.Unstructured, container string, image
 		if !ok {
 			continue
 		}
-		ctrList := ctrListIf.([]interface{})
+		ctrList := ctrListIf.([]any)
 		for _, ctrIf := range ctrList {
-			ctr := ctrIf.(map[string]interface{})
+			ctr := ctrIf.(map[string]any)
 			if name, _, _ := unstructured.NestedString(ctr, "name"); name == container || container == "*" {
 				ctr["image"] = image
 				containerFound = true

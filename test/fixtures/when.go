@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ghodss/yaml"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,14 +22,17 @@ import (
 	"k8s.io/client-go/tools/cache"
 	watchutil "k8s.io/client-go/tools/watch"
 	retryutil "k8s.io/client-go/util/retry"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/status"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
@@ -88,7 +90,7 @@ func (w *When) injectDelays(un *unstructured.Unstructured) {
 	w.CheckError(err)
 	containersIf, _, err := unstructured.NestedSlice(un.Object, "spec", "template", "spec", "containers")
 	w.CheckError(err)
-	container := containersIf[0].(map[string]interface{})
+	container := containersIf[0].(map[string]any)
 	container["lifecycle"] = lifecycleObj
 	containersIf[0] = container
 	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
@@ -103,7 +105,7 @@ func (w *When) injectImagePrefix(un *unstructured.Unstructured) {
 	}
 	containersIf, _, err := unstructured.NestedSlice(un.Object, "spec", "template", "spec", "containers")
 	w.CheckError(err)
-	container := containersIf[0].(map[string]interface{})
+	container := containersIf[0].(map[string]any)
 	container["image"] = imagePrefix + container["image"].(string)
 	containersIf[0] = container
 	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
@@ -185,6 +187,16 @@ func (w *When) RetryRollout() *When {
 	return w
 }
 
+func (w *When) UndoRollout(toRevision int64) *When {
+	if w.rollout == nil {
+		w.t.Fatal("Rollout not set")
+	}
+	_, err := undo.RunUndoRollout(w.dynamicClient.Resource(v1alpha1.RolloutGVR).Namespace(w.namespace), w.kubeClient, w.rollout.GetName(), toRevision)
+	w.CheckError(err)
+	w.log.Infof("Undo rollout to %d", toRevision)
+	return w
+}
+
 func (w *When) RestartRollout() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
@@ -233,7 +245,7 @@ func (w *When) PatchSpec(patch string) *When {
 		w.t.Fatal("Rollout not set")
 	}
 	// convert YAML patch to JSON patch
-	var patchObj map[string]interface{}
+	var patchObj map[string]any
 	err := yaml.Unmarshal([]byte(patch), &patchObj)
 	w.CheckError(err)
 	jsonPatch, err := json.Marshal(patchObj)
@@ -335,17 +347,20 @@ func (w *When) WatchRolloutStatus(expectedStatus string, timeouts ...time.Durati
 
 	controller := viewcontroller.NewRolloutViewController(w.namespace, w.rollout.GetName(), w.kubeClient, w.rolloutClient)
 	ctx, cancel := context.WithCancel(w.Context)
-	defer cancel()
 	controller.Start(ctx)
 
 	rolloutUpdates := make(chan *rollout.RolloutInfo)
-	defer close(rolloutUpdates)
 	controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
 		rolloutUpdates <- roInfo
 	})
 
 	go controller.Run(ctx)
 	finalStatus := statusOptions.WatchStatus(ctx.Done(), rolloutUpdates)
+
+	controller.DeregisterCallbacks()
+
+	cancel()
+	close(rolloutUpdates)
 
 	if finalStatus == expectedStatus {
 		w.log.Infof("expected status %s", finalStatus)

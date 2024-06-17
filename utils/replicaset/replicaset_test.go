@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,6 +18,7 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -151,6 +151,18 @@ func TestFindOldReplicaSets(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIsActive(t *testing.T) {
+	rs1 := generateRS(generateRollout("foo"))
+	*(rs1.Spec.Replicas) = 1
+
+	rs2 := generateRS(generateRollout("foo"))
+	*(rs2.Spec.Replicas) = 0
+
+	assert.False(t, IsActive(nil))
+	assert.True(t, IsActive(&rs1))
+	assert.False(t, IsActive(&rs2))
 }
 
 func TestGetReplicaCountForReplicaSets(t *testing.T) {
@@ -1064,48 +1076,6 @@ func TestNeedsRestart(t *testing.T) {
 		}
 		assert.True(t, NeedsRestart(ro))
 	})
-}
-
-func TestIsStillReferenced(t *testing.T) {
-	newRSWithPodTemplateHash := func(hash string) *appsv1.ReplicaSet {
-		return &appsv1.ReplicaSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{
-					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
-				},
-			},
-		}
-	}
-	{
-		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
-		rs := &appsv1.ReplicaSet{}
-		assert.False(t, IsStillReferenced(status, rs))
-	}
-	{
-		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
-		rs := newRSWithPodTemplateHash("")
-		assert.False(t, IsStillReferenced(status, rs))
-	}
-	{
-		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
-		rs := newRSWithPodTemplateHash("abc123")
-		assert.True(t, IsStillReferenced(status, rs))
-	}
-	{
-		status := v1alpha1.RolloutStatus{CurrentPodHash: "abc123"}
-		rs := newRSWithPodTemplateHash("abc123")
-		assert.True(t, IsStillReferenced(status, rs))
-	}
-	{
-		status := v1alpha1.RolloutStatus{BlueGreen: v1alpha1.BlueGreenStatus{ActiveSelector: "abc123"}}
-		rs := newRSWithPodTemplateHash("abc123")
-		assert.True(t, IsStillReferenced(status, rs))
-	}
-	{
-		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
-		rs := newRSWithPodTemplateHash("def456")
-		assert.False(t, IsStillReferenced(status, rs))
-	}
 }
 
 func TestHasScaleDownDeadline(t *testing.T) {

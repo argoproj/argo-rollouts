@@ -11,6 +11,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -54,7 +55,7 @@ func (t *Then) ExpectRolloutStatus(expectedStatus string) *Then {
 	return t
 }
 
-func (t *Then) ExpectReplicaCounts(desired, current, updated, ready, available interface{}) *Then {
+func (t *Then) ExpectReplicaCounts(desired, current, updated, ready, available any) *Then {
 	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
 	t.CheckError(err)
 	if desired != nil && desired.(int) != int(defaults.GetReplicasOrDefault(ro.Spec.Replicas)) {
@@ -503,4 +504,31 @@ func (t *Then) Given() *Given {
 	return &Given{
 		Common: t.Common,
 	}
+}
+
+type DeploymentExpectation func(*appsv1.Deployment) bool
+
+func (t *Then) ExpectDeploymentReplicasCount(expectation string, deploymentName string, expectedReplicaCount int) *Then {
+	t.t.Helper()
+	checkDeploymentReplicas := func() (done bool, err error) {
+		deployment, err := t.kubeClient.AppsV1().Deployments(t.namespace).Get(t.Context, deploymentName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == int32(expectedReplicaCount) {
+			t.log.Infof("Deployment replicas count expectation '%s' met", expectation)
+			return true, nil
+		}
+		t.log.Errorf("Deployment replicas count expectation '%s' failed. Expected: %d, Actual: %d", expectation, expectedReplicaCount, *deployment.Spec.Replicas)
+		return false, nil
+	}
+
+	pollInterval := 5 * time.Second
+	pollTimeout := 1 * time.Minute
+	if err := wait.PollImmediate(pollInterval, pollTimeout, checkDeploymentReplicas); err != nil {
+		t.log.Errorf("Failed to meet deployment replicas count expectation '%s'", expectation)
+		t.t.FailNow()
+	}
+
+	return t
 }

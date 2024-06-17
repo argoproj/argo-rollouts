@@ -6,7 +6,8 @@ The Experiment CRD allows users to have ephemeral runs of one or more ReplicaSet
 running ephemeral ReplicaSets, the Experiment CRD can launch AnalysisRuns alongside the ReplicaSets.
 Generally, those AnalysisRun is used to confirm that new ReplicaSets are running as expected.
 
-A Service routing traffic to the Experiment ReplicaSet is also generated.
+A Service routing traffic to the Experiment ReplicaSet is also generated if a weight (which requires traffic routing)
+OR the Service attribute for that experiment is set.
 
 ## Use cases of Experiments
 
@@ -51,6 +52,11 @@ spec:
   - name: purple
     # Number of replicas to run (optional). If omitted, will run a single replica
     replicas: 1
+    # Flag to create Service for this Experiment (optional)
+    # If omitted, a Service won't be created.
+    service:
+      # Name of the Service (optional). If omitted, service: {} would also be acceptable.
+      name: service-name
     selector:
       matchLabels:
         app: canary-demo
@@ -119,7 +125,8 @@ spec:
 An Experiment is intended to temporarily run one or more templates. The lifecycle of an Experiment
 is as follows:
 
-1. Create and scale a ReplicaSet for each pod template specified under `spec.templates`
+1. Create and scale a ReplicaSet for each pod template specified under `spec.templates`. If
+   `service` is specified under a pod template, a Service will also be created for that pod.
 2. Wait for all ReplicaSets reach full availability. If a ReplicaSet does not become available
    within `spec.progressDeadlineSeconds`, the Experiment will fail. Once available, the Experiment
    will transition from the `Pending` state to a `Running` state.
@@ -245,9 +252,45 @@ to `experiment-baseline`, leaving the remaining 90% of traffic to the old stack.
 
 !!! note
     When a weighted experiment step with traffic routing is used, a
-    Service is auto-created for each experiment template. The traffic routers use
+    service is auto-created for each experiment template. The traffic routers use
     this service to send traffic to the experiment pods.
 
 By default, the generated Service has the name of the ReplicaSet and inherits
 ports and selector from the specRef definition. It can be accessed in using the `{{templates.baseline.replicaset.name}}`
 or `{{templates.canary.replicaset.name}}` variables respectively.
+
+
+
+## Experiment Service Creation without Weight
+
+If you don't want to use traffic routing for your Experiments but still want to create
+a Service for them, you can set a Service object which takes an optional Name, without
+having to set a Weight for them.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+  labels:
+    app: guestbook
+spec:
+...
+strategy:
+  canary:
+    steps:
+      - experiment:
+          duration: 1h
+          templates:
+            - name: experiment-baseline
+              specRef: stable
+              service:
+                name: test-service
+            - name: experiment-canary
+              specRef: canary
+```
+
+In the above example, during an update, the first step would start
+a baseline vs. canary experiment. This time, a service would be created
+for `experiment-baseline` even without setting a weight for it or traffic
+routing for the rollout.

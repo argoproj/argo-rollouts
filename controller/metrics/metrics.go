@@ -55,9 +55,13 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 
 	reg := prometheus.NewRegistry()
 
-	reg.MustRegister(NewRolloutCollector(cfg.RolloutLister))
+	if cfg.RolloutLister != nil {
+		reg.MustRegister(NewRolloutCollector(cfg.RolloutLister))
+	}
+	if cfg.ExperimentLister != nil {
+		reg.MustRegister(NewExperimentCollector(cfg.ExperimentLister))
+	}
 	reg.MustRegister(NewAnalysisRunCollector(cfg.AnalysisRunLister, cfg.AnalysisTemplateLister, cfg.ClusterAnalysisTemplateLister))
-	reg.MustRegister(NewExperimentCollector(cfg.ExperimentLister))
 	cfg.K8SRequestProvider.MustRegister(reg)
 	reg.MustRegister(MetricRolloutReconcile)
 	reg.MustRegister(MetricRolloutReconcileError)

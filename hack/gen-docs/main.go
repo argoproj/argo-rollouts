@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/argoproj/notifications-engine/pkg/docs"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd"
@@ -36,13 +36,25 @@ func generateNotificationsDocs() {
 		if e := updateMkDocsNav("Notifications", "Services", files); e != nil {
 			log.Fatal(e)
 		}
+		if e := strReplaceDocFiles("argocd-notifications-cm", "argo-rollouts-notification-configmap", files); e != nil {
+			log.Fatal(e)
+		}
+		if e := strReplaceDocFiles("argocd-notifications-secret", "argo-rollouts-notification-secret", files); e != nil {
+			log.Fatal(e)
+		}
 	}
 }
 
 func generatePluginsDocs() {
 	tf, o := options.NewFakeArgoRolloutsOptions()
+
+	// Set static config dir so that gen docs does not change depending on what machine it is ran on
+	configDir := "$HOME/.kube/cache"
+	o.ConfigFlags.CacheDir = &configDir
+
 	defer tf.Cleanup()
 	cmd := cmd.NewCmdArgoRollouts(o)
+
 	os.RemoveAll("./docs/generated/kubectl-argo-rollouts")
 	os.MkdirAll("./docs/generated/kubectl-argo-rollouts/", 0755)
 	files, err := GenMarkdownTree(cmd, "./docs/generated/kubectl-argo-rollouts")
@@ -59,7 +71,7 @@ func generatePluginsDocs() {
 func updateMkDocsNav(parent string, child string, files []string) error {
 	trimPrefixes(files, "docs/")
 	sort.Strings(files)
-	data, err := ioutil.ReadFile("mkdocs.yml")
+	data, err := os.ReadFile("mkdocs.yml")
 	if err != nil {
 		return err
 	}
@@ -67,15 +79,15 @@ func updateMkDocsNav(parent string, child string, files []string) error {
 	if e := yaml.Unmarshal(data, &un.Object); e != nil {
 		return e
 	}
-	nav := un.Object["nav"].([]interface{})
+	nav := un.Object["nav"].([]any)
 	navitem, _ := findNavItem(nav, parent)
 	if navitem == nil {
 		return fmt.Errorf("Can't find '%s' nav item in mkdoc.yml", parent)
 	}
-	navitemmap := navitem.(map[interface{}]interface{})
-	subnav := navitemmap[parent].([]interface{})
+	navitemmap := navitem.(map[any]any)
+	subnav := navitemmap[parent].([]any)
 	subnav = removeNavItem(subnav, child)
-	commands := make(map[string]interface{})
+	commands := make(map[string]any)
 	commands[child] = files
 	navitemmap[parent] = append(subnav, commands)
 
@@ -83,12 +95,12 @@ func updateMkDocsNav(parent string, child string, files []string) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile("mkdocs.yml", newmkdocs, 0644)
+	return os.WriteFile("mkdocs.yml", newmkdocs, 0644)
 }
 
-func findNavItem(nav []interface{}, key string) (interface{}, int) {
+func findNavItem(nav []any, key string) (any, int) {
 	for i, item := range nav {
-		o, ismap := item.(map[interface{}]interface{})
+		o, ismap := item.(map[any]any)
 		if ismap {
 			if _, ok := o[key]; ok {
 				return o, i
@@ -98,7 +110,7 @@ func findNavItem(nav []interface{}, key string) (interface{}, int) {
 	return nil, -1
 }
 
-func removeNavItem(nav []interface{}, key string) []interface{} {
+func removeNavItem(nav []any, key string) []any {
 	_, i := findNavItem(nav, key)
 	if i != -1 {
 		nav = append(nav[:i], nav[i+1:]...)
@@ -256,6 +268,22 @@ func normalizeKubectlCmd(cmd string) string {
 
 func commandName(cmd string) string {
 	return strings.Replace(cmd, "kubectl-argo-", "", 1)
+}
+
+// strReplaceDocFiles replaces old string with new string in list of document files
+func strReplaceDocFiles(old string, new string, files []string) error {
+	baseDir := "./docs/"
+	for _, file := range files {
+		data, err := os.ReadFile(baseDir + file)
+		if err != nil {
+			return err
+		}
+		newdata := strings.ReplaceAll(string(data), old, new)
+		if err := os.WriteFile(baseDir+file, []byte(newdata), 0644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type byName []*cobra.Command

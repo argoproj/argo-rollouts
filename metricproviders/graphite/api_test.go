@@ -83,6 +83,38 @@ func TestQuery(t *testing.T) {
 		]`, value, timestamp),
 		200,
 	}, {
+		"graphite response with empty array",
+		query,
+		targetQuery,
+		fromQuery,
+		[]dataPoint{},
+		nil,
+		`[]`,
+		200,
+	}, {
+		"query with surrounding whitespace",
+		fmt.Sprintf("\n  %s \t  \n", query),
+		targetQuery,
+		fromQuery,
+		goodResult,
+		nil,
+		fmt.Sprintf(`[
+			{
+				"datapoints": [
+					[
+						%f,
+						%d
+					]
+				],
+				"target": "sumSeries(app.http.*.*.count)",
+				"tags": {
+					"aggregatedBy": "sum",
+					"name": "sumSeries(app.http.*.*.count)"
+				}
+			}
+		]`, value, timestamp),
+		200,
+	}, {
 		"graphite response body with invalid JSON",
 		query,
 		targetQuery,

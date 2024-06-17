@@ -6,6 +6,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -115,7 +117,7 @@ func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingIn
 	}
 
 	// We wrap this block in a func so we can defer c.workqueue.Done.
-	err := func(obj interface{}) error {
+	err := func(obj any) error {
 		// We call Done here so the workqueue knows we have finished
 		// processing this item. We also must remember to call Forget if we
 		// do not want this work item being re-queued. For example, we do
@@ -157,6 +159,11 @@ func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingIn
 		if err := runSyncHandler(); err != nil {
 			logCtx.Errorf("%s syncHandler error: %v", objType, err)
 			metricsServer.IncError(namespace, name, objType)
+
+			if errors.IsNotFound(err) {
+				workqueue.Forget(obj)
+				return nil
+			}
 			// Put the item back on
 			// the workqueue to handle any transient errors.
 			workqueue.AddRateLimited(key)
@@ -179,14 +186,14 @@ func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingIn
 }
 
 // metaNamespaceKeyFunc is a wrapper around cache.MetaNamespaceKeyFunc but also accepts strings
-func metaNamespaceKeyFunc(obj interface{}) (string, error) {
+func metaNamespaceKeyFunc(obj any) (string, error) {
 	if objStr, ok := obj.(string); ok {
 		obj = cache.ExplicitKey(objStr)
 	}
 	return cache.MetaNamespaceKeyFunc(obj)
 }
 
-func Enqueue(obj interface{}, q workqueue.RateLimitingInterface) {
+func Enqueue(obj any, q workqueue.RateLimitingInterface) {
 	var key string
 	var err error
 	if key, err = metaNamespaceKeyFunc(obj); err != nil {
@@ -196,7 +203,7 @@ func Enqueue(obj interface{}, q workqueue.RateLimitingInterface) {
 	q.Add(key)
 }
 
-func EnqueueAfter(obj interface{}, duration time.Duration, q workqueue.RateLimitingInterface) {
+func EnqueueAfter(obj any, duration time.Duration, q workqueue.RateLimitingInterface) {
 	var key string
 	var err error
 	if key, err = metaNamespaceKeyFunc(obj); err != nil {
@@ -206,7 +213,7 @@ func EnqueueAfter(obj interface{}, duration time.Duration, q workqueue.RateLimit
 	q.AddAfter(key, duration)
 }
 
-func EnqueueRateLimited(obj interface{}, q workqueue.RateLimitingInterface) {
+func EnqueueRateLimited(obj any, q workqueue.RateLimitingInterface) {
 	var key string
 	var err error
 	if key, err = metaNamespaceKeyFunc(obj); err != nil {
@@ -222,7 +229,7 @@ func EnqueueRateLimited(obj interface{}, q workqueue.RateLimitingInterface) {
 // It then enqueues that ownerType resource to be processed. If the object does not
 // have an appropriate OwnerReference, it will simply be skipped.
 // This function assumes parent object is in the same namespace as the child
-func EnqueueParentObject(obj interface{}, ownerType string, enqueue func(obj interface{})) {
+func EnqueueParentObject(obj any, ownerType string, enqueue func(obj any), parentGetter ...func(any) (*metav1.OwnerReference, string)) {
 	var object metav1.Object
 	var ok bool
 	if object, ok = obj.(metav1.Object); !ok {
@@ -239,12 +246,26 @@ func EnqueueParentObject(obj interface{}, ownerType string, enqueue func(obj int
 		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
 	}
 
-	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
+	var (
+		ownerRef  *metav1.OwnerReference
+		namespace string
+	)
+
+	if len(parentGetter) > 0 {
+		ownerRef, namespace = parentGetter[0](obj)
+	} else {
+		ownerRef = metav1.GetControllerOf(object)
+	}
+
+	if ownerRef != nil {
 		// If this object is not owned by the ownerType, we should not do anything more with it.
 		if ownerRef.Kind != ownerType {
 			return
 		}
-		namespace := object.GetNamespace()
+		// if namespace not set by parentGetter use object namespace
+		if namespace == "" {
+			namespace = object.GetNamespace()
+		}
 		parent := cache.ExplicitKey(namespace + "/" + ownerRef.Name)
 		log.Infof("Enqueueing parent of %s/%s: %s %s", namespace, object.GetName(), ownerRef.Kind, parent)
 		enqueue(parent)

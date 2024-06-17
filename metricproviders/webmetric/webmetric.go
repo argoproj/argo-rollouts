@@ -2,18 +2,20 @@ package webmetric
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 	"k8s.io/client-go/util/jsonpath"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -120,9 +122,9 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 }
 
 func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
-	var data interface{}
+	var data any
 
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
 	}
@@ -146,7 +148,7 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 	return valString, status, err
 }
 
-func getValue(fullResults [][]reflect.Value) (interface{}, string, error) {
+func getValue(fullResults [][]reflect.Value) (any, string, error) {
 	for _, results := range fullResults {
 		for _, r := range results {
 			val := r.Interface()
@@ -174,8 +176,9 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
-func NewWebMetricHttpClient(metric v1alpha1.Metric) *http.Client {
+func NewWebMetricHttpClient(metric v1alpha1.Metric) (*http.Client, error) {
 	var timeout time.Duration
+	var oauthCfg clientcredentials.Config
 
 	// Using a default timeout of 10 seconds
 	if metric.Provider.Web.TimeoutSeconds <= 0 {
@@ -193,7 +196,19 @@ func NewWebMetricHttpClient(metric v1alpha1.Metric) *http.Client {
 		}
 		c.Transport = tr
 	}
-	return c
+	if metric.Provider.Web.Authentication.OAuth2.TokenURL != "" {
+		if metric.Provider.Web.Authentication.OAuth2.ClientID == "" || metric.Provider.Web.Authentication.OAuth2.ClientSecret == "" {
+			return nil, errors.New("missing mandatory parameter in metric for OAuth2 setup")
+		}
+		oauthCfg = clientcredentials.Config{
+			ClientID:     metric.Provider.Web.Authentication.OAuth2.ClientID,
+			ClientSecret: metric.Provider.Web.Authentication.OAuth2.ClientSecret,
+			TokenURL:     metric.Provider.Web.Authentication.OAuth2.TokenURL,
+			Scopes:       metric.Provider.Web.Authentication.OAuth2.Scopes,
+		}
+		return oauthCfg.Client(context.WithValue(context.Background(), oauth2.HTTPClient, c)), nil
+	}
+	return c, nil
 }
 
 func NewWebMetricJsonParser(metric v1alpha1.Metric) (*jsonpath.JSONPath, error) {

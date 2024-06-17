@@ -36,7 +36,7 @@ func newTestJobProvider(objects ...runtime.Object) *JobProvider {
 	cancel()
 
 	jobLister := k8sI.Batch().V1().Jobs().Lister()
-	return NewJobProvider(*logCtx, kubeclient, jobLister)
+	return NewJobProvider(*logCtx, kubeclient, jobLister, "", false)
 }
 
 func newRunWithJobMetric() *v1alpha1.AnalysisRun {
@@ -122,6 +122,16 @@ func TestRun(t *testing.T) {
 	metric := run.Spec.Metrics[0]
 	metricsMetadata := p.GetMetadata(metric)
 	assert.Nil(t, metricsMetadata)
+	providerJobMetadataLabels := map[string]string{
+		"foo-label": "bar",
+	}
+	providerJobMetadataAnnotations := map[string]string{
+		"foo-annotation": "bar",
+	}
+	metric.Provider.Job.Metadata = metav1.ObjectMeta{
+		Labels:      providerJobMetadataLabels,
+		Annotations: providerJobMetadataAnnotations,
+	}
 
 	measurement := p.Run(run, metric)
 
@@ -138,6 +148,13 @@ func TestRun(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedName, jobs.Items[0].Name)
 	assert.Equal(t, string(run.UID), jobs.Items[0].ObjectMeta.Labels[AnalysisRunUIDLabelKey])
+	for labelKey, labelVal := range providerJobMetadataLabels {
+		assert.Equal(t, labelVal, jobs.Items[0].ObjectMeta.Labels[labelKey])
+	}
+	for annotationKey, annotationVal := range providerJobMetadataAnnotations {
+		assert.Equal(t, annotationVal, jobs.Items[0].ObjectMeta.Annotations[annotationKey])
+	}
+
 	expectedOwnerRef := []metav1.OwnerReference{*metav1.NewControllerRef(run, analysisRunGVK)}
 	assert.Equal(t, expectedOwnerRef, jobs.Items[0].ObjectMeta.OwnerReferences)
 
@@ -176,7 +193,7 @@ func TestRunCreateCollision(t *testing.T) {
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()
 
-	existingJob, err := newMetricJob(run, run.Spec.Metrics[0])
+	existingJob, err := newMetricJob(run, run.Spec.Metrics[0], p.jobNamespace, p.customJobKubeconfig)
 	assert.NoError(t, err)
 	fakeClient := p.kubeclientset.(*k8sfake.Clientset)
 	fakeClient.Tracker().Add(existingJob)

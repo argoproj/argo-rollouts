@@ -646,7 +646,10 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	}
 
 	args := []v1alpha1.Argument{arg, secretArg}
-	run, err := NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, "foo-run", "foo-run-generate-", "my-ns")
+	labels := make(map[string]string)
+	annotations := make(map[string]string)
+
+	run, err := NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
@@ -656,10 +659,36 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	assert.Contains(t, run.Spec.Args, arg)
 	assert.Contains(t, run.Spec.Args, secretArg)
 
+	assert.Len(t, run.Labels, 0)
+	assert.Len(t, run.Labels, 0)
+
+	// With additionnal labels and annotations
+	labels["foo"] = "bar"
+	labels["foo2"] = "bar2"
+	annotations["bar"] = "foo"
+	annotations["bar2"] = "foo2"
+
+	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
+	assert.NoError(t, err)
+	assert.Equal(t, "foo-run", run.Name)
+	assert.Equal(t, "foo-run-generate-", run.GenerateName)
+	assert.Equal(t, "my-ns", run.Namespace)
+
+	assert.Len(t, run.Spec.Args, 2)
+	assert.Contains(t, run.Spec.Args, arg)
+	assert.Contains(t, run.Spec.Args, secretArg)
+
+	assert.Len(t, run.Labels, 2)
+	assert.Equal(t, run.Labels["foo"], "bar")
+	assert.Equal(t, run.Labels["foo2"], "bar2")
+	assert.Len(t, run.Annotations, 2)
+	assert.Equal(t, run.Annotations["bar"], "foo")
+	assert.Equal(t, run.Annotations["bar2"], "foo2")
+
 	// Fail Merge Args
 	unresolvedArg := v1alpha1.Argument{Name: "unresolved"}
 	templates[0].Spec.Args = append(templates[0].Spec.Args, unresolvedArg)
-	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, "foo-run", "foo-run-generate-", "my-ns")
+	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
 	assert.Equal(t, fmt.Errorf("args.unresolved was not resolved"), err)
 	// Fail flatten metric
@@ -672,7 +701,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	}
 	// Fail Flatten Templates
 	templates = append(templates, matchingMetric)
-	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, "foo-run", "foo-run-generate-", "my-ns")
+	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
 	assert.Equal(t, fmt.Errorf("two metrics have the same name 'success-rate'"), err)
 }
@@ -822,7 +851,7 @@ func TestNewAnalysisRunFromUnstructured(t *testing.T) {
 	assert.Equal(t, len(args), len(arArgs))
 
 	for i, arg := range arArgs {
-		argnv := arg.(map[string]interface{})
+		argnv := arg.(map[string]any)
 		assert.Equal(t, *args[i].Value, argnv["value"])
 	}
 }
@@ -852,8 +881,10 @@ func TestCompatibilityNewAnalysisRunFromTemplate(t *testing.T) {
 			Value: pointer.StringPtr("my-val"),
 		},
 	}
+	labels := make(map[string]string)
+	annotations := make(map[string]string)
 	analysisTemplates := []*v1alpha1.AnalysisTemplate{&template}
-	run, err := NewAnalysisRunFromTemplates(analysisTemplates, nil, args, nil, nil, "foo-run", "foo-run-generate-", "my-ns")
+	run, err := NewAnalysisRunFromTemplates(analysisTemplates, nil, args, nil, nil, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
@@ -887,8 +918,10 @@ func TestCompatibilityNewAnalysisRunFromClusterTemplate(t *testing.T) {
 			Value: pointer.StringPtr("my-val"),
 		},
 	}
+	labels := make(map[string]string)
+	annotations := make(map[string]string)
 	clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{&clusterTemplate}
-	run, err := NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, nil, nil, "foo-run", "foo-run-generate-", "my-ns")
+	run, err := NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, nil, nil, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
@@ -1081,4 +1114,84 @@ func TestGetMeasurementRetentionMetrics(t *testing.T) {
 		assert.EqualError(t, err, "measurementRetention[0]: Rule didn't match any metric name(s)")
 		assert.Equal(t, len(measurementRetentionMetricNamesMap), 0)
 	})
+}
+
+func TestAnalysisTemplateFiltering(t *testing.T) {
+	t.Run("FilterAnalysisTemplates is returning empty arrays when empty arrays are provided in parameters", func(t *testing.T) {
+
+		analysisTemplates := []*v1alpha1.AnalysisTemplate{}
+		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{}
+
+		filteredAnalysisTemplates, filteredClusterAnalysisTemplates := FilterUniqueTemplates(analysisTemplates, clusterAnalysisTemplates)
+
+		assert.Equal(t, len(filteredAnalysisTemplates), 0)
+		assert.Equal(t, len(filteredClusterAnalysisTemplates), 0)
+
+	})
+
+	t.Run("FilterAnalysisTemplates is not filtering analysisTemplates duplications if there are none in the reference tree", func(t *testing.T) {
+
+		analysisTemplates := []*v1alpha1.AnalysisTemplate{
+			analysisTemplate("foo"),
+			analysisTemplate("bar"),
+			analysisTemplate("foo-2"),
+			analysisTemplate("foo-3"),
+		}
+		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{
+			clusterAnalysisTemplate("cluster-foo"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-3"),
+		}
+
+		filteredAnalysisTemplates, filteredClusterAnalysisTemplates := FilterUniqueTemplates(analysisTemplates, clusterAnalysisTemplates)
+
+		assert.Equal(t, len(filteredAnalysisTemplates), 4)
+		assert.Equal(t, len(filteredClusterAnalysisTemplates), 4)
+
+	})
+	t.Run("FilterAnalysisTemplates is filtering analysisTemplates duplications in the reference tree", func(t *testing.T) {
+
+		analysisTemplates := []*v1alpha1.AnalysisTemplate{
+			analysisTemplate("foo"),
+			analysisTemplate("foo"),
+			analysisTemplate("foo-2"),
+			analysisTemplate("foo-3"),
+			analysisTemplate("foo-3"),
+		}
+		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{
+			clusterAnalysisTemplate("cluster-foo"),
+			clusterAnalysisTemplate("cluster-foo"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-3"),
+		}
+
+		filteredAnalysisTemplates, filteredClusterAnalysisTemplates := FilterUniqueTemplates(analysisTemplates, clusterAnalysisTemplates)
+
+		assert.Equal(t, len(filteredAnalysisTemplates), 3)
+		assert.Equal(t, len(filteredClusterAnalysisTemplates), 4)
+
+	})
+}
+
+func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
+	return &v1alpha1.AnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+}
+
+func clusterAnalysisTemplate(name string) *v1alpha1.ClusterAnalysisTemplate {
+	return &v1alpha1.ClusterAnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
 }

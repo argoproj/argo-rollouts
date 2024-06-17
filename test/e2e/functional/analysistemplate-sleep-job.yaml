@@ -6,7 +6,7 @@ metadata:
 spec:
   args:
   - name: duration
-    value: 0s
+    value: "0"
   - name: exit-code
     value: "0"
   - name: count

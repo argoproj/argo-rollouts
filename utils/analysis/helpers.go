@@ -288,7 +288,10 @@ func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.
 	}
 }
 
-func NewAnalysisRunFromTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
+func NewAnalysisRunFromTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun,
+	measurementRetentionMetrics []v1alpha1.MeasurementRetention,
+	labels map[string]string, annotations map[string]string,
+	name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
 	template, err := FlattenTemplates(templates, clusterTemplates)
 	if err != nil {
 		return nil, err
@@ -310,6 +313,8 @@ func NewAnalysisRunFromTemplates(templates []*v1alpha1.AnalysisTemplate, cluster
 			Name:         name,
 			GenerateName: generateName,
 			Namespace:    namespace,
+			Labels:       labels,
+			Annotations:  annotations,
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics:              template.Spec.Metrics,
@@ -541,9 +546,9 @@ func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs
 	}
 
 	// Set args
-	newArgVals := []interface{}{}
+	newArgVals := []any{}
 	for i := 0; i < len(newArgs); i++ {
-		var newArgInterface map[string]interface{}
+		var newArgInterface map[string]any
 		newArgBytes, err := json.Marshal(newArgs[i])
 		if err != nil {
 			return nil, err
@@ -579,4 +584,24 @@ func GetInstanceID(obj runtime.Object) string {
 		return labels[v1alpha1.LabelKeyControllerInstanceID]
 	}
 	return ""
+}
+
+func FilterUniqueTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate) {
+	uniqueTemplates := []*v1alpha1.AnalysisTemplate{}
+	uniqueClusterTemplates := []*v1alpha1.ClusterAnalysisTemplate{}
+	seenTemplates := map[string]bool{}
+	seenClusterTemplates := map[string]bool{}
+	for _, template := range templates {
+		if !seenTemplates[template.Name] {
+			seenTemplates[template.Name] = true
+			uniqueTemplates = append(uniqueTemplates, template)
+		}
+	}
+	for _, clusterTemplate := range clusterTemplates {
+		if !seenClusterTemplates[clusterTemplate.Name] {
+			seenClusterTemplates[clusterTemplate.Name] = true
+			uniqueClusterTemplates = append(uniqueClusterTemplates, clusterTemplate)
+		}
+	}
+	return uniqueTemplates, uniqueClusterTemplates
 }

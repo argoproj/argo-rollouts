@@ -20,11 +20,11 @@ type ExperimentSuite struct {
 
 // TestRolloutWithExperimentAndAnalysis this tests the ability for a rollout to launch an experiment,
 // and use self-referencing features/pass metadata arguments to the experiment and analysis, such as:
-//  * specRef: stable
-//  * specRef: canary
-//  * valueFrom.podTemplateHashValue: Stable
-//  * valueFrom.podTemplateHashValue: Latest
-//  * templates.XXXXX.podTemplateHash
+//   - specRef: stable
+//   - specRef: canary
+//   - valueFrom.podTemplateHashValue: Stable
+//   - valueFrom.podTemplateHashValue: Latest
+//   - templates.XXXXX.podTemplateHash
 func (s *ExperimentSuite) TestRolloutWithExperimentAndAnalysis() {
 	s.T().Parallel()
 	s.Given().
@@ -64,6 +64,11 @@ func (s *ExperimentSuite) TestRolloutWithExperimentAndAnalysis() {
 			assert.Equal(s.T(), rs1Hash, envVars[1].Value)
 			assert.Equal(s.T(), rs2Hash, envVars[0].Value)
 
+			// verify if labels and annotations from AnalysisTemplate's .spec.metrics[0].provider.job.metadata
+			// are added to the Job.metadata
+			assert.Equal(s.T(), "bar", job.GetLabels()["foo"])
+			assert.Equal(s.T(), "bar2", job.GetAnnotations()["foo2"])
+
 			// verify the `templates.XXXXX.podTemplateHash` variables are working
 			expRSCanaryHash := expRSCanary.Spec.Template.Labels[rov1.DefaultRolloutUniqueLabelKey]
 			expRSBaselineHash := expRSBaseline.Spec.Template.Labels[rov1.DefaultRolloutUniqueLabelKey]
@@ -87,16 +92,62 @@ func (s *ExperimentSuite) TestExperimentWithServiceAndScaleDownDelay() {
 	g.ApplyManifests("@functional/experiment-with-service.yaml")
 	g.When().
 		WaitForExperimentPhase("experiment-with-service", "Running").
-		Sleep(time.Second*5).
+		WaitForExperimentCondition("experiment-with-service", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 1
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
 		Then().
 		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service", "test", 1).
 		ExpectExperimentServiceCount("experiment-with-service", 1).
 		When().
 		WaitForExperimentPhase("experiment-with-service", "Successful").
-		Sleep(time.Second*15).
+		WaitForExperimentCondition("experiment-with-service", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 0
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
 		Then().
 		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service", "test", 0).
 		ExpectExperimentServiceCount("experiment-with-service", 0)
+}
+
+func (s *ExperimentSuite) TestExperimentWithServiceNameAndScaleDownDelay() {
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-with-service-name.yaml")
+	g.When().
+		WaitForExperimentPhase("experiment-with-service-name", "Running").
+		WaitForExperimentCondition("experiment-with-service-name", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 1
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service-name", "test", 1).
+		ExpectExperimentServiceCount("experiment-with-service-name", 1).
+		When().
+		WaitForExperimentPhase("experiment-with-service-name", "Successful").
+		WaitForExperimentCondition("experiment-with-service-name", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 0
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service-name", "test", 0).
+		ExpectExperimentServiceCount("experiment-with-service-name", 0)
+}
+
+func (s *ExperimentSuite) TestExperimentWithMultiportServiceAndScaleDownDelay() {
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-with-multiport-service.yaml")
+	g.When().
+		WaitForExperimentPhase("experiment-with-multiport-service", "Running").
+		WaitForExperimentCondition("experiment-with-multiport-service", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 1
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-multiport-service", "test", 1).
+		ExpectExperimentServiceCount("experiment-with-multiport-service", 1).
+		When().
+		WaitForExperimentPhase("experiment-with-multiport-service", "Successful").
+		WaitForExperimentCondition("experiment-with-multiport-service", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 0
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-multiport-service", "test", 0).
+		ExpectExperimentServiceCount("experiment-with-multiport-service", 0)
 }
 
 func (s *ExperimentSuite) TestExperimentWithDryRunMetrics() {

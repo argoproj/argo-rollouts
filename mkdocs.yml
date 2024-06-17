@@ -23,9 +23,11 @@ nav:
   - Basic Usage: getting-started.md
   - Ambassador: getting-started/ambassador/index.md
   - AWS ALB: getting-started/alb/index.md
+  - AWS App Mesh: getting-started/appmesh/index.md
   - Istio: getting-started/istio/index.md
   - NGINX: getting-started/nginx/index.md
   - SMI: getting-started/smi/index.md
+  - Multiple Providers: getting-started/mixed/index.md
 - Dashboard: dashboard.md
 - Rollout:
   - Deployment Strategies:
@@ -47,14 +49,18 @@ nav:
   - Ambassador: features/traffic-management/ambassador.md
   - APISIX: features/traffic-management/apisix.md
   - AWS ALB: features/traffic-management/alb.md
+  - Google Cloud: features/traffic-management/google-cloud.md
   - Istio: features/traffic-management/istio.md
+  - Kong: features/traffic-management/kong.md
   - NGINX: features/traffic-management/nginx.md
+  - Plugins: features/traffic-management/plugins.md
   - SMI: features/traffic-management/smi.md
   - Traefik: features/traffic-management/traefik.md
 - Analysis:
   - Overview: features/analysis.md
+  - Plugins: analysis/plugins.md
   - Prometheus: analysis/prometheus.md
-  - DataDog: analysis/datadog.md
+  - Datadog: analysis/datadog.md
   - NewRelic: analysis/newrelic.md
   - Wavefront: analysis/wavefront.md
   - Job: analysis/job.md
@@ -63,11 +69,13 @@ nav:
   - CloudWatch: analysis/cloudwatch.md
   - Graphite: analysis/graphite.md
   - InfluxDB: analysis/influxdb.md
+  - Apache SkyWalking: analysis/skywalking.md
 - Experiments: features/experiment.md
 - Notifications:
   - Overview: features/notifications.md
   - Services:
     - generated/notification-services/alertmanager.md
+    - generated/notification-services/awssqs.md
     - generated/notification-services/email.md
     - generated/notification-services/github.md
     - generated/notification-services/googlechat.md
@@ -77,6 +85,7 @@ nav:
     - generated/notification-services/opsgenie.md
     - generated/notification-services/overview.md
     - generated/notification-services/pagerduty.md
+    - generated/notification-services/pagerduty_v2.md
     - generated/notification-services/pushover.md
     - generated/notification-services/rocketchat.md
     - generated/notification-services/slack.md
@@ -124,12 +133,15 @@ nav:
 - Best Practices: best-practices.md
 - Migrating: migrating.md
 - FAQ: FAQ.md
-- Security: security.md
+- Security:
+  - Security Policy: security/security.md
+  - Verify Release Artifacts: security/signed-release-assets.md
 - Roadmap/Release Schedule: roadmap.md
 - Contributing:
   - Contribution Guide: CONTRIBUTING.md
   - Environment Setup: getting-started/setup/index.md
   - Releasing: releasing.md
+  - Plugins: plugins.md
 - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
 - Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
 - Blog ⧉: https://blog.argoproj.io/

@@ -10,6 +10,7 @@ metadata:
 spec:
   metrics:
   - name: pass
+    count: 1
     interval: 5s
     failureLimit: 1
     provider:
@@ -24,7 +25,6 @@ spec:
                 args: [exit 0]
               restartPolicy: Never
           backoffLimit: 0
-    count: 1
 ---
 # This AnalysisTemplate will run a Kubernetes Job every 5 seconds, with a 50% chance of failure.
 # When the number of accumulated failures exceeds failureLimit, it will cause the analysis run to
