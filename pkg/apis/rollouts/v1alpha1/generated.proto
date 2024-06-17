@@ -656,7 +656,7 @@ message DatadogMetric {
   optional string apiVersion = 5;
 
   // +kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area
-  // Aggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2
+  // Aggregator is a type of aggregator to use for metrics-based queries (default: ""). Used for v2
   optional string aggregator = 6;
 }
 
