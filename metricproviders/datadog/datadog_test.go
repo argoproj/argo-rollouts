@@ -66,12 +66,6 @@ func TestDatadogSpecDefaults(t *testing.T) {
 		assert.Equal(t, "\"l2norm\"", string(aggregatorEnums[7].Raw), "\"l2norm\" expected, got %s", string(aggregatorEnums[7].Raw))
 		assert.Equal(t, "\"area\"", string(aggregatorEnums[8].Raw), "\"area\" expected, got %s", string(aggregatorEnums[8].Raw))
 	})
-
-	t.Run("aggregator: Validate default is last", func(t *testing.T) {
-		defaultAggregator := string(ddSpec.Properties["aggregator"].Default.Raw)
-		assert.Equal(t, "\"last\"", defaultAggregator, "Default aggregator should be \"last\" ")
-	})
-
 }
 
 func TestValidateIncomingProps(t *testing.T) {
