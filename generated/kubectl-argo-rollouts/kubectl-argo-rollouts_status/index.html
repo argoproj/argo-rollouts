@@ -3396,6 +3396,9 @@ the rollout is healthy upon completion and an error otherwise.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Watch the rollout until it succeeds</span>
 kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>status<span class="w"> </span>guestbook
 
+<span class="c1"># Show the rollout status</span>
+kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>status<span class="w"> </span>guestbook<span class="w"> </span>--watch<span class="w"> </span><span class="nb">false</span>
+
 <span class="c1"># Watch the rollout until it succeeds, fail if it takes more than 60 seconds</span>
 kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>status<span class="w"> </span>--timeout<span class="w"> </span>60s<span class="w"> </span>guestbook
 </code></pre></div>
