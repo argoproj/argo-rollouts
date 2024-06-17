@@ -13,8 +13,8 @@ kubectl argo rollouts set image ROLLOUT_NAME CONTAINER=IMAGE [flags]
 ## Examples
 
 ```shell
-# Set rollout image
-kubectl argo rollouts set image my-rollout www=image:v2
+# Set rollout image (containers contains 'initContainer', 'container', 'ephemeralContainer')
+kubectl argo rollouts set image my-rollout containerName=imageName
 ```
 
 ## Options

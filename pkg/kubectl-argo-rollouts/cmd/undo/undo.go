@@ -32,7 +32,7 @@ const (
 	# Undo a rollout
 	%[1]s undo guestbook
 
-	# Undo a rollout revision 3
+	# Undo a rollout to revision 3
 	%[1]s undo guestbook --to-revision=3`
 )
 

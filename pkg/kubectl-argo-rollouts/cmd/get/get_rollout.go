@@ -25,7 +25,10 @@ const (
 	%[1]s get rollout guestbook
 
 	# Watch progress of a rollout
-  	%[1]s get rollout guestbook -w`
+  	%[1]s get rollout guestbook -w
+
+	# Watch the rollout, fail if it takes more than 60 seconds
+	%[1]s get rollout guestbook -w --timeout-seconds 60`
 )
 
 // NewCmdGetRollout returns a new instance of an `rollouts get rollout` command
