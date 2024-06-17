@@ -175,7 +175,6 @@ spec:
                         datadog:
                           properties:
                             aggregator:
-                              default: last
                               enum:
                               - avg
                               - min
