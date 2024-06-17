@@ -19,8 +19,8 @@ import (
 
 const (
 	setImageExample = `
-  # Set rollout image
-  %[1]s set image my-rollout www=image:v2`
+  # Set rollout image (containers contains 'initContainer', 'container', 'ephemeralContainer')
+  %[1]s set image my-rollout containerName=imageName`
 )
 
 const (

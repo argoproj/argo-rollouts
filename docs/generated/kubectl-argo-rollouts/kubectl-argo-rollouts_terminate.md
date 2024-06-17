@@ -13,7 +13,7 @@ kubectl argo rollouts terminate <analysisrun|experiment> RESOURCE_NAME [flags]
 ## Examples
 
 ```shell
-# Terminate an analysisRun
+# Terminate an AnalysisRun
 kubectl argo rollouts terminate analysisrun guestbook-877894d5b-4-success-rate.1
 
 # Terminate a failed experiment
