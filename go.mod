@@ -8,8 +8,8 @@ require (
 	github.com/antonmedv/expr v1.15.5
 	github.com/argoproj/notifications-engine v0.4.1-0.20240219110818-7a069766e954
 	github.com/argoproj/pkg v0.13.6
-	github.com/aws/aws-sdk-go-v2 v1.28.0
-	github.com/aws/aws-sdk-go-v2/config v1.27.19
+	github.com/aws/aws-sdk-go-v2 v1.29.0
+	github.com/aws/aws-sdk-go-v2/config v1.27.20
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.38.7
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.31.3
 	github.com/aws/smithy-go v1.20.2
@@ -82,17 +82,17 @@ require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a // indirect
 	github.com/aws/aws-sdk-go v1.44.116 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.17.19 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.6 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.10 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.10 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.17.20 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.7 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.11 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.11 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.11.12 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.11.13 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.29.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.20.12 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.24.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.28.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.21.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.25.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.29.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
