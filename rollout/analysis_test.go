@@ -1952,7 +1952,6 @@ func TestDoNotCreateBackgroundAnalysisRunWhenWithinRollbackWindow(t *testing.T) 
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
-	f.analysisRunLister = append(f.analysisRunLister)
 	f.objects = append(f.objects, r2, at)
 
 	f.expectUpdateReplicaSetAction(rs2)
