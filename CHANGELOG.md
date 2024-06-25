@@ -9,7 +9,6 @@
 * rs conflict with fallback to patch ([#3559](https://github.com/argoproj/argo-rollouts/issues/3559))
 * **controller:** Corrects the logic of comparing sha256 has. Fixes [#3519](https://github.com/argoproj/argo-rollouts/issues/3519) ([#3520](https://github.com/argoproj/argo-rollouts/issues/3520))
 
-
 <a name="v1.7.0-rc1"></a>
 ## [v1.7.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.6.6...v1.7.0-rc1) (2024-04-03)
 
