@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/rpc"
 
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -15,6 +17,7 @@ type UpdateHashArgs struct {
 	Rollout                v1alpha1.Rollout
 	CanaryHash             string
 	StableHash             string
+	ReplicaSets            []*appsv1.ReplicaSet
 	AdditionalDestinations []v1alpha1.WeightDestination
 }
 
@@ -73,12 +76,13 @@ func (g *TrafficRouterPluginRPC) InitPlugin() types.RpcError {
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes
-func (g *TrafficRouterPluginRPC) UpdateHash(rollout *v1alpha1.Rollout, canaryHash string, stableHash string, additionalDestinations []v1alpha1.WeightDestination) types.RpcError {
+func (g *TrafficRouterPluginRPC) UpdateHash(rollout *v1alpha1.Rollout, canaryHash string, stableHash string, replicaSets []*appsv1.ReplicaSet, additionalDestinations []v1alpha1.WeightDestination) types.RpcError {
 	var resp types.RpcError
 	var args any = UpdateHashArgs{
 		Rollout:                *rollout,
 		CanaryHash:             canaryHash,
 		StableHash:             stableHash,
+		ReplicaSets:            replicaSets,
 		AdditionalDestinations: additionalDestinations,
 	}
 	err := g.client.Call("Plugin.UpdateHash", &args, &resp)
@@ -191,7 +195,7 @@ func (s *TrafficRouterRPCServer) UpdateHash(args any, resp *types.RpcError) erro
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
 	}
-	*resp = s.Impl.UpdateHash(&runArgs.Rollout, runArgs.CanaryHash, runArgs.StableHash, runArgs.AdditionalDestinations)
+	*resp = s.Impl.UpdateHash(&runArgs.Rollout, runArgs.CanaryHash, runArgs.StableHash, runArgs.ReplicaSets, runArgs.AdditionalDestinations)
 	return nil
 }
 

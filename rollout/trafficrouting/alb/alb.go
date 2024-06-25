@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	appvs1 "k8s.io/api/apps/v1"
+
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 
 	"github.com/sirupsen/logrus"
@@ -543,7 +545,7 @@ func getTrafficForwardConditionString(headerRoute *v1alpha1.SetHeaderRoute) (str
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, replicaSets []*appvs1.ReplicaSet, additionalDestinations ...v1alpha1.WeightDestination) error {
 	return nil
 }
 

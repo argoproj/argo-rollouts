@@ -513,7 +513,7 @@ func TestReconciler_SetWeight(t *testing.T) {
 			f := setup()
 
 			// when
-			err := f.reconciler.UpdateHash("", "")
+			err := f.reconciler.UpdateHash("", "", nil)
 
 			// then
 			assert.Nil(t, err)

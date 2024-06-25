@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	appvs1 "k8s.io/api/apps/v1"
+
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 	smiv1alpha2 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha2"
 	smiv1alpha3 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha3"
@@ -348,7 +350,7 @@ func trafficSplitV1Alpha3(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, ro
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, replicaSets []*appvs1.ReplicaSet, additionalDestinations ...v1alpha1.WeightDestination) error {
 	return nil
 }
 

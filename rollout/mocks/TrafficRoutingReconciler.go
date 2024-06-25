@@ -5,6 +5,8 @@ package mocks
 import (
 	mock "github.com/stretchr/testify/mock"
 
+	v1 "k8s.io/api/apps/v1"
+
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
@@ -110,14 +112,14 @@ func (_m *TrafficRoutingReconciler) Type() string {
 	return r0
 }
 
-// UpdateHash provides a mock function with given fields: canaryHash, stableHash, additionalDestinations
-func (_m *TrafficRoutingReconciler) UpdateHash(canaryHash string, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+// UpdateHash provides a mock function with given fields: canaryHash, stableHash, replicaSets, additionalDestinations
+func (_m *TrafficRoutingReconciler) UpdateHash(canaryHash string, stableHash string, replicaSets []*v1.ReplicaSet, additionalDestinations ...v1alpha1.WeightDestination) error {
 	_va := make([]interface{}, len(additionalDestinations))
 	for _i := range additionalDestinations {
 		_va[_i] = additionalDestinations[_i]
 	}
 	var _ca []interface{}
-	_ca = append(_ca, canaryHash, stableHash)
+	_ca = append(_ca, canaryHash, stableHash, replicaSets)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
@@ -126,8 +128,8 @@ func (_m *TrafficRoutingReconciler) UpdateHash(canaryHash string, stableHash str
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, ...v1alpha1.WeightDestination) error); ok {
-		r0 = rf(canaryHash, stableHash, additionalDestinations...)
+	if rf, ok := ret.Get(0).(func(string, string, []*v1.ReplicaSet, ...v1alpha1.WeightDestination) error); ok {
+		r0 = rf(canaryHash, stableHash, replicaSets, additionalDestinations...)
 	} else {
 		r0 = ret.Error(0)
 	}

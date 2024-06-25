@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	appvs1 "k8s.io/api/apps/v1"
+
 	"github.com/sirupsen/logrus"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -348,7 +350,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, replicaSets []*appvs1.ReplicaSet, additionalDestinations ...v1alpha1.WeightDestination) error {
 	return nil
 }
 

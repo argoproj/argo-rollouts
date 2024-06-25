@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -104,7 +106,7 @@ func TestPlugin(t *testing.T) {
 	assert.Equal(t, "", err.Error())
 	assert.Equal(t, true, *b.IsVerified())
 
-	err = plugin.UpdateHash(&ro, "canary-hash", "stable-hash", []v1alpha1.WeightDestination{})
+	err = plugin.UpdateHash(&ro, "canary-hash", "stable-hash", []*appsv1.ReplicaSet{}, []v1alpha1.WeightDestination{})
 	assert.Equal(t, "", err.Error())
 
 	typeString := plugin.Type()

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	appvs1 "k8s.io/api/apps/v1"
+
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -79,7 +81,7 @@ func GetMappingGVR() schema.GroupVersionResource {
 	}
 }
 
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, replicaSets []*appvs1.ReplicaSet, additionalDestinations ...v1alpha1.WeightDestination) error {
 	return nil
 }
 

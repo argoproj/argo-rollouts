@@ -2340,3 +2340,17 @@ func TestSetMirrorRouteMultiIngress(t *testing.T) {
 
 	assert.Len(t, client.Actions(), 0)
 }
+
+func TestUpdateHash(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	rollout := fakeRollout("stable-service", "canary-service", nil, "stable-ingress", 443)
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+	})
+	assert.NoError(t, err)
+	err = r.UpdateHash("", "", nil)
+	assert.NoError(t, err)
+}

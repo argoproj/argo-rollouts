@@ -3,6 +3,8 @@ package plugin
 import (
 	"fmt"
 
+	appvs1 "k8s.io/api/apps/v1"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/client"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
@@ -42,8 +44,8 @@ func NewReconciler(cfg *ReconcilerConfig) (*Reconciler, error) {
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
-	resp := r.TrafficRouterPlugin.UpdateHash(r.Rollout, canaryHash, stableHash, additionalDestinations)
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, replicaSets []*appvs1.ReplicaSet, additionalDestinations ...v1alpha1.WeightDestination) error {
+	resp := r.TrafficRouterPlugin.UpdateHash(r.Rollout, canaryHash, stableHash, replicaSets, additionalDestinations)
 	if resp.HasError() {
 		return fmt.Errorf("failed to update hash via plugin: %w", resp)
 	}

@@ -136,7 +136,7 @@ func TestUpdateHash(t *testing.T) {
 		r := NewReconciler(&cfg)
 
 		// When
-		err := r.UpdateHash("", "")
+		err := r.UpdateHash("", "", nil)
 
 		// Then
 		assert.NoError(t, err)
