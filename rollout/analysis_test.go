@@ -406,7 +406,7 @@ func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
 	f.objects = append(f.objects, r)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 
 	expectedPatchWithoutSub := `{
 		"status": {
@@ -961,7 +961,7 @@ func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	f.objects = append(f.objects, r, at)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 
 	expectedPatchWithoutSub := `{
 		"status": {
@@ -1006,7 +1006,7 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	f.objects = append(f.objects, r, at)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 
 	expectedPatchWithoutSub := `{
 		"status": {
@@ -1055,7 +1055,7 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 	f.objects = append(f.objects, r, at, at2)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 
 	expectedPatchWithoutSub := `{
 		"status": {
@@ -1916,6 +1916,47 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
 	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r1, t))
+}
+
+func TestDoNotCreateBackgroundAnalysisRunWhenWithinRollbackWindow(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+
+	r1 := newCanaryRollout("foo", 1, nil, nil, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.AnalysisTemplateRef{
+				{
+					TemplateName: at.Name,
+				},
+			},
+		},
+	}
+	r1.Spec.RollbackWindow = &v1alpha1.RollbackWindowSpec{Revisions: 1}
+
+	r2 := bumpVersion(r1)
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+
+	rs2.CreationTimestamp = timeutil.MetaTime(time.Now().Add(-1 * time.Hour))
+	rs1.CreationTimestamp = timeutil.MetaNow()
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, r2, at)
+
+	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
 }
 
 func TestCreatePrePromotionAnalysisRun(t *testing.T) {

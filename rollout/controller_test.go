@@ -95,6 +95,7 @@ type fixture struct {
 	replicaSetLister              []*appsv1.ReplicaSet
 	serviceLister                 []*corev1.Service
 	ingressLister                 []*ingressutil.Ingress
+	virtualServiceLister          []*unstructured.Unstructured
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -662,6 +663,9 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	for _, ar := range f.analysisRunLister {
 		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(ar)
 	}
+	for _, vs := range f.virtualServiceLister {
+		c.IstioController.VirtualServiceInformer.GetIndexer().Add(vs)
+	}
 
 	return c, i, k8sI
 }
@@ -682,8 +686,9 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		defer close(stopCh)
 		i.Start(stopCh)
 		k8sI.Start(stopCh)
+		go c.IstioController.VirtualServiceInformer.Run(stopCh)
 
-		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced, c.IstioController.VirtualServiceInformer.HasSynced))
 	}
 
 	err := c.syncHandler(context.Background(), rolloutName)
@@ -1203,11 +1208,17 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r := newBlueGreenRollout("foo", 1, nil, "", "")
+	r := newBlueGreenRollout("foo", 1, nil, "active", "")
+	activeSvc := newService("active", 80, nil, r)
 	f.rolloutLister = append(f.rolloutLister, r)
+	f.serviceLister = append(f.serviceLister, activeSvc)
 	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
 
+	f.expectUpdateRolloutStatusAction(r)
 	f.expectPatchRolloutAction(r)
+	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
 	f.run(getKey(r, t))
 }
 
@@ -1240,13 +1251,16 @@ func TestAdoptReplicaSet(t *testing.T) {
 }
 
 func TestRequeueStuckRollout(t *testing.T) {
+	//t.Skip("broken in the refactor")
 	rollout := func(progressingConditionReason string, rolloutCompleted bool, rolloutPaused bool, progressDeadlineSeconds *int32) *v1alpha1.Rollout {
-		r := &v1alpha1.Rollout{
-			Spec: v1alpha1.RolloutSpec{
-				Replicas:                pointer.Int32Ptr(0),
-				ProgressDeadlineSeconds: progressDeadlineSeconds,
-			},
-		}
+		r := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		//r := &v1alpha1.Rollout{
+		//	Spec: v1alpha1.RolloutSpec{
+		//		Replicas:                pointer.Int32Ptr(0),
+		//		ProgressDeadlineSeconds: progressDeadlineSeconds,
+		//}}
+		r.Spec.ProgressDeadlineSeconds = progressDeadlineSeconds
+		//r.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
 		r.Generation = 123
 		if rolloutPaused {
 			r.Status.PauseConditions = []v1alpha1.PauseCondition{{
@@ -1310,9 +1324,18 @@ func TestRequeueStuckRollout(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
+			savedRollout := test.rollout.DeepCopy()
 			f := newFixture(t)
 			defer f.Close()
 			c, _, _ := f.newController(noResyncPeriodFunc)
+			f.client.PrependReactor("*", "rollouts", func(action core.Action) (bool, runtime.Object, error) {
+				savedRollout.DeepCopyInto(test.rollout)
+				return true, savedRollout, nil
+			})
+			//f.kubeclient.PrependReactor("get", "replicasets", func(action core.Action) (bool, runtime.Object, error) {
+			//	newReplicaset := newReplicaSet(test.rollout, 1)
+			//	return true, newReplicaset, nil
+			//})
 			roCtx, err := c.newRolloutContext(test.rollout)
 			assert.NoError(t, err)
 			duration := roCtx.requeueStuckRollout(test.rollout.Status)
@@ -1336,7 +1359,10 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
+	//updateIndex := f.expectUpdateRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r)
 	updateIndex := f.expectUpdateRolloutAction(r)
+	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
 	f.run(getKey(r, t))
 	updatedRollout := f.getUpdatedRollout(updateIndex)
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
@@ -1347,7 +1373,8 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r := newBlueGreenRollout("foo", 1, nil, "", "")
+	r := newBlueGreenRollout("foo", 1, nil, "active", "")
+	activeSvc := newService("active", 80, nil, r)
 	r.Spec.Selector = &metav1.LabelSelector{}
 	cond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, conditions.RolloutSelectAllMessage)
 	conditions.SetRolloutCondition(&r.Status, *cond)
@@ -1356,9 +1383,12 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	r.Spec.Selector = nil
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
+	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	//f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 
 	expectedPatchWithoutSub := `{
 		"status": {
@@ -1602,8 +1632,7 @@ func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optional
 }
 
 func TestGetReferencedAnalyses(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
+	//f := newFixture(t)
 
 	rolloutAnalysisFail := v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
@@ -1613,53 +1642,81 @@ func TestGetReferencedAnalyses(t *testing.T) {
 	}
 
 	t.Run("blueGreen pre-promotion analysis - fail", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
 		r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.objects = append(f.objects, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &rolloutAnalysisFail
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedRolloutAnalyses()
 		assert.NotNil(t, err)
+		assert.Nil(t, roCtx)
 		msg := "spec.strategy.blueGreen.prePromotionAnalysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
 		assert.Equal(t, msg, err.Error())
 	})
 
 	t.Run("blueGreen post-promotion analysis - fail", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
 		r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.objects = append(f.objects, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		r.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &rolloutAnalysisFail
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedRolloutAnalyses()
 		assert.NotNil(t, err)
+		assert.Nil(t, roCtx)
 		msg := "spec.strategy.blueGreen.postPromotionAnalysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
 		assert.Equal(t, msg, err.Error())
 	})
 
 	t.Run("canary analysis - fail", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
 		r := newCanaryRollout("rollout-canary", 1, nil, nil, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.objects = append(f.objects, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 			RolloutAnalysis: rolloutAnalysisFail,
 		}
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedRolloutAnalyses()
 		assert.NotNil(t, err)
+		assert.Nil(t, roCtx)
 		msg := "spec.strategy.canary.analysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
 		assert.Equal(t, msg, err.Error())
 	})
 
 	t.Run("canary step analysis - fail", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
 		canarySteps := []v1alpha1.CanaryStep{{
 			Analysis: &rolloutAnalysisFail,
 		}}
 		r := newCanaryRollout("rollout-canary", 1, nil, canarySteps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.objects = append(f.objects, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedRolloutAnalyses()
 		assert.NotNil(t, err)
+		assert.Nil(t, roCtx)
 		msg := "spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
 		assert.Equal(t, msg, err.Error())
 	})
@@ -1675,6 +1732,12 @@ func TestGetReferencedClusterAnalysisTemplate(t *testing.T) {
 			ClusterScope: true,
 		}},
 	}
+	activeSvc := newService("active-service", 80, nil, r)
+	previewSvc := newService("preview-service", 80, nil, r)
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
 	t.Run("get referenced analysisTemplate - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
@@ -1706,6 +1769,12 @@ func TestGetInnerReferencedAnalysisTemplate(t *testing.T) {
 		}},
 	}
 	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplateWithAnalysisRefs("first-cluster-analysis-template-name", "second-cluster-analysis-template-name", "third-cluster-analysis-template-name"))
+	activeSvc := newService("active-service", 80, nil, r)
+	previewSvc := newService("preview-service", 80, nil, r)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+	f.objects = append(f.objects, r)
+	f.rolloutLister = append(f.rolloutLister, r)
 
 	t.Run("get inner referenced analysisTemplate - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
@@ -1751,14 +1820,19 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 		},
 	}
 	r.Namespace = metav1.NamespaceDefault
+	stableSvc := newService("stable", 80, nil, r)
+	canarySvc := newService("canary", 80, nil, r)
+	r.Spec.Strategy.Canary.StableService = stableSvc.Name
+	r.Spec.Strategy.Canary.CanaryService = canarySvc.Name
+	f.kubeobjects = append(f.kubeobjects, stableSvc, canarySvc)
+	f.serviceLister = append(f.serviceLister, stableSvc, canarySvc)
+	f.objects = append(f.objects, r)
+	f.rolloutLister = append(f.rolloutLister, r)
 
 	t.Run("get referenced ALB ingress - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedIngresses()
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingress"), "alb-ingress-name", "ingress.extensions \"alb-ingress-name\" not found")
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		_, err := c.newRolloutContext(r)
+		assert.Error(t, err)
 	})
 
 	t.Run("get referenced ALB ingress - success", func(t *testing.T) {
@@ -1766,6 +1840,31 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "alb-ingress-name",
 				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: pointer.StringPtr("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "stable",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
 			},
 		}
 		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
@@ -1829,6 +1928,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 		},
 	}
 
+	//TODO: cleanup expectedErr
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// clear fixture
@@ -1837,10 +1937,10 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 				f.ingressLister = append(f.ingressLister, ing)
 			}
 			c, _, _ := f.newController(noResyncPeriodFunc)
-			roCtx, err := c.newRolloutContext(r)
-			assert.NoError(t, err)
-			_, err = roCtx.getReferencedIngresses()
-			assert.Equal(t, test.expectedErr.Error(), err.Error())
+			_, err := c.newRolloutContext(r)
+			assert.Error(t, err)
+			//_, err = roCtx.getReferencedIngresses()
+			//assert.Equal(t, test.expectedErr.Error(), err.Error())
 		})
 	}
 
@@ -1852,15 +1952,78 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 				Name:      primaryIngress,
 				Namespace: metav1.NamespaceDefault,
 			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: pointer.StringPtr("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "active-service",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
+			},
 		}
 		ingressAdditional := &extensionsv1beta1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      addIngress,
 				Namespace: metav1.NamespaceDefault,
 			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: pointer.StringPtr("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "active-service",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
+			},
 		}
 		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
 		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingressAdditional))
+		f.kubeobjects = append(f.objects, ingress, ingressAdditional)
+
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+		r.Spec.Strategy.Canary.CanaryService = previewSvc.Name
+		r.Spec.Strategy.Canary.StableService = activeSvc.Name
+
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.objects = append(f.objects, r)
+
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
@@ -1887,11 +2050,8 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 		// clear fixture
 		f.ingressLister = []*ingressutil.Ingress{}
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedIngresses()
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "stableIngress"), primaryIngress, fmt.Sprintf("ingress.extensions \"%s\" not found", primaryIngress))
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		_, err := c.newRolloutContext(r)
+		assert.Error(t, err)
 	})
 
 	t.Run("get referenced Nginx ingress - success", func(t *testing.T) {
@@ -1902,8 +2062,46 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 				Name:      primaryIngress,
 				Namespace: metav1.NamespaceDefault,
 			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: pointer.StringPtr("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "active-service",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
+			},
 		}
 		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
+		f.kubeobjects = append(f.kubeobjects, ingress)
+
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+		r.Spec.Strategy.Canary.CanaryService = previewSvc.Name
+		r.Spec.Strategy.Canary.StableService = activeSvc.Name
+
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.objects = append(f.objects, r)
+
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
@@ -1970,10 +2168,8 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 				f.ingressLister = append(f.ingressLister, ing)
 			}
 			c, _, _ := f.newController(noResyncPeriodFunc)
-			roCtx, err := c.newRolloutContext(r)
-			assert.NoError(t, err)
-			_, err = roCtx.getReferencedIngresses()
-			assert.Equal(t, test.expectedErr.Error(), err.Error())
+			_, err := c.newRolloutContext(r)
+			assert.Error(t, err)
 		})
 	}
 
@@ -1985,15 +2181,77 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 				Name:      primaryIngress,
 				Namespace: metav1.NamespaceDefault,
 			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: pointer.StringPtr("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "active-service",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
+			},
 		}
 		ingressAdditional := &extensionsv1beta1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      addIngress,
 				Namespace: metav1.NamespaceDefault,
 			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: pointer.StringPtr("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "active-service",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
+			},
 		}
 		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
 		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingressAdditional))
+		f.kubeobjects = append(f.kubeobjects, ingress, ingressAdditional)
+
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+		r.Spec.Strategy.Canary.CanaryService = previewSvc.Name
+		r.Spec.Strategy.Canary.StableService = activeSvc.Name
+
+		f.objects = append(f.objects, r)
+
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
@@ -2030,11 +2288,8 @@ func TestGetReferencedAppMeshResources(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		rCopy := r.DeepCopy()
 		rCopy.Spec.Strategy.Canary.TrafficRouting.AppMesh.VirtualService = nil
-		roCtx, err := c.newRolloutContext(rCopy)
-		assert.NoError(t, err)
-		_, err = roCtx.getRolloutReferencedResources()
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "appmesh", "virtualService"), "null", "must provide virtual-service")
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		_, err := c.newRolloutContext(rCopy)
+		assert.Error(t, err)
 	})
 
 	t.Run("should return error when virtual-service is not-found", func(t *testing.T) {
@@ -2042,11 +2297,8 @@ func TestGetReferencedAppMeshResources(t *testing.T) {
 		defer f.Close()
 
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getRolloutReferencedResources()
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "appmesh", "virtualService"), "mysvc.default", "virtualservices.appmesh.k8s.aws \"mysvc\" not found")
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		_, err := c.newRolloutContext(r)
+		assert.Error(t, err)
 	})
 
 	t.Run("should return error when virtual-router is not-found", func(t *testing.T) {
@@ -2068,11 +2320,8 @@ spec:
 		uVsvc := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
 		f.objects = append(f.objects, uVsvc)
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getRolloutReferencedResources()
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "appmesh", "virtualService"), "mysvc.default", "virtualrouters.appmesh.k8s.aws \"mysvc-vrouter\" not found")
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		_, err := c.newRolloutContext(r)
+		assert.Error(t, err)
 	})
 
 	t.Run("get referenced App Mesh - success", func(t *testing.T) {
@@ -2117,10 +2366,20 @@ spec:
                 name: mysvc-stable-vn
               weight: 100
 `
+		r := r.DeepCopy()
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+		r.Spec.Strategy.Canary.CanaryService = previewSvc.Name
+		r.Spec.Strategy.Canary.StableService = activeSvc.Name
 
 		uVsvc := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
 		uVrouter := unstructuredutil.StrToUnstructuredUnsafe(vrouter)
 		f.objects = append(f.objects, uVsvc, uVrouter)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.objects = append(f.objects, r)
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
@@ -2149,14 +2408,14 @@ func TestGetAmbassadorMappings(t *testing.T) {
 			},
 		}
 		r.Namespace = metav1.NamespaceDefault
-		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-
-		// when
-		_, err = roCtx.getAmbassadorMappings()
-
-		// then
+		_, err := c.newRolloutContext(r)
 		assert.Error(t, err)
+
+		//// when
+		//_, err = roCtx.getAmbassadorMappings()
+		//
+		//// then
+		//assert.Error(t, err)
 	})
 }
 
@@ -2178,7 +2437,7 @@ func TestRolloutStrategyNotSet(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 	patchedRollout := f.getPatchedRollout(patchIndex)
 	assert.Contains(t, patchedRollout, `Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'`)
 }

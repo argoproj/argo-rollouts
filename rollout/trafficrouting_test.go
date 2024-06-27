@@ -3,6 +3,9 @@ package rollout
 import (
 	"errors"
 	"fmt"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strconv"
 	"testing"
 	"time"
@@ -1132,6 +1135,34 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 		},
 	}
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32(1), intstr.FromInt(1), intstr.FromInt(1))
+	vs := istio.VirtualService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: r1.Namespace,
+		},
+		Spec: istio.VirtualServiceSpec{
+			HTTP: []istio.VirtualServiceHTTPRoute{{
+				Name: "primary",
+				Route: []istio.VirtualServiceRouteDestination{{
+					Destination: istio.VirtualServiceDestination{
+						Host: "stable",
+						//Port: &istio.Port{
+						//	Number: 80,
+						//},
+					},
+					Weight: 100,
+				}, {
+					Destination: istio.VirtualServiceDestination{
+						Host: "canary",
+						//Port: &istio.Port{
+						//	Number: 80,
+						//},
+					},
+					Weight: 0,
+				}},
+			}},
+		},
+	}
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Istio: &v1alpha1.IstioTrafficRouting{
 			VirtualService: &v1alpha1.IstioVirtualService{
@@ -1139,11 +1170,6 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 				Routes: []string{
 					"primary",
 				},
-			},
-			DestinationRule: &v1alpha1.IstioDestinationRule{
-				Name:             "test",
-				StableSubsetName: "stable",
-				CanarySubsetName: "canary",
 			},
 		},
 		ManagedRoutes: []v1alpha1.MangedRoutes{
@@ -1157,8 +1183,14 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 		APIVersion: "apps/v1",
 		Kind:       "Deployment",
 	}
-	r1.Spec.SelectorResolvedFromRef = true
+	r1.Spec.SelectorResolvedFromRef = false
 	r1.Spec.TemplateResolvedFromRef = true
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Spec.Selector = &metav1.LabelSelector{
+		MatchLabels: map[string]string{"app": "test"},
+	}
+	r1.Labels = map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "testsha"}
 	r2 := bumpVersion(r1)
 
 	// if set WorkloadRef it does not change the generation
@@ -1185,13 +1217,26 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 			PodTemplateHash: rs1PodHash,
 		},
 	}
+
+	mapObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&vs)
+	assert.Nil(t, err)
+
+	unstructuredObj := &unstructured.Unstructured{Object: mapObj}
+	unstructuredObj.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   istioutil.GetIstioVirtualServiceGVR().Group,
+		Version: istioutil.GetIstioVirtualServiceGVR().Version,
+		Kind:    "VirtualService",
+	})
+
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
+	f.objects = append(f.objects, r2, unstructuredObj)
+	f.expectUpdateRolloutAction(r2)
+	f.expectUpdateRolloutStatusAction(r2)
 	f.expectPatchRolloutAction(r2)
-	f.expectPatchReplicaSetAction(rs1)
-	f.expectPatchReplicaSetAction(rs2)
+	f.expectCreateReplicaSetAction(rs2)
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("SetHeaderRoute", &v1alpha1.SetHeaderRoute{
 		Name: "test-header",

@@ -48,12 +48,7 @@ func (c *rolloutContext) getAllReplicaSetsAndSyncRevision(createIfNotExisted boo
 	if err != nil {
 		return nil, err
 	}
-	if newRS == nil && createIfNotExisted {
-		newRS, err = c.createDesiredReplicaSet()
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	return newRS, nil
 }
 
@@ -729,7 +724,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 		if conditions.SetRolloutCondition(&newStatus, *updateCompletedCond) {
 			revision, _ := replicasetutil.Revision(c.rollout)
 			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutNotCompletedReason},
-				conditions.RolloutNotCompletedMessage, revision+1, newStatus.CurrentPodHash)
+				conditions.RolloutNotCompletedMessage, revision, newStatus.CurrentPodHash)
 		}
 	}
 

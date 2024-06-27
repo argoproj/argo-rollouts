@@ -1,3 +1,13 @@
+<a name="v1.7.1"></a>
+## [v1.7.1](https://github.com/argoproj/argo-rollouts/compare/v1.7.0...v1.7.1) (2024-06-22)
+
+### Fix
+
+* docs site version selector broken ([#3590](https://github.com/argoproj/argo-rollouts/issues/3590))
+* don't default datadog aggregator ([#3643](https://github.com/argoproj/argo-rollouts/issues/3643))
+* Add volume for plugin and tmp folder ([#3546](https://github.com/argoproj/argo-rollouts/issues/3546))
+
+
 <a name="v1.7.0"></a>
 ## [v1.7.0](https://github.com/argoproj/argo-rollouts/compare/v1.7.0-rc1...v1.7.0) (2024-06-12)
 
