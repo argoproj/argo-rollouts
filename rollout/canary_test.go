@@ -2174,7 +2174,7 @@ func TestCanaryReplicaAndSpecChangedTogether(t *testing.T) {
 	r3 := bumpVersion(r1)
 	r3.Spec.Replicas = pointer.Int32(int32(originReplicas) + 5)
 	r3.Spec.Template.Spec.Containers[0].Image = "nginx:1.8.1"
-	updatedRO, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r3.Namespace).Update(context.Background(), r3, metav1.UpdateOptions{})
+	_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r3.Namespace).Update(context.Background(), r3, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	err = i.Argoproj().V1alpha1().Rollouts().Informer().GetIndexer().Update(r3)
 	assert.NoError(t, err)
@@ -2182,7 +2182,7 @@ func TestCanaryReplicaAndSpecChangedTogether(t *testing.T) {
 	err = c.syncHandler(context.Background(), getKey(r1, t))
 	assert.NoError(t, err)
 
-	updatedRO, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r3.Namespace).Get(context.Background(), r3.Name, metav1.GetOptions{})
+	updatedRO, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r3.Namespace).Get(context.Background(), r3.Name, metav1.GetOptions{})
 	rslist := k8sI.Core().V1().ReplicationControllers().Informer().GetIndexer().List()
 	assert.NoError(t, err)
 
