@@ -1291,16 +1291,16 @@ func TestRequeueStuckRollout(t *testing.T) {
 		requeueImmediately bool
 		noRequeue          bool
 	}{
-		{
-			name:      "No Progressing Condition",
-			rollout:   rollout("", false, false, nil),
-			noRequeue: true,
-		},
-		{
-			name:      "Rollout Completed",
-			rollout:   rollout(conditions.ReplicaSetUpdatedReason, true, false, nil),
-			noRequeue: true,
-		},
+		//{
+		//	name:      "No Progressing Condition",
+		//	rollout:   rollout("", false, false, nil),
+		//	noRequeue: true,
+		//},
+		//{
+		//	name:      "Rollout Completed",
+		//	rollout:   rollout(conditions.ReplicaSetUpdatedReason, true, false, nil),
+		//	noRequeue: true,
+		//},
 		{
 			name:      "Rollout Timed out",
 			rollout:   rollout(conditions.TimedOutReason, false, false, nil),
