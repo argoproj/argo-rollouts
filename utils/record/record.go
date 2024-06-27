@@ -37,6 +37,7 @@ import (
 	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"gopkg.in/yaml.v3"
 )
 
 func init() {
@@ -318,6 +319,18 @@ func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Set
 					"secrets": secret.Data,
 				}
 
+				if contextData, ok := configMap.Data["context"]; ok {
+					var contextMap map[string]string
+					err := yaml.Unmarshal([]byte(contextData), &contextMap)
+					if err != nil {
+						log.Warnf("Failed to unmarshal 'context' key from %s: %v", NotificationConfigMap, err)
+					} else {
+						vars["context"] = contextMap
+					}
+				} else {
+					log.Debugf("The key 'context' is not present in the %s", NotificationConfigMap)
+				}
+
 				if arInformer == nil {
 					log.Infof("Notification is not set for analysisRun Informer: %s", dest)
 					return vars
@@ -340,12 +353,8 @@ func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Set
 
 				}
 
-				vars = map[string]any{
-					"rollout":      obj,
-					"analysisRuns": arsObj,
-					"time":         timeExprs,
-					"secrets":      secret.Data,
-				}
+				vars["analysisRuns"] = arsObj
+
 				return vars
 			}, nil
 		},
