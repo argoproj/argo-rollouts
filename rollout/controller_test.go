@@ -1264,6 +1264,8 @@ func TestRequeueStuckRollout(t *testing.T) {
 		}
 		if rolloutCompleted {
 			r.Status.ObservedGeneration = strconv.Itoa(int(r.Generation))
+			r.Status.StableRS = "fakesha"
+			r.Status.CurrentPodHash = "fakesha"
 		}
 
 		if progressingConditionReason != "" {
@@ -1286,35 +1288,35 @@ func TestRequeueStuckRollout(t *testing.T) {
 		requeueImmediately bool
 		noRequeue          bool
 	}{
-		//{
-		//	name:      "No Progressing Condition",
-		//	rollout:   rollout("", false, false, nil),
-		//	noRequeue: true,
-		//},
+		{
+			name:      "No Progressing Condition",
+			rollout:   rollout("", false, false, nil),
+			noRequeue: true,
+		},
 		{
 			name:      "Rollout Completed",
 			rollout:   rollout(conditions.ReplicaSetUpdatedReason, true, false, nil),
 			noRequeue: true,
 		},
-		//{
-		//	name:      "Rollout Timed out",
-		//	rollout:   rollout(conditions.TimedOutReason, false, false, nil),
-		//	noRequeue: true,
-		//},
-		//{
-		//	name:      "Rollout Paused",
-		//	rollout:   rollout(conditions.ReplicaSetUpdatedReason, false, true, nil),
-		//	noRequeue: true,
-		//},
-		//{
-		//	name:               "Less than a second",
-		//	rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(10)),
-		//	requeueImmediately: true,
-		//},
-		//{
-		//	name:    "More than a second",
-		//	rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(20)),
-		//},
+		{
+			name:      "Rollout Timed out",
+			rollout:   rollout(conditions.TimedOutReason, false, false, nil),
+			noRequeue: true,
+		},
+		{
+			name:      "Rollout Paused",
+			rollout:   rollout(conditions.ReplicaSetUpdatedReason, false, true, nil),
+			noRequeue: true,
+		},
+		{
+			name:               "Less than a second",
+			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(10)),
+			requeueImmediately: true,
+		},
+		{
+			name:    "More than a second",
+			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(20)),
+		},
 	}
 	for i := range tests {
 		test := tests[i]
