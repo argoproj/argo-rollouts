@@ -686,9 +686,8 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		defer close(stopCh)
 		i.Start(stopCh)
 		k8sI.Start(stopCh)
-		go c.IstioController.VirtualServiceInformer.Run(stopCh)
 
-		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced, c.IstioController.VirtualServiceInformer.HasSynced))
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
 	}
 
 	err := c.syncHandler(context.Background(), rolloutName)
