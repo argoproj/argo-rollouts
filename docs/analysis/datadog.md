@@ -6,7 +6,7 @@ A [Datadog](https://www.datadoghq.com/) query can be used to obtain measurements
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
-  name: loq-error-rate
+  name: log-error-rate
 spec:
   args:
   - name: service-name
@@ -80,7 +80,7 @@ After:
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
-  name: loq-error-rate
+  name: log-error-rate
 spec:
   args:
   - name: service-name
