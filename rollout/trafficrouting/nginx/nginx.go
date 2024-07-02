@@ -124,7 +124,8 @@ func (r *Reconciler) buildCanaryIngress(stableIngress *networkingv1.Ingress, nam
 
 	// Process additional annotations, would commonly be things like `canary-by-header` or `load-balance`
 	for k, v := range r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations {
-		if !strings.HasPrefix(k, annotationPrefix) {
+		// If another slash is detected, assume the user has provided the full annotation key, and, therefore, do not prefix it
+		if !strings.Contains(k, "/") {
 			k = fmt.Sprintf("%s/%s", annotationPrefix, k)
 		}
 		desiredCanaryIngress.Annotations[k] = v
@@ -204,7 +205,8 @@ func (r *Reconciler) buildLegacyCanaryIngress(stableIngress *extensionsv1beta1.I
 
 	// Process additional annotations, would commonly be things like `canary-by-header` or `load-balance`
 	for k, v := range r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations {
-		if !strings.HasPrefix(k, annotationPrefix) {
+		// If another slash is detected, assume the user has provided the full annotation key, and, therefore, do not prefix it
+		if !strings.Contains(k, "/") {
 			k = fmt.Sprintf("%s/%s", annotationPrefix, k)
 		}
 		desiredCanaryIngress.Annotations[k] = v

@@ -34,6 +34,7 @@ spec:
           additionalIngressAnnotations:   # optional
             canary-by-header: X-Canary
             canary-by-header-value: iwantsit
+            my-custom-annotation.mygroup.com/key: value
 ```
 
 The stable Ingress field is a reference to an Ingress in the same namespace of the Rollout. The Rollout requires the primary Ingress routes traffic to the stable Service. The Rollout checks that condition by confirming the Ingress has a backend that matches the Rollout's stableService.
@@ -41,6 +42,9 @@ The stable Ingress field is a reference to an Ingress in the same namespace of t
 The controller routes traffic to the canary Service by creating a second Ingress with the canary annotations. As the Rollout progresses through the Canary steps, the controller updates the canary Ingress's canary annotations to reflect the desired state of the Rollout enabling traffic splitting between two different versions.
 
 Since the Nginx Ingress controller allows users to configure the annotation prefix used by the Ingress controller, Rollouts can specify the optional `annotationPrefix` field. The canary Ingress uses that prefix instead of the default `nginx.ingress.kubernetes.io` if the field set.
+
+**There is an exception** to this behaviour: if an annotation an annotation under `additionalIngressAnnotations` already has a prefix (a prefix is considered to be defined if there is a slash (`/`) separator in the annotation key, [as defined in the Kubernetes docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/#syntax-and-character-set)), it will not be overriden.
+Looking at the example above, `my-custom-annotation.mygroup.com/key` would not be prefixed with the configured `annotationPrefix` in the generated Ingress object.
 
 
 ## Using Argo Rollouts with multiple NGINX ingress controllers per service
