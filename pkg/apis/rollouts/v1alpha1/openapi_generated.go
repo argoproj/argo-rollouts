@@ -4411,6 +4411,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref common.ReferenceCallback)
 						},
 					},
 				},
+				Required: []string{"selector"},
 			},
 		},
 		Dependencies: []string{
