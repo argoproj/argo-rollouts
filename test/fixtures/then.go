@@ -494,6 +494,15 @@ func (t *Then) ExpectRolloutEvents(reasons []string) *Then {
 	return t
 }
 
+func (t *Then) ExpectRolloutEventsContains(reasons []string) *Then {
+	t.t.Helper()
+	eventReasons := t.GetRolloutEventReasons()
+	for _, r := range reasons {
+		assert.Contains(t.Common.t, eventReasons, r)
+	}
+	return t
+}
+
 func (t *Then) When() *When {
 	return &When{
 		Common: t.Common,

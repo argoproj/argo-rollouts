@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,10 +21,11 @@ import (
 type Config struct {
 	configMap *v1.ConfigMap
 	plugins   []types.PluginItem
+	lock      *sync.RWMutex
 }
 
 var configMemoryCache *Config
-var mutex sync.RWMutex
+var mutex = &sync.RWMutex{}
 
 // Regex to match plugin names, this matches github username and repo limits
 var re = regexp.MustCompile(`^([a-zA-Z0-9\-]+)\/{1}([a-zA-Z0-9_\-.]+)$`)
@@ -34,7 +36,9 @@ func InitializeConfig(k8sClientset kubernetes.Interface, configMapName string) (
 	configMapCluster, err := k8sClientset.CoreV1().ConfigMaps(defaults.Namespace()).Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
 		if k8errors.IsNotFound(err) {
-			configMemoryCache = &Config{} // We create an empty config so that we don't try to initialize again
+			configMemoryCache = &Config{
+				lock: &sync.RWMutex{},
+			} // We create an empty config so that we don't try to initialize again
 			// If the configmap is not found, we return
 			return configMemoryCache, nil
 		}
@@ -45,16 +49,31 @@ func InitializeConfig(k8sClientset kubernetes.Interface, configMapName string) (
 	if err = yaml.Unmarshal([]byte(configMapCluster.Data["trafficRouterPlugins"]), &trafficRouterPlugins); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal traffic router plugins while initializing: %w", err)
 	}
+	for i := range trafficRouterPlugins {
+		trafficRouterPlugins[i].Type = types.PluginTypeTrafficRouter
+	}
 
 	var metricProviderPlugins []types.PluginItem
 	if err = yaml.Unmarshal([]byte(configMapCluster.Data["metricProviderPlugins"]), &metricProviderPlugins); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal metric provider plugins while initializing: %w", err)
 	}
+	for i := range metricProviderPlugins {
+		metricProviderPlugins[i].Type = types.PluginTypeMetricProvider
+	}
+
+	var stepPlugins []types.PluginItem
+	if err = yaml.Unmarshal([]byte(configMapCluster.Data["stepPlugins"]), &stepPlugins); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal step plugins while initializing: %w", err)
+	}
+	for i := range stepPlugins {
+		stepPlugins[i].Type = types.PluginTypeStep
+	}
 
 	mutex.Lock()
 	configMemoryCache = &Config{
 		configMap: configMapCluster,
-		plugins:   append(trafficRouterPlugins, metricProviderPlugins...),
+		plugins:   slices.Concat(trafficRouterPlugins, metricProviderPlugins, stepPlugins),
+		lock:      &sync.RWMutex{},
 	}
 	mutex.Unlock()
 
@@ -70,6 +89,7 @@ func InitializeConfig(k8sClientset kubernetes.Interface, configMapName string) (
 func GetConfig() (*Config, error) {
 	mutex.RLock()
 	defer mutex.RUnlock()
+
 	if configMemoryCache == nil {
 		return nil, fmt.Errorf("config not initialized, please initialize before use")
 	}
@@ -85,12 +105,30 @@ func UnInitializeConfig() {
 
 // GetAllPlugins returns a flattened list of plugin items. This is useful for iterating over all plugins.
 func (c *Config) GetAllPlugins() []types.PluginItem {
-	mutex.RLock()
-	defer mutex.RUnlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	// Return a copy of the slice
+	return append([]types.PluginItem{}, c.plugins...)
+}
 
-	var copiedPlugins []types.PluginItem
-	copiedPlugins = append(copiedPlugins, configMemoryCache.plugins...)
-	return copiedPlugins
+// GetPlugin returns the plugin item by name and type if it exists
+func (c *Config) GetPlugin(name string, pluginType types.PluginType) *types.PluginItem {
+	for _, plugin := range c.GetAllPlugins() {
+		if plugin.Name == name && plugin.Type == pluginType {
+			return &plugin
+		}
+	}
+	return nil
+}
+
+func (c *Config) ValidateConfig() error {
+	for _, pluginItem := range c.GetAllPlugins() {
+		matches := re.FindAllStringSubmatch(pluginItem.Name, -1)
+		if len(matches) != 1 || len(matches[0]) != 3 {
+			return fmt.Errorf("plugin repository (%s) must be in the format of <namespace>/<name>", pluginItem.Name)
+		}
+	}
+	return nil
 }
 
 // GetPluginDirectoryAndFilename this functions return the directory and file name from a given pluginName such as
@@ -104,17 +142,4 @@ func GetPluginDirectoryAndFilename(pluginName string) (directory string, filenam
 	plugin := matches[0][2]
 
 	return namespace, plugin, nil
-}
-
-func (c *Config) ValidateConfig() error {
-	mutex.RLock()
-	defer mutex.RUnlock()
-
-	for _, pluginItem := range c.GetAllPlugins() {
-		matches := re.FindAllStringSubmatch(pluginItem.Name, -1)
-		if len(matches) != 1 || len(matches[0]) != 3 {
-			return fmt.Errorf("plugin repository (%s) must be in the format of <namespace>/<name>", pluginItem.Name)
-		}
-	}
-	return nil
 }

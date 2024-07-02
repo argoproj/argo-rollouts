@@ -133,6 +133,11 @@ const (
 	// RolloutExperimentFailedMessage is added in a rollout when the experiment owned by a rollout fails to show any progress
 	RolloutExperimentFailedMessage = "Experiment '%s' owned by the Rollout '%q' has timed out."
 
+	// RolloutReconciliationErrorReason is added in a rollout when the reconciliation returns an error preventing progress
+	RolloutReconciliationErrorReason = "ReconciliationError"
+	// RolloutReconciliationErrorMessage is added in a rollout when the reconciliation returns an error preventing progress
+	RolloutReconciliationErrorMessage = "Reconciliation failed with error: %v"
+
 	// TimedOutReason is added in a rollout when its newest replica set fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	TimedOutReason = "ProgressDeadlineExceeded"
@@ -156,6 +161,12 @@ const (
 	ServiceReferenceReason = "ServiceReferenceError"
 	// ServiceReferencingManagedService is added in a rollout when the multiple rollouts reference a Rollout
 	ServiceReferencingManagedService = "Service %q is managed by another Rollout"
+
+	// StepPluginTransitionReason is added to a Rollout when a step plugin transition to an unsuccessful phase
+	StepPluginTransitionReason           = "StepPluginTransition"
+	StepPluginTransitionRunMessage       = "Step plugin %s (step %d) transitioned to %s"
+	StepPluginTransitionAbortMessage     = "Step plugin %s (step %d) aborted (%s)"
+	StepPluginTransitionTerminateMessage = "Step plugin %s (step %d) terminated (%s)"
 
 	// TargetGroupHealthyReason is emitted when target group has been verified
 	TargetGroupVerifiedReason              = "TargetGroupVerified"

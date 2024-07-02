@@ -49,6 +49,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/steps/plugin"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
@@ -526,6 +527,10 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		pauseContext: &pauseContext{
 			rollout: rollout,
 			log:     logCtx,
+		},
+		stepPluginContext: &stepPluginContext{
+			resolver: plugin.NewResolver(),
+			log:      logCtx,
 		},
 		reconcilerBase: c.reconcilerBase,
 	}
