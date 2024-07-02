@@ -1007,6 +1007,43 @@ func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
 	f.run(getKey(r2, t))
 }
 
+func TestBlueGreenRolloutScaleUpdateStableRS(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	r2 := bumpVersion(r1)
+
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	// Make the new RS the active and the old one stable to simulate post-promotion analysis step.
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+
+	f.objects = append(f.objects, r2)
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
+	f.serviceLister = append(f.serviceLister, activeSvc)
+
+	f.expectPatchRolloutAction(r1)
+
+	// Patch the rollout to get it in the state we want (old RS is stable and new is active)
+	f.run(getKey(r2, t))
+	// Actually update the replicas now that we are in the desired state (old RS is stable and new is active)
+	r2.Spec.Replicas = pointer.Int32Ptr(2)
+
+	f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs2)
+	f.run(getKey(r2, t))
+}
+
 func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 	t.Run("TrueAfterMeetingMinAvailable", func(t *testing.T) {
 		f := newFixture(t)
