@@ -3394,6 +3394,9 @@
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="c1"># Set rollout image (containers contains &#39;initContainer&#39;, &#39;container&#39;, &#39;ephemeralContainer&#39;)</span>
 kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span><span class="nb">set</span><span class="w"> </span>image<span class="w"> </span>my-rollout<span class="w"> </span><span class="nv">containerName</span><span class="o">=</span>imageName
+
+<span class="c1"># Set rollout image for all containers</span>
+kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span><span class="nb">set</span><span class="w"> </span>image<span class="w"> </span>my-rollout<span class="w"> </span>*<span class="o">=</span>imageName
 </code></pre></div>
 <h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>  -h, --help   help for image
