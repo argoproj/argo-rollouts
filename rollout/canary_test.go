@@ -2158,6 +2158,7 @@ func TestCanaryReplicaAndSpecChangedTogether(t *testing.T) {
 	err = roCtx.reconcile()
 	assert.NoError(t, err)
 	_, err = roCtx.reconcileCanaryReplicaSets()
+	assert.NoError(t, err)
 
 	err = roCtx.reconcile()
 	assert.NoError(t, err)

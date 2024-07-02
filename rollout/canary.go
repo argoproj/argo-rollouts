@@ -20,14 +20,14 @@ import (
 func (c *rolloutContext) rolloutCanary() error {
 	var err error
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
-		c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
+		c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 		if err != nil {
 			return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary with PodTemplateOrStepsChanged: %w", err)
 		}
 		return c.syncRolloutStatusCanary()
 	}
 
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(true)
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err)
 	}
