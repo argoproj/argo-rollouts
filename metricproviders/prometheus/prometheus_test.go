@@ -28,15 +28,31 @@ type OAuthResponse struct {
 	Expiry      string `json:"expires_in,omitempty"`
 }
 
-func newVector(f float64) model.Value {
-	return model.Vector{
-		&model.Sample{
-			Value:     model.SampleValue(f),
-			Timestamp: model.Time(0),
+func newMatrix(baseline float64) model.Matrix {
+	return model.Matrix{
+		&model.SampleStream{
+			Values: []model.SamplePair{
+				{
+					Timestamp: 1234,
+					Value:      model.SampleValue(baseline + 1.0),
+				},
+				{
+					Timestamp: 1234,
+					Value:     model.SampleValue(baseline + 2.0),
+				},
+			},
 		},
-		&model.Sample{
-			Value:     model.SampleValue(f),
-			Timestamp: model.Time(0),
+		&model.SampleStream{
+			Values: []model.SamplePair{
+				{
+					Timestamp: 1234,
+					Value:      model.SampleValue(baseline + 3.0),
+				},
+				{
+					Timestamp: 1234,
+					Value:     model.SampleValue(baseline + 4.0),
+				},
+			},
 		},
 	}
 }
@@ -103,12 +119,12 @@ func TestRunSuccessfully(t *testing.T) {
 func TestRunSuccessfullyWithRangeQuery(t *testing.T) {
 	e := log.Entry{}
 	mock := mockAPI{
-		value: newVector(10),
+		value: newMatrix(10),
 	}
 	metric := v1alpha1.Metric{
 		Name:             "foo",
-		SuccessCondition: "all(result, # == 10)",
-		FailureCondition: "all(result, # != 10)",
+		SuccessCondition: "all(result, # > 10)",
+		FailureCondition: "all(result, # < 10)",
 		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
 				Query:          "test",
@@ -123,9 +139,10 @@ func TestRunSuccessfullyWithRangeQuery(t *testing.T) {
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.NoError(t, err)
-	assert.Equal(t, "[10,10]", measurement.Value)
+	assert.Equal(t, "[11,12,13,14]", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+	// TODO verify start time
 }
 
 func TestRunSuccessfullyWithEnv(t *testing.T) {

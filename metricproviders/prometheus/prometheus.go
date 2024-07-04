@@ -65,6 +65,8 @@ func (p *Provider) executeQuery(ctx context.Context, metric v1alpha1.Metric) (mo
 		return p.api.QueryRange(ctx, metric.Provider.Prometheus.Query, v1.Range{
 			Start: time.Now().Add(-lookBackDuration),
 			End: time.Now(),
+			// TODO make configurable?
+			Step: time.Second * 1,
 		})
 	} else {
 		return p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
@@ -133,6 +135,25 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 		valueStr := value.Value.String()
 		result := float64(value.Value)
 		newStatus, err := evaluate.EvaluateResult(result, metric, p.logCtx)
+		return valueStr, newStatus, err
+	case model.Matrix:
+		// TODO: fix duplication between this and the vector case
+		results := []float64{}
+		valueStr := "["
+		for _, sample := range value {
+			if sample != nil {
+				for _, s := range sample.Values {
+					valueStr = valueStr + s.Value.String() + ","
+					results = append(results, float64(s.Value))
+				}
+			}
+		}
+		// if we appended to the string, we should remove the last comma on the string
+		if len(valueStr) > 1 {
+			valueStr = valueStr[:len(valueStr)-1]
+		}
+		valueStr = valueStr + "]"
+		newStatus, err := evaluate.EvaluateResult(results, metric, p.logCtx)
 		return valueStr, newStatus, err
 	case model.Vector:
 		results := make([]float64, 0, len(value))
