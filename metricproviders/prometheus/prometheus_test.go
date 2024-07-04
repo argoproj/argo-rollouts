@@ -34,7 +34,7 @@ func newMatrix(baseline float64) model.Matrix {
 			Values: []model.SamplePair{
 				{
 					Timestamp: 1234,
-					Value:      model.SampleValue(baseline + 1.0),
+					Value:     model.SampleValue(baseline + 1.0),
 				},
 				{
 					Timestamp: 1234,
@@ -46,7 +46,7 @@ func newMatrix(baseline float64) model.Matrix {
 			Values: []model.SamplePair{
 				{
 					Timestamp: 1234,
-					Value:      model.SampleValue(baseline + 3.0),
+					Value:     model.SampleValue(baseline + 3.0),
 				},
 				{
 					Timestamp: 1234,
@@ -127,8 +127,8 @@ func TestRunSuccessfullyWithRangeQuery(t *testing.T) {
 		FailureCondition: "all(result, # < 10)",
 		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
-				Query:          "test",
-				RangeQuery:     &v1alpha1.PrometheusRangeQueryArgs{
+				Query: "test",
+				RangeQuery: &v1alpha1.PrometheusRangeQueryArgs{
 					LookBackDuration: "5m",
 				},
 			},

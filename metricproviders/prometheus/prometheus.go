@@ -64,9 +64,9 @@ func (p *Provider) executeQuery(ctx context.Context, metric v1alpha1.Metric) (mo
 		}
 		return p.api.QueryRange(ctx, metric.Provider.Prometheus.Query, v1.Range{
 			Start: time.Now().Add(-lookBackDuration),
-			End: time.Now(),
+			End:   time.Now(),
 			// TODO make configurable?
-			Step: time.Second * 1,
+			Step: time.Second * 30,
 		})
 	} else {
 		return p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
@@ -129,6 +129,22 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
+func sampleValuesToFloatSlice(SampleValues []model.SampleValue) []float64 {
+	results := make([]float64, 0, len(SampleValues))
+	for _, s := range SampleValues {
+		results = append(results, float64(s))
+	}
+	return results
+}
+
+func sampleValuesToResultStr(SampleValues []model.SampleValue) string {
+	results := []string{}
+	for _, s := range SampleValues {
+		results = append(results, s.String())
+	}
+	return fmt.Sprintf("[%s]", strings.Join(results, ","))
+}
+
 func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value) (string, v1alpha1.AnalysisPhase, error) {
 	switch value := response.(type) {
 	case *model.Scalar:
@@ -137,40 +153,27 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 		newStatus, err := evaluate.EvaluateResult(result, metric, p.logCtx)
 		return valueStr, newStatus, err
 	case model.Matrix:
-		// TODO: fix duplication between this and the vector case
-		results := []float64{}
-		valueStr := "["
+		sampleValues := []model.SampleValue{}
 		for _, sample := range value {
 			if sample != nil {
 				for _, s := range sample.Values {
-					valueStr = valueStr + s.Value.String() + ","
-					results = append(results, float64(s.Value))
+					sampleValues = append(sampleValues, s.Value)
 				}
 			}
 		}
-		// if we appended to the string, we should remove the last comma on the string
-		if len(valueStr) > 1 {
-			valueStr = valueStr[:len(valueStr)-1]
-		}
-		valueStr = valueStr + "]"
-		newStatus, err := evaluate.EvaluateResult(results, metric, p.logCtx)
-		return valueStr, newStatus, err
+		floatResults := sampleValuesToFloatSlice(sampleValues)
+		newStatus, err := evaluate.EvaluateResult(floatResults, metric, p.logCtx)
+		return sampleValuesToResultStr(sampleValues), newStatus, err
 	case model.Vector:
-		results := make([]float64, 0, len(value))
-		valueStr := "["
+		sampleValues := []model.SampleValue{}
 		for _, s := range value {
 			if s != nil {
-				valueStr = valueStr + s.Value.String() + ","
-				results = append(results, float64(s.Value))
+				sampleValues = append(sampleValues, s.Value)
 			}
 		}
-		// if we appended to the string, we should remove the last comma on the string
-		if len(valueStr) > 1 {
-			valueStr = valueStr[:len(valueStr)-1]
-		}
-		valueStr = valueStr + "]"
-		newStatus, err := evaluate.EvaluateResult(results, metric, p.logCtx)
-		return valueStr, newStatus, err
+		floatResults := sampleValuesToFloatSlice(sampleValues)
+		newStatus, err := evaluate.EvaluateResult(floatResults, metric, p.logCtx)
+		return sampleValuesToResultStr(sampleValues), newStatus, err
 	//TODO(dthomson) add other response types
 	default:
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Prometheus metric type not supported")
