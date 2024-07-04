@@ -3070,6 +3070,8 @@ spec:
                               properties:
                                 lookBackDuration:
                                   type: string
+                                step:
+                                  type: string
                               type: object
                             timeout:
                               format: int64

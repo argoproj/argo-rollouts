@@ -222,6 +222,8 @@ func (as AnalysisPhase) Completed() bool {
 type PrometheusRangeQueryArgs struct {
 	// How far back to query (e.g. 30s, 5m, 1h)
 	LookBackDuration DurationString `json:"lookBackDuration,omitempty" protobuf:"bytes,1,opt,name=lookBackDuration"`
+	// The maximum time between two slices from the current time to the lookback time (e.g. 30s, 5m, 1h).
+	Step DurationString `json:"step,omitempty" protobuf:"bytes,2,opt,name=step"`
 }
 
 // PrometheusMetric defines the prometheus query to perform canary analysis

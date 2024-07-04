@@ -62,11 +62,14 @@ func (p *Provider) executeQuery(ctx context.Context, metric v1alpha1.Metric) (mo
 		if err != nil {
 			return nil, nil, err
 		}
+		stepDuration, err := metric.Provider.Prometheus.RangeQuery.Step.Duration()
+		if err != nil {
+			return nil, nil, err
+		}
 		return p.api.QueryRange(ctx, metric.Provider.Prometheus.Query, v1.Range{
 			Start: time.Now().Add(-lookBackDuration),
 			End:   time.Now(),
-			// TODO make configurable?
-			Step: time.Second * 30,
+			Step:  stepDuration,
 		})
 	} else {
 		return p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())

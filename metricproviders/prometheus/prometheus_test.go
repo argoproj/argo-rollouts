@@ -130,6 +130,7 @@ func TestRunSuccessfullyWithRangeQuery(t *testing.T) {
 				Query: "test",
 				RangeQuery: &v1alpha1.PrometheusRangeQueryArgs{
 					LookBackDuration: "5m",
+					Step:             "1m",
 				},
 			},
 		},
