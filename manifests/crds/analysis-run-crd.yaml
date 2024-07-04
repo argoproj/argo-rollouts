@@ -3066,6 +3066,11 @@ spec:
                               type: boolean
                             query:
                               type: string
+                            rangeQuery:
+                              properties:
+                                lookBackDuration:
+                                  type: string
+                              type: object
                             timeout:
                               format: int64
                               type: integer

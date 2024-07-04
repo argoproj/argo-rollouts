@@ -4685,6 +4685,14 @@
                                                     "query": {
                                                         "type": "string"
                                                     },
+                                                    "rangeQuery": {
+                                                        "properties": {
+                                                            "lookBackDuration": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
                                                     "timeout": {
                                                         "format": "int64",
                                                         "type": "integer"
@@ -9521,6 +9529,14 @@
                                                     },
                                                     "query": {
                                                         "type": "string"
+                                                    },
+                                                    "rangeQuery": {
+                                                        "properties": {
+                                                            "lookBackDuration": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     },
                                                     "timeout": {
                                                         "format": "int64",
@@ -14371,6 +14387,14 @@
                                                     },
                                                     "query": {
                                                         "type": "string"
+                                                    },
+                                                    "rangeQuery": {
+                                                        "properties": {
+                                                            "lookBackDuration": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     },
                                                     "timeout": {
                                                         "format": "int64",
