@@ -218,6 +218,12 @@ func (as AnalysisPhase) Completed() bool {
 	return false
 }
 
+// Arguments to perform a prometheus range query
+type PrometheusRangeQueryArgs struct {
+	// How far back to query (e.g. 30s, 5m, 1h)
+	LookBackDuration DurationString
+}
+
 // PrometheusMetric defines the prometheus query to perform canary analysis
 type PrometheusMetric struct {
 	// Address is the HTTP address and port of the prometheus server
@@ -237,6 +243,9 @@ type PrometheusMetric struct {
 	// +patchMergeKey=key
 	// +patchStrategy=merge
 	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,6,opt,name=headers"`
+	// Arguments for prometheus 
+	// +optional
+	RangeQuery *PrometheusRangeQueryArgs `json:"rangeQuery,omitempty" protobuf:"bytes,7,opt,name=rangeQuery"`
 }
 
 // Authentication method

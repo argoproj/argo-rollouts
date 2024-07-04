@@ -56,6 +56,21 @@ func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	return metricsMetadata
 }
 
+func (p *Provider) executeQuery(ctx context.Context, metric v1alpha1.Metric) (model.Value, v1.Warnings, error) {
+	if metric.Provider.Prometheus.RangeQuery != nil {
+		lookBackDuration, err := metric.Provider.Prometheus.RangeQuery.LookBackDuration.Duration()
+		if err != nil {
+			return nil, nil, err
+		}
+		return p.api.QueryRange(ctx, metric.Provider.Prometheus.Query, v1.Range{
+			Start: time.Now().Add(-lookBackDuration),
+			End: time.Now(),
+		})
+	} else {
+		return p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
+	}
+}
+
 // Run queries prometheus for the metric
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
 	startTime := timeutil.MetaNow()
@@ -66,7 +81,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
 	defer cancel()
 
-	response, warnings, err := p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
+	response, warnings, err := p.executeQuery(ctx, metric)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}

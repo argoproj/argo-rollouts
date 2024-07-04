@@ -49,7 +49,10 @@ func (m mockAPI) LabelValues(ctx context.Context, label string, matches []string
 }
 
 func (m mockAPI) QueryRange(ctx context.Context, query string, r v1.Range, opt ...v1.Option) (model.Value, v1.Warnings, error) {
-	panic("Not used")
+	if m.err != nil {
+		return nil, m.warnings, m.err
+	}
+	return m.value, m.warnings, nil
 }
 
 func (m mockAPI) Series(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) ([]model.LabelSet, v1.Warnings, error) {
