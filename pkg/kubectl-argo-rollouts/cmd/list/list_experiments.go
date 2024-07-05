@@ -62,7 +62,7 @@ func NewCmdListExperiments(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&listOptions.allNamespaces, "all-namespaces", false, "Include all namespaces")
+	cmd.Flags().BoolVarP(&listOptions.allNamespaces, "all-namespaces", "A", false, "Include all namespaces")
 	return cmd
 }
 

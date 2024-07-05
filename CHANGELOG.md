@@ -1,3 +1,24 @@
+<a name="v1.7.1"></a>
+## [v1.7.1](https://github.com/argoproj/argo-rollouts/compare/v1.7.0...v1.7.1) (2024-06-22)
+
+### Fix
+
+* docs site version selector broken ([#3590](https://github.com/argoproj/argo-rollouts/issues/3590))
+* don't default datadog aggregator ([#3643](https://github.com/argoproj/argo-rollouts/issues/3643))
+* Add volume for plugin and tmp folder ([#3546](https://github.com/argoproj/argo-rollouts/issues/3546))
+
+
+<a name="v1.7.0"></a>
+## [v1.7.0](https://github.com/argoproj/argo-rollouts/compare/v1.7.0-rc1...v1.7.0) (2024-06-12)
+
+### Fix
+
+* verify the weight of the alb at the end of the rollout ([#3627](https://github.com/argoproj/argo-rollouts/issues/3627))
+* when Rollout has pingpong and stable/canary service defined, only alb traffic management uses pingpong. ([#3628](https://github.com/argoproj/argo-rollouts/issues/3628))
+* protocol missing in ambassador canary mapping creation. Fixes  [#3593](https://github.com/argoproj/argo-rollouts/issues/3593) ([#3603](https://github.com/argoproj/argo-rollouts/issues/3603))
+* rs conflict with fallback to patch ([#3559](https://github.com/argoproj/argo-rollouts/issues/3559))
+* **controller:** Corrects the logic of comparing sha256 has. Fixes [#3519](https://github.com/argoproj/argo-rollouts/issues/3519) ([#3520](https://github.com/argoproj/argo-rollouts/issues/3520))
+
 
 <a name="v1.7.0-rc1"></a>
 ## [v1.7.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.6.6...v1.7.0-rc1) (2024-04-03)

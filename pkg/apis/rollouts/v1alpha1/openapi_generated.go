@@ -1935,7 +1935,7 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 					},
 					"aggregator": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Aggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2",
+							Description: "Aggregator is a type of aggregator to use for metrics-based queries (default: \"\"). Used for v2",
 							Type:        []string{"string"},
 							Format:      "",
 						},

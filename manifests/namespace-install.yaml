@@ -75,6 +75,7 @@ rules:
   - get
   - list
   - watch
+  - update
 - apiGroups:
   - ""
   resources:
@@ -413,6 +414,9 @@ spec:
           periodSeconds: 5
           successThreshold: 1
           timeoutSeconds: 4
+        resources:
+          limits:
+            ephemeral-storage: 1Gi
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -421,6 +425,16 @@ spec:
           readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /home/argo-rollouts/plugin-bin
+          name: plugin-bin
+        - mountPath: /tmp
+          name: tmp
       securityContext:
         runAsNonRoot: true
       serviceAccountName: argo-rollouts
+      volumes:
+      - emptyDir: {}
+        name: plugin-bin
+      - emptyDir: {}
+        name: tmp
