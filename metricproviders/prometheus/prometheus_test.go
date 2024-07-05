@@ -70,7 +70,7 @@ func newAnalysisRun() *v1alpha1.AnalysisRun {
 
 func TestType(t *testing.T) {
 	e := log.Entry{}
-	mock := mockAPI{
+	mock := &mockAPI{
 		value: newScalar(10),
 	}
 	timeout := int64(5)
@@ -93,7 +93,7 @@ func TestType(t *testing.T) {
 
 func TestRunSuccessfully(t *testing.T) {
 	e := log.Entry{}
-	mock := mockAPI{
+	mock := &mockAPI{
 		value: newScalar(10),
 	}
 	metric := v1alpha1.Metric{
@@ -118,7 +118,7 @@ func TestRunSuccessfully(t *testing.T) {
 
 func TestRunSuccessfullyWithRangeQuery(t *testing.T) {
 	e := log.Entry{}
-	mock := mockAPI{
+	mock := &mockAPI{
 		value: newMatrix(10),
 	}
 	metric := v1alpha1.Metric{
@@ -135,6 +135,15 @@ func TestRunSuccessfullyWithRangeQuery(t *testing.T) {
 			},
 		},
 	}
+
+	now = func() time.Time {
+		result, err := time.Parse(time.RFC3339, "2020-01-01T00:00:00Z")
+		if err != nil {
+			panic(err)
+		}
+		return result
+	}
+
 	p, err := NewPrometheusProvider(mock, e, metric)
 
 	measurement := p.Run(newAnalysisRun(), metric)
@@ -143,12 +152,78 @@ func TestRunSuccessfullyWithRangeQuery(t *testing.T) {
 	assert.Equal(t, "[11,12,13,14]", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
-	// TODO verify start time
+	assert.Equal(t, "2019-12-31 23:55:00 +0000 UTC", mock.startTimeSent.String())
+	assert.Equal(t, "2020-01-01 00:00:00 +0000 UTC", mock.endTimeSent.String())
+	assert.Equal(t, "1m0s", mock.stepSent.String())
+}
+
+func TestRunUnparsableLookBackDuration(t *testing.T) {
+	e := log.Entry{}
+	mock := &mockAPI{
+		value: newMatrix(10),
+	}
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "all(result, # > 10)",
+		FailureCondition: "all(result, # < 10)",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: "test",
+				RangeQuery: &v1alpha1.PrometheusRangeQueryArgs{
+					LookBackDuration: "??",
+					Step:             "1m",
+				},
+			},
+		},
+	}
+	expectedErr := fmt.Errorf("failed to parse rangeQuery.lookBackDuration as duration: time: invalid duration \"??\"")
+
+	p, err := NewPrometheusProvider(mock, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedErr.Error(), measurement.Message)
+	assert.Equal(t, "", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
+
+func TestRunUnparsableStep(t *testing.T) {
+	e := log.Entry{}
+	mock := &mockAPI{
+		value: newMatrix(10),
+	}
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "all(result, # > 10)",
+		FailureCondition: "all(result, # < 10)",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: "test",
+				RangeQuery: &v1alpha1.PrometheusRangeQueryArgs{
+					LookBackDuration: "1m",
+					Step:             "??",
+				},
+			},
+		},
+	}
+	expectedErr := fmt.Errorf("failed to parse rangeQuery.step as duration: time: invalid duration \"??\"")
+
+	p, err := NewPrometheusProvider(mock, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedErr.Error(), measurement.Message)
+	assert.Equal(t, "", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 }
 
 func TestRunSuccessfullyWithEnv(t *testing.T) {
 	e := log.Entry{}
-	mock := mockAPI{
+	mock := &mockAPI{
 		value: newScalar(10),
 	}
 	address := "http://127.0.0.1:9090"
@@ -174,7 +249,7 @@ func TestRunSuccessfullyWithEnv(t *testing.T) {
 
 func TestRunSuccessfullyWithWarning(t *testing.T) {
 	e := log.NewEntry(log.New())
-	mock := mockAPI{
+	mock := &mockAPI{
 		value:    newScalar(10),
 		warnings: v1.Warnings([]string{"warning", "warning2"}),
 	}
@@ -200,7 +275,7 @@ func TestRunSuccessfullyWithWarning(t *testing.T) {
 
 func TestRunSuccessfullyWithWarningWithEnv(t *testing.T) {
 	e := log.NewEntry(log.New())
-	mock := mockAPI{
+	mock := &mockAPI{
 		value:    newScalar(10),
 		warnings: v1.Warnings([]string{"warning", "warning2"}),
 	}
@@ -227,7 +302,7 @@ func TestRunSuccessfullyWithWarningWithEnv(t *testing.T) {
 func TestRunWithQueryError(t *testing.T) {
 	e := log.NewEntry(log.New())
 	expectedErr := fmt.Errorf("bad big bug :(")
-	mock := mockAPI{
+	mock := &mockAPI{
 		err: expectedErr,
 	}
 	metric := v1alpha1.Metric{
@@ -253,7 +328,7 @@ func TestRunWithQueryError(t *testing.T) {
 func TestRunWithResolveArgsError(t *testing.T) {
 	e := log.Entry{}
 	expectedErr := fmt.Errorf("failed to resolve {{args.var}}")
-	mock := mockAPI{
+	mock := &mockAPI{
 		err: expectedErr,
 	}
 	metric := v1alpha1.Metric{
@@ -276,7 +351,7 @@ func TestRunWithResolveArgsError(t *testing.T) {
 
 func TestGetStatusReturnsResolvedQuery(t *testing.T) {
 	e := log.Entry{}
-	mock := mockAPI{}
+	mock := &mockAPI{}
 	metric := v1alpha1.Metric{
 		Name: "foo",
 		Provider: v1alpha1.MetricProvider{
@@ -294,7 +369,7 @@ func TestGetStatusReturnsResolvedQuery(t *testing.T) {
 
 func TestRunWithEvaluationError(t *testing.T) {
 	e := log.WithField("", "")
-	mock := mockAPI{}
+	mock := &mockAPI{}
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -317,7 +392,7 @@ func TestRunWithEvaluationError(t *testing.T) {
 
 func TestResume(t *testing.T) {
 	e := log.WithField("", "")
-	mock := mockAPI{}
+	mock := &mockAPI{}
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -341,7 +416,7 @@ func TestResume(t *testing.T) {
 
 func TestTerminate(t *testing.T) {
 	e := log.NewEntry(log.New())
-	mock := mockAPI{}
+	mock := &mockAPI{}
 	metric := v1alpha1.Metric{}
 	p, err := NewPrometheusProvider(mock, *e, metric)
 	assert.NoError(t, err)
@@ -356,7 +431,7 @@ func TestTerminate(t *testing.T) {
 
 func TestGarbageCollect(t *testing.T) {
 	e := log.NewEntry(log.New())
-	mock := mockAPI{}
+	mock := &mockAPI{}
 	metric := v1alpha1.Metric{}
 	p, err := NewPrometheusProvider(mock, *e, metric)
 	assert.NoError(t, err)
@@ -569,7 +644,7 @@ func TestNewPrometheusAddressNotConfigured(t *testing.T) {
 
 func TestNewPrometheusNegativeTimeout(t *testing.T) {
 	e := log.Entry{}
-	mock := mockAPI{
+	mock := &mockAPI{
 		value: newScalar(10),
 	}
 	timeout := int64(-20)
