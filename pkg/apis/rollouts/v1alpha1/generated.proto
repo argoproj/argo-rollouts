@@ -1218,6 +1218,19 @@ message PrometheusMetric {
   // +patchMergeKey=key
   // +patchStrategy=merge
   repeated WebMetricHeader headers = 6;
+
+  // Arguments for prometheus
+  // +optional
+  optional PrometheusRangeQueryArgs rangeQuery = 7;
+}
+
+// Arguments to perform a prometheus range query
+message PrometheusRangeQueryArgs {
+  // How far back to query (e.g. 30s, 5m, 1h)
+  optional string lookBackDuration = 1;
+
+  // The maximum time between two slices from the current time to the lookback time (e.g. 30s, 5m, 1h).
+  optional string step = 2;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution

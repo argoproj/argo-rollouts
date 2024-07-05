@@ -245,7 +245,7 @@ type PrometheusMetric struct {
 	// +patchMergeKey=key
 	// +patchStrategy=merge
 	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,6,opt,name=headers"`
-	// Arguments for prometheus 
+	// Arguments for prometheus
 	// +optional
 	RangeQuery *PrometheusRangeQueryArgs `json:"rangeQuery,omitempty" protobuf:"bytes,7,opt,name=rangeQuery"`
 }
