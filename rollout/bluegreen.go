@@ -73,7 +73,7 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 
 func (c *rolloutContext) reconcileBlueGreenStableReplicaSet() error {
 	if c.stableRS == nil {
-		c.log.Info("stableRS is nil on first deployment, we don't need to scale it in this case")
+		c.log.Info("Stable ReplicaSet doesn't exist and hence no reconciliation is required.")
 		return nil
 	}
 
