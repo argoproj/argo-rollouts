@@ -220,10 +220,12 @@ func (as AnalysisPhase) Completed() bool {
 
 // Arguments to perform a prometheus range query
 type PrometheusRangeQueryArgs struct {
-	// How far back to query (e.g. 30s, 5m, 1h)
-	LookBackDuration DurationString `json:"lookBackDuration,omitempty" protobuf:"bytes,1,opt,name=lookBackDuration,casttype=DurationString"`
-	// The maximum time between two slices from the current time to the lookback time (e.g. 30s, 5m, 1h).
-	Step DurationString `json:"step,omitempty" protobuf:"bytes,2,opt,name=step,casttype=DurationString"`
+	// The start time to query in expr format e.g. now(), now() - duration("1h"), now() - duration("{{args.lookback_duration}}")
+	Start string `json:"start,omitempty" protobuf:"bytes,1,opt,name=start"`
+	// The end time to query in expr format e.g. now(), now() - duration("1h"), now() - duration("{{args.lookback_duration}}")
+	End string `json:"end,omitempty" protobuf:"bytes,2,opt,name=end"`
+	// The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).
+	Step DurationString `json:"step,omitempty" protobuf:"bytes,3,opt,name=step,casttype=DurationString"`
 }
 
 // PrometheusMetric defines the prometheus query to perform canary analysis

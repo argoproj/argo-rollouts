@@ -49,6 +49,8 @@ metadata:
 spec:
   args:
   - name: service-name
+  - name: lookback-duration
+    value: 5m
   metrics:
   - name: success-rate
     # checks that all returned values are under 1000ms
@@ -57,12 +59,16 @@ spec:
     provider:
       prometheus:
         rangeQuery:
-          # Will query prometheus for time series matching the query for the last ten minutes 
-          lookBackDuration: 10m
+          # See https://expr-lang.org/docs/language-definition#date-functions
+          # for value date functions
+          # The start point to query from
+          start: 'now() - duration("{{args.lookback-duration}}")'
+          # The end point to query to
+          end: 'now()'
           # Query resolution width 
           step: 1m
         address: http://prometheus.example.com:9090
-          http_latency_ms{service="{{args.service-name}}"}
+        query: http_latency_ms{service="{{args.service-name}}"}
 ```
 
 ### Range query and successCondition/failureCondition

@@ -1826,13 +1826,17 @@
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusRangeQueryArgs": {
       "type": "object",
       "properties": {
-        "lookBackDuration": {
+        "start": {
           "type": "string",
-          "title": "How far back to query (e.g. 30s, 5m, 1h)"
+          "title": "The start time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\")"
+        },
+        "end": {
+          "type": "string",
+          "title": "The end time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\")"
         },
         "step": {
           "type": "string",
-          "description": "The maximum time between two slices from the current time to the lookback time (e.g. 30s, 5m, 1h)."
+          "description": "The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h)."
         }
       },
       "title": "Arguments to perform a prometheus range query"

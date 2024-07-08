@@ -129,19 +129,12 @@ func TestRunSuccessfullyWithRangeQuery(t *testing.T) {
 			Prometheus: &v1alpha1.PrometheusMetric{
 				Query: "test",
 				RangeQuery: &v1alpha1.PrometheusRangeQueryArgs{
-					LookBackDuration: "5m",
-					Step:             "1m",
+					Start: `date("2023-08-14 00:00:00", "2006-01-02 15:04:05", "UTC") - duration("1h")`,
+					End:   `date("2023-08-14 00:00:00", "2006-01-02 15:04:05", "UTC")`,
+					Step:  "1m",
 				},
 			},
 		},
-	}
-
-	now = func() time.Time {
-		result, err := time.Parse(time.RFC3339, "2020-01-01T00:00:00Z")
-		if err != nil {
-			panic(err)
-		}
-		return result
 	}
 
 	p, err := NewPrometheusProvider(mock, e, metric)
@@ -152,12 +145,12 @@ func TestRunSuccessfullyWithRangeQuery(t *testing.T) {
 	assert.Equal(t, "[11,12,13,14]", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
-	assert.Equal(t, "2019-12-31 23:55:00 +0000 UTC", mock.startTimeSent.String())
-	assert.Equal(t, "2020-01-01 00:00:00 +0000 UTC", mock.endTimeSent.String())
+	assert.Equal(t, "2023-08-13 23:00:00 +0000 UTC", mock.startTimeSent.String())
+	assert.Equal(t, "2023-08-14 00:00:00 +0000 UTC", mock.endTimeSent.String())
 	assert.Equal(t, "1m0s", mock.stepSent.String())
 }
 
-func TestRunUnparsableLookBackDuration(t *testing.T) {
+func TestRunUnparsableStartTime(t *testing.T) {
 	e := log.Entry{}
 	mock := &mockAPI{
 		value: newMatrix(10),
@@ -170,13 +163,47 @@ func TestRunUnparsableLookBackDuration(t *testing.T) {
 			Prometheus: &v1alpha1.PrometheusMetric{
 				Query: "test",
 				RangeQuery: &v1alpha1.PrometheusRangeQueryArgs{
-					LookBackDuration: "??",
-					Step:             "1m",
+					Start: `now() - duration("??")`,
+					End:   `date("2023-08-14 00:00:00", "2006-01-02 15:04:05", "UTC")`,
+					Step:  "1m",
 				},
 			},
 		},
 	}
-	expectedErr := fmt.Errorf("failed to parse rangeQuery.lookBackDuration as duration: time: invalid duration \"??\"")
+	expectedErr := fmt.Errorf(`failed to parse rangeQuery.start as time: time: invalid duration "??"`)
+
+	p, err := NewPrometheusProvider(mock, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedErr.Error(), measurement.Message)
+	assert.Equal(t, "", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
+
+func TestRunUnparsableEndTime(t *testing.T) {
+	e := log.Entry{}
+	mock := &mockAPI{
+		value: newMatrix(10),
+	}
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "all(result, # > 10)",
+		FailureCondition: "all(result, # < 10)",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: "test",
+				RangeQuery: &v1alpha1.PrometheusRangeQueryArgs{
+					Start: `date("2023-08-14 00:00:00", "2006-01-02 15:04:05", "UTC") - duration("1h")`,
+					End:   `now() - duration("??")`,
+					Step:  "1m",
+				},
+			},
+		},
+	}
+	expectedErr := fmt.Errorf(`failed to parse rangeQuery.end as time: time: invalid duration "??"`)
 
 	p, err := NewPrometheusProvider(mock, e, metric)
 
@@ -202,8 +229,9 @@ func TestRunUnparsableStep(t *testing.T) {
 			Prometheus: &v1alpha1.PrometheusMetric{
 				Query: "test",
 				RangeQuery: &v1alpha1.PrometheusRangeQueryArgs{
-					LookBackDuration: "1m",
-					Step:             "??",
+					Start: `date("2023-08-14 00:00:00", "2006-01-02 15:04:05", "UTC") - duration("1h")`,
+					End:   `date("2023-08-14 00:00:00", "2006-01-02 15:04:05", "UTC")`,
+					Step:  "??",
 				},
 			},
 		},

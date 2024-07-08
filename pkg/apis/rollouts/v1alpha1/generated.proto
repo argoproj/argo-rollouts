@@ -1226,11 +1226,14 @@ message PrometheusMetric {
 
 // Arguments to perform a prometheus range query
 message PrometheusRangeQueryArgs {
-  // How far back to query (e.g. 30s, 5m, 1h)
-  optional string lookBackDuration = 1;
+  // The start time to query in expr format e.g. now(), now() - duration("1h"), now() - duration("{{args.lookback_duration}}")
+  optional string start = 1;
 
-  // The maximum time between two slices from the current time to the lookback time (e.g. 30s, 5m, 1h).
-  optional string step = 2;
+  // The end time to query in expr format e.g. now(), now() - duration("1h"), now() - duration("{{args.lookback_duration}}")
+  optional string end = 2;
+
+  // The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).
+  optional string step = 3;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution

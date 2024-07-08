@@ -3068,7 +3068,9 @@ spec:
                               type: string
                             rangeQuery:
                               properties:
-                                lookBackDuration:
+                                end:
+                                  type: string
+                                start:
                                   type: string
                                 step:
                                   type: string

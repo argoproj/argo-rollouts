@@ -35,9 +35,6 @@ const (
 	EnvVarArgoRolloutsPrometheusAddress = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"
 )
 
-// visible for testing
-var now = time.Now
-
 // Provider contains all the required components to run a prometheus query
 type Provider struct {
 	api     v1.API
@@ -61,17 +58,21 @@ func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 
 func (p *Provider) executeQuery(ctx context.Context, metric v1alpha1.Metric) (model.Value, v1.Warnings, error) {
 	if metric.Provider.Prometheus.RangeQuery != nil {
-		lookBackDuration, err := metric.Provider.Prometheus.RangeQuery.LookBackDuration.Duration()
+		start, err := evaluate.EvalTime(metric.Provider.Prometheus.RangeQuery.Start)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to parse rangeQuery.lookBackDuration as duration: %w", err)
+			return nil, nil, fmt.Errorf("failed to parse rangeQuery.start as time: %w", err)
+		}
+		end, err := evaluate.EvalTime(metric.Provider.Prometheus.RangeQuery.End)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to parse rangeQuery.end as time: %w", err)
 		}
 		stepDuration, err := metric.Provider.Prometheus.RangeQuery.Step.Duration()
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to parse rangeQuery.step as duration: %w", err)
 		}
 		return p.api.QueryRange(ctx, metric.Provider.Prometheus.Query, v1.Range{
-			Start: now().Add(-lookBackDuration),
-			End:   now(),
+			Start: start,
+			End:   end,
 			Step:  stepDuration,
 		})
 	} else {

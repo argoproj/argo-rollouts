@@ -3657,12 +3657,19 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusRangeQueryArgs(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Arguments to perform a prometheus range query",
+				Description: "Arguments to perform a prometheus range query https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"lookBackDuration": {
+					"start": {
 						SchemaProps: spec.SchemaProps{
-							Description: "How far back to query (e.g. 30s, 5m, 1h)",
+							Description: "The start time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\") see: https://expr-lang.org/docs/language-definition#date-functions",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"end": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The end time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\") see: https://expr-lang.org/docs/language-definition#date-functions",
 							Type:        []string{"string"},
 							Format:      "",
 						},

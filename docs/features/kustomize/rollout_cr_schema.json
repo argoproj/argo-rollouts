@@ -4687,7 +4687,10 @@
                                                     },
                                                     "rangeQuery": {
                                                         "properties": {
-                                                            "lookBackDuration": {
+                                                            "end": {
+                                                                "type": "string"
+                                                            },
+                                                            "start": {
                                                                 "type": "string"
                                                             },
                                                             "step": {
@@ -9535,7 +9538,10 @@
                                                     },
                                                     "rangeQuery": {
                                                         "properties": {
-                                                            "lookBackDuration": {
+                                                            "end": {
+                                                                "type": "string"
+                                                            },
+                                                            "start": {
                                                                 "type": "string"
                                                             },
                                                             "step": {
@@ -14396,7 +14402,10 @@
                                                     },
                                                     "rangeQuery": {
                                                         "properties": {
-                                                            "lookBackDuration": {
+                                                            "end": {
+                                                                "type": "string"
+                                                            },
+                                                            "start": {
                                                                 "type": "string"
                                                             },
                                                             "step": {

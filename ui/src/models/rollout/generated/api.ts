@@ -1874,9 +1874,15 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusR
      * @type {string}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
      */
-    lookBackDuration?: string;
+    start?: string;
     /**
-     * The maximum time between two slices from the current time to the lookback time (e.g. 30s, 5m, 1h).
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    end?: string;
+    /**
+     * The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).
      * @type {string}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
      */

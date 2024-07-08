@@ -5,6 +5,7 @@ import (
 	"math"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -328,4 +329,22 @@ func TestValueFromPointer(t *testing.T) {
 	assert.True(t, valueFromPointer(oneFloatPointer) == oneFloat)
 	assert.True(t, valueFromPointer(1) == 1)
 	assert.True(t, valueFromPointer(false) == false)
+}
+
+func TestEvalTimeWithSuccessExpr(t *testing.T) {
+	status, err := EvalTime(`date("2023-08-14 00:00:00", "2006-01-02 15:04:05", "UTC") - duration("1h")`)
+	assert.Equal(t, time.Time(time.Date(2023, time.August, 13, 23, 0, 0, 0, time.UTC)), status)
+	assert.NoError(t, err)
+}
+
+func TestEvalTimeWithNotTimeResult(t *testing.T) {
+	status, err := EvalTime(`hello`)
+	assert.Equal(t, time.Time{}, status)
+	assert.Error(t, err)
+}
+
+func TestEvalTimeWithInvalidExpression(t *testing.T) {
+	status, err := EvalTime(`now() -- ?`)
+	assert.Equal(t, time.Time{}, status)
+	assert.Error(t, err)
 }
