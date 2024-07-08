@@ -3657,26 +3657,26 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusRangeQueryArgs(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Arguments to perform a prometheus range query https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries",
+				Description: "Arguments to perform a prometheus range query",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"start": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The start time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\") see: https://expr-lang.org/docs/language-definition#date-functions",
+							Description: "The start time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\")",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"end": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The end time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\") see: https://expr-lang.org/docs/language-definition#date-functions",
+							Description: "The end time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\")",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"step": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The maximum time between two slices from the current time to the lookback time (e.g. 30s, 5m, 1h).",
+							Description: "The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).",
 							Type:        []string{"string"},
 							Format:      "",
 						},
