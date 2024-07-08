@@ -333,7 +333,7 @@ func TestValueFromPointer(t *testing.T) {
 
 func TestEvalTimeWithSuccessExpr(t *testing.T) {
 	status, err := EvalTime(`date("2023-08-14 00:00:00", "2006-01-02 15:04:05", "UTC") - duration("1h")`)
-	assert.Equal(t, time.Time(time.Date(2023, time.August, 13, 23, 0, 0, 0, time.UTC)), status)
+	assert.Equal(t, time.Date(2023, time.August, 13, 23, 0, 0, 0, time.UTC), status)
 	assert.NoError(t, err)
 }
 
