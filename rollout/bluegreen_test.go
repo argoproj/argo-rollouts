@@ -1,12 +1,15 @@
 package rollout
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1042,6 +1045,55 @@ func TestBlueGreenRolloutScaleUpdateStableRS(t *testing.T) {
 	f.expectUpdateReplicaSetAction(rs1)
 	f.expectUpdateReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
+}
+
+func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *testing.T) {
+	f := newFixture(t)
+	prevOutput := log.StandardLogger().Out
+	defer func() {
+		log.SetOutput(prevOutput)
+	}()
+	defer f.Close()
+
+	// Setup Logging capture
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+
+	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r.Status.Conditions = []v1alpha1.RolloutCondition{}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	previewSvc := newService("preview", 80, nil, r)
+	activeSvc := newService("active", 80, nil, r)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+	rs := newReplicaSet(r, 1)
+	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	generatedConditions := generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true)
+
+	f.expectCreateReplicaSetAction(rs)
+	f.expectPatchServiceAction(previewSvc, rsPodHash)
+	f.expectUpdateReplicaSetAction(rs) // scale up RS
+	f.expectUpdateRolloutStatusAction(r)
+	expectedPatchWithoutSubs := `{
+		"status":{
+			"blueGreen" : {
+				"previewSelector": "%s"
+			},
+			"conditions": %s,
+			"selector": "foo=bar",
+			"stableRS": "%s",
+			"phase": "Progressing",
+			"message": "more replicas need to be updated"
+		}
+	}`
+	expectedPatch := calculatePatch(r, fmt.Sprintf(expectedPatchWithoutSubs, rsPodHash, generatedConditions, rsPodHash))
+	f.expectPatchRolloutActionWithPatch(r, expectedPatch)
+	f.run(getKey(r, t))
+
+	logMessage := buf.String()
+	assert.True(t, strings.Contains(logMessage, "msg=\"Stable ReplicaSet doesn't exist and hence no reconciliation is required.\""), logMessage)
 }
 
 func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
