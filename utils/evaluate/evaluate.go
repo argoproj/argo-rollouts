@@ -61,10 +61,8 @@ func EvalTime(expression string) (time.Time, error) {
 	var err error
 
 	env := map[string]any{
-		"asInt":   asInt,
-		"asFloat": asFloat,
-		"isNaN":   math.IsNaN,
-		"isInf":   isInf,
+		"isNaN": math.IsNaN,
+		"isInf": isInf,
 	}
 
 	unwrapFileErr := func(e error) error {
@@ -88,7 +86,7 @@ func EvalTime(expression string) (time.Time, error) {
 	case time.Time:
 		return val, nil
 	default:
-		return time.Time{}, fmt.Errorf("expected string, but got %T", val)
+		return time.Time{}, fmt.Errorf("expected time.Time, but got %T", val)
 	}
 }
 

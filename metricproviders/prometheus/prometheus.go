@@ -136,17 +136,17 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
-func sampleValuesToFloatSlice(SampleValues []model.SampleValue) []float64 {
-	results := make([]float64, 0, len(SampleValues))
-	for _, s := range SampleValues {
+func sampleValuesToFloatSlice(sampleValues []model.SampleValue) []float64 {
+	results := make([]float64, 0, len(sampleValues))
+	for _, s := range sampleValues {
 		results = append(results, float64(s))
 	}
 	return results
 }
 
-func sampleValuesToResultStr(SampleValues []model.SampleValue) string {
+func sampleValuesToResultStr(sampleValues []model.SampleValue) string {
 	results := []string{}
-	for _, s := range SampleValues {
+	for _, s := range sampleValues {
 		results = append(results, s.String())
 	}
 	return fmt.Sprintf("[%s]", strings.Join(results, ","))
