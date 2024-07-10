@@ -3062,6 +3062,15 @@ spec:
                               type: boolean
                             query:
                               type: string
+                            rangeQuery:
+                              properties:
+                                end:
+                                  type: string
+                                start:
+                                  type: string
+                                step:
+                                  type: string
+                              type: object
                             timeout:
                               format: int64
                               type: integer

@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/antonmedv/expr"
 	"github.com/antonmedv/expr/file"
@@ -54,6 +55,39 @@ func EvaluateResult(result any, metric v1alpha1.Metric, logCtx logrus.Entry) (v1
 
 	// If we reach this code path, failCondition is false and successCondition is true
 	return v1alpha1.AnalysisPhaseSuccessful, nil
+}
+
+func EvalTime(expression string) (time.Time, error) {
+	var err error
+
+	env := map[string]any{
+		"isNaN": math.IsNaN,
+		"isInf": isInf,
+	}
+
+	unwrapFileErr := func(e error) error {
+		if fileErr, ok := err.(*file.Error); ok {
+			e = errors.New(fileErr.Message)
+		}
+		return e
+	}
+
+	program, err := expr.Compile(expression, expr.Env(env))
+	if err != nil {
+		return time.Time{}, unwrapFileErr(err)
+	}
+
+	output, err := expr.Run(program, env)
+	if err != nil {
+		return time.Time{}, unwrapFileErr(err)
+	}
+
+	switch val := output.(type) {
+	case time.Time:
+		return val, nil
+	default:
+		return time.Time{}, fmt.Errorf("expected time.Time, but got %T", val)
+	}
 }
 
 // EvalCondition evaluates the condition with the resultValue as an input
