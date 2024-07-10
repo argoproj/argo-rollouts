@@ -54,3 +54,11 @@ stringData:
   base-url-rest: <your-base-url>
   base-url-nerdgraph: <your-base-url>
 ```
+
+## Additional Metadata
+
+The New Relic provider returns the below metadata under the `Metadata` map in the `MetricsResult` object of `AnalysisRun`.
+
+| KEY                   | Description |
+|-----------------------|-------------|
+| ResolvedNewRelicQuery | Resolved query after substituting the template's arguments |
