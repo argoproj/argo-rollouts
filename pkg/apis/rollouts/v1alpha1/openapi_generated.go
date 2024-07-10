@@ -100,6 +100,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":                             schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution": schema_pkg_apis_rollouts_v1alpha1_PreferredDuringSchedulingIgnoredDuringExecution(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":                                schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusRangeQueryArgs":                        schema_pkg_apis_rollouts_v1alpha1_PrometheusRangeQueryArgs(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution":  schema_pkg_apis_rollouts_v1alpha1_RequiredDuringSchedulingIgnoredDuringExecution(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RollbackWindowSpec":                              schema_pkg_apis_rollouts_v1alpha1_RollbackWindowSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout":                                         schema_pkg_apis_rollouts_v1alpha1_Rollout(ref),
@@ -1935,7 +1936,7 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 					},
 					"aggregator": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Aggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2",
+							Description: "Aggregator is a type of aggregator to use for metrics-based queries (default: \"\"). Used for v2",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3638,11 +3639,51 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 							},
 						},
 					},
+					"rangeQuery": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Arguments for prometheus",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusRangeQueryArgs"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Authentication", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Authentication", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusRangeQueryArgs", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_PrometheusRangeQueryArgs(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Arguments to perform a prometheus range query",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"start": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The start time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\")",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"end": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The end time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\")",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"step": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

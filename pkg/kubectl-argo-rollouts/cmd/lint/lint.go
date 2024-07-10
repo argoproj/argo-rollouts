@@ -53,12 +53,7 @@ func NewCmdLint(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return o.UsageErr(c)
 			}
 
-			err := lintOptions.lintResource(lintOptions.File)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return lintOptions.lintResource(lintOptions.File)
 		},
 	}
 	cmd.Flags().StringVarP(&lintOptions.File, "filename", "f", "", "File to lint")

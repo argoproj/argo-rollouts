@@ -1205,7 +1205,7 @@
         },
         "aggregator": {
           "type": "string",
-          "title": "+kubebuilder:default=\"last\"\n+kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area\nAggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2"
+          "title": "+kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area\nAggregator is a type of aggregator to use for metrics-based queries (default: \"\"). Used for v2"
         }
       }
     },
@@ -1815,9 +1815,31 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WebMetricHeader"
           },
           "title": "Headers are optional HTTP headers to use in the request\n+optional\n+patchMergeKey=key\n+patchStrategy=merge"
+        },
+        "rangeQuery": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusRangeQueryArgs",
+          "title": "Arguments for prometheus\n+optional"
         }
       },
       "title": "PrometheusMetric defines the prometheus query to perform canary analysis"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusRangeQueryArgs": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "string",
+          "title": "The start time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\")"
+        },
+        "end": {
+          "type": "string",
+          "title": "The end time to query in expr format e.g. now(), now() - duration(\"1h\"), now() - duration(\"{{args.lookback_duration}}\")"
+        },
+        "step": {
+          "type": "string",
+          "description": "The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h)."
+        }
+      },
+      "title": "Arguments to perform a prometheus range query"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution": {
       "type": "object",

@@ -95,10 +95,10 @@ jobs:
           go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
+        uses: docker/setup-qemu-action@5927c834f5b4fdf503fca6f4c7eccda82949e1ee # v3.1.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+        uses: docker/setup-buildx-action@4fd812986e6c8c2a69e18311145f9371337f27d4 # v3.4.0
 
       - name: Generate release artifacts
         run: |
@@ -107,7 +107,7 @@ jobs:
           make manifests IMAGE_TAG=${{ github.ref_name }}
 
       - name: Draft release
-        uses: softprops/action-gh-release@69320dbe05506a9a39fc8ae11030b214ec2d1f87 # v0.1.15
+        uses: softprops/action-gh-release@a74c6b72af54cfa997e81df42d94703d6313a2d0 # v0.1.15
         with:
           tag_name: ${{ github.event.inputs.tag }}
           draft: true
@@ -212,7 +212,7 @@ jobs:
             /tmp/sbom.tar.gz
 
       - name: Upload SBOM and signature assets
-        uses: softprops/action-gh-release@69320dbe05506a9a39fc8ae11030b214ec2d1f87 # v0.1.15
+        uses: softprops/action-gh-release@a74c6b72af54cfa997e81df42d94703d6313a2d0 # v0.1.15
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

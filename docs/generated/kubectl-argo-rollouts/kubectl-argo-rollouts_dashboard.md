@@ -10,6 +10,16 @@ Start UI dashboard
 kubectl argo rollouts dashboard [flags]
 ```
 
+## Examples
+
+```shell
+# Start UI dashboard
+kubectl argo rollouts dashboard
+
+# Start UI dashboard on a specific port
+kubectl argo rollouts dashboard --port 8080
+```
+
 ## Options
 
 ```
