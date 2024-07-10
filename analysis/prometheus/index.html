@@ -1329,6 +1329,30 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#range-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      Range queries
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Range queries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#range-query-and-successconditionfailurecondition" class="md-nav__link">
+    <span class="md-ellipsis">
+      Range query and successCondition/failureCondition
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#authorization" class="md-nav__link">
     <span class="md-ellipsis">
       Authorization
@@ -3327,6 +3351,30 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#range-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      Range queries
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Range queries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#range-query-and-successconditionfailurecondition" class="md-nav__link">
+    <span class="md-ellipsis">
+      Range query and successCondition/failureCondition
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#authorization" class="md-nav__link">
     <span class="md-ellipsis">
       Authorization
@@ -3430,6 +3478,42 @@
 <p>The example shows Istio metrics, but you can use any kind of metric available to your prometheus instance. We suggest
 you validate your <a href="https://prometheus.io/docs/prometheus/latest/querying/basics/">PromQL expression</a> using the <a href="https://prometheus.io/docs/introduction/first_steps/#using-the-expression-browser">Prometheus GUI first</a>.</p>
 <p>See the <a href="../../features/analysis">Analysis Overview page</a> for more details on the available options.</p>
+<h2 id="range-queries">Range queries<a class="headerlink" href="#range-queries" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">range-query-example</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lookback-duration</span>
+<span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="w">    </span><span class="c1"># checks that all returned values are under 1000ms</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;all(result,</span><span class="nv"> </span><span class="s">#</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">1000)&quot;</span>
+<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">prometheus</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">rangeQuery</span><span class="p">:</span>
+<span class="w">          </span><span class="c1"># See https://expr-lang.org/docs/language-definition#date-functions</span>
+<span class="w">          </span><span class="c1"># for value date functions</span>
+<span class="w">          </span><span class="c1"># The start point to query from</span>
+<span class="w">          </span><span class="nt">start</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;now()</span><span class="nv"> </span><span class="s">-</span><span class="nv"> </span><span class="s">duration(&quot;{{args.lookback-duration}}&quot;)&#39;</span>
+<span class="w">          </span><span class="c1"># The end point to query to</span>
+<span class="w">          </span><span class="nt">end</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;now()&#39;</span>
+<span class="w">          </span><span class="c1"># Query resolution width </span>
+<span class="w">          </span><span class="nt">step</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1m</span>
+<span class="w">        </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
+<span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http_latency_ms{service=&quot;{{args.service-name}}&quot;}</span>
+</code></pre></div>
+<h3 id="range-query-and-successconditionfailurecondition">Range query and successCondition/failureCondition<a class="headerlink" href="#range-query-and-successconditionfailurecondition" title="Permanent link">&para;</a></h3>
+<p>Since range queries will usually return multiple values from prometheus. It is important to assert on every value returned. See the following examples:</p>
+<ul>
+<li>❌ <code>result[0] &lt; 1000</code> - this will only check the first value returned</li>
+<li>✅ <code>all(result, # &lt; 1000)</code> - checks every value returns from prometheus</li>
+</ul>
+<p>See <a href="https://github.com/expr-lang/expr">expr</a> for more expression options.</p>
 <h2 id="authorization">Authorization<a class="headerlink" href="#authorization" title="Permanent link">&para;</a></h2>
 <h3 id="utilizing-amazon-managed-prometheus">Utilizing Amazon Managed Prometheus<a class="headerlink" href="#utilizing-amazon-managed-prometheus" title="Permanent link">&para;</a></h3>
 <p>Amazon Managed Prometheus can be used as the prometheus data source for analysis. In order to do this the namespace where your analysis is running will have to have the appropriate <a href="https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-onboard-ingest-metrics-new-Prometheus.html#AMP-onboard-new-Prometheus-IRSA">IRSA attached</a> to allow for prometheus queries. Once you ensure the proper permissions are in place to access AMP, you can use an AMP workspace url in your <code>provider</code> block and add a SigV4 config for Sigv4 signing:</p>
