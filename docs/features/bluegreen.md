@@ -1,6 +1,6 @@
 # BlueGreen Deployment Strategy
 
-A Blue Green Deployment allows users to reduce the amount of time multiple versions running at the same time.
+A Blue Green Deployment allows users to reduce the amount of time multiple versions are running at the same time.
 
 ## Overview
 
