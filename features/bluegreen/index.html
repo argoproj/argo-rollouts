@@ -3641,7 +3641,7 @@
 <p>The AutoPromotionEnabled will make the rollout automatically promote the new ReplicaSet to the active service once the new ReplicaSet is healthy. This field is defaulted to true if it is not specified.</p>
 <p>Defaults to true</p>
 <h3 id="autopromotionseconds">autoPromotionSeconds<a class="headerlink" href="#autopromotionseconds" title="Permanent link">&para;</a></h3>
-<p>The AutoPromotionSeconds will make the rollout automatically promote the new ReplicaSet to active Service after the AutoPromotionSeconds time has passed since the rollout has entered a paused state. If the <code>AutoPromotionEnabled</code> field is set to false, this field will be ignored</p>
+<p>Setting a positive non-zero value here would make the rollout automatically promote the new <code>ReplicaSet</code> to active Service after this much time has been elapsed since the rollout has entered a paused state. If the <code>AutoPromotionEnabled</code> field is set to <strong>false</strong>, this field would be ignored.</p>
 <p>Defaults to nil</p>
 <h3 id="antiaffinity">antiAffinity<a class="headerlink" href="#antiaffinity" title="Permanent link">&para;</a></h3>
 <p>Check out the <a href="../anti-affinity/anti-affinity/">Anti Affinity document</a> document for more information.</p>
