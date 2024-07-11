@@ -1334,6 +1334,17 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    NewRelic
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1343,6 +1354,34 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#additional-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Metadata
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -3239,6 +3278,23 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#additional-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Metadata
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -3302,6 +3358,22 @@
 <span class="w">  </span><span class="nt">base-url-rest</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;your-base-url&gt;</span>
 <span class="w">  </span><span class="nt">base-url-nerdgraph</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;your-base-url&gt;</span>
 </code></pre></div>
+<h2 id="additional-metadata">Additional Metadata<a class="headerlink" href="#additional-metadata" title="Permanent link">&para;</a></h2>
+<p>The New Relic provider returns the below metadata under the <code>Metadata</code> map in the <code>MetricsResult</code> object of <code>AnalysisRun</code>.</p>
+<table>
+<thead>
+<tr>
+<th>KEY</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ResolvedNewRelicQuery</td>
+<td>Resolved query after substituting the template's arguments</td>
+</tr>
+</tbody>
+</table>
 
 
 
