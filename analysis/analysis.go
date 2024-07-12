@@ -56,7 +56,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		run.Status.MetricResults = make([]v1alpha1.MetricResult, 0)
 	}
 
-	resolvedMetrics, err := getResolvedMetricsWithoutSecrets(run.Spec.Metrics, run.Spec.Args)
+	resolvedMetrics, err := getResolvedMetricsWithoutSecrets(run)
 	if err != nil {
 		message := fmt.Sprintf("Unable to resolve metric arguments: %v", err)
 		logger.Warn(message)
@@ -139,18 +139,25 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 	return run
 }
 
-func getResolvedMetricsWithoutSecrets(metrics []v1alpha1.Metric, args []v1alpha1.Argument) ([]v1alpha1.Metric, error) {
+func getResolvedMetricsWithoutSecrets(run *v1alpha1.AnalysisRun) ([]v1alpha1.Metric, error) {
 	newArgs := make([]v1alpha1.Argument, 0)
-	for _, arg := range args {
+	for _, arg := range run.Spec.Args {
 		newArg := arg.DeepCopy()
-		if newArg.ValueFrom != nil && newArg.ValueFrom.SecretKeyRef != nil {
-			newArg.ValueFrom = nil
-			newArg.Value = pointer.StringPtr("temp-for-secret")
+		if newArg.ValueFrom != nil {
+			if newArg.ValueFrom.SecretKeyRef != nil {
+				newArg.ValueFrom = nil
+				newArg.Value = pointer.StringPtr("temp-for-secret")
+			} else if newArg.ValueFrom.FieldRef != nil && newArg.ValueFrom.FieldRef.FieldPath != "" {
+				// Similar to SecretKeyRef, we can use FieldRef for some default values.
+				arg = resolveArgsFromValueFromFieldRef(arg, run.Namespace)
+				newArg = arg.DeepCopy()
+				newArg.ValueFrom = nil
+			}
 		}
 		newArgs = append(newArgs, *newArg)
 	}
 	resolvedMetrics := make([]v1alpha1.Metric, 0)
-	for _, metric := range metrics {
+	for _, metric := range run.Spec.Metrics {
 		resolvedMetric, err := analysisutil.ResolveMetricArgs(metric, newArgs)
 		if err != nil {
 			return nil, err
@@ -260,6 +267,21 @@ func parseMetricInterval(logCtx log.Entry, metricDurationString v1alpha1.Duratio
 	return metricInterval, nil
 }
 
+// resolveArgsFromValueFromFieldRef resolves args when using ValueFrom.FieldRef.FieldPath
+// returns argument with default value from lookup
+func resolveArgsFromValueFromFieldRef(arg v1alpha1.Argument, namespace string) v1alpha1.Argument {
+	if arg.ValueFrom.FieldRef != nil && arg.ValueFrom.FieldRef.FieldPath != "" {
+		switch arg.ValueFrom.FieldRef.FieldPath {
+		case "metadata.namespace":
+			resolvedArg := arg.DeepCopy()
+			resolvedArg.Value = pointer.String(namespace)
+			return *resolvedArg
+		}
+	}
+
+	return arg
+}
+
 // resolveArgs resolves args for metricTasks, including secret references
 // returns resolved metricTasks and secrets for log redaction
 func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, namespace string) ([]metricTask, []string, error) {
@@ -268,23 +290,27 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 	for i, arg := range args {
 		//if secret specified in valueFrom, replace value with secret value
 		//error if arg has both value and valueFrom
-		if arg.ValueFrom != nil && arg.ValueFrom.SecretKeyRef != nil {
-			name := arg.ValueFrom.SecretKeyRef.Name
-			secret, err := c.kubeclientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-			if err != nil {
-				return nil, nil, err
-			}
+		if arg.ValueFrom != nil {
+			if arg.ValueFrom.SecretKeyRef != nil {
+				name := arg.ValueFrom.SecretKeyRef.Name
+				secret, err := c.kubeclientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+				if err != nil {
+					return nil, nil, err
+				}
 
-			secretContentBytes, ok := secret.Data[arg.ValueFrom.SecretKeyRef.Key]
-			if !ok {
-				err := fmt.Errorf("key '%s' does not exist in secret '%s'", arg.ValueFrom.SecretKeyRef.Key, arg.ValueFrom.SecretKeyRef.Name)
-				return nil, nil, err
+				secretContentBytes, ok := secret.Data[arg.ValueFrom.SecretKeyRef.Key]
+				if !ok {
+					err := fmt.Errorf("key '%s' does not exist in secret '%s'", arg.ValueFrom.SecretKeyRef.Key, arg.ValueFrom.SecretKeyRef.Name)
+					return nil, nil, err
+				}
+				secretContent := string(secretContentBytes)
+				secretSet[secretContent] = true
+				resolvedArg := arg.DeepCopy()
+				resolvedArg.Value = &secretContent
+				args[i] = *resolvedArg
+			} else if arg.ValueFrom.FieldRef != nil && arg.ValueFrom.FieldRef.FieldPath != "" {
+				args[i] = resolveArgsFromValueFromFieldRef(arg, namespace)
 			}
-			secretContent := string(secretContentBytes)
-			secretSet[secretContent] = true
-			resolvedArg := arg.DeepCopy()
-			resolvedArg.Value = &secretContent
-			args[i] = *resolvedArg
 		} else {
 			args[i] = arg
 		}
@@ -721,7 +747,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Me
 func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, measurementRetentionMetricNamesMap map[string]*v1alpha1.MeasurementRetention, limit int) error {
 	var errors []error
 
-	resolvedArgsMetric, err := getResolvedMetricsWithoutSecrets(run.Spec.Metrics, run.Spec.Args)
+	resolvedArgsMetric, err := getResolvedMetricsWithoutSecrets(run)
 	if err != nil {
 		return fmt.Errorf("failed to resolve args on metrics during garbage collection: %w", err)
 	}
