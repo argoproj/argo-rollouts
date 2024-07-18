@@ -1,0 +1,42 @@
+type: default
+team: KCS
+group: platform
+service: argo-rollouts
+
+# Validate the formatting of the pipeline.yaml file.
+validate_config: true
+
+environment_image:
+  file: ".acquia/Dockerfile.ci"
+  context: "."
+  build_args:
+    - secrets:
+      - type: vault
+        key: SSH_KEY
+        value: GIT_SSH_KEY
+        path: secret/pipeline-default/GIT_SSH_KEY
+
+pre_build:
+  code_analysis:
+    required: false
+  check_fips:
+    - steps:
+      - cd /argo-rollouts
+      - make check-fips
+
+build:
+  service_image:
+    - name: argo-rollouts/rollouts-controller
+      file: "Dockerfile-FIPS"
+      context: "."
+      build_args:
+        - secrets:
+          - type: vault
+            key: SSH_KEY
+            value: GIT_SSH_KEY
+            path: secret/pipeline-default/GIT_SSH_KEY
+
+security_scan:
+  scanner: orca
+  ignore_failures: true
+  reason: This service is only used for building base FIPS complaint image
