@@ -580,13 +580,13 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			roCtx.otherRSs = replicasetutil.GetOtherRSs(roCtx.rollout, roCtx.newRS, roCtx.stableRS, rsList)
 			roCtx.allRSs = append(rsList, roCtx.newRS)
 		} else {
-			//This loop triggers during races where the newRS is not set but the newRS is already created
+			//This loop triggers when using workload references
 			logCtx.Warnf("newRS found via label lookup, use it and don't create a new one")
-			//roCtx.newRS = replicasetutil.FindNewReplicaSet(roCtx.rollout, rsList)
-			//roCtx.olderRSs = replicasetutil.FindOldReplicaSets(roCtx.rollout, rsList, roCtx.newRS)
-			//roCtx.stableRS = replicasetutil.GetStableRS(roCtx.rollout, roCtx.newRS, roCtx.olderRSs)
-			//roCtx.otherRSs = replicasetutil.GetOtherRSs(roCtx.rollout, roCtx.newRS, roCtx.stableRS, rsList)
-			//roCtx.allRSs = rsList
+			roCtx.newRS = replicasetutil.FindNewReplicaSet(roCtx.rollout, rsList)
+			roCtx.olderRSs = replicasetutil.FindOldReplicaSets(roCtx.rollout, rsList, roCtx.newRS)
+			roCtx.stableRS = replicasetutil.GetStableRS(roCtx.rollout, roCtx.newRS, roCtx.olderRSs)
+			roCtx.otherRSs = replicasetutil.GetOtherRSs(roCtx.rollout, roCtx.newRS, roCtx.stableRS, rsList)
+			roCtx.allRSs = rsList
 		}
 	}
 
