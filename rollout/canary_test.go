@@ -1,7 +1,6 @@
 package rollout
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -2117,59 +2116,6 @@ func TestIsDynamicallyRollingBackToStable(t *testing.T) {
 			assert.Equal(t, tc.expectedResult, rbToStable)
 		})
 	}
-}
-
-func TestCanaryReplicaAndSpecChangedTogether(t *testing.T) {
-	t.Skip("Needs to be fixed")
-	f := newFixture(t)
-	defer f.Close()
-
-	originReplicas := 3
-	r1 := newCanaryRollout("foo", originReplicas, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
-	canarySVCName := "canary"
-	stableSVCName := "stable"
-	r1.Spec.Strategy.Canary.CanaryService = canarySVCName
-	r1.Spec.Strategy.Canary.StableService = stableSVCName
-
-	stableRS := newReplicaSetWithStatus(r1, originReplicas, originReplicas)
-	stableSVC := newService(stableSVCName, 80,
-		map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, r1)
-
-	r2 := bumpVersion(r1)
-	canaryRS := newReplicaSetWithStatus(r2, originReplicas, originReplicas)
-	canarySVC := newService(canarySVCName, 80,
-		map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: canaryRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, r2)
-
-	f.replicaSetLister = append(f.replicaSetLister, canaryRS, stableRS)
-	f.serviceLister = append(f.serviceLister, canarySVC, stableSVC)
-
-	r3 := bumpVersion(r2)
-	r3.Spec.Replicas = pointer.Int32(int32(originReplicas) + 5)
-	r3.Status.StableRS = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r3.Status.CurrentPodHash = canaryRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-
-	f.rolloutLister = append(f.rolloutLister, r3)
-	f.kubeobjects = append(f.kubeobjects, canaryRS, stableRS, canarySVC, stableSVC)
-	f.objects = append(f.objects, r3)
-
-	ctrl, _, _ := f.newController(noResyncPeriodFunc)
-	roCtx, err := ctrl.newRolloutContext(r3)
-	assert.NoError(t, err)
-	err = roCtx.reconcile()
-	assert.NoError(t, err)
-	_, err = roCtx.reconcileCanaryReplicaSets()
-	assert.NoError(t, err)
-
-	err = roCtx.reconcile()
-	assert.NoError(t, err)
-	err = roCtx.reconcile()
-	assert.NoError(t, err)
-
-	updated, err := f.kubeclient.AppsV1().ReplicaSets(r3.Namespace).Get(context.Background(), "foo-599766bf6", metav1.GetOptions{})
-	//ctrl.rolloutsIndexer.Get(getKey(r3, t))
-	assert.NoError(t, err)
-	// check the canary one is updated
-	assert.NotEqual(t, originReplicas, int(*updated.Spec.Replicas))
 }
 
 func TestSyncRolloutWithConflictInScaleReplicaSet(t *testing.T) {

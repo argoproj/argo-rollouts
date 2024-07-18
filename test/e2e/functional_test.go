@@ -1615,3 +1615,48 @@ spec:
 		Then().
 		ExpectDeploymentReplicasCount("The deployment has not been scaled", "rollout-ref-deployment", 2)
 }
+
+func (s *FunctionalSuite) TestSpecAndReplicaChangeSameTime() {
+	s.Given().
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: canary-change-same-time
+spec:
+  replicas: 2
+  strategy:
+    canary:
+      steps:
+      - pause: {duration: 5s}
+  selector:
+    matchLabels:
+      app: canary-change-same-time
+  template:
+    metadata:
+      labels:
+        app: canary-change-same-time
+    spec:
+      containers:
+      - name: canary-change-same-time
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		PatchSpec(`
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+      - name: canary-change-same-time
+        env:
+          - name: TEST
+            value: test`).
+		WaitForRolloutStatus("Progressing").
+		WaitForRolloutStatus("Healthy").Then().
+		ExpectReplicaCounts(3, 3, 3, 3, 3)
+}
