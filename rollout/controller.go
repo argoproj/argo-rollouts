@@ -549,7 +549,6 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	}
 
 	if roCtx.newRS == nil {
-		foundRS := false
 		podHash := hash.ComputePodTemplateHash(&roCtx.rollout.Spec.Template, roCtx.rollout.Status.CollisionCount)
 
 		// Look at rollouts selector and find all replica sets with that selector
@@ -564,6 +563,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 
 		// Go through the replicasets that have the same selector as the rollout object and if the pod hash matches the
 		// current rollout pod hash, set the foundRS to true so that we don't create a new replica set
+		foundRS := false
 		for _, rs := range rsList {
 			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == podHash {
 				foundRS = true
@@ -580,11 +580,13 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			roCtx.otherRSs = replicasetutil.GetOtherRSs(roCtx.rollout, roCtx.newRS, roCtx.stableRS, rsList)
 			roCtx.allRSs = append(rsList, roCtx.newRS)
 		} else {
-			roCtx.newRS = replicasetutil.FindNewReplicaSet(roCtx.rollout, rsList)
-			roCtx.olderRSs = replicasetutil.FindOldReplicaSets(roCtx.rollout, rsList, roCtx.newRS)
-			roCtx.stableRS = replicasetutil.GetStableRS(roCtx.rollout, roCtx.newRS, roCtx.olderRSs)
-			roCtx.otherRSs = replicasetutil.GetOtherRSs(roCtx.rollout, roCtx.newRS, roCtx.stableRS, rsList)
-			roCtx.allRSs = rsList
+			//This loop triggers during races where the newRS is not set but the newRS is already created
+			logCtx.Warnf("newRS found via label lookup, use it and don't create a new one")
+			//roCtx.newRS = replicasetutil.FindNewReplicaSet(roCtx.rollout, rsList)
+			//roCtx.olderRSs = replicasetutil.FindOldReplicaSets(roCtx.rollout, rsList, roCtx.newRS)
+			//roCtx.stableRS = replicasetutil.GetStableRS(roCtx.rollout, roCtx.newRS, roCtx.olderRSs)
+			//roCtx.otherRSs = replicasetutil.GetOtherRSs(roCtx.rollout, roCtx.newRS, roCtx.stableRS, rsList)
+			//roCtx.allRSs = rsList
 		}
 	}
 
