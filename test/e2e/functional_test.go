@@ -1628,6 +1628,9 @@ spec:
   strategy:
     canary:
       steps:
+      - setWeight: 10
+      - pause: {duration: 10s}
+      - setWeight: 20
       - pause: {duration: 5s}
   selector:
     matchLabels:
@@ -1646,6 +1649,7 @@ spec:
             cpu: 1m
 `).
 		When().
+		WaitForRolloutStatus("Healthy").
 		PatchSpec(`
 spec:
   replicas: 3
@@ -1656,7 +1660,17 @@ spec:
         env:
           - name: TEST
             value: test`).
-		WaitForRolloutStatus("Progressing").
+		WaitForRolloutStatus("Paused").
+		PatchSpec(`
+spec:
+  replicas: 4
+  template:
+    spec:
+      containers:
+      - name: canary-change-same-time
+        env:
+          - name: TEST
+            value: test-new`).
 		WaitForRolloutStatus("Healthy").Then().
-		ExpectReplicaCounts(3, 3, 3, 3, 3)
+		ExpectReplicaCounts(4, 4, 4, 4, 4)
 }
