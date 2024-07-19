@@ -1112,6 +1112,10 @@ message NewRelicMetric {
 
   // Query is a raw newrelic NRQL query to perform
   optional string query = 2;
+
+  // Timeout represents the duration limit in seconds that will apply to the NRQL query
+  // +optional
+  optional int64 timeout = 3;
 }
 
 // NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing

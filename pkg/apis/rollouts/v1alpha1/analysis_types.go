@@ -297,6 +297,9 @@ type NewRelicMetric struct {
 	Profile string `json:"profile,omitempty" protobuf:"bytes,1,opt,name=profile"`
 	// Query is a raw newrelic NRQL query to perform
 	Query string `json:"query" protobuf:"bytes,2,opt,name=query"`
+	// Timeout represents the duration limit in seconds that will apply to the NRQL query
+	// +optional
+	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,3,opt,name=timeout"`
 }
 
 // JobMetric defines a job to run which acts as a metric
