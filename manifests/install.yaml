@@ -13446,12 +13446,12 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                              annotationPrefix:
+                                type: string
                               canaryIngressAnnotations:
                                 additionalProperties:
                                   type: string
                                 type: object
-                              annotationPrefix:
-                                type: string
                               stableIngress:
                                 type: string
                               stableIngresses:
