@@ -425,6 +425,8 @@ spec:
           additionalIngressAnnotations:   # optional
             canary-by-header: X-Canary
             canary-by-header-value: iwantsit
+          additionalIngressAnnotations:   # optional
+            my-custom-annotation.mygroup.com/key: value
 
         # ALB Ingress Controller routing configuration
         alb:
