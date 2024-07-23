@@ -556,7 +556,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		if err != nil {
 			return nil, err
 		}
-		rsList, err := c.replicaSetLister.ReplicaSets(roCtx.rollout.Namespace).List(s)
+		rsListK8s, err := c.replicaSetLister.ReplicaSets(roCtx.rollout.Namespace).List(s)
 		if err != nil {
 			return nil, err
 		}
@@ -564,7 +564,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		// Go through the replicasets that have the same selector as the rollout object and if the pod hash matches the
 		// current rollout pod hash, set the foundRS to true so that we don't create a new replica set
 		foundRS := false
-		for _, rs := range rsList {
+		for _, rs := range rsListK8s {
 			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == podHash {
 				foundRS = true
 			}
