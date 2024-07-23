@@ -484,15 +484,15 @@ func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {
-	rsList, err := c.getReplicaSetsForRollouts(rollout)
+	rsListForRollout, err := c.getReplicaSetsForRollouts(rollout)
 	if err != nil {
 		return nil, err
 	}
 
-	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
-	olderRSs := replicasetutil.FindOldReplicaSets(rollout, rsList, newRS)
+	newRS := replicasetutil.FindNewReplicaSet(rollout, rsListForRollout)
+	olderRSs := replicasetutil.FindOldReplicaSets(rollout, rsListForRollout, newRS)
 	stableRS := replicasetutil.GetStableRS(rollout, newRS, olderRSs)
-	otherRSs := replicasetutil.GetOtherRSs(rollout, newRS, stableRS, rsList)
+	otherRSs := replicasetutil.GetOtherRSs(rollout, newRS, stableRS, rsListForRollout)
 
 	exList, err := c.getExperimentsForRollout(rollout)
 	if err != nil {
@@ -515,7 +515,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		stableRS:   stableRS,
 		olderRSs:   olderRSs,
 		otherRSs:   otherRSs,
-		allRSs:     rsList,
+		allRSs:     rsListForRollout,
 		currentArs: currentArs,
 		otherArs:   otherArs,
 		currentEx:  currentEx,
@@ -556,7 +556,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		if err != nil {
 			return nil, err
 		}
-		rsListK8s, err := c.replicaSetLister.ReplicaSets(roCtx.rollout.Namespace).List(s)
+		rsList, err := c.replicaSetLister.ReplicaSets(roCtx.rollout.Namespace).List(s)
 		if err != nil {
 			return nil, err
 		}
@@ -564,7 +564,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		// Go through the replicasets that have the same selector as the rollout object and if the pod hash matches the
 		// current rollout pod hash, set the foundRS to true so that we don't create a new replica set
 		foundRS := false
-		for _, rs := range rsListK8s {
+		for _, rs := range rsList {
 			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == podHash {
 				foundRS = true
 			}
