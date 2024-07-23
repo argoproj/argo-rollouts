@@ -17,3 +17,4 @@ plugin-bin/
 # static
 server/static/*
 !server/static/.gitkeep
+e2e-coverage-output/

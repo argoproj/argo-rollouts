@@ -235,7 +235,8 @@ test-kustomize: ## run kustomize tests
 
 .PHONY: start-e2e
 start-e2e: ## start e2e test environment
-	go run ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6
+	mkdir -p e2e-coverage-output
+	GOCOVERDIR=e2e-coverage-output go run -cover ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6
 
 .PHONY: test-e2e
 test-e2e: install-devtools-local

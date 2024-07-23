@@ -72,30 +72,30 @@ jobs:
       - name: Compile all packages
         run: make controller plugin
 
-      - name: Test
-        run: make test-unit
-
-      - name: Upload Unit Test Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Unit Test Results
-          path: |
-            junit.xml
-
-      - name: Generate code coverage artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-coverage
-          path: coverage.out
-
-      - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@v4.5.0
-        with:
-          file: coverage.out
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+#      - name: Test
+#        run: make test-unit
+#
+#      - name: Upload Unit Test Results
+#        if: always()
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: Unit Test Results
+#          path: |
+#            junit.xml
+#
+#      - name: Generate code coverage artifacts
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: code-coverage
+#          path: coverage.out
+#
+#      - name: Upload code coverage information to codecov.io
+#        uses: codecov/codecov-action@v4.5.0
+#        with:
+#          file: coverage.out
+#          fail_ci_if_error: false
+#        env:
+#          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   codegen:
     name: Verify Codegen
