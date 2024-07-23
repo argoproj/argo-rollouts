@@ -149,7 +149,7 @@ jobs:
         if: ${{ matrix.k3s.latest }}
 
   coverage-process:
-    name: Run end-to-end tests
+    name: Process Coverage Files
     runs-on: ubuntu-latest
     needs:
       - test-unit
