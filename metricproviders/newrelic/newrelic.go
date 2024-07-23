@@ -41,7 +41,7 @@ type gqlNrglQueryResponse struct {
 const gqlNrqlQuery = `query (
 	$query: Nrql!, 
 	$accountId: Int!,
-  $timeout: Seconds!
+    $timeout: Seconds!
 ) 
 {
   actor {
