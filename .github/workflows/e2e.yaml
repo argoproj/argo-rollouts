@@ -146,8 +146,8 @@ jobs:
       - name: Generate code coverage artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-coverage-output
-          path: e2e-coverage-output
+          name: coverage-output-e2e
+          path: coverage-output-e2e
   coverage-process:
     name: Run end-to-end tests
     runs-on: ubuntu-latest
@@ -163,10 +163,20 @@ jobs:
       - name: Get e2e code coverage
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: e2e-coverage-output
-          path: e2e-coverage-output
+          name: coverage-output-e2e
+          path: coverage-output-e2e
       - name: Get unit test code coverage
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: code-coverage
-          path: coverage.out
+          name: coverage-output-unit
+          path: coverage-output-unit
+      - name: combine-go-coverage
+        run: |
+          go tool covdata percent -i=coverage-output-unit/,coverage-output-e2e/ -o full-coverage.out
+      - name: Upload code coverage information to codecov.io
+        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
+        with:
+          file: full-coverage.out
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

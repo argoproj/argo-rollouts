@@ -235,8 +235,8 @@ test-kustomize: ## run kustomize tests
 
 .PHONY: start-e2e
 start-e2e: ## start e2e test environment
-	mkdir -p e2e-coverage-output
-	GOCOVERDIR=e2e-coverage-output go run -cover ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6
+	mkdir -p coverage-output-e2e
+	GOCOVERDIR=coverage-output-e2e go run -cover ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6
 
 .PHONY: test-e2e
 test-e2e: install-devtools-local
@@ -244,7 +244,8 @@ test-e2e: install-devtools-local
 
 .PHONY: test-unit
  test-unit: install-devtools-local ## run unit tests
-	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname -- -covermode=count -coverprofile=coverage.out `go list ./... | grep -v ./test/cmd/metrics-plugin-sample`
+	mkdir -p coverage-output-unit
+	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname -- -covermode=count -coverprofile=coverage-output-unit/coverage.out `go list ./... | grep -v ./test/cmd/metrics-plugin-sample`
 
 
 .PHONY: coverage
