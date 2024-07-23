@@ -9,6 +9,15 @@ on:
 permissions: {}
 
 jobs:
+  event_file:
+    name: 'Event File'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: Event File
+          path: ${{ github.event_path }}
   test-results:
     name: "${{ github.event.workflow.name }} Test Results"
     runs-on: ubuntu-latest
