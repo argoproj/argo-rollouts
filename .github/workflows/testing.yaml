@@ -72,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: code-coverage
-          path: coverage.out
+          path: coverage-output-unit/coverage.out
 
   test-e2e:
     strategy:
