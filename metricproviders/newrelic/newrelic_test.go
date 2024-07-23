@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
+	"github.com/newrelic/newrelic-client-go/v2/pkg/nrdb"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
