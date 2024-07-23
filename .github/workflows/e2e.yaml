@@ -1,4 +1,4 @@
-name: Unit and E2E Tests
+name: Testing
 
 on:
   push:
@@ -146,7 +146,7 @@ jobs:
         with:
           name: coverage-output-e2e
           path: coverage-output-e2e
-        if: ${{ matrix.k3s.latest }}
+        if: ${{ matrix.kubernetes.latest }}
 
   coverage-process:
     name: Process Coverage Files
