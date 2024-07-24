@@ -23,6 +23,7 @@ jobs:
         with:
           run-id: ${{ github.event.workflow_run.id }}
           path: artifacts
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
