@@ -1,0 +1,37 @@
+# use separate workflow to support fork repositories and dependabot branches when publishing test results: see https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
+name: Testing Results
+
+on:
+  workflow_run:
+    workflows: ["Testing"]
+    types:
+      - completed
+permissions: {}
+
+jobs:
+  test-results:
+    name: "${{ github.event.workflow.name }} Test Results"
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion != 'skipped'
+    permissions:
+      checks: write
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Download and Extract Artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          run_id: ${{ github.event.workflow_run.id }}
+          path: artifacts
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          check_name: "${{ github.event.workflow.name }} Published Test Results"
+          compare_to_earlier_commit: false
+          test_changes_limit: 0
+          fail_on: "errors"
+          commit: ${{ github.event.workflow_run.head_sha }}
+          event_file: artifacts/Event File/event.json
+          event_name: ${{ github.event.workflow_run.event }}
+          files: "artifacts/**/*.xml"
