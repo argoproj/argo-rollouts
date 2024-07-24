@@ -3,7 +3,7 @@ name: Test Results
 
 on:
   workflow_run:
-    workflows: ["Testing", "Go"]
+    workflows: ["Testing"]
     types:
       - completed
 permissions: {}
