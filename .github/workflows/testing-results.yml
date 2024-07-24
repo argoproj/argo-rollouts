@@ -28,7 +28,6 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           check_name: "${{ github.event.workflow.name }} Published Test Results"
-          junit_files: "artifacts/**/junit.xml"
           compare_to_earlier_commit: false
           test_changes_limit: 0
           fail_on: "errors"
