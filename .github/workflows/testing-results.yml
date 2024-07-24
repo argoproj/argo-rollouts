@@ -1,5 +1,5 @@
 # use separate workflow to support fork repositories and dependabot branches when publishing test results: see https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
-name: Test Results
+name: Testing Results
 
 on:
   workflow_run:
