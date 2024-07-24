@@ -39,31 +39,15 @@ type gqlNrglQueryResponse struct {
 }
 
 const gqlNrqlQuery = `query (
-	$query: Nrql!, 
-	$accountId: Int!,
-    $timeout: Seconds!
-) 
+  $query: Nrql!, 
+  $accountId: Int!,
+  $timeout: Seconds!
+)
 {
   actor {
     account(id: $accountId) {
       nrql(query: $query, timeout: $timeout) {
-        currentResults
-        otherResult
-        previousResults
         results
-        totalResult
-        metadata {
-          eventTypes
-          facets
-          messages
-          timeWindow {
-            begin
-            compareWith
-            end
-            since
-            until
-          }
-        }
       }
     }
   }
