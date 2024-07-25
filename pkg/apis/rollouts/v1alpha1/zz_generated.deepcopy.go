@@ -1853,6 +1853,13 @@ func (in *NginxTrafficRouting) DeepCopyInto(out *NginxTrafficRouting) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.CanaryIngressAnnotations != nil {
+		in, out := &in.CanaryIngressAnnotations, &out.CanaryIngressAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

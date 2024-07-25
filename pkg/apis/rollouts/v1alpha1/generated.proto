@@ -1133,6 +1133,9 @@ message NginxTrafficRouting {
   // StableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario
   // +optional
   repeated string stableIngresses = 4;
+
+  // +optional
+  map<string, string> canaryIngressAnnotations = 5;
 }
 
 message OAuth2Config {
