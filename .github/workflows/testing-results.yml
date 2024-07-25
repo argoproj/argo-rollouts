@@ -25,14 +25,25 @@ jobs:
           path: artifacts
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish Test Results
+      - name: Publish E2E Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
-          check_name: "${{ github.event.workflow.name }} Published Test Results"
+          check_name: "Published E2E Test Results"
           compare_to_earlier_commit: false
           test_changes_limit: 0
           fail_on: "errors"
           commit: ${{ github.event.workflow_run.head_sha }}
           event_file: artifacts/Event File/event.json
           event_name: ${{ github.event.workflow_run.event }}
-          files: "artifacts/**/*.xml"
+          files: "artifacts/junit-e2e-test.xml/*.xml"
+      - name: Publish Unit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          check_name: "Published Unit Test Results"
+          compare_to_earlier_commit: false
+          test_changes_limit: 0
+          fail_on: "errors"
+          commit: ${{ github.event.workflow_run.head_sha }}
+          event_file: artifacts/Event File/event.json
+          event_name: ${{ github.event.workflow_run.event }}
+          files: "artifacts/junit-unit-test.xml/*.xml"
