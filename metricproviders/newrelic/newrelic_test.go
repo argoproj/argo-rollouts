@@ -40,12 +40,13 @@ func TestRunSuccessfully(t *testing.T) {
 		FailureCondition: "result.count != 10",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query: "test",
+				Query: "resolved-query",
 			},
 		},
 	}
 	metricsMetadata := p.GetMetadata(metric)
-	assert.Nil(t, metricsMetadata)
+	assert.NotNil(t, metricsMetadata)
+	assert.Equal(t, "resolved-query", metricsMetadata[resolvedNewRelicQuery])
 
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
@@ -60,7 +61,8 @@ func TestRunWithTimeseries(t *testing.T) {
 		response: []nrdb.NRDBResult{
 			map[string]any{"count": 10},
 			map[string]any{"count": 20},
-			map[string]any{"count": 30}},
+			map[string]any{"count": 30},
+		},
 	}
 	p := NewNewRelicProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -69,12 +71,13 @@ func TestRunWithTimeseries(t *testing.T) {
 		FailureCondition: "result[2].count < 20",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query: "test",
+				Query: "resolved-query",
 			},
 		},
 	}
 	metricsMetadata := p.GetMetadata(metric)
-	assert.Nil(t, metricsMetadata)
+	assert.NotNil(t, metricsMetadata)
+	assert.Equal(t, "resolved-query", metricsMetadata[resolvedNewRelicQuery])
 
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
@@ -95,12 +98,13 @@ func TestRunWithFacet(t *testing.T) {
 		FailureCondition: "result.count != 10 or result['average.duration'] >= 15.0",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query: "test",
+				Query: "resolved-query",
 			},
 		},
 	}
 	metricsMetadata := p.GetMetadata(metric)
-	assert.Nil(t, metricsMetadata)
+	assert.NotNil(t, metricsMetadata)
+	assert.Equal(t, "resolved-query", metricsMetadata[resolvedNewRelicQuery])
 
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
@@ -121,12 +125,13 @@ func TestRunWithMultipleSelectTerms(t *testing.T) {
 		FailureCondition: "result.count != 10",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query: "test",
+				Query: "resolved-query",
 			},
 		},
 	}
 	metricsMetadata := p.GetMetadata(metric)
-	assert.Nil(t, metricsMetadata)
+	assert.NotNil(t, metricsMetadata)
+	assert.Equal(t, "resolved-query", metricsMetadata[resolvedNewRelicQuery])
 
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)

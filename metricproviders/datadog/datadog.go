@@ -224,6 +224,10 @@ func (p *Provider) createRequestV2(queries map[string]string, formula string, no
 			"formula": formula,
 		}}
 	}
+	// we cannot leave aggregator empty as it will be passed as such to datadog API and fail
+	if aggregator == "" {
+		aggregator = "last"
+	}
 
 	attribs := datadogQueryAttributes{
 		// Datadog requires milliseconds for v2 api

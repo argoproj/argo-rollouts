@@ -447,6 +447,8 @@ type NginxTrafficRouting struct {
 	// StableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario
 	// +optional
 	StableIngresses []string `json:"stableIngresses,omitempty" protobuf:"bytes,4,rep,name=stableIngresses"`
+	// +optional
+	CanaryIngressAnnotations map[string]string `json:"canaryIngressAnnotations,omitempty" protobuf:"bytes,5,rep,name=canaryIngressAnnotations"`
 }
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration

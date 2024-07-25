@@ -944,6 +944,10 @@ spec:
                                 type: object
                               annotationPrefix:
                                 type: string
+                              canaryIngressAnnotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               stableIngress:
                                 type: string
                               stableIngresses:

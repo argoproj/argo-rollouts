@@ -18,7 +18,7 @@ const (
 
 const (
 	terminateExample = `
-	# Terminate an analysisRun
+	# Terminate an AnalysisRun
 	%[1]s terminate analysisrun guestbook-877894d5b-4-success-rate.1
 
 	# Terminate a failed experiment
@@ -26,7 +26,7 @@ const (
 
 	terminateAnalysisRunExample = `
 	# Terminate an AnalysisRun
-	%[1]s terminate analysis guestbook-877894d5b-4-success-rate.1`
+	%[1]s terminate analysisrun guestbook-877894d5b-4-success-rate.1`
 
 	terminateExperimentExample = `
 	# Terminate an experiment

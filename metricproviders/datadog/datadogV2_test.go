@@ -52,6 +52,16 @@ func newQueryProviderInterval10m() v1alpha1.MetricProvider {
 	}
 }
 
+func newQueryProviderSumAggregator() v1alpha1.MetricProvider {
+	return v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query:      "avg:kubernetes.cpu.user.total{*}",
+			Interval:   "5m",
+			Aggregator: "sum",
+			ApiVersion: "v2",
+		},
+	}
+}
 func TestRunSuiteV2(t *testing.T) {
 	const expectedApiKey = "0123456789abcdef0123456789abcdef"
 	const expectedAppKey = "0123456789abcdef0123456789abcdef01234567"
@@ -68,6 +78,7 @@ func TestRunSuiteV2(t *testing.T) {
 		expectedValue           string
 		expectedPhase           v1alpha1.AnalysisPhase
 		expectedErrorMessage    string
+		expectedAggregator      string
 		useEnvVarForKeys        bool
 	}{
 		{
@@ -252,6 +263,21 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
+
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"data": {"attributes": {"columns": [ {"values": [0.006121378742186943]}]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "success with default and data",
+				SuccessCondition: "default(result, 0) < 0.05",
+				Provider:         newQueryProviderSumAggregator(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "0.006121378742186943",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedAggregator:      "sum",
+			useEnvVarForKeys:        false,
+		},
 	}
 
 	// Run
@@ -296,6 +322,16 @@ func TestRunSuiteV2(t *testing.T) {
 
 					if usesFormula && len(actualFormulas) == 0 {
 						t.Errorf("\nExpected formula but no Formulas in request: %+v", actualFormulas)
+					}
+				}
+				// Check query aggregation being set
+				expectedAggregator := test.expectedAggregator
+				if expectedAggregator == "" {
+					expectedAggregator = "last"
+				}
+				for _, query := range actualQueries {
+					if query["aggregator"] != expectedAggregator {
+						t.Errorf("\naggregator expected %s but got %s", expectedAggregator, query["aggregator"])
 					}
 				}
 

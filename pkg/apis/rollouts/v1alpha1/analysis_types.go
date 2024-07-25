@@ -218,6 +218,16 @@ func (as AnalysisPhase) Completed() bool {
 	return false
 }
 
+// Arguments to perform a prometheus range query
+type PrometheusRangeQueryArgs struct {
+	// The start time to query in expr format e.g. now(), now() - duration("1h"), now() - duration("{{args.lookback_duration}}")
+	Start string `json:"start,omitempty" protobuf:"bytes,1,opt,name=start"`
+	// The end time to query in expr format e.g. now(), now() - duration("1h"), now() - duration("{{args.lookback_duration}}")
+	End string `json:"end,omitempty" protobuf:"bytes,2,opt,name=end"`
+	// The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).
+	Step DurationString `json:"step,omitempty" protobuf:"bytes,3,opt,name=step,casttype=DurationString"`
+}
+
 // PrometheusMetric defines the prometheus query to perform canary analysis
 type PrometheusMetric struct {
 	// Address is the HTTP address and port of the prometheus server
@@ -237,6 +247,9 @@ type PrometheusMetric struct {
 	// +patchMergeKey=key
 	// +patchStrategy=merge
 	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,6,opt,name=headers"`
+	// Arguments for prometheus
+	// +optional
+	RangeQuery *PrometheusRangeQueryArgs `json:"rangeQuery,omitempty" protobuf:"bytes,7,opt,name=rangeQuery"`
 }
 
 // Authentication method
@@ -601,8 +614,7 @@ type DatadogMetric struct {
 	// +kubebuilder:validation:Enum=v1;v2
 	// +kubebuilder:default=v1
 	ApiVersion string `json:"apiVersion,omitempty" protobuf:"bytes,5,opt,name=apiVersion"`
-	// +kubebuilder:default="last"
 	// +kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area
-	// Aggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2
+	// Aggregator is a type of aggregator to use for metrics-based queries (default: ""). Used for v2
 	Aggregator string `json:"aggregator,omitempty" protobuf:"bytes,6,opt,name=aggregator"`
 }

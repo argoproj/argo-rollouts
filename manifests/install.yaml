@@ -180,7 +180,6 @@ spec:
                         datadog:
                           properties:
                             aggregator:
-                              default: last
                               enum:
                               - avg
                               - min
@@ -3068,6 +3067,15 @@ spec:
                               type: boolean
                             query:
                               type: string
+                            rangeQuery:
+                              properties:
+                                end:
+                                  type: string
+                                start:
+                                  type: string
+                                step:
+                                  type: string
+                              type: object
                             timeout:
                               format: int64
                               type: integer
@@ -3470,7 +3478,6 @@ spec:
                         datadog:
                           properties:
                             aggregator:
-                              default: last
                               enum:
                               - avg
                               - min
@@ -6358,6 +6365,15 @@ spec:
                               type: boolean
                             query:
                               type: string
+                            rangeQuery:
+                              properties:
+                                end:
+                                  type: string
+                                start:
+                                  type: string
+                                step:
+                                  type: string
+                              type: object
                             timeout:
                               format: int64
                               type: integer
@@ -6638,7 +6654,6 @@ spec:
                         datadog:
                           properties:
                             aggregator:
-                              default: last
                               enum:
                               - avg
                               - min
@@ -9526,6 +9541,15 @@ spec:
                               type: boolean
                             query:
                               type: string
+                            rangeQuery:
+                              properties:
+                                end:
+                                  type: string
+                                start:
+                                  type: string
+                                step:
+                                  type: string
+                              type: object
                             timeout:
                               format: int64
                               type: integer
@@ -13434,6 +13458,10 @@ spec:
                                 type: object
                               annotationPrefix:
                                 type: string
+                              canaryIngressAnnotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               stableIngress:
                                 type: string
                               stableIngresses:
@@ -16469,6 +16497,7 @@ rules:
   - get
   - list
   - watch
+  - update
 - apiGroups:
   - ""
   resources:
@@ -16806,6 +16835,9 @@ spec:
           periodSeconds: 5
           successThreshold: 1
           timeoutSeconds: 4
+        resources:
+          limits:
+            ephemeral-storage: 1Gi
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -16814,6 +16846,16 @@ spec:
           readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /home/argo-rollouts/plugin-bin
+          name: plugin-bin
+        - mountPath: /tmp
+          name: tmp
       securityContext:
         runAsNonRoot: true
       serviceAccountName: argo-rollouts
+      volumes:
+      - emptyDir: {}
+        name: plugin-bin
+      - emptyDir: {}
+        name: tmp

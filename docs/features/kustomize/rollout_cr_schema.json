@@ -244,7 +244,6 @@
                                             "datadog": {
                                                 "properties": {
                                                     "aggregator": {
-                                                        "default": "last",
                                                         "enum": [
                                                             "avg",
                                                             "min",
@@ -4685,6 +4684,20 @@
                                                     },
                                                     "query": {
                                                         "type": "string"
+                                                    },
+                                                    "rangeQuery": {
+                                                        "properties": {
+                                                            "end": {
+                                                                "type": "string"
+                                                            },
+                                                            "start": {
+                                                                "type": "string"
+                                                            },
+                                                            "step": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     },
                                                     "timeout": {
                                                         "format": "int64",
@@ -5082,7 +5095,6 @@
                                             "datadog": {
                                                 "properties": {
                                                     "aggregator": {
-                                                        "default": "last",
                                                         "enum": [
                                                             "avg",
                                                             "min",
@@ -9523,6 +9535,20 @@
                                                     },
                                                     "query": {
                                                         "type": "string"
+                                                    },
+                                                    "rangeQuery": {
+                                                        "properties": {
+                                                            "end": {
+                                                                "type": "string"
+                                                            },
+                                                            "start": {
+                                                                "type": "string"
+                                                            },
+                                                            "step": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     },
                                                     "timeout": {
                                                         "format": "int64",
@@ -9933,7 +9959,6 @@
                                             "datadog": {
                                                 "properties": {
                                                     "aggregator": {
-                                                        "default": "last",
                                                         "enum": [
                                                             "avg",
                                                             "min",
@@ -14374,6 +14399,20 @@
                                                     },
                                                     "query": {
                                                         "type": "string"
+                                                    },
+                                                    "rangeQuery": {
+                                                        "properties": {
+                                                            "end": {
+                                                                "type": "string"
+                                                            },
+                                                            "start": {
+                                                                "type": "string"
+                                                            },
+                                                            "step": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     },
                                                     "timeout": {
                                                         "format": "int64",

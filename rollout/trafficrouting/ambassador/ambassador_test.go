@@ -31,7 +31,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080`
+  service: main-service:8080`
 
 	baseMappingNoPort = `
 apiVersion: getambassador.io/v2
@@ -42,7 +42,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp`
+  service: main-service`
 
 	baseMappingWithWeight = `
 apiVersion: getambassador.io/v2
@@ -53,7 +53,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080
+  service: main-service:8080
   weight: 20`
 
 	baseV3Mapping = `
@@ -66,7 +66,7 @@ spec:
   hostname: 'example.com'
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080`
+  service: main-service:8080`
 
 	canaryMapping = `
 apiVersion: getambassador.io/v2
@@ -77,7 +77,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080
+  service: main-service:8080
   weight: 20`
 
 	canaryMappingWithZeroWeight = `
@@ -89,7 +89,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080
+  service: main-service:8080
   weight: 0`
 )
 

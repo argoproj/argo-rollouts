@@ -22,10 +22,11 @@ import (
 )
 
 const (
-	//ProviderType indicates the provider is wavefront
+	// ProviderType indicates the provider is newrelic
 	ProviderType                     = "NewRelic"
 	DefaultNewRelicProfileSecretName = "newrelic"
 	repoURL                          = "https://github.com/argoproj/argo-rollouts"
+	resolvedNewRelicQuery            = "ResolvedNewRelicQuery"
 )
 
 var userAgent = fmt.Sprintf("argo-rollouts/%s (%s)", version.GetVersion(), repoURL)
@@ -133,7 +134,11 @@ func (p *Provider) Type() string {
 
 // GetMetadata returns any additional metadata which needs to be stored & displayed as part of the metrics result.
 func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
-	return nil
+	metricsMetadata := make(map[string]string)
+	if metric.Provider.NewRelic.Query != "" {
+		metricsMetadata[resolvedNewRelicQuery] = metric.Provider.NewRelic.Query
+	}
+	return metricsMetadata
 }
 
 // NewNewRelicProvider creates a new NewRelic provider

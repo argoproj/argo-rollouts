@@ -20,6 +20,9 @@ the rollout is healthy upon completion and an error otherwise.`
 	# Watch the rollout until it succeeds
 	%[1]s status guestbook
 
+	# Show the rollout status
+    %[1]s status guestbook --watch false
+
 	# Watch the rollout until it succeeds, fail if it takes more than 60 seconds
 	%[1]s status --timeout 60s guestbook
 	`
