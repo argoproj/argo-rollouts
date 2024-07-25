@@ -129,6 +129,12 @@ func (r *Reconciler) buildCanaryIngress(stableIngress *networkingv1.Ingress, nam
 		}
 		desiredCanaryIngress.Annotations[k] = v
 	}
+
+	// Process additional full annotations, overwriting any colliding values from the above
+	for k, v := range r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.CanaryIngressAnnotations {
+		desiredCanaryIngress.Annotations[k] = v
+	}
+
 	// Always set `canary` and `canary-weight` - `canary-by-header` and `canary-by-cookie`, if set,  will always take precedence
 	desiredCanaryIngress.Annotations[fmt.Sprintf("%s/canary", annotationPrefix)] = "true"
 	desiredCanaryIngress.Annotations[fmt.Sprintf("%s/canary-weight", annotationPrefix)] = fmt.Sprintf("%d", desiredWeight)
@@ -209,6 +215,12 @@ func (r *Reconciler) buildLegacyCanaryIngress(stableIngress *extensionsv1beta1.I
 		}
 		desiredCanaryIngress.Annotations[k] = v
 	}
+
+	// Process additional full annotations, overwriting any colliding values from the above
+	for k, v := range r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.CanaryIngressAnnotations {
+		desiredCanaryIngress.Annotations[k] = v
+	}
+
 	// Always set `canary` and `canary-weight` - `canary-by-header` and `canary-by-cookie`, if set,  will always take precedence
 	desiredCanaryIngress.Annotations[fmt.Sprintf("%s/canary", annotationPrefix)] = "true"
 	desiredCanaryIngress.Annotations[fmt.Sprintf("%s/canary-weight", annotationPrefix)] = fmt.Sprintf("%d", desiredWeight)

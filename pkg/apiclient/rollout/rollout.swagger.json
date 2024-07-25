@@ -1678,6 +1678,13 @@
             "type": "string"
           },
           "title": "StableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario\n+optional"
+        },
+        "canaryIngressAnnotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "+optional"
         }
       },
       "title": "NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing"
