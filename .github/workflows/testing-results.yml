@@ -35,7 +35,7 @@ jobs:
           commit: ${{ github.event.workflow_run.head_sha }}
           event_file: artifacts/Event File/event.json
           event_name: ${{ github.event.workflow_run.event }}
-          files: "artifacts/junit-e2e-test.xml/*.xml"
+          files: "artifacts/**/junit-e2e-test.xml"
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
@@ -46,4 +46,4 @@ jobs:
           commit: ${{ github.event.workflow_run.head_sha }}
           event_file: artifacts/Event File/event.json
           event_name: ${{ github.event.workflow_run.event }}
-          files: "artifacts/junit-unit-test.xml/*.xml"
+          files: "artifacts/**/junit-unit-test.xml"
