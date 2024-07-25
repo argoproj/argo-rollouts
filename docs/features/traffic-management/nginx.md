@@ -8,6 +8,7 @@ The Rollout controller will always set the following two annotations on the cana
 - `canary-weight: <num>` to indicate what percentage of traffic to send to the canary. If all traffic is routed to the stable Service, this is set to `0`
 
 You can provide additional annotations to add to the canary Ingress via the `additionalIngressAnnotations` or `canaryIngressAnnotations` field to enable features like routing by header or cookie.
+While the former offers the possibility of reusing a common, injectable nginx annotation prefix, the latter allows defining custom full annotations of any group, which may be relevant for other, independent mechanisms, such as a third-party metrics scraper or some other infrastructure integration.
 
 
 ## Integration with Argo Rollouts
