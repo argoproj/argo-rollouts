@@ -180,7 +180,7 @@ jobs:
           file: full-coverage.out
           fail_ci_if_error: false
           codecov_yml_path: .codecov.yml
-          exclude: coverage-output-unit
+          disable_search: true
           verbose: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
