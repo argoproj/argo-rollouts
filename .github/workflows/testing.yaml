@@ -173,7 +173,7 @@ jobs:
           path: coverage-output-unit
       - name: combine-go-coverage
         run: |
-          go tool covdata percent -i=coverage-output-unit/,coverage-output-e2e/ -o full-coverage.out
+          go tool covdata textfmt -i=coverage-output-unit/,coverage-output-e2e/ -o full-coverage.out
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
         with:
