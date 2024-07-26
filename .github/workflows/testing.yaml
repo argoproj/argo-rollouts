@@ -123,7 +123,9 @@ jobs:
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'}}
       - name: Run e2e tests
-        run: make test-e2e
+        run: |
+          make test-e2e
+          pkill -f rollouts-controller
         if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true') }}
       - name: Output Rerun Overview
         run: |
