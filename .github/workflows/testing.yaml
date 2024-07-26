@@ -128,7 +128,10 @@ jobs:
         if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true') }}
       - name: Stop e2e tests controller
         run: |
+          pgrep -f rollouts-controller
           pkill -f rollouts-controller
+          sleep 5
+          echo "done stopping process"
         if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true') }}
       - name: Output Rerun Overview
         run: |
