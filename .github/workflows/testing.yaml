@@ -125,6 +125,9 @@ jobs:
       - name: Run e2e tests
         run: |
           make test-e2e
+        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true') }}
+      - name: Stop e2e tests controller
+        run: |
           pkill -f rollouts-controller
         if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true') }}
       - name: Output Rerun Overview
