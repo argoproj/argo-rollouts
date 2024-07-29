@@ -132,7 +132,7 @@ jobs:
           pkill -f rollouts-controller
           sleep 5
           echo "done stopping process"
-        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true') }}
+        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' && matrix.kubernetes.latest)}}
       - name: Output Rerun Overview
         run: |
           [[ -f rerunreport.txt ]] && cat rerunreport.txt || echo "No rerun report found"
