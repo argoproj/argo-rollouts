@@ -245,7 +245,7 @@ test-e2e: install-devtools-local
 .PHONY: test-unit
  test-unit: install-devtools-local ## run unit tests
 	mkdir -p coverage-output-unit
-	${DIST_DIR}/gotestsum --junitfile=junit-unit-test.xml --format=testname -- -covermode=count -coverprofile=coverage-output-unit/coverage.out `go list ./... | grep -v ./test/cmd/metrics-plugin-sample`
+	${DIST_DIR}/gotestsum --junitfile=junit-unit-test.xml --format=testname -- `go list ./... | grep -v ./test/cmd/metrics-plugin-sample` -cover -test.gocoverdir=$(CURDIR)/coverage-output-unit
 
 
 .PHONY: coverage
