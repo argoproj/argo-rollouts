@@ -72,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-output-unit
-          path: coverage-output-unit/coverage.out
+          path: coverage-output-unit
 
   test-e2e:
     strategy:
@@ -123,8 +123,17 @@ jobs:
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'}}
       - name: Run e2e tests
-        run: make test-e2e
+        run: |
+          make test-e2e
         if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true') }}
+      - name: Stop e2e tests controller
+        run: |
+          pgrep -f go-build -a
+          pkill -f go-build
+          sleep 5
+          echo "done stopping process"
+          ls -lah coverage-output-e2e/
+        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' && matrix.kubernetes.latest)}}
       - name: Output Rerun Overview
         run: |
           [[ -f rerunreport.txt ]] && cat rerunreport.txt || echo "No rerun report found"
@@ -160,6 +169,7 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
+      - uses: actions/checkout@v4
       - name: Get e2e code coverage
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
@@ -172,11 +182,14 @@ jobs:
           path: coverage-output-unit
       - name: combine-go-coverage
         run: |
-          go tool covdata percent -i=coverage-output-unit/,coverage-output-e2e/ -o full-coverage.out
+          go tool covdata textfmt -i=coverage-output-unit/,coverage-output-e2e/ -o full-coverage.out
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
         with:
           file: full-coverage.out
           fail_ci_if_error: false
+          codecov_yml_path: .codecov.yml
+          disable_search: true
+          verbose: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
