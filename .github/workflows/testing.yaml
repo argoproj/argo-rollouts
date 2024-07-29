@@ -129,7 +129,6 @@ jobs:
       - name: Stop e2e tests controller
         run: |
           pgrep -f rollouts-controller
-          ps -A | grep rollouts-controller
           pkill -f rollouts-controller
           sleep 5
           echo "done stopping process"
