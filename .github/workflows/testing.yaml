@@ -128,9 +128,8 @@ jobs:
         if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true') }}
       - name: Stop e2e tests controller
         run: |
-          sleep 5
-          pgrep -f rollouts-controller
-          pkill -SIGINT -f rollouts-controller
+          pgrep -f go-build -a
+          pkill -f go-build
           sleep 5
           echo "done stopping process"
           ls -lah coverage-output-e2e/
