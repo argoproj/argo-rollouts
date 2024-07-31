@@ -3486,12 +3486,24 @@ see discussion at issues <a href="https://github.com/argoproj/argo-rollouts/issu
 <p>Argo Rollouts is perfect for all progressive delivery scenarios as explained in <a href="../concepts">the concepts page</a>.</p>
 <p>You should <em>NOT</em> use Argo Rollouts for preview/ephemeral environments. For that use case check the <a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-Pull-Request/">Argo CD Pull Request generator</a>.</p>
 <p>The recommended way to use Argo Rollouts is for brief deployments that take 15-20 minutes or maximum 1-2 hours. If you want to run new versions for days or weeks before deciding to promote, then Argo Rollouts is probably not the best solution for you.</p>
-<p>Also, if you want to run a wave of multiple versions at the same time (i.e. have 1.1 and 1.2 and 1.3 running at the same time), know that Argo Rollouts was not designed for this scenario.</p>
+<p>Keeping parallel releases for long times, complicates the deployment process a lot and opens several questions where different people have different views on how Argo Rollouts should work.</p>
+<p>For example let's say that you are testing for a week version 1.3 as stable and 1.4 as preview.
+Then somebody deploys 1.5</p>
+<ol>
+<li>Some people believe that the new state should be 1.3 stable and 1.5 as preview</li>
+<li>Some people believe that the new state should be 1.4 stable and 1.5 as preview</li>
+</ol>
+<p>Currently Argo Rollouts follows the first approach, under the assumption that something was really wrong with 1.4 and 1.5 is the hotfix. </p>
+<p>And then let's say that 1.5 has an issue. Some people believe that Argo rollouts should "rollback" to 1.3 while other people think it should rollback to 1.4</p>
+<p>Currently Argo Rollouts assumes that the version to rollback is always 1.3 regardless of how many "hotfixes" have been previewed in-between.</p>
+<p>All these problems are not present if you make the assumption that each release stays active only for a minimal time and you always create one new version when the previous one has finished.</p>
+<p>Also, if you want to run a wave of multiple versions at the same time (i.e. have 1.1 and 1.2 and 1.3 running at the same time), know that Argo Rollouts was not designed for this scenario. Argo Rollouts always works with the assumption that there is one stable/previous version and one preview/next version.</p>
 <p>A version that has just been promoted is assumed to be ready for production and has already passed all your tests (either manual or automated).</p>
 <h2 id="prepare-your-metrics">Prepare your metrics<a class="headerlink" href="#prepare-your-metrics" title="Permanent link">&para;</a></h2>
 <p>The end-goal for using Argo Rollouts is to have <strong>fully automated</strong> deployments that also include rollbacks when needed.</p>
 <p>While Argo Rollouts supports manual promotions and other manual pauses, these are best used for experimentation and test reasons.</p>
 <p>Ideally you should have proper metrics that tell you in 5-15 minutes if a deployment is successful or not. If you don't have those metrics, then you will miss a lot of value from Argo Rollouts.</p>
+<p>If you are doing a deployment right now and then have an actual human looking at logs/metrics/traces for the next 2 hours, adopting Argo Rollouts is not going to help you a lot with automated deployments.</p>
 <p>Get your <a href="../features/analysis">metrics</a> in place first and test them with dry-runs before applying them to production deployments.</p>
 <h2 id="there-is-no-argo-rollouts-api">There is no "Argo Rollouts API"<a class="headerlink" href="#there-is-no-argo-rollouts-api" title="Permanent link">&para;</a></h2>
 <p>A lot of people want to find an official API for managing Rollouts. There isn't any separate Argo Rollouts API. You can always use the Kubernetes API and patching of resources if you want to control a rollout.</p>
