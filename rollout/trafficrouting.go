@@ -159,6 +159,10 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 
 		var canaryHash, stableHash string
 		if c.stableRS != nil {
+			if !replicasetutil.IsReplicaSetAvailable(c.stableRS) {
+				c.log.Infof("Stable ReplicaSet is not available")
+				return nil
+			}
 			stableHash = c.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		}
 		if c.newRS != nil {
