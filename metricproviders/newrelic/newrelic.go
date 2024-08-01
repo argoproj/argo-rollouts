@@ -30,12 +30,20 @@ const (
 	defaultNrqlTimeout               = 5
 )
 
+var (
+	ErrNegativeTimeout = errors.New("timeout value needs to be a positive value")
+)
+
+type Account struct {
+	NRQL nrdb.NRDBResultContainer
+}
+
+type Actor struct {
+	Account
+}
+
 type gqlNrglQueryResponse struct {
-	Actor struct {
-		Account struct {
-			NRQL nrdb.NRDBResultContainer
-		}
-	}
+	Actor
 }
 
 const gqlNrqlQuery = `query (
@@ -60,9 +68,13 @@ type NewRelicClientAPI interface {
 	Query(metric v1alpha1.Metric) ([]nrdb.NRDBResult, error)
 }
 
+type nerdGraphClient interface {
+	QueryWithResponse(query string, variables map[string]interface{}, respBody interface{}) error
+}
+
 type NewRelicClient struct {
-	*newrelic.NewRelic
-	AccountID int
+	NerdGraphClient nerdGraphClient
+	AccountID       int
 }
 
 // Query executes a NRQL query against the given New Relic account
@@ -75,7 +87,7 @@ func (n *NewRelicClient) Query(metric v1alpha1.Metric) ([]nrdb.NRDBResult, error
 	}
 
 	if timeout < 0 {
-		return nil, fmt.Errorf("timeout value needs to be a positive value")
+		return nil, ErrNegativeTimeout
 	}
 
 	args := map[string]any{
@@ -84,7 +96,7 @@ func (n *NewRelicClient) Query(metric v1alpha1.Metric) ([]nrdb.NRDBResult, error
 		"timeout":   timeout,
 	}
 
-	if err := n.NerdGraph.QueryWithResponse(gqlNrqlQuery, args, &respBody); err != nil {
+	if err := n.NerdGraphClient.QueryWithResponse(gqlNrqlQuery, args, &respBody); err != nil {
 		return nil, err
 	}
 
@@ -233,7 +245,7 @@ func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Inter
 		if err != nil {
 			return nil, fmt.Errorf("could not parse account ID: %w", err)
 		}
-		return &NewRelicClient{NewRelic: nrClient, AccountID: accID}, nil
+		return &NewRelicClient{NerdGraphClient: &nrClient.NerdGraph, AccountID: accID}, nil
 	} else {
 		return nil, errors.New("account ID or personal API key not found")
 	}
