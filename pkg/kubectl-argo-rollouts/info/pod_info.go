@@ -53,6 +53,12 @@ func newPodInfo(pod *corev1.Pod) rollout.PodInfo {
 		},
 	}
 	restarts := 0
+	rs := make(map[string]bool, len(pod.Spec.InitContainers))
+	for _, c := range pod.Spec.InitContainers {
+		p := c.RestartPolicy
+		rs[c.Name] = p != nil && *p == corev1.ContainerRestartPolicyAlways
+	}
+
 	totalContainers := len(pod.Spec.Containers)
 	readyContainers := 0
 
@@ -69,7 +75,7 @@ func newPodInfo(pod *corev1.Pod) rollout.PodInfo {
 			continue
 		case container.State.Terminated != nil:
 			// initialization is failed
-			if len(container.State.Terminated.Reason) == 0 {
+			if container.State.Terminated.Reason == "" {
 				if container.State.Terminated.Signal != 0 {
 					reason = fmt.Sprintf("Init:Signal:%d", container.State.Terminated.Signal)
 				} else {
@@ -79,6 +85,10 @@ func newPodInfo(pod *corev1.Pod) rollout.PodInfo {
 				reason = "Init:" + container.State.Terminated.Reason
 			}
 			initializing = true
+		case rs[container.Name] && container.Started != nil && *container.Started:
+			if container.Ready {
+				continue
+			}
 		case container.State.Waiting != nil && len(container.State.Waiting.Reason) > 0 && container.State.Waiting.Reason != "PodInitializing":
 			reason = "Init:" + container.State.Waiting.Reason
 			initializing = true
