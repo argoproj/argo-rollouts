@@ -567,6 +567,8 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		for _, rs := range rsList {
 			if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == podHash {
 				foundRS = true
+				logCtx.Info("newRS found via label selector lookup and pod hash", "rs", rs.Name)
+				break
 			}
 		}
 
