@@ -34,16 +34,12 @@ var (
 	ErrNegativeTimeout = errors.New("timeout value needs to be a positive value")
 )
 
-type Account struct {
-	NRQL nrdb.NRDBResultContainer
-}
-
-type Actor struct {
-	Account
-}
-
 type gqlNrglQueryResponse struct {
-	Actor
+	Actor struct {
+		Account struct {
+			NRQL nrdb.NRDBResultContainer
+		}
+	}
 }
 
 const gqlNrqlQuery = `query (

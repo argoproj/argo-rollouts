@@ -32,11 +32,9 @@ func (m *mockNerdGraphClient) QueryWithResponse(query string, variables map[stri
 		return m.err
 	}
 
-	r := gqlNrglQueryResponse{
-		Actor{Account{NRQL: nrdb.NRDBResultContainer{
-			Results: m.response,
-		}}},
-	}
+	r := gqlNrglQueryResponse{}
+	r.Actor.Account.NRQL.Results = m.response
+
 	rVal := reflect.ValueOf(r)
 	reflect.ValueOf(respBody).Elem().Set(rVal)
 
