@@ -400,6 +400,12 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 					metricResult.ConsecutiveError++
 					logger.Warnf("Measurement had error: %s", newMeasurement.Message)
 				}
+				eventType := corev1.EventTypeNormal
+				switch newMeasurement.Phase {
+				case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
+					eventType = corev1.EventTypeWarning
+				}
+				c.recorder.Eventf(run, record.EventOptions{EventType: eventType, EventReason: "Measurement" + string(newMeasurement.Phase)}, "Measurement Completed. Result: %s. Value: %s", newMeasurement.Phase, newMeasurement.Value)
 			}
 
 			//redact secret values from measurement message
