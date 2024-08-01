@@ -43,18 +43,22 @@ func (m *mockNerdGraphClient) QueryWithResponse(query string, variables map[stri
 	return nil
 }
 
+// Response sets the response the mock client will return
 func (m *mockNerdGraphClient) Response(response []nrdb.NRDBResult) {
 	m.response = response
 }
 
+// LastArgs returns the variables used when calling the NerdGraph API
 func (m *mockNerdGraphClient) LastArgs() map[string]any {
 	return m.lastArgs
 }
 
+// Err sets the error to be returned when calling the NerdGraph API
 func (m *mockNerdGraphClient) Err(err error) {
 	m.err = err
 }
 
+// Clear removes all configured mock behavior
 func (m *mockNerdGraphClient) Clear() {
 	m.err = nil
 	m.response = nil
