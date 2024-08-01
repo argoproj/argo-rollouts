@@ -23,12 +23,6 @@ const Type = "Traefik"
 const traefikServices = "traefikservices"
 const TraefikServiceUpdateError = "TraefikServiceUpdateError"
 
-var (
-	apiGroupToResource = map[string]string{
-		defaults.GetTraefikAPIGroup(): traefikServices,
-	}
-)
-
 type ReconcilerConfig struct {
 	Rollout  *v1alpha1.Rollout
 	Client   ClientInterface
@@ -39,6 +33,13 @@ type Reconciler struct {
 	Rollout  *v1alpha1.Rollout
 	Client   ClientInterface
 	Recorder record.EventRecorder
+}
+
+func apiGroupToResource(group string) string {
+	apiGroupToResource := map[string]string{
+		defaults.GetTraefikAPIGroup(): traefikServices,
+	}
+	return apiGroupToResource[group]
 }
 
 func (r *Reconciler) sendWarningEvent(id, msg string) {
@@ -71,7 +72,8 @@ func GetMappingGVR() schema.GroupVersionResource {
 	group := defaults.GetTraefikAPIGroup()
 	parts := strings.Split(defaults.GetTraefikVersion(), "/")
 	version := parts[len(parts)-1]
-	resourceName := apiGroupToResource[group]
+	resourceName := apiGroupToResource(group)
+
 	return schema.GroupVersionResource{
 		Group:    group,
 		Version:  version,
