@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix"
 
 	"github.com/stretchr/testify/assert"
@@ -230,6 +231,40 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.run(getKey(r2, t))
+}
+
+func TestReconcileTrafficRoutingStableRSAvailability(t *testing.T) {
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: pointer.Int32Ptr(10),
+		},
+	}
+
+	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{},
+	}
+	roCtx := &rolloutContext{
+		rollout: r,
+		log:     logutil.WithRollout(r),
+	}
+
+	// Create a function that implements this func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error)
+	roCtx.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
+
+		return []trafficrouting.TrafficRoutingReconciler{
+			newUnmockedFakeTrafficRoutingReconciler(),
+		}, nil
+	}
+
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(2), intstr.FromInt(1), intstr.FromInt(0))
+	rs1 := newReplicaSetWithStatus(r1, 10, 0)
+	roCtx.stableRS = rs1
+
+	err := roCtx.reconcileTrafficRouting()
+	assert.NoError(t, err)
+
 }
 
 func TestRolloutUseDesiredWeight100(t *testing.T) {
