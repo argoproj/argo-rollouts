@@ -580,7 +580,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			roCtx.otherRSs = replicasetutil.GetOtherRSs(roCtx.rollout, roCtx.newRS, roCtx.stableRS, rsList)
 			roCtx.allRSs = append(rsList, roCtx.newRS)
 		} else {
-			//This loop triggers when using workload references
+			//This triggers when using workload references
 			logCtx.Warnf("newRS found via label lookup, use it and don't create a new one")
 			roCtx.newRS = replicasetutil.FindNewReplicaSet(roCtx.rollout, rsList)
 			roCtx.olderRSs = replicasetutil.FindOldReplicaSets(roCtx.rollout, rsList, roCtx.newRS)
