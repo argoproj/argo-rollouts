@@ -1681,6 +1681,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTraffi
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
      */
     stableIngresses?: Array<string>;
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
+     */
+    canaryIngressAnnotations?: { [key: string]: string; };
 }
 /**
  * 
@@ -1856,6 +1862,37 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusM
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
      */
     headers?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    rangeQuery?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    start?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    end?: string;
+    /**
+     * The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    step?: string;
 }
 /**
  * 

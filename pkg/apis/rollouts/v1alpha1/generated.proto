@@ -1129,6 +1129,9 @@ message NginxTrafficRouting {
   // StableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario
   // +optional
   repeated string stableIngresses = 4;
+
+  // +optional
+  map<string, string> canaryIngressAnnotations = 5;
 }
 
 message OAuth2Config {
@@ -1218,6 +1221,22 @@ message PrometheusMetric {
   // +patchMergeKey=key
   // +patchStrategy=merge
   repeated WebMetricHeader headers = 6;
+
+  // Arguments for prometheus
+  // +optional
+  optional PrometheusRangeQueryArgs rangeQuery = 7;
+}
+
+// Arguments to perform a prometheus range query
+message PrometheusRangeQueryArgs {
+  // The start time to query in expr format e.g. now(), now() - duration("1h"), now() - duration("{{args.lookback_duration}}")
+  optional string start = 1;
+
+  // The end time to query in expr format e.g. now(), now() - duration("1h"), now() - duration("{{args.lookback_duration}}")
+  optional string end = 2;
+
+  // The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).
+  optional string step = 3;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
