@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -79,6 +80,8 @@ func newCommand() *cobra.Command {
 		printVersion                   bool
 		selfServiceNotificationEnabled bool
 		controllersEnabled             []string
+		pprofEnabled                   bool
+		pprofPort                      int
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
@@ -204,6 +207,11 @@ func newCommand() *cobra.Command {
 			ingressWrapper, err := ingressutil.NewIngressWrapper(mode, kubeClient, kubeInformerFactory)
 			checkError(err)
 
+			if pprofEnabled {
+				mux := controller.NewPProfServer()
+				go func() { log.Println(http.ListenAndServe(fmt.Sprintf("localhost:%d", pprofPort), mux)) }()
+			}
+
 			var cm *controller.Manager
 
 			enabledControllers, err := getEnabledControllers(controllersEnabled)
@@ -283,6 +291,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&klogLevel, "kloglevel", 0, "Set the klog logging level")
 	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
 	command.Flags().IntVar(&healthzPort, "healthzPort", controller.DefaultHealthzPort, "Set the port the healthz endpoint should be exposed over")
+	command.Flags().IntVar(&pprofPort, "pprof-port", controller.DefaultPProfPort, "Set the port the pprof endpoint should be exposed over")
 	command.Flags().StringVar(&instanceID, "instance-id", "", "Indicates which argo rollout objects the controller should operate on")
 	command.Flags().Float32Var(&qps, "qps", defaults.DefaultQPS, "Maximum QPS (queries per second) to the K8s API server")
 	command.Flags().IntVar(&burst, "burst", defaults.DefaultBurst, "Maximum burst for throttle.")
@@ -310,6 +319,7 @@ func newCommand() *cobra.Command {
 	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled.")
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", false, "Allows rollouts controller to pull notification config from the namespace that the rollout resource is in. This is useful for self-service notification.")
 	command.Flags().StringSliceVar(&controllersEnabled, "controllers", nil, "Explicitly specify the list of controllers to run, currently only supports 'analysis', eg. --controller=analysis. Default: all controllers are enabled")
+	command.Flags().BoolVar(&pprofEnabled, "enable-pprof", false, "Enable pprof profiling on controller. Default endpoint exposed via :6060/debug/pprof. Change the port with the --pprof-port flag.")
 	return &command
 }
 
