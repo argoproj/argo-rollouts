@@ -29,7 +29,23 @@ You should *NOT* use Argo Rollouts for preview/ephemeral environments. For that 
 
 The recommended way to use Argo Rollouts is for brief deployments that take 15-20 minutes or maximum 1-2 hours. If you want to run new versions for days or weeks before deciding to promote, then Argo Rollouts is probably not the best solution for you.
 
-Also, if you want to run a wave of multiple versions at the same time (i.e. have 1.1 and 1.2 and 1.3 running at the same time), know that Argo Rollouts was not designed for this scenario.
+Keeping parallel releases for long times, complicates the deployment process a lot and opens several questions where different people have different views on how Argo Rollouts should work.
+
+For example let's say that you are testing for a week version 1.3 as stable and 1.4 as preview.
+Then somebody deploys 1.5
+
+1. Some people believe that the new state should be 1.3 stable and 1.5 as preview
+1. Some people believe that the new state should be 1.4 stable and 1.5 as preview
+
+Currently Argo Rollouts follows the first approach, under the assumption that something was really wrong with 1.4 and 1.5 is the hotfix. 
+
+And then let's say that 1.5 has an issue. Some people believe that Argo rollouts should "rollback" to 1.3 while other people think it should rollback to 1.4
+
+Currently Argo Rollouts assumes that the version to rollback is always 1.3 regardless of how many "hotfixes" have been previewed in-between.
+
+All these problems are not present if you make the assumption that each release stays active only for a minimal time and you always create one new version when the previous one has finished.
+
+Also, if you want to run a wave of multiple versions at the same time (i.e. have 1.1 and 1.2 and 1.3 running at the same time), know that Argo Rollouts was not designed for this scenario. Argo Rollouts always works with the assumption that there is one stable/previous version and one preview/next version.
 
 A version that has just been promoted is assumed to be ready for production and has already passed all your tests (either manual or automated).
 
@@ -40,6 +56,8 @@ The end-goal for using Argo Rollouts is to have **fully automated** deployments 
 While Argo Rollouts supports manual promotions and other manual pauses, these are best used for experimentation and test reasons.
 
 Ideally you should have proper metrics that tell you in 5-15 minutes if a deployment is successful or not. If you don't have those metrics, then you will miss a lot of value from Argo Rollouts.
+
+If you are doing a deployment right now and then have an actual human looking at logs/metrics/traces for the next 2 hours, adopting Argo Rollouts is not going to help you a lot with automated deployments.
 
 Get your [metrics](../features/analysis) in place first and test them with dry-runs before applying them to production deployments.
 
