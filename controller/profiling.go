@@ -10,7 +10,7 @@ const (
 	ProfilingPath = "/debug/pprof"
 )
 
-// NewPProfServer returns a new pprof server to gather to gather runtime profiling data
+// NewPProfServer returns a new pprof server to gather runtime profiling data
 func NewPProfServer() *http.ServeMux {
 	mux := http.NewServeMux()
 
