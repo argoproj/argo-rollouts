@@ -3284,6 +3284,12 @@ labels &amp; annotations. To use Rollouts with kustomize:</p>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://argoproj.github.io/argo-rollouts/features/kustomize/rollout-transform.yaml</span>
 </code></pre></div>
 <ul>
+<li>With Kustomize 5 it is possible to reference the configuration directly from a remote resource:</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="nt">configurations</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://argoproj.github.io/argo-rollouts/features/kustomize/rollout-transform-kustomize-v5.yaml</span>
+</code></pre></div>
+<ul>
 <li>With Kustomize 4.5.5 kustomize can use kubernetes OpenAPI data to get merge key and patch strategy information about <a href="https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/openapi">resource types</a>. For example, given the following rollout:</li>
 </ul>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
