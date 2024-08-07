@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
+	"github.com/newrelic/newrelic-client-go/v2/pkg/nrdb"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -406,4 +406,74 @@ func TestNewNewRelicAPIClient(t *testing.T) {
 		_, err := NewNewRelicAPIClient(metric, fakeClient)
 		assert.NotNil(t, err)
 	})
+}
+
+func TestNewRelicClient_Query(t *testing.T) {
+	accountId := 1234567
+	sevenTo := int64(7)
+	negativeTo := int64(-1)
+	defaultTo := int64(defaultNrqlTimeout)
+	theQuery := "FROM K8sContainerSample SELECT percentile(`cpuCoresUtilization`, 95)"
+
+	mockNGC := &mockNerdGraphClient{}
+	nrc := &NewRelicClient{NerdGraphClient: mockNGC, AccountID: accountId}
+
+	tests := map[string]struct {
+		timeoutProvided *int64
+		timeoutUsed     *int64
+		query           string
+		want            []nrdb.NRDBResult
+		errMsg          string
+		gqlErr          error
+	}{
+		`returns results`: {
+			timeoutUsed: &defaultTo,
+			query:       theQuery,
+			want:        []nrdb.NRDBResult{map[string]any{"count": 10}},
+		},
+		`uses default timeout when one is not provided`: {
+			timeoutUsed: &defaultTo,
+			query:       theQuery,
+		},
+		`uses provided timeout`: {
+			timeoutUsed:     &sevenTo,
+			timeoutProvided: &sevenTo,
+			query:           theQuery,
+		},
+		`errors when timeout is negative`: {
+			timeoutProvided: &negativeTo,
+			query:           theQuery,
+			errMsg:          ErrNegativeTimeout.Error(),
+		},
+		`errors when nerdgraph returns error`: {
+			timeoutUsed: &defaultTo,
+			query:       theQuery,
+			errMsg:      "boom",
+			gqlErr:      errors.New("boom"),
+		},
+	}
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			defer mockNGC.Clear()
+			mockNGC.Err(tc.gqlErr)
+			mockNGC.Response(tc.want)
+			metric := v1alpha1.Metric{
+				Provider: v1alpha1.MetricProvider{
+					NewRelic: &v1alpha1.NewRelicMetric{
+						Timeout: tc.timeoutProvided,
+						Query:   tc.query,
+					},
+				},
+			}
+			results, err := nrc.Query(metric)
+			if len(tc.errMsg) > 0 {
+				assert.EqualError(t, err, tc.errMsg)
+				return
+			}
+			assert.Equal(t, *tc.timeoutUsed, mockNGC.LastArgs()["timeout"])
+			assert.Equal(t, tc.query, mockNGC.LastArgs()["query"])
+			assert.Equal(t, accountId, mockNGC.LastArgs()["accountId"])
+			assert.Equal(t, tc.want, results)
+		})
+	}
 }
