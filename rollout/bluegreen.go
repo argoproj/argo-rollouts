@@ -71,18 +71,14 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 }
 
-func (c *rolloutContext) reconcileBlueGreenStableReplicaSet(activeSvc *corev1.Service) error {
-	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
-		return nil
-	}
-	activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.allRSs, activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
-	if activeRS == nil {
-		c.log.Warn("There shouldn't be a nil active replicaset if the active Service selector is set")
+func (c *rolloutContext) reconcileBlueGreenStableReplicaSet() error {
+	if c.stableRS == nil {
+		c.log.Info("Stable ReplicaSet doesn't exist and hence no reconciliation is required.")
 		return nil
 	}
 
-	c.log.Infof("Reconciling stable ReplicaSet '%s'", activeRS.Name)
-	_, _, err := c.scaleReplicaSetAndRecordEvent(activeRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas))
+	c.log.Infof("Reconciling stable ReplicaSet '%s'", c.stableRS.Name)
+	_, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas))
 	if err != nil {
 		return fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileBlueGreenStableReplicaSet: %w", err)
 	}
@@ -94,7 +90,7 @@ func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service
 	if err != nil {
 		return err
 	}
-	err = c.reconcileBlueGreenStableReplicaSet(activeSvc)
+	err = c.reconcileBlueGreenStableReplicaSet()
 	if err != nil {
 		return err
 	}
