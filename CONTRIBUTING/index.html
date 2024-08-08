@@ -3600,14 +3600,15 @@ go<span class="w"> </span>run<span class="w"> </span>./cmd/rollouts-controller/m
 </code></pre></div>
 <h2 id="running-e2e-tests">Running E2E tests<a class="headerlink" href="#running-e2e-tests" title="Permanent link">&para;</a></h2>
 <p>The end-to-end tests need to run against a kubernetes cluster with the Argo Rollouts controller
-running. The rollout controller can be started with the command:</p>
-<div class="highlight"><pre><span></span><code>make start-e2e
-</code></pre></div>
+running.</p>
 <p>Start and prepare your cluster for e2e tests:</p>
 <div class="highlight"><pre><span></span><code>k3d cluster create
 kubectl create ns argo-rollouts
 kubectl apply -k manifests/crds
 kubectl apply -f test/e2e/crds
+</code></pre></div>
+<p>The rollout controller can be started with the command:</p>
+<div class="highlight"><pre><span></span><code>make start-e2e
 </code></pre></div>
 <p>Then run the e2e tests:</p>
 <div class="highlight"><pre><span></span><code>make test-e2e
@@ -3616,19 +3617,19 @@ kubectl apply -f test/e2e/crds
 <div class="highlight"><pre><span></span><code>E2E_TEST_OPTIONS=&quot;-run &#39;TestCanarySuite&#39; -testify.m &#39;TestCanaryScaleDownOnAbortNoTrafficRouting&#39;&quot; make test-e2e
 </code></pre></div>
 <h2 id="running-the-ui">Running the UI<a class="headerlink" href="#running-the-ui" title="Permanent link">&para;</a></h2>
-<p>If you'd like to run the UI locally, you first need a running Rollouts controller. This can be a locally running controller with a k3d cluster, as described above, or a controller running in a remote Kubernetes cluster. </p>
-<p>In order for the local React app to communicate with the controller and Kubernetes API, run the following to open a port forward to the dashboard:
+<p>If you'd like to run the UI locally, you first need a running Rollouts controller. This can be a locally running controller with a k3d cluster, as described above, or a controller running in a remote Kubernetes cluster.</p>
+<p>In order for the local React app to communicate with the controller and Kubernetes API, run the following to open a port forward to the dashboard:</p>
 <div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>dashboard
-</code></pre></div></p>
+</code></pre></div>
 <p>Note that you can also build the API server and run this instead,</p>
 <div class="highlight"><pre><span></span><code>make plugin
 ./dist/kubectl-argo-rollouts dashboard
 </code></pre></div>
-<p>In another terminal, run the following to start the UI:
+<p>In another terminal, run the following to start the UI:</p>
 <div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>ui
 yarn<span class="w"> </span>install
 yarn<span class="w"> </span>start
-</code></pre></div></p>
+</code></pre></div>
 <h2 id="controller-architecture">Controller architecture<a class="headerlink" href="#controller-architecture" title="Permanent link">&para;</a></h2>
 <p>Argo Rollouts is actually a collection of individual controllers
 that handle a specific aspect of Progressive Delivery.</p>
@@ -3650,32 +3651,32 @@ that handle a specific aspect of Progressive Delivery.</p>
 </code></pre></div>
 <ol>
 <li>To run a specific e2e test, set the <code>E2E_TEST_OPTIONS</code> environment variable to specify the test
-(or test regex):</li>
+   (or test regex):</li>
 </ol>
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>test-e2e<span class="w"> </span><span class="nv">E2E_TEST_OPTIONS</span><span class="o">=</span><span class="s2">&quot;-testify.m ^TestRolloutRestart</span>$<span class="s2">&quot;</span>
 </code></pre></div>
 <ol>
 <li>The e2e tests are designed to run as quickly as possible, eliminating readiness and termination
-delays. However, it is often desired to artificially slow down the tests for debugging purposes,
-as well as to understand what the test is doing. To delay startup and termination of pods, set the
-<code>E2E_POD_DELAY</code> to an integer value in seconds. This environment variable is often coupled with
-<code>E2E_TEST_OPTIONS</code> to debug and slow down a specific test.</li>
+   delays. However, it is often desired to artificially slow down the tests for debugging purposes,
+   as well as to understand what the test is doing. To delay startup and termination of pods, set the
+   <code>E2E_POD_DELAY</code> to an integer value in seconds. This environment variable is often coupled with
+   <code>E2E_TEST_OPTIONS</code> to debug and slow down a specific test.</li>
 </ol>
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>test-e2e<span class="w"> </span><span class="nv">E2E_POD_DELAY</span><span class="o">=</span><span class="m">10</span>
 </code></pre></div>
 <ol>
 <li>Increasing the timeout. The E2E tests time out waiting on conditions to be met within 60 seconds.
-If debugging the rollout controller, it may be useful to increase this timeout while say sitting
-at a debugger breakpoint:</li>
+   If debugging the rollout controller, it may be useful to increase this timeout while say sitting
+   at a debugger breakpoint:</li>
 </ol>
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>test-e2e<span class="w"> </span><span class="nv">E2E_WAIT_TIMEOUT</span><span class="o">=</span><span class="m">999999</span>
 </code></pre></div>
 <ol>
 <li>The e2e tests leverage a feature of the controller allowing the controller to be sharded with
-a user-specific "instance id" label. This allows the tests to operate only on rollouts with the
-specified label, and prevents any other controllers (including the system rollout controller),
-from also operating on the same set of rollouts. This value can be changed (from the default of
-<code>argo-rollouts-e2e</code>), using the <code>E2E_INSTANCE_ID</code> environment variable:</li>
+   a user-specific "instance id" label. This allows the tests to operate only on rollouts with the
+   specified label, and prevents any other controllers (including the system rollout controller),
+   from also operating on the same set of rollouts. This value can be changed (from the default of
+   <code>argo-rollouts-e2e</code>), using the <code>E2E_INSTANCE_ID</code> environment variable:</li>
 </ol>
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>start-e2e<span class="w"> </span><span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span>foo
 make<span class="w"> </span>test-e2e<span class="w"> </span><span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span>foo
@@ -3711,8 +3712,8 @@ pushed into the other kubernetes repositories yet. In order to import the kubern
 associated repos have to pinned to the correct version specified by the kubernetes/kubernetes release. The
 <code>./hack/update-k8s-dependencies.sh</code> updates all the dependencies to the those correct versions.</p>
 <h2 id="upgrading-notifications-engine">Upgrading Notifications Engine<a class="headerlink" href="#upgrading-notifications-engine" title="Permanent link">&para;</a></h2>
-<p>Argo Rollouts has a dependency on the <a href="https://github.com/argoproj/notifications-engine">argoproj/notifications-engines</a> repo 
-for the notifications functionality and related documentation. </p>
+<p>Argo Rollouts has a dependency on the <a href="https://github.com/argoproj/notifications-engine">argoproj/notifications-engines</a> repo
+for the notifications functionality and related documentation.</p>
 <p>This is updated by upgrading the Go library in <code>go.mod</code> by running the commands:</p>
 <div class="highlight"><pre><span></span><code>go<span class="w"> </span>get<span class="w"> </span>github.com/argoproj/notifications-engine@LATEST_COMMIT_HASH
 go<span class="w"> </span>mod<span class="w"> </span>tidy
