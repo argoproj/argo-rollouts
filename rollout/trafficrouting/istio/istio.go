@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"strings"
 
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	"github.com/mitchellh/mapstructure"
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/mitchellh/mapstructure"
 	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +35,7 @@ const Type = "Istio"
 const SpecHttpNotFound = "spec.http not found"
 
 // NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
-func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister) *Reconciler {
+func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister, replicaSets []*appsv1.ReplicaSet) *Reconciler {
 	return &Reconciler{
 		rollout: r,
 		log:     logutil.WithRollout(r),
@@ -41,6 +44,7 @@ func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder recor
 		recorder:              recorder,
 		virtualServiceLister:  virtualServiceLister,
 		destinationRuleLister: destinationRuleLister,
+		replicaSets:           replicaSets,
 	}
 }
 
@@ -52,6 +56,7 @@ type Reconciler struct {
 	recorder              record.EventRecorder
 	virtualServiceLister  dynamiclister.Lister
 	destinationRuleLister dynamiclister.Lister
+	replicaSets           []*appsv1.ReplicaSet
 }
 
 type virtualServicePatch struct {
@@ -315,6 +320,17 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 }
 
 func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+	// We need to check if the replicasets are ready here as well if we didn't define any services in the rollout
+	// See: https://github.com/argoproj/argo-rollouts/issues/2507
+	if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" {
+
+		for _, rs := range r.replicaSets {
+			if *rs.Spec.Replicas > 0 && !replicasetutil.IsReplicaSetAvailable(rs) {
+				return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
+			}
+		}
+	}
+
 	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
 	if dRuleSpec == nil {
 		return nil
