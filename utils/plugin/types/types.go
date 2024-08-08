@@ -85,24 +85,55 @@ type RpcTrafficRoutingReconciler interface {
 	Type() string
 }
 
-//type Plugin struct {
-//	MetricProviders []PluginItem `json:"metricProviders" yaml:"metricProviders"`
-//	TrafficRouters  []PluginItem `json:"trafficRouters" yaml:"trafficRouters"`
-//}
+type RpcStep interface {
+	// Run executes a step plugin for the RpcStepContext and returns the result to the controller or an RpcError for unexpeted failures
+	Run(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)
+	// Terminate stops an uncompleted operation started by the Run operation
+	Terminate(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)
+	// Abort reverts the actions performed during the Run operation if necessary
+	Abort(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)
+	// Type returns the type of the step plugin
+	Type() string
+}
 
 type TrafficRouterPlugins struct {
+	// TrafficRouters is the list of plugin that implements a RpcTrafficRoutingReconciler
 	TrafficRouters []PluginItem `json:"trafficRouterPlugins" yaml:"trafficRouterPlugins"`
 }
 
 type MetricProviderPlugins struct {
+	// MetricProviders is the list of plugin that implements a RpcMetricProvider
 	MetricProviders []PluginItem `json:"metricProviderPlugins" yaml:"metricProviderPlugins"`
 }
 
-type PluginItem struct {
-	Name     string `json:"name" yaml:"name"`
-	Location string `json:"location" yaml:"location"`
-	Sha256   string `json:"sha256" yaml:"sha256"`
+type StepPlugins struct {
+	// Steps is the list of plugin that implements a RpcStep
+	Steps []PluginItem `json:"stepPlugins" yaml:"stepPlugins"`
+}
 
-	// Args holds command line arguments
+// PluginType is a type of plugin
+type PluginType string
+
+const (
+	// PluginTypeMetricProvider is the type for a MetricProvider plugin
+	PluginTypeMetricProvider PluginType = "MetricProvider"
+	// PluginTypeTrafficRouter is the type for a TrafficRouter plugin
+	PluginTypeTrafficRouter PluginType = "TrafficRouter"
+	// PluginTypeStep is the type for a Step plugin
+	PluginTypeStep PluginType = "Step"
+)
+
+type PluginItem struct {
+	// Name of the plugin to use in the Rollout custom resources
+	Name string `json:"name" yaml:"name"`
+	// Location of the plugin. Supports http(s):// urls and file:// prefix
+	Location string `json:"location" yaml:"location"`
+	// Sha256 is the checksum of the file specified at the provided Location
+	Sha256 string `json:"sha256" yaml:"sha256"`
+	// Type of the plugin
+	Type PluginType
+	// Disabled indicates if the plugin should be ignored when referenced in Rollout custom resources. Only valid for a plugin of type Step.
+	Disabled bool `json:"disabled" yaml:"disabled"`
+	// Args holds command line arguments to initialize the plugin
 	Args []string `json:"args" yaml:"args"`
 }

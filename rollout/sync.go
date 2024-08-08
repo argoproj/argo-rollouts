@@ -659,7 +659,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			// everything but lastTransitionTime. SetRolloutCondition already does that but
 			// it also is not updating conditions when the reason of the new condition is the
 			// same as the old. The Progressing condition is a special case because we want to
-			// update with the same reason and change just lastUpdateTime iff we notice any
+			// update with the same reason and change just lastUpdateTime if we notice any
 			// progress. That's why we handle it here.
 			if currentCond != nil {
 				if currentCond.Status == corev1.ConditionTrue {
@@ -895,6 +895,7 @@ func (c *rolloutContext) resetRolloutStatus(newStatus *v1alpha1.RolloutStatus) {
 	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
 	newStatus.Canary.CurrentStepAnalysisRunStatus = nil
 	newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
+	newStatus.Canary.StepPluginStatuses = nil
 	newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(c.rollout)
 }
 

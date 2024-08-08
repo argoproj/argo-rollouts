@@ -7,6 +7,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/utils/plugin"
+	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	goPlugin "github.com/hashicorp/go-plugin"
 )
 
@@ -52,7 +53,7 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 
 	if t.pluginClient[pluginName] == nil || t.pluginClient[pluginName].Exited() {
 
-		pluginPath, args, err := plugin.GetPluginInfo(pluginName)
+		pluginPath, args, err := plugin.GetPluginInfo(pluginName, types.PluginTypeTrafficRouter)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
