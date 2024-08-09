@@ -72,6 +72,7 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 		}
 	}
 	// new ReplicaSet does not exist.
+
 	return nil
 }
 

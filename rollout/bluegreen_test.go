@@ -950,8 +950,10 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 	f.objects = append(f.objects, ro)
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
 	f.rolloutLister = append(f.rolloutLister, ro)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
+	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	ctrl, _, _ := f.newController(noResyncPeriodFunc)
 	roCtx, err := ctrl.newRolloutContext(ro)

@@ -335,6 +335,7 @@ func (s *IstioSuite) TestIstioUpdateInMiddleZeroCanaryReplicas() {
 		ExpectRevisionPodCount("2", 1).
 		When().
 		UpdateSpec().
+		WaitForRevisionPodCount("3", 1).
 		WaitForRolloutStatus("Paused").
 		Then().
 		ExpectRevisionPodCount("3", 1)

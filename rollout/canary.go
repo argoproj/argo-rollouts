@@ -20,14 +20,14 @@ import (
 func (c *rolloutContext) rolloutCanary() error {
 	var err error
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
-		c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
+		c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 		if err != nil {
 			return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary with PodTemplateOrStepsChanged: %w", err)
 		}
 		return c.syncRolloutStatusCanary()
 	}
 
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(true)
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err)
 	}
@@ -446,13 +446,6 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 	if scaledStableRS {
 		c.log.Infof("Not finished reconciling stableRS")
 		return true, nil
-	}
-
-	// If we have updated both the replica count and the pod template hash c.newRS will be nil we want to reconcile the newRS so we look at the
-	// rollout status to get the newRS to reconcile it.
-	if c.newRS == nil && c.rollout.Status.CurrentPodHash != c.rollout.Status.StableRS {
-		rs, _ := replicasetutil.GetReplicaSetByTemplateHash(c.allRSs, c.rollout.Status.CurrentPodHash)
-		c.newRS = rs
 	}
 
 	scaledNewRS, err := c.reconcileNewReplicaSet()
