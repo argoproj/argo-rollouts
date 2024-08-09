@@ -22,6 +22,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
 	"github.com/argoproj/argo-rollouts/utils/aws"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
@@ -125,6 +126,29 @@ func albActionAnnotation(stable string) string {
 	return fmt.Sprintf("%s%s%s", ingressutil.ALBIngressAnnotation, ingressutil.ALBActionPrefix, stable)
 }
 
+func ingressRule(name string) networkingv1.IngressRule {
+	return networkingv1.IngressRule{
+		IngressRuleValue: networkingv1.IngressRuleValue{
+			HTTP: &networkingv1.HTTPIngressRuleValue{
+				Paths: []networkingv1.HTTPIngressPath{
+					{
+						Backend: networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: name,
+								Port: networkingv1.ServiceBackendPort{
+									Name:   "use-annotation",
+									Number: 0,
+								},
+							},
+							Resource: nil,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func ingress(name, stableSvc, canarySvc, actionService string, port, weight int32, managedBy string, includeStickyConfig bool) *networkingv1.Ingress {
 	managedByValue := ingressutil.ManagedALBAnnotations{
 		managedBy: ingressutil.ManagedALBAnnotation{albActionAnnotation(actionService)},
@@ -150,26 +174,7 @@ func ingress(name, stableSvc, canarySvc, actionService string, port, weight int3
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{
-				{
-					IngressRuleValue: networkingv1.IngressRuleValue{
-						HTTP: &networkingv1.HTTPIngressRuleValue{
-							Paths: []networkingv1.HTTPIngressPath{
-								{
-									Backend: networkingv1.IngressBackend{
-										Service: &networkingv1.IngressServiceBackend{
-											Name: actionService,
-											Port: networkingv1.ServiceBackendPort{
-												Name:   "use-annotation",
-												Number: 0,
-											},
-										},
-										Resource: nil,
-									},
-								},
-							},
-						},
-					},
-				},
+				ingressRule(actionService),
 			},
 		},
 	}
@@ -2057,6 +2062,72 @@ func TestSetHeaderRouteMultiIngress(t *testing.T) {
 	err = r.RemoveManagedRoutes()
 	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 2)
+}
+
+func TestSetHeaderAffectsOnlyRelatedRules(t *testing.T) {
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "header-route"},
+	}
+	ingress := ingress("ingress", STABLE_SVC, CANARY_SVC, "stable-svc", 443, 10, ro.Name, false)
+	// now we have stable-svc, unrelated 1, unrelated 2, stable-svc rules
+	ingress.Spec.Rules = append(ingress.Spec.Rules, ingressRule("unrelated 1"), ingressRule("unrelated 2"), ingressRule(STABLE_SVC))
+
+	client := fake.NewSimpleClientset(ingress)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(ingress)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+		Match: []v1alpha1.HeaderRoutingMatch{{
+			HeaderName: "Agent",
+			HeaderValue: &v1alpha1.StringMatch{
+				Prefix: "Chrome",
+			},
+		}},
+	})
+
+	assert.Nil(t, err)
+	actions := client.Actions()
+	assert.Len(t, client.Actions(), 1)
+	assert.Equal(t, "patch", actions[0].GetVerb())
+	if patchAction, ok := actions[0].(k8stesting.PatchAction); ok {
+		var patchIngress networkingv1.Ingress
+		_, _, err = scheme.Codecs.UniversalDecoder().Decode(patchAction.GetPatch(), nil, &patchIngress)
+		assert.Nil(t, err)
+
+		assert.Len(t, patchIngress.Spec.Rules, 4)
+		// Expect first route to have additional path
+		assert.Len(t, patchIngress.Spec.Rules[0].HTTP.Paths, 2)
+		assert.Equal(t, patchIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name, "header-route")
+		assert.Equal(t, patchIngress.Spec.Rules[0].HTTP.Paths[1].Backend.Service.Name, STABLE_SVC)
+		// Second one is not affected
+		assert.Len(t, patchIngress.Spec.Rules[1].HTTP.Paths, 1)
+		assert.Equal(t, patchIngress.Spec.Rules[1].HTTP.Paths[0].Backend.Service.Name, "unrelated 1")
+		// Third one is not affected
+		assert.Len(t, patchIngress.Spec.Rules[2].HTTP.Paths, 1)
+		assert.Equal(t, patchIngress.Spec.Rules[2].HTTP.Paths[0].Backend.Service.Name, "unrelated 2")
+		// Last route also should have additional path
+		assert.Len(t, patchIngress.Spec.Rules[3].HTTP.Paths, 2)
+		assert.Equal(t, patchIngress.Spec.Rules[3].HTTP.Paths[0].Backend.Service.Name, "header-route")
+		assert.Equal(t, patchIngress.Spec.Rules[3].HTTP.Paths[1].Backend.Service.Name, STABLE_SVC)
+	}
+
+	// no managed routes, no changes expected
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
 }
 
 func TestRemoveManagedRoutes(t *testing.T) {
