@@ -12623,6 +12623,9 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: field is immutable
+                  rule: self == oldSelf
               strategy:
                 properties:
                   blueGreen:
@@ -16084,6 +16087,8 @@ spec:
                   scaleDown:
                     type: string
                 type: object
+            required:
+            - selector
             type: object
           status:
             properties:
