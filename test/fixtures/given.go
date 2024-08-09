@@ -34,9 +34,12 @@ func (g *Given) RolloutObjects(text string) *Given {
 	return g
 }
 
-func (g *Given) RolloutTemplate(text, name string) *Given {
+func (g *Given) RolloutTemplate(text string, values map[string]string) *Given {
 	yamlBytes := g.yamlBytes(text)
-	newText := strings.ReplaceAll(string(yamlBytes), "REPLACEME", name)
+	newText := string(yamlBytes)
+	for k, v := range values {
+		newText = strings.ReplaceAll(newText, k, v)
+	}
 	return g.RolloutObjects(newText)
 }
 

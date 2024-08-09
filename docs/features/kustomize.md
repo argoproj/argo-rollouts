@@ -28,6 +28,13 @@ configurations:
   - https://argoproj.github.io/argo-rollouts/features/kustomize/rollout-transform.yaml
 ```
 
+- With Kustomize 5 it is possible to reference the configuration directly from a remote resource:
+
+```yaml
+configurations:
+  - https://argoproj.github.io/argo-rollouts/features/kustomize/rollout-transform-kustomize-v5.yaml
+```
+
 - With Kustomize 4.5.5 kustomize can use kubernetes OpenAPI data to get merge key and patch strategy information about [resource types](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/openapi). For example, given the following rollout:
 
 ```yaml

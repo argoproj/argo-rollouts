@@ -107,7 +107,7 @@ func TestPlugin(t *testing.T) {
 
 		cm, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 		assert.NoError(t, err)
-		assert.Equal(t, cm, &config.Config{})
+		assert.Equal(t, 0, len(cm.GetAllPlugins()))
 
 		err = DownloadPlugins(MockFileDownloader{})
 		assert.NoError(t, err)

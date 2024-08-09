@@ -415,6 +415,18 @@ func (w *When) WaitForActiveRevision(revision string, timeout ...time.Duration) 
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("active revision=%s", revision), timeout...)
 }
 
+func (w *When) WaitForRolloutStepPluginRunning(timeout ...time.Duration) *When {
+	checkStatus := func(ro *rov1.Rollout) bool {
+		for _, s := range ro.Status.Canary.StepPluginStatuses {
+			if s.Index == *ro.Status.CurrentStepIndex && s.Operation == rov1.StepPluginOperationRun && s.Phase == v1alpha1.StepPluginPhaseRunning {
+				return true
+			}
+		}
+		return false
+	}
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("stepPluginStatus[currentIndex].phase=Running"), timeout...)
+}
+
 func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeouts ...time.Duration) *When {
 	start := time.Now()
 	w.log.Infof("Waiting for condition: %s", condition)
