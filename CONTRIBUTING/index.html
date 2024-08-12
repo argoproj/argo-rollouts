@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/CONTRIBUTING/">
       
       
-        <link rel="prev" href="../roadmap/">
+        <link rel="prev" href="../security/signed-release-assets/">
       
       
         <link rel="next" href="../getting-started/setup/">
@@ -3005,26 +3005,6 @@
       
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../roadmap/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Roadmap/Release Schedule
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
     
   
   
@@ -3037,10 +3017,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" checked>
         
           
-          <label class="md-nav__link" for="__nav_18" id="__nav_18_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_17" id="__nav_17_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3051,8 +3031,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_18">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_17">
             <span class="md-nav__icon md-icon"></span>
             Contributing
           </label>
@@ -3168,6 +3148,15 @@
   <a href="#running-the-ui" class="md-nav__link">
     <span class="md-ellipsis">
       Running the UI
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-your-feature-accepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting your feature accepted
     </span>
   </a>
   
@@ -3462,6 +3451,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#getting-your-feature-accepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting your feature accepted
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#controller-architecture" class="md-nav__link">
     <span class="md-ellipsis">
       Controller architecture
@@ -3630,6 +3628,19 @@ kubectl apply -f test/e2e/crds
 yarn<span class="w"> </span>install
 yarn<span class="w"> </span>start
 </code></pre></div>
+<h2 id="getting-your-feature-accepted">Getting your feature accepted<a class="headerlink" href="#getting-your-feature-accepted" title="Permanent link">&para;</a></h2>
+<p>To be eligible for inclusion in a minor release, a new feature must meet the following criteria before the release’s RC
+date.</p>
+<p>If it is a large feature that involves significant design decisions, that feature must be described in a Proposal.</p>
+<p>The feature PR must include:</p>
+<ul>
+<li>Tests (passing)</li>
+<li>Documentation</li>
+<li>If necessary, a note in the Upgrading docs for the planned minor release</li>
+<li>The PR must be reviewed, approved, and merged by an Approver.</li>
+</ul>
+<p>If these criteria are not met by the RC date, the feature will be ineligible for inclusion in the RC series or GA for
+that minor release. It will have to wait for the next minor release.</p>
 <h2 id="controller-architecture">Controller architecture<a class="headerlink" href="#controller-architecture" title="Permanent link">&para;</a></h2>
 <p>Argo Rollouts is actually a collection of individual controllers
 that handle a specific aspect of Progressive Delivery.</p>

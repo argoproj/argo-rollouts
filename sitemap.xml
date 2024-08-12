@@ -61,11 +61,6 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argo-rollouts.readthedocs.io/roadmap/</loc>
-         <lastmod>2024-08-12</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/cloudwatch/</loc>
          <lastmod>2024-08-12</lastmod>
          <changefreq>daily</changefreq>
