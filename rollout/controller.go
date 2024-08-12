@@ -992,7 +992,7 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 			}
 
 			if _, found := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; found {
-				patchRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = rs.Labels[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+				patchRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
 			}
 
 			if _, found := rs.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey]; found {
