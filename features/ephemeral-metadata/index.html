@@ -3268,7 +3268,7 @@
 labels/annotations, for <em>only</em> the duration which they are the desired or stable set, and for the
 labels to be updated/removed as soon as the ReplicaSet switches roles (e.g. from desired to stable).
 The use case which this enables, is to allow prometheus, wavefront, datadog queries and dashboards
-to be built, which can rely on a consistent labels, rather than the <code>rollouts-pod-template-hash</code>
+to be built, which can rely on a consistent list of labels, rather than the <code>rollouts-pod-template-hash</code>
 which is unpredictable and changing from revision to revision.</p>
 <p>A Rollout using the canary strategy has the ability to attach ephemeral metadata to the stable or
 canary Pods using the <code>stableMetadata</code> and <code>canaryMetadata</code> fields respectively.</p>
