@@ -163,6 +163,21 @@ func NewPrometheusProvider(api v1.API, logCtx log.Entry, metric v1alpha1.Metric)
 	return provider, nil
 }
 
+func newHTTPTransport(insecureSkipVerify bool) *http.Transport {
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: insecureSkipVerify},
+	}
+}
+
+var secureTransport *http.Transport = newHTTPTransport(false)
+var insecureTransport *http.Transport = newHTTPTransport(true)
+
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	envValuesByKey := make(map[string]string)
@@ -186,15 +201,10 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	}
 
 	var roundTripper http.RoundTripper
-
-	roundTripper = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		TLSHandshakeTimeout: 10 * time.Second,
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: metric.Provider.Prometheus.Insecure},
+	if metric.Provider.Prometheus.Insecure {
+		roundTripper = insecureTransport
+	} else {
+		roundTripper = secureTransport
 	}
 
 	// attach custom headers to api requests, if specified
