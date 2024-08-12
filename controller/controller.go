@@ -69,9 +69,6 @@ const (
 	// DefaultMetricsPort is the default port to expose the metrics endpoint
 	DefaultMetricsPort = 8090
 
-	// DefaultPProfPort is the default port to expose the pprof endpoint
-	DefaultPProfPort = 6060
-
 	// DefaultRolloutThreads is the default number of rollout worker threads to start with the controller
 	DefaultRolloutThreads = 10
 
