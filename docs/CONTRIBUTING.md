@@ -139,6 +139,23 @@ yarn install
 yarn start
 ```
 
+## Getting your feature accepted 
+
+To be eligible for inclusion in a minor release, a new feature must meet the following criteria before the release’s RC
+date.
+
+If it is a large feature that involves significant design decisions, that feature must be described in a Proposal.
+
+The feature PR must include:
+
+* Tests (passing)
+* Documentation
+* If necessary, a note in the Upgrading docs for the planned minor release
+* The PR must be reviewed, approved, and merged by an Approver.
+
+If these criteria are not met by the RC date, the feature will be ineligible for inclusion in the RC series or GA for
+that minor release. It will have to wait for the next minor release.
+
 ## Controller architecture
 
 Argo Rollouts is actually a collection of individual controllers
