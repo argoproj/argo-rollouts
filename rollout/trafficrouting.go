@@ -185,10 +185,10 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				// fully aborted and stable pods will be there, if we check for availability it causes issues with ALB readiness gates if all stable pods
 				// have the desired readiness gate on them during an abort we get stuck in a loop because all the stable go unready and rollouts won't be able
 				// to switch the desired services because there is no ready pods which causes pods to get stuck progressing forever waiting for readiness.
-				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, false)
-				if err != nil {
-					return err
-				}
+				//err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, false)
+				//if err != nil {
+				//	return err
+				//}
 			}
 			err := reconciler.RemoveManagedRoutes()
 			if err != nil {
