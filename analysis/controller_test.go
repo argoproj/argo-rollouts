@@ -159,6 +159,11 @@ func (f *fixture) run(analysisRunName string) {
 	f.runController(analysisRunName, true, false, c, i, k8sI)
 }
 
+func (f *fixture) runExpectError(analysisRunName string, startInformers bool) { //nolint:unused
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.runController(analysisRunName, startInformers, true, c, i, k8sI)
+}
+
 func (f *fixture) runController(analysisRunName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
 	if startInformers {
 		stopCh := make(chan struct{})

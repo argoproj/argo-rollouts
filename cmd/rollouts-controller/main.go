@@ -99,7 +99,7 @@ func newCommand() *cobra.Command {
 			}
 			logutil.SetKLogLogger(logger)
 			logutil.SetKLogLevel(klogLevel)
-			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting - Adevinta Version")
+			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 
 			// set up signals so we handle the first shutdown signal gracefully
 			ctx := signals.SetupSignalHandlerContext()
