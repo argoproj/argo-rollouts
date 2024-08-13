@@ -29,11 +29,21 @@ func TestRunSuite(t *testing.T) {
 			Query: "avg:kubernetes.cpu.user.total{*}",
 		},
 	}
-
 	ddProviderInterval10m := v1alpha1.MetricProvider{
 		Datadog: &v1alpha1.DatadogMetric{
 			Query:    "avg:kubernetes.cpu.user.total{*}",
 			Interval: "10m",
+		},
+	}
+
+	ddProviderNamespacedSecret := v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query:    "avg:kubernetes.cpu.user.total{*}",
+			Interval: "10m",
+			SecretRef: v1alpha1.SecretRef{
+				Name:       "secret",
+				Namespaced: true,
+			},
 		},
 	}
 
@@ -226,6 +236,21 @@ func TestRunSuite(t *testing.T) {
 			expectedErrorMessage: "parse \"://wrong.schema\": missing protocol scheme",
 			useEnvVarForKeys:     false,
 		},
+		// When secret passed name passed in the analysis template, expect success
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.0003332881882246533]]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
+				Provider:         ddProviderNamespacedSecret,
+			},
+			expectedIntervalSeconds: 600,
+			expectedValue:           "0.0003332881882246533",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
 	}
 
 	// Run
@@ -320,8 +345,9 @@ func TestRunSuite(t *testing.T) {
 		if test.metric.Provider.Datadog.Interval == "" {
 			test.metric.Provider.Datadog.Interval = "5m"
 		}
+		namespace := "namespace"
 
-		provider, _ := NewDatadogProvider(*logCtx, fakeClient, test.metric)
+		provider, _ := NewDatadogProvider(*logCtx, fakeClient, namespace, test.metric)
 
 		metricsMetadata := provider.GetMetadata(test.metric)
 		assert.Nil(t, metricsMetadata)

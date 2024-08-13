@@ -667,7 +667,7 @@ message DatadogMetric {
 
   // Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
   // +optional
-  optional string secret = 7;
+  optional SecretRef secretRef = 7;
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.
@@ -1720,6 +1720,14 @@ message SecretKeyRef {
 
   // Key is the key of the secret to select from.
   optional string key = 2;
+}
+
+message SecretRef {
+  // Name refers to the name of the secret that should be used to integrate with Datadog.
+  optional string name = 1;
+
+  // Namespaced indicates whether the secret is in the namespace where rollouts it installed or in the namespace where the metric was found
+  optional bool namespaced = 2;
 }
 
 // SetCanaryScale defines how to scale the newRS without changing traffic weight

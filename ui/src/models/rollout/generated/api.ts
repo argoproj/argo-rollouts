@@ -1057,10 +1057,10 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetr
     aggregator?: string;
     /**
      * 
-     * @type {string}
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
      */
-    secret?: string;
+    secretRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef;
 }
 /**
  * DryRun defines the settings for running the analysis in Dry-Run mode.
@@ -2718,6 +2718,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRe
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef
      */
     key?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef {
+    /**
+     * Name refers to the name of the secret that should be used to integrate with Datadog.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+     */
+    name?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+     */
+    namespaced?: boolean;
 }
 /**
  * 

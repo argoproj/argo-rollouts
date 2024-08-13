@@ -622,5 +622,12 @@ type DatadogMetric struct {
 	Aggregator string `json:"aggregator,omitempty" protobuf:"bytes,6,opt,name=aggregator"`
 	// Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
 	// +optional
-	Secret string `json:"secret,omitempty" protobuf:"bytes,7,opt,name=secret"`
+	SecretRef SecretRef `json:"secretRef,omitempty" protobuf:"bytes,7,opt,name=secretRef"`
+}
+
+type SecretRef struct {
+	// Name refers to the name of the secret that should be used to integrate with Datadog.
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// Namespaced indicates whether the secret is in the namespace where rollouts it installed or in the namespace where the metric was found
+	Namespaced bool `json:"namespaced,omitempty" protobuf:"varint,2,opt,namespaced=dryRun"`
 }
