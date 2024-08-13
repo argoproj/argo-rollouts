@@ -79,8 +79,6 @@ jobs:
       fail-fast: false
       matrix:
         kubernetes:
-          - version: 1.26
-            latest: false
           - version: 1.27
             latest: false
           - version: 1.28
