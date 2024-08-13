@@ -604,6 +604,7 @@ func (s *CanarySuite) TestCanaryWithPausedRollout() {
 		WaitForRolloutStatus("Paused").
 		UpdateSpec(). // update to revision 3
 		WaitForRolloutStatus("Paused").
+		Sleep(1*time.Second).
 		Then().
 		ExpectRevisionPodCount("1", 3).
 		ExpectRevisionPodCount("2", 0).

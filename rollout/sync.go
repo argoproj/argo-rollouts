@@ -42,18 +42,13 @@ import (
 //
 // Note that currently the rollout controller is using caches to avoid querying the server for reads.
 // This may lead to stale reads of replica sets, thus incorrect  v status.
-func (c *rolloutContext) getAllReplicaSetsAndSyncRevision(createIfNotExisted bool) (*appsv1.ReplicaSet, error) {
+func (c *rolloutContext) getAllReplicaSetsAndSyncRevision() (*appsv1.ReplicaSet, error) {
 	// Get new replica set with the updated revision number
 	newRS, err := c.syncReplicaSetRevision()
 	if err != nil {
 		return nil, err
 	}
-	if newRS == nil && createIfNotExisted {
-		newRS, err = c.createDesiredReplicaSet()
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	return newRS, nil
 }
 
@@ -277,7 +272,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 func (c *rolloutContext) syncReplicasOnly() error {
 	c.log.Infof("Syncing replicas only due to scaling event")
 	var err error
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in syncReplicasOnly: %w", err)
 	}
@@ -324,7 +319,7 @@ func (c *rolloutContext) syncReplicasOnly() error {
 // rsList should come from getReplicaSetsForRollout(r).
 func (c *rolloutContext) isScalingEvent() (bool, error) {
 	var err error
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
 		return false, fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in isScalingEvent: %w", err)
 	}
@@ -729,7 +724,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 		if conditions.SetRolloutCondition(&newStatus, *updateCompletedCond) {
 			revision, _ := replicasetutil.Revision(c.rollout)
 			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutNotCompletedReason},
-				conditions.RolloutNotCompletedMessage, revision+1, newStatus.CurrentPodHash)
+				conditions.RolloutNotCompletedMessage, revision, newStatus.CurrentPodHash)
 		}
 	}
 
