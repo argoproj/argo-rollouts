@@ -1965,7 +1965,7 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 					},
 					"secret": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Secret",
+							Description: "Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

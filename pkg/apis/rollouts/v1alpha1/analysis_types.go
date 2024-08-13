@@ -620,7 +620,7 @@ type DatadogMetric struct {
 	// +kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area
 	// Aggregator is a type of aggregator to use for metrics-based queries (default: ""). Used for v2
 	Aggregator string `json:"aggregator,omitempty" protobuf:"bytes,6,opt,name=aggregator"`
-	// Secret
-	// +kubebuilder:default=datadog
+	// Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
+	// +optional
 	Secret string `json:"secret,omitempty" protobuf:"bytes,7,opt,name=secret"`
 }

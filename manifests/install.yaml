@@ -209,7 +209,6 @@ spec:
                             query:
                               type: string
                             secret:
-                              default: datadog
                               type: string
                           type: object
                         graphite:
@@ -3513,7 +3512,6 @@ spec:
                             query:
                               type: string
                             secret:
-                              default: datadog
                               type: string
                           type: object
                         graphite:
@@ -6695,7 +6693,6 @@ spec:
                             query:
                               type: string
                             secret:
-                              default: datadog
                               type: string
                           type: object
                         graphite:
