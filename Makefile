@@ -109,7 +109,7 @@ install-toolchain: install-go-tools-local install-protoc-local
 
 # generates all auto-generated code
 .PHONY: codegen
-codegen: go-mod-vendor  gen-k8scodegen gen-openapi gen-mocks gen-crd manifests docs
+codegen: go-mod-vendor gen-proto gen-k8scodegen gen-openapi gen-mocks gen-crd manifests docs
 
 # generates all files related to proto files
 .PHONY: gen-proto
