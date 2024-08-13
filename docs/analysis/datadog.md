@@ -43,6 +43,8 @@ stringData:
 
 !!! important
     ###### Namespaced secret
+    Datadog integration supports referring to secrets inside the same namespace as argo-rollouts (by default)
+    or referring to a secret in the same namespace as the `AnalysisTemplate`.
 
     To use a secret within the Analysis template namespace, add a secretRef section. 
 
