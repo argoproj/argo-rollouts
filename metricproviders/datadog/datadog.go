@@ -435,7 +435,11 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, me
 		appKey = envValuesByKey[DatadogAppKey]
 		address = envValuesByKey[DatadogAddress]
 	} else {
-		secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), DatadogTokensSecretName, metav1.GetOptions{})
+		datadogSecretName := metric.Provider.Datadog.Secret
+		if datadogSecretName == "" {
+			datadogSecretName = DatadogTokensSecretName
+		}
+		secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), datadogSecretName, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

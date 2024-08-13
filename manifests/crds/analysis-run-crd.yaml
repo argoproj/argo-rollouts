@@ -207,6 +207,9 @@ spec:
                               type: object
                             query:
                               type: string
+                            secret:
+                              default: datadog
+                              type: string
                           type: object
                         graphite:
                           properties:

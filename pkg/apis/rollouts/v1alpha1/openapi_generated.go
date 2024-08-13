@@ -1963,6 +1963,13 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"secret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Secret",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
