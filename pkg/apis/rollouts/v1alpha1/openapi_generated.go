@@ -3321,6 +3321,13 @@ func schema_pkg_apis_rollouts_v1alpha1_NewRelicMetric(ref common.ReferenceCallba
 							Format:      "",
 						},
 					},
+					"timeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Timeout represents the duration limit in seconds that will apply to the NRQL query",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
 				},
 				Required: []string{"query"},
 			},

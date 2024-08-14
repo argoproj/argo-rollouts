@@ -3011,6 +3011,9 @@ spec:
                               type: string
                             query:
                               type: string
+                            timeout:
+                              format: int64
+                              type: integer
                           required:
                           - query
                           type: object

@@ -1661,6 +1661,11 @@
         "query": {
           "type": "string",
           "title": "Query is a raw newrelic NRQL query to perform"
+        },
+        "timeout": {
+          "type": "string",
+          "format": "int64",
+          "title": "Timeout represents the duration limit in seconds that will apply to the NRQL query\n+optional"
         }
       },
       "title": "NewRelicMetric defines the newrelic query to perform canary analysis"

@@ -26,7 +26,7 @@ require (
 	github.com/juju/ansiterm v1.0.0
 	github.com/machinebox/graphql v0.2.2
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/newrelic/newrelic-client-go v1.1.0
+	github.com/newrelic/newrelic-client-go/v2 v2.41.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.18.0
 	github.com/prometheus/client_model v0.6.1
@@ -141,7 +141,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.1 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
 	github.com/huandu/xstrings v1.3.3 // indirect
-	github.com/imdario/mergo v0.3.13 // indirect
+	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
@@ -181,7 +181,7 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fastjson v1.6.3 // indirect
+	github.com/valyala/fastjson v1.6.4 // indirect
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.10 // indirect
