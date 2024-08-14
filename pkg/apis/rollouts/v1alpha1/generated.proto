@@ -448,6 +448,9 @@ message CanaryStatus {
 
   // StablePingPong For the ping-pong feature holds the current stable service, ping or pong
   optional string stablePingPong = 5;
+
+  // StepPluginStatuses holds the status of the step plugins executed
+  repeated StepPluginStatus stepPluginStatuses = 6;
 }
 
 // CanaryStep defines a step of a canary deployment.
@@ -477,6 +480,9 @@ message CanaryStep {
   // SetMirrorRoutes Mirrors traffic that matches rules to a particular destination
   // +optional
   optional SetMirrorRoute setMirrorRoute = 8;
+
+  // Plugin defines a plugin to execute for a step
+  optional PluginStep plugin = 9;
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary
@@ -1184,6 +1190,17 @@ message PingPongSpec {
   optional string pongService = 2;
 }
 
+message PluginStep {
+  // Name of the hashicorp go-plugin step to query
+  optional string name = 1;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // Config is the configuration object for the specified plugin
+  optional bytes config = 2;
+}
+
 // PodTemplateMetadata extra labels to add to the template
 message PodTemplateMetadata {
   // Labels Additional labels to add to the experiment
@@ -1757,6 +1774,47 @@ message SkyWalkingMetric {
   optional string query = 2;
 
   optional string interval = 3;
+}
+
+message StepPluginStatus {
+  // Index is the matching step index of the executed plugin
+  optional int32 index = 1;
+
+  // Name is the matching step name of the executed plugin
+  optional string name = 2;
+
+  // Operation is the name of the operation that produced this status
+  optional string operation = 3;
+
+  // Phase is the resulting phase of the operation
+  optional string phase = 4;
+
+  // Message provides details on why the plugin is in its current phase
+  optional string message = 5;
+
+  // StartedAt indicates when the plugin was first called for the operation
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 6;
+
+  // UpdatedAt indicates when the plugin was last called for the operation
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time updatedAt = 7;
+
+  // FinishedAt indicates when the operation was completed
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 8;
+
+  // Backoff is a duration to wait before trying to execute the operation again if it was not completed
+  optional string backoff = 9;
+
+  // Executions is the number of time the operation was executed
+  optional int32 executions = 10;
+
+  // Disabled indicates if the plugin is globally disabled
+  optional bool disabled = 11;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // Status holds the internal status of the plugin for this operation
+  optional bytes status = 12;
 }
 
 message StickinessConfig {
