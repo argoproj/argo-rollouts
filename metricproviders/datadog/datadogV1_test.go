@@ -46,9 +46,19 @@ func TestRunSuite(t *testing.T) {
 			},
 		},
 	}
+	ddProviderNamespacedTrue := v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query:    "avg:kubernetes.cpu.user.total{*}",
+			Interval: "10m",
+			SecretRef: v1alpha1.SecretRef{
+				Namespaced: true,
+			},
+		},
+	}
 
 	// Test Cases
 	tests := []struct {
+		name                    string
 		serverURL               string
 		webServerStatus         int
 		webServerResponse       string
@@ -57,6 +67,7 @@ func TestRunSuite(t *testing.T) {
 		expectedValue           string
 		expectedPhase           v1alpha1.AnalysisPhase
 		expectedErrorMessage    string
+		expectedErrorProvider   bool
 		useEnvVarForKeys        bool
 	}{
 		// When last value of time series matches condition then succeed.
@@ -250,6 +261,18 @@ func TestRunSuite(t *testing.T) {
 			expectedValue:           "0.0003332881882246533",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
+			expectedErrorProvider:   false,
+		},
+		// When secretRef is namespaced true but no secret name passed, expect failure
+		{
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
+				Provider:         ddProviderNamespacedTrue,
+			},
+			useEnvVarForKeys:      false,
+			expectedErrorProvider: true,
 		},
 	}
 
@@ -347,7 +370,11 @@ func TestRunSuite(t *testing.T) {
 		}
 		namespace := "namespace"
 
-		provider, _ := NewDatadogProvider(*logCtx, fakeClient, namespace, test.metric)
+		provider, err := NewDatadogProvider(*logCtx, fakeClient, namespace, test.metric)
+		assert.Equal(t, err != nil, test.expectedErrorProvider)
+		if test.expectedErrorProvider {
+			continue
+		}
 
 		metricsMetadata := provider.GetMetadata(test.metric)
 		assert.Nil(t, metricsMetadata)

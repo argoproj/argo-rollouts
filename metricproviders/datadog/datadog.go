@@ -435,16 +435,20 @@ func findCredentials(logCtx log.Entry, kubeclientset kubernetes.Interface, names
 	finders := []CredentialsFinder{}
 	secretName := metric.Provider.Datadog.SecretRef.Name
 	namespaced := metric.Provider.Datadog.SecretRef.Namespaced
+	credentialsNs := defaults.Namespace()
 
-	if secretName != "" {
-		if namespaced {
-			finders = append(finders, NewSecretFinder(kubeclientset, secretName, namespace))
-		} else {
-			finders = append(finders, NewSecretFinder(kubeclientset, secretName, defaults.Namespace()))
+	if namespaced {
+		credentialsNs = namespace
+		if secretName == "" {
+			return "", "", "", errors.New("secret name is required for namespaced credentials")
 		}
 	}
-	finders = append(finders, NewEnvVariablesFinder(), NewSecretFinder(kubeclientset, DatadogTokensSecretName, defaults.Namespace()))
 
+	if secretName != "" {
+		finders = append(finders, NewSecretFinder(kubeclientset, secretName, credentialsNs))
+	} else {
+		finders = append(finders, NewEnvVariablesFinder(), NewSecretFinder(kubeclientset, DatadogTokensSecretName, defaults.Namespace()))
+	}
 	for _, finder := range finders {
 		address, apiKey, appKey := finder.FindCredentials(logCtx)
 		if address != "" && apiKey != "" && appKey != "" {
@@ -452,5 +456,5 @@ func findCredentials(logCtx log.Entry, kubeclientset kubernetes.Interface, names
 		}
 	}
 
-	return "", "", "", errors.New("failed to find the credentials for datadog provider")
+	return "", "", "", errors.New("failed to find the credentials for datadog metrics provider")
 }

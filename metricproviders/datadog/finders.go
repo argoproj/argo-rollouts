@@ -33,11 +33,17 @@ func (sf *secretFinder) FindCredentials(logCtx log.Entry) (string, string, strin
 	address := ""
 	secret, err := sf.kubeclientset.CoreV1().Secrets(sf.namespace).Get(context.TODO(), sf.secretName, metav1.GetOptions{})
 	if err != nil {
-		logCtx.Debugf("secret %s in namespace %s", sf.namespace, sf.secretName)
+		logCtx.Debugf("error searching for secret %s in namespace %s: %s", sf.secretName, sf.namespace, err.Error())
 		return "", "", ""
 	}
+
 	apiKey := string(secret.Data[DatadogApiKey])
 	appKey := string(secret.Data[DatadogAppKey])
+
+	if apiKey == "" || appKey == "" {
+		logCtx.Debugf("credentials missing in secret %s in namespace %s", sf.secretName, sf.namespace)
+		return "", "", ""
+	}
 	if _, hasAddress := secret.Data[DatadogAddress]; hasAddress {
 		address = string(secret.Data[DatadogAddress])
 	}
