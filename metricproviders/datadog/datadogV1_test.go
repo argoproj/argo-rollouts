@@ -12,49 +12,19 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 )
 
+const (
+	ExpectedApiKey = "0123456789abcdef0123456789abcdef"
+	ExpectedAppKey = "0123456789abcdef0123456789abcdef01234567"
+)
+
 func TestRunSuite(t *testing.T) {
-	const expectedApiKey = "0123456789abcdef0123456789abcdef"
-	const expectedAppKey = "0123456789abcdef0123456789abcdef01234567"
 
 	unixNow = func() int64 { return 1599076435 }
-
-	ddProviderIntervalDefault := v1alpha1.MetricProvider{
-		Datadog: &v1alpha1.DatadogMetric{
-			Query: "avg:kubernetes.cpu.user.total{*}",
-		},
-	}
-	ddProviderInterval10m := v1alpha1.MetricProvider{
-		Datadog: &v1alpha1.DatadogMetric{
-			Query:    "avg:kubernetes.cpu.user.total{*}",
-			Interval: "10m",
-		},
-	}
-
-	ddProviderNamespacedSecret := v1alpha1.MetricProvider{
-		Datadog: &v1alpha1.DatadogMetric{
-			Query:    "avg:kubernetes.cpu.user.total{*}",
-			Interval: "10m",
-			SecretRef: v1alpha1.SecretRef{
-				Name:       "secret",
-				Namespaced: true,
-			},
-		},
-	}
-	ddProviderNamespacedTrue := v1alpha1.MetricProvider{
-		Datadog: &v1alpha1.DatadogMetric{
-			Query:    "avg:kubernetes.cpu.user.total{*}",
-			Interval: "10m",
-			SecretRef: v1alpha1.SecretRef{
-				Namespaced: true,
-			},
-		},
-	}
 
 	// Test Cases
 	tests := []struct {
@@ -68,6 +38,8 @@ func TestRunSuite(t *testing.T) {
 		expectedPhase           v1alpha1.AnalysisPhase
 		expectedErrorMessage    string
 		expectedErrorProvider   bool
+		expectedApiKey          string
+		expectedAppKey          string
 		useEnvVarForKeys        bool
 	}{
 		// When last value of time series matches condition then succeed.
@@ -78,11 +50,13 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider:         ddProviderInterval10m,
+				Provider:         ddProviderInterval10m(),
 			},
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0003332881882246533",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			useEnvVarForKeys:        false,
 		},
 		// Same test as above, but derive DD keys from env var instead of k8s secret
@@ -93,11 +67,13 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider:         ddProviderInterval10m,
+				Provider:         ddProviderInterval10m(),
 			},
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0003332881882246533",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			useEnvVarForKeys:        true,
 		},
 		// When last value of time series does not match condition then fail.
@@ -108,11 +84,13 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider:         ddProviderIntervalDefault,
+				Provider:         ddProviderIntervalDefault(),
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.006121378742186943",
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			useEnvVarForKeys:        false,
 		},
 		// Error if the request is invalid
@@ -123,10 +101,12 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider:         ddProviderIntervalDefault,
+				Provider:         ddProviderIntervalDefault(),
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			expectedErrorMessage:    "received non 2xx response code: 400 {\"status\":\"error\",\"error\":\"error messsage\"}",
 			useEnvVarForKeys:        false,
 		},
@@ -138,10 +118,12 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider:         ddProviderIntervalDefault,
+				Provider:         ddProviderIntervalDefault(),
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			expectedErrorMessage:    "received authentication error response code: 401 {\"errors\": [\"No authenticated user.\"]}",
 			useEnvVarForKeys:        false,
 		},
@@ -153,11 +135,13 @@ func TestRunSuite(t *testing.T) {
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "default(result, 0) < 0.05",
-				Provider:         ddProviderIntervalDefault,
+				Provider:         ddProviderIntervalDefault(),
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.006121378742186943",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			useEnvVarForKeys:        false,
 		},
 
@@ -168,10 +152,12 @@ func TestRunSuite(t *testing.T) {
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "result < 0.05",
-				Provider:         ddProviderIntervalDefault,
+				Provider:         ddProviderIntervalDefault(),
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			expectedErrorMessage:    `invalid operation: < (mismatched types <nil> and float64)`,
 			useEnvVarForKeys:        false,
 		},
@@ -183,11 +169,13 @@ func TestRunSuite(t *testing.T) {
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "default(result, 0) < 0.05",
-				Provider:         ddProviderIntervalDefault,
+				Provider:         ddProviderIntervalDefault(),
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           `[]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			useEnvVarForKeys:        false,
 		},
 
@@ -198,11 +186,13 @@ func TestRunSuite(t *testing.T) {
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "default(result, 1) < 0.05",
-				Provider:         ddProviderIntervalDefault,
+				Provider:         ddProviderIntervalDefault(),
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           `[]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			useEnvVarForKeys:        false,
 		},
 
@@ -213,11 +203,13 @@ func TestRunSuite(t *testing.T) {
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "default(result, 1) < 0.05",
-				Provider:         ddProviderIntervalDefault,
+				Provider:         ddProviderIntervalDefault(),
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           `0.006121378742186943`,
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			useEnvVarForKeys:        false,
 		},
 
@@ -229,10 +221,12 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider:         ddProviderIntervalDefault,
+				Provider:         ddProviderIntervalDefault(),
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field datadogResponseV1.Series of type []struct { Pointlist [][]float64 \"json:\\\"pointlist\\\"\" }",
 			useEnvVarForKeys:        false,
 		},
@@ -241,9 +235,11 @@ func TestRunSuite(t *testing.T) {
 		{
 			serverURL: "://wrong.schema",
 			metric: v1alpha1.Metric{
-				Provider: ddProviderInterval10m,
+				Provider: ddProviderInterval10m(),
 			},
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
+			expectedApiKey:       ExpectedApiKey,
+			expectedAppKey:       ExpectedAppKey,
 			expectedErrorMessage: "parse \"://wrong.schema\": missing protocol scheme",
 			useEnvVarForKeys:     false,
 		},
@@ -255,21 +251,36 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider:         ddProviderNamespacedSecret,
+				Provider:         ddProviderNamespacedSecret(),
 			},
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0003332881882246533",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedApiKey:          ExpectedApiKey,
+			expectedAppKey:          ExpectedAppKey,
 			useEnvVarForKeys:        false,
 			expectedErrorProvider:   false,
 		},
-		// When secretRef is namespaced true but no secret name passed, expect failure
+		// When secretRef is namespaced but no secret is not found, expect failure
 		{
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider:         ddProviderNamespacedTrue,
+				Provider:         ddProviderNamespacedTrue(),
+			},
+			expectedApiKey:        ExpectedApiKey,
+			expectedAppKey:        ExpectedAppKey,
+			useEnvVarForKeys:      false,
+			expectedErrorProvider: true,
+		},
+		// When secretRef is namespaced but no secret is not found, expect failure ---
+		{
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
+				Provider:         ddProviderNamespacedSecret(),
 			},
 			useEnvVarForKeys:      false,
 			expectedErrorProvider: true,
@@ -309,11 +320,11 @@ func TestRunSuite(t *testing.T) {
 				if req.Header.Get("Content-Type") != "application/json" {
 					t.Errorf("\nContent-Type header expected to be application/json but got %s", req.Header.Get("Content-Type"))
 				}
-				if req.Header.Get("DD-API-KEY") != expectedApiKey {
-					t.Errorf("\nDD-API-KEY header expected %s but got %s", expectedApiKey, req.Header.Get("DD-API-KEY"))
+				if req.Header.Get("DD-API-KEY") != ExpectedApiKey {
+					t.Errorf("\nDD-API-KEY header expected %s but got %s", ExpectedApiKey, req.Header.Get("DD-API-KEY"))
 				}
-				if req.Header.Get("DD-APPLICATION-KEY") != expectedAppKey {
-					t.Errorf("\nDD-APPLICATION-KEY header expected %s but got %s", expectedAppKey, req.Header.Get("DD-APPLICATION-KEY"))
+				if req.Header.Get("DD-APPLICATION-KEY") != ExpectedAppKey {
+					t.Errorf("\nDD-APPLICATION-KEY header expected %s but got %s", ExpectedAppKey, req.Header.Get("DD-APPLICATION-KEY"))
 				}
 
 				// Return mock response
@@ -329,20 +340,11 @@ func TestRunSuite(t *testing.T) {
 			serverURL = server.URL
 		}
 
-		tokenSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: DatadogTokensSecretName,
-			},
-			Data: map[string][]byte{
-				"address": []byte(serverURL),
-				"api-key": []byte(expectedApiKey),
-				"app-key": []byte(expectedAppKey),
-			},
-		}
+		tokenSecret := newSecret(serverURL, test.expectedApiKey, test.expectedAppKey)
 
 		if test.useEnvVarForKeys {
-			os.Setenv("DD_API_KEY", expectedApiKey)
-			os.Setenv("DD_APP_KEY", expectedAppKey)
+			os.Setenv("DD_API_KEY", ExpectedApiKey)
+			os.Setenv("DD_APP_KEY", ExpectedAppKey)
 			os.Setenv("DD_ADDRESS", serverURL)
 		} else {
 			os.Unsetenv("DD_API_KEY")
@@ -405,4 +407,55 @@ func TestRunSuite(t *testing.T) {
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
 	return &v1alpha1.AnalysisRun{}
+}
+
+func ddProviderIntervalDefault() v1alpha1.MetricProvider {
+	return v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query: "avg:kubernetes.cpu.user.total{*}",
+		},
+	}
+}
+
+func ddProviderInterval10m() v1alpha1.MetricProvider {
+	return v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query:    "avg:kubernetes.cpu.user.total{*}",
+			Interval: "10m",
+		},
+	}
+}
+
+func ddProviderNamespacedSecret() v1alpha1.MetricProvider {
+	return v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query:    "avg:kubernetes.cpu.user.total{*}",
+			Interval: "10m",
+			SecretRef: v1alpha1.SecretRef{
+				Name:       "secret",
+				Namespaced: true,
+			},
+		},
+	}
+}
+
+func ddProviderNamespacedTrue() v1alpha1.MetricProvider {
+
+	return v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query:    "avg:kubernetes.cpu.user.total{*}",
+			Interval: "10m",
+			SecretRef: v1alpha1.SecretRef{
+				Namespaced: true,
+			},
+		},
+	}
+}
+func newSecret(serverURL, expectedApiKey, expectedAppKey string) *corev1.Secret {
+	return NewSecretBuilder().
+		WithName("DatadogTokensSecretName").
+		WithData("address", []byte(serverURL)).
+		WithData("api-key", []byte(expectedApiKey)).
+		WithData("app-key", []byte(expectedAppKey)).
+		Build()
 }
