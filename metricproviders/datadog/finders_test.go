@@ -109,3 +109,14 @@ func (b *SecretBuilder) Build() *corev1.Secret {
 		Data: b.data,
 	}
 }
+
+// NewSecretBuilderDefaultData creates a new SecretBuilder with default values
+func NewSecretBuilderDefaultData() *SecretBuilder {
+	return &SecretBuilder{
+		data: map[string][]byte{
+			"address": []byte("datadog.com"),
+			"api-key": []byte("apiKey"),
+			"app-key": []byte("appKey"),
+		},
+	}
+}

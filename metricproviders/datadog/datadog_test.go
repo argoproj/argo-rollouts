@@ -3,14 +3,18 @@
 package datadog
 
 import (
-	"log"
 	"os"
 	"testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	kubetesting "k8s.io/client-go/testing"
 )
 
 func TestDatadogSpecDefaults(t *testing.T) {
@@ -177,5 +181,69 @@ func TestValidateIncomingProps(t *testing.T) {
 				assert.NoError(t, err)
 			}
 		})
+	}
+}
+
+func TestFindCredentials(t *testing.T) {
+
+	testCases := []struct {
+		name         string
+		secret       *corev1.Secret
+		expectsError bool
+		metric       v1alpha1.Metric
+	}{
+		{
+			name:   "when secretRef is set and secret found, should success",
+			secret: NewSecretBuilderDefaultData().Build(),
+			metric: newMetric("datadog", true),
+		},
+		{
+			name:         "when secretRef is set but secret not found, should fail",
+			secret:       NewSecretBuilder().Build(),
+			metric:       newMetric("datadog", true),
+			expectsError: true,
+		},
+		{
+			name:         "when secretRef name is not set but namespaced is true, should fail",
+			secret:       NewSecretBuilder().Build(),
+			metric:       newMetric("", true),
+			expectsError: true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			logCtx := *log.WithField("test", "test")
+			fakeClient := k8sfake.NewSimpleClientset()
+			fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, testCase.secret, nil
+			})
+
+			address, apiKey, appKey, err := findCredentials(logCtx, fakeClient, "namespace", testCase.metric)
+			assert.Equal(t, err != nil, testCase.expectsError)
+			if !testCase.expectsError {
+				assert.Equal(t, string(testCase.secret.Data["address"]), address)
+				assert.Equal(t, string(testCase.secret.Data["api-key"]), apiKey)
+				assert.Equal(t, string(testCase.secret.Data["app-key"]), appKey)
+			}
+		})
+
+	}
+}
+
+func newMetric(name string, namespaced bool) v1alpha1.Metric {
+	return v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Datadog: &v1alpha1.DatadogMetric{
+				Query:      "avg:kubernetes.cpu.user.total{*}",
+				Interval:   "5m",
+				Aggregator: "sum",
+				ApiVersion: "v2",
+				SecretRef: v1alpha1.SecretRef{
+					Name:       name,
+					Namespaced: namespaced,
+				},
+			},
+		},
 	}
 }
