@@ -1,4 +1,5 @@
 // eslint-disable-file @typescript-eslint/ban-ts-comment
+import JSON5 from 'json5'
 import * as moment from 'moment';
 
 import {
@@ -617,7 +618,7 @@ const transformMeasurementValue = (conditionKeys: string[], value?: string): Mea
         };
     }
 
-    const parsedValue = JSON.parse(value);
+    const parsedValue = JSON5.parse(value);
 
     // single number measurement value
     if (isFiniteNumber(parsedValue)) {
