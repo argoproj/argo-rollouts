@@ -534,6 +534,38 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		},
 		reconcilerBase: c.reconcilerBase,
 	}
+
+	// Get Rollout Validation errors
+	err = roCtx.getRolloutValidationErrors()
+	if err != nil {
+		if vErr, ok := err.(*field.Error); ok {
+			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
+			// condition might be timing related (e.g. the Rollout was applied before the Service).
+			c.enqueueRolloutAfter(roCtx.rollout, 20*time.Second)
+			err := roCtx.createInvalidRolloutCondition(vErr, roCtx.rollout)
+			if err != nil {
+				return nil, err
+			}
+			return nil, vErr
+		}
+		return nil, err
+	}
+
+	if roCtx.newRS == nil {
+		roCtx.newRS, err = roCtx.createDesiredReplicaSet()
+		if err != nil {
+			return nil, err
+		}
+		roCtx.olderRSs = replicasetutil.FindOldReplicaSets(roCtx.rollout, rsList, roCtx.newRS)
+		roCtx.stableRS = replicasetutil.GetStableRS(roCtx.rollout, roCtx.newRS, roCtx.olderRSs)
+		roCtx.otherRSs = replicasetutil.GetOtherRSs(roCtx.rollout, roCtx.newRS, roCtx.stableRS, rsList)
+		roCtx.allRSs = append(rsList, roCtx.newRS)
+		err := roCtx.replicaSetInformer.GetIndexer().Add(roCtx.newRS)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if rolloututil.IsFullyPromoted(rollout) && roCtx.pauseContext.IsAborted() {
 		logCtx.Warnf("Removing abort condition from fully promoted rollout")
 		roCtx.pauseContext.RemoveAbort()
