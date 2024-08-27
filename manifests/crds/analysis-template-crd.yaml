@@ -203,6 +203,13 @@ spec:
                               type: object
                             query:
                               type: string
+                            secretRef:
+                              properties:
+                                name:
+                                  type: string
+                                namespaced:
+                                  type: boolean
+                              type: object
                           type: object
                         graphite:
                           properties:

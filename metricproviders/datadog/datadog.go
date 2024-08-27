@@ -2,17 +2,14 @@ package datadog
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -22,7 +19,6 @@ import (
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -369,18 +365,6 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
-func lookupKeysInEnv(keys []string) map[string]string {
-	valuesByKey := make(map[string]string)
-	for i := range keys {
-		key := keys[i]
-		formattedKey := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
-		if value, ok := os.LookupEnv(fmt.Sprintf("DD_%s", formattedKey)); ok {
-			valuesByKey[key] = value
-		}
-	}
-	return valuesByKey
-}
-
 // The current gen tooling we are using can't generate CRD with all the validations we need.
 // This is unfortunate, user has more ways to deliver an invalid Analysis Template vs
 // being rejected on delivery by k8s (and allowing for a validation step if desired in CI/CD).
@@ -422,32 +406,13 @@ func validateIncomingProps(dd *v1alpha1.DatadogMetric) error {
 	return nil
 }
 
-func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, metric v1alpha1.Metric) (*Provider, error) {
-	ns := defaults.Namespace()
-
-	apiKey := ""
-	appKey := ""
-	address := ""
-	secretKeys := []string{DatadogApiKey, DatadogAppKey, DatadogAddress}
-	envValuesByKey := lookupKeysInEnv(secretKeys)
-	if len(envValuesByKey) == len(secretKeys) {
-		apiKey = envValuesByKey[DatadogApiKey]
-		appKey = envValuesByKey[DatadogAppKey]
-		address = envValuesByKey[DatadogAddress]
-	} else {
-		secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), DatadogTokensSecretName, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		apiKey = string(secret.Data[DatadogApiKey])
-		appKey = string(secret.Data[DatadogAppKey])
-		if _, hasAddress := secret.Data[DatadogAddress]; hasAddress {
-			address = string(secret.Data[DatadogAddress])
-		}
+func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, namespace string, metric v1alpha1.Metric) (*Provider, error) {
+	address, apiKey, appKey, err := findCredentials(logCtx, kubeclientset, namespace, metric)
+	if err != nil {
+		return nil, err
 	}
 
 	if apiKey != "" && appKey != "" {
-
 		err := validateIncomingProps(metric.Provider.Datadog)
 		if err != nil {
 			return nil, err
@@ -464,4 +429,32 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, me
 	} else {
 		return nil, errors.New("API or App token not found")
 	}
+}
+
+func findCredentials(logCtx log.Entry, kubeclientset kubernetes.Interface, namespace string, metric v1alpha1.Metric) (string, string, string, error) {
+	finders := []CredentialsFinder{}
+	secretName := metric.Provider.Datadog.SecretRef.Name
+	namespaced := metric.Provider.Datadog.SecretRef.Namespaced
+	credentialsNs := defaults.Namespace()
+
+	if namespaced {
+		credentialsNs = namespace
+		if secretName == "" {
+			return "", "", "", errors.New("secret name is required for namespaced credentials")
+		}
+	}
+
+	if secretName != "" {
+		finders = append(finders, NewSecretFinder(kubeclientset, secretName, credentialsNs))
+	} else {
+		finders = append(finders, NewEnvVariablesFinder(), NewSecretFinder(kubeclientset, DatadogTokensSecretName, defaults.Namespace()))
+	}
+	for _, finder := range finders {
+		address, apiKey, appKey := finder.FindCredentials(logCtx)
+		if address != "" && apiKey != "" && appKey != "" {
+			return address, apiKey, appKey, nil
+		}
+	}
+
+	return "", "", "", errors.New("failed to find the credentials for datadog metrics provider")
 }

@@ -62,6 +62,21 @@ func newQueryProviderSumAggregator() v1alpha1.MetricProvider {
 		},
 	}
 }
+
+func newNamespacedSecretProvider() v1alpha1.MetricProvider {
+	return v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query:      "avg:kubernetes.cpu.user.total{*}",
+			Interval:   "5m",
+			Aggregator: "sum",
+			ApiVersion: "v2",
+			SecretRef: v1alpha1.SecretRef{
+				Name:       "secret",
+				Namespaced: true,
+			},
+		},
+	}
+}
 func TestRunSuiteV2(t *testing.T) {
 	const expectedApiKey = "0123456789abcdef0123456789abcdef"
 	const expectedAppKey = "0123456789abcdef0123456789abcdef01234567"
@@ -278,6 +293,20 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedAggregator:      "sum",
 			useEnvVarForKeys:        false,
 		},
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"data": {"attributes": {"columns": [ {"values": [0.006121378742186943]}]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "success with default and data",
+				SuccessCondition: "default(result, 0) < 0.05",
+				Provider:         newNamespacedSecretProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "0.006121378742186943",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedAggregator:      "sum",
+			useEnvVarForKeys:        false,
+		},
 	}
 
 	// Run
@@ -401,8 +430,9 @@ func TestRunSuiteV2(t *testing.T) {
 			}
 			return true, tokenSecret, nil
 		})
+		namespace := "namespace"
 
-		provider, _ := NewDatadogProvider(*logCtx, fakeClient, test.metric)
+		provider, _ := NewDatadogProvider(*logCtx, fakeClient, namespace, test.metric)
 
 		metricsMetadata := provider.GetMetadata(test.metric)
 		assert.Nil(t, metricsMetadata)

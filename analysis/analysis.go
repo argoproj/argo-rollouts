@@ -332,7 +332,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 			logger := logutil.WithRedactor(*logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name), secrets)
 
 			var newMeasurement v1alpha1.Measurement
-			provider, providerErr := c.newProvider(*logger, t.metric)
+			provider, providerErr := c.newProvider(*logger, run.Namespace, t.metric)
 			if providerErr != nil {
 				log.Errorf("Error in getting metric provider :%v", providerErr)
 				if t.incompleteMeasurement != nil {
@@ -744,7 +744,7 @@ func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, measu
 				continue
 			}
 			logger := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
-			provider, err := c.newProvider(*logger, metric)
+			provider, err := c.newProvider(*logger, run.Namespace, metric)
 			if err != nil {
 				errors = append(errors, err)
 				continue
