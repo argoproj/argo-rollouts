@@ -614,6 +614,37 @@ func TestCanaryIngressAdditionalAnnotationsNewIngress(t *testing.T) {
 	}
 }
 
+func TestCanaryIngressRetainCurrentAnnotations(t *testing.T) {
+	tests := generateMultiIngressTestData()
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			for _, ing := range test.ingresses {
+				r := Reconciler{
+					cfg: ReconcilerConfig{
+						Rollout: fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress),
+					},
+				}
+				stable := networkingIngress(StableIngress, 80, stableService)
+				stableIngress := ingressutil.NewIngress(stable)
+				canary := networkingIngress(ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 80, canaryService)
+				canary.SetAnnotations(map[string]string{
+					"nginx.ingress.kubernetes.io/canary":    "false",
+					"annotation-prefix.some.group/some-key": "some-value",
+				})
+				canaryIngress := ingressutil.NewIngress(canary)
+
+				desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 15)
+				assert.Nil(t, err, "No error returned when calling canaryIngress")
+
+				annotations := getDesiredAnnotations(canaryIngress, desiredCanaryIngress)
+				assert.Equal(t, "true", annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
+				assert.Equal(t, "15", annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
+				assert.Equal(t, "some-value", annotations["annotation-prefix.some.group/some-key"], "existing canary annotation is retained")
+			}
+		})
+	}
+}
+
 func TestCanaryIngressMaxWeightInTrafficRouting(t *testing.T) {
 	maxWeights := []*int32{nil, pointer.Int32(1000)}
 	for _, maxWeight := range maxWeights {
