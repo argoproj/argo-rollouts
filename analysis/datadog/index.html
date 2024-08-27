@@ -1350,6 +1350,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#namespaced-secret" class="md-nav__link">
+    <span class="md-ellipsis">
+      Namespaced secret
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#working-with-datadog-api-v2" class="md-nav__link">
     <span class="md-ellipsis">
       Working with Datadog API v2
@@ -3340,6 +3349,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#namespaced-secret" class="md-nav__link">
+    <span class="md-ellipsis">
+      Namespaced secret
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#working-with-datadog-api-v2" class="md-nav__link">
     <span class="md-ellipsis">
       Working with Datadog API v2
@@ -3475,6 +3493,44 @@
 <span class="w">  </span><span class="nt">app-key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;datadog-app-key&gt;</span>
 </code></pre></div>
 <p><code>apiVersion</code> here is different from the <code>apiVersion</code> from the Datadog configuration above.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<h6 id="namespaced-secret">Namespaced secret<a class="headerlink" href="#namespaced-secret" title="Permanent link">&para;</a></h6>
+<p>Datadog integration supports referring to secrets inside the same namespace as argo-rollouts (by default)
+or referring to a secret in the same namespace as the <code>AnalysisTemplate</code>.</p>
+<p>To use a secret from the <code>AnalysisTemplate</code> namespace, include a <code>secretRef</code> section in the template, specifying the <code>name</code> of the secret and setting the <code>namespaced</code> property to <code>true</code>.</p>
+<p>The process for retrieving Datadog credentials is as follows:
+1. <strong>If a <code>secretRef</code> is defined in the <code>AnalysisTemplate</code>:</strong> Argo Rollouts will search for the secret with the specified name in the namespace where the template resides.
+2. <strong>If the secret is not found in the specified namespace:</strong> Argo Rollouts will then check the environment variables.
+3. <strong>If the credentials are not found in environment variables:</strong> Argo Rollouts will look for a secret named "Datadog" in the namespace where Argo Rollouts itself is deployed.</p>
+</div>
+<hr />
+<p>Let me know if there's anything else you'd like to adjust!</p>
+<div class="codehilite"><pre><span></span><code><span class="x">```yaml</span>
+<span class="x">apiVersion: argoproj.io/v1alpha1</span>
+<span class="x">kind: AnalysisTemplate</span>
+<span class="x">metadata:</span>
+<span class="x">  name: loq-error-rate</span>
+<span class="x">spec:</span>
+<span class="x">  args:</span>
+<span class="x">  - name: service-name</span>
+<span class="x">  metrics:</span>
+<span class="x">  - name: error-rate</span>
+<span class="x">    interval: 5m</span>
+<span class="x">    successCondition: result &lt;= 0.01</span>
+<span class="x">    failureLimit: 3</span>
+<span class="x">    provider:</span>
+<span class="x">      datadog:</span>
+<span class="x">        apiVersion: v2</span>
+<span class="x">        interval: 5m</span>
+<span class="x">        secretRef:</span>
+<span class="x">          name: &quot;mysecret&quot;</span>
+<span class="x">          namespaced: true</span>
+<span class="x">        query: |</span>
+<span class="x">          sum:requests.error.rate{service:</span><span class="cp">{{</span><span class="nv">args.service</span><span class="o">-</span><span class="nv">name</span><span class="cp">}}</span><span class="x">}</span>
+<span class="x">```</span>
+</code></pre></div>
+
 <h3 id="working-with-datadog-api-v2">Working with Datadog API v2<a class="headerlink" href="#working-with-datadog-api-v2" title="Permanent link">&para;</a></h3>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
