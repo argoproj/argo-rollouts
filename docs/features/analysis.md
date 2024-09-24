@@ -154,8 +154,7 @@ spec:
           ))
 ```
 
-Multiple measurements can be performed over a longer duration period, by specifying the `count` and
-`interval` fields:
+Multiple measurements can be performed over a longer duration period, by specifying the `count` and `interval` fields:
 
 ```yaml hl_lines="4 5"
   metrics:
@@ -168,6 +167,13 @@ Multiple measurements can be performed over a longer duration period, by specify
         address: http://prometheus.example.com:9090
         query: ...
 ```
+
+!!! note
+    The `count` can have 0 as value which means that it will run until
+    the end of the Rollout execution for background analysis (outside
+    of steps). However if the `count` has value 0 and the analysis is
+    defined in the steps, the analysis won't be executed.
+
 
 ## ClusterAnalysisTemplates
 
