@@ -1376,6 +1376,17 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Job
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1385,6 +1396,34 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#control-where-the-jobs-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      Control where the jobs run
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -3219,6 +3258,23 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#control-where-the-jobs-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      Control where the jobs run
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -3238,7 +3294,7 @@
 <h1 id="job-metrics">Job Metrics<a class="headerlink" href="#job-metrics" title="Permanent link">&para;</a></h1>
 <p>A Kubernetes Job can be used to run analysis. When a Job is used, the metric is considered
 successful if the Job completes and had an exit code of zero, otherwise it is failed.</p>
-<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><span class="nt">metrics</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test</span>
 <span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">job</span><span class="p">:</span>
@@ -3252,11 +3308,17 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
 <span class="w">          </span><span class="nt">template</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">spec</span><span class="p">:</span>
 <span class="w">              </span><span class="nt">containers</span><span class="p">:</span>
-<span class="w">              </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test</span>
-<span class="w">                </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-image:latest</span>
-<span class="w">                </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">my-test-script</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">my-service.default.svc.cluster.local</span><span class="p p-Indicator">]</span>
+<span class="w">                </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test</span>
+<span class="w">                  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-image:latest</span>
+<span class="w">                  </span><span class="nt">command</span><span class="p">:</span>
+<span class="w">                    </span><span class="p p-Indicator">[</span><span class="nv">my-test-script</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">my-service.default.svc.cluster.local</span><span class="p p-Indicator">]</span>
 <span class="w">              </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Never</span>
 </code></pre></div>
+<h2 id="control-where-the-jobs-run">Control where the jobs run<a class="headerlink" href="#control-where-the-jobs-run" title="Permanent link">&para;</a></h2>
+<p>Argo Rollouts allows you some control over where your metric job runs.</p>
+<p>The following env vars can be set on the Rollouts controller:</p>
+<p><code>ARGO_ROLLOUTS_ANALYSIS_JOB_NAMESPACE</code> will allow you to run your metric jobs in a namespace other than the default (which can vary depending on if you are running Rollouts in cluster mode or not).</p>
+<p><code>ARGO_ROLLOUTS_ANALYSIS_JOB_KUBECONFIG</code> will allow running metric jobs in a different cluster entirely. This should be a path to the kubeconfig you want to use.</p>
 
 
 
