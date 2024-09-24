@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.35">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.36">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.35f28582.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.06209087.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
@@ -3968,8 +3968,7 @@ no interval is specified, the analysis will perform a single measurement and com
 <span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
 <span class="w">          </span><span class="no">))</span>
 </code></pre></div>
-<p>Multiple measurements can be performed over a longer duration period, by specifying the <code>count</code> and
-<code>interval</code> fields:</p>
+<p>Multiple measurements can be performed over a longer duration period, by specifying the <code>count</code> and <code>interval</code> fields:</p>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span>
 <span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">result[0] &gt;= 0.95</span>
@@ -3980,6 +3979,13 @@ no interval is specified, the analysis will perform a single measurement and com
 <span class="w">        </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
 <span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
 </code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The <code>count</code> can have 0 as value which means that it will run until
+the end of the Rollout execution for background analysis (outside
+of steps). However if the <code>count</code> has value 0 and the analysis is
+defined in the steps, the analysis won't be executed.</p>
+</div>
 <h2 id="clusteranalysistemplates">ClusterAnalysisTemplates<a class="headerlink" href="#clusteranalysistemplates" title="Permanent link">&para;</a></h2>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
