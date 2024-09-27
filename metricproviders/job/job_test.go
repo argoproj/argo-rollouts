@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -178,7 +179,7 @@ func TestRunCreateFail(t *testing.T) {
 	// The following causes the Create call to fail
 	fakeClient := p.kubeclientset.(*k8sfake.Clientset)
 	fakeClient.PrependReactor("create", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf(errMsg)
+		return true, nil, errors.New(errMsg)
 	})
 	metricsMetadata := p.GetMetadata(run.Spec.Metrics[0])
 	assert.Nil(t, metricsMetadata)
@@ -269,7 +270,7 @@ func TestTerminateError(t *testing.T) {
 	errMsg := "random delete error"
 	fakeClient := p.kubeclientset.(*k8sfake.Clientset)
 	fakeClient.PrependReactor("delete", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf(errMsg)
+		return true, nil, errors.New(errMsg)
 	})
 
 	measurement = p.Terminate(run, run.Spec.Metrics[0], measurement)

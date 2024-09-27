@@ -2,7 +2,7 @@ package rollout
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
@@ -199,7 +199,7 @@ func TestRestartReconcile(t *testing.T) {
 		}
 		client.PrependReactor("create", "pods", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 			// this is the pod eviction
-			return true, nil, fmt.Errorf(expectedErrMsg)
+			return true, nil, errors.New(expectedErrMsg)
 		})
 		r := RolloutPodRestarter{
 			client:       client,
@@ -309,7 +309,7 @@ func TestRestartReplicaSetPod(t *testing.T) {
 		client := fake.NewSimpleClientset()
 		expectedErrMsg := "big bad error"
 		client.PrependReactor("list", "pods", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-			return true, nil, fmt.Errorf(expectedErrMsg)
+			return true, nil, errors.New(expectedErrMsg)
 		})
 		r := RolloutPodRestarter{client: client}
 		roCtx := &rolloutContext{

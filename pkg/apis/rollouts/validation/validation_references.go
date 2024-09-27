@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"errors"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -342,11 +343,11 @@ func ValidateRolloutVirtualServicesConfig(r *v1alpha1.Rollout) error {
 		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
 			if istioutil.MultipleVirtualServiceConfigured(r) {
 				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService != nil {
-					return field.InternalError(fldPath, fmt.Errorf(errorString))
+					return field.InternalError(fldPath, errors.New(errorString))
 				}
 			} else {
 				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService == nil {
-					return field.InternalError(fldPath, fmt.Errorf(errorString))
+					return field.InternalError(fldPath, errors.New(errorString))
 				}
 			}
 		}

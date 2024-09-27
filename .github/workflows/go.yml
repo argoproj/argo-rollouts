@@ -35,7 +35,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.57.2
+          version: v1.61.0
           args: --timeout 6m
   build:
     name: Build

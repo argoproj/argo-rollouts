@@ -1,20 +1,21 @@
 run:
-  deadline: 1m
-  skip-files:
-    - ".*\\.pb\\.go"
-  skip-dirs:
-    - pkg/client
+  timeout: 10m
   modules-download-mode: readonly
+issues:
+  exclude-dirs:
+    - pkg/client
+  exclude-files:
+    - ".*\\.pb\\.go"
 linter-settings:
   goimports:
     local-prefixes: github.com/argoproj/argo-rollouts
 linters:
   enable:
-    - vet
     - gofmt
     - goimports
-    - unused
+    - govet
     - ineffassign
-    - unconvert
     - misspell
+    - unconvert
+    - unused
   disable-all: true
