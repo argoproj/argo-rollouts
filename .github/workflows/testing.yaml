@@ -79,13 +79,13 @@ jobs:
       fail-fast: false
       matrix:
         kubernetes:
-          - version: 1.26
+          - version: '1.28'
             latest: false
-          - version: 1.27
-            latest: false
-          - version: 1.28
-            latest: false
-          - version: 1.29
+          - version: '1.29'
+            latest: true
+          - version: '1.30'
+            latest: true
+          - version: '1.31'
             latest: true
     name: Run end-to-end tests
     runs-on: ubuntu-latest
