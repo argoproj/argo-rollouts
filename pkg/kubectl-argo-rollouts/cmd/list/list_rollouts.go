@@ -93,7 +93,7 @@ func (o *ListOptions) PrintRolloutTable(roList *v1alpha1.RolloutList) error {
 	if o.timestamps {
 		headerStr = "TIMESTAMP\t" + headerStr
 	}
-	fmt.Fprintf(w, headerStr)
+	fmt.Fprint(w, headerStr)
 	for _, ro := range roList.Items {
 		roLine := newRolloutInfo(ro)
 		fmt.Fprintln(w, roLine.String(o.timestamps, o.allNamespaces))

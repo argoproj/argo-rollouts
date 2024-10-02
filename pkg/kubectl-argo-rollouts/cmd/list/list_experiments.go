@@ -84,7 +84,7 @@ func (o *ListOptions) PrintExperimentTable(expList *v1alpha1.ExperimentList) err
 		headerStr = "NAMESPACE\t" + headerStr
 		fmtStr = "%-9s\t" + fmtStr
 	}
-	fmt.Fprintf(w, headerStr)
+	fmt.Fprint(w, headerStr)
 	for _, exp := range expList.Items {
 		age := duration.HumanDuration(timeutil.MetaNow().Sub(exp.CreationTimestamp.Time))
 		dur := "-"
