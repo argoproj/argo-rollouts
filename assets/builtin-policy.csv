@@ -1,0 +1,18 @@
+# Built-in policy which defines two roles: role:readonly and role:admin,
+# There are two policy formats:
+# 1. Rollouts which belong to a namespace:
+# p, <role/user/group>, <resource>, <action>, <namespace>/<object>, <allow/deny>
+# 2.  Rollouts in any namespace:
+# p, <role/user/group>, <resource>, <action>, <object>, <allow/deny>
+
+p, role:readonly, rollouts, get, */*, allow
+
+p, role:admin, rollouts, get, */*, allow
+p, role:admin, rollouts, updatecontainer, */*, allow
+p, role:admin, rollouts, restart, */*, allow
+p, role:admin, rollouts, retry, */*, allow
+p, role:admin, rollouts, abort, */*, allow
+p, role:admin, rollouts, promote, */*, allow
+p, role:admin, rollouts, promotefull, */*, allow
+
+g, role:admin, role:readonly

@@ -113,7 +113,7 @@ codegen: go-mod-vendor gen-proto gen-k8scodegen gen-openapi gen-mocks gen-crd ma
 
 # generates all files related to proto files
 .PHONY: gen-proto
-gen-proto: k8s-proto api-proto ui-proto
+gen-proto: k8s-proto api-proto ui-proto server-proto
 
 # generates the .proto files affected by changes to types.go
 .PHONY: k8s-proto
@@ -132,6 +132,13 @@ k8s-proto: go-mod-vendor $(TYPES) ## generate kubernetes protobuf files
 .PHONY: api-proto
 api-proto: go-mod-vendor k8s-proto ## generate api protobuf files
 	$(call protoc,pkg/apiclient/rollout/rollout.proto)
+
+# generates *.pb.go, *.pb.gw.go, swagger from .proto files
+.PHONY: server-proto
+server-proto: go-mod-vendor k8s-proto ## generate api protobuf files
+	$(call protoc,server/settings/oidc/claims.proto)
+	$(call protoc,server/settings/settings.proto)
+
 
 # generates ui related proto files
 .PHONY: ui-proto
@@ -261,7 +268,7 @@ test-e2e: install-devtools-local
 	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-test.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e ${E2E_TEST_OPTIONS}
 
 .PHONY: test-unit
- test-unit: install-devtools-local ## run unit tests
+test-unit: install-devtools-local ## run unit tests
 	mkdir -p coverage-output-unit
 	${DIST_DIR}/gotestsum --junitfile=junit-unit-test.xml --format=testname -- `go list ./... | grep -v ./test/cmd/metrics-plugin-sample` -cover -test.gocoverdir=$(CURDIR)/coverage-output-unit
 

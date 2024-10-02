@@ -24,13 +24,17 @@ const config = {
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
         alias: {react: require.resolve('react')},
+        // Polyfills for Node JS for Webpack >= 5
+        fallback: {
+          "url": require.resolve("url/")
+        }
     },
 
     module: {
         rules: [
             {
                 test: /\.tsx?$/,
-                use: [`ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./tsconfig.json')}`],
+                use: [`ts-loader?transpileOnly=true&allowTsInNodeModules=true&configFile=${path.resolve('./tsconfig.json')}`],
             },
             {
                 test: /\.scss$/,
@@ -45,6 +49,11 @@ const config = {
                 test: /\.mjs$/,
                 include: /node_modules/,
                 type: 'javascript/auto',
+            },
+            // https://stackoverflow.com/questions/55333009/html-webpack-plugin-not-working-with-webpack-dev-server
+            {
+              test: /\.html$/,
+              loader: 'html-loader'
             },
         ],
     },

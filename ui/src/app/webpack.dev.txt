@@ -1,0 +1,38 @@
+const {merge} = require('webpack-merge');
+const common = require('./webpack.common.js');
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+const webpack = require('webpack');
+
+const SpeedMeasurePlugin = require("speed-measure-webpack-plugin");
+const smp = new SpeedMeasurePlugin();
+
+
+module.exports = smp.wrap(merge(common, {
+    mode: 'development',
+    plugins: [
+        new BundleAnalyzerPlugin(),
+        new webpack.DefinePlugin({
+            'process.env.NODE_ENV': JSON.stringify('development'),
+        }),
+    ],
+    devtool: 'eval-source-map',
+    devServer: {
+        liveReload: false,
+        historyApiFallback: {
+            disableDotRule: true,
+        },
+        watchFiles: ['src/**/*.ts', 'src/**/*.tsx'],
+        headers: {
+            'X-Frame-Options': 'SAMEORIGIN',
+        },
+        host: 'localhost',
+        port: 3102,
+        proxy: [
+          {
+              context: ['/api/v1'],
+              target: 'http://localhost:3100',
+              secure: false,
+          },
+        ]
+    },
+}));

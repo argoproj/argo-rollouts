@@ -1,0 +1,20 @@
+{
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "swagger": "2.0",
+  "info": {
+    "description": "Description of all APIs",
+    "title": "Consolidate Services",
+    "version": "version not set"
+  },
+  "paths": {
+
+  },
+  "definitions": {
+
+  }
+}

@@ -1,0 +1,159 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Settings Service",
+    "description": "Settings Service API retrieves Argo Rollout settings",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/settings": {
+      "get": {
+        "summary": "Get returns Argo Rollout settings",
+        "operationId": "SettingsService_Get",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/cluster.Settings"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
+            }
+          }
+        },
+        "tags": [
+          "SettingsService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "cluster.Connector": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      }
+    },
+    "cluster.DexConfig": {
+      "type": "object",
+      "properties": {
+        "connectors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/cluster.Connector"
+          }
+        }
+      }
+    },
+    "cluster.OIDCConfig": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "clientID": {
+          "type": "string"
+        },
+        "cliClientID": {
+          "type": "string"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "idTokenClaims": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.server.settings.oidc.Claim"
+          }
+        },
+        "enablePKCEAuthentication": {
+          "type": "boolean"
+        }
+      }
+    },
+    "cluster.Settings": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "dexConfig": {
+          "$ref": "#/definitions/cluster.DexConfig"
+        },
+        "oidcConfig": {
+          "$ref": "#/definitions/cluster.OIDCConfig"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.server.settings.oidc.Claim": {
+      "type": "object",
+      "properties": {
+        "essential": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "google.protobuf.Any": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "grpc.gateway.runtime.Error": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/google.protobuf.Any"
+          }
+        }
+      }
+    }
+  }
+}

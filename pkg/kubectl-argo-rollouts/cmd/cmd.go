@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/lint"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/list"
+	//"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/login"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/pause"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
@@ -58,6 +59,7 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 	}
 
 	o.AddKubectlFlags(cmd)
+  //cmd.AddCommand(login.NewCmdLogin(o))
 	cmd.AddCommand(create.NewCmdCreate(o))
 	cmd.AddCommand(get.NewCmdGet(o))
 	cmd.AddCommand(lint.NewCmdLint(o))

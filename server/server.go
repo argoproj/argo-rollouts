@@ -8,24 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/errors"
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	log "github.com/sirupsen/logrus"
-	"github.com/soheilhy/cmux"
-	"google.golang.org/grpc"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/dynamic"
-	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	appslisters "k8s.io/client-go/listers/apps/v1"
-	"k8s.io/client-go/tools/cache"
-
+	"github.com/argoproj/argo-rollouts/common"
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
+	settingspkg "github.com/argoproj/argo-rollouts/pkg/apiclient/settings"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
@@ -39,8 +24,35 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	"github.com/argoproj/argo-rollouts/server/settings"
+	errorsutil "github.com/argoproj/argo-rollouts/utils/errors"
+	httputil "github.com/argoproj/argo-rollouts/utils/http"
 	"github.com/argoproj/argo-rollouts/utils/json"
+	jwtutil "github.com/argoproj/argo-rollouts/utils/jwt"
+	"github.com/argoproj/argo-rollouts/utils/oidc"
+	utils_session "github.com/argoproj/argo-rollouts/utils/session"
+	settings_util "github.com/argoproj/argo-rollouts/utils/settings"
 	versionutils "github.com/argoproj/argo-rollouts/utils/version"
+	"github.com/argoproj/pkg/errors"
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	log "github.com/sirupsen/logrus"
+	"github.com/soheilhy/cmux"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+  "github.com/golang-jwt/jwt/v4"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
+	kubeinformers "k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	appslisters "k8s.io/client-go/listers/apps/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 var backoff = wait.Backoff{
@@ -56,22 +68,38 @@ type ServerOptions struct {
 	DynamicClientset  dynamic.Interface
 	Namespace         string
 	RootPath          string
+  DisableAuth       bool
 }
 
 const (
 	// MaxGRPCMessageSize contains max grpc message size
 	MaxGRPCMessageSize = 100 * 1024 * 1024
+  renewTokenKey = "renew-token"
 )
 
 // ArgoRolloutsServer holds information about rollouts server
 type ArgoRolloutsServer struct {
 	Options ServerOptions
+
+  ssoClientApp   *oidc.ClientApp
+  settingsMgr *settings_util.SettingsManager
+  serviceSet  *ArgoRolloutsServiceSet
+  settings    *settings_util.ArgoRolloutsSettings
+  sessionMgr  *utils_session.SessionManager
 	stopCh  chan struct{}
 }
 
 // NewServer creates an ArgoRolloutsServer
-func NewServer(o ServerOptions) *ArgoRolloutsServer {
-	return &ArgoRolloutsServer{Options: o}
+func NewServer(ctx context.Context, opts ServerOptions) *ArgoRolloutsServer {
+  settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
+	settings, err := settingsMgr.InitializeSettings(true) //TODO implement insecure options
+	errorsutil.CheckError(err)
+
+	return &ArgoRolloutsServer{
+    Options: opts,
+    settingsMgr: settingsMgr,
+    settings: settings,
+  }
 }
 
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
@@ -103,6 +131,11 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 		panic(err)
 	}
 
+  errRegisterSettings := settingspkg.RegisterSettingsServiceHandlerFromEndpoint(ctx, gwmux, endpoint, opts)
+  if errRegisterSettings != nil {
+    panic(errRegisterSettings)
+  }
+
 	var apiHandler http.Handler = gwmux
 	mux.Handle("/api/", apiHandler)
 	mux.HandleFunc("/", s.staticFileHttpHandler)
@@ -110,10 +143,27 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	return &httpS
 }
 
+type ArgoRolloutsServiceSet struct {
+	SettingsService       *settings.Server
+  RolloutService        rollout.RolloutServiceServer
+}
+
+func newArgoRolloutsServiceSet(ctx context.Context, s *ArgoRolloutsServer) *ArgoRolloutsServiceSet {
+	settingsService := settings.NewServer(s.settingsMgr, s, s.Options.DisableAuth)
+  rolloutsServer := NewServer(ctx, s.Options)
+
+	return &ArgoRolloutsServiceSet{
+		SettingsService: settingsService,
+    RolloutService:  rolloutsServer,
+	}
+}
+
 func (s *ArgoRolloutsServer) newGRPCServer() *grpc.Server {
 	grpcS := grpc.NewServer()
-	var rolloutsServer rollout.RolloutServiceServer = NewServer(s.Options)
-	rollout.RegisterRolloutServiceServer(grpcS, rolloutsServer)
+
+	rollout.RegisterRolloutServiceServer(grpcS, s.serviceSet.RolloutService)
+  settingspkg.RegisterSettingsServiceServer(grpcS, s.serviceSet.SettingsService)
+
 	return grpcS
 }
 
@@ -131,6 +181,9 @@ func (s *ArgoRolloutsServer) checkServeErr(name string, err error) {
 
 // Run starts the server
 func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) {
+  svcSet := newArgoRolloutsServiceSet(ctx, s)
+	s.serviceSet = svcSet
+  
 	httpServer := s.newHTTPServer(ctx, port)
 	grpcServer := s.newGRPCServer()
 
@@ -429,4 +482,128 @@ func podUpdated(pod *corev1.Pod, rsLister appslisters.ReplicaSetNamespaceLister,
 			}
 		}
 	}
+}
+
+// Authenticate checks for the presence of a valid token when accessing server-side resources.
+func (a *ArgoRolloutsServer) Authenticate(ctx context.Context) (context.Context, error) {
+	if a.Options.DisableAuth {
+		return ctx, nil
+	}
+	claims, newToken, claimsErr := a.getClaims(ctx)
+	if claims != nil {
+		// Add claims to the context to inspect for RBAC
+		// nolint:staticcheck
+		ctx = context.WithValue(ctx, "claims", claims)
+		if newToken != "" {
+			// Session tokens that are expiring soon should be regenerated if user stays active.
+			// The renewed token is stored in outgoing ServerMetadata. Metadata is available to grpc-gateway
+			// response forwarder that will translate it into Set-Cookie header.
+			if err := grpc.SendHeader(ctx, metadata.New(map[string]string{renewTokenKey: newToken})); err != nil {
+				log.Warnf("Failed to set %s header", renewTokenKey)
+			}
+		}
+	}
+	if claimsErr != nil {
+		// nolint:staticcheck
+		ctx = context.WithValue(ctx, utils_session.AuthErrorCtxKey, claimsErr)
+	}
+
+	if claimsErr != nil {
+		argoCDSettings, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
+		}
+		if !argoCDSettings.AnonymousUserEnabled {
+			return ctx, claimsErr
+		} else {
+			// nolint:staticcheck
+			ctx = context.WithValue(ctx, "claims", "")
+		}
+	}
+
+	return ctx, nil
+}
+
+// ErrNoSession indicates no auth token was supplied as part of a request
+var ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
+
+func (a *ArgoRolloutsServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, "", ErrNoSession
+	}
+	tokenString := getToken(md)
+	if tokenString == "" {
+		return nil, "", ErrNoSession
+	}
+	claims, newToken, err := a.sessionMgr.VerifyToken(tokenString)
+	if err != nil {
+		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
+	}
+
+	// Some SSO implementations (Okta) require a call to
+	// the OIDC user info path to get attributes like groups
+	// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+	// otherwise this would cause a panic
+	var groupClaims jwt.MapClaims
+	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
+		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
+			groupClaims = *tmpClaims
+		}
+	}
+	iss := jwtutil.StringField(groupClaims, "iss")
+	if iss != utils_session.SessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+		userInfo, unauthorized, err := a.ssoClientApp.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+		if unauthorized {
+			log.Errorf("error while quering userinfo endpoint: %v", err)
+			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
+		}
+		if err != nil {
+			log.Errorf("error fetching user info endpoint: %v", err)
+			return claims, "", status.Errorf(codes.Internal, "invalid userinfo response")
+		}
+		if groupClaims["sub"] != userInfo["sub"] {
+			return claims, "", status.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+		}
+		groupClaims["groups"] = userInfo["groups"]
+	}
+
+	return groupClaims, newToken, nil
+}
+
+const (
+	MetaDataTokenKey = "token"
+)
+
+// getToken extracts the token from gRPC metadata or cookie headers
+func getToken(md metadata.MD) string {
+	// check the "token" metadata
+	{
+		tokens, ok := md[MetaDataTokenKey]
+		if ok && len(tokens) > 0 {
+			return tokens[0]
+		}
+	}
+
+	// looks for the HTTP header `Authorization: Bearer ...`
+	// argocd prefers bearer token over cookie
+	for _, t := range md["authorization"] {
+		token := strings.TrimPrefix(t, "Bearer ")
+		if strings.HasPrefix(t, "Bearer ") && jwtutil.IsValid(token) {
+			return token
+		}
+	}
+
+	// check the HTTP cookie
+	for _, t := range md["grpcgateway-cookie"] {
+		header := http.Header{}
+		header.Add("Cookie", t)
+		request := http.Request{Header: header}
+		token, err := httputil.JoinCookies(common.AuthCookieName, request.Cookies())
+		if err == nil && jwtutil.IsValid(token) {
+			return token
+		}
+	}
+
+	return ""
 }

@@ -35,12 +35,13 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 				RolloutsClientset: rolloutclientset,
 				DynamicClientset:  o.DynamicClientset(),
 				RootPath:          rootPath,
+        DisableAuth:       true,
 			}
 
 			for {
 				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
-				argorollouts := server.NewServer(opts)
+				argorollouts := server.NewServer(ctx, opts)
 				argorollouts.Run(ctx, port, true)
 				cancel()
 			}
