@@ -170,7 +170,10 @@ func needsNewAnalysisRun(currentAr *v1alpha1.AnalysisRun, rollout *v1alpha1.Roll
 	// There is an additional check for the BlueGreen Pause because the prepromotion analysis always has the BlueGreen
 	// Pause and that causes controllerPause to be set. The extra check for the BlueGreen Pause ensures that a new Analysis
 	// Run is created only when the previous AnalysisRun is inconclusive
-	if rollout.Status.ControllerPause && getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause) == nil {
+	if rollout.Status.ControllerPause &&
+		getPauseCondition(rollout, v1alpha1.PauseReasonCanaryPauseStep) == nil &&
+		getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause) == nil {
+
 		return currentAr.Status.Phase == v1alpha1.AnalysisPhaseInconclusive
 	}
 	return rollout.Status.AbortedAt != nil
