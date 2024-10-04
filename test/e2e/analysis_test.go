@@ -27,6 +27,7 @@ func (s *AnalysisSuite) SetupSuite() {
 	s.E2ESuite.SetupSuite()
 	// shared analysis templates for suite
 	s.ApplyManifests("@functional/analysistemplate-web-background.yaml")
+	s.ApplyManifests("@functional/analysistemplate-web-background-inconclusive.yaml")
 	s.ApplyManifests("@functional/analysistemplate-sleep-job.yaml")
 	s.ApplyManifests("@functional/analysistemplate-multiple-job.yaml")
 	s.ApplyManifests("@functional/analysistemplate-fail-multiple-job.yaml")
@@ -66,6 +67,28 @@ func (s *AnalysisSuite) TestCanaryBackgroundAnalysis() {
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
 		WaitForBackgroundAnalysisRunPhase("Successful")
+}
+
+func (s *AnalysisSuite) TestCanaryInconclusiveBackgroundAnalysis() {
+	s.Given().
+		RolloutObjects("@functional/rollout-background-analysis-inconclusive.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectAnalysisRunCount(1).
+		ExpectBackgroundAnalysisRunPhase("Running").
+		When().
+		WaitForBackgroundAnalysisRunPhase("Inconclusive").
+		WaitForRolloutMessage("InconclusiveAnalysisRun").
+		Then().
+		ExpectRolloutStatus("Paused").
+		ExpectRolloutMessage("InconclusiveAnalysisRun")
 }
 
 func (s *AnalysisSuite) TestCanaryInlineAnalysis() {
