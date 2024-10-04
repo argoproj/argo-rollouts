@@ -1,0 +1,19 @@
+# A dummy web metric which uses the kubernetes version endpoint as a metric provider
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: web-background-inconclusive
+spec:
+  args:
+    - name: url-val
+      value: "https://kubernetes.default.svc/version"
+  metrics:
+  - name: web
+    interval: 7s
+    inconclusiveLimit: 3
+    successCondition: result.major == '2000'
+    failureCondition: result.major == '1000'
+    provider:
+      web:
+        url: "{{args.url-val}}"
+        insecure: true
