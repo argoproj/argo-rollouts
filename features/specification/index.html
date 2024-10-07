@@ -3575,7 +3575,8 @@
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setCanaryScale</span><span class="p">:</span>
 <span class="w">          </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
 
-<span class="w">      </span><span class="c1"># set canary scale to a percentage of spec.replicas without changing traffic weight</span>
+<span class="w">      </span><span class="c1"># set canary scale to spec.Replica * (setweight / maxTrafficWeight) without changing traffic weight</span>
+<span class="w">      </span><span class="c1"># if maxTrafficWeight unspecified, it defaults to 100</span>
 <span class="w">      </span><span class="c1"># (supported only with trafficRouting)</span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setCanaryScale</span><span class="p">:</span>
 <span class="w">          </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25</span>
