@@ -1,4 +1,4 @@
-# A dummy web metric which uses the kubernetes version endpoint as a metric provider
+# A web metric which uses the httpbin service as a metric provider
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -6,14 +6,17 @@ metadata:
 spec:
   args:
     - name: url-val
-      value: "https://kubernetes.default.svc/version"
+      value: "https://httpbin.org/anything"
   metrics:
-  - name: web
-    interval: 7s
-    inconclusiveLimit: 3
-    successCondition: result.major == '2000'
-    failureCondition: result.major == '1000'
-    provider:
-      web:
-        url: "{{args.url-val}}"
-        insecure: true
+    - name: web
+      interval: 7s
+      inconclusiveLimit: 3
+      successCondition: result.status == "success"
+      failureCondition: result.status == "failure"
+      provider:
+        web:
+          url: "{{args.url-val}}"
+          method: POST
+          jsonBody:
+            status: "inconclusive"
+          jsonPath: "{$.json}"
