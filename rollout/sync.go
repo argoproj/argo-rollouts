@@ -562,7 +562,10 @@ func isIndefiniteStep(r *v1alpha1.Rollout) bool {
 	if currentStep != nil && (currentStep.Experiment != nil || currentStep.Analysis != nil || currentStep.Pause != nil) {
 		return true
 	}
-	return false
+	// also check the pause condition to cover blueGreen
+	pauseCond := conditions.GetRolloutCondition(r.Status, v1alpha1.RolloutPaused)
+	pausedCondTrue := pauseCond != nil && pauseCond.Status == corev1.ConditionTrue
+	return pausedCondTrue
 }
 
 // isWaitingForReplicaSetScaleDown returns whether or not the rollout still has other replica sets with a scale down deadline annotation

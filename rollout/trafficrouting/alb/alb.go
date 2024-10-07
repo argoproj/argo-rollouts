@@ -409,6 +409,9 @@ func getDesiredAnnotations(current *ingressutil.Ingress, r *v1alpha1.Rollout, po
 	if err != nil {
 		return nil, err
 	}
+	if desired == nil {
+		desired = make(map[string]string)
+	}
 	desired[key] = value
 	return modifyManagedAnnotation(desired, r.Name, true, key)
 }
