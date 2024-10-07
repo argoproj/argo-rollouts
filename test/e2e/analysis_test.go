@@ -80,9 +80,9 @@ func (s *AnalysisSuite) TestCanaryInconclusiveBackgroundAnalysis() {
 		When().
 		UpdateSpec().
 		WaitForRolloutStatus("Paused").
+		WaitForBackgroundAnalysisRunPhase("Running").
 		Then().
 		ExpectAnalysisRunCount(1).
-		ExpectBackgroundAnalysisRunPhase("Running").
 		When().
 		WaitForBackgroundAnalysisRunPhase("Inconclusive").
 		WaitForRolloutMessage("InconclusiveAnalysisRun").
