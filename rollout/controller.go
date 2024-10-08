@@ -293,9 +293,10 @@ func NewController(cfg ControllerConfig) *Controller {
 		UpdateFunc: func(old, new any) {
 			newRS := new.(*appsv1.ReplicaSet)
 			oldRS := old.(*appsv1.ReplicaSet)
-			if newRS.ResourceVersion == oldRS.ResourceVersion {
+			if newRS.ResourceVersion == oldRS.ResourceVersion && newRS.Spec.Replicas == oldRS.Spec.Replicas {
 				// Periodic resync will send update events for all known replicas.
 				// Two different versions of the same Replica will always have different RVs.
+				// Checking replicas as well to sync on missed hpa scaling events.
 				return
 			}
 			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.enqueueRollout)
