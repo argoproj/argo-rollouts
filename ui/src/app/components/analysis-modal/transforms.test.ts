@@ -5,6 +5,7 @@ import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement,
 } from '../../../models/rollout/generated';
 import {
     analysisEndTime,
@@ -25,6 +26,7 @@ import {
     metricSubstatus,
     printableCloudWatchQuery,
     printableDatadogQuery,
+    transformMeasurements,
 } from './transforms';
 import {AnalysisStatus, FunctionalStatus} from './types';
 
@@ -376,12 +378,12 @@ describe('analysis modal transforms', () => {
     });
     test('interpolateQuery() for prometheus query and args', () => {
         expect(interpolateQuery(MOCK_QUERY_PROMETHEUS, MOCK_ARGS_PROMETHEUS)).toBe(
-            'sum(irate(istio_requests_total{reporter="source",destination_service=~"istio-host-split-canary",response_code!~"5.*"}[5m])) / sum(irate(istio_requests_total{reporter="source",destination_service=~"istio-host-split-canary"}[5m]))'
+            'sum(irate(istio_requests_total{reporter="source",destination_service=~"istio-host-split-canary",response_code!~"5.*"}[5m])) / sum(irate(istio_requests_total{reporter="source",destination_service=~"istio-host-split-canary"}[5m]))',
         );
     });
     test('interpolateQuery() for newrelic query and args', () => {
         expect(interpolateQuery(MOCK_QUERY_NEWRELIC, MOCK_ARGS_NEWRELIC)).toBe(
-            "FROM Transaction SELECT percentage(count(*), WHERE httpResponseCode != 500) as successRate where appName = 'myApp'"
+            "FROM Transaction SELECT percentage(count(*), WHERE httpResponseCode != 500) as successRate where appName = 'myApp'",
         );
     });
     test('interpolateQuery() for simple datadog query and args', () => {
@@ -389,22 +391,22 @@ describe('analysis modal transforms', () => {
     });
     test('interpolateQuery() for wavefront query and args', () => {
         expect(interpolateQuery(MOCK_QUERY_WAVEFRONT, MOCK_ARGS_WAVEFRONT)).toBe(
-            'sum(rate(5m, ts("istio.requestcount.count", response_code!=500 and destination_service="istio-host-split-canary"))) / sum(rate(5m, ts("istio.requestcount.count", reporter=client and destination_service="istio-host-split-canary")))'
+            'sum(rate(5m, ts("istio.requestcount.count", response_code!=500 and destination_service="istio-host-split-canary"))) / sum(rate(5m, ts("istio.requestcount.count", reporter=client and destination_service="istio-host-split-canary")))',
         );
     });
     test('interpolateQuery() for graphite query and args', () => {
         expect(interpolateQuery(MOCK_QUERY_GRAPHITE, MOCK_ARGS_GRAPHITE)).toBe(
-            "target=summarize(asPercent(sumSeries(stats.timers.httpServerRequests.app.istio-host-split-canary.exception.*.method.*.outcome.{CLIENT_ERROR,INFORMATIONAL,REDIRECTION,SUCCESS}.status.*.uri.*.count), sumSeries(stats.timers.httpServerRequests.app.istio-host-split-canary.exception.*.method.*.outcome.*.status.*.uri.*.count)),'5min','avg')"
+            "target=summarize(asPercent(sumSeries(stats.timers.httpServerRequests.app.istio-host-split-canary.exception.*.method.*.outcome.{CLIENT_ERROR,INFORMATIONAL,REDIRECTION,SUCCESS}.status.*.uri.*.count), sumSeries(stats.timers.httpServerRequests.app.istio-host-split-canary.exception.*.method.*.outcome.*.status.*.uri.*.count)),'5min','avg')",
         );
     });
     test('interpolateQuery() for influxdb query and args', () => {
         expect(interpolateQuery(MOCK_QUERY_INFLUXDB, MOCK_ARGS_INFLUXDB)).toBe(
-            'from(bucket: "app_istio") range(start: -15m) filter(fn: (r) => r["destination_workload"] == "myApp")|> filter(fn: (r) => r["_measurement"] == "istio:istio_requests_errors_percentage:rate1m:5xx")'
+            'from(bucket: "app_istio") range(start: -15m) filter(fn: (r) => r["destination_workload"] == "myApp")|> filter(fn: (r) => r["_measurement"] == "istio:istio_requests_errors_percentage:rate1m:5xx")',
         );
     });
     test('interpolateQuery() for skywalking query and args', () => {
         expect(interpolateQuery(MOCK_QUERY_SKYWALKING, MOCK_ARGS_SKYWALKING)).toBe(
-            'query queryData($duration: Duration!) { service_apdex: readMetricsValues(condition: { name: "service_apdex", entity: { scope: Service, serviceName: "istio-host-split-canary", normal: true } }, duration: $duration) { label values { values { value } } } }'
+            'query queryData($duration: Duration!) { service_apdex: readMetricsValues(condition: { name: "service_apdex", entity: { scope: Service, serviceName: "istio-host-split-canary", normal: true } }, duration: $duration) { label values { values { value } } } }',
         );
     });
 
@@ -543,6 +545,64 @@ describe('analysis modal transforms', () => {
             canChart: false,
             chartValue: {latency: null, cpuUsage: null},
             tableValue: {latency: null, cpuUsage: null},
+        });
+    });
+    const MOCK_MEASUREMENTS: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement[] = [{value: '[5]'}, {value: '[10]'}, {value: '[15]'}];
+    const MOCK_MEASUREMENTS_WITH_NAN: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement[] = [{value: '[NaN]'}, {value: '[10]'}, {value: '[15]'}];
+    const MOCK_MEASUREMENTS_WITH_STRING: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement[] = [{value: 'NaN'}, {value: '10'}, {value: '15'}];
+
+    it('transforms measurements correctly with valid numbers', () => {
+        expect(transformMeasurements(['0'], MOCK_MEASUREMENTS)).toEqual({
+            chartable: true,
+            min: 0,
+            max: null,
+            measurements: [
+                {value: '[5]', chartValue: {"0": 5}, tableValue: {"0": 5}},
+                {value: '[10]', chartValue: {"0": 10}, tableValue: {"0": 10}},
+                {value: '[15]', chartValue: {"0": 15}, tableValue: {"0": 15}},
+            ],
+        });
+    });
+    it('transforms measurements correctly with NaN numbers in list', () => {
+        expect(transformMeasurements(['0'], MOCK_MEASUREMENTS_WITH_NAN)).toEqual({
+            chartable: true,
+            min: 0,
+            max: null,
+            measurements: [
+                {value: '[NaN]', chartValue: null, tableValue: null},
+                {value: '[10]', chartValue: {"0": 10}, tableValue: {"0": 10}},
+                {value: '[15]', chartValue: {"0": 15}, tableValue: {"0": 15}},
+            ],
+        });
+    });
+    it('returns default values when measurements are undefined', () => {
+        expect(transformMeasurements(['0'])).toEqual({
+            chartable: false,
+            min: 0,
+            max: null,
+            measurements: [],
+        });
+    });
+
+    it('returns default values when measurements are empty', () => {
+        expect(transformMeasurements(['0'], [])).toEqual({
+            chartable: false,
+            min: 0,
+            max: null,
+            measurements: [],
+        });
+    });
+
+    it('handles measurements with string values', () => {
+        expect(transformMeasurements(['0'], MOCK_MEASUREMENTS_WITH_STRING)).toEqual({
+            chartable: true,
+            min: 0,
+            max: 15,
+            measurements: [
+                {value: 'NaN', chartValue: null, tableValue: null},
+                {value: '10', chartValue: 10 , tableValue: 10},
+                {value: '15', chartValue: 15, tableValue: 15},
+            ],
         });
     });
 });
