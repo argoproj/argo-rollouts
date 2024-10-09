@@ -25,7 +25,7 @@ const isPodReady = (ready: string) => {
         return false;
     }
     // Ready is a string in the format "0/1", "1/1", etc.
-    const [current, total] = ready?.split('/');
+    const [current, total] = ready.split('/');
     return current === total;
 };
 
