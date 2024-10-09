@@ -618,7 +618,16 @@ const transformMeasurementValue = (conditionKeys: string[], value?: string): Mea
         };
     }
 
-    const parsedValue = JSON5.parse(value);
+    let parsedValue;
+    try {
+        parsedValue = JSON5.parse(value);
+    } catch {
+        return {
+            canChart: true,
+            chartValue: null,
+            tableValue: null,
+        };
+    }
 
     // single number measurement value
     if (isFiniteNumber(parsedValue)) {
