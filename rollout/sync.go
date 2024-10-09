@@ -325,8 +325,8 @@ func (c *rolloutContext) isScalingEvent() (bool, error) {
 	}
 
 	// We only care about scaling events on the newRS and stableRS because these are the only replicasets that we ever
-	// adjust the replicas counts on. When we have stacked rollouts going on the middle replicaset will have the desired annotation
-	// updated this can cuase use to get into a tight loop of isScalingEvent -> syncReplicasOnly -> isScalingEvent
+	// adjust the replicas counts on as well as the desired annotation. When we have stacked rollouts going the middle
+	// replicasets will never have the desired annotation updated this can cause a tight loop of isScalingEvent -> syncReplicasOnly -> isScalingEvent
 	for _, rs := range []*appsv1.ReplicaSet{c.newRS, c.stableRS} {
 		desired, ok := annotations.GetDesiredReplicasAnnotation(rs)
 		if !ok {
