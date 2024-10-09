@@ -557,9 +557,9 @@ describe('analysis modal transforms', () => {
             min: 0,
             max: null,
             measurements: [
-                {value: '[5]', chartValue: {"0": 5}, tableValue: {"0": 5}},
-                {value: '[10]', chartValue: {"0": 10}, tableValue: {"0": 10}},
-                {value: '[15]', chartValue: {"0": 15}, tableValue: {"0": 15}},
+                {value: '[5]', chartValue: {'0': 5}, tableValue: {'0': 5}},
+                {value: '[10]', chartValue: {'0': 10}, tableValue: {'0': 10}},
+                {value: '[15]', chartValue: {'0': 15}, tableValue: {'0': 15}},
             ],
         });
     });
@@ -570,8 +570,8 @@ describe('analysis modal transforms', () => {
             max: null,
             measurements: [
                 {value: '[NaN]', chartValue: null, tableValue: null},
-                {value: '[10]', chartValue: {"0": 10}, tableValue: {"0": 10}},
-                {value: '[15]', chartValue: {"0": 15}, tableValue: {"0": 15}},
+                {value: '[10]', chartValue: {'0': 10}, tableValue: {'0': 10}},
+                {value: '[15]', chartValue: {'0': 15}, tableValue: {'0': 15}},
             ],
         });
     });
@@ -600,7 +600,7 @@ describe('analysis modal transforms', () => {
             max: 15,
             measurements: [
                 {value: 'NaN', chartValue: null, tableValue: null},
-                {value: '10', chartValue: 10 , tableValue: 10},
+                {value: '10', chartValue: 10, tableValue: 10},
                 {value: '15', chartValue: 15, tableValue: 15},
             ],
         });
