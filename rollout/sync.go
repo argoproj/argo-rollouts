@@ -324,7 +324,7 @@ func (c *rolloutContext) isScalingEvent() (bool, error) {
 		return false, fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in isScalingEvent: %w", err)
 	}
 
-	for _, rs := range controller.FilterActiveReplicaSets(c.allRSs) {
+	for _, rs := range []*appsv1.ReplicaSet{c.newRS, c.stableRS} {
 		desired, ok := annotations.GetDesiredReplicasAnnotation(rs)
 		if !ok {
 			continue
