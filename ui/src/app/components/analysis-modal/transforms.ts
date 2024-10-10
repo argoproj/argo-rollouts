@@ -1,5 +1,4 @@
 // eslint-disable-file @typescript-eslint/ban-ts-comment
-import JSON5 from 'json5'
 import * as moment from 'moment';
 
 import {
@@ -132,7 +131,7 @@ const PROVIDER_CONDITION_SUPPORT: {
 export const conditionDetails = (
     condition?: string,
     args: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument[] = [],
-    provider?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+    provider?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider,
 ): {
     label: string | null;
     thresholds: number[];
@@ -209,7 +208,7 @@ export const chartMax = (valueMax: number, failThresholds: number[] | null, succ
  * @param phase analysis phase
  * @returns analysis phase adjusted to render the UI status with a more accurate functional status
  */
-export const getAdjustedMetricPhase = (phase?: AnalysisStatus): AnalysisStatus => (phase === AnalysisStatus.Error ? AnalysisStatus.Failed : phase ?? AnalysisStatus.Unknown);
+export const getAdjustedMetricPhase = (phase?: AnalysisStatus): AnalysisStatus => (phase === AnalysisStatus.Error ? AnalysisStatus.Failed : (phase ?? AnalysisStatus.Unknown));
 
 /**
  *
@@ -379,7 +378,7 @@ export const interpolateQuery = (query?: string, args?: GithubComArgoprojArgoRol
  */
 export const printableDatadogQuery = (
     datadog: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric,
-    args: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument[]
+    args: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument[],
 ): string[] | undefined => {
     if ((datadog.apiVersion ?? '').toLowerCase() === 'v1' && 'query' in datadog) {
         return [interpolateQuery(datadog.query, args)];
@@ -418,7 +417,7 @@ export const printableCloudWatchQuery = (cloudWatch: GithubComArgoprojArgoRollou
  */
 export const metricQueries = (
     provider?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider | null,
-    args: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument[] = []
+    args: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument[] = [],
 ): string[] | undefined => {
     if (provider === undefined || provider === null) {
         return undefined;
@@ -468,7 +467,7 @@ export const transformMeasurements = (conditionKeys: string[], measurements?: Gi
     return measurements.reduce(
         (
             acc: {chartable: boolean; min: number; max: number | null; measurements: TransformedMeasurement[]},
-            currMeasurement: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+            currMeasurement: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement,
         ) => {
             const transformedValue = transformMeasurementValue(conditionKeys, currMeasurement.value);
             const {canChart, tableValue} = transformedValue;
@@ -488,7 +487,7 @@ export const transformMeasurements = (conditionKeys: string[], measurements?: Gi
                 ],
             };
         },
-        {chartable: true, min: 0, max: null, measurements: [] as TransformedMeasurement[]}
+        {chartable: true, min: 0, max: null, measurements: [] as TransformedMeasurement[]},
     );
 };
 
@@ -508,7 +507,7 @@ type FormattedMeasurementValue = number | string | null;
  */
 export const formattedValue = (value: any): FormattedMeasurementValue => {
     const isNum = isFiniteNumber(value);
-    return isNum ? roundNumber(Number(value)) : value?.toString() ?? null;
+    return isNum ? roundNumber(Number(value)) : (value?.toString() ?? null);
 };
 
 /**
@@ -534,6 +533,7 @@ const formatNumberMeasurement = (value: number): MeasurementValueInfo => {
 export const formatSingleItemArrayMeasurement = (value: FormattedMeasurementValue[], accessor: number): MeasurementValueInfo => {
     if (isFiniteNumber(accessor)) {
         const measurementValue = value?.[accessor] ?? null;
+
         // if it's a number or null, chart it
         if (isFiniteNumber(measurementValue) || measurementValue === null) {
             const displayValue = formattedValue(measurementValue);
@@ -618,7 +618,16 @@ const transformMeasurementValue = (conditionKeys: string[], value?: string): Mea
         };
     }
 
-    const parsedValue = JSON5.parse(value);
+    let parsedValue;
+    try {
+        parsedValue = JSON.parse(value);
+    } catch {
+        return {
+            canChart: true,
+            chartValue: null,
+            tableValue: null,
+        };
+    }
 
     // single number measurement value
     if (isFiniteNumber(parsedValue)) {
