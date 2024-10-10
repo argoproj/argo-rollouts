@@ -2,10 +2,12 @@ package plugin
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/argoproj/argo-rollouts/utils/config"
@@ -210,6 +212,25 @@ func TestPlugin(t *testing.T) {
 
 		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
 		assert.NoError(t, err)
+	})
+
+	t.Run("test that GOOS and GOARCH are expanded correctly", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaults.DefaultRolloutsConfigMapName,
+				Namespace: defaults.Namespace(),
+			},
+			Data: map[string]string{"metricProviderPlugins": "\n  - name: argoproj-labs/file-plugin\n    location: file://./plugin${HOME}-$GOOS-${GOARCH}${SSH_AGENT}"},
+		}
+		client := fake.NewSimpleClientset(cm)
+
+		config.UnInitializeConfig()
+
+		_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
+		assert.NoError(t, err)
+
+		err = DownloadPlugins(MockFileDownloader{})
+		assert.Contains(t, err.Error(), fmt.Sprintf("plugin-%s-%s", runtime.GOOS, runtime.GOARCH))
 	})
 }
 
