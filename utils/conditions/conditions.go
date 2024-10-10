@@ -346,7 +346,7 @@ func RolloutTimedOut(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 	// When a rollout is retried, the controller should not evaluate for a timeout based on the
 	// aborted condition because the abort could have happened a while back and the rollout should
 	// not enter degraded as a result of that
-	if condition == nil || condition.Reason == RolloutAbortedReason {
+	if condition == nil || condition.Reason == RolloutAbortedReason || condition.Reason == RolloutPausedReason {
 		return false
 	}
 

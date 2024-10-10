@@ -555,6 +555,22 @@ func TestRolloutTimedOut(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			name:                    "Rollout has not time out when paused",
+			progressDeadlineSeconds: 5,
+			newStatus: v1alpha1.RolloutStatus{
+				Conditions: conditions(RolloutPausedReason, before),
+			},
+			expected: false,
+		},
+		{
+			name:                    "Rollout has not time out when aborted",
+			progressDeadlineSeconds: 5,
+			newStatus: v1alpha1.RolloutStatus{
+				Conditions: conditions(RolloutAbortedReason, before),
+			},
+			expected: false,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
