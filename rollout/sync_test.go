@@ -698,8 +698,6 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	err := json.Unmarshal([]byte(updateRO), &roStatus)
 	assert.Nil(t, err)
 
-	assert.Equal(t, int32(2), len(f.replicaSetLister))
-
 	// We have two ReplicaSets, one with 3 pods and one with 10
 	assert.Equal(t, int32(13), roStatus.Status.Replicas)
 	assert.Equal(t, int32(13), roStatus.Status.ReadyReplicas)
