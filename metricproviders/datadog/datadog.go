@@ -68,7 +68,7 @@ type datadogResponseV2 struct {
 	Data struct {
 		Attributes struct {
 			Columns []struct {
-				Values []float64
+				Values []*float64
 			}
 		}
 		Errors string
@@ -395,11 +395,11 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 		}
 	} else {
 		for i := range len(valueAsSlice) {
-			if len(res.Data.Attributes.Columns[i].Values) == 0 {
+			if len(res.Data.Attributes.Columns[i].Values) == 0 || res.Data.Attributes.Columns[i].Values[0] == nil {
 				valueAsSlice[i] = nilFloat64
 				somethingNil = true
 			} else {
-				valueAsSlice[i] = res.Data.Attributes.Columns[i].Values[0]
+				valueAsSlice[i] = *res.Data.Attributes.Columns[i].Values[0]
 			}
 		}
 	}
@@ -420,7 +420,7 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 		// Should be impossible for this to not be true, based on dd openapi spec.
 		// But in this case, better safe than sorry
 		if len(res.Data.Attributes.Columns) >= 1 {
-			allValues := []float64{}
+			allValues := []*float64{}
 			for i := range len(res.Data.Attributes.Columns) {
 				allValues = append(allValues, res.Data.Attributes.Columns[i].Values...)
 			}
