@@ -368,63 +368,47 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 
 	var somethingNil, allNil bool
 	var value interface{}
+	var nilFloat64 *float64
 
+	// formulasLength is the length of formulas array provided
 	formulasLength := len(metric.Provider.Datadog.Formulas)
+	// valuesLength is the length of returned values to access
+	// if no formulas array provided, that means it is only 1 value
+	// (the result of the signle formula or query)
+	valuesLength := formulasLength
+	if formulasLength == 0 {
+		valuesLength = 1
+	}
 
-	// Evalulate whether all formulas are nil, and whether something in them is nil
+	// Evalulate whether all formulas are nil
 	allNil = reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Columns) == 0
 
-	// If all is nil, something is nil
+	// Populate value and evalulate somethingNil
+	// value is a slice of interface, which is really a slice of float64 (and nils)
+	// somethingNil indicates whether there exists a formula with null response
+	value = make([]interface{}, valuesLength)
+	valueAsSlice := value.([]interface{})
+
 	if allNil {
-		somethingNil = true
+		for i := range len(valueAsSlice) {
+			valueAsSlice[i] = nilFloat64
+		}
 	} else {
-		// if there are no formulas provided (that is, either a query or a single formula),
-		// then we just check the first column
-		if formulasLength == 0 {
-			somethingNil = len(res.Data.Attributes.Columns[0].Values) == 0
-		} else {
-			// if there are multiple formulas provided, we set somethingNil to true
-			// if any of them are missing values.
-			for i := range formulasLength {
-				if len(res.Data.Attributes.Columns[i].Values) == 0 {
-					somethingNil = true
-					break
-				}
+		for i := range len(valueAsSlice) {
+			if len(res.Data.Attributes.Columns[i].Values) == 0 {
+				valueAsSlice[i] = nilFloat64
+				somethingNil = true
+			} else {
+				valueAsSlice[i] = res.Data.Attributes.Columns[i].Values[0]
 			}
 		}
 	}
 
-	var nilFloat64 *float64
-
-	// Populate value
-	// In the case of a single formula, or a query, it is of type float64
-	// In the case of multiple formulas, it is a slice of interface, which is really
-	// a slice of float64
+	// To preserve backward conditions accessing `result` directly
+	// instead of `result[0]`. Cast value back to float64 instead of a slice
+	// when no `formulas` array is provided
 	if formulasLength == 0 {
-
-		if allNil || somethingNil {
-			value = nilFloat64
-		} else {
-			value = res.Data.Attributes.Columns[0].Values[0]
-		}
-	} else {
-
-		value = make([]interface{}, formulasLength)
-		valueAsSlice := value.([]interface{})
-
-		if allNil {
-			for i := range len(valueAsSlice) {
-				valueAsSlice[i] = nilFloat64
-			}
-		} else {
-			for i := range len(valueAsSlice) {
-				if len(res.Data.Attributes.Columns[i].Values) == 0 {
-					valueAsSlice[i] = nilFloat64
-				} else {
-					valueAsSlice[i] = res.Data.Attributes.Columns[i].Values[0]
-				}
-			}
-		}
+		value = valueAsSlice[0]
 	}
 
 	// Handle an empty query result
