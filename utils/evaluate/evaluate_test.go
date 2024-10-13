@@ -281,10 +281,10 @@ func TestDefaultFunc(t *testing.T) {
 	var oneFloatPointer *float64 = new(float64)
 	*oneFloatPointer = 1
 
-	assert.True(t, defaultFunc(nilFloat)(nilFloat, 0) == 0)
-	assert.True(t, defaultFunc(nilFloat)(nilFloat, 1) == 1)
-	assert.True(t, defaultFunc(nilFloat)(nilFloat, 2) == 2)
-	assert.True(t, defaultFunc(oneFloatPointer)(oneFloatPointer, 0) == oneFloat)
+	assert.True(t, defaultFunc(nilFloat, 0) == 0)
+	assert.True(t, defaultFunc(nilFloat, 1) == 1)
+	assert.True(t, defaultFunc(nilFloat, 2) == 2)
+	assert.True(t, defaultFunc(oneFloatPointer, 0) == oneFloat)
 }
 
 func TestIsNilFunc(t *testing.T) {
@@ -293,12 +293,12 @@ func TestIsNilFunc(t *testing.T) {
 	var nilArr []string
 	var twoArr []string = []string{"hi", "hello"}
 
-	assert.True(t, isNilFunc(nilFloat)(nilFloat))
-	assert.True(t, isNilFunc(nilArr)(nilArr))
-	assert.False(t, isNilFunc(oneFloat)(oneFloat))
-	assert.False(t, isNilFunc(twoArr)(twoArr))
-	assert.False(t, isNilFunc(1)(1))
-	assert.False(t, isNilFunc(false)(false))
+	assert.True(t, isNil(nilFloat))
+	assert.True(t, isNil(nilArr))
+	assert.False(t, isNil(oneFloat))
+	assert.False(t, isNil(twoArr))
+	assert.False(t, isNil(1))
+	assert.False(t, isNil(false))
 }
 
 func TestIsNil(t *testing.T) {
