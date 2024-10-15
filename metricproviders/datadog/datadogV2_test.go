@@ -248,7 +248,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field .Data.Attributes.Columns.Values of type []float64",
+			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field .Data.Attributes.Columns.Values of type []*float64",
 			useEnvVarForKeys:        false,
 		},
 

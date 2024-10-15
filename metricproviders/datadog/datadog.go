@@ -67,7 +67,7 @@ type datadogResponseV2 struct {
 	Data struct {
 		Attributes struct {
 			Columns []struct {
-				Values []float64
+				Values []*float64
 			}
 		}
 		Errors string
@@ -320,7 +320,7 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 	}
 
 	// Handle an empty query result
-	if reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Columns) == 0 || len(res.Data.Attributes.Columns[0].Values) == 0 {
+	if reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Columns) == 0 || len(res.Data.Attributes.Columns[0].Values) == 0 || res.Data.Attributes.Columns[0].Values[0] == nil {
 		var nilFloat64 *float64
 		status, err := evaluate.EvaluateResult(nilFloat64, metric, p.logCtx)
 
@@ -343,7 +343,7 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 
 	// Handle a populated query result
 	column := res.Data.Attributes.Columns[0]
-	value := column.Values[0]
+	value := *column.Values[0]
 	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
 	return strconv.FormatFloat(value, 'f', -1, 64), status, err
 }
