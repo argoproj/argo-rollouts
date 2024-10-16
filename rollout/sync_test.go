@@ -673,7 +673,6 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	r1.Status.StableRS = stableRs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r2 := bumpVersion(r1)
 	r2.Annotations[annotations.RevisionAnnotation] = "2"
-	//rs2 := newReplicaSetWithStatus(r2, , 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
