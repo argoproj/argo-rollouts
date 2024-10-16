@@ -663,27 +663,28 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 
 	r0 := newCanaryRollout("foo", 10, int32Ptr(4), steps, int32Ptr(0), intstr.FromInt(10), intstr.FromInt(0))
 	r0.Annotations[annotations.RevisionAnnotation] = "1"
-	rs0 := newReplicaSetWithStatus(r0, 3, 3)
-	rs0.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+	oldRs := newReplicaSetWithStatus(r0, 3, 3)
+	oldRs.Annotations[annotations.DesiredReplicasAnnotation] = "2"
 
 	r1 := bumpVersion(r0)
 
-	rs1 := newReplicaSetWithStatus(r1, 10, 10)
-	r1.Status.StableRS = rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	// Desired rs will be created during reconcile
+	stableRs := newReplicaSetWithStatus(r1, 10, 10)
+	r1.Status.StableRS = stableRs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r2 := bumpVersion(r1)
 	r2.Annotations[annotations.RevisionAnnotation] = "2"
 	//rs2 := newReplicaSetWithStatus(r2, , 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
-	f.kubeobjects = append(f.kubeobjects, rs0, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs0, rs1)
+	f.kubeobjects = append(f.kubeobjects, oldRs, stableRs)
+	f.replicaSetLister = append(f.replicaSetLister, oldRs, stableRs)
 
 	f.expectUpdateRolloutAction(r2) // update rollout revision
 	f.expectUpdateRolloutStatusAction(r2)
 	updatedROIndex := f.expectPatchRolloutAction(r2)
-	createdRS2Index := f.expectCreateReplicaSetAction(rs1)
-	updatedRS2Index := f.expectUpdateReplicaSetAction(rs1)
+	createdRS2Index := f.expectCreateReplicaSetAction(stableRs)
+	updatedRS2Index := f.expectUpdateReplicaSetAction(stableRs)
 	f.run(getKey(r2, t))
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
