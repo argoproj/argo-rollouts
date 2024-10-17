@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -16,6 +17,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutlister "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/version"
 )
 
 type MetricsServer struct {
@@ -37,6 +39,16 @@ type MetricsServer struct {
 const (
 	// MetricsPath is the endpoint to collect rollout metrics
 	MetricsPath = "/metrics"
+)
+
+var (
+	buildInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "build_info",
+			Help: "A metric with a constant '1' value labeled by version from which Argo-Rollouts was built.",
+		},
+		[]string{"version", "goversion", "goarch", "commit"},
+	)
 )
 
 type ServerConfig struct {
@@ -74,6 +86,9 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	reg.MustRegister(MetricNotificationFailedTotal)
 	reg.MustRegister(MetricNotificationSend)
 	reg.MustRegister(MetricVersionGauge)
+	reg.MustRegister(buildInfo)
+
+	recordBuildInfo()
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -172,6 +187,12 @@ func (m *MetricsServer) Remove(namespace string, name string, kind string) {
 		}
 	}(namespace, name, kind)
 
+}
+
+// recordBuildInfo publishes information about Argo-Rollouts version and runtime info through an info metric (gauge).
+func recordBuildInfo() {
+	vers := version.GetVersion()
+	buildInfo.WithLabelValues(vers.Version, runtime.Version(), runtime.GOARCH, vers.GitCommit).Set(1)
 }
 
 func boolFloat64(b bool) float64 {
