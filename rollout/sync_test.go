@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"encoding/json"
 	"strconv"
 	"testing"
 	"time"
@@ -638,4 +639,67 @@ func TestScaleDownDeploymentOnSuccess(t *testing.T) {
 	err = ctx.promoteStable(newStatus, "reason")
 
 	assert.NotNil(t, err)
+}
+
+// This tests validates that when there are old replicasets that have miss matched desired-count annotations aka they do
+// not match the spec.replicas field. When this happens we get stuck in a reconcile loop of only trying to scale replicasets
+// only because of a supposed scaling event. This test validates that we do not get stuck in this loop by checking that status.replicas
+// and status.readyreplicas are updated because those will not be updated in that loop.
+func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	// these steps should be ignored
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: int32Ptr(10),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{
+				Duration: v1alpha1.DurationFromInt(60),
+			},
+		},
+	}
+
+	r0 := newCanaryRollout("foo", 10, int32Ptr(4), steps, int32Ptr(0), intstr.FromInt(10), intstr.FromInt(0))
+	r0.Annotations[annotations.RevisionAnnotation] = "1"
+	oldRs := newReplicaSetWithStatus(r0, 3, 3)
+	oldRs.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+
+	r1 := bumpVersion(r0)
+
+	// Desired rs will be created during reconcile
+	stableRs := newReplicaSetWithStatus(r1, 10, 10)
+	r1.Status.StableRS = stableRs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r2 := bumpVersion(r1)
+	r2.Annotations[annotations.RevisionAnnotation] = "2"
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, oldRs, stableRs)
+	f.replicaSetLister = append(f.replicaSetLister, oldRs, stableRs)
+
+	f.expectUpdateRolloutAction(r2) // update rollout revision
+	f.expectUpdateRolloutStatusAction(r2)
+	updatedROIndex := f.expectPatchRolloutAction(r2)
+	createdRS2Index := f.expectCreateReplicaSetAction(stableRs)
+	updatedRS2Index := f.expectUpdateReplicaSetAction(stableRs)
+	f.run(getKey(r2, t))
+
+	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
+	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
+	updatedRS2 := f.getUpdatedReplicaSet(updatedRS2Index)
+	assert.Equal(t, int32(1), *updatedRS2.Spec.Replicas)
+
+	updateRO := f.getPatchedRollout(updatedROIndex)
+
+	//Will only contain status
+	roStatus := v1alpha1.Rollout{}
+	err := json.Unmarshal([]byte(updateRO), &roStatus)
+	assert.Nil(t, err)
+
+	// We have two ReplicaSets, one with 3 pods and one with 10
+	assert.Equal(t, int32(13), roStatus.Status.Replicas)
+	assert.Equal(t, int32(13), roStatus.Status.ReadyReplicas)
+	assert.Equal(t, int32(0), roStatus.Status.UpdatedReplicas)
 }
