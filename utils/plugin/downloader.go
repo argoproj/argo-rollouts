@@ -72,10 +72,8 @@ func checkShaOfPlugin(pluginLocation string, expectedSha256 string) (bool, error
 }
 
 func downloadFile(filepath string, url string, downloader FileDownloader, header http.Header) error {
-	resp := &http.Response{}
-	var err error
 	// Get the data with credentials
-	resp, err = downloader.Get(url, header)
+	resp, err := downloader.Get(url, header)
 	if err != nil {
 		return fmt.Errorf("failed to download file from %s: %w", url, err)
 	}
