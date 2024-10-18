@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
@@ -285,33 +284,16 @@ func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, template v1a
 func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, rs *appsv1.ReplicaSet) {
 	// Create service with has same name, podTemplateHash, and labels as RS
 	podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	svc := ec.templateServices[template.Name]
-	var ports []corev1.ServicePort
-	for _, ctr := range rs.Spec.Template.Spec.Containers {
-		for _, port := range ctr.Ports {
-			servicePort := corev1.ServicePort{
-				Protocol:   port.Protocol,
-				Port:       port.ContainerPort,
-				TargetPort: intstr.FromInt(int(port.ContainerPort)),
-			}
-			if port.Name != "" {
-				servicePort.Name = port.Name
-			}
-			ports = append(ports, servicePort)
-		}
-	}
-	if (svc == nil || svc.Name != rs.Name) && len(ports) > 0 {
-		serviceName := rs.Name
-		if template.Service.Name != "" {
-			serviceName = template.Service.Name
-		}
-		newService, err := ec.CreateService(serviceName, *template, rs.Labels, ports)
+	tmplService := ec.templateServices[template.Name]
+
+	if tmplService == nil {
+		service, err := ec.CreateService(*template, rs)
 		if err != nil {
 			templateStatus.Status = v1alpha1.TemplateStatusError
-			templateStatus.Message = fmt.Sprintf("Failed to create Service %s for template '%s': %v", serviceName, template.Name, err)
+			templateStatus.Message = fmt.Sprintf("Failed to create Service %s for template '%s': %v", service.Name, template.Name, err)
 		} else {
-			ec.templateServices[template.Name] = newService
-			templateStatus.ServiceName = newService.Name
+			ec.templateServices[template.Name] = service
+			templateStatus.ServiceName = service.Name
 			templateStatus.PodTemplateHash = podTemplateHash
 		}
 	}
