@@ -1,0 +1,3844 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://argo-rollouts.readthedocs.io/proposals/step-plugin/">
+      
+      
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.41">
+    
+    
+      
+        <title>Step Plugin - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.0253249f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Work Sans";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/versions.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config","G-5Z1VTPDL73"),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","G-5Z1VTPDL73",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=G-5Z1VTPDL73",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#step-plugin" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-header__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Argo Rollouts - Kubernetes Progressive Delivery Controller
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Step Plugin
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/argoproj/argo-rollouts" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    Argo Rollouts - Kubernetes Progressive Delivery Controller
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/argoproj/argo-rollouts" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Concepts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Basic Usage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/ambassador/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ambassador
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/alb/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AWS ALB
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/appmesh/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AWS App Mesh
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/istio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Istio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/nginx/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    NGINX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/smi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SMI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/mixed/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Multiple Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../dashboard/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dashboard
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Rollout
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Rollout
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_1" id="__nav_7_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Deployment Strategies
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_1">
+            <span class="md-nav__icon md-icon"></span>
+            Deployment Strategies
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/bluegreen/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    BlueGreen
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/canary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Canary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/specification/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollout Spec
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/hpa-support/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HPA
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/vpa-support/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    VPA
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/ephemeral-metadata/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ephemeral Metadata
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/restart/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Restarting Rollouts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/scaledown-aborted-rs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaledown Aborted Rollouts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/rollback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollback Window
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/anti-affinity/anti-affinity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti Affinity
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/helm/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Helm
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/kustomize/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Kustomize
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/controller-metrics/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Controller Metrics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Traffic Management
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Traffic Management
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/ambassador/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ambassador
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/apisix/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    APISIX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/alb/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AWS ALB
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/google-cloud/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Google Cloud
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/istio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Istio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/kong/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Kong
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/nginx/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    NGINX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/plugins/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Plugins
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/smi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SMI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/traefik/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Traefik
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Analysis
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            Analysis
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/analysis/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/plugins/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Plugins
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/prometheus/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Prometheus
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/datadog/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Datadog
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/newrelic/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    NewRelic
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/wavefront/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Wavefront
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/job/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Job
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/web/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/kayenta/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Kayenta
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/cloudwatch/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CloudWatch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/graphite/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Graphite
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/influxdb/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    InfluxDB
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/skywalking/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Apache SkyWalking
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/experiment/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Experiments
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Notifications
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            Notifications
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/notifications/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_11_2" id="__nav_11_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Services
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11_2">
+            <span class="md-nav__icon md-icon"></span>
+            Services
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/alertmanager/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Alertmanager
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/awssqs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AWS SQS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/email/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Email
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/github/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    GitHub
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/googlechat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Google Chat
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/grafana/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Grafana
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/mattermost/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Mattermost
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/newrelic/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    NewRelic
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/opsgenie/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Opsgenie
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/pagerduty/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PagerDuty
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/pagerduty_v2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PagerDuty V2
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/pushover/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pushover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/rocketchat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rocket.Chat
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/slack/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Slack
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/teams/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Teams
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/telegram/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telegram
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/webex/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Webex Teams
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/webhook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Webhook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Kubectl Plugin
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            Kubectl Plugin
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/kubectl-plugin/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_12_2" id="__nav_12_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Commands
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_12_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12_2">
+            <span class="md-nav__icon md-icon"></span>
+            Commands
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Abort
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Completion
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Create
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Create Analysisrun
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Dashboard
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Get
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Get Experiment
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Get Rollout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Lint
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts List
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts List Experiments
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts List Rollouts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Notifications
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Notifications Template
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Notifications Template Get
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Notifications Template Notify
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Notifications Trigger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Notifications Trigger Get
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Notifications Trigger Run
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Pause
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Promote
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Restart
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Retry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Retry Experiment
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Retry Rollout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Set
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Set Image
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Status
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Terminate
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Terminate Analysisrun
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Terminate Experiment
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Undo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rollouts Version
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../best-practices/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Best Practices
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migrating/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Migrating
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../FAQ/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FAQ
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <label class="md-nav__link" for="__nav_16" id="__nav_16_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Security
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            Security
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/security/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Security Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/signed-release-assets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Verify Release Artifacts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <label class="md-nav__link" for="__nav_17" id="__nav_17_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            Contributing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../CONTRIBUTING/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Contribution Guide
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Environment Setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../releasing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Releasing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plugins/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Plugins
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/argoproj/argo-rollouts/releases" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Releases ⧉
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/argoproj/argo-rollouts/milestones" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Roadmap ⧉
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://blog.argoproj.io/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Blog ⧉
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Summary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Motivation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Motivation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Goals
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Non-Goals
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proposal" class="md-nav__link">
+    <span class="md-ellipsis">
+      Proposal
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Proposal">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Use cases
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation-detailsnotesconstraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation Details/Notes/Constraints
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation Details/Notes/Constraints">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interface
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rollout-object-plugin-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rollout object (plugin input)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rollout-status-plugin-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rollout Status (plugin output)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detailed-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Detailed execution flow
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Detailed execution flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scenarios
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scenarios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-plugin-completes-successfully" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step plugin completes successfully
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-plugin-completes-with-failed-phase" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step plugin completes with failed phase
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-plugin-completes-with-running-phase" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step plugin completes with running phase
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-plugin-is-called-multiple-times" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step plugin is called multiple times
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rollout-is-fully-promoted-during-a-step-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rollout is fully promoted during a step plugin
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rollout-aborted-during-a-step-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rollout aborted during a step plugin
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-step-plugin-reports-an-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      The step plugin reports an error
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-step-plugin-uses-rollout-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      The step plugin uses Rollout information
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-can-investigate-my-step-plugin-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      I can investigate my step plugin execution
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-is-shared-between-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      State is shared between plugins
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-want-my-rollout-to-continue-event-if-my-plugin-failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      I want my rollout to continue event if my plugin failed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-dont-want-my-plugin-execution-time-to-count-towards-the-progress-deadline" class="md-nav__link">
+    <span class="md-ellipsis">
+      I dont want my plugin execution time to count towards the progress deadline
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security Considerations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#risks-and-mitigations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Risks and Mitigations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upgrade-downgrade-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Upgrade / Downgrade Strategy
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#drawbacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Drawbacks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alternatives
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="step-plugin">Step Plugin<a class="headerlink" href="#step-plugin" title="Permanent link">&para;</a></h1>
+<p>Step plugins can be used to call code built outside of argo-rollout's codebase to execute actions during a canary rollout.</p>
+<p>This document provides technical implementation proposals to avoid implementing rollout steps in Argo Rollout’s codebase.</p>
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<p>Rollout steps need to be implemented natively in Argo Rollout source code.
+It makes it difficult for the community to add new rollout steps because their implementation
+is coupled with Rollout release cycle. The Rollout maintainers also have to acquire
+knowledge on the different technologies used in the steps and validate them on each release.</p>
+<h2 id="motivation">Motivation<a class="headerlink" href="#motivation" title="Permanent link">&para;</a></h2>
+<p>This section is for explicitly listing the motivation, goals and non-goals of this proposal.
+Describe why the change is important and the benefits to users.</p>
+<h3 id="goals">Goals<a class="headerlink" href="#goals" title="Permanent link">&para;</a></h3>
+<p>The goals of this proposal are:</p>
+<ul>
+<li>Update steps outside Rollout’s release cycle</li>
+<li>Allow the community experts to maintain their steps</li>
+<li>Allow for a faster step development iteration</li>
+<li>Allow for more features without increasing complexity on the controller</li>
+<li>Allow users to use proprietary steps with Argo Rollouts</li>
+</ul>
+<h3 id="non-goals">Non-Goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h3>
+<p>Implement plugins.</p>
+<h2 id="proposal">Proposal<a class="headerlink" href="#proposal" title="Permanent link">&para;</a></h2>
+<p>Rollout already has a plugin mechanism for metric providers and traffic routers as
+documented in https://argoproj.github.io/argo-rollouts/plugins/. The implementation is based on <a href="https://github.com/hashicorp/go-plugin">hashicorp/go-plugin</a>.
+This mechanism can be extended to support the steps plugin.</p>
+<ul>
+<li>Consistent with existing behavior.</li>
+<li>Add a <code>stepPluginStatuses</code> array to the <code>.status.canary</code> field.</li>
+<li>Users can consult the Rollout object after the execution to get details on their status.</li>
+</ul>
+<h3 id="use-cases">Use cases<a class="headerlink" href="#use-cases" title="Permanent link">&para;</a></h3>
+<p>More details in https://github.com/argoproj/argo-rollouts/issues/2685</p>
+<h3 id="implementation-detailsnotesconstraints">Implementation Details/Notes/Constraints<a class="headerlink" href="#implementation-detailsnotesconstraints" title="Permanent link">&para;</a></h3>
+<h4 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h4>
+<p>The plugin will be configured alongside existing plugins.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts-config</span>
+<span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">metricProviderPlugins</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|-</span>
+<span class="w">    </span><span class="no">- name: &quot;argoproj-labs/metrics&quot;</span>
+<span class="w">      </span><span class="no">location: &quot;file:///tmp/argo-rollouts/metric-plugin&quot;</span>
+<span class="w">      </span><span class="no">args:</span>
+<span class="w">        </span><span class="no">- &quot;--log-level&quot;</span>
+<span class="w">        </span><span class="no">- &quot;debug&quot;</span>
+<span class="w">  </span><span class="nt">stepPlugins</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|-</span>
+<span class="w">    </span><span class="no">- name: &quot;argoproj-labs/curl/v2&quot;</span>
+<span class="w">      </span><span class="no">disabled: false</span>
+<span class="w">      </span><span class="no">location: &quot;file:///tmp/argo-rollouts/step-plugin&quot;</span>
+<span class="w">      </span><span class="no">sha256: &quot;08f588b1c799a37bbe8d0fc74cc1b1492dd70abc&quot;</span>
+<span class="w">      </span><span class="no">args:</span>
+<span class="w">        </span><span class="no">- &quot;--log-level&quot;</span>
+<span class="w">        </span><span class="no">- &quot;debug&quot;</span>
+</code></pre></div>
+<h4 id="interface">Interface<a class="headerlink" href="#interface" title="Permanent link">&para;</a></h4>
+<p><em>The interface implementation details related to go-plugin and rpc calls have been omitted for clarity.</em></p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Phase</span><span class="w"> </span><span class="kt">string</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="nx">PhaseRunning</span><span class="w">      </span><span class="nx">Phase</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Running&quot;</span>
+<span class="w">    </span><span class="nx">PhaseSuccessful</span><span class="w">   </span><span class="nx">Phase</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Successful&quot;</span>
+<span class="w">    </span><span class="nx">PhaseFailed</span><span class="w">       </span><span class="nx">Phase</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Failed&quot;</span>
+<span class="w">    </span><span class="nx">PhaseError</span><span class="w">        </span><span class="nx">Phase</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Error&quot;</span>
+<span class="p">)</span>
+
+<span class="kd">type</span><span class="w"> </span><span class="nx">StepContext</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">PluginName</span><span class="w">   </span><span class="kt">string</span>
+<span class="w">    </span><span class="nx">Config</span><span class="w">       </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span>
+<span class="w">    </span><span class="nx">Status</span><span class="w">       </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span>
+<span class="p">}</span>
+
+<span class="kd">type</span><span class="w"> </span><span class="nx">StepStatus</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Index</span><span class="w">         </span><span class="kt">int</span>
+<span class="w">    </span><span class="nx">Name</span><span class="w">          </span><span class="kt">string</span>
+<span class="w">    </span><span class="nx">Phase</span><span class="w">         </span><span class="nx">Phase</span>
+<span class="w">    </span><span class="nx">Message</span><span class="w">       </span><span class="kt">string</span>
+<span class="w">    </span><span class="nx">StartedAt</span><span class="w">     </span><span class="nx">Time</span>
+<span class="w">    </span><span class="nx">FinishedAt</span><span class="w">    </span><span class="nx">Time</span>
+<span class="w">    </span><span class="nx">Status</span><span class="w">        </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span>
+<span class="p">}</span>
+
+<span class="kd">type</span><span class="w"> </span><span class="nx">StepResult</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Phase</span><span class="w">         </span><span class="nx">Phase</span>
+<span class="w">    </span><span class="nx">Message</span><span class="w">       </span><span class="kt">string</span>
+<span class="w">  </span><span class="nx">RequeueAfter</span><span class="w">  </span><span class="nx">Duration</span>
+<span class="w">    </span><span class="nx">Status</span><span class="w">        </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span>
+<span class="p">}</span>
+
+<span class="kd">type</span><span class="w"> </span><span class="nx">StepPlugin</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Init</span><span class="p">()</span><span class="w"> </span><span class="kt">error</span>
+<span class="w">    </span><span class="nx">Run</span><span class="p">(</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="nx">StepContext</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="nx">StepResult</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">Terminate</span><span class="p">(</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="nx">StepContext</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="nx">StepResult</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">Abort</span><span class="p">(</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="nx">StepContext</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="nx">StepResult</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<h4 id="rollout-object-plugin-input">Rollout object (plugin input)<a class="headerlink" href="#rollout-object-plugin-input" title="Permanent link">&para;</a></h4>
+<p>The step will provide rollout specific configuration defined by the users
+as a map of key value pairs allowing the user to pass any declarative configs to the plugin.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example-rollout</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">steps</span><span class="p p-Indicator">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">plugin</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj/curl</span>
+<span class="w">            </span><span class="nt">abortOnFailure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">    </span><span class="c1"># &lt;--- example</span>
+<span class="w">            </span><span class="nt">progressDeadline</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span><span class="w">    </span><span class="c1"># &lt;--- example</span>
+<span class="w">            </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://example.com/</span>
+<span class="w">              </span><span class="nt">some_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">some_value</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span>
+</code></pre></div>
+<h4 id="rollout-status-plugin-output">Rollout Status (plugin output)<a class="headerlink" href="#rollout-status-plugin-output" title="Permanent link">&para;</a></h4>
+<p>The controller will write a new object to the status.
+This object will be used to persist the plugin state after the step execution and to allow other steps to use it.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">status</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">stepPluginStatuses</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">index</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj/curl</span>
+<span class="w">        </span><span class="nt">message</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Call completed with status code 302</span>
+<span class="w">        </span><span class="nt">phase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Successful</span>
+<span class="w">        </span><span class="nt">startedAt</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;2024-02-15T20:05:40Z&#39;</span>
+<span class="w">        </span><span class="nt">finishedAt</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;2024-02-15T20:21:40Z&#39;</span>
+<span class="w">        </span><span class="nt">status</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">index</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj/async-task</span>
+<span class="w">        </span><span class="nt">message</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Waiting for result</span>
+<span class="w">        </span><span class="nt">phase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Running</span>
+<span class="w">        </span><span class="nt">startedAt</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;2024-02-15T20:05:40Z&#39;</span>
+<span class="w">        </span><span class="nt">finishedAt</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<span class="w">        </span><span class="nt">status</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">12</span>
+<span class="w">          </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/an/example/property</span>
+<span class="w">          </span><span class="nt">validated</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</code></pre></div>
+<h3 id="detailed-execution-flow">Detailed execution flow<a class="headerlink" href="#detailed-execution-flow" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>At initialization</strong></li>
+</ol>
+<p>The plugins are loaded based on configuration and started as processes with the provided arguments in the configuration.
+   The <code>Init()</code> method is called for plugins to perform one-time initialization such as creating clients and establishing connections.</p>
+<ol>
+<li><strong>A rollout reach the plugin step for the first time</strong></li>
+</ol>
+<p>During the rollout, the controller will use the <code>currentStepIndex</code> to find the step to run.
+   If the step is a plugin, the controller will create a StepContext object based
+   on the configuration on the Rollout’s step object.</p>
+<p>The controller will try to retrieve the value of the current <code>stepPluginStatuses</code>,
+   and if it matches the current step index, it will add the persisted state to the context.</p>
+<p>It will create a StepStatus object otherwise, set the name and index to the current step,
+   set the startedAt value to the current time and the phase as Running.</p>
+<ol>
+<li><strong>Running the step plugin</strong></li>
+</ol>
+<p>The plugin <code>Run()</code> method is called with the StepContext.
+   The plugin implementation will use the StepContext to perform the necessary logic.</p>
+<ol>
+<li><strong>Status is updated</strong></li>
+</ol>
+<p>Based on the return of the Run command, the StepStatus object is updated.
+   Then, the StepStatus is assigned to the stepPluginStatuses property.</p>
+<p>The status is persisted in the object.</p>
+<ol>
+<li><strong>Validate step completed</strong></li>
+</ol>
+<p>If the controller current step is of type plugin, the controller will check if the phase is successful,
+   and if so, go to the next step.</p>
+<p>If the step is still running, the controller will requeue a reconcile operation based on the value of <code>RequeueAfter</code>.</p>
+<p>If the phase is failed, it will update the status and conditions, <strong>aborting</strong> the rollout.</p>
+<h4 id="scenarios">Scenarios<a class="headerlink" href="#scenarios" title="Permanent link">&para;</a></h4>
+<h5 id="step-plugin-completes-successfully">Step plugin completes successfully<a class="headerlink" href="#step-plugin-completes-successfully" title="Permanent link">&para;</a></h5>
+<p>The <code>stepPluginStatuses</code> will not contain any object for the current step index, the plugin will perform the desired action successfully and return a successful state.</p>
+<p>The state will be persisted and the controller wil execute the next step.</p>
+<h5 id="step-plugin-completes-with-failed-phase">Step plugin completes with failed phase<a class="headerlink" href="#step-plugin-completes-with-failed-phase" title="Permanent link">&para;</a></h5>
+<p>If the step plugin returns a failed phase, the controller will set the rollout to <strong>aborted</strong> and persist the state.</p>
+<p>The user will receive the feedback based on the Progressing condition status. This behavior is consistent with existing mechanisms aborting a rollout.</p>
+<h5 id="step-plugin-completes-with-running-phase">Step plugin completes with running phase<a class="headerlink" href="#step-plugin-completes-with-running-phase" title="Permanent link">&para;</a></h5>
+<p>If the step plugin returns a running phase, the controller will persist the state, but will not increment the current step index.</p>
+<p>The controller will requeue a reconcile operation based on the value of <code>RequeueAfter</code> and terminate the current reconciliation.</p>
+<p>On the next reconciliation, the persisted state will be passed to the plugin <code>Run()</code> method.</p>
+<h5 id="step-plugin-is-called-multiple-times">Step plugin is called multiple times<a class="headerlink" href="#step-plugin-is-called-multiple-times" title="Permanent link">&para;</a></h5>
+<p>If an external error happens causing the controller to crash after it called the <code>Run()</code> method and before it could persist the status,
+the controller will replay the current plugin step, with a new context, like if it was the first time it is called.</p>
+<blockquote>
+<p><strong>A step plugin can be called multiple times and operations should be idempotent.</strong></p>
+</blockquote>
+<h5 id="rollout-is-fully-promoted-during-a-step-plugin">Rollout is fully promoted during a step plugin<a class="headerlink" href="#rollout-is-fully-promoted-during-a-step-plugin" title="Permanent link">&para;</a></h5>
+<p>If a Rollout is forcefully considered fully promoted while the current step is in a Running phase,
+the plugin will call the <code>Terminate()</code> method with the current context on the next reconciliation and update the status based on the result.</p>
+<h5 id="rollout-aborted-during-a-step-plugin">Rollout aborted during a step plugin<a class="headerlink" href="#rollout-aborted-during-a-step-plugin" title="Permanent link">&para;</a></h5>
+<p>If a Rollout is aborted while the current step is in a Running phase, the plugin will call the <code>Abort()</code> method with the current context on the next reconciliation.
+The controller will call the <code>Abort()</code> operation for each step that were executed in the reverse order.
+The steps may or may not perform any action during the Abort.
+The result of the abort will be saved in the status, overriding the state persisted during the <code>Run()</code>.
+If the Abort operation has an error, the error is propagated to the controller.
+The controller has the responsibility to retry the Abort operation, and eventually proceed with the next step if it never succeeds.</p>
+<h5 id="the-step-plugin-reports-an-error">The step plugin reports an error<a class="headerlink" href="#the-step-plugin-reports-an-error" title="Permanent link">&para;</a></h5>
+<p>Before returning the error, the status is persisted with the error phase and message. Other properties of the current status remain unmodified so the step can be re-executed with the last known valid status.</p>
+<p>For an expected retryable error, the plugin should return a Running phase with a RequeueAfter value to retry the execution.
+For an expected un-retryable error, the plugin should return a Failed status.
+After the state is persisted, the error is propagated to the controller and the controller error-handling logic will handle the error.</p>
+<h5 id="the-step-plugin-uses-rollout-information">The step plugin uses Rollout information<a class="headerlink" href="#the-step-plugin-uses-rollout-information" title="Permanent link">&para;</a></h5>
+<p>The step plugin may need to have access to the current state of the Rollout. The step plugin will receive a deep copy of the rollout object in parameter.</p>
+<h5 id="i-can-investigate-my-step-plugin-execution">I can investigate my step plugin execution<a class="headerlink" href="#i-can-investigate-my-step-plugin-execution" title="Permanent link">&para;</a></h5>
+<p>A user wants to know what happened during their custom step plugin after the execution. They can use the status in the Rollout object.</p>
+<h5 id="state-is-shared-between-plugins">State is shared between plugins<a class="headerlink" href="#state-is-shared-between-plugins" title="Permanent link">&para;</a></h5>
+<p>A user wants to use an API to publish information about the rollout. The plugin first calls the API that returns a conversation ID.
+Other steps need to use the conversationID during their execution.
+The plugin step receives in parameters the full rollout object and the pluginName. This information can be used to retrieve the status of other plugin execution.</p>
+<p>An utility function such as <code>PluginHelper.GetStatuses(rollout, pluginName)</code> can be implemented and made available to the plugins.</p>
+<h5 id="i-want-my-rollout-to-continue-event-if-my-plugin-failed">I want my rollout to continue event if my plugin failed<a class="headerlink" href="#i-want-my-rollout-to-continue-event-if-my-plugin-failed" title="Permanent link">&para;</a></h5>
+<p>A parameter such as <code>abortOnFailure</code> can be added to the Rollout plugin step configuration object.
+When specified, the controller can use the value to modify the default logic.</p>
+<h5 id="i-dont-want-my-plugin-execution-time-to-count-towards-the-progress-deadline">I dont want my plugin execution time to count towards the progress deadline<a class="headerlink" href="#i-dont-want-my-plugin-execution-time-to-count-towards-the-progress-deadline" title="Permanent link">&para;</a></h5>
+<p>A parameter such as <code>ignoreProgressDeadline</code> can be added to the Rollout plugin step configuration object.
+When specified, the controller can use the value to modify the default logic.</p>
+<h3 id="security-considerations">Security Considerations<a class="headerlink" href="#security-considerations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Plugins binary can be validated with the configured <code>sha256</code>.</li>
+</ul>
+<h3 id="risks-and-mitigations">Risks and Mitigations<a class="headerlink" href="#risks-and-mitigations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Rollout status size can grow more than expected based on plugins hygiene.</li>
+<li>Object size can be validated with <code>unsafe.Sizeof(struct)</code> and a size limit can be imposed.</li>
+<li>Plugins that are failing or causing problems cannot be removed without updating all the Rollouts.</li>
+<li>A <code>disabled</code> config can be added globally and ignore the plugin execution if true.</li>
+</ul>
+<h3 id="upgrade-downgrade-strategy">Upgrade / Downgrade Strategy<a class="headerlink" href="#upgrade-downgrade-strategy" title="Permanent link">&para;</a></h3>
+<p>It is expected that plugins will be compiled with different versions than the running argo-rollout controller. The plugins version could be either newer or older than the controller.</p>
+<p>The hashicorp/go-plugin uses gob encoding with rpc.</p>
+<blockquote>
+<p>“The source and destination values/types need not correspond exactly. For structs, fields (identified by name) that are in the source but absent from the receiving variable will be ignored. Fields that are in the receiving variable but missing from the transmitted type or value will be ignored in the destination. If a field with the same name is present in both, their types must be compatible. Both the receiver and transmitter will do all necessary indirection and dereferencing to convert between gobs and actual Go values.” - package <a href="https://pkg.go.dev/encoding/gob">encoding/gob</a></p>
+</blockquote>
+<p>Plugins should validate the objects they receive in parameters such as the <code>Rollout</code> and user confiuguration. If they expect a property to be set and it is not, it is highly probably that the controller's object version does not have that property.</p>
+<p>For breaking changes, hashicorp/go-plugin has a <code>ProtocolVersion</code> property that can be used in the future.</p>
+<p>Plugins can also be added with different names, which would require update to the Rollout CR objects as well.</p>
+<h2 id="drawbacks">Drawbacks<a class="headerlink" href="#drawbacks" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Gives a lot of power to the plugin and bad plugins could destabilize the rollouts</li>
+<li>If plugins need more permission, the access needs to be given using the Rollout service account.</li>
+</ul>
+<h2 id="alternatives">Alternatives<a class="headerlink" href="#alternatives" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Only implement vetted code in the argo-rollout codebase.</li>
+<li>Create a plugin that calls other containers</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+        <script src="../../assets/versions.js"></script>
+      
+    
+  </body>
+</html>
