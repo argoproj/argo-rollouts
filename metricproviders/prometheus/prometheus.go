@@ -56,6 +56,30 @@ func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	return metricsMetadata
 }
 
+func (p *Provider) executeQuery(ctx context.Context, metric v1alpha1.Metric) (model.Value, v1.Warnings, error) {
+	if metric.Provider.Prometheus.RangeQuery != nil {
+		start, err := evaluate.EvalTime(metric.Provider.Prometheus.RangeQuery.Start)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to parse rangeQuery.start as time: %w", err)
+		}
+		end, err := evaluate.EvalTime(metric.Provider.Prometheus.RangeQuery.End)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to parse rangeQuery.end as time: %w", err)
+		}
+		stepDuration, err := metric.Provider.Prometheus.RangeQuery.Step.Duration()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to parse rangeQuery.step as duration: %w", err)
+		}
+		return p.api.QueryRange(ctx, metric.Provider.Prometheus.Query, v1.Range{
+			Start: start,
+			End:   end,
+			Step:  stepDuration,
+		})
+	} else {
+		return p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
+	}
+}
+
 // Run queries prometheus for the metric
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
 	startTime := timeutil.MetaNow()
@@ -66,7 +90,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
 	defer cancel()
 
-	response, warnings, err := p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
+	response, warnings, err := p.executeQuery(ctx, metric)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -112,6 +136,22 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
+func sampleValuesToFloatSlice(sampleValues []model.SampleValue) []float64 {
+	results := make([]float64, 0, len(sampleValues))
+	for _, s := range sampleValues {
+		results = append(results, float64(s))
+	}
+	return results
+}
+
+func sampleValuesToResultStr(sampleValues []model.SampleValue) string {
+	results := []string{}
+	for _, s := range sampleValues {
+		results = append(results, s.String())
+	}
+	return fmt.Sprintf("[%s]", strings.Join(results, ","))
+}
+
 func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value) (string, v1alpha1.AnalysisPhase, error) {
 	switch value := response.(type) {
 	case *model.Scalar:
@@ -119,22 +159,28 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 		result := float64(value.Value)
 		newStatus, err := evaluate.EvaluateResult(result, metric, p.logCtx)
 		return valueStr, newStatus, err
-	case model.Vector:
-		results := make([]float64, 0, len(value))
-		valueStr := "["
-		for _, s := range value {
-			if s != nil {
-				valueStr = valueStr + s.Value.String() + ","
-				results = append(results, float64(s.Value))
+	case model.Matrix:
+		sampleValues := []model.SampleValue{}
+		for _, sample := range value {
+			if sample != nil {
+				for _, s := range sample.Values {
+					sampleValues = append(sampleValues, s.Value)
+				}
 			}
 		}
-		// if we appended to the string, we should remove the last comma on the string
-		if len(valueStr) > 1 {
-			valueStr = valueStr[:len(valueStr)-1]
+		floatResults := sampleValuesToFloatSlice(sampleValues)
+		newStatus, err := evaluate.EvaluateResult(floatResults, metric, p.logCtx)
+		return sampleValuesToResultStr(sampleValues), newStatus, err
+	case model.Vector:
+		sampleValues := []model.SampleValue{}
+		for _, s := range value {
+			if s != nil {
+				sampleValues = append(sampleValues, s.Value)
+			}
 		}
-		valueStr = valueStr + "]"
-		newStatus, err := evaluate.EvaluateResult(results, metric, p.logCtx)
-		return valueStr, newStatus, err
+		floatResults := sampleValuesToFloatSlice(sampleValues)
+		newStatus, err := evaluate.EvaluateResult(floatResults, metric, p.logCtx)
+		return sampleValuesToResultStr(sampleValues), newStatus, err
 	//TODO(dthomson) add other response types
 	default:
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Prometheus metric type not supported")
@@ -163,6 +209,21 @@ func NewPrometheusProvider(api v1.API, logCtx log.Entry, metric v1alpha1.Metric)
 	return provider, nil
 }
 
+func newHTTPTransport(insecureSkipVerify bool) *http.Transport {
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: insecureSkipVerify},
+	}
+}
+
+var secureTransport *http.Transport = newHTTPTransport(false)
+var insecureTransport *http.Transport = newHTTPTransport(true)
+
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	envValuesByKey := make(map[string]string)
@@ -186,15 +247,10 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	}
 
 	var roundTripper http.RoundTripper
-
-	roundTripper = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		TLSHandshakeTimeout: 10 * time.Second,
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: metric.Provider.Prometheus.Insecure},
+	if metric.Provider.Prometheus.Insecure {
+		roundTripper = insecureTransport
+	} else {
+		roundTripper = secureTransport
 	}
 
 	// attach custom headers to api requests, if specified

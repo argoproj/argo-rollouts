@@ -1,9 +1,9 @@
 # use separate workflow to support fork repositories and dependabot branches when publishing test results: see https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
-name: Test Results
+name: Testing Results
 
 on:
   workflow_run:
-    workflows: ["E2E Tests", "Go"]
+    workflows: ["Testing"]
     types:
       - completed
 permissions: {}
@@ -19,27 +19,31 @@ jobs:
       actions: read
     steps:
       - name: Download and Extract Artifacts
-        # TODO repace with native actions/download-artifact once it supports downloading from another workflow: https://github.com/actions/download-artifact/issues/3
-        env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-        run: |
-          mkdir -p artifacts && cd artifacts
-          artifacts_url=${{ github.event.workflow_run.artifacts_url }}
-          gh api "$artifacts_url" -q '.artifacts[] | [.name, .archive_download_url] | @tsv' | while read artifact
-          do
-            IFS=$'\t' read name url <<< "$artifact"
-            gh api $url > "$name.zip"
-            unzip -d "$name" "$name.zip"
-          done
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          path: artifacts
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish Test Results
+      - name: Publish E2E Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
-          check_name: "${{ github.event.workflow.name }} Published Test Results"
-          commit: ${{ github.event.workflow_run.head_sha }}
-          event_file: artifacts/Event File/event.json
-          event_name: ${{ github.event.workflow_run.event }}
-          junit_files: "artifacts/**/junit.xml"
+          check_name: "Published E2E Test Results"
           compare_to_earlier_commit: false
           test_changes_limit: 0
           fail_on: "errors"
+          commit: ${{ github.event.workflow_run.head_sha }}
+          event_file: artifacts/Event File/event.json
+          event_name: ${{ github.event.workflow_run.event }}
+          files: "artifacts/**/junit-e2e-test.xml"
+      - name: Publish Unit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          check_name: "Published Unit Test Results"
+          compare_to_earlier_commit: false
+          test_changes_limit: 0
+          fail_on: "errors"
+          commit: ${{ github.event.workflow_run.head_sha }}
+          event_file: artifacts/Event File/event.json
+          event_name: ${{ github.event.workflow_run.event }}
+          files: "artifacts/**/junit-unit-test.xml"

@@ -1,7 +1,7 @@
 ####################################################################################################
 # argo-rollouts-dev
 ####################################################################################################
-FROM golang:1.20 as builder
+FROM golang:1.20 AS builder
 
 RUN apt-get update && apt-get install -y \
     ca-certificates && \
@@ -12,9 +12,12 @@ FROM gcr.io/distroless/static-debian11
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY rollouts-controller-linux-amd64 /bin/rollouts-controller
+COPY step-plugin-e2e-linux-amd64 /bin/plugin-files/step-plugin-e2e
 
 # Use numeric user, allows kubernetes to identify this user as being
 # non-root when we use a security context with runAsNonRoot: true
 USER 999
+
+WORKDIR /home/argo-rollouts
 
 ENTRYPOINT [ "/bin/rollouts-controller" ]

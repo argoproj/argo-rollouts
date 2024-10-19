@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	fmt "fmt"
 	"strconv"
 	"time"
 
@@ -446,6 +447,8 @@ type NginxTrafficRouting struct {
 	// StableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario
 	// +optional
 	StableIngresses []string `json:"stableIngresses,omitempty" protobuf:"bytes,4,rep,name=stableIngresses"`
+	// +optional
+	CanaryIngressAnnotations map[string]string `json:"canaryIngressAnnotations,omitempty" protobuf:"bytes,5,rep,name=canaryIngressAnnotations"`
 }
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
@@ -636,6 +639,19 @@ type CanaryStep struct {
 	// SetMirrorRoutes Mirrors traffic that matches rules to a particular destination
 	// +optional
 	SetMirrorRoute *SetMirrorRoute `json:"setMirrorRoute,omitempty" protobuf:"bytes,8,opt,name=setMirrorRoute"`
+	// Plugin defines a plugin to execute for a step
+	Plugin *PluginStep `json:"plugin,omitempty" protobuf:"bytes,9,opt,name=plugin"`
+}
+
+type PluginStep struct {
+	// Name of the hashicorp go-plugin step to query
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Config is the configuration object for the specified plugin
+	Config json.RawMessage `json:"config,omitempty" protobuf:"bytes,2,opt,name=config"`
 }
 
 type SetMirrorRoute struct {
@@ -984,6 +1000,8 @@ type CanaryStatus struct {
 	Weights *TrafficWeights `json:"weights,omitempty" protobuf:"bytes,4,opt,name=weights"`
 	// StablePingPong For the ping-pong feature holds the current stable service, ping or pong
 	StablePingPong PingPongType `json:"stablePingPong,omitempty" protobuf:"bytes,5,opt,name=stablePingPong"`
+	// StepPluginStatuses holds the status of the step plugins executed
+	StepPluginStatuses []StepPluginStatus `json:"stepPluginStatuses,omitempty" protobuf:"bytes,6,rep,name=stepPluginStatuses"`
 }
 
 type PingPongType string
@@ -1020,6 +1038,78 @@ type RolloutAnalysisRunStatus struct {
 	Status  AnalysisPhase `json:"status" protobuf:"bytes,2,opt,name=status,casttype=AnalysisPhase"`
 	Message string        `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
 }
+
+type StepPluginStatus struct {
+	// Index is the matching step index of the executed plugin
+	Index int32 `json:"index" protobuf:"bytes,1,name=index"`
+	// Name is the matching step name of the executed plugin
+	Name string `json:"name" protobuf:"bytes,2,name=name"`
+	// Operation is the name of the operation that produced this status
+	Operation StepPluginOperation `json:"operation" protobuf:"bytes,3,name=operation,casttype=StepPluginOperation"`
+	// Phase is the resulting phase of the operation
+	Phase StepPluginPhase `json:"phase,omitempty" protobuf:"bytes,4,opt,name=phase,casttype=StepPluginPhase"`
+	// Message provides details on why the plugin is in its current phase
+	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
+	// StartedAt indicates when the plugin was first called for the operation
+	StartedAt *metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,6,name=startedAt"`
+	// UpdatedAt indicates when the plugin was last called for the operation
+	UpdatedAt *metav1.Time `json:"updatedAt,omitempty" protobuf:"bytes,7,opt,name=updatedAt"`
+	// FinishedAt indicates when the operation was completed
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,8,opt,name=finishedAt"`
+	// Backoff is a duration to wait before trying to execute the operation again if it was not completed
+	Backoff DurationString `json:"backoff,omitempty" protobuf:"bytes,9,opt,name=backoff,casttype=DurationString"`
+	// Executions is the number of time the operation was executed
+	Executions int32 `json:"executions,omitempty" protobuf:"varint,10,opt,name=executions"`
+	// Disabled indicates if the plugin is globally disabled
+	Disabled bool `json:"disabled,omitempty" protobuf:"bytes,11,opt,name=disabled"`
+
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Status holds the internal status of the plugin for this operation
+	Status json.RawMessage `json:"status,omitempty" protobuf:"bytes,12,opt,name=status"`
+}
+
+// StepPluginPhase is the overall phase of a StepPlugin
+type StepPluginPhase string
+
+// Possible StepPluginPhase values
+const (
+	// StepPluginPhaseRunning is the phase of a step plugin when it has not completed its execution
+	StepPluginPhaseRunning StepPluginPhase = "Running"
+	// StepPluginPhaseSuccessful is the phase of a step plugin when the operation completed successfully
+	StepPluginPhaseSuccessful StepPluginPhase = "Successful"
+	// StepPluginPhaseFailed is the phase of a step plugin when the operation completed unsuccessfully
+	StepPluginPhaseFailed StepPluginPhase = "Failed"
+	// StepPluginPhaseError is the phase of a step plugin when an unexpected error prevented the completion of the operation
+	StepPluginPhaseError StepPluginPhase = "Error"
+)
+
+// Validate that the object is a valid phase
+func (p StepPluginPhase) Validate() error {
+	switch p {
+	case StepPluginPhaseRunning:
+	case StepPluginPhaseSuccessful:
+	case StepPluginPhaseFailed:
+	case StepPluginPhaseError:
+	default:
+		return fmt.Errorf("phase '%s' is not valid", p)
+	}
+	return nil
+}
+
+// StepPluginOperation is the operation executed by a step plugin
+type StepPluginOperation string
+
+// Possible StepPluginOperation values
+const (
+	// StepPluginOperationRun is the value for the Run operation
+	StepPluginOperationRun StepPluginOperation = "Run"
+	// StepPluginOperationRun is the value for the Terminate operation
+	StepPluginOperationTerminate StepPluginOperation = "Terminate"
+	// StepPluginOperationRun is the value for the Abort operation
+	StepPluginOperationAbort StepPluginOperation = "Abort"
+)
 
 type ALBStatus struct {
 	LoadBalancer      AwsResourceRef `json:"loadBalancer,omitempty" protobuf:"bytes,1,opt,name=loadBalancer"`

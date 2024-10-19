@@ -389,6 +389,10 @@ func TestCanaryStepString(t *testing.T) {
 			step:           v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: pointer.Int32Ptr(5)}},
 			expectedString: "setCanaryScale{replicas: 5}",
 		},
+		{
+			step:           v1alpha1.CanaryStep{Plugin: &v1alpha1.PluginStep{Name: "foo"}},
+			expectedString: "plugin: foo",
+		},
 	}
 	for _, test := range tests {
 		assert.Equal(t, test.expectedString, CanaryStepString(test.step))
@@ -422,15 +426,21 @@ func TestShouldVerifyWeight(t *testing.T) {
 	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
 		SetWeight: pointer.Int32Ptr(20),
 	}}
-	assert.Equal(t, true, ShouldVerifyWeight(ro))
+	assert.Equal(t, true, ShouldVerifyWeight(ro, 20))
 
 	ro.Status.StableRS = ""
-	assert.Equal(t, false, ShouldVerifyWeight(ro))
+	assert.Equal(t, false, ShouldVerifyWeight(ro, 20))
 
 	ro.Status.StableRS = "34feab23f"
 	ro.Status.CurrentStepIndex = nil
 	ro.Spec.Strategy.Canary.Steps = nil
-	assert.Equal(t, false, ShouldVerifyWeight(ro))
+	assert.Equal(t, false, ShouldVerifyWeight(ro, 20))
+
+	// Test when the weight is 100, because we are at end of rollout
+	ro.Status.StableRS = "34feab23f"
+	ro.Status.CurrentStepIndex = nil
+	ro.Spec.Strategy.Canary.Steps = nil
+	assert.Equal(t, true, ShouldVerifyWeight(ro, 100))
 }
 
 func Test_isGenerationObserved(t *testing.T) {

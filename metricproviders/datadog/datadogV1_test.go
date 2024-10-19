@@ -29,7 +29,6 @@ func TestRunSuite(t *testing.T) {
 			Query: "avg:kubernetes.cpu.user.total{*}",
 		},
 	}
-
 	ddProviderInterval10m := v1alpha1.MetricProvider{
 		Datadog: &v1alpha1.DatadogMetric{
 			Query:    "avg:kubernetes.cpu.user.total{*}",
@@ -37,8 +36,20 @@ func TestRunSuite(t *testing.T) {
 		},
 	}
 
+	ddProviderNamespacedSecret := v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query:    "avg:kubernetes.cpu.user.total{*}",
+			Interval: "10m",
+			SecretRef: v1alpha1.SecretRef{
+				Name:       "secret",
+				Namespaced: true,
+			},
+		},
+	}
+
 	// Test Cases
 	tests := []struct {
+		name                    string
 		serverURL               string
 		webServerStatus         int
 		webServerResponse       string
@@ -47,6 +58,7 @@ func TestRunSuite(t *testing.T) {
 		expectedValue           string
 		expectedPhase           v1alpha1.AnalysisPhase
 		expectedErrorMessage    string
+		expectedErrorProvider   bool
 		useEnvVarForKeys        bool
 	}{
 		// When last value of time series matches condition then succeed.
@@ -125,7 +137,7 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Expect success with default() and data
+		// Expect success with Default and data
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
@@ -140,7 +152,7 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Expect error with no default() and no data
+		// Expect error with no Default and no data
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[]}`,
@@ -155,7 +167,7 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Expect success with default() and no data
+		// Expect success with Default and no data
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[]}`,
@@ -170,7 +182,7 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Expect failure with bad default() and no data
+		// Expect failure with bad Default and no data
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[]}`,
@@ -185,7 +197,7 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Expect success with bad default() and good data
+		// Expect success with bad Default and good data
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
@@ -225,6 +237,22 @@ func TestRunSuite(t *testing.T) {
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage: "parse \"://wrong.schema\": missing protocol scheme",
 			useEnvVarForKeys:     false,
+		},
+		// When secret passed name passed in the analysis template, expect success
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.0003332881882246533]]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
+				Provider:         ddProviderNamespacedSecret,
+			},
+			expectedIntervalSeconds: 600,
+			expectedValue:           "0.0003332881882246533",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+			expectedErrorProvider:   false,
 		},
 	}
 
@@ -320,8 +348,9 @@ func TestRunSuite(t *testing.T) {
 		if test.metric.Provider.Datadog.Interval == "" {
 			test.metric.Provider.Datadog.Interval = "5m"
 		}
+		namespace := "namespace"
 
-		provider, _ := NewDatadogProvider(*logCtx, fakeClient, test.metric)
+		provider, _ := NewDatadogProvider(*logCtx, fakeClient, namespace, test.metric)
 
 		metricsMetadata := provider.GetMetadata(test.metric)
 		assert.Nil(t, metricsMetadata)

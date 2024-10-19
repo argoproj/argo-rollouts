@@ -12,17 +12,21 @@ GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ;
 GIT_REMOTE_REPO=upstream
 VERSION=$(shell if [ ! -z "${GIT_TAG}" ] ; then echo "${GIT_TAG}" | sed -e "s/^v//"  ; else cat VERSION ; fi)
 
+
+TARGET_ARCH?=linux/amd64
+
 # docker image publishing options
-DOCKER_PUSH=false
-IMAGE_TAG=latest
+DOCKER_PUSH ?= false
+IMAGE_TAG ?= latest
 # build development images
 DEV_IMAGE ?= false
 
 # E2E variables
+E2E_K8S_CONTEXT ?= rancher-desktop
 E2E_INSTANCE_ID ?= argo-rollouts-e2e
 E2E_TEST_OPTIONS ?=
 E2E_PARALLEL ?= 1
-E2E_WAIT_TIMEOUT ?= 120
+E2E_WAIT_TIMEOUT ?= 90
 GOPATH ?= $(shell go env GOPATH)
 
 # Global toolchain configuration
@@ -149,6 +153,9 @@ gen-crd: install-go-tools-local ## generate crd manifests
 gen-mocks: install-go-tools-local ## generate mock files
 	./hack/update-mocks.sh
 
+gen-mocks-fast:
+	./hack/update-mocks.sh
+
 # generates openapi_generated.go
 .PHONY: gen-openapi
 gen-openapi: $(DIST_DIR)/openapi-gen ## generate openapi files
@@ -200,10 +207,11 @@ builder-image: ## build builder image
 .PHONY: image
 image:
 ifeq ($(DEV_IMAGE), true)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/step-plugin-e2e-linux-amd64 ./test/cmd/step-plugin-e2e
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller-linux-amd64 ./cmd/rollouts-controller
-	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) -f Dockerfile.dev ${DIST_DIR}
+	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) -f Dockerfile.dev ${DIST_DIR}
 else
-	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .
+	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) ; fi
 
@@ -212,15 +220,19 @@ endif
 # https://www.jetbrains.com/help/go/attach-to-running-go-processes-with-debugger.html
 .PHONY: build-sample-metric-plugin-debug
 build-sample-metric-plugin-debug: ## build sample metric plugin with debug info
-	go build -gcflags="all=-N -l" -o metric-plugin test/cmd/metrics-plugin-sample/main.go
+	go build -gcflags="all=-N -l" -o plugin-bin/metric-plugin test/cmd/metrics-plugin-sample/main.go
 
 .PHONY: build-sample-traffic-plugin-debug
 build-sample-traffic-plugin-debug: ## build sample traffic plugin with debug info
-	go build -gcflags="all=-N -l" -o traffic-plugin test/cmd/trafficrouter-plugin-sample/main.go
+	go build -gcflags="all=-N -l" -o plugin-bin/traffic-plugin test/cmd/trafficrouter-plugin-sample/main.go
+
+.PHONY: build-sample-step-plugin-debug
+build-sample-step-plugin-debug: ## build sample traffic plugin with debug info
+	go build -gcflags="all=-N -l" -o plugin-bin/step-plugin test/cmd/step-plugin-sample/main.go
 
 .PHONY: plugin-image
 plugin-image: ## build plugin image
-	DOCKER_BUILDKIT=1 docker build --target kubectl-argo-rollouts -t $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) .
+	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) --target kubectl-argo-rollouts -t $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) .
 	if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) ; fi
 
 ##@ Test
@@ -233,17 +245,25 @@ test: test-kustomize ## run all tests
 test-kustomize: ## run kustomize tests
 	./test/kustomize/test.sh
 
+setup-e2e:
+	@kubectl apply --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rollout-crd.yaml
+	@kubectl apply --context='${E2E_K8S_CONTEXT}' -n argo-rollouts -f test/e2e/step-plugin/argo-rollouts-config.yaml
+	@rm -rf plugin-bin
+	@go build -gcflags="all=-N -l" -o plugin-bin/e2e-step-plugin test/cmd/step-plugin-e2e/main.go
+
 .PHONY: start-e2e
 start-e2e: ## start e2e test environment
-	go run ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6
+	mkdir -p coverage-output-e2e
+	GOCOVERDIR=coverage-output-e2e go run -cover ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6
 
 .PHONY: test-e2e
 test-e2e: install-devtools-local
-	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e ${E2E_TEST_OPTIONS}
+	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-test.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e ${E2E_TEST_OPTIONS}
 
 .PHONY: test-unit
  test-unit: install-devtools-local ## run unit tests
-	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname -- -covermode=count -coverprofile=coverage.out `go list ./... | grep -v ./test/cmd/metrics-plugin-sample`
+	mkdir -p coverage-output-unit
+	${DIST_DIR}/gotestsum --junitfile=junit-unit-test.xml --format=testname -- `go list ./... | grep -v ./test/cmd/metrics-plugin-sample` -cover -test.gocoverdir=$(CURDIR)/coverage-output-unit
 
 
 .PHONY: coverage

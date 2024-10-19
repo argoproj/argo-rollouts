@@ -285,7 +285,8 @@ spec:
       - setCanaryScale:
           replicas: 3
 
-      # set canary scale to a percentage of spec.replicas without changing traffic weight
+      # set canary scale to spec.Replica * (setweight / maxTrafficWeight) without changing traffic weight
+      # if maxTrafficWeight unspecified, it defaults to 100
       # (supported only with trafficRouting)
       - setCanaryScale:
           weight: 25
@@ -425,6 +426,8 @@ spec:
           additionalIngressAnnotations:   # optional
             canary-by-header: X-Canary
             canary-by-header-value: iwantsit
+          canaryIngressAnnotations:   # optional
+            my-custom-annotation.mygroup.com/key: value
 
         # ALB Ingress Controller routing configuration
         alb:

@@ -12,7 +12,7 @@ One use case is for a Rollout to label or annotate the desired/stable pods with 
 labels/annotations, for _only_ the duration which they are the desired or stable set, and for the
 labels to be updated/removed as soon as the ReplicaSet switches roles (e.g. from desired to stable).
 The use case which this enables, is to allow prometheus, wavefront, datadog queries and dashboards
-to be built, which can rely on a consistent labels, rather than the `rollouts-pod-template-hash`
+to be built, which can rely on a consistent list of labels, rather than the `rollouts-pod-template-hash`
 which is unpredictable and changing from revision to revision.
 
 A Rollout using the canary strategy has the ability to attach ephemeral metadata to the stable or

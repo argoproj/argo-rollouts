@@ -711,6 +711,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStatu
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStatus
      */
     stablePingPong?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStatus
+     */
+    stepPluginStatuses?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus>;
 }
 /**
  * CanaryStep defines a step of a canary deployment.
@@ -760,6 +766,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep 
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
      */
     setMirrorRoute?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
+     */
+    plugin?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep;
 }
 /**
  * 
@@ -1043,6 +1055,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetr
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
      */
     aggregator?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    secretRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef;
 }
 /**
  * DryRun defines the settings for running the analysis in Dry-Run mode.
@@ -1650,6 +1668,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMet
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
      */
     query?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
+     */
+    timeout?: string;
 }
 /**
  * 
@@ -1681,6 +1705,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTraffi
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
      */
     stableIngresses?: Array<string>;
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
+     */
+    canaryIngressAnnotations?: { [key: string]: string; };
 }
 /**
  * 
@@ -1785,6 +1815,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PingPongSpe
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep
+     */
+    config?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PodTemplateMetadata
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PodTemplateMetadata {
@@ -1856,6 +1905,37 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusM
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
      */
     headers?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    rangeQuery?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    start?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    end?: string;
+    /**
+     * The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    step?: string;
 }
 /**
  * 
@@ -2642,6 +2722,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRe
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef {
+    /**
+     * Name refers to the name of the secret that should be used to integrate with Datadog.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+     */
+    name?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+     */
+    namespaced?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanaryScale
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanaryScale {
@@ -2757,6 +2856,85 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingM
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric
      */
     interval?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus {
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    index?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    operation?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    phase?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    message?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    startedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    updatedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    finishedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    backoff?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    executions?: number;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    disabled?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    status?: string;
 }
 /**
  * 

@@ -6,6 +6,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -157,6 +159,11 @@ func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingIn
 		if err := runSyncHandler(); err != nil {
 			logCtx.Errorf("%s syncHandler error: %v", objType, err)
 			metricsServer.IncError(namespace, name, objType)
+
+			if errors.IsNotFound(err) {
+				workqueue.Forget(obj)
+				return nil
+			}
 			// Put the item back on
 			// the workqueue to handle any transient errors.
 			workqueue.AddRateLimited(key)

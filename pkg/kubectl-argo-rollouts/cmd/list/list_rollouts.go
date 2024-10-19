@@ -18,6 +18,9 @@ const (
 	listRolloutsExample = `
 	# List rollouts
 	%[1]s list rollouts
+
+	# List rollouts with a specific name
+	%[1]s list rollouts --name my-rollout
   
 	# List rollouts from all namespaces
 	%[1]s list rollouts --all-namespaces

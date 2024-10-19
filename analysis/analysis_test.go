@@ -1113,7 +1113,7 @@ func TestGarbageCollectArgResolution(t *testing.T) {
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
-	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error) {
+	c.newProvider = func(logCtx log.Entry, namespace string, metric v1alpha1.Metric) (metric.Provider, error) {
 		assert.Equal(t, "https://prometheus.kubeaddons:8080", metric.Provider.Prometheus.Address)
 		return f.provider, nil
 	}

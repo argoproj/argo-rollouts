@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -218,7 +217,8 @@ func (r *Reconciler) createCanaryMapping(ctx context.Context,
 	}
 
 	canarySvc := r.Rollout.Spec.Strategy.Canary.CanaryService
-	canaryMapping := buildCanaryMapping(baseMapping, canarySvc, desiredWeight)
+	stableService := r.Rollout.Spec.Strategy.Canary.StableService
+	canaryMapping := buildCanaryMapping(baseMapping, canarySvc, stableService, desiredWeight)
 	_, err = client.Create(ctx, canaryMapping, metav1.CreateOptions{})
 	if err != nil {
 		msg := fmt.Sprintf("Error creating canary mapping: %s", err)
@@ -227,9 +227,9 @@ func (r *Reconciler) createCanaryMapping(ctx context.Context,
 	return err
 }
 
-func buildCanaryMapping(baseMapping *unstructured.Unstructured, canarySvc string, desiredWeight int32) *unstructured.Unstructured {
+func buildCanaryMapping(baseMapping *unstructured.Unstructured, canarySvc string, stableService string, desiredWeight int32) *unstructured.Unstructured {
 	canaryMapping := baseMapping.DeepCopy()
-	svc := buildCanaryService(baseMapping, canarySvc)
+	svc := buildCanaryService(baseMapping, canarySvc, stableService)
 	unstructured.RemoveNestedField(canaryMapping.Object, "metadata")
 	cMappingName := buildCanaryMappingName(baseMapping.GetName())
 	canaryMapping.SetName(cMappingName)
@@ -239,19 +239,9 @@ func buildCanaryMapping(baseMapping *unstructured.Unstructured, canarySvc string
 	return canaryMapping
 }
 
-func buildCanaryService(baseMapping *unstructured.Unstructured, canarySvc string) string {
+func buildCanaryService(baseMapping *unstructured.Unstructured, canarySvc string, stableService string) string {
 	curSvc := GetMappingService(baseMapping)
-	parts := strings.Split(curSvc, ":")
-	if len(parts) < 2 {
-		return canarySvc
-	}
-	// Check if the last part is a valid int that can be used as the port
-	port := parts[len(parts)-1]
-	if _, err := strconv.Atoi(port); err != nil {
-		return canarySvc
-
-	}
-	return fmt.Sprintf("%s:%s", canarySvc, port)
+	return strings.Replace(curSvc, stableService, canarySvc, 1)
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {

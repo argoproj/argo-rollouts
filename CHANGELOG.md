@@ -1,3 +1,39 @@
+<a name="v1.7.2"></a>
+## [v1.7.2](https://github.com/argoproj/argo-rollouts/compare/v1.7.1...v1.7.2) (2024-08-12)
+
+### Fix
+
+* replicaSet not scaled down due to incorrect annotations ([#3762](https://github.com/argoproj/argo-rollouts/issues/3762)) ([#3784](https://github.com/argoproj/argo-rollouts/issues/3784))
+* add update verb to ClusterRole permissions for scaleDown feature. Fixes [#3672](https://github.com/argoproj/argo-rollouts/issues/3672) ([#3675](https://github.com/argoproj/argo-rollouts/issues/3675))
+* **analysis:** explicitly set datadog aggregator to last only on v2 ([#3730](https://github.com/argoproj/argo-rollouts/issues/3730))
+* **analysis:** Take RollbackWindow into account when Reconciling Analysis Runs. Fixes [#3669](https://github.com/argoproj/argo-rollouts/issues/3669) ([#3670](https://github.com/argoproj/argo-rollouts/issues/3670))
+* **controller:** Get the right resourceName for traefik.io.Fixes [#3615](https://github.com/argoproj/argo-rollouts/issues/3615) ([#3759](https://github.com/argoproj/argo-rollouts/issues/3759))
+* **controller:** use the stableRS from the rollout context rather tha… ([#3664](https://github.com/argoproj/argo-rollouts/issues/3664))
+* **dashboard:** Update pod status logic to support native sidecars. Fixes [#3366](https://github.com/argoproj/argo-rollouts/issues/3366) ([#3639](https://github.com/argoproj/argo-rollouts/issues/3639))
+* **metricprovider:** reuse http.Transport for http.Client ([#3780](https://github.com/argoproj/argo-rollouts/issues/3780))
+
+
+<a name="v1.7.1"></a>
+## [v1.7.1](https://github.com/argoproj/argo-rollouts/compare/v1.7.0...v1.7.1) (2024-06-22)
+
+### Fix
+
+* docs site version selector broken ([#3590](https://github.com/argoproj/argo-rollouts/issues/3590))
+* don't default datadog aggregator ([#3643](https://github.com/argoproj/argo-rollouts/issues/3643))
+* Add volume for plugin and tmp folder ([#3546](https://github.com/argoproj/argo-rollouts/issues/3546))
+
+
+<a name="v1.7.0"></a>
+## [v1.7.0](https://github.com/argoproj/argo-rollouts/compare/v1.7.0-rc1...v1.7.0) (2024-06-12)
+
+### Fix
+
+* verify the weight of the alb at the end of the rollout ([#3627](https://github.com/argoproj/argo-rollouts/issues/3627))
+* when Rollout has pingpong and stable/canary service defined, only alb traffic management uses pingpong. ([#3628](https://github.com/argoproj/argo-rollouts/issues/3628))
+* protocol missing in ambassador canary mapping creation. Fixes  [#3593](https://github.com/argoproj/argo-rollouts/issues/3593) ([#3603](https://github.com/argoproj/argo-rollouts/issues/3603))
+* rs conflict with fallback to patch ([#3559](https://github.com/argoproj/argo-rollouts/issues/3559))
+* **controller:** Corrects the logic of comparing sha256 has. Fixes [#3519](https://github.com/argoproj/argo-rollouts/issues/3519) ([#3520](https://github.com/argoproj/argo-rollouts/issues/3520))
+
 
 <a name="v1.7.0-rc1"></a>
 ## [v1.7.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.6.6...v1.7.0-rc1) (2024-04-03)

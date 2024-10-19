@@ -136,7 +136,6 @@ nav:
 - Security:
   - Security Policy: security/security.md
   - Verify Release Artifacts: security/signed-release-assets.md
-- Roadmap/Release Schedule: roadmap.md
 - Contributing:
   - Contribution Guide: CONTRIBUTING.md
   - Environment Setup: getting-started/setup/index.md

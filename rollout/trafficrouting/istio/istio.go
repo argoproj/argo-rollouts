@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"strings"
 
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	"github.com/mitchellh/mapstructure"
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/mitchellh/mapstructure"
 	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +35,7 @@ const Type = "Istio"
 const SpecHttpNotFound = "spec.http not found"
 
 // NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
-func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister) *Reconciler {
+func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister, replicaSets []*appsv1.ReplicaSet) *Reconciler {
 	return &Reconciler{
 		rollout: r,
 		log:     logutil.WithRollout(r),
@@ -41,6 +44,7 @@ func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder recor
 		recorder:              recorder,
 		virtualServiceLister:  virtualServiceLister,
 		destinationRuleLister: destinationRuleLister,
+		replicaSets:           replicaSets,
 	}
 }
 
@@ -52,6 +56,7 @@ type Reconciler struct {
 	recorder              record.EventRecorder
 	virtualServiceLister  dynamiclister.Lister
 	destinationRuleLister dynamiclister.Lister
+	replicaSets           []*appsv1.ReplicaSet
 }
 
 type virtualServicePatch struct {
@@ -125,7 +130,7 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []any, tlsRo
 }
 
 func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []string, httpRoutes []VirtualServiceHTTPRoute, rolloutVsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute, rolloutVsvcTCPRoutes []v1alpha1.TCPRoute, tcpRoutes []VirtualServiceTCPRoute, desiredWeight int64, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
-	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout)
+	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout, false)
 	canarySubset := ""
 	stableSubset := ""
 	if r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule != nil {
@@ -315,6 +320,17 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 }
 
 func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+	// We need to check if the replicasets are ready here as well if we didn't define any services in the rollout
+	// See: https://github.com/argoproj/argo-rollouts/issues/2507
+	if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" {
+
+		for _, rs := range r.replicaSets {
+			if *rs.Spec.Replicas > 0 && !replicasetutil.IsReplicaSetAvailable(rs) {
+				return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
+			}
+		}
+	}
+
 	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
 	if dRuleSpec == nil {
 		return nil
@@ -718,7 +734,7 @@ func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(virtualService v1alpha1
 		return err
 	}
 
-	_, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout)
+	_, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout, false)
 	if destRuleHost != "" {
 		canarySvc = destRuleHost
 	}
@@ -1023,7 +1039,7 @@ func searchTcpRoute(tcpRoute v1alpha1.TCPRoute, istioTcpRoutes []VirtualServiceT
 
 // ValidateHTTPRoutes ensures that all the routes in the rollout exist
 func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []VirtualServiceHTTPRoute) error {
-	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r)
+	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r, false)
 
 	routeIndexesToPatch, err := getHttpRouteIndexesToPatch(routeNames, httpRoutes)
 	if err != nil {
@@ -1060,7 +1076,7 @@ func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []V
 
 // ValidateTlsRoutes ensures that all the routes in the rollout exist and they only have two destinations
 func ValidateTlsRoutes(r *v1alpha1.Rollout, vsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute) error {
-	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r)
+	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r, false)
 
 	routeIndexesToPatch, err := getTlsRouteIndexesToPatch(vsvcTLSRoutes, tlsRoutes)
 	if err != nil {
@@ -1081,7 +1097,7 @@ func ValidateTlsRoutes(r *v1alpha1.Rollout, vsvcTLSRoutes []v1alpha1.TLSRoute, t
 
 // ValidateTcpRoutes ensures that all the routes in the rollout exist and they only have two destinations
 func ValidateTcpRoutes(r *v1alpha1.Rollout, vsvcTCPRoutes []v1alpha1.TCPRoute, tcpRoutes []VirtualServiceTCPRoute) error {
-	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r)
+	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r, false)
 
 	routeIndexesToPatch, err := getTcpRouteIndexesToPatch(vsvcTCPRoutes, tcpRoutes)
 	if err != nil {
@@ -1189,7 +1205,7 @@ func (r *Reconciler) reconcileVirtualServiceMirrorRoutes(virtualService v1alpha1
 	if err != nil {
 		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to get destination rule host: %w", err)
 	}
-	_, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout)
+	_, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout, false)
 	if destRuleHost != "" {
 		canarySvc = destRuleHost
 	}

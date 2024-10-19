@@ -43,7 +43,7 @@ type ProviderFactory struct {
 type ProviderFactoryFunc func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error)
 
 // NewProvider creates the correct provider based on the provider type of the Metric
-func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error) {
+func (f *ProviderFactory) NewProvider(logCtx log.Entry, namespace string, metric v1alpha1.Metric) (metric.Provider, error) {
 	switch provider := Type(metric); provider {
 	case prometheus.ProviderType:
 		api, err := prometheus.NewPrometheusAPI(metric)
@@ -72,7 +72,7 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 		}
 		return webmetric.NewWebMetricProvider(logCtx, c, p), nil
 	case datadog.ProviderType:
-		return datadog.NewDatadogProvider(logCtx, f.KubeClient, metric)
+		return datadog.NewDatadogProvider(logCtx, f.KubeClient, namespace, metric)
 	case wavefront.ProviderType:
 		client, err := wavefront.NewWavefrontAPI(metric, f.KubeClient)
 		if err != nil {

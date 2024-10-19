@@ -39,6 +39,47 @@ you validate your [PromQL expression](https://prometheus.io/docs/prometheus/late
 
 See the [Analysis Overview page](../../features/analysis) for more details on the available options.
 
+## Range queries
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: range-query-example
+spec:
+  args:
+  - name: service-name
+  - name: lookback-duration
+    value: 5m
+  metrics:
+  - name: success-rate
+    # checks that all returned values are under 1000ms
+    successCondition: "all(result, # < 1000)"
+    failureLimit: 3
+    provider:
+      prometheus:
+        rangeQuery:
+          # See https://expr-lang.org/docs/language-definition#date-functions
+          # for value date functions
+          # The start point to query from
+          start: 'now() - duration("{{args.lookback-duration}}")'
+          # The end point to query to
+          end: 'now()'
+          # Query resolution width 
+          step: 1m
+        address: http://prometheus.example.com:9090
+        query: http_latency_ms{service="{{args.service-name}}"}
+```
+
+### Range query and successCondition/failureCondition
+
+Since range queries will usually return multiple values from prometheus. It is important to assert on every value returned. See the following examples:
+
+* ❌ `result[0] < 1000` - this will only check the first value returned
+* ✅ `all(result, # < 1000)` - checks every value returns from prometheus
+
+See [expr](https://github.com/expr-lang/expr) for more expression options.
+
 ## Authorization
 
 ### Utilizing Amazon Managed Prometheus

@@ -42,18 +42,13 @@ import (
 //
 // Note that currently the rollout controller is using caches to avoid querying the server for reads.
 // This may lead to stale reads of replica sets, thus incorrect  v status.
-func (c *rolloutContext) getAllReplicaSetsAndSyncRevision(createIfNotExisted bool) (*appsv1.ReplicaSet, error) {
+func (c *rolloutContext) getAllReplicaSetsAndSyncRevision() (*appsv1.ReplicaSet, error) {
 	// Get new replica set with the updated revision number
 	newRS, err := c.syncReplicaSetRevision()
 	if err != nil {
 		return nil, err
 	}
-	if newRS == nil && createIfNotExisted {
-		newRS, err = c.createDesiredReplicaSet()
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	return newRS, nil
 }
 
@@ -83,17 +78,13 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout)
 
 	if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
+
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
 		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
-		rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+
+		rs, err := c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating replicaset revision")
-			return nil, fmt.Errorf("error updating replicaset revision: %v", err)
-		}
-		c.log.Infof("Synced revision on ReplicaSet '%s' to '%s'", rs.Name, newRevision)
-		err = c.replicaSetInformer.GetIndexer().Update(rs)
-		if err != nil {
-			return nil, fmt.Errorf("error updating replicaset informer in syncReplicaSetRevision: %w", err)
+			return nil, fmt.Errorf("failed to update replicaset revision on %s: %w", rsCopy.Name, err)
 		}
 		return rs, nil
 	}
@@ -113,7 +104,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		conditions.SetRolloutCondition(&c.rollout.Status, *condition)
 		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).UpdateStatus(ctx, c.rollout, metav1.UpdateOptions{})
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout revision")
+			c.log.WithError(err).Error("Error: updating rollout status in syncReplicaSetRevision")
 			return nil, err
 		}
 		c.rollout = updatedRollout
@@ -245,7 +236,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.FailedRSCreateReason, msg)
 		patchErr := c.patchCondition(c.rollout, newStatus, cond)
 		if patchErr != nil {
-			c.log.Warnf("Error Patching Rollout: %s", patchErr.Error())
+			c.log.Warnf("Error Patching Rollout Conditions: %s", patchErr.Error())
 		}
 		return nil, err
 	default:
@@ -281,7 +272,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 func (c *rolloutContext) syncReplicasOnly() error {
 	c.log.Infof("Syncing replicas only due to scaling event")
 	var err error
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in syncReplicasOnly: %w", err)
 	}
@@ -328,12 +319,15 @@ func (c *rolloutContext) syncReplicasOnly() error {
 // rsList should come from getReplicaSetsForRollout(r).
 func (c *rolloutContext) isScalingEvent() (bool, error) {
 	var err error
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
 		return false, fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in isScalingEvent: %w", err)
 	}
 
-	for _, rs := range controller.FilterActiveReplicaSets(c.allRSs) {
+	// We only care about scaling events on the newRS and stableRS because these are the only replicasets that we ever
+	// adjust the replicas counts on as well as the desired annotation. When we have stacked rollouts going the middle
+	// replicasets will never have the desired annotation updated this can cause a tight loop of isScalingEvent -> syncReplicasOnly -> isScalingEvent
+	for _, rs := range controller.FilterActiveReplicaSets([]*appsv1.ReplicaSet{c.newRS, c.stableRS}) {
 		desired, ok := annotations.GetDesiredReplicasAnnotation(rs)
 		if !ok {
 			continue
@@ -370,25 +364,21 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	annotationsNeedUpdate := annotations.ReplicasAnnotationsNeedUpdate(rs, rolloutReplicas)
 
-	scaled := false
 	var err error
+	scaled := false
 	if sizeNeedsUpdate || annotationsNeedUpdate {
 		rsCopy := rs.DeepCopy()
 		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
 		*(rsCopy.Spec.Replicas) = newScale
 		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
 		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
+			// This bypasses the normal call to removeScaleDownDelay and then depends on the removal via an update in updateReplicaSetFallbackToPatch
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
 
-		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+		rs, err = c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
 		if err != nil {
-			return scaled, rs, fmt.Errorf("error updating replicaset %s: %w", rsCopy.Name, err)
-		}
-		err = c.replicaSetInformer.GetIndexer().Update(rs)
-		if err != nil {
-			err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
-			return scaled, rs, err
+			return scaled, rs, fmt.Errorf("failed to updateReplicaSetFallbackToPatch in scaleReplicaSet: %w", err)
 		}
 
 		if sizeNeedsUpdate {
@@ -575,7 +565,10 @@ func isIndefiniteStep(r *v1alpha1.Rollout) bool {
 	if currentStep != nil && (currentStep.Experiment != nil || currentStep.Analysis != nil || currentStep.Pause != nil) {
 		return true
 	}
-	return false
+	// also check the pause condition to cover blueGreen
+	pauseCond := conditions.GetRolloutCondition(r.Status, v1alpha1.RolloutPaused)
+	pausedCondTrue := pauseCond != nil && pauseCond.Status == corev1.ConditionTrue
+	return pausedCondTrue
 }
 
 // isWaitingForReplicaSetScaleDown returns whether or not the rollout still has other replica sets with a scale down deadline annotation
@@ -667,7 +660,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			// everything but lastTransitionTime. SetRolloutCondition already does that but
 			// it also is not updating conditions when the reason of the new condition is the
 			// same as the old. The Progressing condition is a special case because we want to
-			// update with the same reason and change just lastUpdateTime iff we notice any
+			// update with the same reason and change just lastUpdateTime if we notice any
 			// progress. That's why we handle it here.
 			if currentCond != nil {
 				if currentCond.Status == corev1.ConditionTrue {
@@ -737,7 +730,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 		if conditions.SetRolloutCondition(&newStatus, *updateCompletedCond) {
 			revision, _ := replicasetutil.Revision(c.rollout)
 			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutNotCompletedReason},
-				conditions.RolloutNotCompletedMessage, revision+1, newStatus.CurrentPodHash)
+				conditions.RolloutNotCompletedMessage, revision, newStatus.CurrentPodHash)
 		}
 	}
 
@@ -903,6 +896,7 @@ func (c *rolloutContext) resetRolloutStatus(newStatus *v1alpha1.RolloutStatus) {
 	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
 	newStatus.Canary.CurrentStepAnalysisRunStatus = nil
 	newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
+	newStatus.Canary.StepPluginStatuses = nil
 	newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(c.rollout)
 }
 
