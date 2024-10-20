@@ -3,6 +3,7 @@ package alb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -668,7 +669,7 @@ func TestErrorPatching(t *testing.T) {
 
 	errMessage := "some error occurred"
 	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("patch", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf(errMessage)
+		return true, nil, errors.New(errMessage)
 	})
 
 	err = r.SetWeight(10)
@@ -700,7 +701,7 @@ func TestErrorPatchingMultiIngress(t *testing.T) {
 
 	errMessage := "some error occurred"
 	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("patch", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf(errMessage)
+		return true, nil, errors.New(errMessage)
 	})
 
 	err = r.SetWeight(10)
