@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -58,8 +61,15 @@ func GetServiceForExperiment(experiment *v1alpha1.Experiment, svc *corev1.Servic
 	return nil
 }
 
-func (ec *experimentContext) CreateService(serviceName string, template v1alpha1.TemplateSpec, selector map[string]string, ports []corev1.ServicePort) (*corev1.Service, error) {
+func (ec *experimentContext) CreateService(template v1alpha1.TemplateSpec, rs *appsv1.ReplicaSet) (*corev1.Service, error) {
+	// If service name is not provided, default to replica set name
+	serviceName := rs.Name
+	if template.Service != nil && template.Service.Name != "" {
+		serviceName = template.Service.Name
+	}
+
 	ctx := context.TODO()
+	ports := getPorts(rs, &template)
 	serviceAnnotations := newServiceAnnotations(ec.ex.Name, template.Name)
 	newService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{},
@@ -72,8 +82,8 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 			Annotations: serviceAnnotations,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: selector,
 			Ports:    ports,
+			Selector: rs.Labels,
 		},
 	}
 
@@ -95,6 +105,45 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 		}
 	}
 	return service, nil
+}
+
+func getPorts(rs *appsv1.ReplicaSet, template *v1alpha1.TemplateSpec) []corev1.ServicePort {
+	var ports []corev1.ServicePort
+	for _, container := range rs.Spec.Template.Spec.Containers {
+		for _, containerPort := range container.Ports {
+			servicePort := getServicePort(containerPort, template)
+			ports = append(ports, servicePort)
+		}
+	}
+	return ports
+}
+
+func getServicePort(port corev1.ContainerPort, template *v1alpha1.TemplateSpec) corev1.ServicePort {
+	portName := port.Name
+	portNumber := port.ContainerPort
+	targetPort := intstr.FromInt32(port.ContainerPort)
+	if template.Service.Ports != nil {
+		for _, servicePort := range template.Service.Ports {
+			if (port.ContainerPort == servicePort.TargetPort.IntVal) || (port.Name == servicePort.TargetPort.StrVal) {
+				portNumber = servicePort.Port
+				targetPort = servicePort.TargetPort
+
+				// Allow overriding the port name
+				if servicePort.Name != "" {
+					portName = servicePort.Name
+				}
+
+				break
+			}
+		}
+	}
+
+	return corev1.ServicePort{
+		Name:       portName,
+		Port:       portNumber,
+		TargetPort: targetPort,
+		Protocol:   port.Protocol,
+	}
 }
 
 func (ec *experimentContext) deleteService(service corev1.Service) error {
