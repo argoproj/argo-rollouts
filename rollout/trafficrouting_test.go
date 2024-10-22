@@ -1348,7 +1348,7 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 
 // TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate builds off of TestCanaryDontScaleDownOldRsDuringInterruptedUpdate
 // in canary_test when we scale down an intermediate V2 ReplicaSet when applying a V3 spec in the middle of updating.
-// We want to make sure that traffic routing is cleared in both weight AND managed routes when the V2 rs is 
+// We want to make sure that traffic routing is cleared in both weight AND managed routes when the V2 rs is
 // nil or has 0 available replicas.
 func TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate(t *testing.T) {
 	f := newFixture(t)
@@ -1381,7 +1381,7 @@ func TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate(t *testing.T) {
 			Ingress: "test-ingress",
 		},
 		ManagedRoutes: []v1alpha1.MangedRoutes{
-			{ Name: "test-header" },
+			{Name: "test-header"},
 		},
 	}
 
@@ -1431,4 +1431,3 @@ func TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate(t *testing.T) {
 	f.fakeTrafficRouting.AssertCalled(t, "RemoveManagedRoutes", mock.Anything, mock.Anything)
 
 }
-
