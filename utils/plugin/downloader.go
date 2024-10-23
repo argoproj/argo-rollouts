@@ -34,9 +34,7 @@ func (fd FileDownloaderImpl) Get(url string, header http.Header) (resp *http.Res
 	if err != nil {
 		return nil, err
 	}
-	if len(header) != 0 {
-		request.Header = header
-	}
+	request.Header = header
 	return http.DefaultClient.Do(request)
 }
 

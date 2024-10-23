@@ -317,9 +317,18 @@ func TestCheckShaOfPlugin(t *testing.T) {
 }
 
 func TestDownloadFile(t *testing.T) {
-	err := downloadFile("error", "", FileDownloaderImpl{}, nil)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to download file from")
+	t.Run("test sha of real file", func(t *testing.T) {
+		err := downloadFile("error", "", FileDownloaderImpl{}, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to download file from")
+	})
+
+	t.Run("test download fail with invalid url", func(t *testing.T) {
+		url := "http://\x07World"
+		err := downloadFile("error", url, FileDownloaderImpl{}, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to download file from")
+	})
 }
 
 func Test_copyFile(t *testing.T) {
