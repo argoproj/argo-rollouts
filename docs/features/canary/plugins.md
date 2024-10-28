@@ -11,7 +11,7 @@ to support executing arbitrary steps during the canary. Rollout's uses a plugin 
 
 ## Installing
 
-There are two methods of installing and using an argo rollouts plugin. The first method is to mount up the plugin executable
+There are two methods of installing and using an Argo Rollouts plugin. The first method is to mount up the plugin executable
 into the rollouts controller container. The second method is to use a HTTP(S) server to host the plugin executable.
 
 ### Mounting the plugin executable into the rollouts controller container
@@ -23,7 +23,7 @@ particular infrastructure. Here are a few methods:
 - Using a Kubernetes volume mount with a shared volume such as NFS, EBS, etc.
 - Building the plugin into the rollouts controller container
 
-Then you can use the configmap to point to the plugin executable file location. Example:
+Then you can use the ConfigMap to point to the plugin executable file location. Example:
 
 ```yaml
 apiVersion: v1
@@ -52,7 +52,7 @@ data:
     responsibility of the Argo Rollouts administrator to define the plugin installation method considering the risks of each approach.
 
 Argo Rollouts supports downloading the plugin executable from a HTTP(S) server. To use this method, you will need to
-configure the controller via the `argo-rollouts-config` configmap and set `pluginLocation` to a http(s) url. Example:
+configure the controller via the `argo-rollouts-config` ConfigMap and set `pluginLocation` to a http(s) url. Example:
 
 ```yaml
 apiVersion: v1
@@ -69,7 +69,7 @@ data:
 ### Disabling a plugin
 
 A step plugin that will execute during your Rollouts will fail the canary deployment whenever there is an unhandled error.
-If a step plugin is used in multiple rollouts and is suddely unstabled, none of the rollouts will be able to progress.
+If a step plugin is used in multiple rollouts and is suddenly unstable, none of the rollouts will be able to progress.
 To make the plugin less disruptive and the upgrades easier, you can use the `disabled` flag in the plugin configuration to
 disable it globally. This will skip the plugin execution in every Rollout where it is configured, and progress to the next canary step.
 
@@ -87,7 +87,7 @@ data:
 
 ## Usage
 
-You can execute a configured step plugin at any point during your canaray steps.
+You can execute a configured step plugin at any point during your canary steps.
 The plugin will be executed and the rollout step will be progressing until the plugin execution returns a status of
 `Successful`, `Failed` or `Error`. Once completed, the rollout will progress to the next configured step.
 
@@ -110,7 +110,7 @@ spec:
 
 ### Plugin Statuses
 
-To know the result of your plugin execution, you can use the `status.stepPluginStatuses[]` property to find the status that correspond to
+To know the result of your plugin, you can use the `status.stepPluginStatuses[]` property to find the status that correspond to
 your execution. Each status item is unique by `index`, `name` and `operation`. The `operation` can be one of the following:
 
 - `Run`: The main operation that execute the plugin.
@@ -119,7 +119,7 @@ your execution. Each status item is unique by `index`, `name` and `operation`. T
 
 ## Implementation
 
-As a plugin developer, your step plugin should follow some conventions to make predictable and it easier to use.
+As a plugin developer, your step plugin should follow some conventions to make it predictable and easier to use.
 
 ### Run operation
 
@@ -136,9 +136,9 @@ necessary to retrieve the state in subsequent executions.
 
 ### Terminate operation
 
-If the `Run` operation returned with a `Running` and the rollout is needs cancel the execution, the controller will call the plugin's terminate method
+If the `Run` operation returns with a `Running` phase and the rollout needs to cancel the execution, the controller will call the plugin's terminate method
 with the state of the ongoing `Running` operation. The plugin can use this method to cancel any ongoing information.
-This is often call if the rollout is fully promoted during a the plugin execution.
+This is often called if the rollout is fully promoted during a plugin execution.
 
 If the terminate operation has an error and fails, it will not be retried. The plugin should have a mechanism to cancel
 suspiciously long-running operations if necessary.
@@ -153,11 +153,11 @@ suspiciously long-running operations if necessary.
 
 ### Returning errors
 
-The plugin can return an error for unhandled operation. In that case, the rollout will handle that error and apply a
+The plugin can return an error for unhandled operations. In that case, the rollout will handle that error and apply a
 backoff mechanism to retry the execution of the plugin until it returns `Successful` or `Failed` phase. When an error happens, the
 `Status` returned by the plugin is not persisted, allowing it to retry later on the last known valid status.
 
-The controller will keep retrying until it succeeds or the rollout is aborted.
+The controller will keep retrying until it succeeds, or the rollout is aborted.
 
 ## List of Available Plugins (alphabetical order)
 
