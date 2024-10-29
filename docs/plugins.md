@@ -63,7 +63,7 @@ data:
         - "debug"
 ```
 
-As you can see there is a field called `name:` under both each plugin type. This is the first place where your
+As you can see there is a field called `name:` under each plugin type. This is the first place where your
 end users will need to configure the name of the plugin. The second `location` is either in the rollout object or the analysis
 template which you can see the examples below. The third `args` holds the command line arguments of the plugin.
 
