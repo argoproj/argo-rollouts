@@ -71,7 +71,7 @@ responsibility of the Argo Rollouts administrator to define the plugin installat
 
 - If you have created a plugin, please submit a PR to add it to this list.
 
-#### [rollouts-plugin-metric-opensearch](https://github.com/selcukusta/rollouts-plugin-metric-opensearch)
+#### [rollouts-plugin-metric-opensearch](https://github.com/argoproj-labs/rollouts-plugin-metric-opensearch)
 
 - The application is an OpenSearch plugin designed for use with the Argo Rollouts plugin system. This plugin enables the integration of OpenSearch metrics into Argo Rollouts, allowing for advanced metric analysis and monitoring during application rollouts.
 
