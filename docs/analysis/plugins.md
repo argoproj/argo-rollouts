@@ -71,6 +71,10 @@ data:
 
 If you have created a plugin, please submit a PR to add it to this list.
 
+### [rollouts-plugin-metric-opensearch](https://github.com/selcukusta/rollouts-plugin-metric-opensearch)
+
+- The application is an OpenSearch plugin designed for use with the Argo Rollouts plugin system. This plugin enables the integration of OpenSearch metrics into Argo Rollouts, allowing for advanced metric analysis and monitoring during application rollouts.
+
 ### [rollouts-plugin-metric-sample-prometheus](https://github.com/argoproj-labs/rollouts-plugin-metric-sample-prometheus)
 
 - This is just a sample plugin that can be used as a starting point for creating your own plugin.
