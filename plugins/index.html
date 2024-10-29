@@ -712,6 +712,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../features/canary/plugins/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Canary Step Plugin
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../features/hpa-support/" class="md-nav__link">
         
   
@@ -3180,20 +3201,44 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#analysistemplate-example" class="md-nav__link">
+  <a href="#configuration-examples" class="md-nav__link">
     <span class="md-ellipsis">
-      AnalysisTemplate Example
+      Configuration Examples
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#analysistemplate" class="md-nav__link">
+    <span class="md-ellipsis">
+      AnalysisTemplate
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#traffic-router-example" class="md-nav__link">
+  <a href="#traffic-router" class="md-nav__link">
     <span class="md-ellipsis">
-      Traffic Router Example
+      Traffic Router
     </span>
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step Plugin
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -3369,20 +3414,44 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#analysistemplate-example" class="md-nav__link">
+  <a href="#configuration-examples" class="md-nav__link">
     <span class="md-ellipsis">
-      AnalysisTemplate Example
+      Configuration Examples
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#analysistemplate" class="md-nav__link">
+    <span class="md-ellipsis">
+      AnalysisTemplate
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#traffic-router-example" class="md-nav__link">
+  <a href="#traffic-router" class="md-nav__link">
     <span class="md-ellipsis">
-      Traffic Router Example
+      Traffic Router
     </span>
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step Plugin
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -3465,7 +3534,7 @@ for <code>username/org</code> and <code>repository name</code>. This requirement
 types to exist such as <code>&lt;org1&gt;/nginx</code> and <code>&lt;org2&gt;/nginx</code>. These names could be based of the repo name such
 as <code>argoproj-labs/rollouts-plugin-metric-sample-prometheus</code> but it is not a requirement.</p>
 <p>There will also be a standard for naming repositories under argoproj-labs in the form of <code>rollouts-plugin-&lt;type&gt;-&lt;tool&gt;</code>
-where <code>&lt;type&gt;</code> is say <code>metric</code>, or <code>trafficrouter</code> and <code>&lt;tool&gt;</code> is the software the plugin is for say nginx.</p>
+where <code>&lt;type&gt;</code> is one of <code>metric</code>, <code>step</code>, or <code>trafficrouter</code> and <code>&lt;tool&gt;</code> is the software the plugin is for, say nginx.</p>
 <h2 id="plugin-name">Plugin Name<a class="headerlink" href="#plugin-name" title="Permanent link">&para;</a></h2>
 <p>So now that we have an idea on plugin naming and repository standards let's pick a name to use for the rest of this
 documentation and call our plugin <code>argoproj-labs/nginx</code>.</p>
@@ -3487,11 +3556,22 @@ It looks like this below.</p>
 <span class="w">      </span><span class="no">args:</span>
 <span class="w">        </span><span class="no">- &quot;--log-level&quot;</span>
 <span class="w">        </span><span class="no">- &quot;debug&quot;</span>
+<span class="w">  </span><span class="nt">stepPlugins</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|-</span>
+<span class="w">    </span><span class="no">- name: &quot;argoproj-labs/canary-step&quot;</span>
+<span class="w">      </span><span class="no">location: &quot;file:///tmp/argo-rollouts/canary-step-plugin&quot;</span>
+<span class="w">      </span><span class="no">disabled: false</span>
+<span class="w">      </span><span class="no">args:</span>
+<span class="w">        </span><span class="no">- &quot;--log-level&quot;</span>
+<span class="w">        </span><span class="no">- &quot;debug&quot;</span>
 </code></pre></div>
-<p>As you can see there is a field called <code>name:</code> under both <code>metrics</code> or <code>trafficrouters</code> this is the first place where your
+<p>As you can see there is a field called <code>name:</code> under each plugin type. This is the first place where your
 end users will need to configure the name of the plugin. The second <code>location</code> is either in the rollout object or the analysis
 template which you can see the examples below. The third <code>args</code> holds the command line arguments of the plugin.</p>
-<h4 id="analysistemplate-example">AnalysisTemplate Example<a class="headerlink" href="#analysistemplate-example" title="Permanent link">&para;</a></h4>
+<h3 id="configuration-examples">Configuration Examples<a class="headerlink" href="#configuration-examples" title="Permanent link">&para;</a></h3>
+<h4 id="analysistemplate">AnalysisTemplate<a class="headerlink" href="#analysistemplate" title="Permanent link">&para;</a></h4>
+<p>You can see that we use the plugin name under <code>spec.metrics[].provider.plugin</code> for analysis template.</p>
+<p>You, as a plugin author, can then put any configuration you need under <code>argoproj-labs/metrics</code> and you will be able to
+look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -3505,7 +3585,10 @@ template which you can see the examples below. The third <code>args</code> holds
 <span class="w">          </span><span class="nt">argoproj-labs/metrics</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://prometheus.local</span>
 </code></pre></div>
-<h4 id="traffic-router-example">Traffic Router Example<a class="headerlink" href="#traffic-router-example" title="Permanent link">&para;</a></h4>
+<h4 id="traffic-router">Traffic Router<a class="headerlink" href="#traffic-router" title="Permanent link">&para;</a></h4>
+<p>You can see that we use the plugin name under <code>spec.strategy.canary.trafficRouting.plugins</code> for traffic routers.</p>
+<p>You, as a plugin author, can then put any configuration you need under <code>argoproj-labs/metrics</code> and you will be able to
+look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -3520,14 +3603,28 @@ template which you can see the examples below. The third <code>args</code> holds
 <span class="w">          </span><span class="nt">argoproj-labs/nginx</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-demo</span>
 </code></pre></div>
-<p>You can see that we use the plugin name under <code>spec.metrics[].provider.plugin</code> for analysis template and <code>spec.strategy.canary.trafficRouting.plugins</code>
-for traffic routers. You as a plugin author can then put any configuration you need under <code>argoproj-labs/nginx</code> and you will be able to
-look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.</p>
+<h4 id="step-plugin">Step Plugin<a class="headerlink" href="#step-plugin" title="Permanent link">&para;</a></h4>
+<p>You can see that we use the plugin name under <code>spec.strategy.canary.steps[].plugin.name</code> for canary steps.</p>
+<p>You, as a plugin author, can then put any configuration you need in the plugin object under <code>config</code> property and you will receive it
+as an arguments when your plugin is called. You will also want to document what configuration options your plugin supports.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example-plugin-ro</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">plugin</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj-labs/step-exec</span>
+<span class="w">            </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">echo &quot;hello world&quot;</span>
+</code></pre></div>
 <h2 id="plugin-interfaces">Plugin Interfaces<a class="headerlink" href="#plugin-interfaces" title="Permanent link">&para;</a></h2>
-<p>Argo Rollouts currently supports two plugin systems as a plugin author your end goal is to implement these interfaces as
-a hashicorp go-plugin. The two interfaces are <code>MetricsPlugin</code> and <code>TrafficRouterPlugin</code> for each of the respective plugins:</p>
+<p>Argo Rollouts currently supports three plugin systems. As a plugin author, your end goal is to implement at least one of these interfaces as
+a hashicorp go-plugin. The interfaces are <code>MetricsPlugin</code>, <code>TrafficRouterPlugin</code> and <code>StepPlugin</code> for each of the respective plugins:</p>
 <div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">MetricProviderPlugin</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="c1">// InitPlugin initializes the traffic router plugin this gets called once when the plugin is loaded.</span>
+<span class="w">  </span><span class="c1">// InitPlugin initializes the traffic router plugin. This gets called once when the plugin is loaded.</span>
 <span class="w">  </span><span class="nx">InitPlugin</span><span class="p">()</span><span class="w"> </span><span class="nx">RpcError</span>
 <span class="w">  </span><span class="c1">// Run start a new external system call for a measurement</span>
 <span class="w">  </span><span class="c1">// Should be idempotent and do nothing if a call has already been started</span>
@@ -3546,7 +3643,7 @@ a hashicorp go-plugin. The two interfaces are <code>MetricsPlugin</code> and <co
 <span class="p">}</span>
 
 <span class="kd">type</span><span class="w"> </span><span class="nx">TrafficRouterPlugin</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="c1">// InitPlugin initializes the traffic router plugin this gets called once when the plugin is loaded.</span>
+<span class="w">  </span><span class="c1">// InitPlugin initializes the traffic router plugin. This gets called once when the plugin is loaded.</span>
 <span class="w">  </span><span class="nx">InitPlugin</span><span class="p">()</span><span class="w"> </span><span class="nx">RpcError</span>
 <span class="w">  </span><span class="c1">// UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes</span>
 <span class="w">  </span><span class="nx">UpdateHash</span><span class="p">(</span><span class="nx">rollout</span><span class="w"> </span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="nx">canaryHash</span><span class="p">,</span><span class="w"> </span><span class="nx">stableHash</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">additionalDestinations</span><span class="w"> </span><span class="p">[]</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">WeightDestination</span><span class="p">)</span><span class="w"> </span><span class="nx">RpcError</span>
@@ -3564,6 +3661,19 @@ a hashicorp go-plugin. The two interfaces are <code>MetricsPlugin</code> and <co
 <span class="w">  </span><span class="c1">// Type returns the type of the traffic routing reconciler</span>
 <span class="w">  </span><span class="nx">Type</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span>
 <span class="p">}</span>
+
+<span class="kd">type</span><span class="w"> </span><span class="nx">StepPlugin</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// InitPlugin initializes the canary step plugin. This gets called once when the plugin is loaded.</span>
+<span class="w">  </span><span class="nx">InitPlugin</span><span class="p">()</span><span class="w"> </span><span class="nx">RpcError</span>
+<span class="w">    </span><span class="c1">// Run executes a step plugin for the RpcStepContext and returns the result to the controller or an RpcError for unexpeted failures</span>
+<span class="w">    </span><span class="nx">Run</span><span class="p">(</span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="nx">RpcStepContext</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="nx">RpcStepResult</span><span class="p">,</span><span class="w"> </span><span class="nx">RpcError</span><span class="p">)</span>
+<span class="w">    </span><span class="c1">// Terminate stops an uncompleted operation started by the Run operation</span>
+<span class="w">    </span><span class="nx">Terminate</span><span class="p">(</span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="nx">RpcStepContext</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="nx">RpcStepResult</span><span class="p">,</span><span class="w"> </span><span class="nx">RpcError</span><span class="p">)</span>
+<span class="w">    </span><span class="c1">// Abort reverts the actions performed during the Run operation if necessary</span>
+<span class="w">    </span><span class="nx">Abort</span><span class="p">(</span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="nx">RpcStepContext</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="nx">RpcStepResult</span><span class="p">,</span><span class="w"> </span><span class="nx">RpcError</span><span class="p">)</span>
+<span class="w">    </span><span class="c1">// Type returns the type of the step plugin</span>
+<span class="w">    </span><span class="nx">Type</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span>
+<span class="p">}</span>
 </code></pre></div>
 <h2 id="plugin-init-function">Plugin Init Function<a class="headerlink" href="#plugin-init-function" title="Permanent link">&para;</a></h2>
 <p>Each plugin interface has a <code>InitPlugin</code> function, this function is called when the plugin is first started up and is only called
@@ -3577,10 +3687,11 @@ controller. This means that the service account for the rollouts controller will
 to function. This might mean instructing users to create a role and role binding to the standard rollouts service account
 for the plugin to use. This will probably affect traffic router plugins more than metrics plugins.</p>
 <h2 id="sample-plugins">Sample Plugins<a class="headerlink" href="#sample-plugins" title="Permanent link">&para;</a></h2>
-<p>There are two sample plugins within the argo-rollouts repo that you can use as a reference for creating your own plugin.</p>
+<p>There are sample plugins within the argo-rollouts repo that you can use as a reference for creating your own plugin.</p>
 <ul>
 <li><a href="https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/metrics-plugin-sample">Metrics Plugin Sample</a></li>
 <li><a href="https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/trafficrouter-plugin-sample">Traffic Router Plugin Sample</a></li>
+<li><a href="https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/step-plugin-sample">Step Plugin Sample</a></li>
 </ul>
 
 
