@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.41">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.42">
     
     
       
@@ -1363,6 +1363,15 @@
   <a href="#add-your-plugin-here" class="md-nav__link">
     <span class="md-ellipsis">
       Add Your Plugin Here
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rollouts-plugin-metric-opensearch" class="md-nav__link">
+    <span class="md-ellipsis">
+      rollouts-plugin-metric-opensearch
     </span>
   </a>
   
@@ -3392,6 +3401,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#rollouts-plugin-metric-opensearch" class="md-nav__link">
+    <span class="md-ellipsis">
+      rollouts-plugin-metric-opensearch
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#rollouts-plugin-metric-sample-prometheus" class="md-nav__link">
     <span class="md-ellipsis">
       rollouts-plugin-metric-sample-prometheus
@@ -3426,8 +3444,8 @@
 <h1 id="metric-plugins">Metric Plugins<a class="headerlink" href="#metric-plugins" title="Permanent link">&para;</a></h1>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p>Available since v1.5 - Status: Alpha</p>
 </div>
+<p>Available since v1.5 - Status: Alpha</p>
 <p>Argo Rollouts supports getting analysis metrics via 3rd party plugin system. This allows users to extend the capabilities of Rollouts
 to support metric providers that are not natively supported. Rollout's uses a plugin library called
 <a href="https://github.com/hashicorp/go-plugin">go-plugin</a> to do this. You can find a sample plugin
@@ -3481,10 +3499,14 @@ responsibility of the Argo Rollouts administrator to define the plugin installat
 <ul>
 <li>If you have created a plugin, please submit a PR to add it to this list.</li>
 </ul>
+<h4 id="rollouts-plugin-metric-opensearch"><a href="https://github.com/selcukusta/rollouts-plugin-metric-opensearch">rollouts-plugin-metric-opensearch</a><a class="headerlink" href="#rollouts-plugin-metric-opensearch" title="Permanent link">&para;</a></h4>
+<ul>
+<li>The application is an OpenSearch plugin designed for use with the Argo Rollouts plugin system. This plugin enables the integration of OpenSearch metrics into Argo Rollouts, allowing for advanced metric analysis and monitoring during application rollouts.</li>
+</ul>
 <h4 id="rollouts-plugin-metric-sample-prometheus"><a href="https://github.com/argoproj-labs/rollouts-plugin-metric-sample-prometheus">rollouts-plugin-metric-sample-prometheus</a><a class="headerlink" href="#rollouts-plugin-metric-sample-prometheus" title="Permanent link">&para;</a></h4>
 <ul>
 <li>This is just a sample plugin that can be used as a starting point for creating your own plugin.
-It is not meant to be used in production. It is based on the built-in prometheus provider.</li>
+  It is not meant to be used in production. It is based on the built-in prometheus provider.</li>
 </ul>
 
 
