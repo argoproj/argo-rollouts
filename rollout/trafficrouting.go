@@ -27,6 +27,7 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	"github.com/argoproj/argo-rollouts/utils/weightutil"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 // NewTrafficRoutingReconciler identifies return the TrafficRouting Plugin that the rollout wants to modify
@@ -131,6 +132,23 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	}
 
 	return nil, nil
+}
+
+func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWeight int32) bool {
+	if rs == nil {
+		return false
+	}
+	availableReplicas := rs.Status.AvailableReplicas
+	totalReplicas := *c.rollout.Spec.Replicas
+
+	desiredReplicas := (desiredWeight * totalReplicas) / 100
+	if availableReplicas < desiredReplicas {
+		c.log.Infof("ReplicaSet '%s' has %d available replicas, waiting for %d", rs.Name, availableReplicas, desiredReplicas)
+		return false
+	}
+
+	return true
+
 }
 
 // this currently only be used in the canary strategy
@@ -242,6 +260,10 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			} else {
 				desiredWeight = weightutil.MaxTrafficWeight(c.rollout)
 			}
+		}
+
+		if !c.checkReplicasAvailable(c.stableRS, weightutil.MaxTrafficWeight(c.rollout)-desiredWeight) {
+			return nil
 		}
 		// We need to check for revision > 1 because when we first install the rollout we run step 0 this prevents that.
 		// There is a bigger fix needed for the reasons on why we run step 0 on rollout install, that needs to be explored.
