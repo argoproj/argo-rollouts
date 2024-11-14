@@ -38,7 +38,7 @@ The Slack notification service configuration includes following settings:
       apiVersion: v1
       kind: Secret
       metadata:
-          name: <secret-name>
+          name: argo-rollouts-notification-secret
       stringData:
           slack-token: <Oauth-access-token>
     ```
