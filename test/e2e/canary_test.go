@@ -47,7 +47,7 @@ func (s *CanarySuite) TestCanarySetCanaryScale() {
 - pause: {duration: 5s}
 `
 	s.Given().
-		RolloutTemplate("@functional/nginx-template.yaml", "set-canary-scale").
+		RolloutTemplate("@functional/nginx-template.yaml", map[string]string{"REPLACEME": "set-canary-scale"}).
 		SetSteps(canarySteps).
 		When().
 		ApplyManifests().
@@ -604,6 +604,7 @@ func (s *CanarySuite) TestCanaryWithPausedRollout() {
 		WaitForRolloutStatus("Paused").
 		UpdateSpec(). // update to revision 3
 		WaitForRolloutStatus("Paused").
+		Sleep(1*time.Second).
 		Then().
 		ExpectRevisionPodCount("1", 3).
 		ExpectRevisionPodCount("2", 0).

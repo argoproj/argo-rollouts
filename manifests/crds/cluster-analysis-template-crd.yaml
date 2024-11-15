@@ -203,6 +203,13 @@ spec:
                               type: object
                             query:
                               type: string
+                            secretRef:
+                              properties:
+                                name:
+                                  type: string
+                                namespaced:
+                                  type: boolean
+                              type: object
                           type: object
                         graphite:
                           properties:
@@ -3011,6 +3018,9 @@ spec:
                               type: string
                             query:
                               type: string
+                            timeout:
+                              format: int64
+                              type: integer
                           required:
                           - query
                           type: object

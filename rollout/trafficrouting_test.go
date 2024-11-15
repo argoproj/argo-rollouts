@@ -7,6 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix"
 
 	"github.com/stretchr/testify/assert"
@@ -29,8 +33,10 @@ import (
 	traefikMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik/mocks"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
@@ -1132,6 +1138,34 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 		},
 	}
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32(1), intstr.FromInt(1), intstr.FromInt(1))
+	vs := istio.VirtualService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: r1.Namespace,
+		},
+		Spec: istio.VirtualServiceSpec{
+			HTTP: []istio.VirtualServiceHTTPRoute{{
+				Name: "primary",
+				Route: []istio.VirtualServiceRouteDestination{{
+					Destination: istio.VirtualServiceDestination{
+						Host: "stable",
+						//Port: &istio.Port{
+						//	Number: 80,
+						//},
+					},
+					Weight: 100,
+				}, {
+					Destination: istio.VirtualServiceDestination{
+						Host: "canary",
+						//Port: &istio.Port{
+						//	Number: 80,
+						//},
+					},
+					Weight: 0,
+				}},
+			}},
+		},
+	}
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Istio: &v1alpha1.IstioTrafficRouting{
 			VirtualService: &v1alpha1.IstioVirtualService{
@@ -1139,11 +1173,6 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 				Routes: []string{
 					"primary",
 				},
-			},
-			DestinationRule: &v1alpha1.IstioDestinationRule{
-				Name:             "test",
-				StableSubsetName: "stable",
-				CanarySubsetName: "canary",
 			},
 		},
 		ManagedRoutes: []v1alpha1.MangedRoutes{
@@ -1157,8 +1186,14 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 		APIVersion: "apps/v1",
 		Kind:       "Deployment",
 	}
-	r1.Spec.SelectorResolvedFromRef = true
+	r1.Spec.SelectorResolvedFromRef = false
 	r1.Spec.TemplateResolvedFromRef = true
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Spec.Selector = &metav1.LabelSelector{
+		MatchLabels: map[string]string{"app": "test"},
+	}
+	r1.Labels = map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "testsha"}
 	r2 := bumpVersion(r1)
 
 	// if set WorkloadRef it does not change the generation
@@ -1185,13 +1220,26 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 			PodTemplateHash: rs1PodHash,
 		},
 	}
+
+	mapObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&vs)
+	assert.Nil(t, err)
+
+	unstructuredObj := &unstructured.Unstructured{Object: mapObj}
+	unstructuredObj.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   istioutil.GetIstioVirtualServiceGVR().Group,
+		Version: istioutil.GetIstioVirtualServiceGVR().Version,
+		Kind:    "VirtualService",
+	})
+
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
+	f.objects = append(f.objects, r2, unstructuredObj)
+	f.expectUpdateRolloutAction(r2)
+	f.expectUpdateRolloutStatusAction(r2)
 	f.expectPatchRolloutAction(r2)
-	f.expectPatchReplicaSetAction(rs1)
-	f.expectPatchReplicaSetAction(rs2)
+	f.expectCreateReplicaSetAction(rs2)
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("SetHeaderRoute", &v1alpha1.SetHeaderRoute{
 		Name: "test-header",
@@ -1296,4 +1344,90 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 	// Make sure we scale up stable ReplicaSet to 10
 	rs1Updated := f.getUpdatedReplicaSet(scaleUpIndex)
 	assert.Equal(t, int32(10), *rs1Updated.Spec.Replicas)
+}
+
+// TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate builds off of TestCanaryDontScaleDownOldRsDuringInterruptedUpdate
+// in canary_test when we scale down an intermediate V2 ReplicaSet when applying a V3 spec in the middle of updating.
+// We want to make sure that traffic routing is cleared in both weight AND managed routes when the V2 rs is
+// nil or has 0 available replicas.
+func TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: "test-header",
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "test",
+						HeaderValue: &v1alpha1.StringMatch{
+							Exact: "test",
+						},
+					},
+				},
+			},
+		},
+		{
+			SetWeight: pointer.Int32(90),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		ALB: &v1alpha1.ALBTrafficRouting{
+			Ingress: "test-ingress",
+		},
+		ManagedRoutes: []v1alpha1.MangedRoutes{
+			{Name: "test-header"},
+		},
+	}
+
+	r1.Spec.Strategy.Canary.StableService = "stable-svc"
+	r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+
+	stableSvc := newService("stable-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r1.Status.CurrentPodHash}, r1)
+	canarySvc := newService("canary-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r3.Status.CurrentPodHash}, r3)
+	r3.Status.StableRS = r1.Status.CurrentPodHash
+
+	ingress := newIngress("test-ingress", canarySvc, stableSvc)
+	ingress.Spec.Rules[0].HTTP.Paths[0].Backend.ServiceName = stableSvc.Name
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 5, 5)
+	rs3 := newReplicaSetWithStatus(r3, 5, 0)
+	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			PodTemplateHash: replicasetutil.GetPodTemplateHash(rs2),
+		},
+	}
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc, ingress)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
+
+	f.expectPatchRolloutAction(r3)
+	f.run(getKey(r3, t))
+
+	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			PodTemplateHash: replicasetutil.GetPodTemplateHash(rs3),
+		},
+	}
+
+	f.expectUpdateReplicaSetAction(rs3)
+	f.run(getKey(r3, t))
+
+	// Make sure that our weight is zero
+	assert.Equal(t, int32(0), r3.Status.Canary.Weights.Canary.Weight)
+	assert.Equal(t, replicasetutil.GetPodTemplateHash(rs3), r3.Status.Canary.Weights.Canary.PodTemplateHash)
+	// Make sure that RemoveManagedRoutes was called
+	f.fakeTrafficRouting.AssertCalled(t, "RemoveManagedRoutes", mock.Anything, mock.Anything)
+
 }

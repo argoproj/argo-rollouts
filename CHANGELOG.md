@@ -1,3 +1,18 @@
+<a name="v1.7.2"></a>
+## [v1.7.2](https://github.com/argoproj/argo-rollouts/compare/v1.7.1...v1.7.2) (2024-08-12)
+
+### Fix
+
+* replicaSet not scaled down due to incorrect annotations ([#3762](https://github.com/argoproj/argo-rollouts/issues/3762)) ([#3784](https://github.com/argoproj/argo-rollouts/issues/3784))
+* add update verb to ClusterRole permissions for scaleDown feature. Fixes [#3672](https://github.com/argoproj/argo-rollouts/issues/3672) ([#3675](https://github.com/argoproj/argo-rollouts/issues/3675))
+* **analysis:** explicitly set datadog aggregator to last only on v2 ([#3730](https://github.com/argoproj/argo-rollouts/issues/3730))
+* **analysis:** Take RollbackWindow into account when Reconciling Analysis Runs. Fixes [#3669](https://github.com/argoproj/argo-rollouts/issues/3669) ([#3670](https://github.com/argoproj/argo-rollouts/issues/3670))
+* **controller:** Get the right resourceName for traefik.io.Fixes [#3615](https://github.com/argoproj/argo-rollouts/issues/3615) ([#3759](https://github.com/argoproj/argo-rollouts/issues/3759))
+* **controller:** use the stableRS from the rollout context rather tha… ([#3664](https://github.com/argoproj/argo-rollouts/issues/3664))
+* **dashboard:** Update pod status logic to support native sidecars. Fixes [#3366](https://github.com/argoproj/argo-rollouts/issues/3366) ([#3639](https://github.com/argoproj/argo-rollouts/issues/3639))
+* **metricprovider:** reuse http.Transport for http.Client ([#3780](https://github.com/argoproj/argo-rollouts/issues/3780))
+
+
 <a name="v1.7.1"></a>
 ## [v1.7.1](https://github.com/argoproj/argo-rollouts/compare/v1.7.0...v1.7.1) (2024-06-22)
 

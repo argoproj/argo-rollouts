@@ -32,8 +32,9 @@ nav:
 - Rollout:
   - Deployment Strategies:
     - BlueGreen: features/bluegreen.md
-    - Canary: features/canary.md
+    - Canary: features/canary/index.md
   - Rollout Spec: features/specification.md
+  - Canary Step Plugin: features/canary/plugins.md
   - HPA: features/hpa-support.md
   - VPA: features/vpa-support.md
   - Ephemeral Metadata: features/ephemeral-metadata.md
@@ -136,7 +137,6 @@ nav:
 - Security:
   - Security Policy: security/security.md
   - Verify Release Artifacts: security/signed-release-assets.md
-- Roadmap/Release Schedule: roadmap.md
 - Contributing:
   - Contribution Guide: CONTRIBUTING.md
   - Environment Setup: getting-started/setup/index.md

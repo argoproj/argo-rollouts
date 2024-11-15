@@ -978,6 +978,13 @@
         "stablePingPong": {
           "type": "string",
           "title": "StablePingPong For the ping-pong feature holds the current stable service, ping or pong"
+        },
+        "stepPluginStatuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StepPluginStatus"
+          },
+          "title": "StepPluginStatuses holds the status of the step plugins executed"
         }
       },
       "title": "CanaryStatus status fields that only pertain to the canary rollout"
@@ -1013,6 +1020,10 @@
         "setMirrorRoute": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetMirrorRoute",
           "title": "SetMirrorRoutes Mirrors traffic that matches rules to a particular destination\n+optional"
+        },
+        "plugin": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PluginStep",
+          "title": "Plugin defines a plugin to execute for a step"
         }
       },
       "description": "CanaryStep defines a step of a canary deployment."
@@ -1206,6 +1217,10 @@
         "aggregator": {
           "type": "string",
           "title": "+kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area\nAggregator is a type of aggregator to use for metrics-based queries (default: \"\"). Used for v2"
+        },
+        "secretRef": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SecretRef",
+          "title": "Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.\n+optional"
         }
       }
     },
@@ -1650,6 +1665,11 @@
         "query": {
           "type": "string",
           "title": "Query is a raw newrelic NRQL query to perform"
+        },
+        "timeout": {
+          "type": "string",
+          "format": "int64",
+          "title": "Timeout represents the duration limit in seconds that will apply to the NRQL query\n+optional"
         }
       },
       "title": "NewRelicMetric defines the newrelic query to perform canary analysis"
@@ -1760,6 +1780,20 @@
         }
       },
       "description": "PingPongSpec holds the ping and pong service name."
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PluginStep": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name of the hashicorp go-plugin step to query"
+        },
+        "config": {
+          "type": "string",
+          "format": "byte",
+          "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nConfig is the configuration object for the specified plugin"
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodTemplateMetadata": {
       "type": "object",
@@ -2440,6 +2474,19 @@
         }
       }
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SecretRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name refers to the name of the secret that should be used to integrate with Datadog."
+        },
+        "namespaced": {
+          "type": "boolean",
+          "title": "Namespaced indicates whether the secret is in the namespace where rollouts it installed or in the namespace where the metric was found"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetCanaryScale": {
       "type": "object",
       "properties": {
@@ -2525,6 +2572,62 @@
         },
         "interval": {
           "type": "string"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StepPluginStatus": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Index is the matching step index of the executed plugin"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name is the matching step name of the executed plugin"
+        },
+        "operation": {
+          "type": "string",
+          "title": "Operation is the name of the operation that produced this status"
+        },
+        "phase": {
+          "type": "string",
+          "title": "Phase is the resulting phase of the operation"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message provides details on why the plugin is in its current phase"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "StartedAt indicates when the plugin was first called for the operation"
+        },
+        "updatedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "UpdatedAt indicates when the plugin was last called for the operation"
+        },
+        "finishedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "FinishedAt indicates when the operation was completed"
+        },
+        "backoff": {
+          "type": "string",
+          "title": "Backoff is a duration to wait before trying to execute the operation again if it was not completed"
+        },
+        "executions": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Executions is the number of time the operation was executed"
+        },
+        "disabled": {
+          "type": "boolean",
+          "title": "Disabled indicates if the plugin is globally disabled"
+        },
+        "status": {
+          "type": "string",
+          "format": "byte",
+          "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nStatus holds the internal status of the plugin for this operation"
         }
       }
     },

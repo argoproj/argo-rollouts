@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	errTrafficRoutingWithExperimentSupport = "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time"
+	errTrafficRoutingWithExperimentSupport = "Experiment template weight is only available for TrafficRouting with SMI, ALB, Istio and Plugins at this time"
 )
 
 func TestValidateRollout(t *testing.T) {
@@ -1093,5 +1093,16 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, 1, len(allErrs))
 		assert.Equal(t, errTrafficRoutingWithExperimentSupport, allErrs[0].Detail)
+	})
+
+	t.Run("success - Plugins", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Plugins: map[string]json.RawMessage{
+				"any/plugin": {},
+			},
+		}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, 0, len(allErrs))
 	})
 }

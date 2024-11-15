@@ -11,7 +11,6 @@ Here is an overview of how plugins are loaded:
 
 [![Loading of plugins](contributing-assets/plugin-loading.png)](contributing-assets/plugin-loading.png)
 
-
 The communication protocol uses golang built in net/rpc library so plugins have to be written in golang.
 
 ## Plugin Repository
@@ -28,7 +27,7 @@ types to exist such as `<org1>/nginx` and `<org2>/nginx`. These names could be b
 as `argoproj-labs/rollouts-plugin-metric-sample-prometheus` but it is not a requirement.
 
 There will also be a standard for naming repositories under argoproj-labs in the form of `rollouts-plugin-<type>-<tool>`
-where `<type>` is say `metric`, or `trafficrouter` and `<tool>` is the software the plugin is for say nginx.
+where `<type>` is one of `metric`, `step`, or `trafficrouter` and `<tool>` is the software the plugin is for, say nginx.
 
 ## Plugin Name
 
@@ -55,13 +54,28 @@ data:
       args:
         - "--log-level"
         - "debug"
+  stepPlugins: |-
+    - name: "argoproj-labs/canary-step"
+      location: "file:///tmp/argo-rollouts/canary-step-plugin"
+      disabled: false
+      args:
+        - "--log-level"
+        - "debug"
 ```
 
-As you can see there is a field called `name:` under both `metrics` or `trafficrouters` this is the first place where your
+As you can see there is a field called `name:` under each plugin type. This is the first place where your
 end users will need to configure the name of the plugin. The second `location` is either in the rollout object or the analysis
 template which you can see the examples below. The third `args` holds the command line arguments of the plugin.
 
-#### AnalysisTemplate Example
+### Configuration Examples
+
+#### AnalysisTemplate
+
+You can see that we use the plugin name under `spec.metrics[].provider.plugin` for analysis template.
+
+You, as a plugin author, can then put any configuration you need under `argoproj-labs/metrics` and you will be able to
+look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
@@ -77,7 +91,13 @@ spec:
             address: http://prometheus.local
 ```
 
-#### Traffic Router Example
+#### Traffic Router
+
+You can see that we use the plugin name under `spec.strategy.canary.trafficRouting.plugins` for traffic routers.
+
+You, as a plugin author, can then put any configuration you need under `argoproj-labs/metrics` and you will be able to
+look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -94,18 +114,36 @@ spec:
             stableIngress: canary-demo
 ```
 
-You can see that we use the plugin name under `spec.metrics[].provider.plugin` for analysis template and `spec.strategy.canary.trafficRouting.plugins`
-for traffic routers. You as a plugin author can then put any configuration you need under `argoproj-labs/nginx` and you will be able to
-look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.
+#### Step Plugin
+
+You can see that we use the plugin name under `spec.strategy.canary.steps[].plugin.name` for canary steps.
+
+You, as a plugin author, can then put any configuration you need in the plugin object under `config` property and you will receive it
+as an arguments when your plugin is called. You will also want to document what configuration options your plugin supports.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: example-plugin-ro
+spec:
+  strategy:
+    canary:
+      steps:
+        - plugin:
+            name: argoproj-labs/step-exec
+            config:
+              command: echo "hello world"
+```
 
 ## Plugin Interfaces
 
-Argo Rollouts currently supports two plugin systems as a plugin author your end goal is to implement these interfaces as
-a hashicorp go-plugin. The two interfaces are `MetricsPlugin` and `TrafficRouterPlugin` for each of the respective plugins:
+Argo Rollouts currently supports three plugin systems. As a plugin author, your end goal is to implement at least one of these interfaces as
+a hashicorp go-plugin. The interfaces are `MetricsPlugin`, `TrafficRouterPlugin` and `StepPlugin` for each of the respective plugins:
 
 ```go
 type MetricProviderPlugin interface {
-  // InitPlugin initializes the traffic router plugin this gets called once when the plugin is loaded.
+  // InitPlugin initializes the traffic router plugin. This gets called once when the plugin is loaded.
   InitPlugin() RpcError
   // Run start a new external system call for a measurement
   // Should be idempotent and do nothing if a call has already been started
@@ -124,7 +162,7 @@ type MetricProviderPlugin interface {
 }
 
 type TrafficRouterPlugin interface {
-  // InitPlugin initializes the traffic router plugin this gets called once when the plugin is loaded.
+  // InitPlugin initializes the traffic router plugin. This gets called once when the plugin is loaded.
   InitPlugin() RpcError
   // UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes
   UpdateHash(rollout *v1alpha1.Rollout, canaryHash, stableHash string, additionalDestinations []v1alpha1.WeightDestination) RpcError
@@ -141,6 +179,19 @@ type TrafficRouterPlugin interface {
   RemoveManagedRoutes(ro *v1alpha1.Rollout) RpcError
   // Type returns the type of the traffic routing reconciler
   Type() string
+}
+
+type StepPlugin interface {
+  // InitPlugin initializes the canary step plugin. This gets called once when the plugin is loaded.
+  InitPlugin() RpcError
+	// Run executes a step plugin for the RpcStepContext and returns the result to the controller or an RpcError for unexpeted failures
+	Run(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)
+	// Terminate stops an uncompleted operation started by the Run operation
+	Terminate(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)
+	// Abort reverts the actions performed during the Run operation if necessary
+	Abort(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)
+	// Type returns the type of the step plugin
+	Type() string
 }
 ```
 
@@ -161,7 +212,8 @@ for the plugin to use. This will probably affect traffic router plugins more tha
 
 ## Sample Plugins
 
-There are two sample plugins within the argo-rollouts repo that you can use as a reference for creating your own plugin.
+There are sample plugins within the argo-rollouts repo that you can use as a reference for creating your own plugin.
 
-* [Metrics Plugin Sample](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/metrics-plugin-sample)
-* [Traffic Router Plugin Sample](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/trafficrouter-plugin-sample)
+- [Metrics Plugin Sample](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/metrics-plugin-sample)
+- [Traffic Router Plugin Sample](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/trafficrouter-plugin-sample)
+- [Step Plugin Sample](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/step-plugin-sample)

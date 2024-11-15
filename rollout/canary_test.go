@@ -1,7 +1,6 @@
 package rollout
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -421,8 +420,11 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	f.expectUpdateRolloutStatusAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
+	createRSIndex := f.expectCreateReplicaSetAction(rs1)
 	f.run(getKey(r2, t))
+	createdRS := f.getCreatedReplicaSet(createRSIndex)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchWithoutPodHash := `{
@@ -433,7 +435,7 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, createdRS, false, "", false)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, expectedCurrentStepHash, newConditions)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
@@ -462,10 +464,15 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	f.expectUpdateRolloutStatusAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
+	createdRSIndex := f.expectCreateReplicaSetAction(rs1)
+
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
+	updatedRS := f.getUpdatedReplicaSet(createdRSIndex)
+
 	expectedPatchWithoutPodHash := `{
 		"status": {
 			"currentStepIndex":0,
@@ -473,7 +480,7 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, updatedRS, false, "", false)
 
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, newConditions)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
@@ -1564,7 +1571,7 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs)
 
 	patchIndex := f.expectPatchRolloutAction(rollout)
-	f.run(getKey(rollout, t))
+	f.runExpectError(getKey(rollout, t), true)
 
 	patch := make(map[string]any)
 	patchData := f.getPatchedRollout(patchIndex)
@@ -1616,7 +1623,7 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs)
 
 	patchIndex := f.expectPatchRolloutAction(rollout)
-	f.run(getKey(rollout, t))
+	f.runExpectError(getKey(rollout, t), true)
 
 	patch := make(map[string]any)
 	patchData := f.getPatchedRollout(patchIndex)
@@ -1665,7 +1672,7 @@ func TestCanaryRolloutWithInvalidPingServiceName(t *testing.T) {
 	f.objects = append(f.objects, r)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 
 	patch := make(map[string]any)
 	patchData := f.getPatchedRollout(patchIndex)
@@ -1697,7 +1704,7 @@ func TestCanaryRolloutWithInvalidPongServiceName(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, pingSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 
 	patch := make(map[string]any)
 	patchData := f.getPatchedRollout(patchIndex)
@@ -1896,8 +1903,14 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateRolloutStatusAction(r2)
+	f.expectPatchRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
+
+	f.expectCreateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs1)
+
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
@@ -2103,49 +2116,6 @@ func TestIsDynamicallyRollingBackToStable(t *testing.T) {
 			assert.Equal(t, tc.expectedResult, rbToStable)
 		})
 	}
-}
-
-func TestCanaryReplicaAndSpecChangedTogether(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	originReplicas := 3
-	r1 := newCanaryRollout("foo", originReplicas, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
-	canarySVCName := "canary"
-	stableSVCName := "stable"
-	r1.Spec.Strategy.Canary.CanaryService = canarySVCName
-	r1.Spec.Strategy.Canary.StableService = stableSVCName
-
-	stableRS := newReplicaSetWithStatus(r1, originReplicas, originReplicas)
-	stableSVC := newService(stableSVCName, 80,
-		map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, r1)
-
-	r2 := bumpVersion(r1)
-	canaryRS := newReplicaSetWithStatus(r2, originReplicas, originReplicas)
-	canarySVC := newService(canarySVCName, 80,
-		map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: canaryRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, r2)
-
-	f.replicaSetLister = append(f.replicaSetLister, canaryRS, stableRS)
-	f.serviceLister = append(f.serviceLister, canarySVC, stableSVC)
-
-	r3 := bumpVersion(r2)
-	r3.Spec.Replicas = pointer.Int32(int32(originReplicas) + 5)
-	r3.Status.StableRS = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r3.Status.CurrentPodHash = canaryRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-
-	f.rolloutLister = append(f.rolloutLister, r3)
-	f.kubeobjects = append(f.kubeobjects, canaryRS, stableRS, canarySVC, stableSVC)
-	f.objects = append(f.objects, r3)
-
-	ctrl, _, _ := f.newController(noResyncPeriodFunc)
-	roCtx, err := ctrl.newRolloutContext(r3)
-	assert.NoError(t, err)
-	err = roCtx.reconcile()
-	assert.NoError(t, err)
-	updated, err := f.kubeclient.AppsV1().ReplicaSets(r3.Namespace).Get(context.Background(), canaryRS.Name, metav1.GetOptions{})
-	assert.NoError(t, err)
-	// check the canary one is updated
-	assert.NotEqual(t, originReplicas, int(*updated.Spec.Replicas))
 }
 
 func TestSyncRolloutWithConflictInScaleReplicaSet(t *testing.T) {

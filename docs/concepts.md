@@ -3,7 +3,7 @@
 ## Rollout
 
 A Rollout is Kubernetes workload resource which is equivalent to a Kubernetes Deployment object.
-It is intended to replace a Deployment object in scenarios when more advanced deployment or 
+It is intended to replace a Deployment object in scenarios when more advanced deployment or
 progressive delivery functionality is needed. A Rollout provides the following features which
 a Kubernetes Deployment cannot:
 
@@ -17,17 +17,17 @@ a Kubernetes Deployment cannot:
 
 Progressive delivery is the process of releasing updates of a product in a controlled and gradual
 manner, thereby reducing the risk of the release, typically coupling automation and metric analysis
-to drive the automated promotion or rollback of the update. 
+to drive the automated promotion or rollback of the update.
 
 Progressive delivery is often described as an evolution of continuous delivery, extending the
 speed benefits made in CI/CD to the deployment process. This is accomplished by limiting the
-exposure of the new version to a subset of users, observing and analyzing for correct behavior, 
+exposure of the new version to a subset of users, observing and analyzing for correct behavior,
 then progressively increasing the exposure to a broader and wider audience while continuously
 verifying correctness.
 
 ## Deployment Strategies
 
-While the industry has used a consistent terminology to describe various deployment strategies, the implementations of these strategies tend to differ across tooling. To make it clear how the Argo Rollouts will behave, here are the descriptions of the various deployment strategies implementations offered by the Argo Rollouts.
+While the industry has used a consistent terminology to describe various deployment strategies, the implementations of these strategies tend to differ across tooling. To make it clear how the Argo Rollouts will behave, here are the descriptions of the various deployment strategy implementations. Argo Rollouts only supports Blue-Green and Canary.
 
 ### Rolling Update
 A `RollingUpdate` slowly replaces the old version with the new version. As the new version comes up, the old version is scaled down in order to maintain the overall count of the application. This is the default strategy of the Deployment object.
@@ -66,7 +66,7 @@ Here is a summary table for the possible approaches.
 |--------------------------:|:-------------------------:|:--------------------------:| :-----------------------------:|
 |       Adoption Complexity |           Low             |       Medium               |        High                    |
 |        Flexibility        |           Low             |        High                |        Maximum                 |
-|    Needs traffic provider |                 No        |         No                 |           Yes                  | 
+|    Needs traffic provider |                 No        |         No                 |           Yes                  |
 |  Works with queue workers |                Yes        |         No                 |            No                  |
 |  Works with shared/locked resources | Yes             |         No                 |            No                  |
 |            Traffic switch |     All or nothing        |  Gradual percentage        |      Gradual percentage        |

@@ -1,4 +1,5 @@
 ## Who uses Argo Rollouts?
+
 Organizations below are **officially** using Argo Rollouts. Please send a PR with your organization name if you are using Argo Rollouts.
 
 1. [Ada](https://www.ada.cx)
@@ -11,7 +12,9 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Bucketplace](https://www.bucketplace.co.kr/)
 1. [BukuKas](https://bukukas.co.id/)
 1. [Calm](https://www.calm.com/)
+1. [CarGurus](https://www.cargurus.com/)
 1. [CircleCI](https://circleci.com/)
+1. [Cloudflare](https://cloudflare.com/)
 1. [Codefresh](https://codefresh.io/)
 1. [Credit Karma](https://creditkarma.com/)
 1. [DaoCloud](https://daocloud.io)
@@ -22,7 +25,9 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Flipkart](https://flipkart.com)
 1. [GetYourGuide](https://www.getyourguide.com)
 1. [Gllue](https://gllue.com)
+1. [Groww](https://groww.in/)
 1. [HashiCorp](https://www.hashicorp.com/)
+1. [Hepsiburada](https://hepsiburada.com/)
 1. [Ibotta](https://home.ibotta.com/)
 1. [Intuit](https://www.intuit.com/)
 1. [New Relic](https://newrelic.com/)
@@ -36,6 +41,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [PagerDuty](https://www.pagerduty.com/)
 1. [PayPal](https://www.paypal.com/)
 1. [PayPay](https://paypay.ne.jp/)
+1. [Priceline](https://priceline.com)
 1. [Productboard](https://www.productboard.com)
 1. [Quipper](https://www.quipper.com/)
 1. [Quizlet](https://quizlet.com)
@@ -45,6 +51,8 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Skillz](https://www.skillz.com)
 1. [Spotify](https://www.spotify.com/)
 1. [Synamedia](https://www.synamedia.com)
+1. [TBC Bank](https://tbcbank.ge/)
+1. [Trustly](https://www.trustly.com/)
 1. [Tuhu](https://www.tuhu.cn/)
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [Ubie](https://ubie.life/)
@@ -52,4 +60,3 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [WeLab Bank](https://www.welab.bank/)
 1. [Yotpo](https://www.yotpo.com/)
 1. [VGS](https://www.vgs.io)
-2. [Groww](https://groww.in/)
