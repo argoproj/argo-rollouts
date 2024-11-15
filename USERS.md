@@ -12,6 +12,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Bucketplace](https://www.bucketplace.co.kr/)
 1. [BukuKas](https://bukukas.co.id/)
 1. [Calm](https://www.calm.com/)
+1. [CarGurus](https://www.cargurus.com/)
 1. [CircleCI](https://circleci.com/)
 1. [Cloudflare](https://cloudflare.com/)
 1. [Codefresh](https://codefresh.io/)
