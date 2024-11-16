@@ -40,6 +40,21 @@ One reason statefulsets are used is that they provide a stable pod identity. Thi
 
 ##### Rolling Updates 
 
+There are two strategies for statefulsets
+
+1. OnDelete -- This updates the statefulset pods by requiring manual user intervention in order to delete the old pods. New pods will come up with the new version. 
+2. RollingUpdate -- this is the default
+
+
+##### New features 
+rollingUpdate stategy supports adding a `maxUnavailable` field to ensure that rolling updates only result in 1 pod at a time. 
+
+ 
+
+https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#maximum-unavailable-pods 
+
+2. Parititioned rollouts
+
 As of kubernetes 1.31 there is support for partitioned rolling updates https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions 
 This allows developers to define behavior on statefulset updates using the ordinal index. 
 Example 
@@ -51,11 +66,12 @@ spec:
       partition: 10
 ```
 
-If the above Statefulset has 20 replicas the pods `pod-9` through `pod-19` will be updated with the new pod spec. Pods between `pod-0` and `pod-9` will not be updated with the new version of the pod spec.  
-
+If the above Statefulset has 20 replicas the pods `pod-9` through `pod-19` will be updated with the new pod spec. Pods between `pod-0` and `pod-9` will not be updated with the new version of the pod spec.
 
 ``` In most cases you will not need to use a partition, but they are useful if you want to stage an update, roll out a canary, or perform a phased roll out.```
 
+3. `minReadySeconds`
+https://github.com/kubernetes/enhancements/tree/master/keps/sig-apps/961-maxunavailable-for-statefulset
 
 
 ##### Headless service 
@@ -76,13 +92,20 @@ applies only to scaling operations for statefulsets.
 
 #### Traffic Routing
 
+##### Considerations
+Traffic is not always captured/processed using service mesh solutions such as Istio. 
+
+1. Istio -- headless services
 https://istio.io/latest/docs/ops/configuration/traffic-management/traffic-routing/#headless-services 
 
 
 
 ## Proposal
 
-1. Ideally 
+1. 
+
+
+Use 
 
 
 ### Use cases
