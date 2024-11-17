@@ -8,9 +8,9 @@ require (
 	github.com/antonmedv/expr v1.15.5
 	github.com/argoproj/notifications-engine v0.4.1-0.20240219110818-7a069766e954
 	github.com/argoproj/pkg v0.13.6
-	github.com/aws/aws-sdk-go-v2 v1.32.3
+	github.com/aws/aws-sdk-go-v2 v1.32.4
 	github.com/aws/aws-sdk-go-v2/config v1.28.1
-	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.42.3
+	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.42.4
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.31.3
 	github.com/aws/smithy-go v1.22.0
 	github.com/blang/semver v3.5.1+incompatible
@@ -26,7 +26,7 @@ require (
 	github.com/juju/ansiterm v1.0.0
 	github.com/machinebox/graphql v0.2.2
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/newrelic/newrelic-client-go/v2 v2.50.1
+	github.com/newrelic/newrelic-client-go/v2 v2.51.3
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.18.0
 	github.com/prometheus/client_model v0.6.1
@@ -85,8 +85,8 @@ require (
 	github.com/aws/aws-sdk-go v1.44.116 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.42 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.18 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.22 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.22 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.23 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.23 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.3 // indirect
