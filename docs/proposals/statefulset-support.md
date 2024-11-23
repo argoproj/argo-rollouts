@@ -148,25 +148,56 @@ Items such as whether or not quorum was lost must be considered.
 
 
 
-#### Alternatives Considered 
+### Alternatives Considered 
 
 1. Implement a step plugin for statefulsets. 
+2. Implement a dedicated StatefulRollout CRD and StatefulRollout controller
+3. Extend the existing Rollout controller to handle other workloads such as Statefulsets. 
+
+
+#
+
+## Proposal
 
 
 
 
 
 
-## Proposals
-
-1. Implement a dedicated StatefulRollout CRD and StatefulRollout controller
-
-2. Extend the existing Rollout controller to handle other workloads such as Statefulsets. 
 
 
 
+### Design
 
-#### Interface
+The rollout controller at this time is opinionated about the type of workload it is meant to handle. While the rollout CRD has a field that references a `workloadRef` which takes an arbitrary `apiVersion`, `kind`, and `name`. Ideally this can serve as an entrypoint for a variety of other workloads such as Statefulsets. 
+
+
+
+
+A big part of this is that the rollout controller needs to remove several of the kubernetes deployment/replicaset isms. Within the Rollout CRD there are several fields that reference or are opinioated about ReplicaSets/Deployments. 
+
+For example:
+
+```yaml
+spec:
+  strategy:
+    canary: 
+      ...
+      maxUnavailable: 1
+      maxSurge: '20%'
+      minPodsPerReplicaSet: 2
+```
+
+
+
+
+```yaml
+
+
+```
+
+
+### Interface
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -179,33 +210,30 @@ spec:
     kind: StatefulSet
     name: distributed-database-workload
   
+  
 
 
 ```
 
-Use 
 
 
-### Use cases
+## Statefulset Rollout Walkthrough 
 
-1. 
+Let's walk through how the stateful rollout controller will perform a rollout for a log aggregator service. 
 
-### Implementation Details/Notes/Constraints
+### Canary 
 
-#### Configuration
-
-
-#### Interface
+Updates a statefulset 
 
 
-### Security Considerations
 
 
-### Risks and Mitigations
 
-### Upgrade / Downgrade Strategy
+### Blue/Green
 
-## Drawbacks
+`blue-service`
+`green-service`
+
 
 
 
