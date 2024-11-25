@@ -31,6 +31,8 @@ const (
 	// SuccessfulAssessmentRunTerminatedResult is used for logging purposes when the metrics evaluation
 	// is successful and the run is terminated.
 	SuccessfulAssessmentRunTerminatedResult = "Metric Assessment Result - Successful: Run Terminated"
+	// FailedDurationParsingErrorMessage is used every time a duration parsing is hit.
+	FailedDurationParsingErrorMessage = "failed to parse duration: %v"
 )
 
 // metricTask holds the metric which need to be measured during this reconciliation along with
@@ -208,7 +210,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 				}
 				duration, err := metric.InitialDelay.Duration()
 				if err != nil {
-					logCtx.Warnf("failed to parse duration: %v", err)
+					logCtx.Warnf(FailedDurationParsingErrorMessage, err)
 					continue
 				}
 				if run.Status.StartedAt.Add(duration).After(timeutil.Now()) {
@@ -223,9 +225,27 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 		}
 		metricResult := analysisutil.GetResult(run, metric.Name)
 		effectiveCount := metric.EffectiveCount()
-		if effectiveCount != nil && metricResult.Count >= int32(effectiveCount.IntValue()) {
+		if metric.Timeout == "" && effectiveCount != nil && metricResult.Count >= int32(effectiveCount.IntValue()) {
 			// we have reached desired count
 			continue
+		}
+		if metric.Timeout != "" {
+			if run.Status.StartedAt == nil {
+				continue
+			}
+			if lastMeasurement.Phase == v1alpha1.AnalysisPhaseSuccessful {
+				// Analysis has succeed before timeout
+				continue
+			}
+			duration, err := metric.Timeout.Duration()
+			if err != nil {
+				logCtx.Warnf(FailedDurationParsingErrorMessage, err)
+				continue
+			}
+			if lastMeasurement.FinishedAt.After(run.Status.StartedAt.Add(duration)) {
+				logCtx.Infof("Timeout has been reached")
+				continue
+			}
 		}
 		// if we get here, we know we need to take a measurement (eventually). check last measurement
 		// to decide if it should be taken now. metric.Interval can be null because we may be
@@ -469,7 +489,7 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 		}
 		if result := analysisutil.GetResult(run, metric.Name); result != nil {
 			logger := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
-			metricStatus := assessMetricStatus(metric, *result, terminating)
+			metricStatus := assessMetricStatus(run, metric, *result, terminating)
 			if result.Phase != metricStatus {
 				logger.Infof("Metric '%s' transitioned from %s -> %s", metric.Name, result.Phase, metricStatus)
 				if metricStatus.Completed() {
@@ -490,7 +510,7 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 				// if any metric is in-progress, then entire analysis run will be considered running
 				everythingCompleted = false
 			} else {
-				phase, message := assessMetricFailureInconclusiveOrError(metric, *result)
+				phase, message := assessMetricFailureInconclusiveOrError(run, metric, *result)
 				// NOTE: We don't care about the status if the metric is marked as a Dry-Run
 				// otherwise, remember the worst status of all completed metric results
 				if !dryRunMetricsMap[metric.Name] {
@@ -568,11 +588,38 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 	return worstStatus, worstMessage
 }
 
+func assessTimeout(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, logger *log.Entry, lastMeasurement v1alpha1.Measurement) *v1alpha1.AnalysisPhase {
+	var result v1alpha1.AnalysisPhase
+	if metric.Timeout != "" {
+		if run.Status.StartedAt == nil {
+			result = v1alpha1.AnalysisPhaseRunning
+			return &result
+		}
+		if lastMeasurement.Phase == v1alpha1.AnalysisPhaseSuccessful {
+			// Analysis has succeed before timeout
+			result = v1alpha1.AnalysisPhaseSuccessful
+			return &result
+		}
+		duration, err := metric.Timeout.Duration()
+		if err != nil {
+			logger.Warnf(FailedDurationParsingErrorMessage, err)
+			result = v1alpha1.AnalysisPhaseError
+			return &result
+		}
+		if !lastMeasurement.FinishedAt.After(run.Status.StartedAt.Add(duration)) {
+			result = v1alpha1.AnalysisPhaseRunning
+			return &result
+		}
+		logger.Infof("Timeout has been reached")
+	}
+	return nil
+}
+
 // assessMetricStatus assesses the status of a single metric based on:
 // * current or latest measurement status
 // * parameters given by the metric (failureLimit, count, etc...)
 // * whether we are terminating (e.g. due to failing run, or termination request)
-func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, terminating bool) v1alpha1.AnalysisPhase {
+func assessMetricStatus(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, result v1alpha1.MetricResult, terminating bool) v1alpha1.AnalysisPhase {
 	if result.Phase.Completed() {
 		return result.Phase
 	}
@@ -590,10 +637,14 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 		// we still have an in-flight measurement
 		return v1alpha1.AnalysisPhaseRunning
 	}
+	phase := assessTimeout(run, metric, logger, lastMeasurement)
+	if phase != nil {
+		return *phase
+	}
 
 	// Check if metric was considered Failed, Inconclusive, or Error
 	// If true, then return AnalysisRunPhase as Failed, Inconclusive, or Error respectively
-	phaseFailureInconclusiveOrError, message := assessMetricFailureInconclusiveOrError(metric, result)
+	phaseFailureInconclusiveOrError, message := assessMetricFailureInconclusiveOrError(run, metric, result)
 	if phaseFailureInconclusiveOrError != "" {
 		logger.Infof("Metric Assessment Result - %s: %s", phaseFailureInconclusiveOrError, message)
 		return phaseFailureInconclusiveOrError
@@ -615,7 +666,7 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 	return v1alpha1.AnalysisPhaseRunning
 }
 
-func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alpha1.MetricResult) (v1alpha1.AnalysisPhase, string) {
+func assessMetricFailureInconclusiveOrError(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, result v1alpha1.MetricResult) (v1alpha1.AnalysisPhase, string) {
 	var message string
 	var phase v1alpha1.AnalysisPhase
 
@@ -687,9 +738,25 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Me
 		}
 		metricResult := analysisutil.GetResult(run, metric.Name)
 		effectiveCount := metric.EffectiveCount()
-		if effectiveCount != nil && metricResult.Count >= int32(effectiveCount.IntValue()) {
+		if metric.Timeout == "" && effectiveCount != nil && metricResult.Count >= int32(effectiveCount.IntValue()) {
 			// we have reached desired count
 			continue
+		}
+		if metric.Timeout != "" && run.Status.StartedAt != nil {
+			if lastMeasurement.Phase == v1alpha1.AnalysisPhaseSuccessful {
+				// Analysis has succeed before timeout
+				continue
+			}
+			duration, err := metric.Timeout.Duration()
+			if err != nil {
+				logCtx.Warnf(FailedDurationParsingErrorMessage, err)
+				continue
+			}
+			timeout := run.Status.StartedAt.Add(duration)
+			if lastMeasurement.FinishedAt.After(timeout) {
+				// Timeout has been reached
+				continue
+			}
 		}
 		var interval time.Duration
 		if lastMeasurement.Phase == v1alpha1.AnalysisPhaseError {

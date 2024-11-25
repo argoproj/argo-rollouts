@@ -121,6 +121,8 @@ type Metric struct {
 	ConsecutiveErrorLimit *intstrutil.IntOrString `json:"consecutiveErrorLimit,omitempty" protobuf:"bytes,9,opt,name=consecutiveErrorLimit"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider" protobuf:"bytes,10,opt,name=provider"`
+	// Timeout aim to be used with an interval, analysisrun will wait until the metrics succeed or fail if timeout is reached
+	Timeout DurationString `json:"timeout,omitempty" protobuf:"bytes,11,opt,name=timeout,casttype=DurationString"`
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.
