@@ -105,7 +105,7 @@ func ValidateService(svc ServiceWithType, rollout *v1alpha1.Rollout) field.Error
 			continue
 		}
 		if v, ok := rollout.Spec.Template.Labels[svcLabelKey]; !ok || v != svcLabelValue {
-			msg := fmt.Sprintf("Service %q has unmatch label %q in rollout", service.Name, svcLabelKey)
+			msg := fmt.Sprintf("Service %q has label that doesn't match %q in rollout", service.Name, svcLabelKey)
 			allErrs = append(allErrs, field.Invalid(fldPath, service.Name, msg))
 		}
 	}
