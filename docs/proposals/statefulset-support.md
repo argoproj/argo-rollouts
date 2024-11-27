@@ -58,20 +58,19 @@ There are two strategies for statefulsets
 ##### Problems
 
 1. Statefulset updates are exceptionally slow due to the ordered guarantees. Updates occur with 1 pod at a time. 
-
+2. Statefulset pods often need to ensure data is saved to persistent storage.
+3. Pods communicate directly with other pods via headless services. This results in complications with traffic shifting. 
 
 
 
 ##### Headless service 
-A big consideration with Argo rollout support is that traffic hits pods directly instead of hitting a k8s service. 
+A big consideration with statefulset support is that traffic hits pods directly instead of hitting a k8s service when using a headless service. 
 
-Implications include
-1. 
-
+..this means that we need to consider how to track using labels
 
 ##### Pod management policy
 
-applies only to scaling operations for statefulsets. 
+Applies only to scaling operations for statefulsets. 
 
 `Parallel` 
 
@@ -160,6 +159,12 @@ Items such as whether or not quorum was lost must be considered.
 ## Proposal
 
 
+Support StatefulSets in the rollout controller. 
+
+
+
+https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/controller-revision-v1/
+
 
 
 
@@ -219,23 +224,83 @@ spec:
 
 ## Statefulset Rollout Walkthrough 
 
-Let's walk through how the stateful rollout controller will perform a rollout for a log aggregator service. 
+
 
 ### Canary 
 
-Updates a statefulset 
+
+Let's walk through how the stateful rollout controller will perform a canary rollout for a log aggregator service using Istio. This statefulset has 20 pods. In this scenario the users want to update the container image tag to a new version. https://github.com/vectordotdev/vector 
+
+ie `image: docker.io/vector:0.40.0` to `image: docker.io/vector:0.42.1`. 
+
+This change will result in a new `ControllerRevision` and a corresponding label called `controller-revision-hash: <hash>`. 
+
+Below are the default `DestinationRule` and `VirtualService` resources. 
 
 
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: vector
+  namespace: vector-system
+spec:
+  host: vector.vector-system.svc.cluster.local
+  subsets:
+    - name: stable
+      labels:
+        version: stable
+    - name: canary
+      labels:
+        version: canary
+```
+
+
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vector
+  namespace: vector-system
+spec:
+  hosts:
+    - vector.example.com
+  http:
+    - route:
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: canary
+          weight: 0
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: stable
+          weight: 100
+
+```
+
+```yaml
+  strategy:
+    canary:
+      steps:
+      - setWeight: 20
+      - pause: {}
+      - setWeight: 40
+      - pause: {duration: 10}
+      - setWeight: 60
+      - pause: {duration: 10}
+      - setWeight: 80
+      - pause: {duration: 10}
+```
+
+1. 
 
 
 
 ### Blue/Green
 
 `blue-service`
+
 `green-service`
-
-
-
 
 
 ### User stories
@@ -245,8 +310,12 @@ As a platform maintainer I would like to offer ways to safely upgrade statefulse
 
 
 
+### Open Questions
+
+1. can labels be added to the canary pods of a statefulset? 
+2. configmap updates.
+
+
 https://github.com/kubernetes/enhancements/blob/master/keps/sig-apps/961-maxunavailable-for-statefulset/README.md
-
-
-
 https://openkruise.io/docs/user-manuals/advancedstatefulset/
+
