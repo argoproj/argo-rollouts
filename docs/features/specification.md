@@ -172,11 +172,13 @@ spec:
     # Canary update strategy
     canary:
       # Reference to a service which the controller will update to select
-      # canary pods. Required for traffic routing.
+      # canary pods. Required for traffic routing, except for istio's
+      # subset-level traffic splitting.
       canaryService: canary-service
 
       # Reference to a service which the controller will update to select
-      # stable pods. Required for traffic routing.
+      # stable pods. Required for traffic routing, except for istio's
+      # subset-level traffic splitting.
       stableService: stable-service
 
       # Metadata which will be attached to the canary pods. This metadata will
