@@ -91,6 +91,10 @@ https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#maximum-u
 
 As of kubernetes 1.31 there is support for partitioned rolling updates https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions 
 This allows developers to define behavior on statefulset updates using the ordinal index. 
+
+By using partitions it is also possible to define ordered rollouts that can be targeted to specific pods. Ie start an update 
+
+
 Example 
 
 ```yaml
@@ -249,10 +253,10 @@ spec:
   subsets:
     - name: stable
       labels:
-        version: stable
+        controller-revision-hash: 3eshh34
     - name: canary
       labels:
-        version: canary
+        controller-revision-hash: 7e93e33
 ```
 
 
@@ -275,8 +279,18 @@ spec:
             host: vector.vector-system.svc.cluster.local
             subset: stable
           weight: 100
-
 ```
+
+When the user updates to the new image the controller-revision-hash label will be `7e93e33`. 
+
+
+Here is a breakdown of the steps.
+Step 1: update 10% of the pods with the new revision. This occurs via a rolling update partition. In this case the total # of pods is 20. So the rolling update partition value will be set to 17 which will allow for 2 pods to be deployed with the new revision. 
+
+set traffic weight to 20% to the canary revision. This will result in the rollouts controller updating the weight on the `VirtualService` to 20%. 
+
+
+
 
 ```yaml
   strategy:
