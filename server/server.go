@@ -179,7 +179,10 @@ func (s *ArgoRolloutsServer) initRolloutViewController(namespace string, name st
 }
 
 func (s *ArgoRolloutsServer) getRolloutInfo(namespace string, name string) (*rollout.RolloutInfo, error) {
-	controller := s.initRolloutViewController(namespace, name, context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	controller := s.initRolloutViewController(namespace, name, ctx)
 	ri, err := controller.GetRolloutInfo()
 	if err != nil {
 		return nil, err
