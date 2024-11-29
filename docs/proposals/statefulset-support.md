@@ -631,12 +631,156 @@ spec:
   template:
     metadata:
       labels:
+        role: stable
+```
+
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vector
+  namespace: vector-system
+spec:
+  hosts:
+    - vector.example.com
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: canary
+          weight: 0
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: stable
+          weight: 100
+```
+
+#### rollback 
+
+Example below is a failed update where the image results in crashloopbackoff errors 
+
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: vector
+spec:
+  workloadRef: 
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: vector
+  minReadySeconds: 30
+  autoPromotionEnabled: true
+  revisionHistoryLimit: 3
+  strategy:
+    canary: 
+      stableMetadata:
+        labels:
+          role: stable
+      canaryMetadata:
+        labels:
+          role: canary
+      trafficRouting:
+        istio:
+          virtualService:
+            name: vector   
+            routes:
+            - primary
+          destinationRule:
+            name: vector
+            canarySubsetName: canary
+            stableSubsetName: stable
+      steps:
+      - setWeight: 50
+      - pause: {duration: 15s}
+      - setWeight: 80
+      - pause: {duration: 30s}
+```
+
+1. 50% of pods updated with the new v2 tag and 50% of traffic cut-over to the new canary pods. 
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+spec:
+  replicas: 10
+  updateStrategy:
+    type: RollingUpdate
+    partition: 5
+  template:
+    metadata:
+      labels:
         role: canary
     containers:
       - name: vector
         image: vector:v2
 ```
 
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vector
+  namespace: vector-system
+spec:
+  hosts:
+    - vector.example.com
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: canary
+          weight: 50
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: stable
+          weight: 50
+```
+
+2. After this change the error rate spikes and this change will need to be rolled back. 
+
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+spec:
+  replicas: 10
+  updateStrategy:
+    type: RollingUpdate
+    partition: 5
+  template:
+    metadata:
+      labels:
+        role: stable
+    containers:
+      - name: vector
+        image: vector:v1
+```
+
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vector
+  namespace: vector-system
+spec:
+  hosts:
+    - vector.example.com
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: canary
+          weight: 0
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: stable
+          weight: 100
+```
 
 ### Blue/Green
 
