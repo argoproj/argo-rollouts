@@ -12,11 +12,10 @@ Stateful workloads are currently un-supported in Argo Rollouts. This is a featur
 https://github.com/argoproj/argo-rollouts/issues/1635
 https://github.com/argoproj/argo-rollouts/issues/3502
 
+Additionally, several other progressive delivery controllers such as flagger also have open issues discussing statefulset support. 
 
-For purpose of this proposal we identify two general types of applications deployed using statefulsets
-
-1. Distributed databases such as postgres, consul, etc. These typically use a headless service  
-2. Applications that use persistent storage. Examples vector log aggregator. 
+https://github.com/weaveworks/flagger/issues/410
+https://github.com/fluxcd/flagger/pull/1391 
 
 
 ## Motivation
@@ -36,6 +35,15 @@ Any support for Stateful workloads should not reimplement the statefulset contro
 
 
 
+For purpose of this proposal we identify two general types of applications deployed using statefulsets
+
+#### Type 1 
+Distributed databases such as postgres, consul, etc. These typically use a headless service. Pods connect directly to other pods. These workloads are quorum sensitive. Examples would be databases such as postgres or consul. 
+
+#### Type 2
+ Applications that use persistent storage but do not connect directly via a k8s service. Examples might include log aggregators. 
+
+
 # Background 
 
 ## Argo Rollout plugins
@@ -45,7 +53,7 @@ Currently Argo Rollouts supports providing [plugins](https://argoproj.github.io/
 
 
 #### Statefulset workload
-One reason statefulsets are used is that they provide a stable pod identity. This can be used to associate a parituclar pod with a PVC. s
+One reason statefulsets are used is that they provide a stable pod identity. This can be used to associate a parituclar pod with a PVC. 
 
 
 ##### Rolling Updates 
@@ -64,7 +72,7 @@ There are two strategies for statefulsets
 
 
 ##### Headless service 
-A big consideration with statefulset support is that traffic hits pods directly instead of hitting a k8s service when using a headless service. 
+A big consideration with type 1 statefulsets is that traffic hits pods directly instead of hitting a k8s service when using a headless service. 
 
 ..this means that we need to consider how to track using labels
 
@@ -153,37 +161,27 @@ Items such as whether or not quorum was lost must be considered.
 
 ### Alternatives Considered 
 
-1. Implement a step plugin for statefulsets. 
-2. Implement a dedicated StatefulRollout CRD and StatefulRollout controller
-3. Extend the existing Rollout controller to handle other workloads such as Statefulsets. 
+#### 1. Step plugin
+Implement a step plugin for statefulsets. 
 
+#### 2. Dedicated StatefulRollout Controller
+This would include a new `StatefulRollout` CRD and controller which reconciles this resource. 
 
-#
 
 ## Proposal
 
+Support [type 2 StatefulSets](#type-2) in the existing rollout controller. This is a native workload in kubernetes and with the design below, can act very similar to a rolling deploy using replicasets. 
 
-Support StatefulSets in the rollout controller. 
+StatefulSets can be rolled out gradually using the `updateStrategy` partitions. With existing traffic routing solutions such as Istio, a canary or blue/green update can be achieved. 
 
-
-
-https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/controller-revision-v1/
-
-
-
-
-
-
+Reverting to previous revisions of a StatefulSet during an update can be achieved using ControllerRevisions. 
 
 
 ### Design
 
 The rollout controller at this time is opinionated about the type of workload it is meant to handle. While the rollout CRD has a field that references a `workloadRef` which takes an arbitrary `apiVersion`, `kind`, and `name`. Ideally this can serve as an entrypoint for a variety of other workloads such as Statefulsets. 
 
-
-
-
-A big part of this is that the rollout controller needs to remove several of the kubernetes deployment/replicaset isms. Within the Rollout CRD there are several fields that reference or are opinioated about ReplicaSets/Deployments. 
+A big part of this is that the rollout controller needs to remove several of the kubernetes deployment/replicaset-isms. Within the Rollout CRD there are several fields that reference or are opinioated about ReplicaSets/Deployments. 
 
 For example:
 
@@ -193,18 +191,9 @@ spec:
     canary: 
       ...
       maxUnavailable: 1
-      maxSurge: '20%'
+      maxSurge: "20%"
       minPodsPerReplicaSet: 2
 ```
-
-
-
-
-```yaml
-
-
-```
-
 
 ### Interface
 
@@ -217,30 +206,63 @@ spec:
   workloadRef: 
     apiVersion: apps/v1
     kind: StatefulSet
-    name: distributed-database-workload
-  
-  
-
-
+    name: vector
 ```
 
 
 
 ## Statefulset Rollout Walkthrough 
 
-
+Below are some examples of how Argo Rollouts would handle canary and blue green deploys. 
 
 ### Canary 
 
 
-Let's walk through how the stateful rollout controller will perform a canary rollout for a log aggregator service using Istio. This statefulset has 20 pods. In this scenario the users want to update the container image tag to a new version. https://github.com/vectordotdev/vector 
 
-ie `image: docker.io/vector:0.40.0` to `image: docker.io/vector:0.42.1`. 
+Let's walk through how the stateful rollout controller will perform a canary rollout for a log aggregator service (such as [vector](https://github.com/vectordotdev/vector)) using Istio. This statefulset has 10 pods. In this scenario the users want to update the container image tag to a new version ie `image: docker.io/vector:0.40.0` to `image: docker.io/vector:0.42.1`. 
 
-This change will result in a new `ControllerRevision` and a corresponding label called `controller-revision-hash: <hash>`. 
+Below is the configuration of the Rollout.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: vector
+spec:
+  workloadRef: 
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: vector
+  minReadySeconds: 30
+  revisionHistoryLimit: 3
+  strategy:
+    canary: 
+      trafficRouting:
+        istio:
+          virtualService:
+            name: vector   
+            routes:
+            - primary
+          destinationRule:
+            name: vector
+            canarySubsetName: canary
+            stableSubsetName: stable
+      steps:
+      - setWeight: 20
+      - pause: {}
+      - setWeight: 40
+      - pause: {duration: 10}
+      - setWeight: 60
+      - pause: {duration: 10}
+      - setWeight: 80
+      - pause: {duration: 10}
+```
+
+
+
+This change will result in a new `ControllerRevision` and a corresponding label called `controller-revision-hash: 7e93e33`. 
 
 Below are the default `DestinationRule` and `VirtualService` resources. 
-
 
 ```yaml
 apiVersion: networking.istio.io/v1beta1
@@ -281,30 +303,19 @@ spec:
           weight: 100
 ```
 
-When the user updates to the new image the controller-revision-hash label will be `7e93e33`. 
+When the user updates to the new image the `controller-revision-hash` label will be `7e93e33`. 
 
 
 Here is a breakdown of the steps.
+
 Step 1: update 10% of the pods with the new revision. This occurs via a rolling update partition. In this case the total # of pods is 20. So the rolling update partition value will be set to 17 which will allow for 2 pods to be deployed with the new revision. 
 
-set traffic weight to 20% to the canary revision. This will result in the rollouts controller updating the weight on the `VirtualService` to 20%. 
+Set traffic weight to 20% to the canary revision. This will result in the rollouts controller updating the weight on the `VirtualService` to 20%. 
 
 
 
 
-```yaml
-  strategy:
-    canary:
-      steps:
-      - setWeight: 20
-      - pause: {}
-      - setWeight: 40
-      - pause: {duration: 10}
-      - setWeight: 60
-      - pause: {duration: 10}
-      - setWeight: 80
-      - pause: {duration: 10}
-```
+
 
 1. 
 
@@ -321,14 +332,15 @@ set traffic weight to 20% to the canary revision. This will result in the rollou
 
 As a platform maintainer I would like to offer ways to safely upgrade statefulsets using blue/greeen and canary upgrade strategies. 
 
-
+As a developer I would like to perform safe upgrades of statefulset services with automated rollbacks. 
 
 
 ### Open Questions
 
-1. can labels be added to the canary pods of a statefulset? 
-2. configmap updates.
+1. How can we suspend the StatefulSet such that we don't have to worry about git changes overriding rollouts. Rollouts currently uses the `spec.paused` field on Deployments to prevent the Deployment from creating new replicasets. What would be the corresponding way to do this with StatefulSets? 
+  1a. a if we cannot achieve this with a paused parameter we may need to handle the creation of the statefulsets in the controller. 
 
+2. 
 
 https://github.com/kubernetes/enhancements/blob/master/keps/sig-apps/961-maxunavailable-for-statefulset/README.md
 https://openkruise.io/docs/user-manuals/advancedstatefulset/
