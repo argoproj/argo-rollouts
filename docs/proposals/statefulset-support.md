@@ -132,18 +132,13 @@ Traffic is not always captured/processed using service mesh solutions such as Is
 https://istio.io/latest/docs/ops/configuration/traffic-management/traffic-routing/#headless-services 
 
 
-### Analysis
+### Analysis 
 
 #### Health of a statefulset workload 
 
 Due to the nature of the statefulset workload analysis of the health can include things such as whether or not the database was upgraded properly. 
 
-Items such as whether or not quorum was lost must be considered. 
-
-
-
-
-### Experiments
+Items such as whether or not quorum was lost must be considered. Ultimately this should be left to developers to implement via `AnalysisTemplates` and Argo rollouts should not be opinionated about this.
 
 
 
@@ -218,10 +213,19 @@ Below are some examples of how Argo Rollouts would handle canary and blue green 
 ### Canary 
 
 
+#### mimicked rolling update 
+Let's walk through how the stateful rollout controller will perform a canary rollout for a log aggregator service (such as [vector](https://github.com/vectordotdev/vector)) using Istio. This statefulset has 10 pods. In this scenario the users want to update the container image tag to a new version ie `image: docker.io/vector:0.40.0` to `image: docker.io/vector:0.42.1`. In this scenario the user wants to scale out the replica count for the statefulset. 
 
-Let's walk through how the stateful rollout controller will perform a canary rollout for a log aggregator service (such as [vector](https://github.com/vectordotdev/vector)) using Istio. This statefulset has 10 pods. In this scenario the users want to update the container image tag to a new version ie `image: docker.io/vector:0.40.0` to `image: docker.io/vector:0.42.1`. 
+Below are the yaml configurations of the Rollout.
 
-Below is the configuration of the Rollout.
+```yaml
+apiVersion: apps/v1 
+kind: StatefulSet
+metadata:
+  name: vector
+spec:
+  replicas: 10
+```
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -234,9 +238,16 @@ spec:
     kind: StatefulSet
     name: vector
   minReadySeconds: 30
+  autoPromotionEnabled: true
   revisionHistoryLimit: 3
   strategy:
     canary: 
+      stableMetadata:
+        labels:
+          role: stable
+      canaryMetadata:
+        labels:
+          role: canary
       trafficRouting:
         istio:
           virtualService:
@@ -249,16 +260,12 @@ spec:
             stableSubsetName: stable
       steps:
       - setWeight: 20
-      - pause: {}
+      - pause: {duration: 15s}
       - setWeight: 40
-      - pause: {duration: 10}
-      - setWeight: 60
-      - pause: {duration: 10}
+      - pause: {duration: 30s}
       - setWeight: 80
-      - pause: {duration: 10}
+      - pause: {duration: 90s}
 ```
-
-
 
 This change will result in a new `ControllerRevision` and a corresponding label called `controller-revision-hash: 7e93e33`. 
 
@@ -281,7 +288,6 @@ spec:
         controller-revision-hash: 7e93e33
 ```
 
-
 ```yaml
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -292,7 +298,8 @@ spec:
   hosts:
     - vector.example.com
   http:
-    - route:
+    - name: primary
+      route:
         - destination:
             host: vector.vector-system.svc.cluster.local
             subset: canary
@@ -306,19 +313,329 @@ spec:
 When the user updates to the new image the `controller-revision-hash` label will be `7e93e33`. 
 
 
-Here is a breakdown of the steps.
+Here is a breakdown of the steps. 
+1. StatefulSet will be updated to 12 replicas via a partition. Within the `VirtualService` resource the weight of the canary subset would be updated to 20%. 
 
-Step 1: update 10% of the pods with the new revision. This occurs via a rolling update partition. In this case the total # of pods is 20. So the rolling update partition value will be set to 17 which will allow for 2 pods to be deployed with the new revision. 
+Below is the patch to the statefulset
+```yaml
+kind: StatefulSet
+spec:
+  replicas: 12
+  managementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+    partition: 9
+  template:
+    metadata:
+      labels:
+        role: canary
+    ...
+    containers:
+      - name: vector
+        image: vector:v2
+```
 
-Set traffic weight to 20% to the canary revision. This will result in the rollouts controller updating the weight on the `VirtualService` to 20%. 
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vector
+  namespace: vector-system
+spec:
+  hosts:
+    - vector.example.com
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: canary
+          weight: 20
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: stable
+          weight: 80
+```
+
+2. After the pause step for 15 seconds the statefulset will then add more replicas with the following patch. The setting of `paritition` to 9 remains the same. 
+
+```yaml
+kind: StatefulSet
+spec:
+  replicas: 14
+  updateStrategy:
+    type: RollingUpdate
+    partition: 9
+  template:
+    metadata:
+      labels:
+        role: canary
+    ...
+    containers:
+      - name: vector
+        image: vector:v2
+
+```
+
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vector
+  namespace: vector-system
+spec:
+  hosts:
+    - vector.example.com
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: canary
+          weight: 40
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: stable
+          weight: 60
+```
+
+3. this will now update the statefulset to 20 replicas and increase the canary traffic weight to 80%. 
 
 
+```yaml
+kind: StatefulSet
+spec:
+  replicas: 20
+  managementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+    partition: 9
+  template:
+    metadata:
+      labels:
+        role: canary
+    containers:
+      - name: vector
+        image: vector:v2
+```
+
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vector
+  namespace: vector-system
+spec:
+  hosts:
+    - vector.example.com
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: canary
+          weight: 80
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: stable
+          weight: 20
+```
+
+4. Now that the steps have been completed the change will be promoted. This will trigger the following patch which will reduce the pod count from 20 to 10 and will update the pods from partition 0 aka pods `vector-0` through `vector-9`. 
 
 
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+spec:
+  replicas: 10
+  managementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+    partition: 0
+  template:
+    metadata:
+      labels:
+        role: stable
+    containers:
+      - name: vector
+        image: vector:v2
+```
+
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vector
+  namespace: vector-system
+spec:
+  hosts:
+    - vector.example.com
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: canary
+          weight: 0
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: stable
+          weight: 100
+```
 
 
-1. 
+#### regular updates without scaling up
 
+Another example show cases how a rollout will occur for a statefulset that does not require scaling out the replica count. 
+
+```yaml
+apiVersion: apps/v1 
+kind: StatefulSet
+metadata:
+  name: vector
+spec:
+  replicas: 10
+```
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: vector
+spec:
+  workloadRef: 
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: vector
+  minReadySeconds: 30
+  autoPromotionEnabled: true
+  revisionHistoryLimit: 3
+  strategy:
+    canary: 
+      stableMetadata:
+        labels:
+          role: stable
+      canaryMetadata:
+        labels:
+          role: canary
+      trafficRouting:
+        istio:
+          virtualService:
+            name: vector   
+            routes:
+            - primary
+          destinationRule:
+            name: vector
+            canarySubsetName: canary
+            stableSubsetName: stable
+      steps:
+      - setWeight: 50
+      - pause: {duration: 30s}
+      - setWeight: 80
+      - pause: {duration: 90s}
+```
+
+1. First step changes 50% of the pods to use the new image tag
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+spec:
+  replicas: 10
+  updateStrategy:
+    type: RollingUpdate
+    partition: 5
+  template:
+    metadata:
+      labels:
+        role: canary
+    containers:
+      - name: vector
+        image: vector:v2
+```
+
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vector
+  namespace: vector-system
+spec:
+  hosts:
+    - vector.example.com
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: canary
+          weight: 50
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: stable
+          weight: 50
+```
+
+2. Second step rolls out the change to 80% of the replicas and shifts the weight of the canary to 80% of traffic 
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+spec:
+  replicas: 10
+  updateStrategy:
+    type: RollingUpdate
+    partition: 2
+  template:
+    metadata:
+      labels:
+        role: canary
+    containers:
+      - name: vector
+        image: vector:v2
+```
+
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vector
+  namespace: vector-system
+spec:
+  hosts:
+    - vector.example.com
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: canary
+          weight: 80
+        - destination:
+            host: vector.vector-system.svc.cluster.local
+            subset: stable
+          weight: 20
+```
+
+3. Last step is automatic promotion in which the following patches are applied 
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+spec:
+  replicas: 10
+  updateStrategy:
+    type: RollingUpdate
+    partition: 0
+  template:
+    metadata:
+      labels:
+        role: canary
+    containers:
+      - name: vector
+        image: vector:v2
+```
 
 
 ### Blue/Green
