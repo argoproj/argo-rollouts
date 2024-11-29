@@ -34,23 +34,17 @@ The goals of this proposal are:
 Any support for Stateful workloads should not reimplement the statefulset controller nor alter guarantees that the statefulset controller provides. 
 
 
-
+### StatefulSet Types
 For purpose of this proposal we identify two general types of applications deployed using statefulsets
 
 #### Type 1 
-Distributed databases such as postgres, consul, etc. These typically use a headless service. Pods connect directly to other pods. These workloads are quorum sensitive. Examples would be databases such as postgres or consul. 
+Distributed databases such as postgres, consul, etc. These typically use a headless service. Pods connect directly to other pods. These workloads are quorum sensitive. Examples would be databases such as postgres or consul. PVC's on these types of workloads might want to be snapshotted before an upgrade and automatically restored if a change fails.  
 
 #### Type 2
  Applications that use persistent storage but do not connect directly via a k8s service. Examples might include log aggregators. 
 
 
 # Background 
-
-## Argo Rollout plugins
-
-Currently Argo Rollouts supports providing [plugins](https://argoproj.github.io/argo-rollouts/plugins/). These plugins can be referenced by canary steps in the Rollout spec. 
-
-
 
 #### Statefulset workload
 One reason statefulsets are used is that they provide a stable pod identity. This can be used to associate a parituclar pod with a PVC. 
@@ -73,29 +67,22 @@ There are two strategies for statefulsets
 
 ##### Headless service 
 A big consideration with type 1 statefulsets is that traffic hits pods directly instead of hitting a k8s service when using a headless service. 
+There are traffic management considerations when using headless services. ie traffic is not always captured/processed using service mesh solutions such as Istio. 
 
-..this means that we need to consider how to track using labels
+1. Istio -- headless services
+https://istio.io/latest/docs/ops/configuration/traffic-management/traffic-routing/#headless-services 
 
 ##### Pod management policy
 
-Applies only to scaling operations for statefulsets. 
-
-`Parallel` 
-
-`OrderedReady`
-
-
+Applies only to scaling operations for statefulsets. When `managementPolicy` is set to `OrderedReady` any scaling operations will happen 1 pod at a time. The next pod deployed will have to wait until the previous pod comes up healthy. `Parallel` policy will launch the new pods all at once. 
 
 
 ##### Statefulset features 
-RollingUpdate stategy supports adding a `maxUnavailable` field to ensure that rolling updates only result in 1 pod at a time. 
-This feature is currently alpha as of 1.24 and does not seem slated for beta or stable support in the near future. 
-
- 
+1. RollingUpdate stategy supports adding a `maxUnavailable` field to ensure that rolling updates only result in 1 pod at a time. This feature is currently alpha as of 1.24 and does not seem slated for beta or stable support in the near future. 
 
 https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#maximum-unavailable-pods 
 
-2. Parititioned rollouts
+2. Partitioned rollouts
 
 As of kubernetes 1.31 there is support for partitioned rolling updates https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions 
 This allows developers to define behavior on statefulset updates using the ordinal index. 
@@ -116,8 +103,15 @@ If the above Statefulset has 20 replicas the pods `pod-9` through `pod-19` will 
 
 ``` In most cases you will not need to use a partition, but they are useful if you want to stage an update, roll out a canary, or perform a phased roll out.```
 
-3. `minReadySeconds`
-https://github.com/kubernetes/enhancements/tree/master/keps/sig-apps/961-maxunavailable-for-statefulset
+3. `minReadySeconds` 
+This can be used to inject a wait between a pod coming up and passing readiness probes and receiving live traffic.  
+https://kubernetes.io/blog/2021/08/27/minreadyseconds-statefulsets/ 
+https://github.com/kubernetes/enhancements/tree/master/keps/sig-apps/2599-minreadyseconds-for-statefulsets#readme
+
+## Argo Rollouts plugins
+
+Currently Argo Rollouts supports providing [plugins](https://argoproj.github.io/argo-rollouts/plugins/). These plugins can be referenced by canary steps in the Rollout spec. 
+
 
 ### Metrics
 
@@ -126,10 +120,6 @@ https://github.com/kubernetes/enhancements/tree/master/keps/sig-apps/961-maxunav
 
 
 
-Traffic is not always captured/processed using service mesh solutions such as Istio. 
-
-1. Istio -- headless services
-https://istio.io/latest/docs/ops/configuration/traffic-management/traffic-routing/#headless-services 
 
 
 ### Analysis 
@@ -141,15 +131,11 @@ Due to the nature of the statefulset workload analysis of the health can include
 Items such as whether or not quorum was lost must be considered. Ultimately this should be left to developers to implement via `AnalysisTemplates` and Argo rollouts should not be opinionated about this.
 
 
-
-
 ## Requirements
 
 1. Support customizability of quorum parameters. 
 2. Automatic Rollbacks of Statefulsets.  
 3. 
-
-# Considerations
 
 
 
