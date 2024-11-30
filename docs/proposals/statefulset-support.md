@@ -8,30 +8,43 @@ creation-date: 2024-11-16
 ---
 
 # Summary
-Stateful workloads are currently un-supported in Argo Rollouts. This is a feature that several folks have enquired about over the years and is the subject of a few github issues in the argo rollouts repo. 
-https://github.com/argoproj/argo-rollouts/issues/1635
-https://github.com/argoproj/argo-rollouts/issues/3502
 
-Additionally, several other progressive delivery controllers such as flagger also have open issues discussing statefulset support. 
+Currently, Argo Rollouts does not support Stateful workloads. This gap has been a frequent topic of community discussions and GitHub issues:
 
-https://github.com/weaveworks/flagger/issues/410
-https://github.com/fluxcd/flagger/pull/1391 
+[Argo Rollouts Issue #1635](https://github.com/argoproj/argo-rollouts/issues/1635)
+[Argo Rollouts Issue #3502](https://github.com/argoproj/argo-rollouts/issues/3502)
+
+Similarly, other progressive delivery controllers such as Flagger are exploring StatefulSet support:
+
+[Flagger Issue #410](https://github.com/weaveworks/flagger/issues/410)
+[Flagger PR #1391](https://github.com/fluxcd/flagger/pull/1391)
+
+Adding StatefulSet support in Argo Rollouts will enable safe deployments for workloads requiring stable pod identities and persistent storage.
+
+
 
 
 ## Motivation
-Adding support will increase adoption and cover an important use-case. By providing rollout support for statefulsets developers can safely deploy updates for statefulset workloads. 
+### Problem Statement
+StatefulSet updates are inherently slow and complex due to their ordered guarantees and reliance on headless services. 
+These workloads often need to preserve data integrity and quorum during updates, posing challenges for progressive delivery strategies like Canary and 
+Blue/Green deployments.
+
+### Benefits
+Broader adoption of Argo Rollouts by covering critical use cases. Safe, automated updates for Stateful workloads with rollback capabilities. Better alignment with Kubernetes-native StatefulSet features like partitions and maxUnavailable.
 
 ### Goals
 
 The goals of this proposal are:
-1. Provide evaluation of a couple of approaches to statefulset support in Argo Rollouts.
-2. Design support for statefulset workloads within Argo Rollouts. 
-3. Support Canary and Blue/Green update strategy. 
- 
+1. Design and implement support for StatefulSet workloads in Argo Rollouts.
+2. Provide progressive delivery strategies (Canary and Blue/Green) for StatefulSet workloads.
+3. Maintain compatibility with existing StatefulSet guarantees without reimplementing its controller.
+
 
 ### Non Goals
 
-Any support for Stateful workloads should not reimplement the statefulset controller nor alter guarantees that the statefulset controller provides. 
+1. Any support for Stateful workloads should not reimplement the statefulset controller nor alter guarantees that 
+the statefulset controller provides. 
 
 
 ### StatefulSet Types
@@ -41,12 +54,13 @@ For purpose of this proposal we identify two general types of applications deplo
 Distributed databases such as postgres, consul, etc. These typically use a headless service. Pods connect directly to other pods. These workloads are quorum sensitive. Examples would be databases such as postgres or consul. PVC's on these types of workloads might want to be snapshotted before an upgrade and automatically restored if a change fails.  
 
 #### Type 2
- Applications that use persistent storage but do not connect directly via a k8s service. Examples might include log aggregators. 
+Applications that use persistent storage but do not connect directly via a k8s service. Examples might include log aggregators. 
 
 
 # Background 
 
 #### Statefulset workload
+
 One reason statefulsets are used is that they provide a stable pod identity. This can be used to associate a parituclar pod with a PVC. 
 
 
@@ -642,10 +656,9 @@ spec:
           weight: 100
 ```
 
-#### rollback 
+#### Rollback 
 
-Example below is a failed update where the image results in crashloopbackoff errors 
-
+Example below is a failed update where the image results in `CrashLoopBackoff` errors. 
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -787,7 +800,11 @@ As a developer I would like to perform safe upgrades of statefulset services wit
 1. How can we suspend the StatefulSet such that we don't have to worry about git changes overriding rollouts. Rollouts currently uses the `spec.paused` field on Deployments to prevent the Deployment from creating new replicasets. What would be the corresponding way to do this with StatefulSets? 
   1a. a if we cannot achieve this with a paused parameter we may need to handle the creation of the statefulsets in the controller. 
 
-2. 
+
+
+## Appendix
+
+
 
 https://github.com/kubernetes/enhancements/blob/master/keps/sig-apps/961-maxunavailable-for-statefulset/README.md
 https://openkruise.io/docs/user-manuals/advancedstatefulset/
