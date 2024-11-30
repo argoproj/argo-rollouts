@@ -39,12 +39,13 @@ The goals of this proposal are:
 1. Design and implement support for StatefulSet workloads in Argo Rollouts.
 2. Provide progressive delivery strategies (Canary and Blue/Green) for StatefulSet workloads.
 3. Maintain compatibility with existing StatefulSet guarantees without reimplementing its controller.
-
+4. Demonstrate viability of StatefulSets within Argo Rollouts. 
 
 ### Non Goals
 
 1. Any support for Stateful workloads should not reimplement the statefulset controller nor alter guarantees that 
 the statefulset controller provides. 
+2. Implement custom analysis logic for determining the success of a statefulset 
 
 
 ### StatefulSet Types
@@ -56,71 +57,122 @@ Distributed databases such as postgres, consul, etc. These typically use a headl
 #### Type 2
 Applications that use persistent storage but do not connect directly via a k8s service. Examples might include log aggregators. 
 
-
 # Background 
-
 #### Statefulset workload
 
-One reason statefulsets are used is that they provide a stable pod identity. This can be used to associate a parituclar pod with a PVC. 
+The Statefulset workload has been generally available in kubernetes since [v1.9](https://kubernetes.io/blog/2017/12/kubernetes-19-workloads-expanded-ecosystem/). 
+
+
+One reason statefulsets are used is that they provide a stable pod identity/name. This can be used to associate a parituclar pod with a PVC. Statefulsets also provide ordered rollout guarantees such that pods are updated one at time and that the old pod must come up healthy before proceeding. 
+
+
+If a statefulset requests 10 replicas the pods will be named as follows.
+
+```
+pod-0
+pod-1
+...
+pod-9
+```
+
+#### Volume Claim Templates
+
+Statefulsets support dynamic creation of persistent volume claims via the `volumeClaimTemplates` section below. In the configuration below, the statefulset controller will create 3 pods named `pod-0`, `pod-1`, `pod-2`. The volume claim templates will also request a dedicated PVC for each corresponding pod named `pod-0`, etc. During regular pod lifecycle events when a pod is terminated, the pod that comes back up will mount the same PVC. This binds a PVC to a single pod for it's lifecycle. 
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+...
+spec:
+  replicas: 3 
+  minReadySeconds: 10 
+  template:
+    metadata:
+    ...
+    spec:
+      containers:
+      - name: nginx
+        image: consul:v2
+         ...
+        volumeMounts:
+        - name: data
+          mountPath: /opt/data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: "ebs"
+      resources:
+        requests:
+          storage: 100Gi
+```
+
+
+
+
+
+More comprehensive background on statefulsets can be found within the kubernetes docs https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/
 
 
 ##### Rolling Updates 
 
-There are two strategies for statefulsets
+There are two update strategies for statefulsets which can be read about [here](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#update-strategies). 
 
 1. `OnDelete` -- This updates the statefulset pods by requiring manual user intervention in order to delete the old pods. New pods will come up with the new version. 
-2. `RollingUpdate` -- this is the default. 
+2. `RollingUpdate` -- 
+
 
 ##### Problems
 
 1. Statefulset updates are exceptionally slow due to the ordered guarantees. Updates occur with 1 pod at a time. 
-2. Statefulset pods often need to ensure data is saved to persistent storage.
-3. Pods communicate directly with other pods via headless services. This results in complications with traffic shifting. 
-
+2. Statefulset pods often need to ensure data is saved to persistent storage. 
+3. Pods communicate directly with other pods via headless services. This results in complications with traffic shifting/management. 
+4. Workloads that use PVCs need the ability to rollback to previous versions of a persistent volume during rollbacks.
+5. Complex scheduling considerations such as `nodeAffinity` or PVC scheduling complexities. ie EBS volumes are availability zone bound. 
 
 
 ##### Headless service 
-A big consideration with type 1 statefulsets is that traffic hits pods directly instead of hitting a k8s service when using a headless service. 
+A big consideration with [type 1 statefulsets](#type-1) is that traffic hits pods directly instead of hitting a k8s service when using a headless service. 
 There are traffic management considerations when using headless services. ie traffic is not always captured/processed using service mesh solutions such as Istio. 
 
 1. Istio -- headless services
 https://istio.io/latest/docs/ops/configuration/traffic-management/traffic-routing/#headless-services 
 
 ##### Pod management policy
-
-Applies only to scaling operations for statefulsets. When `managementPolicy` is set to `OrderedReady` any scaling operations will happen 1 pod at a time. The next pod deployed will have to wait until the previous pod comes up healthy. `Parallel` policy will launch the new pods all at once. 
-
+StatefulSets provide a [management policy](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-management-policies) field which can be used to relax the ordered guarantees of statefulsets. When `managementPolicy` is set to `OrderedReady` any scaling operations will happen 1 pod at a time. The next pod deployed will have to wait until the previous pod comes up healthy. `Parallel` policy will launch the new pods all at once. Note that these management policies are only applicable during scaling operations. 
 
 ##### Statefulset features 
-1. RollingUpdate stategy supports adding a `maxUnavailable` field to ensure that rolling updates only result in 1 pod at a time. This feature is currently alpha as of 1.24 and does not seem slated for beta or stable support in the near future. 
+1. *MaxUnavailable* RollingUpdate stategy supports adding a `maxUnavailable` field to ensure that rolling updates can perform updates to more than one pod at a time. This feature is currently alpha as of 1.24 and does not seem slated for beta or stable support in the near future. https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#maximum-unavailable-pods 
 
-https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#maximum-unavailable-pods 
+2. *Partitioned rollouts*  As of kubernetes 1.31 there is support for partitioned rolling updates https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions. This allows developers to define a set of pods to rollout a change to. 
 
-2. Partitioned rollouts
+By using partitions it is possible to define ordered rollouts that can be targeted to specific pods. Ie start an update for pods greater than X. 
 
-As of kubernetes 1.31 there is support for partitioned rolling updates https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions 
-This allows developers to define behavior on statefulset updates using the ordinal index. 
-
-By using partitions it is also possible to define ordered rollouts that can be targeted to specific pods. Ie start an update 
-
-
-Example 
+Below shows how you can rollout a change to pod spec with image v2 for only the pods greater than 10. 
 
 ```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+...
 spec:
+  replicas: 20
   updateStrategy:
     rollingUpdate:
       partition: 10
+  ...
+  template:
+    spec:
+      containers:
+        - name: consul
+          image: consul:v2
 ```
 
-If the above Statefulset has 20 replicas the pods `pod-9` through `pod-19` will be updated with the new pod spec. Pods between `pod-0` and `pod-9` will not be updated with the new version of the pod spec.
+In the above statefulset, the pods `pod-9` through `pod-19` will be updated with the new pod spec. Pods between `pod-0` and `pod-9` will not be updated with the new version of the pod spec.
 
-``` In most cases you will not need to use a partition, but they are useful if you want to stage an update, roll out a canary, or perform a phased roll out.```
+Note from the k8s documentation on what this feature can be used for. ```In most cases you will not need to use a partition, but they are useful if you want to stage an update, roll out a canary, or perform a phased roll out.```
 
-3. `minReadySeconds` 
-This can be used to inject a wait between a pod coming up and passing readiness probes and receiving live traffic.  
-https://kubernetes.io/blog/2021/08/27/minreadyseconds-statefulsets/ 
-https://github.com/kubernetes/enhancements/tree/master/keps/sig-apps/2599-minreadyseconds-for-statefulsets#readme
+3. *minReadySeconds*. This can be used to inject a wait between a pod coming up and passing readiness probes and receiving live traffic. https://kubernetes.io/blog/2021/08/27/minreadyseconds-statefulsets/. https://github.com/kubernetes/enhancements/tree/master/keps/sig-apps/2599-minreadyseconds-for-statefulsets#readme
 
 ## Argo Rollouts plugins
 
@@ -130,11 +182,6 @@ Currently Argo Rollouts supports providing [plugins](https://argoproj.github.io/
 ### Metrics
 
 ### Traffic Management
-
-
-
-
-
 
 ### Analysis 
 
@@ -209,11 +256,56 @@ spec:
 ## Statefulset Rollout Walkthrough 
 
 Below are some examples of how Argo Rollouts would handle canary and blue green deploys. 
+### Type 1 StatefulSets
+In this case the statefulset uses `volumeClaimTemplates` such as EBS volumes. This StatefulSet serves as a distributed database and uses a headless service. In this scenario the developer wants to rollout a new image tag to all the pods. 
 
-### Canary 
+
+#### Canary
+
+Before the canary update starts the controller will handle `VolumeSnapshots` of the PVC resources. 
 
 
-#### mimicked rolling update 
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: consul-snapshot
+  labels:
+    revision: canary
+spec:
+  volumeSnapshotClassName: ebs-volume-snapshot
+  source:
+    persistentVolumeClaimName: consul
+```
+
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ebs-snapshot-restored-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-sc
+  resources:
+    requests:
+      storage: 4Gi
+  dataSource:
+    name: consul-snapshot
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+```
+
+
+
+
+### Type 2 Statefulsets
+#### Canary 
+
+
+##### mimicked rolling update 
 Let's walk through how the stateful rollout controller will perform a canary rollout for a log aggregator service (such as [vector](https://github.com/vectordotdev/vector)) using Istio. This statefulset has 10 pods. In this scenario the users want to update the container image tag to a new version ie `image: docker.io/vector:0.40.0` to `image: docker.io/vector:0.42.1`. In this scenario the user wants to scale out the replica count for the statefulset. 
 
 Below are the yaml configurations of the Rollout.
@@ -485,7 +577,7 @@ spec:
 ```
 
 
-#### regular updates without scaling up
+##### regular updates without scaling up
 
 Another example show cases how a rollout will occur for a statefulset that does not require scaling out the replica count. 
 
@@ -656,7 +748,7 @@ spec:
           weight: 100
 ```
 
-#### Rollback 
+##### Rollback 
 
 Example below is a failed update where the image results in `CrashLoopBackoff` errors. 
 
@@ -781,6 +873,13 @@ spec:
           weight: 100
 ```
 
+
+
+
+
+
+
+
 ### Blue/Green
 
 `blue-service`
@@ -799,6 +898,7 @@ As a developer I would like to perform safe upgrades of statefulset services wit
 
 1. How can we suspend the StatefulSet such that we don't have to worry about git changes overriding rollouts. Rollouts currently uses the `spec.paused` field on Deployments to prevent the Deployment from creating new replicasets. What would be the corresponding way to do this with StatefulSets? 
   1a. a if we cannot achieve this with a paused parameter we may need to handle the creation of the statefulsets in the controller. 
+2. Should Argo Rollouts natively support volume snapshotting or would this exist as a step plugin?
 
 
 
@@ -808,4 +908,9 @@ As a developer I would like to perform safe upgrades of statefulset services wit
 
 https://github.com/kubernetes/enhancements/blob/master/keps/sig-apps/961-maxunavailable-for-statefulset/README.md
 https://openkruise.io/docs/user-manuals/advancedstatefulset/
+https://slack.engineering/kube-stateful-rollouts/ 
 
+
+
+term
+: definition
