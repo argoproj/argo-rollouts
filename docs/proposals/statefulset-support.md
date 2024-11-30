@@ -132,6 +132,11 @@ There are two update strategies for statefulsets which can be read about [here](
 5. Complex scheduling considerations such as `nodeAffinity` or PVC scheduling complexities. ie EBS volumes are availability zone bound. 
 
 
+##### PersistentVolumeClaims 
+
+Often times a successful rollback of a failed statefulset upgrade will require restoring snapshots of persistent volumes. Snapshots can occur via a CSI snapshot controller using the `VolumeSnapshot` and `VolumeSnapshotClass` resources. One such example of a CSI snapshot controller is [external-snapshotter](https://github.com/kubernetes-csi/external-snapshotter).
+
+
 ##### Headless service 
 A big consideration with [type 1 statefulsets](#type-1) is that traffic hits pods directly instead of hitting a k8s service when using a headless service. 
 There are traffic management considerations when using headless services. ie traffic is not always captured/processed using service mesh solutions such as Istio. 
@@ -262,8 +267,17 @@ In this case the statefulset uses `volumeClaimTemplates` such as EBS volumes. Th
 
 #### Canary
 
-Before the canary update starts the controller will handle `VolumeSnapshots` of the PVC resources. 
+Before the canary update starts the controller will create `VolumeSnapshots` of all the PVC resources. 
 
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: csi-aws-vsc
+driver: ebs.csi.aws.com
+deletionPolicy: Delete
+```
 
 
 ```yaml
@@ -298,7 +312,36 @@ spec:
     apiGroup: snapshot.storage.k8s.io
 ```
 
+##### Rollback 
 
+```yaml
+
+
+
+```
+
+
+In the case of a failed rollout the controller will need to reference the `VolumeSnapshot` made for each of the PVC's. 
+If the rollout affected pods-
+
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: consul-0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-sc
+  resources:
+    requests:
+      storage: 100Gi
+  dataSource:
+    name: consul-snapshot-0
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+```
 
 
 ### Type 2 Statefulsets
