@@ -112,6 +112,7 @@ type Metric struct {
 	FailureCondition string `json:"failureCondition,omitempty" protobuf:"bytes,6,opt,name=failureCondition"`
 	// FailureLimit is the maximum number of times the measurement is allowed to fail, before the
 	// entire metric is considered Failed (default: 0)
+	// -1 for making it disabled (when opting to use ConsecutiveSuccessLimit solely)
 	FailureLimit *intstrutil.IntOrString `json:"failureLimit,omitempty" protobuf:"bytes,7,opt,name=failureLimit"`
 	// InconclusiveLimit is the maximum number of times the measurement is allowed to measure
 	// Inconclusive, before the entire metric is considered Inconclusive (default: 0)
@@ -121,6 +122,9 @@ type Metric struct {
 	ConsecutiveErrorLimit *intstrutil.IntOrString `json:"consecutiveErrorLimit,omitempty" protobuf:"bytes,9,opt,name=consecutiveErrorLimit"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider" protobuf:"bytes,10,opt,name=provider"`
+	// ConsecutiveSuccessLimit is the number of consecutive times the measurement must succeed for the
+	// entire metric to be considered Successful (default: 0, which means it's disabled)
+	ConsecutiveSuccessLimit *intstrutil.IntOrString `json:"consecutiveSuccessLimit,omitempty" protobuf:"bytes,11,opt,name=consecutiveSuccessLimit"`
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.
@@ -505,6 +509,9 @@ type MetricResult struct {
 	// the final state which gets used while taking measurements. For example, Prometheus uses this field
 	// to store the final resolved query after substituting the template arguments.
 	Metadata map[string]string `json:"metadata,omitempty" protobuf:"bytes,12,rep,name=metadata"`
+	// ConsecutiveSuccess is the number of times a measurement was successful in succession
+	// Resets to zero when failures, inconclusive measurements, or errors are encountered
+	ConsecutiveSuccess int32 `json:"consecutiveSuccess,omitempty" protobuf:"varint,13,opt,name=consecutiveSuccess"`
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured
