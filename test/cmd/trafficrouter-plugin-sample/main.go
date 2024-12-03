@@ -23,7 +23,7 @@ func main() {
 	logCtx := log.WithFields(log.Fields{"plugin": "trafficrouter"})
 
 	setLogLevel("debug")
-	log.SetFormatter(createFormatter("text"))
+	log.SetFormatter(createFormatter("json"))
 
 	rpcPluginImp := &plugin.RpcPlugin{
 		LogCtx: logCtx,

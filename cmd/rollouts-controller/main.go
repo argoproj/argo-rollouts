@@ -84,7 +84,7 @@ func newCommand() *cobra.Command {
 			}
 			setLogLevel(logLevel)
 			if logFormat != "" {
-				log.SetFormatter(createFormatter(logFormat))
+				log.SetFormatter(createFormatter("json"))
 			}
 			logutil.SetKLogLogger(log.New())
 			logutil.SetKLogLevel(klogLevel)
