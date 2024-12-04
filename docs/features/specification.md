@@ -447,6 +447,11 @@ spec:
       # 0 means canary pods are not scaled down. Default is 30 seconds.
       abortScaleDownDelaySeconds: 30
 
+      # Automatically reduce the number of stable pods as the number of canary pods increases
+      # Only available when traffic routing is used. Default value is false meaning that as more canary pods
+      # are created the number of stable pods stays the same. 
+      dynamicStableScale: false
+
 status:
   pauseConditions:
     - reason: StepPause
