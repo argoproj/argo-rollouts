@@ -202,7 +202,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		return nil, nil
 	}
 
-	if !rolloututil.ShouldVerifyWeight(r.cfg.Rollout, desiredWeight) {
+	if !rolloututil.ShouldVerifyWeight(r.cfg.Rollout) {
 		// If we should not verify weight but the ALB status has not been set yet due to a Rollout resource just being
 		// installed in the cluster we want to actually run the rest of the function, so we do not return if
 		// r.cfg.Rollout.Status.ALB is nil. However, if we should not verify, and we have already updated the status once

@@ -179,15 +179,13 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			desiredWeight = c.calculateDesiredWeightOnAbortOrStableRollback()
 			if (c.rollout.Spec.Strategy.Canary.DynamicStableScale && desiredWeight == 0) || !c.rollout.Spec.Strategy.Canary.DynamicStableScale {
 				// If we are using dynamic stable scale we need to also make sure that desiredWeight=0 aka we are completely
-				// done with aborting before resetting the canary service selectors back to stable. For non-dynamic scale we do not check for availability because we are
-				// fully aborted and stable pods will be there, if we check for availability it causes issues with ALB readiness gates if all stable pods
-				// have the desired readiness gate on them during an abort we get stuck in a loop because all the stable go unready and rollouts won't be able
-				// to switch the desired services because there is no ready pods which causes pods to get stuck progressing forever waiting for readiness.
-				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, false)
+				// done with aborting before resetting the canary service selectors back to stable
+				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
 				if err != nil {
 					return err
 				}
 			}
+
 			err := reconciler.RemoveManagedRoutes()
 			if err != nil {
 				return err
@@ -286,12 +284,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			} else {
 				c.log.Infof("Desired weight (stepIdx: %s) %d not yet verified", indexString, desiredWeight)
 				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
-				// At the end of the rollout we need to verify the weight is correct, and return an error if not because we don't want the rest of the
-				// reconcile process to continue. We don't need to do this if we are in the middle of the rollout because the rest of the reconcile
-				// process won't scale down the old replicasets yet due to being in the middle of some steps.
-				if desiredWeight == weightutil.MaxTrafficWeight(c.rollout) && len(c.rollout.Spec.Strategy.Canary.Steps) >= int(*c.rollout.Status.CurrentStepIndex) {
-					return fmt.Errorf("end of rollout, desired weight %d not yet verified", desiredWeight)
-				}
 			}
 		}
 	}
