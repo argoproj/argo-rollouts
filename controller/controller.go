@@ -238,7 +238,7 @@ func NewAnalysisManager(
 		log.Fatalf("Failed to init config: %v", err)
 	}
 
-	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{})
+	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{}, kubeclientset)
 	if err != nil {
 		log.Fatalf("Failed to download plugins: %v", err)
 	}
@@ -444,7 +444,7 @@ func NewManager(
 		log.Fatalf("Failed to init config: %v", err)
 	}
 
-	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{})
+	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{}, kubeclientset)
 	if err != nil {
 		log.Fatalf("Failed to download plugins: %v", err)
 	}

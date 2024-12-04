@@ -21,7 +21,18 @@ type MockFileDownloader struct {
 	FileDownloader
 }
 
-func (m MockFileDownloader) Get(url string) (*http.Response, error) {
+func (m MockFileDownloader) Get(url string, header http.Header) (*http.Response, error) {
+	if url == "https://test/plugin/fail" {
+		return &http.Response{
+			Status:        "404",
+			StatusCode:    404,
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			Header:        nil,
+			ContentLength: 4,
+		}, nil
+	}
 	responseBody := io.NopCloser(bytes.NewReader([]byte(`test`)))
 	return &http.Response{
 		Status:        "200",
@@ -47,16 +58,23 @@ func TestPlugin(t *testing.T) {
 				Name:      "argo-rollouts-config",
 				Namespace: "argo-rollouts",
 			},
-			Data: map[string]string{"metricProviderPlugins": "\n  - name: argoproj-labs/http\n    location: https://test/plugin\n  - name: argoproj-labs/http-sha\n    location: https://test/plugin\n    sha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n  - name: argoproj-labs/http-sha-correct\n    location: https://test/plugin\n    sha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"},
+			Data: map[string]string{"metricProviderPlugins": "\n  - name: argoproj-labs/http\n    location: https://test/plugin\n  - name: argoproj-labs/http-sha\n    location: https://test/plugin\n    sha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n  - name: argoproj-labs/http-sha-correct\n    location: https://test/plugin\n    sha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\n  - name: argoproj-labs/http-headers-correct\n    location: https://test/plugin\n    headersFrom:\n      - secretRef:\n          name: secret-name"},
 		}
-		client := fake.NewSimpleClientset(cm)
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret-name",
+				Namespace: "argo-rollouts",
+			},
+			Data: map[string][]byte{"Authorization": []byte("Basic VE9LRU4=")},
+		}
+		client := fake.NewSimpleClientset(cm, secret)
 
 		config.UnInitializeConfig()
 
 		_, err := config.InitializeConfig(client, "argo-rollouts-config")
 		assert.NoError(t, err)
 
-		err = DownloadPlugins(MockFileDownloader{})
+		err = DownloadPlugins(MockFileDownloader{}, client)
 		assert.NoError(t, err)
 
 		dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/http")
@@ -70,6 +88,54 @@ func TestPlugin(t *testing.T) {
 
 		err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
 		assert.NoError(t, err)
+
+		dir, filename, err = config.GetPluginDirectoryAndFilename("argoproj-labs/http-headers-correct")
+		assert.NoError(t, err)
+
+		err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
+		assert.NoError(t, err)
+		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+		assert.NoError(t, err)
+	})
+
+	t.Run("test failed download", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-config",
+				Namespace: "argo-rollouts",
+			},
+			Data: map[string]string{"metricProviderPlugins": "\n  - name: argoproj-labs/http-fail\n    location: https://test/plugin/fail\n"},
+		}
+		client := fake.NewSimpleClientset(cm)
+
+		config.UnInitializeConfig()
+
+		_, err := config.InitializeConfig(client, "argo-rollouts-config")
+		assert.NoError(t, err)
+
+		err = DownloadPlugins(MockFileDownloader{}, client)
+		assert.Error(t, err)
+		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+		assert.NoError(t, err)
+	})
+
+	t.Run("test failed finding secret for header", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-config",
+				Namespace: "argo-rollouts",
+			},
+			Data: map[string]string{"metricProviderPlugins": "  - name: argoproj-labs/http-headers-correct\n    location: https://test/plugin\n    headersFrom:\n      - secretRef:\n          name: secret-name"},
+		}
+		client := fake.NewSimpleClientset(cm)
+
+		config.UnInitializeConfig()
+
+		_, err := config.InitializeConfig(client, "argo-rollouts-config")
+		assert.NoError(t, err)
+
+		err = DownloadPlugins(MockFileDownloader{}, client)
+		assert.Error(t, err)
 		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
 		assert.NoError(t, err)
 	})
@@ -89,7 +155,7 @@ func TestPlugin(t *testing.T) {
 		_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 		assert.NoError(t, err)
 
-		err = DownloadPlugins(MockFileDownloader{})
+		err = DownloadPlugins(MockFileDownloader{}, client)
 		assert.Error(t, err)
 
 		dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/http-badsha")
@@ -109,7 +175,7 @@ func TestPlugin(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 0, len(cm.GetAllPlugins()))
 
-		err = DownloadPlugins(MockFileDownloader{})
+		err = DownloadPlugins(MockFileDownloader{}, client)
 		assert.NoError(t, err)
 		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
 		assert.NoError(t, err)
@@ -130,7 +196,7 @@ func TestPlugin(t *testing.T) {
 		_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 		assert.NoError(t, err)
 
-		err = DownloadPlugins(MockFileDownloader{})
+		err = DownloadPlugins(MockFileDownloader{}, client)
 		assert.NoError(t, err)
 
 		dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/file-plugin")
@@ -159,7 +225,7 @@ func TestPlugin(t *testing.T) {
 		_, err = config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 		assert.NoError(t, err)
 
-		err = DownloadPlugins(MockFileDownloader{})
+		err = DownloadPlugins(MockFileDownloader{}, client)
 		assert.NoError(t, err)
 
 		dir, filename, err := config.GetPluginDirectoryAndFilename("namespace/file-plugin")
@@ -186,7 +252,7 @@ func TestPlugin(t *testing.T) {
 		_, err := config.InitializeConfig(client, "argo-rollouts-config")
 		assert.Error(t, err)
 
-		err = DownloadPlugins(MockFileDownloader{})
+		err = DownloadPlugins(MockFileDownloader{}, client)
 		assert.Error(t, err)
 	})
 
@@ -205,7 +271,7 @@ func TestPlugin(t *testing.T) {
 		_, err := config.InitializeConfig(client, "argo-rollouts-config")
 		assert.NoError(t, err)
 
-		err = DownloadPlugins(MockFileDownloader{})
+		err = DownloadPlugins(MockFileDownloader{}, client)
 		assert.Error(t, err)
 
 		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
@@ -251,9 +317,18 @@ func TestCheckShaOfPlugin(t *testing.T) {
 }
 
 func TestDownloadFile(t *testing.T) {
-	err := downloadFile("error", "", FileDownloaderImpl{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to download file from")
+	t.Run("test sha of real file", func(t *testing.T) {
+		err := downloadFile("error", " ", FileDownloaderImpl{}, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to download file from")
+	})
+
+	t.Run("test download fail with invalid url", func(t *testing.T) {
+		url := "://example.com"
+		err := downloadFile("error", url, FileDownloaderImpl{}, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to download file from")
+	})
 }
 
 func Test_copyFile(t *testing.T) {
