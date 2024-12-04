@@ -70,7 +70,12 @@ To enable you need to add a flag to the controller `--self-service-notification-
 
 Currently the following triggers have [built-in templates](https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications).
 
+* `on-analysis-run-error` when an error occurs during the execution of an analysis run
+* `on-analysis-run-failed` when an analysis run fails
+* `on-analysis-run-running` when an analysis run is running
+* `on-rollout-aborted` when a rollout process is aborted before completion.
 * `on-rollout-completed` when a rollout is finished and all its steps are completed
+* `on-rollout-paused` when a rollout is paused
 * `on-rollout-step-completed` when an individual step inside a rollout definition is completed
 * `on-rollout-updated` when a rollout definition is changed
 * `on-scaling-replica-set` when the number of replicas in a rollout is changed
