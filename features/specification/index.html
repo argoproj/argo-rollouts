@@ -3758,6 +3758,11 @@
 <span class="w">      </span><span class="c1"># 0 means canary pods are not scaled down. Default is 30 seconds.</span>
 <span class="w">      </span><span class="nt">abortScaleDownDelaySeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
 
+<span class="w">      </span><span class="c1"># Automatically reduce the number of stable pods as the number of canary pods increases</span>
+<span class="w">      </span><span class="c1"># Only available when traffic routing is used. Default value is false meaning that as more canary pods</span>
+<span class="w">      </span><span class="c1"># are created the number of stable pods stays the same. </span>
+<span class="w">      </span><span class="nt">dynamicStableScale</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+
 <span class="nt">status</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">pauseConditions</span><span class="p">:</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">reason</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">StepPause</span>
