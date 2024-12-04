@@ -1362,6 +1362,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#some-words-of-caution" class="md-nav__link">
+    <span class="md-ellipsis">
+      Some words of caution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#list-of-available-plugins-alphabetical-order" class="md-nav__link">
     <span class="md-ellipsis">
       List of Available Plugins (alphabetical order)
@@ -3376,6 +3385,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#some-words-of-caution" class="md-nav__link">
+    <span class="md-ellipsis">
+      Some words of caution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#list-of-available-plugins-alphabetical-order" class="md-nav__link">
     <span class="md-ellipsis">
       List of Available Plugins (alphabetical order)
@@ -3481,7 +3499,28 @@ configure the controller via the <code>argo-rollouts-config</code> configmap and
 <span class="w">    </span><span class="no">- name: &quot;argoproj-labs/sample-prometheus&quot; # name of the plugin, it must match the name required by the plugin so it can find it&#39;s configuration</span>
 <span class="w">      </span><span class="no">location: &quot;https://github.com/argoproj-labs/rollouts-plugin-metric-sample-prometheus/releases/download/v0.0.4/metric-plugin-linux-amd64&quot; # supports http(s):// urls and file://</span>
 <span class="w">      </span><span class="no">sha256: &quot;dac10cbf57633c9832a17f8c27d2ca34aa97dd3d&quot; #optional sha256 checksum of the plugin executable</span>
+<span class="w">      </span><span class="no">headersFrom: #optional headers for the download via http request </span>
+<span class="w">        </span><span class="no">- secretRef:</span>
+<span class="w">            </span><span class="no">name: secret-name</span>
+<span class="nn">---</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">secret-name</span>
+<span class="nt">stringData</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Authorization</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Basic &lt;Base 64 TOKEN&gt;</span>
+<span class="w">  </span><span class="nt">My-Header</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">value</span>
 </code></pre></div>
+<h2 id="some-words-of-caution">Some words of caution<a class="headerlink" href="#some-words-of-caution" title="Permanent link">&para;</a></h2>
+<p>Depending on which method you use to install and the plugin, there are some things to be aware of.
+The rollouts controller will not start if it can not download or find the plugin executable. This means that if you are using
+a method of installation that requires a download of the plugin and the server hosting the plugin for some reason is not available and the rollouts
+controllers pod got deleted while the server was down or is coming up for the first time, it will not be able to start until
+the server hosting the plugin is available again.</p>
+<p>Argo Rollouts will download the plugin at startup only once but if the pod is deleted it will need to download the plugin again on next startup. Running
+Argo Rollouts in HA mode can help a little with this situation because each pod will download the plugin at startup. So if a single pod gets
+deleted during a server outage, the other pods will still be able to take over because there will already be a plugin executable available to it. It is the
+responsibility of the Argo Rollouts administrator to define the plugin installation method considering the risks of each approach.</p>
 <h2 id="list-of-available-plugins-alphabetical-order">List of Available Plugins (alphabetical order)<a class="headerlink" href="#list-of-available-plugins-alphabetical-order" title="Permanent link">&para;</a></h2>
 <p>If you have created a plugin, please submit a PR to add it to this list.</p>
 <h3 id="rollouts-plugin-metric-opensearch"><a href="https://github.com/argoproj-labs/rollouts-plugin-metric-opensearch">rollouts-plugin-metric-opensearch</a><a class="headerlink" href="#rollouts-plugin-metric-opensearch" title="Permanent link">&para;</a></h3>
