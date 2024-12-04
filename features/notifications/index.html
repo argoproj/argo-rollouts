@@ -3508,7 +3508,12 @@ the configmap located in the same namespaces where the rollout object is at.</p>
 <h2 id="default-trigger-templates">Default Trigger templates<a class="headerlink" href="#default-trigger-templates" title="Permanent link">&para;</a></h2>
 <p>Currently the following triggers have <a href="https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications">built-in templates</a>.</p>
 <ul>
+<li><code>on-analysis-run-error</code> when an error occurs during the execution of an analysis run</li>
+<li><code>on-analysis-run-failed</code> when an analysis run fails</li>
+<li><code>on-analysis-run-running</code> when an analysis run is running</li>
+<li><code>on-rollout-aborted</code> when a rollout process is aborted before completion.</li>
 <li><code>on-rollout-completed</code> when a rollout is finished and all its steps are completed</li>
+<li><code>on-rollout-paused</code> when a rollout is paused</li>
 <li><code>on-rollout-step-completed</code> when an individual step inside a rollout definition is completed</li>
 <li><code>on-rollout-updated</code> when a rollout definition is changed</li>
 <li><code>on-scaling-replica-set</code> when the number of replicas in a rollout is changed</li>
