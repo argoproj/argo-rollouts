@@ -387,17 +387,21 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 					metricResult.Successful++
 					metricResult.Count++
 					metricResult.ConsecutiveError = 0
+					metricResult.ConsecutiveSuccess++
 				case v1alpha1.AnalysisPhaseFailed:
 					metricResult.Failed++
 					metricResult.Count++
 					metricResult.ConsecutiveError = 0
+					metricResult.ConsecutiveSuccess = 0
 				case v1alpha1.AnalysisPhaseInconclusive:
 					metricResult.Inconclusive++
 					metricResult.Count++
 					metricResult.ConsecutiveError = 0
+					metricResult.ConsecutiveSuccess = 0
 				case v1alpha1.AnalysisPhaseError:
 					metricResult.Error++
 					metricResult.ConsecutiveError++
+					metricResult.ConsecutiveSuccess = 0
 					logger.Warnf("Measurement had error: %s", newMeasurement.Message)
 				}
 			}
@@ -599,11 +603,47 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 		return phaseFailureInconclusiveOrError
 	}
 
+	// Check if consecutiveSuccessLimit is applicable and was reached.
+	if metric.ConsecutiveSuccessLimit != nil && metric.ConsecutiveSuccessLimit.IntValue() > 0 && result.ConsecutiveSuccess >= int32(metric.ConsecutiveSuccessLimit.IntValue()) {
+		logger.Infof("Metric Assessment Result - %s: ConsecutiveSuccessLimit (%s) Reached", v1alpha1.AnalysisPhaseSuccessful, metric.ConsecutiveSuccessLimit.String())
+		return v1alpha1.AnalysisPhaseSuccessful
+	}
+
 	// If a count was specified, and we reached that count, then metric is considered Successful.
 	// The Error, Failed, Inconclusive counters are ignored because those checks have already been
 	// taken into consideration above, and we do not want to fail if failures < failureLimit.
 	effectiveCount := metric.EffectiveCount()
 	if effectiveCount != nil && result.Count >= int32(effectiveCount.IntValue()) {
+
+		failureApplicable := (metric.FailureLimit != nil && metric.FailureLimit.IntValue() >= 0) || metric.FailureLimit == nil
+		successApplicable := metric.ConsecutiveSuccessLimit != nil && metric.ConsecutiveSuccessLimit.IntValue() > 0
+
+		if failureApplicable && successApplicable {
+
+			// failureLimit was checked above and not reached.
+			// consecutiveSuccessLimit was checked above and not reached.
+
+			failureLimit := "0"
+			if metric.FailureLimit != nil {
+				failureLimit = metric.FailureLimit.String()
+			}
+
+			logger.Infof("Metric Assessment Result - %s: ConsecutiveSuccessLimit (%s) Not Reached and FailureLimit (%s) Not Violated", v1alpha1.AnalysisPhaseInconclusive, metric.ConsecutiveSuccessLimit.String(), failureLimit)
+			return v1alpha1.AnalysisPhaseInconclusive
+
+		} else if successApplicable {
+
+			logger.Infof("Metric Assessment Result - %s: ConsecutiveSuccessLimit (%s) Not Reached", v1alpha1.AnalysisPhaseFailed, metric.ConsecutiveSuccessLimit.String())
+			return v1alpha1.AnalysisPhaseFailed
+
+		} else if failureApplicable {
+			// failureLimit was not reached in assessMetricFailureInconclusiveOrError above.
+			// AnalysisPhaseSuccessful below.
+		} else {
+			// This cannot happen, since one of failureLimit or consecutiveSuccessLimit will be applicable
+			// We validate that failureLimit >= 0 when consecutiveSuccessLimit == 0
+		}
+
 		logger.Infof("Metric Assessment Result - %s: Count (%s) Reached", v1alpha1.AnalysisPhaseSuccessful, effectiveCount.String())
 		return v1alpha1.AnalysisPhaseSuccessful
 	}
@@ -623,7 +663,8 @@ func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alp
 	if metric.FailureLimit != nil {
 		failureLimit = int32(metric.FailureLimit.IntValue())
 	}
-	if result.Failed > failureLimit {
+	// If failureLimit is negative, that means it isn't applicable.
+	if failureLimit >= 0 && result.Failed > failureLimit {
 		phase = v1alpha1.AnalysisPhaseFailed
 		message = fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, failureLimit)
 	}

@@ -3063,7 +3063,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 					},
 					"failureLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "FailureLimit is the maximum number of times the measurement is allowed to fail, before the entire metric is considered Failed (default: 0)",
+							Description: "FailureLimit is the maximum number of times the measurement is allowed to fail, before the entire metric is considered Failed (default: 0) -1 for making it disabled (when opting to use ConsecutiveSuccessLimit solely)",
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
@@ -3084,6 +3084,12 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 							Description: "Provider configuration to the external system to use to verify the analysis",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider"),
+						},
+					},
+					"consecutiveSuccessLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConsecutiveSuccessLimit is the number of consecutive times the measurement must succeed for the entire metric to be considered Successful (default: 0, which means it's disabled)",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 				},
@@ -3298,6 +3304,13 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 									},
 								},
 							},
+						},
+					},
+					"consecutiveSuccess": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConsecutiveSuccess is the number of times a measurement was successful in succession Resets to zero when failures, inconclusive measurements, or errors are encountered",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 				},
