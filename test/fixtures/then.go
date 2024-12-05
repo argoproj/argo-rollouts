@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"github.com/argoproj/argo-rollouts/experiments"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -450,6 +452,13 @@ func (t *Then) ExpectExperimentServiceCount(experimentName string, expectedCount
 			}
 		}
 		return count == expectedCount
+	})
+}
+
+func (t *Then) ExpectExperimentServicePort(experimentName string, templateName string, portIdx int, expectedPort int, expectedTargetPort intstr.IntOrString) *Then {
+	return t.ExpectExperimentServices(fmt.Sprintf("experiment service port and idx %d, port %d mapped to target port: %v", portIdx, expectedPort, expectedTargetPort), experimentName, func(templateToService map[string]*corev1.Service) bool {
+		return templateToService[templateName].Spec.Ports[portIdx].Port == int32(expectedPort) &&
+			templateToService[templateName].Spec.Ports[portIdx].TargetPort == expectedTargetPort
 	})
 }
 

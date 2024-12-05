@@ -4,6 +4,7 @@
 package e2e
 
 import (
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"testing"
 	"time"
 
@@ -148,6 +149,53 @@ func (s *ExperimentSuite) TestExperimentWithMultiportServiceAndScaleDownDelay() 
 		Then().
 		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-multiport-service", "test", 0).
 		ExpectExperimentServiceCount("experiment-with-multiport-service", 0)
+}
+
+func (s *ExperimentSuite) TestExperimentWithServicePortsAndScaleDownDelay() {
+	name = "experiment-with-service-ports"
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-with-service-ports.yaml")
+	g.When().
+		WaitForExperimentPhase(name, "Running").
+		WaitForExperimentCondition(name, func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 1
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas(name, "test", 1).
+		ExpectExperimentServiceCount(name, 1).
+		ExpectExperimentServicePort(name, "test", 0, 80, intstr.FromInt32(8080)).
+		ExpectExperimentServicePort(name, "test", 1, 81, intstr.FromInt32(8081)).
+		When().
+		WaitForExperimentPhase(name, "Successful").
+		WaitForExperimentCondition(name, func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 0
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas(name, "test", 0).
+		ExpectExperimentServiceCount(name, 0)
+}
+
+func (s *ExperimentSuite) TestExperimentWithServiceAndNamedTargetPortAndScaleDownDelay() {
+	name := "experiment-with-service-and-named-target-port"
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-with-service-and-named-target-port.yaml")
+	g.When().
+		WaitForExperimentPhase(name, "Running").
+		WaitForExperimentCondition(name, func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 1
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas(name, "test", 1).
+		ExpectExperimentServiceCount(name, 1).
+		ExpectExperimentServicePort(name, "test", 0, 80, intstr.FromString("testport1")).
+		When().
+		WaitForExperimentPhase(name, "Successful").
+		WaitForExperimentCondition(name, func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 0
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas(name, "test", 0).
+		ExpectExperimentServiceCount(name, 0)
 }
 
 func (s *ExperimentSuite) TestExperimentWithDryRunMetrics() {
