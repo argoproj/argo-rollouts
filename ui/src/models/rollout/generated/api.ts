@@ -80,6 +80,25 @@ export class RequiredError extends Error {
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBIngressWithPorts
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBIngressWithPorts {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBIngressWithPorts
+     */
+    ingress?: string;
+    /**
+     * 
+     * @type {Array<number>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBIngressWithPorts
+     */
+    servicePorts?: Array<number>;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus {
@@ -150,6 +169,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficR
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficRouting
      */
     ingresses?: Array<string>;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBIngressWithPorts>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficRouting
+     */
+    servicePorts?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBIngressWithPorts>;
 }
 /**
  * 
