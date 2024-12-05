@@ -478,7 +478,7 @@ func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	}
 	newMetric, err := ResolveMetricArgs(metric, arguments)
 	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf(arg), newMetric.SuccessCondition)
+	assert.Equal(t, arg, newMetric.SuccessCondition)
 }
 
 func Test_extractValueFromRollout(t *testing.T) {
