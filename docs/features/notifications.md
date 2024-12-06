@@ -146,8 +146,8 @@ add blocks and attachments for Slack, subject for Email or URL path, and body fo
 In addition to custom notification template administrator and configure custom triggers. Custom trigger defines the
 condition when the notification should be sent. The definition includes name, condition and notification templates reference.
 The condition is a predicate expression that returns true if the notification should be sent. The trigger condition
-evaluation is powered by [antonmedv/expr](https://github.com/antonmedv/expr).
-The condition language syntax is described at [Language-Definition.md](https://github.com/antonmedv/expr/blob/master/docs/Language-Definition.md).
+evaluation is powered by [expr-lang/expr](https://github.com/expr-lang/expr).
+The condition language syntax is described at [Language-Definition.md](https://github.com/expr-lang/expr/blob/master/docs/language-definition.md).
 
 The trigger is configured in `argo-rollouts-notification-configmap` ConfigMap. For example the following trigger sends a notification
 when rollout pod spec uses `argoproj/rollouts-demo:purple` image:
