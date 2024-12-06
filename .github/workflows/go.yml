@@ -9,7 +9,7 @@ on:
       - 'master'
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.22'
+  GOLANG_VERSION: '1.23'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
