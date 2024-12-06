@@ -5,7 +5,7 @@ Argo Rollouts is a [Kubernetes controller](https://kubernetes.io/docs/concepts/a
 
 Argo Rollouts (optionally) integrates with [ingress controllers](https://kubernetes.io/docs/concepts/services-networking/ingress/) and service meshes, leveraging their traffic shaping abilities to gradually shift traffic to the new version during an update. Additionally, Rollouts can query and interpret metrics from various providers to verify key KPIs and drive automated promotion or rollback during an update.
 
-Here is a demonstration video (click to watch on Youtube):
+Here is a demonstration video (click to watch on YouTube):
 
 [![Argo Rollouts Demo](https://img.youtube.com/vi/hIL0E2gLkf8/0.jpg)](https://youtu.be/hIL0E2gLkf8)
 
@@ -44,9 +44,9 @@ Follow the full [getting started guide](getting-started.md) to walk through crea
 ## How does it work?
 Similar to the [deployment object](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), the Argo Rollouts controller will manage the creation, scaling, and deletion of [ReplicaSets](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/). These ReplicaSets are defined by the `spec.template` field inside the Rollout resource, which uses the same pod template as the deployment object.
 
-When the `spec.template` is changed, that signals to the Argo Rollouts controller that a new ReplicaSet will be introduced. The controller will use the strategy set within the `spec.strategy` field in order to determine how the rollout will progress from the old ReplicaSet to the new ReplicaSet. Once that new ReplicaSet is scaled up (and optionally passes an [Analysis](features/analysis/)), the controller will mark it as "stable".
+When the `spec.template` is changed, that signals to the Argo Rollouts controller that a new ReplicaSet will be introduced. The controller will use the strategy set within the `spec.strategy` field in order to determine how the rollout will progress from the old ReplicaSet to the new ReplicaSet. Once that new ReplicaSet is scaled up (and optionally passes an [Analysis](features/analysis)), the controller will mark it as "stable".
 
-If another change occurs in the `spec.template` during a transition from a stable ReplicaSet to a new ReplicaSet (i.e. you change the application version in the middle of a rollout), then the previously new ReplicaSet will be scaled down, and the controller will try to progress the ReplicasSet that reflects the updated `spec.template` field. There is more information on the behaviors of each strategy in the [spec](features/specification/) section.
+If another change occurs in the `spec.template` during a transition from a stable ReplicaSet to a new ReplicaSet (i.e. you change the application version in the middle of a rollout), then the previously new ReplicaSet will be scaled down, and the controller will try to progress the ReplicasSet that reflects the updated `spec.template` field. There is more information on the behaviors of each strategy in the [spec](features/specification) section.
 
 ## Use cases of Argo Rollouts
 

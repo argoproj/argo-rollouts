@@ -1,6 +1,6 @@
 # Best Practices
 
-This document describes some best practices, tips and tricks when using Argo Rollouts. Be sure to read the [FAQ page](../FAQ) as well.
+This document describes some best practices, tips and tricks when using Argo Rollouts. Be sure to read the [FAQ page](FAQ) as well.
 
 
 ## Check application compatibility
@@ -23,7 +23,7 @@ Note also that Argo Rollouts is a self-contained solution. It doesn't need Argo 
 
 ## Understand your use case
 
-Argo Rollouts is perfect for all progressive delivery scenarios as explained in [the concepts page](../concepts).
+Argo Rollouts is perfect for all progressive delivery scenarios as explained in [the concepts page](concepts).
 
 You should *NOT* use Argo Rollouts for preview/ephemeral environments. For that use case check the [Argo CD Pull Request generator](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-Pull-Request/).
 
@@ -59,7 +59,7 @@ Ideally you should have proper metrics that tell you in 5-15 minutes if a deploy
 
 If you are doing a deployment right now and then have an actual human looking at logs/metrics/traces for the next 2 hours, adopting Argo Rollouts is not going to help you a lot with automated deployments.
 
-Get your [metrics](../features/analysis) in place first and test them with dry-runs before applying them to production deployments.
+Get your [metrics](features/analysis) in place first and test them with dry-runs before applying them to production deployments.
 
 
 ## There is no "Argo Rollouts API"
@@ -72,14 +72,14 @@ But as explained in the previous point the end goal should be fully automated de
 
 There are two main ways to integrate other systems with Argo Rollouts.
 
-The easiest way is to use [Notifications](../features/notifications). This means that when a rollout is finished/aborted you send a notification to another system that does other tasks that you want to happen.
+The easiest way is to use [Notifications](features/notifications). This means that when a rollout is finished/aborted you send a notification to another system that does other tasks that you want to happen.
 
 Alternatively you can control Rollouts with the CLI or by patching manually the Kubernetes resources.
 
 
 ## Use the Kubernetes Downward API
 
-If you want your applications to know if they are part of a canary or not, you can use [Ephemeral labels](../features/ephemeral-metadata) along with the [Kubernetes downward api](https://kubernetes.io/docs/concepts/workloads/pods/downward-api/).
+If you want your applications to know if they are part of a canary or not, you can use [Ephemeral labels](features/ephemeral-metadata) along with the [Kubernetes downward api](https://kubernetes.io/docs/concepts/workloads/pods/downward-api/).
 
 This means that your application will read from files its configuration in a dynamic manner and adapt according to the situation.
 
@@ -141,10 +141,10 @@ spec:
           service:
             name: guestbook-root
             port:
-            number: 443
+              number: 443
 ```
 
-The above technique has the a benefit in that it would not incur additional cost of allocating
+The above technique has the benefit in that it would not incur additional cost of allocating
 additional load balancers.
 
 ## Reducing operator memory usage

@@ -1,6 +1,6 @@
 # FAQ
 
-Be sure to read the [Best practices page](../best-practices) as well.
+Be sure to read the [Best practices page](best-practices) as well.
 
 ## General
 

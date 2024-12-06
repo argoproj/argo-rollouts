@@ -6,7 +6,7 @@ Useful resources:
 
 * [The Gateway API specification](https://gateway-api.sigs.k8s.io/)
 * [Support of the Gateway API in Google Cloud](https://cloud.google.com/kubernetes-engine/docs/concepts/gateway-api)
-* [Argo Rollouts Plugin capabilities](../plugins/) 
+* [Argo Rollouts Plugin capabilities](plugins) 
 * [Plugin for the Gateway API](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi)
 
 The process involves the following steps:

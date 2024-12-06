@@ -11,7 +11,7 @@ When converting a Deployment to a Rollout, it involves changing three fields:
 
 1. Replacing the `apiVersion` from `apps/v1` to `argoproj.io/v1alpha1`
 1. Replacing the `kind` from `Deployment` to `Rollout`
-1. Replacing the deployment strategy with a [blue-green](features/bluegreen.md) or [canary](features/canary.md) strategy
+1. Replacing the deployment strategy with a [blue-green](features/bluegreen.md) or [canary](features/canary) strategy
 
 Below is an example of a Rollout resource using the canary strategy.
 

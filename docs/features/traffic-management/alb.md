@@ -149,7 +149,7 @@ spec:
 By default, a rollout will inject the `alb.ingress.kubernetes.io/actions.<SERVICE-NAME>` annotation
 using the service/action name specified under `spec.strategy.canary.stableService`. However, it may
 be desirable to specify an explicit service/action name different from the `stableService`. For
-example, [one pattern](/argo-rollouts/best-practices/#ingress-desiredstable-host-routes) is to use a single
+example, [one pattern](../../best-practices#ingress-desiredstable-host-routes) is to use a single
 Ingress containing three different rules to reach the canary, stable, and root service separately
 (e.g. for testing purposes). In this case, you may want to specify a "root" service as the
 service/action name instead of stable. To do so, reference a service under `rootService` under the

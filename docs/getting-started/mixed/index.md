@@ -9,7 +9,7 @@ This guide covers how Argo Rollouts integrates with multiple TrafficRoutings, us
 should be able to produce any other combination between the existing trafficRouting options.
 
 This guide builds upon the concepts of the [basic getting started guide](../../getting-started.md),
-[NGINX Guide](getting-started/nginx/index.md), and [SMI Guide](getting-started/smi/index.md).
+[NGINX Guide](../../getting-started/nginx/index.md), and [SMI Guide](../../getting-started/smi/index.md).
 
 ## Requirements
 - Kubernetes cluster with Linkerd installed

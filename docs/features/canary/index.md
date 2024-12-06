@@ -10,7 +10,7 @@ There are multiple steps available, the most basic ones are `setWeight` and `pau
 
 !!! important
 
-    If the canary Rollout does not use [traffic management](traffic-management/index.md), the Rollout makes a best effort attempt to achieve the percentage listed in the last `setWeight` step between the new and old version. For example, if a Rollout has 10 Replicas and 10% for the first `setWeight` step, the controller will scale the new desired ReplicaSet to 1 replicas and the old stable ReplicaSet to 9. In the case where the setWeight is 41%, the Rollout attempts to get there by finding the whole number with the smallest delta, rounding up the calculation if the deltas are equals (i.e. the new ReplicaSet has 4 pods since 41% of 10 is closer to 4/10 than 5/10, and the old ReplicaSet has 6 pods). If a user wants to have more fine-grained control of the percentages without a large number of Replicas, that user should use the [traffic management](#trafficrouting) functionality.
+    If the canary Rollout does not use [traffic management](../traffic-management/index.md), the Rollout makes a best effort attempt to achieve the percentage listed in the last `setWeight` step between the new and old version. For example, if a Rollout has 10 Replicas and 10% for the first `setWeight` step, the controller will scale the new desired ReplicaSet to 1 replicas and the old stable ReplicaSet to 9. In the case where the setWeight is 41%, the Rollout attempts to get there by finding the whole number with the smallest delta, rounding up the calculation if the deltas are equals (i.e. the new ReplicaSet has 4 pods since 41% of 10 is closer to 4/10 than 5/10, and the old ReplicaSet has 6 pods). If a user wants to have more fine-grained control of the percentages without a large number of Replicas, that user should use the [traffic management](#trafficrouting) functionality.
 
 ## Example
 
@@ -64,7 +64,7 @@ spec:
         - pause: {} # pause indefinitely
 ```
 
-If no `duration` is specified for a pause step, the rollout will be paused indefinitely. To unpause, use the [argo kubectl plugin](kubectl-plugin.md) `promote` command.
+If no `duration` is specified for a pause step, the rollout will be paused indefinitely. To unpause, use the [argo kubectl plugin](../../features/kubectl-plugin) `promote` command.
 
 ```shell
 # promote to the next step
@@ -196,13 +196,13 @@ spec:
 
 ### analysis
 
-Configure the background [Analysis](analysis.md) to execute during the rollout. If the analysis is unsuccessful the rollout will be aborted.
+Configure the background [Analysis](../analysis.md) to execute during the rollout. If the analysis is unsuccessful the rollout will be aborted.
 
 Defaults to nil
 
 ### antiAffinity
 
-Check out the [Anti Affinity document](anti-affinity/anti-affinity.md) document for more information.
+Check out the [Anti Affinity document](../anti-affinity/anti-affinity.md) document for more information.
 
 Defaults to nil
 
@@ -232,6 +232,6 @@ Defaults to 25%
 
 ### trafficRouting
 
-The [traffic management](traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.
+The [traffic management](../traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.
 
 Defaults to nil

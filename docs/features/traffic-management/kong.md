@@ -6,7 +6,7 @@ Useful resources:
 
 * [The Gateway API specification](https://gateway-api.sigs.k8s.io/)
 * [Support of the Gateway API in Kong](https://docs.konghq.com/kubernetes-ingress-controller/latest/concepts/gateway-api/)
-* [Argo Rollouts Plugin capabilities](../plugins/) 
+* [Argo Rollouts Plugin capabilities](plugins) 
 * [Plugin for the Gateway API](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi)
 
 The process involves the following steps:
