@@ -82,9 +82,9 @@ jobs:
           - version: '1.28'
             latest: false
           - version: '1.29'
-            latest: true
+            latest: false
           - version: '1.30'
-            latest: true
+            latest: false
           - version: '1.31'
             latest: true
     name: Run end-to-end tests
