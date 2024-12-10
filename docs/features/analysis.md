@@ -759,6 +759,67 @@ The entire analysis run is considered as Failed after three failed measurements.
           ))
 ```
 
+## ConsecutiveSuccessLimit and FailureLimit
+
+!!! important
+    `consecutiveSuccessLimit` available since v1.8
+
+You can use either `failureLimit` to define a limit for the number of failures before the analysis is considered failed, `consecutiveSuccessLimit` to define the required consecutive number of successes for the analysis to succeed, or both together. One of them has to be applicable (i.e. not disabled, see below for more), otherwise a validation error is thrown.
+
+To disable:
+
+  * `failureLimit`, set the field to `-1`.
+  * `consecutiveSuccessLimit`, set the field to `0` (the default value).
+
+The default value for both is `0`, the meaning of which differs for each one of them. A value of `0` for `failureLimit` means its logic _is_ applicable and no failures are tolerated. However, a value of `0` for `consecutiveSuccessLimit` means it's inapplicable or disabled.
+
+Let's go through each case and show what the behavior would look like.
+
+### Only FailureLimit applicable
+
+The behavior is shown above in the [Failure Conditions and Failure Limit](#failure-conditions-and-failure-limit) section. This is the default behavior if you set nothing of the two fields (with `failureLimit` having a default value of `0`, so no failures are tolerated).
+
+
+### Only ConsecutiveSuccessLimit applicable
+
+To have this behavior, you need to have something like
+```yaml
+failureLimit: -1
+consecutiveSuccessLimit: 4 # Any value > 0
+```
+
+This behavior is essentially waiting for a condition to hold, or an event to happen. That is, keep measuring a metric and keep failing until you measure `N` consecutive successful measurements, at which point the analysis concludes successfully. This can be useful as an event-driven way of promoting a rollout when used in an inline analysis.
+
+
+### Both FailureLimit and ConsecutiveSuccessLimit applicable
+
+To have this behavior, you need to have something like
+```yaml
+failureLimit: 3 # Any value >= 0
+consecutiveSuccessLimit: 4 # Any value > 0 
+``` 
+
+The behavior is simply waiting to measure `N` consecutive successful measurements, _while_ being limited by the number of overall failures specified by `failureLimit`. Above, we need to have at most 3 failures before we get 4 consecutive successful measurements for the analysis to be considered successful.
+
+
+In case of an analysis that has `count` specified (that is, runs for a specific amount of time) and that `count` is reached, the evaluation of success is as follows:
+
+  * `failureLimit` is violated and `consecutiveSuccessLimit` is satisfied: Failure.
+  * `failureLimit` is violated and `consecutiveSuccessLimit` is not satisfied: Failure.
+  * `failureLimit` is not violated and `consecutiveSuccessLimit` is satisfied: Success.
+  * `failureLimit` is not violated and `consecutiveSuccessLimit` is not satisfied: Inconclusive State.
+
+As illustrated, `failureLimit` takes priority if violated. However, if neither is violated/satisfied, the analysis reaches an inconclusive state.
+
+
+!!! note
+    When terminating analyses prematurely, they are always terminated successfully, unless it happens that `failureLimit` is enabled and violated, then they terminate in failure. `consecutiveSuccessLimit`, if enabled, doesn't affect the termination status.
+
+    For more clarity, examples of analyses terminated "prematurely":
+
+    * A background analysis with `count` not specified when terminated at the end of the rollout.
+    * Any analysis with `count` specified and not yet reached when the rollout is aborted.
+
 ## Dry-Run Mode
 
 !!! important
