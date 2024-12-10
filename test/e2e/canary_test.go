@@ -650,24 +650,11 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		WaitForRevisionPodCount("2", 1).
 		Then().
 		ExpectRevisionPodCount("1", 4).
-<<<<<<< HEAD
-		// Assert that the canary service selector is still not set to stable rs because of dynamic stable scale still in progress
-		Assert(func(t *fixtures.Then) {
-			canarySvc, stableSvc := t.GetServices()
-			assert.NotEqual(s.T(), canarySvc.Spec.Selector["rollouts-pod-template-hash"], stableSvc.Spec.Selector["rollouts-pod-template-hash"])
-		}).
-=======
->>>>>>> parent of 81b015d15 (fix: switch service selector back to stable on canary service when aborted (#2540))
 		When().
 		MarkPodsReady("1", 1). // mark last remaining stable pod as ready (4/4 stable are ready)
 		WaitForRevisionPodCount("2", 0).
 		Sleep(2*time.Second). //WaitForRevisionPodCount does not wait for terminating pods and so ExpectServiceSelector fails sleep a bit for the terminating pods to be deleted
 		Then().
-<<<<<<< HEAD
-		// Expect that the canary service selector is now set to stable because of dynamic stable scale is over and we have all pods up on stable rs
-		ExpectServiceSelector("dynamic-stable-scale-canary", map[string]string{"app": "dynamic-stable-scale", "rollouts-pod-template-hash": "868d98995b"}, false).
-=======
->>>>>>> parent of 81b015d15 (fix: switch service selector back to stable on canary service when aborted (#2540))
 		ExpectRevisionPodCount("1", 4)
 }
 
