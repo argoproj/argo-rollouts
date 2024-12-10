@@ -1095,7 +1095,6 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAbortedAnd
 	f.objects = append(f.objects, r2)
 
 	f.expectPatchRolloutAction(r2)
-	f.expectPatchServiceAction(canarySvc, rs1PodHash)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
