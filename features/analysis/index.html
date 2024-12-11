@@ -1398,6 +1398,48 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#consecutivesuccesslimit-and-failurelimit" class="md-nav__link">
+    <span class="md-ellipsis">
+      ConsecutiveSuccessLimit and FailureLimit
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConsecutiveSuccessLimit and FailureLimit">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#only-failurelimit-applicable" class="md-nav__link">
+    <span class="md-ellipsis">
+      Only FailureLimit applicable
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#only-consecutivesuccesslimit-applicable" class="md-nav__link">
+    <span class="md-ellipsis">
+      Only ConsecutiveSuccessLimit applicable
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#both-failurelimit-and-consecutivesuccesslimit-applicable" class="md-nav__link">
+    <span class="md-ellipsis">
+      Both FailureLimit and ConsecutiveSuccessLimit applicable
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#dry-run-mode" class="md-nav__link">
     <span class="md-ellipsis">
       Dry-Run Mode
@@ -3634,6 +3676,48 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#consecutivesuccesslimit-and-failurelimit" class="md-nav__link">
+    <span class="md-ellipsis">
+      ConsecutiveSuccessLimit and FailureLimit
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConsecutiveSuccessLimit and FailureLimit">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#only-failurelimit-applicable" class="md-nav__link">
+    <span class="md-ellipsis">
+      Only FailureLimit applicable
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#only-consecutivesuccesslimit-applicable" class="md-nav__link">
+    <span class="md-ellipsis">
+      Only ConsecutiveSuccessLimit applicable
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#both-failurelimit-and-consecutivesuccesslimit-applicable" class="md-nav__link">
+    <span class="md-ellipsis">
+      Both FailureLimit and ConsecutiveSuccessLimit applicable
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#dry-run-mode" class="md-nav__link">
     <span class="md-ellipsis">
       Dry-Run Mode
@@ -4551,6 +4635,50 @@ The entire analysis run is considered as Failed after three failed measurements.
 <span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code=~&quot;5.*&quot;}[5m]</span>
 <span class="w">          </span><span class="no">))</span>
 </code></pre></div>
+<h2 id="consecutivesuccesslimit-and-failurelimit">ConsecutiveSuccessLimit and FailureLimit<a class="headerlink" href="#consecutivesuccesslimit-and-failurelimit" title="Permanent link">&para;</a></h2>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p><code>consecutiveSuccessLimit</code> available since v1.8</p>
+</div>
+<p>You can use either <code>failureLimit</code> to define a limit for the number of failures before the analysis is considered failed, <code>consecutiveSuccessLimit</code> to define the required consecutive number of successes for the analysis to succeed, or both together. One of them has to be applicable (i.e. not disabled, see below for more), otherwise a validation error is thrown.</p>
+<p>To disable:</p>
+<ul>
+<li><code>failureLimit</code>, set the field to <code>-1</code>.</li>
+<li><code>consecutiveSuccessLimit</code>, set the field to <code>0</code> (the default value).</li>
+</ul>
+<p>The default value for both is <code>0</code>, the meaning of which differs for each one of them. A value of <code>0</code> for <code>failureLimit</code> means its logic <em>is</em> applicable and no failures are tolerated. However, a value of <code>0</code> for <code>consecutiveSuccessLimit</code> means it's inapplicable or disabled.</p>
+<p>Let's go through each case and show what the behavior would look like.</p>
+<h3 id="only-failurelimit-applicable">Only FailureLimit applicable<a class="headerlink" href="#only-failurelimit-applicable" title="Permanent link">&para;</a></h3>
+<p>The behavior is shown above in the <a href="#failure-conditions-and-failure-limit">Failure Conditions and Failure Limit</a> section. This is the default behavior if you set nothing of the two fields (with <code>failureLimit</code> having a default value of <code>0</code>, so no failures are tolerated).</p>
+<h3 id="only-consecutivesuccesslimit-applicable">Only ConsecutiveSuccessLimit applicable<a class="headerlink" href="#only-consecutivesuccesslimit-applicable" title="Permanent link">&para;</a></h3>
+<p>To have this behavior, you need to have something like
+<div class="highlight"><pre><span></span><code><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-1</span>
+<span class="nt">consecutiveSuccessLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w"> </span><span class="c1"># Any value &gt; 0</span>
+</code></pre></div></p>
+<p>This behavior is essentially waiting for a condition to hold, or an event to happen. That is, keep measuring a metric and keep failing until you measure <code>N</code> consecutive successful measurements, at which point the analysis concludes successfully. This can be useful as an event-driven way of promoting a rollout when used in an inline analysis.</p>
+<h3 id="both-failurelimit-and-consecutivesuccesslimit-applicable">Both FailureLimit and ConsecutiveSuccessLimit applicable<a class="headerlink" href="#both-failurelimit-and-consecutivesuccesslimit-applicable" title="Permanent link">&para;</a></h3>
+<p>To have this behavior, you need to have something like
+<div class="highlight"><pre><span></span><code><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w"> </span><span class="c1"># Any value &gt;= 0</span>
+<span class="nt">consecutiveSuccessLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w"> </span><span class="c1"># Any value &gt; 0 </span>
+</code></pre></div></p>
+<p>The behavior is simply waiting to measure <code>N</code> consecutive successful measurements, <em>while</em> being limited by the number of overall failures specified by <code>failureLimit</code>. Above, we need to have at most 3 failures before we get 4 consecutive successful measurements for the analysis to be considered successful.</p>
+<p>In case of an analysis that has <code>count</code> specified (that is, runs for a specific amount of time) and that <code>count</code> is reached, the evaluation of success is as follows:</p>
+<ul>
+<li><code>failureLimit</code> is violated and <code>consecutiveSuccessLimit</code> is satisfied: Failure.</li>
+<li><code>failureLimit</code> is violated and <code>consecutiveSuccessLimit</code> is not satisfied: Failure.</li>
+<li><code>failureLimit</code> is not violated and <code>consecutiveSuccessLimit</code> is satisfied: Success.</li>
+<li><code>failureLimit</code> is not violated and <code>consecutiveSuccessLimit</code> is not satisfied: Inconclusive State.</li>
+</ul>
+<p>As illustrated, <code>failureLimit</code> takes priority if violated. However, if neither is violated/satisfied, the analysis reaches an inconclusive state.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When terminating analyses prematurely, they are always terminated successfully, unless it happens that <code>failureLimit</code> is enabled and violated, then they terminate in failure. <code>consecutiveSuccessLimit</code>, if enabled, doesn't affect the termination status.</p>
+<p>For more clarity, examples of analyses terminated "prematurely":</p>
+<ul>
+<li>A background analysis with <code>count</code> not specified when terminated at the end of the rollout.</li>
+<li>Any analysis with <code>count</code> specified and not yet reached when the rollout is aborted.</li>
+</ul>
+</div>
 <h2 id="dry-run-mode">Dry-Run Mode<a class="headerlink" href="#dry-run-mode" title="Permanent link">&para;</a></h2>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
