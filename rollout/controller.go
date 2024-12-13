@@ -561,7 +561,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			if err != nil {
 				return nil, err
 			}
-			return &roCtx, vErr // return the rollout cone text with the validation error so that we can still use the context to update the rollout
+			return nil, vErr
 		}
 		return nil, err
 	}
