@@ -413,11 +413,29 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}()
 
 	resolveErr := c.refResolver.Resolve(r)
+	// We should probably lose the error condition here, and just log the error to clean up the logic
+	//if resolveErr != nil {
+	//	logCtx.Errorf("refResolver.Resolve err %v", resolveErr)
+	//	return resolveErr
+	//}
+
 	roCtx, err := c.newRolloutContext(r)
+	if roCtx == nil {
+		logCtx.Error("newRolloutContext returned nil")
+		return err
+	}
 	if err != nil {
+		if _, ok := err.(*field.Error); ok {
+			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
+			// condition might be timing related (e.g. the Rollout was applied before the Service).
+			c.enqueueRolloutAfter(roCtx.rollout, 20*time.Second)
+			return nil // do not requeue from error because we already re-queued above
+		}
 		logCtx.Errorf("newRolloutContext err %v", err)
 		return err
 	}
+	// We should probably delete this if block and just log the error to clean up the logic, a bigger change would be to add a new
+	// field to the status and store the errors there from the processNextWorkItem function in controller/controller.go
 	if resolveErr != nil {
 		roCtx.createInvalidRolloutCondition(resolveErr, r)
 		return resolveErr
@@ -539,14 +557,11 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	err = roCtx.getRolloutValidationErrors()
 	if err != nil {
 		if vErr, ok := err.(*field.Error); ok {
-			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
-			// condition might be timing related (e.g. the Rollout was applied before the Service).
-			c.enqueueRolloutAfter(roCtx.rollout, 20*time.Second)
 			err := roCtx.createInvalidRolloutCondition(vErr, roCtx.rollout)
 			if err != nil {
 				return nil, err
 			}
-			return nil, vErr
+			return &roCtx, vErr // return the rollout cone text with the validation error so that we can still use the context to update the rollout
 		}
 		return nil, err
 	}
