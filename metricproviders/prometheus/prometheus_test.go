@@ -395,6 +395,27 @@ func TestGetStatusReturnsResolvedQuery(t *testing.T) {
 	assert.Equal(t, "resolved-query", metricsMetadata["ResolvedPrometheusQuery"])
 }
 
+func TestGetStatusReturnsResolvedQueryFromEvalQuery(t *testing.T) {
+
+	expectedEvaluatedQuery := `sum(rate(some_metric{filter1="filter1_value",filter2="filter2_value",filter3=~"filter3_value",filter4=~"filter4_value",filter5!~"filter5_value"}[5m])) by(some_value))`
+	query := `"some_arg" == "not_some_arg" ? "query1" : ( "some_arg" == "some_arg" ? 'sum(rate(some_metric{filter1="filter1_value",filter2="filter2_value",filter3=~"filter3_value",filter4=~"filter4_value",filter5!~"filter5_value"}[5m])) by(some_value))' : "query2")`
+	e := log.Entry{}
+	mock := &mockAPI{}
+	metric := v1alpha1.Metric{
+		Name: "foo",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: query,
+			},
+		},
+	}
+	p, err := NewPrometheusProvider(mock, e, metric)
+	metricsMetadata := p.GetMetadata(metric)
+	assert.NotNil(t, metricsMetadata)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedEvaluatedQuery, metricsMetadata["ResolvedPrometheusQuery"])
+}
+
 func TestRunWithEvaluationError(t *testing.T) {
 	e := log.WithField("", "")
 	mock := &mockAPI{}

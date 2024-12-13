@@ -39,6 +39,40 @@ you validate your [PromQL expression](https://prometheus.io/docs/prometheus/late
 
 See the [Analysis Overview page](../../features/analysis) for more details on the available options.
 
+## Query expression evaluation
+There are some cases in which you will want to be able to handle multiple different cases in the same template. For those cases, first the string in the `Query` field is evaluated as expression before the result then runs in prometheus.
+
+For example:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+  - name: service-name
+  - name: stat
+  metrics:
+  - name: success-rate
+    interval: 5m
+    # NOTE: prometheus queries return results in the form of a vector.
+    # So it is common to access the index 0 of the returned array to obtain the value
+    successCondition: result[0] >= 0.95
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        # timeout is expressed in seconds
+        timeout: 40
+        headers:
+        - key: X-Scope-OrgID
+          value: tenant_a
+        # in this case the resulting query is query2
+        query: |
+          '"{{ args.stat }}" == "not_some_arg" ? "query1" : "query2"'  
+```
+
 ## Range queries
 
 ```yaml
