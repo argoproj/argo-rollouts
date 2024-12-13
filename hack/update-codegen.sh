@@ -22,7 +22,7 @@ trap "cleanup" EXIT SIGINT
 
 chmod +x ${CODEGEN_PKG}/*.sh
 
-${CODEGEN_PKG}/generate-groups.sh "deepcopy,client,informer,lister" \
+${CODEGEN_PKG}/kube_codegen.sh "deepcopy,client,informer,lister" \
   github.com/argoproj/argo-rollouts/pkg/client github.com/argoproj/argo-rollouts/pkg/apis \
   "rollouts:v1alpha1" \
   --output-base "${TEMP_DIR}" \
