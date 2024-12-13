@@ -40,6 +40,7 @@ you validate your [PromQL expression](https://prometheus.io/docs/prometheus/late
 See the [Analysis Overview page](../../features/analysis) for more details on the available options.
 
 ## Query expression evaluation
+
 There are some cases in which you will want to be able to handle multiple different cases in the same template. For those cases, first the string in the `Query` field is evaluated as expression before the result then runs in prometheus.
 
 For example:
