@@ -413,7 +413,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}()
 
 	resolveErr := c.refResolver.Resolve(r)
-	// We should probably lose the error condition here, and just log the error to clean up the logic
+	// We should probably lose setting the error condition from the below if resolveErr != nil {}, and just log the error to clean up the logic
 	//if resolveErr != nil {
 	//	logCtx.Errorf("refResolver.Resolve err %v", resolveErr)
 	//	return resolveErr
@@ -435,7 +435,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		return err
 	}
 	// We should probably delete this if block and just log the error to clean up the logic, a bigger change would be to add a new
-	// field to the status and store the errors there from the processNextWorkItem function in controller/controller.go
+	// field to the status maybe (reconcileErrMsg) and store the errors there from the processNextWorkItem function in controller/controller.go
 	if resolveErr != nil {
 		roCtx.createInvalidRolloutCondition(resolveErr, r)
 		return resolveErr
