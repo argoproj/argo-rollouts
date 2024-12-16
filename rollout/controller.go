@@ -413,12 +413,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}()
 
 	resolveErr := c.refResolver.Resolve(r)
-	// We should probably lose setting the error condition from the below if resolveErr != nil {}, and just log the error to clean up the logic
-	//if resolveErr != nil {
-	//	logCtx.Errorf("refResolver.Resolve err %v", resolveErr)
-	//	return resolveErr
-	//}
-
+	// We could maybe lose setting the error condition from the below if resolveErr != nil {}, and just log the error to clean up the logic
 	roCtx, err := c.newRolloutContext(r)
 	if roCtx == nil {
 		logCtx.Error("newRolloutContext returned nil")
@@ -437,8 +432,11 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	// We should probably delete this if block and just log the error to clean up the logic, a bigger change would be to add a new
 	// field to the status maybe (reconcileErrMsg) and store the errors there from the processNextWorkItem function in controller/controller.go
 	if resolveErr != nil {
-		roCtx.createInvalidRolloutCondition(resolveErr, r)
-		return resolveErr
+		err := roCtx.createInvalidRolloutCondition(resolveErr, r)
+		if err != nil {
+			return fmt.Errorf("failed to create invalid rollout condition during resovling the rollout: %w", err)
+		}
+		return fmt.Errorf("failed to resolve rollout: %w", resolveErr)
 	}
 
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
