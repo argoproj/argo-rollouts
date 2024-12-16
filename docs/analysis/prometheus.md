@@ -53,7 +53,7 @@ metadata:
 spec:
   args:
   - name: service-name
-  - name: stat
+  - name: some-arg
   metrics:
   - name: success-rate
     interval: 5m
@@ -71,7 +71,7 @@ spec:
           value: tenant_a
         # in this case the resulting query is query2
         query: |
-          '"{{ args.stat }}" == "not_some_arg" ? "query1" : "query2"'  
+          '"{{ args.some-arg }}" == "not_some_arg_value" ? "query1" : "query2"'  
 ```
 
 ## Range queries
