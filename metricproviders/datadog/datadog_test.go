@@ -120,7 +120,7 @@ func TestValidateIncomingProps(t *testing.T) {
 				Formula:    "foo / bar",
 				Query:      "foo",
 			},
-			expectedErrorMessage: "Formula are only valid when queries are set",
+			expectedErrorMessage: "Formula/Formulas are only valid when queries are set",
 		},
 		{
 			name: "v1 query with aggregator",
@@ -166,6 +166,35 @@ func TestValidateIncomingProps(t *testing.T) {
 				Queries:    map[string]string{"a": "sum:api_gateway.request.count{*}.as_count()", "b": "fish bike"},
 				Formula:    "a + b",
 				Aggregator: "avg",
+			},
+			expectedErrorMessage: "",
+		},
+		{
+			name: "both formula and formulas",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion: "v1",
+				Queries:    map[string]string{"a": "sum:api_gateway.request.count{*}.as_count()", "b": "fish bike"},
+				Formula:    "a/b",
+				Formulas:   []string{"a/b", "a+b"},
+			},
+			expectedErrorMessage: "Cannot have both a formula and formulas",
+		},
+		{
+			name: "formulas without queries",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion: "v1",
+				Formulas:   []string{"foo / bar"},
+				Query:      "foo",
+			},
+			expectedErrorMessage: "Formula/Formulas are only valid when queries are set",
+		},
+		{
+			name: "valid queries v2 and multiple formulas",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion: "v2",
+				Query:      "",
+				Queries:    map[string]string{"a": "sum:api_gateway.request.count{*}.as_count()", "b": "fish bike"},
+				Formulas:   []string{"a + b", "a/b"},
 			},
 			expectedErrorMessage: "",
 		},
