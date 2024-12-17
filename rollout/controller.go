@@ -434,7 +434,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	if resolveErr != nil {
 		err := roCtx.createInvalidRolloutCondition(resolveErr, r)
 		if err != nil {
-			return fmt.Errorf("failed to create invalid rollout condition during resovling the rollout: %w", err)
+			return fmt.Errorf("failed to create invalid rollout condition during resolving the rollout: %w", err)
 		}
 		return fmt.Errorf("failed to resolve rollout: %w", resolveErr)
 	}
