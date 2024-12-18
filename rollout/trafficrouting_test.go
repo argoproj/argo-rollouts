@@ -101,6 +101,7 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("Error message"))
+	f.expectPatchRolloutAction(ro)
 	f.runExpectError(getKey(ro, t), true)
 }
 
@@ -180,6 +181,7 @@ func TestReconcileTrafficRoutingVerifyWeightEndOfRollout(t *testing.T) {
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), nil)
+	f.expectPatchRolloutAction(r2)
 	f.runExpectError(getKey(r2, t), true)
 }
 
