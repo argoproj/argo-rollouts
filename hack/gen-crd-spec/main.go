@@ -35,6 +35,12 @@ var preserveUnknownFields = map[string]any{
 	"x-kubernetes-preserve-unknown-fields": true,
 }
 
+const quantityType = `additionalProperties:
+  oneOf:
+    - type: string
+    - type: number
+type: object`
+
 var crdPaths = map[string]string{
 	"Rollout":                 "manifests/crds/rollout-crd.yaml",
 	"Experiment":              "manifests/crds/experiment-crd.yaml",
@@ -221,36 +227,71 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 	}
 }
 
+// setJsonStrOverride uses a JSON/YAML string to override the given path inside the object
+func setJsonStrOverride(un *unstructured.Unstructured, override string, path string) {
+	overrideObj := unstructuredutil.StrToUnstructuredUnsafe(override)
+	// Prepare variables
+	preSchemaPath := []string{"spec", "versions"}
+	objVersions, _, _ := unstructured.NestedSlice(un.Object, preSchemaPath...)
+
+	schemaPath := []string{"schema", "openAPIV3Schema"}
+	for _, part := range strings.Split(path, ".") {
+		if strings.HasSuffix(part, "[]") {
+			part = strings.TrimSuffix(part, "[]")
+			schemaPath = append(schemaPath, "properties", part, "items")
+		} else {
+			schemaPath = append(schemaPath, "properties", part)
+		}
+	}
+
+	// Loop over version's slice
+	var finalOverride []interface{}
+	for _, v := range objVersions {
+		unstructured.SetNestedMap(v.(map[string]interface{}), overrideObj.Object, schemaPath...)
+
+		_, ok, err := unstructured.NestedFieldNoCopy(v.(map[string]interface{}), schemaPath...)
+		checkErr(err)
+		if !ok {
+			panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
+		} else {
+			finalOverride = append(finalOverride, v)
+		}
+	}
+
+	// Write back to top object
+	unstructured.SetNestedSlice(un.Object, finalOverride, preSchemaPath...)
+}
+
 func removeK8S118Fields(un *unstructured.Unstructured) {
 	kind := crdKind(un)
 	switch kind {
 	case "Rollout":
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.containers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.containers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.initContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.initContainers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.ephemeralContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.ephemeralContainers[].resources.requests")
+		setJsonStrOverride(un, quantityType, "spec.template.spec.containers[].resources.limits")
+		setJsonStrOverride(un, quantityType, "spec.template.spec.containers[].resources.requests")
+		setJsonStrOverride(un, quantityType, "spec.template.spec.initContainers[].resources.limits")
+		setJsonStrOverride(un, quantityType, "spec.template.spec.initContainers[].resources.requests")
+		setJsonStrOverride(un, quantityType, "spec.template.spec.ephemeralContainers[].resources.limits")
+		setJsonStrOverride(un, quantityType, "spec.template.spec.ephemeralContainers[].resources.requests")
 		// Replace this with "spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
 		// when it's ok to only support k8s 1.17+
 		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.volumes[]")
 	case "Experiment":
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.initContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.initContainers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
+		setJsonStrOverride(un, quantityType, "spec.templates[].template.spec.containers[].resources.limits")
+		setJsonStrOverride(un, quantityType, "spec.templates[].template.spec.containers[].resources.requests")
+		setJsonStrOverride(un, quantityType, "spec.templates[].template.spec.initContainers[].resources.limits")
+		setJsonStrOverride(un, quantityType, "spec.templates[].template.spec.initContainers[].resources.requests")
+		setJsonStrOverride(un, quantityType, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
+		setJsonStrOverride(un, quantityType, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
 		// Replace this with "spec.templates[].template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
 		// when it's ok to only support k8s 1.17+
 		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.volumes")
 	case "ClusterAnalysisTemplate", "AnalysisTemplate", "AnalysisRun":
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
+		setJsonStrOverride(un, quantityType, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
+		setJsonStrOverride(un, quantityType, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
+		setJsonStrOverride(un, quantityType, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
+		setJsonStrOverride(un, quantityType, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
+		setJsonStrOverride(un, quantityType, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
+		setJsonStrOverride(un, quantityType, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
 		// Replace this with "spec.metrics[].provider.job.spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
 		// when it's ok to only support k8s 1.17+
 		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.volumes")

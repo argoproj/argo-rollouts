@@ -1199,9 +1199,17 @@ spec:
                                                     - name
                                                     x-kubernetes-list-type: map
                                                   limits:
-                                                    x-kubernetes-preserve-unknown-fields: true
+                                                    additionalProperties:
+                                                      oneOf:
+                                                      - type: string
+                                                      - type: number
+                                                    type: object
                                                   requests:
-                                                    x-kubernetes-preserve-unknown-fields: true
+                                                    additionalProperties:
+                                                      oneOf:
+                                                      - type: string
+                                                      - type: number
+                                                    type: object
                                                 type: object
                                               restartPolicy:
                                                 type: string
@@ -1847,9 +1855,17 @@ spec:
                                                     - name
                                                     x-kubernetes-list-type: map
                                                   limits:
-                                                    x-kubernetes-preserve-unknown-fields: true
+                                                    additionalProperties:
+                                                      oneOf:
+                                                      - type: string
+                                                      - type: number
+                                                    type: object
                                                   requests:
-                                                    x-kubernetes-preserve-unknown-fields: true
+                                                    additionalProperties:
+                                                      oneOf:
+                                                      - type: string
+                                                      - type: number
+                                                    type: object
                                                 type: object
                                               restartPolicy:
                                                 type: string
@@ -2502,9 +2518,17 @@ spec:
                                                     - name
                                                     x-kubernetes-list-type: map
                                                   limits:
-                                                    x-kubernetes-preserve-unknown-fields: true
+                                                    additionalProperties:
+                                                      oneOf:
+                                                      - type: string
+                                                      - type: number
+                                                    type: object
                                                   requests:
-                                                    x-kubernetes-preserve-unknown-fields: true
+                                                    additionalProperties:
+                                                      oneOf:
+                                                      - type: string
+                                                      - type: number
+                                                    type: object
                                                 type: object
                                               restartPolicy:
                                                 type: string
