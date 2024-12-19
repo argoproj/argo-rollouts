@@ -71,7 +71,7 @@ spec:
           value: tenant_a
         # in this case the resulting query is query2
         query: |
-          '"{{ args.some-arg }}" == "not_some_arg_value" ? "query1" : "query2"'  
+          "{{ args.some-arg }}" == "not_some_arg_value" ? "query1" : "query2"
 ```
 
 ## Range queries
