@@ -90,6 +90,36 @@ func EvalTime(expression string) (time.Time, error) {
 	}
 }
 
+func EvalQuery(query string) (string, error) {
+	var err error
+
+	env := map[string]any{}
+
+	unwrapFileErr := func(e error) error {
+		if fileErr, ok := err.(*file.Error); ok {
+			e = errors.New(fileErr.Message)
+		}
+		return e
+	}
+
+	program, err := expr.Compile(query, expr.Env(env))
+	if err != nil {
+		return "", unwrapFileErr(err)
+	}
+
+	q, err := expr.Run(program, env)
+	if err != nil {
+		return "", unwrapFileErr(err)
+	}
+
+	switch val := q.(type) {
+	case string:
+		return val, nil
+	default:
+		return "", fmt.Errorf("expected string, but got %T", val)
+	}
+}
+
 // EvalCondition evaluates the condition with the resultValue as an input
 func EvalCondition(resultValue any, condition string) (bool, error) {
 	var err error
