@@ -2,7 +2,7 @@
 
 !!! important
 
-    This is an **optional** feature of Argo Rollouts that allows you to have more visibility while a rollout is in progress. You do **NOT** need to use emphemeral metadata in order to achieve the main functionality of Argo Rollouts
+    This is an **optional** feature of Argo Rollouts that allows you to have more visibility while a rollout is in progress. You do **NOT** need to use emphemeral metadata in order to achieve the main functionality of Argo Rollouts.
 
 Normally during a deployment, Argo Rollouts automatically handles the pods of the new and old versions along with their labels and their association with your traffic provider (if you use one).
 
@@ -22,7 +22,7 @@ which is unpredictable and changing from revision to revision.
 
 In the second use case you can have your application read the labels itself using the [Kubernetes Downward API](https://kubernetes.io/docs/concepts/workloads/pods/downward-api/) and adjust
 its behavior automatically only for the duration of the canary/blue/green deployment. For example you could point your application
-to a different Queue server while the application pod are in "preview" and only use the production instance of your Queue server
+to a different Queue server while the application pods are in "preview" and only use the production instance of your Queue server
 when the pods are marked as "stable". 
 
 ## Using Ephemeral labels
@@ -69,4 +69,4 @@ updated _in place_ to use the stable metadata (without recreating the pods).
 !!! tip
     In order for tooling to take advantage of this feature, they would need to recognize the change in
     labels and/or annotations that happen _after_ the Pod has already started. Not all tools may detect
-    this. For application code apart from the Kubernetes Downward API you also need a programming library that automatically reloads configuration files when they change.
+    this. For application code apart from the Kubernetes Downward API you also need a programming library that automatically reloads configuration files when they change their contents.
