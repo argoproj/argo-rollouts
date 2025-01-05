@@ -788,6 +788,17 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Ephemeral Metadata
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -797,6 +808,34 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#using-ephemeral-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Ephemeral labels
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -3240,6 +3279,23 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#using-ephemeral-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Ephemeral labels
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -3259,18 +3315,25 @@
 <h1 id="ephemeral-metadata">Ephemeral Metadata<a class="headerlink" href="#ephemeral-metadata" title="Permanent link">&para;</a></h1>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p>Available for canary rollouts since v0.10.0</p>
+<p>This is an <strong>optional</strong> feature of Argo Rollouts that allows you to have more visibility while a rollout is in progress. You do <strong>NOT</strong> need to use emphemeral metadata in order to achieve the main functionality of Argo Rollouts.</p>
 </div>
-<div class="admonition important">
-<p class="admonition-title">Important</p>
-<p>Available for blue-green rollouts since v1.0</p>
-</div>
-<p>One use case is for a Rollout to label or annotate the desired/stable pods with user-defined
+<p>Normally during a deployment, Argo Rollouts automatically handles the pods of the new and old versions along with their labels and their association with your traffic provider (if you use one).</p>
+<p>In some scenarios however,</p>
+<ol>
+<li>You might want to annotate the pods of each version with your own custom labels</li>
+<li>You may want the application itself know when a deployment is happening </li>
+</ol>
+<p>Argo Rollouts gives you the capability to label or annotate the desired/stable pods with user-defined
 labels/annotations, for <em>only</em> the duration which they are the desired or stable set, and for the
-labels to be updated/removed as soon as the ReplicaSet switches roles (e.g. from desired to stable).
-The use case which this enables, is to allow prometheus, wavefront, datadog queries and dashboards
+labels to be updated/removed as soon as the ReplicaSet switches roles (e.g. from desired to stable).</p>
+<p>In the first use case this allows prometheus, wavefront, datadog queries and dashboards
 to be built, which can rely on a consistent list of labels, rather than the <code>rollouts-pod-template-hash</code>
 which is unpredictable and changing from revision to revision.</p>
+<p>In the second use case you can have your application read the labels itself using the <a href="https://kubernetes.io/docs/concepts/workloads/pods/downward-api/">Kubernetes Downward API</a> and adjust
+its behavior automatically only for the duration of the canary/blue/green deployment. For example you could point your application
+to a different Queue server while the application pods are in "preview" and only use the production instance of your Queue server
+when the pods are marked as "stable". </p>
+<h2 id="using-ephemeral-labels">Using Ephemeral labels<a class="headerlink" href="#using-ephemeral-labels" title="Permanent link">&para;</a></h2>
 <p>A Rollout using the canary strategy has the ability to attach ephemeral metadata to the stable or
 canary Pods using the <code>stableMetadata</code> and <code>canaryMetadata</code> fields respectively.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
@@ -3297,15 +3360,16 @@ or preview Pods using the <code>activeMetadata</code> and <code>previewMetadata<
 </code></pre></div>
 <p>During an update, the Rollout will create the desired ReplicaSet while also merging the metadata
 defined in <code>canaryMetadata</code>/<code>previewMetadata</code> to the desired ReplicaSet's <code>spec.template.metadata</code>.
-This results in all Pods of the ReplicaSet being created with the desired metadata. When the rollout
+This results in all Pods of the ReplicaSet being created with the desired metadata. </p>
+<p>When the rollout
 becomes fully promoted, the desired ReplicaSet becomes the stable, and is updated to use the labels
 and annotations under <code>stableMetadata</code>/<code>activeMetadata</code>. The Pods of the ReplicaSet will then be
 updated <em>in place</em> to use the stable metadata (without recreating the pods).</p>
-<div class="admonition important">
-<p class="admonition-title">Important</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
 <p>In order for tooling to take advantage of this feature, they would need to recognize the change in
 labels and/or annotations that happen <em>after</em> the Pod has already started. Not all tools may detect
-this.</p>
+this. For application code apart from the Kubernetes Downward API you also need a programming library that automatically reloads configuration files when they change their contents.</p>
 </div>
 
 
