@@ -413,14 +413,30 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}()
 
 	resolveErr := c.refResolver.Resolve(r)
+	// We could maybe lose setting the error condition from the below if resolveErr != nil {}, and just log the error to clean up the logic
 	roCtx, err := c.newRolloutContext(r)
+	if roCtx == nil {
+		logCtx.Error("newRolloutContext returned nil")
+		return err
+	}
 	if err != nil {
+		if _, ok := err.(*field.Error); ok {
+			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
+			// condition might be timing related (e.g. the Rollout was applied before the Service).
+			c.enqueueRolloutAfter(roCtx.rollout, 20*time.Second)
+			return nil // do not requeue from error because we already re-queued above
+		}
 		logCtx.Errorf("newRolloutContext err %v", err)
 		return err
 	}
+	// We should probably delete this if block and just log the error to clean up the logic, a bigger change would be to add a new
+	// field to the status maybe (reconcileErrMsg) and store the errors there from the processNextWorkItem function in controller/controller.go
 	if resolveErr != nil {
-		roCtx.createInvalidRolloutCondition(resolveErr, r)
-		return resolveErr
+		err := roCtx.createInvalidRolloutCondition(resolveErr, r)
+		if err != nil {
+			return fmt.Errorf("failed to create invalid rollout condition during resolving the rollout: %w", err)
+		}
+		return fmt.Errorf("failed to resolve rollout: %w", resolveErr)
 	}
 
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
@@ -539,9 +555,6 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	err = roCtx.getRolloutValidationErrors()
 	if err != nil {
 		if vErr, ok := err.(*field.Error); ok {
-			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
-			// condition might be timing related (e.g. the Rollout was applied before the Service).
-			c.enqueueRolloutAfter(roCtx.rollout, 20*time.Second)
 			err := roCtx.createInvalidRolloutCondition(vErr, roCtx.rollout)
 			if err != nil {
 				return nil, err

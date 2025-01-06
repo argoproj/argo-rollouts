@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -11,6 +12,8 @@ import (
 	"time"
 
 	argoConfig "github.com/argoproj/argo-rollouts/utils/config"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 
@@ -19,15 +22,20 @@ import (
 
 // FileDownloader is an interface that allows us to mock the http.Get function
 type FileDownloader interface {
-	Get(url string) (resp *http.Response, err error)
+	Get(url string, header http.Header) (resp *http.Response, err error)
 }
 
 // FileDownloaderImpl is the default/real implementation of the FileDownloader interface
 type FileDownloaderImpl struct {
 }
 
-func (fd FileDownloaderImpl) Get(url string) (resp *http.Response, err error) {
-	return http.Get(url)
+func (fd FileDownloaderImpl) Get(url string, header http.Header) (resp *http.Response, err error) {
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header = header
+	return http.DefaultClient.Do(request)
 }
 
 // checkPluginExists this function checks if the plugin exists in the configured path on the filesystem
@@ -61,12 +69,17 @@ func checkShaOfPlugin(pluginLocation string, expectedSha256 string) (bool, error
 	return match, nil
 }
 
-func downloadFile(filepath string, url string, downloader FileDownloader) error {
-	// Get the data
-	resp, err := downloader.Get(url)
+func downloadFile(filepath string, url string, downloader FileDownloader, header http.Header) error {
+	// Get the data with credentials
+	resp, err := downloader.Get(url, header)
 	if err != nil {
 		return fmt.Errorf("failed to download file from %s: %w", url, err)
 	}
+
+	if isFailure(resp.StatusCode) {
+		return fmt.Errorf("failed to download file from %s: response code %s", url, http.StatusText(resp.StatusCode))
+	}
+
 	defer resp.Body.Close()
 
 	// Create the file
@@ -92,7 +105,7 @@ func downloadFile(filepath string, url string, downloader FileDownloader) error 
 }
 
 // DownloadPlugins this function downloads and/or checks that a plugin executable exits on the filesystem
-func DownloadPlugins(fd FileDownloader) error {
+func DownloadPlugins(fd FileDownloader, kubeClient kubernetes.Interface) error {
 	config, err := argoConfig.GetConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
@@ -126,7 +139,18 @@ func DownloadPlugins(fd FileDownloader) error {
 		case "http", "https":
 			log.Infof("Downloading plugin %s from: %s", plugin.Name, plugin.Location)
 			startTime := time.Now()
-			err = downloadFile(finalFileLocation, urlObj.String(), fd)
+			requestHeader := http.Header{}
+			for _, header := range plugin.HeadersFrom {
+				secret, err := kubeClient.CoreV1().Secrets(defaults.Namespace()).Get(context.Background(), header.SecretRef.Name, metav1.GetOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to get secret in secretRef: %w", err)
+				}
+				for k, v := range secret.Data {
+					requestHeader.Add(k, string(v))
+				}
+			}
+
+			err = downloadFile(finalFileLocation, urlObj.String(), fd, requestHeader)
 			if err != nil {
 				return fmt.Errorf("failed to download plugin from %s: %w", plugin.Location, err)
 			}
@@ -200,4 +224,9 @@ func copyFile(src, dst string) error {
 		return fmt.Errorf("failed to copy file from %s to %s: %w", src, dst, err)
 	}
 	return nil
+}
+
+// isFailure determines if the response has a 2xx response
+func isFailure(statusCode int) bool {
+	return statusCode < http.StatusOK || statusCode >= http.StatusBadRequest
 }

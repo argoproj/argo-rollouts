@@ -2,6 +2,7 @@
 
 Organizations below are **officially** using Argo Rollouts. Please send a PR with your organization name if you are using Argo Rollouts.
 
+1. [7shifts](https://www.7shifts.com)
 1. [Ada](https://www.ada.cx)
 1. [ADP](https://www.adp.com)
 1. [Akuity](https://akuity.io/)

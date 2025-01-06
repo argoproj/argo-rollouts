@@ -58,7 +58,7 @@ func NewCmdUndo(o *options.ArgoRolloutsOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(o.Out, result)
+			fmt.Fprint(o.Out, result)
 			return nil
 		},
 		ValidArgsFunction: completionutil.RolloutNameCompletionFunc(o),

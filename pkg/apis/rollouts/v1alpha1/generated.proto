@@ -1014,6 +1014,7 @@ message Metric {
 
   // FailureLimit is the maximum number of times the measurement is allowed to fail, before the
   // entire metric is considered Failed (default: 0)
+  // -1 for making it disabled (when opting to use ConsecutiveSuccessLimit solely)
   optional k8s.io.apimachinery.pkg.util.intstr.IntOrString failureLimit = 7;
 
   // InconclusiveLimit is the maximum number of times the measurement is allowed to measure
@@ -1026,6 +1027,10 @@ message Metric {
 
   // Provider configuration to the external system to use to verify the analysis
   optional MetricProvider provider = 10;
+
+  // ConsecutiveSuccessLimit is the number of consecutive times the measurement must succeed for the
+  // entire metric to be considered Successful (default: 0, which means it's disabled)
+  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString consecutiveSuccessLimit = 11;
 }
 
 // MetricProvider which external system to use to verify the analysis
@@ -1113,6 +1118,10 @@ message MetricResult {
   // the final state which gets used while taking measurements. For example, Prometheus uses this field
   // to store the final resolved query after substituting the template arguments.
   map<string, string> metadata = 12;
+
+  // ConsecutiveSuccess is the number of times a measurement was successful in succession
+  // Resets to zero when failures, inconclusive measurements, or errors are encountered
+  optional int32 consecutiveSuccess = 13;
 }
 
 // NewRelicMetric defines the newrelic query to perform canary analysis

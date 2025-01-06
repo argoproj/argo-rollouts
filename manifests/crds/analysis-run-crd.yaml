@@ -98,6 +98,11 @@ spec:
                       - type: integer
                       - type: string
                       x-kubernetes-int-or-string: true
+                    consecutiveSuccessLimit:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      x-kubernetes-int-or-string: true
                     count:
                       anyOf:
                       - type: integer
@@ -3217,6 +3222,9 @@ spec:
                 items:
                   properties:
                     consecutiveError:
+                      format: int32
+                      type: integer
+                    consecutiveSuccess:
                       format: int32
                       type: integer
                     count:

@@ -1491,6 +1491,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
      */
     provider?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    consecutiveSuccessLimit?: K8sIoApimachineryPkgUtilIntstrIntOrString;
 }
 /**
  * 
@@ -1649,6 +1655,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResul
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
      */
     metadata?: { [key: string]: string; };
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    consecutiveSuccess?: number;
 }
 /**
  * 

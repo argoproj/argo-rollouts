@@ -63,11 +63,13 @@ interface CriteriaListProps {
     analysisStatus: AnalysisStatus;
     className?: string[] | string;
     consecutiveErrors: number;
+    consecutiveSuccesses: number;
     failures: number;
     inconclusives: number;
     maxConsecutiveErrors: number;
     maxFailures: number;
     maxInconclusives: number;
+    consecutiveSuccessLimit: number;
     showIcons: boolean;
 }
 
@@ -75,25 +77,34 @@ const CriteriaList = ({
     analysisStatus,
     className,
     consecutiveErrors,
+    consecutiveSuccesses,
     failures,
     inconclusives,
     maxConsecutiveErrors,
     maxFailures,
     maxInconclusives,
+    consecutiveSuccessLimit,
     showIcons,
 }: CriteriaListProps) => {
     let failureStatus = defaultCriterionStatus(analysisStatus);
     let errorStatus = defaultCriterionStatus(analysisStatus);
     let inconclusiveStatus = defaultCriterionStatus(analysisStatus);
+    let successStatus = defaultCriterionStatus(analysisStatus);
 
     if (analysisStatus !== AnalysisStatus.Pending && analysisStatus !== AnalysisStatus.Running) {
         failureStatus = failures <= maxFailures ? CriterionStatus.Pass : CriterionStatus.Fail;
         errorStatus = consecutiveErrors <= maxConsecutiveErrors ? CriterionStatus.Pass : CriterionStatus.Fail;
         inconclusiveStatus = inconclusives <= maxInconclusives ? CriterionStatus.Pass : CriterionStatus.Fail;
+        successStatus = consecutiveSuccesses >= consecutiveSuccessLimit ? CriterionStatus.Pass : CriterionStatus.Fail;
     }
 
     return (
         <ul className={classNames('criteria-list', className)}>
+            {consecutiveSuccessLimit > 0 && (
+                <CriteriaListItem status={successStatus} showIcon={showIcons}>
+                    <Text>{`Exactly ${consecutiveSuccessLimit} consecutive successes.`}</Text>
+                </CriteriaListItem>
+            )}
             {maxFailures > -1 && (
                 <CriteriaListItem status={failureStatus} showIcon={showIcons}>
                     <Text>{criterionLabel('measurement failures', maxFailures)}</Text>

@@ -274,6 +274,40 @@ func TestNewManager(t *testing.T) {
 	assert.NotNil(t, cm)
 }
 
+func TestNewAnalysisManager(t *testing.T) {
+	f := newFixture(t)
+
+	i := informers.NewSharedInformerFactory(f.client, noResyncPeriodFunc())
+	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, noResyncPeriodFunc())
+
+	scheme := runtime.NewScheme()
+	listMapping := map[schema.GroupVersionResource]string{}
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping)
+	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
+
+	k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
+	cm := NewAnalysisManager(
+		"default",
+		f.kubeclient,
+		f.client,
+		k8sI.Batch().V1().Jobs(),
+		i.Argoproj().V1alpha1().AnalysisRuns(),
+		i.Argoproj().V1alpha1().AnalysisTemplates(),
+		i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
+		noResyncPeriodFunc(),
+		8090,
+		8080,
+		k8sRequestProvider,
+		nil,
+		dynamicInformerFactory,
+		false,
+		nil,
+		nil,
+	)
+
+	assert.NotNil(t, cm)
+}
+
 func TestPrimaryController(t *testing.T) {
 	f := newFixture(t)
 
