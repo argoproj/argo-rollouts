@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -318,6 +320,7 @@ func (ec *Controller) syncHandler(ctx context.Context, key string) error {
 }
 
 func (ec *Controller) persistExperimentStatus(orig *v1alpha1.Experiment, newStatus *v1alpha1.ExperimentStatus) error {
+	prevStatus := orig.Status
 	ctx := context.TODO()
 	logCtx := logutil.WithExperiment(orig)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
@@ -336,13 +339,25 @@ func (ec *Controller) persistExperimentStatus(orig *v1alpha1.Experiment, newStat
 		return nil
 	}
 	logCtx.Debugf("Experiment Patch: %s", patch)
-	_, err = ec.argoProjClientset.ArgoprojV1alpha1().Experiments(orig.Namespace).Patch(ctx, orig.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	patched, err := ec.argoProjClientset.ArgoprojV1alpha1().Experiments(orig.Namespace).Patch(ctx, orig.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warningf("Error updating experiment: %v", err)
 		return err
 	}
 	logCtx.Info("Patch status successfully")
+	ec.recordEvent(patched, prevStatus, newStatus)
 	return nil
+}
+
+func (ec *Controller) recordEvent(ex *v1alpha1.Experiment, prevStatus v1alpha1.ExperimentStatus, newStatus *v1alpha1.ExperimentStatus) {
+	if prevStatus.Phase != newStatus.Phase {
+		eventType := corev1.EventTypeNormal
+		switch newStatus.Phase {
+		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive:
+			eventType = corev1.EventTypeWarning
+		}
+		ec.recorder.Eventf(ex, record.EventOptions{EventType: eventType, EventReason: "Experiment" + string(newStatus.Phase)}, "Experiment transitioned from %s -> %s", prevStatus.Phase, newStatus.Phase)
+	}
 }
 
 // enqueueIfCompleted conditionally enqueues the AnalysisRun's Experiment if the run is complete
