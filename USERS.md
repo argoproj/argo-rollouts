@@ -47,6 +47,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Productboard](https://www.productboard.com)
 1. [Quipper](https://www.quipper.com/)
 1. [Quizlet](https://quizlet.com)
+1. [Replicant](https://www.replicant.com/)
 1. [Salesforce](https://www.salesforce.com/)
 1. [SAP Concur](https://www.concur.com/)
 1. [Shipt](https://www.shipt.com/)
