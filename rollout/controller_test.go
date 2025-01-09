@@ -1361,6 +1361,23 @@ func TestSetReplicaToDefault(t *testing.T) {
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
 }
 
+func TestSetReplicaToCurrentCount(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Replicas = nil
+	r.Status.Replicas = 10
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	f.expectUpdateRolloutStatusAction(r)
+	updateIndex := f.expectUpdateRolloutAction(r)
+	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.run(getKey(r, t))
+	updatedRollout := f.getUpdatedRollout(updateIndex)
+	assert.Equal(t, r.Status.Replicas, *updatedRollout.Spec.Replicas)
+}
+
 // TestSwitchInvalidSpecMessage verifies message is updated when reason for InvalidSpec changes
 func TestSwitchInvalidSpecMessage(t *testing.T) {
 	f := newFixture(t)
