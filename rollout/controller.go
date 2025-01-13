@@ -1078,11 +1078,11 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 			return updatedRS, err
 		}
 	}
-	err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
-	if err != nil {
-		return nil, fmt.Errorf("error updating replicaset informer in updateReplicaSetFallbackToPatch without conflict %s: %w", rs.Name, err)
-	}
 	if updatedRS != nil {
+		err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
+		if err != nil {
+			return nil, fmt.Errorf("error updating replicaset informer in updateReplicaSetFallbackToPatch without conflict %s: %w", rs.Name, err)
+		}
 		updatedRS.DeepCopyInto(rs)
 	}
 	return rs, err
