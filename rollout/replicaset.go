@@ -85,6 +85,10 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 
 	var rsList []*appsv1.ReplicaSet
 	for _, item := range replicaSetList.Items {
+		err = c.replicaSetInformer.GetIndexer().Update(&item)
+		if err != nil {
+			return nil, fmt.Errorf("error updating replicaset informer in getReplicaSetsForRollouts: %w", err)
+		}
 		rsList = append(rsList, &item)
 	}
 
