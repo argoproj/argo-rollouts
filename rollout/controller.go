@@ -1070,20 +1070,16 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 				return nil, fmt.Errorf("error patching replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
 			}
 
-			err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
-			if err != nil {
-				return nil, fmt.Errorf("error updating replicaset informer in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
-			}
+		} else {
+			return nil, fmt.Errorf("error updating replicaset in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
+		}
+	}
 
-			return updatedRS, err
-		}
+	err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
+	if err != nil {
+		return updatedRS, fmt.Errorf("error updating replicaset informer in updateReplicaSetFallbackToPatch %s: %w", rs.Name, err)
 	}
-	if updatedRS != nil {
-		err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
-		if err != nil {
-			return nil, fmt.Errorf("error updating replicaset informer in updateReplicaSetFallbackToPatch without conflict %s: %w", rs.Name, err)
-		}
-		updatedRS.DeepCopyInto(rs)
-	}
+	updatedRS.DeepCopyInto(rs)
+
 	return rs, err
 }
