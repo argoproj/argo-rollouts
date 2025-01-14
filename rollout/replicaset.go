@@ -9,7 +9,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 
@@ -79,10 +78,20 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 	ctx := context.TODO()
 	// List all ReplicaSets to find those we own but that no longer match our
 	// selector. They will be orphaned by ClaimReplicaSets().
-	rsList, err := c.replicaSetLister.ReplicaSets(r.Namespace).List(labels.Everything())
+	replicaSetList, err := c.kubeclientset.AppsV1().ReplicaSets(r.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
+
+	var rsList []*appsv1.ReplicaSet
+	for _, item := range replicaSetList.Items {
+		rsList = append(rsList, &item)
+	}
+
+	//rsList, err := c.replicaSetLister.ReplicaSets(r.Namespace).List(labels.Everything())
+	//if err != nil {
+	//	return nil, err
+	//}
 	replicaSetSelector, err := metav1.LabelSelectorAsSelector(r.Spec.Selector)
 	if err != nil {
 		return nil, fmt.Errorf("rollout %s/%s has invalid label selector: %v", r.Namespace, r.Name, err)
