@@ -523,7 +523,6 @@ func (ec *experimentContext) ResolveAnalysisRunArgs(args []v1alpha1.Argument) ([
 }
 
 func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
-	prevStatus := ec.newStatus.DeepCopy()
 	switch ec.newStatus.Phase {
 	case "":
 		ec.newStatus.Phase = v1alpha1.AnalysisPhasePending
@@ -568,14 +567,6 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 		}
 	}
 	ec.newStatus = calculateExperimentConditions(ec.ex, *ec.newStatus)
-	if prevStatus.Phase != ec.newStatus.Phase {
-		eventType := corev1.EventTypeNormal
-		switch ec.newStatus.Phase {
-		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive:
-			eventType = corev1.EventTypeWarning
-		}
-		ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "Experiment" + string(ec.newStatus.Phase)}, "Experiment transitioned from %s -> %s", prevStatus.Phase, ec.newStatus.Phase)
-	}
 	return ec.newStatus
 }
 
