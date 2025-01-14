@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -40,7 +41,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
@@ -57,7 +58,6 @@ import (
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
@@ -442,8 +442,15 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
 	if rollout.Spec.Replicas == nil {
-		logCtx.Info("Defaulting .spec.replica to 1")
-		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
+		// The application may be scaled any number of replicas between the HPA min and max values. The next revision should use
+		// the current number of replicas as the default value for the replicas field. see https://github.com/argoproj/argo-rollouts/issues/3689
+		if rollout.Status.Replicas > 0 {
+			logCtx.Info("Setting .spec.replicas to match .status.replicas")
+			r.Spec.Replicas = &rollout.Status.Replicas
+		} else {
+			logCtx.Info("Defaulting .spec.replicas to 1")
+			r.Spec.Replicas = ptr.To(defaults.DefaultReplicas)
+		}
 		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
 		if err == nil {
 			c.writeBackToInformer(newRollout)
