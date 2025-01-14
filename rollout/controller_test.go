@@ -960,7 +960,7 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet {
+func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {

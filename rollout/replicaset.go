@@ -39,10 +39,10 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 		return fmt.Errorf("error removing scale-down-deadline annotation from RS '%s': %w", rs.Name, err)
 	}
 	c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
-	err = c.replicaSetInformer.GetIndexer().Update(rs)
-	if err != nil {
-		return fmt.Errorf("error updating replicaset informer in removeScaleDownDelay: %w", err)
-	}
+	//err = c.replicaSetInformer.GetIndexer().Update(rs)
+	//if err != nil {
+	//	return fmt.Errorf("error updating replicaset informer in removeScaleDownDelay: %w", err)
+	//}
 	return err
 }
 
@@ -68,10 +68,10 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 		return fmt.Errorf("error adding scale-down-deadline annotation to RS '%s': %w", rs.Name, err)
 	}
 	c.log.Infof("Set '%s' annotation on '%s' to %s (%s)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
-	err = c.replicaSetInformer.GetIndexer().Update(rs)
-	if err != nil {
-		return fmt.Errorf("error updating replicaset informer in addScaleDownDelay: %w", err)
-	}
+	//err = c.replicaSetInformer.GetIndexer().Update(rs)
+	//if err != nil {
+	//	return fmt.Errorf("error updating replicaset informer in addScaleDownDelay: %w", err)
+	//}
 	return err
 }
 
