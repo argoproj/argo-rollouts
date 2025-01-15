@@ -566,10 +566,6 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		roCtx.stableRS = replicasetutil.GetStableRS(roCtx.rollout, roCtx.newRS, roCtx.olderRSs)
 		roCtx.otherRSs = replicasetutil.GetOtherRSs(roCtx.rollout, roCtx.newRS, roCtx.stableRS, rsList)
 		roCtx.allRSs = append(rsList, roCtx.newRS)
-		//err := roCtx.replicaSetInformer.GetIndexer().Add(roCtx.newRS)
-		//if err != nil {
-		//	return nil, err
-		//}
 	}
 
 	if rolloututil.IsFullyPromoted(rollout) && roCtx.pauseContext.IsAborted() {
@@ -994,14 +990,8 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 func (c *rolloutContext) updateReplicaSet(ctx context.Context, rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
 	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
 	if err != nil {
-		fmt.Printf("Error updating replicaset in updateReplicaSet %s: %s", rs.Name, err)
-		return nil, err
+		return nil, fmt.Errorf("error updating replicaset in updateReplicaSet %s: %w", rs.Name, err)
 	}
-
-	//err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
-	//if err != nil {
-	//	return updatedRS, fmt.Errorf("error updating replicaset informer in updateReplicaSet %s: %w", rs.Name, err)
-	//}
 	updatedRS.DeepCopyInto(rs)
 
 	return rs, err
