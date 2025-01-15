@@ -100,10 +100,8 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 		noActiveSvcRollout := rollout.DeepCopy()
 		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = ""
 		roCtx, err := c.newRolloutContext(noActiveSvcRollout)
-		assert.NoError(t, err)
-		_, _, err = roCtx.getPreviewAndActiveServices()
-		assert.NotNil(t, err)
-		assert.EqualError(t, err, "service \"\" not found")
+		assert.Error(t, err)
+		assert.Nil(t, roCtx)
 	})
 }
 
