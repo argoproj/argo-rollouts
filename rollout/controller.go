@@ -1024,7 +1024,7 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 			c.log.Infof("Conflict when updating replicaset %s, falling back to patch", rs.Name)
 
 			patchRS := appsv1.ReplicaSet{}
-			patchRS.Spec.Replicas = rs.Spec.Replicasd
+			patchRS.Spec.Replicas = rs.Spec.Replicas
 			patchRS.Spec.Template.Labels = rs.Spec.Template.Labels
 			patchRS.Spec.Template.Annotations = rs.Spec.Template.Annotations
 
