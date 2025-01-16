@@ -82,7 +82,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
 		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
 
-		rs, err := c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
+		rs, err := c.updateReplicaSet(ctx, rsCopy)
 		if err != nil {
 			return nil, fmt.Errorf("failed to update replicaset revision on %s: %w", rsCopy.Name, err)
 		}
@@ -372,13 +372,13 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		*(rsCopy.Spec.Replicas) = newScale
 		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
 		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
-			// This bypasses the normal call to removeScaleDownDelay and then depends on the removal via an update in updateReplicaSetFallbackToPatch
+			// This bypasses the normal call to removeScaleDownDelay and then depends on the removal via an update in updateReplicaSet
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
 
-		rs, err = c.updateReplicaSetFallbackToPatch(ctx, rsCopy)
+		rs, err = c.updateReplicaSet(ctx, rsCopy)
 		if err != nil {
-			return scaled, rs, fmt.Errorf("failed to updateReplicaSetFallbackToPatch in scaleReplicaSet: %w", err)
+			return scaled, rs, fmt.Errorf("failed to updateReplicaSet in scaleReplicaSet: %w", err)
 		}
 
 		if sizeNeedsUpdate {
