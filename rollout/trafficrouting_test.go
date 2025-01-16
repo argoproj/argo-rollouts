@@ -1378,7 +1378,8 @@ func TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate(t *testing.T) {
 	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
-			Ingress: "test-ingress",
+			Ingress:     "test-ingress",
+			ServicePort: 80,
 		},
 		ManagedRoutes: []v1alpha1.MangedRoutes{
 			{Name: "test-header"},
