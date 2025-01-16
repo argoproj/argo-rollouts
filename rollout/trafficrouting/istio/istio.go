@@ -904,8 +904,13 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 // getHttpRouteIndexesToPatch returns array indices of the httpRoutes which need to be patched when updating weights
 func getHttpRouteIndexesToPatch(routeNames []string, httpRoutes []VirtualServiceHTTPRoute) ([]int, error) {
 	//We have no routes listed in spec.strategy.canary.trafficRouting.istio.virtualService.routes so find index
-	//of the first empty named route
+	//of the first empty named route.
+	// If there is only one HTTPRoute defined in the VirtualService, then we can patch it without a name.
 	if len(routeNames) == 0 {
+		if len(httpRoutes) == 1 {
+			return []int{0}, nil
+		}
+
 		for i, route := range httpRoutes {
 			if route.Name == "" {
 				return []int{i}, nil
