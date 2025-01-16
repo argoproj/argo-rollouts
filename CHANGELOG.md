@@ -1,3 +1,23 @@
+
+<a name="v1.8.0-rc2"></a>
+## [v1.8.0-rc2](https://github.com/argoproj/argo-rollouts/compare/v1.8.0-rc1...v1.8.0-rc2) (2024-12-17)
+
+### Ci
+
+* add testing for k8s 1.30 and 1.31 ([#3858](https://github.com/argoproj/argo-rollouts/issues/3858))
+
+### Docs
+
+* **analysis:** add docs for consecutiveSuccessLimit ([#3996](https://github.com/argoproj/argo-rollouts/issues/3996))
+
+### Fix
+
+* don't over reconcile on error ([#4005](https://github.com/argoproj/argo-rollouts/issues/4005))
+* remove ReplicaSet write-back ([#4044](https://github.com/argoproj/argo-rollouts/issues/4044))
+* **controller:** Fixed broken pprof links [#4037](https://github.com/argoproj/argo-rollouts/issues/4037) ([#4038](https://github.com/argoproj/argo-rollouts/issues/4038))
+* **experiments:** move recorder event to after experiment reconciliation, fixes [#4021](https://github.com/argoproj/argo-rollouts/issues/4021) ([#4022](https://github.com/argoproj/argo-rollouts/issues/4022))
+
+
 <a name="v1.8.0-rc1"></a>
 ## [v1.8.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.7.2...v1.8.0-rc1) (2024-12-06)
 
