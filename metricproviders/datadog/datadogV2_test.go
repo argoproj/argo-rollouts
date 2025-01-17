@@ -77,6 +77,21 @@ func newNamespacedSecretProvider() v1alpha1.MetricProvider {
 		},
 	}
 }
+
+func newQueriesDefaultProviderMultipleFormulas() v1alpha1.MetricProvider {
+	return v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Interval: "5m",
+			Queries: map[string]string{
+				"a": "avg:error_requests{*}",
+				"b": "avg:total_requests{*}",
+			},
+			Formulas:   []string{"a/b", "a*b"},
+			ApiVersion: "v2",
+		},
+	}
+}
+
 func TestRunSuiteV2(t *testing.T) {
 	const expectedApiKey = "0123456789abcdef0123456789abcdef"
 	const expectedAppKey = "0123456789abcdef0123456789abcdef01234567"
@@ -307,6 +322,51 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedAggregator:      "sum",
 			useEnvVarForKeys:        false,
 		},
+
+		// Queries + Multiple formulas: none nil
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"data": {"attributes": {"columns": [{"values": [0.0006444881882246533]}, {"values": [0.3]} ]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "expect success queries and multiple formulas",
+				SuccessCondition: "default(result[0], 0) < 0.05 && result[1] < 0.5",
+				Provider:         newQueriesDefaultProviderMultipleFormulas(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "[0.0006444881882246533,0.3]",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
+
+		// Queries + Multiple formulas: one formula is nil
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"data": {"attributes": {"columns": [{"values": [0.0006444881882246533]}, {"values": []} ]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "expect error, queries and multiple formulas, one formula nil with no default",
+				SuccessCondition: "result[0] < 0.5 && result[1] < 1.0",
+				Provider:         newQueriesDefaultProviderMultipleFormulas(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    `invalid operation: <nil> < float64`,
+			useEnvVarForKeys:        false,
+		},
+
+		// Queries + Multiple formulas: all formulas are nil
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"data": {"attributes": {"columns": [{"values": []}, {"values": []} ]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "expect success queries and multiple formulas, all formulas nil with good defaults",
+				SuccessCondition: "default(result[0], 0.003) < 0.5 && default(result[1], 0.9) < 1.0",
+				Provider:         newQueriesDefaultProviderMultipleFormulas(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           `[]`,
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
 	}
 
 	// Run
@@ -332,6 +392,7 @@ func TestRunSuiteV2(t *testing.T) {
 				// Keep the simple check behaviour if there is no Queries passed in from the analysis run
 				usesQuery := len(test.metric.Provider.Datadog.Queries) == 0
 				usesFormula := test.metric.Provider.Datadog.Formula != ""
+				usesFormulas := len(test.metric.Provider.Datadog.Formulas) != 0
 
 				actualFormulas := reqBody.Data.Attributes.Formulas
 				actualQuery := reqBody.Data.Attributes.Queries[0]["query"]
@@ -349,8 +410,12 @@ func TestRunSuiteV2(t *testing.T) {
 						t.Errorf("\nExpected %d queries but received %d", len(test.metric.Provider.Datadog.Queries), len(reqBody.Data.Attributes.Queries))
 					}
 
-					if usesFormula && len(actualFormulas) == 0 {
-						t.Errorf("\nExpected formula but no Formulas in request: %+v", actualFormulas)
+					if usesFormula && len(actualFormulas) != 1 {
+						t.Errorf("\nExpected 1 formula but received %d Formulas in request: %+v", len(actualFormulas), actualFormulas)
+					}
+
+					if usesFormulas && (len(actualFormulas) != len(test.metric.Provider.Datadog.Formulas)) {
+						t.Errorf("\nExpected %d formulas but received %d: %+v", len(test.metric.Provider.Datadog.Formulas), len(actualFormulas), actualFormulas)
 					}
 				}
 				// Check query aggregation being set
