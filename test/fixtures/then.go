@@ -55,6 +55,18 @@ func (t *Then) ExpectRolloutStatus(expectedStatus string) *Then {
 	return t
 }
 
+func (t *Then) ExpectRolloutMessage(expectedMessage string) *Then {
+	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
+	t.CheckError(err)
+	_, message := rolloututil.GetRolloutPhase(ro)
+	if message != expectedMessage {
+		t.log.Errorf("Rollout message expected to be '%s'. actual: %s", expectedMessage, message)
+		t.t.FailNow()
+	}
+	t.log.Infof("Rollout expectation status=%s met", expectedMessage)
+	return t
+}
+
 func (t *Then) ExpectReplicaCounts(desired, current, updated, ready, available any) *Then {
 	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
 	t.CheckError(err)
