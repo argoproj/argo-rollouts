@@ -86,9 +86,9 @@ type ResourceResult struct {
 
 type ResourcePlugin interface {
 	Init() error
-	Run(Rollout, StepContext) (StepResult, error)
-	Terminate(Rollout, StepContext) (StepResult, error)
-	Abort(Rollout, StepContext) (StepResult, error)
+	Run(Rollout, ResourceContext) (ResourceResult, error)
+	Terminate(Rollout, ResourceContext) (ResourceResult, error)
+	Abort(Rollout, ResourceContext) (ResourceResult, error)
 }
 
 ```
