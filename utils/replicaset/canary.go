@@ -33,7 +33,7 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 	if ro.Spec.Strategy.Canary.TrafficRouting == nil {
 		desiredNewRSReplicaCount, desiredStableRSReplicaCount = CalculateReplicaCountsForBasicCanary(ro, newRS, stableRS, olderRSs)
 	} else {
-		desiredNewRSReplicaCount, desiredStableRSReplicaCount = CalculateReplicaCountsForTrafficRoutedCanary(ro, weights)
+		desiredNewRSReplicaCount, desiredStableRSReplicaCount = CalculateReplicaCountsForTrafficRoutedCanary(ro, newRS, stableRS, weights)
 	}
 	if !allDesiredAreAvailable(newRS, desiredNewRSReplicaCount) {
 		return false
@@ -93,7 +93,7 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 // For more examples, check the CalculateReplicaCountsForBasicCanary test in canary/canary_test.go
 func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) (int32, int32) {
 	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
-	_, desiredWeight := GetCanaryReplicasOrWeight(rollout)
+	_, desiredWeight := GetCanaryReplicasOrWeight(rollout, newRS, stableRS)
 	maxSurge := MaxSurge(rollout)
 	maxWeight := weightutil.MaxTrafficWeight(rollout)
 
@@ -338,10 +338,10 @@ func CheckMinPodsPerReplicaSet(rollout *v1alpha1.Rollout, count int32) int32 {
 // when using canary with traffic routing. If current traffic weights are supplied, we factor the
 // those weights into the and return the higher of current traffic scale vs. desired traffic scale
 // If MinPodsPerReplicaSet is defined and the number of replicas in either RS is not 0, then return at least MinPodsPerReplicaSet
-func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, weights *v1alpha1.TrafficWeights) (int32, int32) {
+func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, weights *v1alpha1.TrafficWeights) (int32, int32) {
 	var canaryCount, stableCount int32
 	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
-	setCanaryScaleReplicas, desiredWeight := GetCanaryReplicasOrWeight(rollout)
+	setCanaryScaleReplicas, desiredWeight := GetCanaryReplicasOrWeight(rollout, newRS, stableRS)
 	maxWeight := weightutil.MaxTrafficWeight(rollout)
 	if setCanaryScaleReplicas != nil {
 		// a canary count was explicitly set
@@ -463,8 +463,7 @@ func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int
 	return &rollout.Spec.Strategy.Canary.Steps[currentStepIndex], &currentStepIndex
 }
 
-// GetCanaryReplicasOrWeight either returns a static set of replicas or a weight percentage
-func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout) (*int32, int32) {
+func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet) (*int32, int32) {
 	if rollout.Status.PromoteFull || rollout.Status.StableRS == "" || rollout.Status.CurrentPodHash == rollout.Status.StableRS {
 		return nil, weightutil.MaxTrafficWeight(rollout)
 	}
@@ -475,7 +474,40 @@ func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout) (*int32, int32) {
 			return nil, *scs.Weight
 		}
 	}
-	return nil, GetCurrentSetWeight(rollout)
+
+	return nil, GetDesiredCanaryWeight(rollout, newRS, stableRS)
+}
+
+// GetDesiredCanaryWeight either returns a weight percentage
+func GetDesiredCanaryWeight(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet) int32 {
+	// if rollout is aborted and .DynamicStableScale is true
+	// StableRS should dynamically scale up to 100%
+	// based on steps in reverse order. This way if abort happened in the last steps
+	// rollback will not create a surge of new pods by scaling StableRS to 100% immediately
+	if rollout.Status.Abort && rollout.Spec.Strategy.Canary.DynamicStableScale && newRS != nil && stableRS != nil {
+		maxWeight := weightutil.MaxTrafficWeight(rollout)
+		rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
+		// since caller function will compute the desired stableRS replicas number based on canary weight
+		// here the computation is done backwards
+		expectedCanaryReplicas := rolloutSpecReplica - stableRS.Status.AvailableReplicas
+		// max makes sure that scaling down NewRS replicas will catch up with scaling up stableRS replicas
+		canaryReplicas := max(expectedCanaryReplicas, newRS.Status.AvailableReplicas)
+		// find next step to scale down NewRS to
+		for i := len(rollout.Spec.Strategy.Canary.Steps) - 1; i >= 0; i-- {
+			step := rollout.Spec.Strategy.Canary.Steps[i]
+			if step.SetWeight != nil {
+				stepReplicas := trafficWeightToReplicas(rolloutSpecReplica, *step.SetWeight, maxWeight)
+				if stepReplicas < canaryReplicas {
+					return *step.SetWeight
+				}
+			}
+		}
+
+		// if nothing found, return 0
+		return 0
+	}
+
+	return GetCurrentSetWeight(rollout)
 }
 
 // GetCurrentSetWeight grabs the current setWeight used by the rollout by iterating backwards from the current step
