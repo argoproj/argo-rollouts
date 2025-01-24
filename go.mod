@@ -249,6 +249,8 @@ replace (
 	k8s.io/controller-manager v0.0.0 => k8s.io/controller-manager v0.29.3
 	k8s.io/cri-api v0.0.0 => k8s.io/cri-api v0.29.3
 	k8s.io/csi-translation-lib v0.0.0 => k8s.io/csi-translation-lib v0.29.3
+	k8s.io/dynamic-resource-allocation v0.0.0 => k8s.io/dynamic-resource-allocation v0.29.3
+	k8s.io/endpointslice v0.0.0 => k8s.io/endpointslice v0.29.3
 	k8s.io/kube-aggregator v0.0.0 => k8s.io/kube-aggregator v0.29.3
 	k8s.io/kube-controller-manager v0.0.0 => k8s.io/kube-controller-manager v0.29.3
 	k8s.io/kube-proxy v0.0.0 => k8s.io/kube-proxy v0.29.3
