@@ -360,6 +360,11 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
+
+	if c.rollout.Spec.Strategy.Canary != nil && !c.rollout.Spec.Strategy.Canary.DynamicStableScale && c.stableRS != nil {
+		newStatus.Selector = metav1.FormatLabelSelector(c.stableRS.Spec.Selector)
+	}
+
 	newStatus.Canary.StablePingPong = c.rollout.Status.Canary.StablePingPong
 	newStatus.Canary.StepPluginStatuses = c.rollout.Status.Canary.StepPluginStatuses
 	c.stepPluginContext.updateStatus(&newStatus)
