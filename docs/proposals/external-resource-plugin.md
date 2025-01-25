@@ -11,8 +11,6 @@ creation-date: 2025-01-18
 
 Currently Argo Rollouts only supports the `Deployment` workload type. There are a variety of other workloads that others would like to perform canary/blue-green upgrades on such as statefulsets or daemonsets. 
 
-There are a couple of options for implementation of these workloads but overall 
-
 
 ## Motivation  
 In order to support other workloads in Rollouts besides Deployments a Rollout resource plugin would be ideal. 
@@ -20,22 +18,33 @@ In order to support other workloads in Rollouts besides Deployments a Rollout re
 
 
 ## User Stories
-As a developer, it would be great to define blue-green/canary rollouts for statefulsets/daemonsets. 
+As a developer, it want to be able to define blue-green/canary rollouts for statefulsets/daemonsets. 
 
 ### Goals
 
 - Allow open source community to implement rollouts for external resource types 
+- Provide a path forward in argo rollouts for supporting statefulsets/daemonsets.
 
 
+### Options
+
+#### Option 1: RolloutsPlugin controller 
 
 
+#### Option 2: Resource Plugin
 
 
 
 ### Proposal
-There exist several other plugin types within the Argo Rollouts codebase including plugins such as `stepPlugins`, `metricsPlugins`, and `trafficRouting` plugins. 
+There exist several other plugin types within the Argo Rollouts codebase such as `stepPlugins`, `metricsPlugins`, and `trafficRouting` plugins. 
+
+
 
 This implementation would follow in those plugin footsteps and take the same approach. 
+
+A resource plugin would be responsible for the full lifecycle of the external resources. For example if using a resource plugin that manages statefulsets, the plugin should handle creation, updates, deletes, and rollbacks of the statefulset. 
+
+
 
 
 
@@ -52,9 +61,20 @@ spec:
   resourcePlugin:
     name: statefulset-plugin
 
+
   template:
     metadata:
+      labels:
+        pod: a
+      annotations:
+        pod: a
+
     spec:
+      containers:
+        - name: a
+
+    strategy:
+      
       
 
 
@@ -114,14 +134,60 @@ type ResourceResult struct {
 
 type ResourcePlugin interface {
   Init() error
-  Run(rollout, resourceContext) (ResourceResult, error)
-  Terminate(rollout, resourceContext) (ResourceResult, error)
-  Abort(rollout, resourceContext) (ResourceResult, error)
+  Create(rollout) error 
+  Update(rollout) error
+  Delete(rollout) error
+  Rollback(rollout) error
 }
 
 ```
 
 
+### Detailed execution flow
+
+1. Initialization of plugin. Load the binary
+
+
+2. Before reconciling the Rollout the controller will first check for the resource creation plugin. This will use a new struct `resourceContext`. If the resource plugin is running the 
+
+
+
+3. 
+
+
+
+#### Rollout Spec Updates
+
+The Rollout spec will need to include a `resourcePlugin` section and a `podTemplate` reference for where to locate the spec for the pods. This could just use the existing `workloadRef` section.
+
+```yaml
+spec:
+  volumeClaimTemplates: <?>
+
+```
+
+#### Example implementation for statefulsets
+
+```yaml
+apiVersion: 
+kind: Rollout
+metadata:
+  name: sts
+spec:
+  resourcePlugin:
+    name: statefulset
+
+```
+
+##### Questions
+1. Can a Rollout have more than one resource creation plugin?
+2. Do we add PodSpec fields used in Statefulsets such as `volumeClaimTemplates` to the Rollout spec?
+3. How will this interact with the other plugin types?
+
+
+
+#### Decisions
+Rollouts controller will not handle the creation of external resources such as statefulsets. This will be entirely on the plugin implementation. 
 
 
 
