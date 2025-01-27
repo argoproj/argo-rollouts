@@ -846,7 +846,7 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
 	updatedRollout := f.getPatchedRollout(rolloutPatchIndex)
 	expectedRolloutPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=58c48fdff5"}}`
-	assert.JSONEq(t, expectedRolloutPatch, string(updatedRollout))
+	assert.JSONEq(t, expectedRolloutPatch, updatedRollout)
 }
 
 // Verifies with a canary using traffic routing, we scale down old ReplicaSets which exceed our limit
