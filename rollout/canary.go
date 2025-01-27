@@ -361,7 +361,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
 
-	if c.rollout.Spec.Strategy.Canary != nil && !c.rollout.Spec.Strategy.Canary.DynamicStableScale && c.stableRS != nil {
+	if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && !c.rollout.Spec.Strategy.Canary.DynamicStableScale && c.stableRS != nil {
 		newStatus.Selector = metav1.FormatLabelSelector(c.stableRS.Spec.Selector)
 	}
 
