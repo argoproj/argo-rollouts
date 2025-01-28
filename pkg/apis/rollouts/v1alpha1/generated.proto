@@ -1456,8 +1456,8 @@ message RolloutSpec {
   // Label selector for pods. Existing ReplicaSets whose pods are
   // selected by this will be the ones affected by this rollout.
   // It must match the pod template's labels.
-  // +kubebuilder:validation:Required
-  // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+  // +optional
+  // +kubebuilder:validation:XValidation:rule="self == oldSelf",message=".spec.selector is immutable"
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 2;
 
   // Template describes the pods that will be created.

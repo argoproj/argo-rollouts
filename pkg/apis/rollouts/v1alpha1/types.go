@@ -44,8 +44,8 @@ type RolloutSpec struct {
 	// Label selector for pods. Existing ReplicaSets whose pods are
 	// selected by this will be the ones affected by this rollout.
 	// It must match the pod template's labels.
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message=".spec.selector is immutable"
 	Selector *metav1.LabelSelector `json:"selector" protobuf:"bytes,2,opt,name=selector"`
 	// Template describes the pods that will be created.
 	// +optional

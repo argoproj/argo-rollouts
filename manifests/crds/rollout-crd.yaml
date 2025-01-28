@@ -110,7 +110,7 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
                 x-kubernetes-validations:
-                - message: Value is immutable
+                - message: .spec.selector is immutable
                   rule: self == oldSelf
               strategy:
                 properties:
@@ -3573,8 +3573,6 @@ spec:
                   scaleDown:
                     type: string
                 type: object
-            required:
-            - selector
             type: object
           status:
             properties:

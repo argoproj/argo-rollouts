@@ -22300,9 +22300,6 @@
                             "type": "object"
                         }
                     },
-                    "required": [
-                        "selector"
-                    ],
                     "type": "object"
                 }
             },
