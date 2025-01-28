@@ -496,6 +496,23 @@
     }
   },
   "definitions": {
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBIngressWithPorts": {
+      "type": "object",
+      "properties": {
+        "ingress": {
+          "type": "string",
+          "title": "Ingress specifies name of the ingress ServicePorts refer to"
+        },
+        "servicePorts": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": "ServicePorts define list of ports to be set for the ingress"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBStatus": {
       "type": "object",
       "properties": {
@@ -523,7 +540,7 @@
         "servicePort": {
           "type": "integer",
           "format": "int32",
-          "title": "ServicePort refers to the port that the Ingress action should route traffic to"
+          "title": "ServicePort refers to the port that the Ingress action should route traffic to.\nCan be omitted if ports for each Ingress from .Ingresses list specified via ServicePorts\n+optional"
         },
         "rootService": {
           "type": "string",
@@ -543,6 +560,13 @@
             "type": "string"
           },
           "title": "Ingresses refers to the name of an `Ingress` resource in the same namespace as the `Rollout` in a multi ingress scenario\n+optional"
+        },
+        "servicePorts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBIngressWithPorts"
+          },
+          "title": "ServicePorts define ports for ingresses in a multi ingress scenario,\nin cases when when ingress has multiple ports or has port different from specified servicePort\n+optional"
         }
       },
       "title": "ALBTrafficRouting configuration for ALB ingress controller to control traffic routing"
