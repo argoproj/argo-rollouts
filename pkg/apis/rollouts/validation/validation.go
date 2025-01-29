@@ -482,7 +482,7 @@ func getIntOrPercentValue(intOrStringValue intstr.IntOrString) int {
 
 func hasMultipleStepsType(s v1alpha1.CanaryStep, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	oneOf := make([]bool, 3)
+	oneOf := make([]bool, 0, 3)
 	oneOf = append(oneOf, s.SetWeight != nil)
 	oneOf = append(oneOf, s.Pause != nil)
 	oneOf = append(oneOf, s.Experiment != nil)
