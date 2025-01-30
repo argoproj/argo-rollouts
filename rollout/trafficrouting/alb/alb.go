@@ -142,6 +142,7 @@ func (r *Reconciler) SetHeaderRoute(headerRoute *v1alpha1.SetHeaderRoute) error 
 }
 
 func (r *Reconciler) SetHeaderRoutePerIngress(headerRoute *v1alpha1.SetHeaderRoute, ingresses []string) error {
+	stableService, _ := trafficrouting.GetStableAndCanaryServices(r.cfg.Rollout, true)
 	for _, ingress := range ingresses {
 		ctx := context.TODO()
 		rollout := r.cfg.Rollout
@@ -164,7 +165,7 @@ func (r *Reconciler) SetHeaderRoutePerIngress(headerRoute *v1alpha1.SetHeaderRou
 			desiredIngress.RemovePathByServiceName(action)
 		}
 		if !hasRule && headerRoute.Match != nil {
-			desiredIngress.CreateAnnotationBasedPath(action)
+			desiredIngress.CreateAnnotationBasedPath(action, stableService)
 		}
 		desiredIngress.SortHttpPaths(rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes)
 		patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations(), ingressutil.WithSpec())
