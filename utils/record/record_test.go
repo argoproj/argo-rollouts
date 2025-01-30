@@ -509,6 +509,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 		name       string
 		arInformer arInformerFunc
 		rollout    v1alpha1.Rollout
+		cm         corev1.ConfigMap
 		ars        []*v1alpha1.AnalysisRun
 		expected   expectedFunc
 	}{
@@ -518,6 +519,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 				return createAnalysisRunInformer(ars)
 			},
 			rollout: ro,
+			cm:      corev1.ConfigMap{},
 			ars:     ars,
 			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
 				return map[string]interface{}{
@@ -534,6 +536,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 				return createAnalysisRunInformer(ars)
 			},
 			rollout: ro,
+			cm:      corev1.ConfigMap{},
 			ars: []*v1alpha1.AnalysisRun{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -560,6 +563,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 				return nil
 			},
 			rollout: ro,
+			cm:      corev1.ConfigMap{},
 			ars:     nil,
 			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
 				return map[string]interface{}{
@@ -575,6 +579,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 				return createAnalysisRunInformer(ars)
 			},
 			rollout: ro,
+			cm:      corev1.ConfigMap{},
 			ars: []*v1alpha1.AnalysisRun{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -595,13 +600,36 @@ func TestNewAPIFactorySettings(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "Send notification with context",
+			arInformer: func(ars []*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer {
+				return nil
+			},
+			rollout: ro,
+			cm: corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      NotificationConfigMap,
+					Namespace: "argo-rollouts",
+				},
+				Data: map[string]string{"context": "server: foo\nenv: prod"},
+			},
+			ars: nil,
+			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
+				return map[string]interface{}{
+					"rollout": obj,
+					"time":    timeExprs,
+					"secrets": expectedSecrets,
+					"context": map[string]string{"server": "foo", "env": "prod"},
+				}
+			},
+		},
 	}
 
 	for _, test := range testcase {
 		t.Run(test.name, func(t *testing.T) {
 
 			settings := NewAPIFactorySettings(test.arInformer(test.ars))
-			getVars, err := settings.InitGetVars(nil, nil, &notificationsSecret)
+			getVars, err := settings.InitGetVars(nil, &test.cm, &notificationsSecret)
 			require.NoError(t, err)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
