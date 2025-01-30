@@ -1346,6 +1346,15 @@ func TestSyncEphemeralPodMetadata(t *testing.T) {
 		assert.Equal(t, meta, *newMetadata)
 	}
 	{
+		// verify modified is false if there are no actual deletions
+		desired := existing.DeepCopy()
+		existing.Labels["foo"] = "bar"
+		newMetadata, modified := SyncEphemeralPodMetadata(&meta, &existing, desired)
+		assert.False(t, modified)
+		assert.Equal(t, meta, *newMetadata)
+		delete(existing.Labels, "foo")
+	}
+	{
 		// verify we don't touch metadata that we did not inject ourselves
 		desired := v1alpha1.PodTemplateMetadata{
 			Labels: map[string]string{
@@ -1367,10 +1376,8 @@ func TestSyncEphemeralPodMetadata(t *testing.T) {
 				"do-not": "touch",
 			},
 		}
-		assert.True(t, modified)
 		assert.Equal(t, expected, *newMetadata)
 	}
-
 }
 
 func TestGetReplicasForScaleDown(t *testing.T) {
