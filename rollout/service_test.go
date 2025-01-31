@@ -671,7 +671,8 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f.assertEvents(nil)
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, "{\"status\":{\"selector\":\"foo=bar,rollouts-pod-template-hash=58c48fdff5\"}}", patch)
+	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=58c48fdff5"}}`
+	assert.Equal(t, expectedPatch, patch)
 }
 
 // TestShouldVerifyTargetGroups returns whether or not we should verify the target group
