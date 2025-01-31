@@ -1,4 +1,8 @@
 
+<a name="v1.8.0"></a>
+## [v1.8.0](https://github.com/argoproj/argo-rollouts/compare/v1.8.0-rc2...v1.8.0) (2024-12-17)
+
+
 <a name="v1.8.0-rc2"></a>
 ## [v1.8.0-rc2](https://github.com/argoproj/argo-rollouts/compare/v1.8.0-rc1...v1.8.0-rc2) (2024-12-17)
 
