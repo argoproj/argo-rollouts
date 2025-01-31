@@ -362,6 +362,11 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
 
 	if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && !c.rollout.Spec.Strategy.Canary.DynamicStableScale && c.stableRS != nil {
+		// When using traffic routed canary without scaling down the stable replicaset, the number of pods
+		// selected by the rollout selector will be up to twice the amount of desired spec.replicas.
+		// We update the selector to select the stable pods since the Scale subresource expects a
+		// label that queries over pods that should match the replicas count, because that is the number
+		// of pods that will be receiving traffic.
 		newStatus.Selector = metav1.FormatLabelSelector(c.stableRS.Spec.Selector)
 	}
 
