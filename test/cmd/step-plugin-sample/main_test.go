@@ -5,15 +5,17 @@ import (
 	"testing"
 	"time"
 
+	goPlugin "github.com/hashicorp/go-plugin"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc"
 	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/test/cmd/step-plugin-sample/internal/plugin"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
-	goPlugin "github.com/hashicorp/go-plugin"
-	log "github.com/sirupsen/logrus"
+
+	"github.com/tj/assert"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/tj/assert"
 )
 
 var testHandshake = goPlugin.HandshakeConfig{

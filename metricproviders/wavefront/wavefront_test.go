@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	wavefrontapi "github.com/spaceapegames/go-wavefront"
 	"github.com/stretchr/testify/assert"
@@ -13,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {

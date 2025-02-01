@@ -1,8 +1,9 @@
 package istio
 
 import (
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 // VirtualService is an Istio VirtualService containing only the fields which we care about

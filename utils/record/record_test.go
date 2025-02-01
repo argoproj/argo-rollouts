@@ -9,12 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	argofake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
-	argoinformersfactory "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
-	argoinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	"github.com/argoproj/notifications-engine/pkg/api"
 	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/mocks"
@@ -33,6 +27,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	argofake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	argoinformersfactory "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	argoinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 var (

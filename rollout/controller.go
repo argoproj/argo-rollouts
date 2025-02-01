@@ -11,7 +11,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,6 +33,8 @@ import (
 	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
