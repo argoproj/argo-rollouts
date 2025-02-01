@@ -3158,43 +3158,45 @@ spec:
 }
 
 func TestGetHttpRouteIndexesToPatch(t *testing.T) {
+	t.Run("the rollout has no managed routes defined", func(t *testing.T) {
+		httpRoutes := []VirtualServiceHTTPRoute{
+			{Name: "foo", Match: nil},
+			{Name: "", Match: nil},
+		}
 
-	// Test case when the rollout has no managed routes defined
-	httpRoutes := []VirtualServiceHTTPRoute{
-		{Name: "foo", Match: nil},
-		{Name: "", Match: nil},
-	}
+		indexes, err := getHttpRouteIndexesToPatch([]string{}, httpRoutes)
+		assert.NoError(t, err)
+		assert.Equal(t, []int{1}, indexes)
+	})
 
-	indexes, err := getHttpRouteIndexesToPatch([]string{}, httpRoutes)
-	assert.NoError(t, err)
-	assert.Equal(t, []int{1}, indexes)
+	t.Run("the rollout has managed routes defined", func(t *testing.T) {
+		httpRoutes := []VirtualServiceHTTPRoute{
+			{Name: "foo", Match: nil},
+			{Name: "bar", Match: nil},
+		}
 
-	// Test case when the rollout has managed routes defined
-	httpRoutes = []VirtualServiceHTTPRoute{
-		{Name: "foo", Match: nil},
-		{Name: "bar", Match: nil},
-	}
+		indexes, err := getHttpRouteIndexesToPatch([]string{"foo", "bar"}, httpRoutes)
+		assert.NoError(t, err)
+		assert.Equal(t, []int{0, 1}, indexes)
+	})
 
-	indexes, err = getHttpRouteIndexesToPatch([]string{"foo", "bar"}, httpRoutes)
-	assert.NoError(t, err)
-	assert.Equal(t, []int{0, 1}, indexes)
+	t.Run("the rollout has only one managed route defined", func(t *testing.T) {
+		httpRoutes := []VirtualServiceHTTPRoute{
+			{Name: "foo", Match: nil},
+		}
 
-	// Test case when the rollout has only one managed route defined
-	httpRoutes = []VirtualServiceHTTPRoute{
-		{Name: "foo", Match: nil},
-	}
+		indexes, err := getHttpRouteIndexesToPatch([]string{}, httpRoutes)
+		assert.NoError(t, err)
+		assert.Equal(t, []int{0}, indexes)
+	})
 
-	indexes, err = getHttpRouteIndexesToPatch([]string{}, httpRoutes)
-	assert.NoError(t, err)
-	assert.Equal(t, []int{0}, indexes)
+	t.Run("http route is not found", func(t *testing.T) {
+		httpRoutes := []VirtualServiceHTTPRoute{
+			{Name: "foo", Match: nil},
+		}
 
-	// Test case when http route is not found
-	httpRoutes = []VirtualServiceHTTPRoute{
-		{Name: "foo", Match: nil},
-	}
-
-	indexes, err = getHttpRouteIndexesToPatch([]string{"bar"}, httpRoutes)
-	assert.Equal(t, "HTTP Route 'bar' is not found in the defined Virtual Service.", err.Error())
-	assert.Nil(t, indexes)
-
+		indexes, err := getHttpRouteIndexesToPatch([]string{"bar"}, httpRoutes)
+		assert.Equal(t, "HTTP Route 'bar' is not found in the defined Virtual Service.", err.Error())
+		assert.Nil(t, indexes)
+	})
 }
