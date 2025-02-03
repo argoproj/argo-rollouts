@@ -9,7 +9,8 @@ func NewCmdCompletion(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "completion [bash|zsh|fish|powershell]",
 		Short: "Generate completion script",
-		Long: `To load completions:
+		Long: `Loading completion is a two step process:
+	First you need to ensure that the kubectl-argo-rollouts can be completed, depending on your shell you can do this:
 	
 	Bash:
 	
@@ -47,6 +48,12 @@ func NewCmdCompletion(o *options.ArgoRolloutsOptions) *cobra.Command {
 	  # To load completions for every new session, run:
 	  PS> yourprogram completion powershell > yourprogram.ps1
 	  # and source this file from your PowerShell profile.
+
+	Secondly in order to support completion with kubectl you need to create a file in your path called: kubectl_complete-argo-rollouts with:
+	Bash:
+	  #!/usr/bin/env bash
+	  args=("$@")
+	  kubectl-argo-rollouts __complete "$@"
 	`,
 		DisableFlagsInUseLine: true,
 		ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
