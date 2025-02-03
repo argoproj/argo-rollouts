@@ -18,12 +18,13 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/util/workqueue"
 
+	"k8s.io/client-go/tools/cache"
+
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
-	"k8s.io/client-go/tools/cache"
 )
 
 const stableService string = "test-stable-service"

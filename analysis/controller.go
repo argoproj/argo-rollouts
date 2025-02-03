@@ -5,11 +5,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/metric"
-	jobProvider "github.com/argoproj/argo-rollouts/metricproviders/job"
 	"github.com/aws/smithy-go/ptr"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/argoproj/argo-rollouts/metric"
+	jobProvider "github.com/argoproj/argo-rollouts/metricproviders/job"
 
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
