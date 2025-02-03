@@ -113,7 +113,7 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// causing us to flap and scale up the stable 100 temporarily (before scaling down to 0 later).
 		// Therefore, we send c.rollout.Status.Canary.Weights so that the stable scaling happens in
 		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
-		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.rollout.Status.Canary.Weights)
+		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.newRS, c.stableRS, c.rollout.Status.Canary.Weights)
 	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
