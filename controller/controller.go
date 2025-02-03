@@ -13,8 +13,9 @@ import (
 
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 
-	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 	goPlugin "github.com/hashicorp/go-plugin"
+
+	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 

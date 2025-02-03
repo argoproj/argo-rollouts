@@ -10,11 +10,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	v1 "k8s.io/api/core/v1"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
 
 // Config is the in memory representation of the configmap with some additional fields/functions for ease of use.

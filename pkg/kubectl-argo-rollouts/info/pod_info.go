@@ -5,11 +5,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
+
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 )
 
 func addPodInfos(rsInfos []*rollout.ReplicaSetInfo, allPods []*corev1.Pod) []*rollout.ReplicaSetInfo {

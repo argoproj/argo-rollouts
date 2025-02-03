@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxapi "github.com/influxdata/influxdb-client-go/v2/api"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/evaluate"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
