@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"strings"
 
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	"github.com/mitchellh/mapstructure"
 	appsv1 "k8s.io/api/apps/v1"
+
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 
