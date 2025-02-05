@@ -1428,35 +1428,11 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#working-with-datadog-api-v2" class="md-nav__link">
-    <span class="md-ellipsis">
-      Working with Datadog API v2
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Working with Datadog API v2">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#moving-to-v2" class="md-nav__link">
-    <span class="md-ellipsis">
-      Moving to v2
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       Examples
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3510,35 +3486,11 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#working-with-datadog-api-v2" class="md-nav__link">
-    <span class="md-ellipsis">
-      Working with Datadog API v2
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Working with Datadog API v2">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#moving-to-v2" class="md-nav__link">
-    <span class="md-ellipsis">
-      Moving to v2
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       Examples
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3659,41 +3611,46 @@ or referring to a secret in the same namespace as the <code>AnalysisTemplate</co
 </div>
 <hr />
 <p>Let me know if there's anything else you'd like to adjust!</p>
-<div class="codehilite"><pre><span></span><code><span class="x">```yaml</span>
-<span class="x">apiVersion: argoproj.io/v1alpha1</span>
-<span class="x">kind: AnalysisTemplate</span>
-<span class="x">metadata:</span>
-<span class="x">  name: loq-error-rate</span>
-<span class="x">spec:</span>
-<span class="x">  args:</span>
-<span class="x">  - name: service-name</span>
-<span class="x">  metrics:</span>
-<span class="x">  - name: error-rate</span>
-<span class="x">    interval: 5m</span>
-<span class="x">    successCondition: result &lt;= 0.01</span>
-<span class="x">    failureLimit: 3</span>
-<span class="x">    provider:</span>
-<span class="x">      datadog:</span>
-<span class="x">        apiVersion: v2</span>
-<span class="x">        interval: 5m</span>
-<span class="x">        secretRef:</span>
-<span class="x">          name: &quot;mysecret&quot;</span>
-<span class="x">          namespaced: true</span>
-<span class="x">        query: |</span>
-<span class="x">          sum:requests.error.rate{service:</span><span class="cp">{{</span><span class="nv">args.service</span><span class="o">-</span><span class="nv">name</span><span class="cp">}}</span><span class="x">}</span>
-<span class="x">```</span>
-</code></pre></div>
-
-<h3 id="working-with-datadog-api-v2">Working with Datadog API v2<a class="headerlink" href="#working-with-datadog-api-v2" title="Permanent link">&para;</a></h3>
-<div class="admonition important">
-<p class="admonition-title">Important</p>
-<p>While some basic v2 functionality is working in earlier versions, the new properties of <code>formula</code> and <code>queries</code> are only available as of v1.7</p>
-</div>
-<h4 id="moving-to-v2">Moving to v2<a class="headerlink" href="#moving-to-v2" title="Permanent link">&para;</a></h4>
-<p>If your old v1 was just a simple metric query - no formula as part of the query - then you can just move to v2 by updating the <code>apiVersion</code> in your existing Analysis Template, and everything should work.</p>
-<p>If you have a formula, you will need to update how you configure your metric. Here is a before/after example of what your Analysis Template should look like:</p>
-<p>Before:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">loq-error-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span>
+<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error-rate</span>
+<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">result &lt;= 0.01</span>
+<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">datadog</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v2</span>
+<span class="w">        </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">        </span><span class="nt">secretRef</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;mysecret&quot;</span>
+<span class="w">          </span><span class="nt">namespaced</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">sum:requests.error.rate{service:{{args.service-name}}}</span>
+<span class="w">  </span><span class="err">```</span>
+
+
+
+<span class="c1">### Working with Datadog API v2</span>
+
+<span class="kt">!!!</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">important</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">While some basic v2 functionality is working in earlier versions, the new properties of `formula` and `queries` are only available as of v1.7</span>
+
+<span class="c1">#### Moving to v2</span>
+
+<span class="l l-Scalar l-Scalar-Plain">If your old v1 was just a simple metric query - no formula as part of the query - then you can just move to v2 by updating the `apiVersion` in your existing Analysis Template, and everything should work.</span>
+
+<span class="l l-Scalar l-Scalar-Plain">If you have a formula, you will need to update how you configure your metric. Here is a before/after example of what your Analysis Template should look like</span><span class="p p-Indicator">:</span>
+
+<span class="nt">Before</span><span class="p">:</span>
+
+<span class="err">```</span><span class="l l-Scalar l-Scalar-Plain">yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
 <span class="nt">metadata</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">log-error-rate</span>
