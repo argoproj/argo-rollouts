@@ -1,6 +1,7 @@
 package experiments
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -163,4 +164,36 @@ func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
 		cond := []v1alpha1.ExperimentCondition{*newCondition(conditions.ReplicaSetUpdatedReason, e)}
 		validatePatch(t, patch, "", NoChange, templateStatuses, cond)
 	}
+}
+
+// TestNewReplicaSetFromTemplate tests the creation of a new ReplicaSet from a given template.
+// It verifies that the ReplicaSet is correctly initialized with the expected name, namespace,
+// annotations, labels, and container specifications based on the provided experiment and template.
+// The test ensures that:
+// - The ReplicaSet name is a combination of the experiment name and template name.
+// - The ReplicaSet namespace matches the experiment namespace.
+// - The ReplicaSet annotations include the experiment name and template name.
+// - The ReplicaSet labels include the default rollout unique label key and a specific key from the template.
+// - The ReplicaSet selector and template labels include the default rollout unique label key.
+// - The ReplicaSet container specifications match those defined in the template.
+func TestNewReplicaSetFromTemplate(t *testing.T) {
+
+	templates := generateTemplates("bar")
+	template := templates[0]
+	experiment := newExperiment("foo", templates, "")
+	collisionCount := int32(0)
+	rs := newReplicaSetFromTemplate(experiment, template, &collisionCount)
+
+	assert.Equal(t, fmt.Sprintf("%s-%s", experiment.Name, template.Name), rs.Name)
+	assert.Equal(t, experiment.Namespace, rs.Namespace)
+	assert.Equal(t, experiment.Name, rs.Annotations[v1alpha1.ExperimentNameAnnotationKey])
+	assert.NotNil(t, rs.ObjectMeta.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	assert.NotNil(t, rs.ObjectMeta.Labels["key"])
+	assert.Equal(t, template.Template.ObjectMeta.Labels["key"], rs.ObjectMeta.Labels["key"])
+	assert.Equal(t, template.Name, rs.Annotations[v1alpha1.ExperimentTemplateNameAnnotationKey])
+	assert.NotNil(t, rs.Spec.Selector.MatchLabels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	assert.NotNil(t, rs.Spec.Template.ObjectMeta.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	assert.Equal(t, template.Template.Labels["key"], rs.Spec.Template.Labels["key"])
+	assert.Equal(t, template.Template.Spec.Containers[0].Name, rs.Spec.Template.Spec.Containers[0].Name)
+	assert.Equal(t, template.Template.Spec.Containers[0].Image, rs.Spec.Template.Spec.Containers[0].Image)
 }

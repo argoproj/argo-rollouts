@@ -33,7 +33,9 @@ import (
 
 func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
 	selector := map[string]string{"foo": "bar"}
+	labels := map[string]string{"custom": "label"}
 	rollout := newRollout(name, replicas, revisionHistoryLimit, selector)
+	rollout.ObjectMeta.Labels = labels
 	rollout.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		MaxUnavailable: &maxUnavailable,
 		MaxSurge:       &maxSurge,
