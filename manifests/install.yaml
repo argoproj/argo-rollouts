@@ -12694,6 +12694,14 @@ spec:
                         type: object
                       activeService:
                         type: string
+                      additionalActiveServices:
+                        items:
+                          type: string
+                        type: array
+                      additionalPreviewServices:
+                        items:
+                          type: string
+                        type: array
                       antiAffinity:
                         properties:
                           preferredDuringSchedulingIgnoredDuringExecution:

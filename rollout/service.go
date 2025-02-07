@@ -242,6 +242,32 @@ func (c *rolloutContext) getPreviewAndActiveServices() (*corev1.Service, *corev1
 	return previewSvc, activeSvc, nil
 }
 
+func (c *rolloutContext) makeServicesList(svcNames []string) ([]*corev1.Service, error) {
+	svcs := make([]*corev1.Service, len(svcNames))
+	for i, svcName := range svcNames {
+		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(svcName)
+		if err != nil {
+			return nil, err
+		}
+		svcs[i] = svc
+	}
+	return svcs, nil
+}
+
+func (c *rolloutContext) getAdditionalPreviewAndActiveServices() ([]*corev1.Service, []*corev1.Service, error) {
+	previewSvcs, err := c.makeServicesList(c.rollout.Spec.Strategy.BlueGreen.AdditionalPreviewServices)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	activeSvcs, err := c.makeServicesList(c.rollout.Spec.Strategy.BlueGreen.AdditionalActiveServices)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return previewSvcs, activeSvcs, nil
+}
+
 func (c *rolloutContext) reconcilePingAndPongService() error {
 	if trafficrouting.IsPingPongEnabled(c.rollout) && !rolloututils.IsFullyPromoted(c.rollout) {
 		_, canaryService := trafficrouting.GetStableAndCanaryServices(c.rollout, true)
