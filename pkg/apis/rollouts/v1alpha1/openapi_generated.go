@@ -1372,6 +1372,36 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Format:      "int32",
 						},
 					},
+					"additionalActiveServices": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdditionalActiveServices is a list of additional Services that the rollout modifies during reconciliation. These will always be updated after the primary active Service.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"additionalPreviewServices": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdditionalPreviewServices is a list of additional Services that the rollout modifies during reconciliation. These will always be updated after the primary one.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"activeService"},
 			},

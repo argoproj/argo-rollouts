@@ -430,6 +430,18 @@ message BlueGreenStrategy {
   // Default is 30 second
   // +optional
   optional int32 abortScaleDownDelaySeconds = 14;
+
+  // AdditionalActiveServices is a list of additional Services that the
+  // rollout modifies during reconciliation. These will always be updated
+  // after the primary active Service.
+  // +optional
+  repeated string additionalActiveServices = 15;
+
+  // AdditionalPreviewServices is a list of additional Services that the
+  // rollout modifies during reconciliation. These will always be updated
+  // after the primary one.
+  // +optional
+  repeated string additionalPreviewServices = 16;
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout

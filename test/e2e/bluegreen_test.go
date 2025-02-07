@@ -25,6 +25,79 @@ func (s *BlueGreenSuite) SetupSuite() {
 	s.E2ESuite.SetupSuite()
 }
 
+// TestBlueGreenAdditionalServices verifies that additionalActiveServices and additionalPreviewServices
+// are switched alongside the primary active and preview services during a blue-green update.
+func (s *BlueGreenSuite) TestBlueGreenAdditionalServices() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-additional-active", "bluegreen-additional")).
+		RolloutObjects(newService("bluegreen-additional-active-1", "bluegreen-additional")).
+		RolloutObjects(newService("bluegreen-additional-active-2", "bluegreen-additional")).
+		RolloutObjects(newService("bluegreen-additional-preview", "bluegreen-additional")).
+		RolloutObjects(newService("bluegreen-additional-preview-1", "bluegreen-additional")).
+		RolloutObjects(newService("bluegreen-additional-preview-2", "bluegreen-additional")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-additional
+spec:
+  replicas: 1
+  strategy:
+    blueGreen:
+      activeService: bluegreen-additional-active
+      previewService: bluegreen-additional-preview
+      additionalActiveServices:
+      - bluegreen-additional-active-1
+      - bluegreen-additional-active-2
+      additionalPreviewServices:
+      - bluegreen-additional-preview-1
+      - bluegreen-additional-preview-2
+      autoPromotionEnabled: false
+  selector:
+    matchLabels:
+      app: bluegreen-additional
+  template:
+    metadata:
+      labels:
+        app: bluegreen-additional
+    spec:
+      containers:
+      - name: bluegreen-additional
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		// after the initial deploy every active service points to revision 1
+		ExpectActiveRevision("1").
+		ExpectServiceSelectorRevision("bluegreen-additional-active-1", "1").
+		ExpectServiceSelectorRevision("bluegreen-additional-active-2", "1").
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		// while paused, preview services move to revision 2 but active services stay on revision 1
+		ExpectPreviewRevision("2").
+		ExpectServiceSelectorRevision("bluegreen-additional-preview-1", "2").
+		ExpectServiceSelectorRevision("bluegreen-additional-preview-2", "2").
+		ExpectActiveRevision("1").
+		ExpectServiceSelectorRevision("bluegreen-additional-active-1", "1").
+		ExpectServiceSelectorRevision("bluegreen-additional-active-2", "1").
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		// after promotion every active service points to revision 2
+		ExpectActiveRevision("2").
+		ExpectServiceSelectorRevision("bluegreen-additional-active-1", "2").
+		ExpectServiceSelectorRevision("bluegreen-additional-active-2", "2")
+}
+
 // TestEphemeralMetadata tests the ephemeral metadata feature
 func (s *BlueGreenSuite) TestEphemeralMetadata() {
 	podsHaveActiveMetadata := func(pods *corev1.PodList) bool {

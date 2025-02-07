@@ -216,6 +216,22 @@ spec:
                         description: Name of the service that the rollout modifies
                           as the active service.
                         type: string
+                      additionalActiveServices:
+                        description: |-
+                          AdditionalActiveServices is a list of additional Services that the
+                          rollout modifies during reconciliation. These will always be updated
+                          after the primary active Service.
+                        items:
+                          type: string
+                        type: array
+                      additionalPreviewServices:
+                        description: |-
+                          AdditionalPreviewServices is a list of additional Services that the
+                          rollout modifies during reconciliation. These will always be updated
+                          after the primary one.
+                        items:
+                          type: string
+                        type: array
                       antiAffinity:
                         description: AntiAffinity enables anti-affinity rules for
                           Blue Green deployment

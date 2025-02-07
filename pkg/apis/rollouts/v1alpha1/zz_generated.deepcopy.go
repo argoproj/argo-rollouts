@@ -770,6 +770,16 @@ func (in *BlueGreenStrategy) DeepCopyInto(out *BlueGreenStrategy) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.AdditionalActiveServices != nil {
+		in, out := &in.AdditionalActiveServices, &out.AdditionalActiveServices
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.AdditionalPreviewServices != nil {
+		in, out := &in.AdditionalPreviewServices, &out.AdditionalPreviewServices
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

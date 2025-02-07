@@ -25,8 +25,14 @@ func GetRolloutServiceKeys(rollout *v1alpha1.Rollout) []string {
 		if rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
 			services = append(services, fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreen.ActiveService))
 		}
+		for _, svc := range rollout.Spec.Strategy.BlueGreen.AdditionalActiveServices {
+			services = append(services, fmt.Sprintf("%s/%s", rollout.Namespace, svc))
+		}
 		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
 			services = append(services, fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreen.PreviewService))
+		}
+		for _, svc := range rollout.Spec.Strategy.BlueGreen.AdditionalPreviewServices {
+			services = append(services, fmt.Sprintf("%s/%s", rollout.Namespace, svc))
 		}
 	} else if rollout.Spec.Strategy.Canary != nil {
 		if rollout.Spec.Strategy.Canary.CanaryService != "" {
