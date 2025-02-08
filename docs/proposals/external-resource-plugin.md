@@ -1,5 +1,5 @@
 ---
-title: Statefulset support
+title: External Resources Plugin
 authors:
   - '@aburan28'
 sponsors:
@@ -15,37 +15,68 @@ Currently Argo Rollouts only supports the `Deployment` workload type. There are 
 ## Motivation  
 In order to support other workloads in Rollouts besides Deployments a Rollout resource plugin would be ideal. 
 
-
+The current `Rollouts` controller is heavily coupled to `ReplicaSets`. 
 
 ## User Stories
 As a developer, it want to be able to define blue-green/canary rollouts for statefulsets/daemonsets. 
 
 ### Goals
-
 - Allow open source community to implement rollouts for external resource types 
-- Provide a path forward in argo rollouts for supporting statefulsets/daemonsets.
+- Provide a path forward in argo rollouts for supporting statefulsets/daemonsets and other workload types. 
 
 
-### Options
-
-#### Option 1: RolloutsPlugin controller 
-
-
-#### Option 2: Resource Plugin
+## Options
+Below are two options and their high level summaries. 
+### Option 1: RolloutsPlugin controller 
+This would entail deploying a new dedicated controller that reconciles a new `RolloutPlugin` CRD. This would be essentially a greenfield implementation of the existing rollouts controller. It would be agnostic to all workload types to accomodate flexibility to workloads other than `PodSpec` based. 
 
 
+### Option 2: Resource Plugin
+Modify the existing rollouts controller and add to the spec of the Rollout a new `resourceCreation` plugin reference. 
 
-### Proposal
+## Option 1: RolloutsPlugin controller design  
+
+Create a new controller for `RolloutsPlugin`.
+Additionally add the following CRDs:
+1. RolloutsPlugin
+2. Revisions
+
+
+```yaml
+kind: RolloutsPlugin
+metadata:
+  name: statefulset-plugin
+spec:
+  selector:
+    matchLabels:
+      name: blahapp
+```
+
+
+```yaml
+apiVersion: argorollouts.io/v1alpha1
+kind: Revision
+metadata:
+  	name: rev0303
+	labels:
+		<retrieve labels from other resource>
+spec:
+status:
+  conditions:
+
+```
+
+
+
+
+
+
+
+
+### Option 2: Proposal
 There exist several other plugin types within the Argo Rollouts codebase such as `stepPlugins`, `metricsPlugins`, and `trafficRouting` plugins. 
-
-
-
 This implementation would follow in those plugin footsteps and take the same approach. 
-
 A resource plugin would be responsible for the full lifecycle of the external resources. For example if using a resource plugin that manages statefulsets, the plugin should handle creation, updates, deletes, and rollbacks of the statefulset. 
-
-
-
 
 
 ```yaml
