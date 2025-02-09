@@ -18,6 +18,14 @@ import (
 
 var terminateExperimentPatch = []byte(`{"spec":{"terminate":true}}`)
 
+func BelongsToRollout(experiment *v1alpha1.Experiment) bool {
+	if len(experiment.OwnerReferences) == 0 {
+		return false
+	}
+
+	return experiment.OwnerReferences[0].Kind == "Rollout"
+}
+
 func HasFinished(experiment *v1alpha1.Experiment) bool {
 	return experiment.Status.Phase.Completed()
 }

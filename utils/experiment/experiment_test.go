@@ -15,6 +15,38 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 )
 
+func TestBelongsToRollout(t *testing.T) {
+	t.Run("no owner references", func(t *testing.T) {
+		e := &v1alpha1.Experiment{}
+		belongs := BelongsToRollout(e)
+		assert.False(t, belongs)
+	})
+
+	t.Run("non-rollout owner", func(t *testing.T) {
+		e := &v1alpha1.Experiment{
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{{
+					Kind: "Deployment",
+				}},
+			},
+		}
+		belongs := BelongsToRollout(e)
+		assert.False(t, belongs)
+	})
+
+	t.Run("rollout owner", func(t *testing.T) {
+		e := &v1alpha1.Experiment{
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{{
+					Kind: "Rollout",
+				}},
+			},
+		}
+		belongs := BelongsToRollout(e)
+		assert.True(t, belongs)
+	})
+}
+
 func TestHasFinished(t *testing.T) {
 	e := &v1alpha1.Experiment{}
 	assert.False(t, HasFinished(e))
@@ -42,7 +74,6 @@ func TestCalculateTemplateReplicasCount(t *testing.T) {
 		Status: v1alpha1.TemplateStatusFailed,
 	})
 	assert.Equal(t, int32(0), CalculateTemplateReplicasCount(e, template))
-
 }
 
 func TestPassedDurations(t *testing.T) {
@@ -70,7 +101,6 @@ func TestPassedDurations(t *testing.T) {
 	e.Status.AvailableAt = &metav1.Time{Time: now.Add(-2 * time.Second)}
 	passedDuration, _ = PassedDurations(e)
 	assert.True(t, passedDuration)
-
 }
 
 func TestGetTemplateStatusMapping(t *testing.T) {
@@ -113,7 +143,6 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 }
 
 func TestExperimentByCreationTimestamp(t *testing.T) {
-
 	now := metav1.Now()
 	before := metav1.NewTime(metav1.Now().Add(-5 * time.Second))
 
