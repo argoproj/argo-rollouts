@@ -57,29 +57,29 @@ stringData:
 
 Let me know if there's anything else you'd like to adjust!
 
-    ```yaml
-    apiVersion: argoproj.io/v1alpha1
-    kind: AnalysisTemplate
-    metadata:
-      name: loq-error-rate
-    spec:
-      args:
-      - name: service-name
-      metrics:
-      - name: error-rate
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: loq-error-rate
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: error-rate
+    interval: 5m
+    successCondition: result <= 0.01
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
         interval: 5m
-        successCondition: result <= 0.01
-        failureLimit: 3
-        provider:
-          datadog:
-            apiVersion: v2
-            interval: 5m
-            secretRef:
-              name: "mysecret"
-              namespaced: true
-            query: |
-              sum:requests.error.rate{service:{{args.service-name}}}
-    ```
+        secretRef:
+          name: "mysecret"
+          namespaced: true
+        query: |
+          sum:requests.error.rate{service:{{args.service-name}}}
+  ```
 
 
 

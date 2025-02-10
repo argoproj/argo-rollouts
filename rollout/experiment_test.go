@@ -57,6 +57,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 	f.run(getKey(r2, t))
 	createdEx := f.getCreatedExperiment(createExIndex)
 	assert.Equal(t, createdEx.Name, ex.Name)
+	assert.Equal(t, createdEx.ObjectMeta.Labels, ex.ObjectMeta.Labels)
 	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, at.Name)
 	assert.Equal(t, createdEx.Spec.Analyses[0].Name, "test")
 	patch := f.getPatchedRollout(patchIndex)
