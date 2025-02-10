@@ -652,8 +652,8 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		AbortRollout().
 		MarkPodsReady("1", 2). // mark 2 stable pods as ready (3/4 stable are ready)
 		WaitForRevisionPodCount("2", 1).
+		WaitForRevisionPodCount("1", 4).
 		Then().
-		ExpectRevisionPodCount("1", 4).
 		// Assert that the canary service selector is still not set to stable rs because of dynamic stable scale still in progress
 		Assert(func(t *fixtures.Then) {
 			canarySvc, stableSvc := t.GetServices()
