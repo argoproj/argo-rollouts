@@ -278,6 +278,14 @@ func (w *When) WaitForRolloutStatus(status string, timeout ...time.Duration) *Wh
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), timeout...)
 }
 
+func (w *When) WaitForRolloutMessage(message string, timeout ...time.Duration) *When {
+	checkStatus := func(ro *rov1.Rollout) bool {
+		_, m := rolloututil.GetRolloutPhase(ro)
+		return m == message
+	}
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("message=%s", message), timeout...)
+}
+
 func (w *When) MarkPodsReady(revision string, count int, timeouts ...time.Duration) *When {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
