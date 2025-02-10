@@ -23,7 +23,12 @@ func BelongsToRollout(experiment *v1alpha1.Experiment) bool {
 		return false
 	}
 
-	return experiment.OwnerReferences[0].Kind == "Rollout"
+	for _, owner := range experiment.OwnerReferences {
+		if owner.Kind == "Rollout" {
+			return true
+		}
+	}
+	return false
 }
 
 func HasFinished(experiment *v1alpha1.Experiment) bool {
