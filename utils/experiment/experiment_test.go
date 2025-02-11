@@ -15,35 +15,62 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 )
 
-func TestBelongsToRollout(t *testing.T) {
+func TestGetRolloutOwnerRef(t *testing.T) {
 	t.Run("no owner references", func(t *testing.T) {
 		e := &v1alpha1.Experiment{}
-		belongs := BelongsToRollout(e)
-		assert.False(t, belongs)
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Nil(t, ownerRef)
 	})
 
-	t.Run("non-rollout owner", func(t *testing.T) {
+	t.Run("non-rollout owner reference", func(t *testing.T) {
 		e := &v1alpha1.Experiment{
 			ObjectMeta: metav1.ObjectMeta{
-				OwnerReferences: []metav1.OwnerReference{{
-					Kind: "Deployment",
-				}},
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						Kind: "Deployment",
+						Name: "deploy",
+					},
+				},
 			},
 		}
-		belongs := BelongsToRollout(e)
-		assert.False(t, belongs)
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Nil(t, ownerRef)
 	})
 
-	t.Run("rollout owner", func(t *testing.T) {
+	t.Run("multiple owner references with rollout", func(t *testing.T) {
+		rolloutOwner := metav1.OwnerReference{
+			Kind: "Rollout",
+			Name: "rollout",
+		}
 		e := &v1alpha1.Experiment{
 			ObjectMeta: metav1.ObjectMeta{
-				OwnerReferences: []metav1.OwnerReference{{
-					Kind: "Rollout",
-				}},
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						Kind: "Deployment",
+						Name: "deploy",
+					},
+					rolloutOwner,
+				},
 			},
 		}
-		belongs := BelongsToRollout(e)
-		assert.True(t, belongs)
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Equal(t, &rolloutOwner, ownerRef)
+	})
+
+	t.Run("only rollout owner reference", func(t *testing.T) {
+		rolloutOwner := metav1.OwnerReference{
+			Kind: "Rollout",
+			Name: "rollout",
+		}
+		e := &v1alpha1.Experiment{
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{
+					rolloutOwner,
+				},
+			},
+		}
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Equal(t, &rolloutOwner, ownerRef)
 	})
 }
 

@@ -419,14 +419,8 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 			// Handle the case where the Analysis Run belongs to an Experiment, and the Experiment is a Step in the Rollout
 			// This makes sure the rollout gets the Analysis Run events, which will then trigger any subscribed notifications
 			// #4009
-			if experimentutil.BelongsToRollout(ec.ex) {
-				var roRef metav1.OwnerReference
-				for _, owner := range ec.ex.OwnerReferences {
-					if owner.Kind == "Rollout" {
-						roRef = owner
-					}
-				}
-
+			roRef := experimentutil.GetRolloutOwnerRef(ec.ex)
+			if roRef != nil {
 				rollout, err := ec.argoProjClientset.ArgoprojV1alpha1().Rollouts(ec.ex.Namespace).Get(context.TODO(), roRef.Name, metav1.GetOptions{})
 				if err != nil {
 					ec.log.Warnf("Failed to get parent Rollout of the Experiment '%s': %v", roRef.Name, err)
