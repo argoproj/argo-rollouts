@@ -18,6 +18,15 @@ import (
 
 var terminateExperimentPatch = []byte(`{"spec":{"terminate":true}}`)
 
+func GetRolloutOwnerRef(experiment *v1alpha1.Experiment) *metav1.OwnerReference {
+	for _, owner := range experiment.OwnerReferences {
+		if owner.Kind == "Rollout" {
+			return &owner
+		}
+	}
+	return nil
+}
+
 func HasFinished(experiment *v1alpha1.Experiment) bool {
 	return experiment.Status.Phase.Completed()
 }

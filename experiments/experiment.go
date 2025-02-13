@@ -72,7 +72,6 @@ func newExperimentContext(
 	resyncPeriod time.Duration,
 	enqueueExperimentAfter func(obj any, duration time.Duration),
 ) *experimentContext {
-
 	exCtx := experimentContext{
 		ex:                            experiment,
 		templateRSs:                   templateRSs,
@@ -416,6 +415,19 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 				eventType = corev1.EventTypeWarning
 			}
 			ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(newStatus.Phase)}, msg)
+
+			// Handle the case where the Analysis Run belongs to an Experiment, and the Experiment is a Step in the Rollout
+			// This makes sure the rollout gets the Analysis Run events, which will then trigger any subscribed notifications
+			// #4009
+			roRef := experimentutil.GetRolloutOwnerRef(ec.ex)
+			if roRef != nil {
+				rollout, err := ec.argoProjClientset.ArgoprojV1alpha1().Rollouts(ec.ex.Namespace).Get(context.TODO(), roRef.Name, metav1.GetOptions{})
+				if err != nil {
+					ec.log.Warnf("Failed to get parent Rollout of the Experiment '%s': %v", roRef.Name, err)
+				} else {
+					ec.recorder.Eventf(rollout, record.EventOptions{EventType: corev1.EventTypeWarning, EventReason: "AnalysisRun" + string(newStatus.Phase)}, msg)
+				}
+			}
 		}
 		experimentutil.SetAnalysisRunStatus(ec.newStatus, *newStatus)
 	}()
@@ -627,7 +639,6 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 
 // newAnalysisRun generates an AnalysisRun from the experiment and template
 func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, analysisRunMetadata *v1alpha1.AnalysisRunMetadata) (*v1alpha1.AnalysisRun, error) {
-
 	if analysis.ClusterScope {
 		analysisTemplates, clusterAnalysisTemplates, err := ec.getAnalysisTemplatesFromClusterAnalysis(analysis)
 		if err != nil {
@@ -772,7 +783,6 @@ func (ec *experimentContext) getAnalysisTemplatesFromRefs(templateRefs *[]v1alph
 				templates = append(templates, innerTemplates...)
 			}
 		}
-
 	}
 	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
 	return uniqueTemplates, uniqueClusterTemplates, nil
