@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-rollouts/metricproviders"
+	"github.com/argoproj/argo-rollouts/rollout"
 	"github.com/argoproj/argo-rollouts/utils/record"
 
 	"github.com/argoproj/argo-rollouts/controller"
@@ -67,6 +68,7 @@ func newCommand() *cobra.Command {
 		analysisThreads                int
 		serviceThreads                 int
 		ingressThreads                 int
+		ephemeralMetadataThreads       int
 		istioVersion                   string
 		trafficSplitVersion            string
 		traefikAPIGroup                string
@@ -271,7 +273,8 @@ func newCommand() *cobra.Command {
 					istioDynamicInformerFactory,
 					namespaced,
 					kubeInformerFactory,
-					jobInformerFactory)
+					jobInformerFactory,
+					ephemeralMetadataThreads)
 			}
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
@@ -299,6 +302,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
+	command.Flags().IntVar(&ephemeralMetadataThreads, "ephemeral-metadata-threads", rollout.DefaultEphemeralMetadataThreads, "Set the number of worker threads for the Ephemeral Metadata reconciler")
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	command.Flags().StringVar(&ambassadorVersion, "ambassador-api-version", defaults.DefaultAmbassadorVersion, "Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings.")
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
