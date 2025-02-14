@@ -8,9 +8,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/prometheus/client_golang/api"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 type testHttpHeaderRoundTripper struct {

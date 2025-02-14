@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {

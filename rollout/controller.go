@@ -11,7 +11,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,6 +33,8 @@ import (
 	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
@@ -113,6 +114,7 @@ type ControllerConfig struct {
 	IngressWorkQueue                workqueue.RateLimitingInterface
 	MetricsServer                   *metrics.MetricsServer
 	Recorder                        record.EventRecorder
+	EphemeralMetadataThreads        int
 }
 
 // reconcilerBase is a shared datastructure containing all clients and configuration necessary to
@@ -152,8 +154,9 @@ type reconcilerBase struct {
 	newTrafficRoutingReconciler func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
 
 	// recorder is an event recorder for recording Event resources to the Kubernetes API.
-	recorder     record.EventRecorder
-	resyncPeriod time.Duration
+	recorder                 record.EventRecorder
+	resyncPeriod             time.Duration
+	ephemeralMetadataThreads int
 }
 
 type IngressWrapper interface {
@@ -165,7 +168,6 @@ type IngressWrapper interface {
 
 // NewController returns a new rollout controller
 func NewController(cfg ControllerConfig) *Controller {
-
 	replicaSetControl := controller.RealRSControl{
 		KubeClient: cfg.KubeClientSet,
 		Recorder:   cfg.Recorder.K8sRecorder(),
@@ -200,6 +202,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		resyncPeriod:                  cfg.ResyncPeriod,
 		podRestarter:                  podRestarter,
 		refResolver:                   cfg.RefResolver,
+		ephemeralMetadataThreads:      cfg.EphemeralMetadataThreads,
 	}
 
 	controller := &Controller{
