@@ -81,7 +81,7 @@ type Controller struct {
 	resyncPeriod time.Duration
 }
 
-// ControllerConfig describes the data required to instantiate a new analysis controller
+// ControllerConfig describes the data required to instantiate a new experiments controller
 type ControllerConfig struct {
 	KubeClientSet                   kubernetes.Interface
 	ArgoProjClientset               clientset.Interface
@@ -100,7 +100,6 @@ type ControllerConfig struct {
 
 // NewController returns a new experiment controller
 func NewController(cfg ControllerConfig) *Controller {
-
 	replicaSetControl := controller.RealRSControl{
 		KubeClient: cfg.KubeClientSet,
 		Recorder:   cfg.Recorder.K8sRecorder(),
