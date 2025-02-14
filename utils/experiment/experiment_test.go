@@ -15,6 +15,65 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 )
 
+func TestGetRolloutOwnerRef(t *testing.T) {
+	t.Run("no owner references", func(t *testing.T) {
+		e := &v1alpha1.Experiment{}
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Nil(t, ownerRef)
+	})
+
+	t.Run("non-rollout owner reference", func(t *testing.T) {
+		e := &v1alpha1.Experiment{
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						Kind: "Deployment",
+						Name: "deploy",
+					},
+				},
+			},
+		}
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Nil(t, ownerRef)
+	})
+
+	t.Run("multiple owner references with rollout", func(t *testing.T) {
+		rolloutOwner := metav1.OwnerReference{
+			Kind: "Rollout",
+			Name: "rollout",
+		}
+		e := &v1alpha1.Experiment{
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						Kind: "Deployment",
+						Name: "deploy",
+					},
+					rolloutOwner,
+				},
+			},
+		}
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Equal(t, &rolloutOwner, ownerRef)
+	})
+
+	t.Run("only rollout owner reference", func(t *testing.T) {
+		rolloutOwner := metav1.OwnerReference{
+			Kind: "Rollout",
+			Name: "rollout",
+		}
+		e := &v1alpha1.Experiment{
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{
+					rolloutOwner,
+				},
+			},
+		}
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Equal(t, &rolloutOwner, ownerRef)
+	})
+}
+
 func TestHasFinished(t *testing.T) {
 	e := &v1alpha1.Experiment{}
 	assert.False(t, HasFinished(e))
@@ -42,7 +101,6 @@ func TestCalculateTemplateReplicasCount(t *testing.T) {
 		Status: v1alpha1.TemplateStatusFailed,
 	})
 	assert.Equal(t, int32(0), CalculateTemplateReplicasCount(e, template))
-
 }
 
 func TestPassedDurations(t *testing.T) {
@@ -70,7 +128,6 @@ func TestPassedDurations(t *testing.T) {
 	e.Status.AvailableAt = &metav1.Time{Time: now.Add(-2 * time.Second)}
 	passedDuration, _ = PassedDurations(e)
 	assert.True(t, passedDuration)
-
 }
 
 func TestGetTemplateStatusMapping(t *testing.T) {
@@ -113,7 +170,6 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 }
 
 func TestExperimentByCreationTimestamp(t *testing.T) {
-
 	now := metav1.Now()
 	before := metav1.NewTime(metav1.Now().Add(-5 * time.Second))
 
