@@ -492,8 +492,9 @@ func (c *rolloutContext) checkPausedConditions() error {
 
 	var updatedConditions []*v1alpha1.RolloutCondition
 
-	if (isPaused != progCondPaused) && !abortCondExists {
+	if (isPaused != progCondPaused) && !abortCondExists && c.rollout.Status.StableRS != c.rollout.Status.CurrentPodHash {
 		if isPaused {
+			// TODO: pause
 			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutPausedReason, conditions.RolloutPausedMessage))
 		} else {
 			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutResumedReason, conditions.RolloutResumedMessage))
@@ -633,6 +634,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 				rsName = c.newRS.Name
 			}
 			msg := fmt.Sprintf(conditions.ReplicaSetCompletedMessage, rsName)
+			// TODO: pause
 			progressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *progressingCondition)
 		case conditions.RolloutProgressing(c.rollout, &newStatus) || becameUnhealthy:
