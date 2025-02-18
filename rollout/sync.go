@@ -494,7 +494,6 @@ func (c *rolloutContext) checkPausedConditions() error {
 
 	var updatedConditions []*v1alpha1.RolloutCondition
 
-	//if (isPaused != progCondPaused) && !abortCondExists && c.rollout.Status.StableRS != c.rollout.Status.CurrentPodHash {
 	if (isPaused != progCondPaused) && !abortCondExists && !isRolloutCompleted {
 		if isPaused {
 			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutPausedReason, conditions.RolloutPausedMessage))
@@ -626,7 +625,6 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 
 	isHealthyRollout := newStatus.Replicas == newStatus.AvailableReplicas && currentCond != nil && currentCond.Reason == conditions.NewRSAvailableReason && currentCond.Type != v1alpha1.RolloutProgressing
 	// Check for progress. Only do this if the latest rollout hasn't completed yet and it is not aborted
-	// if !isHealthyRollout && !isAborted && newStatus.CurrentPodHash != newStatus.StableRS {
 	if !isHealthyRollout && !isAborted {
 		switch {
 		case conditions.RolloutHealthy(c.rollout, &newStatus):
