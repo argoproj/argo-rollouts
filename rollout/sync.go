@@ -490,7 +490,7 @@ func (c *rolloutContext) checkPausedConditions() error {
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
 	abortCondExists := progCond != nil && progCond.Reason == conditions.RolloutAbortedReason
 
-	isRolloutCompleted := c.rollout.Status.CurrentPodHash != c.rollout.Status.StableRS
+	isRolloutCompleted := c.rollout.Status.CurrentPodHash == c.rollout.Status.StableRS
 
 	var updatedConditions []*v1alpha1.RolloutCondition
 
