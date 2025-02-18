@@ -490,11 +490,13 @@ func (c *rolloutContext) checkPausedConditions() error {
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
 	abortCondExists := progCond != nil && progCond.Reason == conditions.RolloutAbortedReason
 
+	isRolloutCompleted := c.rollout.Status.CurrentPodHash != c.rollout.Status.StableRS
+
 	var updatedConditions []*v1alpha1.RolloutCondition
 
-	if (isPaused != progCondPaused) && !abortCondExists && c.rollout.Status.StableRS != c.rollout.Status.CurrentPodHash {
+	//if (isPaused != progCondPaused) && !abortCondExists && c.rollout.Status.StableRS != c.rollout.Status.CurrentPodHash {
+	if (isPaused != progCondPaused) && !abortCondExists && !isRolloutCompleted {
 		if isPaused {
-			// TODO: pause
 			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutPausedReason, conditions.RolloutPausedMessage))
 		} else {
 			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutResumedReason, conditions.RolloutResumedMessage))
@@ -624,6 +626,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 
 	isHealthyRollout := newStatus.Replicas == newStatus.AvailableReplicas && currentCond != nil && currentCond.Reason == conditions.NewRSAvailableReason && currentCond.Type != v1alpha1.RolloutProgressing
 	// Check for progress. Only do this if the latest rollout hasn't completed yet and it is not aborted
+	// if !isHealthyRollout && !isAborted && newStatus.CurrentPodHash != newStatus.StableRS {
 	if !isHealthyRollout && !isAborted {
 		switch {
 		case conditions.RolloutHealthy(c.rollout, &newStatus):
@@ -634,7 +637,6 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 				rsName = c.newRS.Name
 			}
 			msg := fmt.Sprintf(conditions.ReplicaSetCompletedMessage, rsName)
-			// TODO: pause
 			progressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *progressingCondition)
 		case conditions.RolloutProgressing(c.rollout, &newStatus) || becameUnhealthy:
