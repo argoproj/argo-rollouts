@@ -492,7 +492,7 @@ func (c *rolloutContext) checkPausedConditions() error {
 
 	var updatedConditions []*v1alpha1.RolloutCondition
 
-	if (isPaused != progCondPaused) && !abortCondExists && !conditions.RolloutCompleted(c.rollout, &c.rollout.Status) {
+	if (isPaused != progCondPaused) && !abortCondExists && !conditions.RolloutCompleted(&c.rollout.Status) {
 		if isPaused {
 			updatedConditions = append(updatedConditions, conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionUnknown, conditions.RolloutPausedReason, conditions.RolloutPausedMessage))
 		} else {
@@ -719,7 +719,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 		conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutReplicaFailure)
 	}
 
-	if conditions.RolloutCompleted(c.rollout, &newStatus) {
+	if conditions.RolloutCompleted(&newStatus) {
 		// The event gets triggered in function promoteStable
 		updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue,
 			conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
