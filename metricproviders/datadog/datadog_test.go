@@ -187,15 +187,22 @@ func TestValidateIncomingProps(t *testing.T) {
 func TestFindCredentials(t *testing.T) {
 
 	testCases := []struct {
-		name         string
-		secret       *corev1.Secret
-		expectsError bool
-		metric       v1alpha1.Metric
+		name                string
+		secret              *corev1.Secret
+		expectsError        bool
+		expectsEmptyAddress bool
+		metric              v1alpha1.Metric
 	}{
 		{
 			name:   "when secretRef is set and secret found, should success",
 			secret: NewSecretBuilderDefaultData().Build(),
 			metric: newMetric("datadog", true),
+		},
+		{
+			name:                "when secretRef without address is set and secret found, should success",
+			secret:              NewSecretBuilder().WithData("api-key", []byte("apiKey")).WithData("app-key", []byte("appKey")).Build(),
+			metric:              newMetric("datadog", true),
+			expectsEmptyAddress: true,
 		},
 		{
 			name:         "when secretRef is set but secret not found, should fail",
@@ -222,7 +229,11 @@ func TestFindCredentials(t *testing.T) {
 			address, apiKey, appKey, err := findCredentials(logCtx, fakeClient, "namespace", testCase.metric)
 			assert.Equal(t, err != nil, testCase.expectsError)
 			if !testCase.expectsError {
-				assert.Equal(t, string(testCase.secret.Data["address"]), address)
+				if testCase.expectsEmptyAddress {
+					assert.Empty(t, address)
+				} else {
+					assert.Equal(t, string(testCase.secret.Data["address"]), address)
+				}
 				assert.Equal(t, string(testCase.secret.Data["api-key"]), apiKey)
 				assert.Equal(t, string(testCase.secret.Data["app-key"]), appKey)
 			}
