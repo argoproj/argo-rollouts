@@ -313,7 +313,7 @@ func RolloutHealthy(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus
 }
 
 // RolloutCompleted considers a rollout to be complete once StableRS == CurrentPodHash
-func RolloutCompleted(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
+func RolloutCompleted(newStatus *v1alpha1.RolloutStatus) bool {
 	return newStatus.StableRS != "" && newStatus.StableRS == newStatus.CurrentPodHash
 }
 
