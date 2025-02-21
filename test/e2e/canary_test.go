@@ -729,6 +729,7 @@ func (s *CanarySuite) TestCanaryDynamicStableScaleRollbackToStable() {
 		})
 }
 
+// TestCanaryWithSpecPause This tests that we do not go into a update loop where we flap back updating condition patches.
 func (s *CanarySuite) TestCanaryWithSpecPause() {
 	s.Given().
 		RolloutObjects(`
@@ -777,6 +778,6 @@ spec:
 				}
 			}
 			return false
-		}, "ProgressingPausedUnknown", 10*time.Second).
+		}, "ProgressingPausedUnknown", 5*time.Second).
 		WaitForRolloutStatus("Paused")
 }
