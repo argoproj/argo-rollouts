@@ -282,6 +282,7 @@ func NewManager(
 	namespaced bool,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	jobInformerFactory kubeinformers.SharedInformerFactory,
+	ephemeralMetadataThreads int,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -346,6 +347,7 @@ func NewManager(
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   metricsServer,
 		Recorder:                        recorder,
+		EphemeralMetadataThreads:        ephemeralMetadataThreads,
 	})
 
 	experimentController := experiments.NewController(experiments.ControllerConfig{
