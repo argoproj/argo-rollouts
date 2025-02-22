@@ -105,6 +105,17 @@
                                         ],
                                         "x-kubernetes-int-or-string": true
                                     },
+                                    "consecutiveSuccessLimit": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "x-kubernetes-int-or-string": true
+                                    },
                                     "count": {
                                         "anyOf": [
                                             {
@@ -4961,6 +4972,17 @@
                             "items": {
                                 "properties": {
                                     "consecutiveErrorLimit": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "x-kubernetes-int-or-string": true
+                                    },
+                                    "consecutiveSuccessLimit": {
                                         "anyOf": [
                                             {
                                                 "type": "integer"
@@ -9840,6 +9862,17 @@
                             "items": {
                                 "properties": {
                                     "consecutiveErrorLimit": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "x-kubernetes-int-or-string": true
+                                    },
+                                    "consecutiveSuccessLimit": {
                                         "anyOf": [
                                             {
                                                 "type": "integer"

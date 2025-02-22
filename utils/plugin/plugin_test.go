@@ -7,11 +7,12 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 
-	"github.com/argoproj/argo-rollouts/utils/config"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/argoproj/argo-rollouts/utils/config"
 )
 
 func TestGetPluginInfo(t *testing.T) {

@@ -14,7 +14,7 @@ import MetricTable from '../metric-table/metric-table';
 import QueryBox from '../query-box/query-box';
 import {AnalysisStatus, FunctionalStatus, TransformedMetricSpec, TransformedMetricStatus} from '../types';
 import {isFiniteNumber} from '../transforms';
-import {METRIC_CONSECUTIVE_ERROR_LIMIT_DEFAULT, METRIC_FAILURE_LIMIT_DEFAULT, METRIC_INCONCLUSIVE_LIMIT_DEFAULT} from '../constants';
+import {METRIC_CONSECUTIVE_ERROR_LIMIT_DEFAULT, METRIC_FAILURE_LIMIT_DEFAULT, METRIC_INCONCLUSIVE_LIMIT_DEFAULT, METRIC_CONSECUTIVE_SUCCESS_LIMIT_DEFAULT} from '../constants';
 
 import classNames from 'classnames';
 import './styles.scss';
@@ -36,6 +36,7 @@ const MetricPanel = ({className, metricName, metricSpec, metricResults, status, 
     const consecutiveErrorLimit = isFiniteNumber(metricSpec.consecutiveErrorLimit ?? null) ? metricSpec.consecutiveErrorLimit : METRIC_CONSECUTIVE_ERROR_LIMIT_DEFAULT;
     const failureLimit = isFiniteNumber(metricSpec.failureLimit ?? null) ? metricSpec.failureLimit : METRIC_FAILURE_LIMIT_DEFAULT;
     const inconclusiveLimit = isFiniteNumber(metricSpec.inconclusiveLimit ?? null) ? metricSpec.inconclusiveLimit : METRIC_INCONCLUSIVE_LIMIT_DEFAULT;
+    const consecutiveSuccessLimit = isFiniteNumber(metricSpec.consecutiveSuccessLimit ?? null) ? metricSpec.consecutiveSuccessLimit : METRIC_CONSECUTIVE_SUCCESS_LIMIT_DEFAULT;
 
     const canChartMetric = metricResults.chartable && metricResults.chartMax !== null;
 
@@ -112,6 +113,9 @@ const MetricPanel = ({className, metricName, metricSpec, metricResults, status, 
                     maxFailures={failureLimit}
                     // @ts-ignore
                     maxInconclusives={inconclusiveLimit}
+                    // @ts-ignore
+                    consecutiveSuccessLimit={consecutiveSuccessLimit}
+                    consecutiveSuccesses={metricResults.consecutiveSuccess ?? 0}
                     consecutiveErrors={metricResults.consecutiveError ?? 0}
                     failures={metricResults.failed ?? 0}
                     inconclusives={metricResults.inconclusive ?? 0}

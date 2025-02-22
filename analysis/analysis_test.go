@@ -594,6 +594,208 @@ func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
 }
 
+func TestAssessMetricStatusConsecutiveSuccessLimit(t *testing.T) {
+	failureLimit := intstr.FromInt(-1)
+	consecutiveSuccessLimit := intstr.FromInt(3)
+	metric := v1alpha1.Metric{
+		Name:                    "success-rate",
+		ConsecutiveSuccessLimit: &consecutiveSuccessLimit,
+		FailureLimit:            &failureLimit,
+		Interval:                "60s",
+	}
+	result := v1alpha1.MetricResult{
+		Failed:             3,
+		Successful:         4,
+		ConsecutiveSuccess: 3,
+		Count:              7,
+		Measurements: []v1alpha1.Measurement{{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseFailed,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+		}},
+	}
+
+	/////////////////////////////////////////////////////////////////////////
+	// For indefinite analysis (count is not set)
+
+	// When ConsecutiveSuccess == ConsecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	// When ConsecutiveSuccess < ConsecutiveSuccessLimit
+	consecutiveSuccessLimit = intstr.FromInt(5)
+	metric.ConsecutiveSuccessLimit = &consecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	/////////////////////////////////////////////////////////////////////////
+	// For limited analysis (count is >= 1)
+
+	/// When metric.Count is reached
+	metricCount := intstr.FromInt(7)
+	metric.Count = &metricCount
+
+	//// ConsecutiveSuccess=3 < ConsecutiveSuccessLimit=5
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	//// ConsecutiveSuccess = ConsecutiveSuccessLimit = 3
+	consecutiveSuccessLimit = intstr.FromInt(3)
+	metric.ConsecutiveSuccessLimit = &consecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	/// When metric.Count is not reached
+	metricCount = intstr.FromInt(9)
+	metric.Count = &metricCount
+
+	//// ConsecutiveSuccess = ConsecutiveSuccessLimit = 3
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// ConsecutiveSuccess=3 < ConsecutiveSuccessLimit=5
+	consecutiveSuccessLimit = intstr.FromInt(5)
+	metric.ConsecutiveSuccessLimit = &consecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+}
+
+func TestAssessMetricStatusFailureLimitAndConsecutiveSuccessLimit(t *testing.T) {
+	failureLimit := intstr.FromInt(4)
+	consecutiveSuccessLimit := intstr.FromInt(4)
+	metric := v1alpha1.Metric{
+		Name:                    "success-rate",
+		ConsecutiveSuccessLimit: &consecutiveSuccessLimit,
+		FailureLimit:            &failureLimit,
+		Interval:                "60s",
+	}
+	result := v1alpha1.MetricResult{
+		Failed:             3,
+		Successful:         4,
+		ConsecutiveSuccess: 3,
+		Count:              7,
+		Measurements: []v1alpha1.Measurement{{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseFailed,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+		}},
+	}
+
+	/////////////////////////////////////////////////////////////////////////
+	// For indefinite analysis (count is not set)
+
+	// FailureLimit is not violated and consecutiveSuccessLimit not yet satisfied.
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	// FailureLimit is violated and consecutiveSuccessLimit is not yet satisfied.
+	result.Failed = 5
+	result.Successful = 9
+	result.Count = 9
+	result.ConsecutiveSuccess = 0
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	// FailureLimit is not violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 3
+	result.Successful = 5
+	result.Count = 8
+	result.ConsecutiveSuccess = 4
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	// FailureLimit is violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 5
+	result.Successful = 5
+	result.Count = 10
+	result.ConsecutiveSuccess = 4
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	/////////////////////////////////////////////////////////////////////////
+	// For limited analysis (count is >= 1)
+	metricCount := intstr.FromInt(10)
+	metric.Count = &metricCount
+
+	/// When metric.Count is reached
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit not yet satisfied.
+	result.Failed = 4
+	result.Successful = 6
+	result.Count = 10
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is not yet satisfied.
+	result.Failed = 5
+	result.Successful = 5
+	result.Count = 10
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 4
+	result.Successful = 6
+	result.Count = 10
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 5
+	result.Successful = 5
+	result.Count = 10
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	/// When metric.Count is not yet reached
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit not yet satisfied.
+	result.Failed = 3
+	result.Successful = 5
+	result.Count = 8
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is not yet satisfied.
+	result.Failed = 5
+	result.Successful = 3
+	result.Count = 8
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 3
+	result.Successful = 5
+	result.Count = 8
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 5
+	result.Successful = 4
+	result.Count = 9
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+}
+
 func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
 	inconclusiveLimit := intstr.FromInt(2)
 	metric := v1alpha1.Metric{

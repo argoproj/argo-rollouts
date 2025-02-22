@@ -30,7 +30,7 @@ func (s *ArgoRolloutsServer) staticFileHttpHandler(w http.ResponseWriter, r *htt
 	requestedURI := path.Clean(r.RequestURI)
 	rootPath := path.Clean("/" + s.Options.RootPath)
 
-	if requestedURI == "/" {
+	if requestedURI == "/" && rootPath != "/" {
 		http.Redirect(w, r, rootPath+"/", http.StatusFound)
 		return
 	}

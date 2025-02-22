@@ -65,6 +65,17 @@ data:
     - name: "argoproj-labs/sample-nginx" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
       location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-sample-nginx/releases/download/v0.0.1/metric-plugin-linux-amd64" # supports http(s):// urls and file://
       sha256: "08f588b1c799a37bbe8d0fc74cc1b1492dd70b2c" #optional sha256 checksum of the plugin executable
+      headersFrom: #optional headers for the download via http request 
+        - secretRef:
+            name: secret-name
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-name
+stringData:
+  Authorization: Basic <Base 64 TOKEN>
+  My-Header: value
 ```
 
 ## List of Available Plugins (alphabetical order)

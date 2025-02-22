@@ -136,4 +136,14 @@ type PluginItem struct {
 	Disabled bool `json:"disabled" yaml:"disabled"`
 	// Args holds command line arguments to initialize the plugin
 	Args []string `json:"args" yaml:"args"`
+	// HeadersFrom holds the names of secrets where the headers should be pulled from
+	HeadersFrom []HeadersFrom `json:"headersFrom" yaml:"headersFrom"`
+}
+
+type HeadersFrom struct {
+	SecretRef SecretRef `json:"secretRef" yaml:"secretRef"`
+}
+
+type SecretRef struct {
+	Name string `json:"name" yaml:"name"`
 }

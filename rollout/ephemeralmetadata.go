@@ -4,12 +4,16 @@ import (
 	"context"
 	"fmt"
 
+	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
+
+// DefaultEphemeralMetadataThreads is the default number of worker threads to run when reconciling ephemeral metadata
+const DefaultEphemeralMetadataThreads = 10
 
 // reconcileEphemeralMetadata syncs canary/stable ephemeral metadata to ReplicaSets and pods
 func (c *rolloutContext) reconcileEphemeralMetadata() error {
@@ -63,31 +67,49 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	if !modified {
 		return nil
 	}
-	// 1. Sync ephemeral metadata to pods
+
+	// Used to access old ephemeral data when updating pods below
+	originalRSCopy := rs.DeepCopy()
+
+	// Order of the following two steps is important for race condition
+	// First update replicasets, then pods owned by it.
+	// So that any replicas created in the interim between the two steps are using the new updated version.
+	// 1. Update ReplicaSet so that any new pods it creates will have the metadata
+	rs, err := c.updateReplicaSet(ctx, modifiedRS)
+	if err != nil {
+		c.log.Infof("failed to sync ephemeral metadata %v to ReplicaSet %s: %v", podMetadata, originalRSCopy.Name, err)
+		return fmt.Errorf("failed to sync ephemeral metadata: %w", err)
+	}
+	c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
+
+	// 2. Sync ephemeral metadata to pods
 	pods, err := replicasetutil.GetPodsOwnedByReplicaSet(ctx, c.kubeclientset, rs)
 	if err != nil {
 		return err
 	}
-	existingPodMetadata := replicasetutil.ParseExistingPodMetadata(rs)
+	existingPodMetadata := replicasetutil.ParseExistingPodMetadata(originalRSCopy)
+
+	var eg errgroup.Group
+	eg.SetLimit(c.ephemeralMetadataThreads)
+
 	for _, pod := range pods {
-		newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&pod.ObjectMeta, existingPodMetadata, podMetadata)
-		if podModified {
-			pod.ObjectMeta = *newPodObjectMeta
-			_, err = c.kubeclientset.CoreV1().Pods(pod.Namespace).Update(ctx, pod, metav1.UpdateOptions{})
-			if err != nil {
-				return err
+		eg.Go(func() error {
+			newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&pod.ObjectMeta, existingPodMetadata, podMetadata)
+			if podModified {
+				pod.ObjectMeta = *newPodObjectMeta
+				_, err = c.kubeclientset.CoreV1().Pods(pod.Namespace).Update(ctx, pod, metav1.UpdateOptions{})
+				if err != nil {
+					return err
+				}
+				c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, pod.Name)
 			}
-			c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, pod.Name)
-		}
+			return nil
+		})
 	}
 
-	// 2. Update ReplicaSet so that any new pods it creates will have the metadata
-	rs, err = c.updateReplicaSetFallbackToPatch(ctx, modifiedRS)
-	if err != nil {
-		c.log.Infof("failed to sync ephemeral metadata %v to ReplicaSet %s: %v", podMetadata, rs.Name, err)
-		return fmt.Errorf("failed to sync ephemeral metadata: %w", err)
+	if err := eg.Wait(); err != nil {
+		return err
 	}
 
-	c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
 	return nil
 }

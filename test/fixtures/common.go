@@ -12,8 +12,9 @@ import (
 	"text/tabwriter"
 	"time"
 
-	a6util "github.com/argoproj/argo-rollouts/utils/apisix"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
+
+	a6util "github.com/argoproj/argo-rollouts/utils/apisix"
 
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"

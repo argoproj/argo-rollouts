@@ -16,31 +16,39 @@ const TestRootPath = "/test-root"
 
 var (
 	//go:embed static_test/*
-	staticTestData embed.FS //nolint
-	mockServer     ArgoRolloutsServer
+	staticTestData   embed.FS //nolint
+	mockServerPrefix ArgoRolloutsServer
+	mockServerRoot   ArgoRolloutsServer
 )
 
 func init() {
 	static = staticTestData
 	staticBasePath = "static_test"
 	indexHtmlFile = staticBasePath + "/index.html"
-	mockServer = mockArgoRolloutServer()
+	mockServerPrefix = mockArgoRolloutServer(TestRootPath)
+	mockServerRoot = mockArgoRolloutServer("/")
 }
 
 func TestIndexHtmlIsServed(t *testing.T) {
 	tests := []struct {
+		server      ArgoRolloutsServer
 		requestPath string
 	}{
-		{TestRootPath + "/"},
-		{TestRootPath + "/index.html"},
-		{TestRootPath + "/nonsense/../index.html"},
-		{TestRootPath + "/test-dir/test.css"},
+		{mockServerPrefix, TestRootPath + "/"},
+		{mockServerPrefix, TestRootPath + "/index.html"},
+		{mockServerPrefix, TestRootPath + "/nonsense/../index.html"},
+		{mockServerPrefix, TestRootPath + "/test-dir/test.css"},
+
+		{mockServerRoot, "/"},
+		{mockServerRoot, "/index.html"},
+		{mockServerRoot, "/nonsense/../index.html"},
+		{mockServerRoot, "/test-dir/test.css"},
 	}
 	for _, test := range tests {
 		t.Run(test.requestPath, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, test.requestPath, nil)
 			w := httptest.NewRecorder()
-			mockServer.staticFileHttpHandler(w, req)
+			test.server.staticFileHttpHandler(w, req)
 			res := w.Result()
 			defer res.Body.Close()
 			data, err := io.ReadAll(res.Body)
@@ -60,7 +68,7 @@ func TestIndexHtmlIsServed(t *testing.T) {
 func TestWhenFileNotFoundSendIndexPageForUiReactRouter(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, TestRootPath+"/namespace-default", nil)
 	w := httptest.NewRecorder()
-	mockServer.staticFileHttpHandler(w, req)
+	mockServerPrefix.staticFileHttpHandler(w, req)
 	res := w.Result()
 	defer res.Body.Close()
 	data, err := io.ReadAll(res.Body)
@@ -72,7 +80,7 @@ func TestWhenFileNotFoundSendIndexPageForUiReactRouter(t *testing.T) {
 func TestSlashWillBeRedirectedToRootPath(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
-	mockServer.staticFileHttpHandler(w, req)
+	mockServerPrefix.staticFileHttpHandler(w, req)
 	res := w.Result()
 	defer res.Body.Close()
 	_, err := io.ReadAll(res.Body)
@@ -95,7 +103,7 @@ func TestInvalidFilesOrHackingAttemptReturn404(t *testing.T) {
 		t.Run(test.requestPath, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, test.requestPath, nil)
 			w := httptest.NewRecorder()
-			mockServer.staticFileHttpHandler(w, req)
+			mockServerPrefix.staticFileHttpHandler(w, req)
 			res := w.Result()
 			defer res.Body.Close()
 			assert.Equal(t, res.StatusCode, http.StatusNotFound)
@@ -103,10 +111,10 @@ func TestInvalidFilesOrHackingAttemptReturn404(t *testing.T) {
 	}
 }
 
-func mockArgoRolloutServer() ArgoRolloutsServer {
+func mockArgoRolloutServer(rootPath string) ArgoRolloutsServer {
 	s := ArgoRolloutsServer{
 		Options: ServerOptions{
-			RootPath: TestRootPath,
+			RootPath: rootPath,
 		},
 	}
 	return s

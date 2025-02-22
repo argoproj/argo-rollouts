@@ -17,7 +17,7 @@ on:
         default: false
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.22'
+  GOLANG_VERSION: '1.23'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.3.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
@@ -79,21 +79,21 @@ jobs:
       fail-fast: false
       matrix:
         kubernetes:
-          - version: 1.26
+          - version: '1.28'
             latest: false
-          - version: 1.27
+          - version: '1.29'
             latest: false
-          - version: 1.28
+          - version: '1.30'
             latest: false
-          - version: 1.29
+          - version: '1.31'
             latest: true
     name: Run end-to-end tests
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.3.0
         with:
-          go-version: '1.22'
+          go-version: '1.23'
       - uses: actions/checkout@v4
       - name: Setup k3s
         env:
@@ -165,7 +165,7 @@ jobs:
       - test-e2e
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.3.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
@@ -184,7 +184,7 @@ jobs:
         run: |
           go tool covdata textfmt -i=coverage-output-unit/,coverage-output-e2e/ -o full-coverage.out
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
+        uses: codecov/codecov-action@13ce06bfc6bbe3ecf90edbbf1bc32fe5978ca1d3 # v5.3.1
         with:
           file: full-coverage.out
           fail_ci_if_error: false

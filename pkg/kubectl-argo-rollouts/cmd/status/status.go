@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/signals"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
-	"github.com/spf13/cobra"
 )
 
 const (
