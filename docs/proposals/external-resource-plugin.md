@@ -41,7 +41,6 @@ As mentioned in the preceding sections a non-goal of this controller is to re-im
 
 
 
-
 ```yaml
 apiVersion: argorollouts.io/v1alpha1
 kind: RolloutsPlugin
@@ -54,7 +53,6 @@ spec:
     kind: 
   strategy:
     canary:
-    blueGreen:
 
 ```
 
@@ -86,16 +84,24 @@ Below are several high-level overviews of how the `RolloutsPlugin` would handle 
 
 
 
-The primary goal of the `RolloutsPlugin` controller is to support custom logic for deploying applications using blue/green or canary strategies. The developer will need to implement the following methods. 
+The primary goal of the `RolloutsPlugin` controller is to support custom logic for deploying applications using blue/green or canary strategies. The developer will need to implement the following interface in their plugin. 
 
 ```go
 
+type Resource interface {
+  Create()
+  Delete()
+  Rollback()
+  Update()
+}
 type CanaryStrategy interface {
   SetWeight()
   SetCanaryScale()
   SetMirrorWeight()
   Pause()
 }
+
+
 
 ```
 
