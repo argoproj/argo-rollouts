@@ -8,48 +8,54 @@ creation-date: 2025-01-18
 ---
 
 ## Summary
+Currently, Argo Rollouts supports only the Deployment workload type. Many users, however, need to perform canary or blue-green upgrades on other workloads such as statefulsets and daemonsets. This proposal outlines an approach to enable support for external resource types through a plugin-based architecture.
 
-Currently Argo Rollouts only supports the `Deployment` workload type. There are a variety of other workloads that others would like to perform canary/blue-green upgrades on such as statefulsets or daemonsets. 
+## Motivation
+The current Rollouts controller is tightly coupled to ReplicaSets, which limits support to Deployment workloads only. There is a clear need to extend functionality so that other workload types—like statefulsets and daemonsets—can also benefit from advanced rollout strategies without requiring major rewrites each time a new resource type is added.
 
 
-## Motivation  
-In order to support other workloads in Rollouts besides Deployments a Rollout resource plugin would be ideal. 
-
-The current `Rollouts` controller is heavily coupled to `ReplicaSets`. 
 
 ## User Stories
-As a developer, it want to be able to define blue-green/canary rollouts for statefulsets/daemonsets. 
+As a developer, I want to define blue-green and canary rollouts for workload types such as statefulsets and daemonsets, so that I can manage their deployment strategies consistently.
 
-### Goals
+
+## Goals
 - Allow open source community to implement rollouts for external resource types 
 - Provide a path forward in argo rollouts for supporting statefulsets/daemonsets and other workload types. 
 
+## Non-Goals
+- re-implementing other non deployment controllers (ie StatefulSet, DaemonSet) in the rollouts controller
+- modifification of controllers outside of rollouts controller
 
 ## Options
 Below are two options and their high level summaries. 
-### Option 1: RolloutsPlugin controller 
-This would entail deploying a new dedicated controller that reconciles a new `RolloutPlugin` CRD. This would be essentially a greenfield implementation of the existing rollouts controller. It would be agnostic to all workload types to accomodate flexibility to workloads other than `PodSpec` based. 
+
+### RolloutsPlugin controller 
+Review of the `Rollouts` controller shows that the existing `Rollouts` controller is highly coupled to replicasets. Modification of that controller to accept other workloads is significant. A new dedicated controller would be created that reconciles a new `RolloutPlugin` CRD. This would be essentially a greenfield implementation of the existing rollouts controller. It would be agnostic to all workload types to accomodate flexibility to workloads other than `PodSpec` based. 
+
+Currently the `Rollouts` [CRD](https://argo-rollouts.readthedocs.io/en/stable/features/specification/) includes a section to include a template PodSpec which effectively couples the `Rollouts` CRD to the core PodSpec of kubernetes. While changes are not frequent, they do happen and require updates to the Rollouts CRD to include such changes. 
+
+Ideally this can be decoupled from the `Rollouts` CRD entirely and in this `RolloutsPlugin` controller design, it will reference a PodSpec from elsewhere. 
+
+As mentioned in the preceding sections a non-goal of this controller is to re-implement custom logic of controllers. 
 
 
-### Option 2: Resource Plugin
-Modify the existing rollouts controller and add to the spec of the Rollout a new `resourceCreation` plugin reference. 
-
-## Option 1: RolloutsPlugin controller design  
-
-Create a new controller for `RolloutsPlugin`.
-Additionally add the following CRDs:
-1. RolloutsPlugin
-2. Revisions
 
 
 ```yaml
+apiVersion: argorollouts.io/v1alpha1
 kind: RolloutsPlugin
 metadata:
   name: statefulset-plugin
 spec:
-  selector:
-    matchLabels:
-      name: blahapp
+  workloadRef:
+    apiVersion: 
+    name: statefulset
+    kind: 
+  strategy:
+    canary:
+    blueGreen:
+
 ```
 
 
@@ -57,12 +63,39 @@ spec:
 apiVersion: argorollouts.io/v1alpha1
 kind: Revision
 metadata:
-  	name: rev0303
+  name: rev0303
 	labels:
 		<retrieve labels from other resource>
 spec:
+
 status:
   conditions:
+    - 
+
+```
+
+#### Examples
+Below are several high-level overviews of how the `RolloutsPlugin` would handle the rollout of each the following workloads. 
+
+##### StatefulSet 
+
+
+##### DaemonSet
+
+##### Knative serving
+
+
+
+The primary goal of the `RolloutsPlugin` controller is to support custom logic for deploying applications using blue/green or canary strategies. The developer will need to implement the following methods. 
+
+```go
+
+type CanaryStrategy interface {
+  SetWeight()
+  SetCanaryScale()
+  SetMirrorWeight()
+  Pause()
+}
 
 ```
 
@@ -73,7 +106,10 @@ status:
 
 
 
-### Option 2: Proposal
+
+### Rollouts Resource Plugin
+Modify the existing rollouts controller and add to the existing spec of the `Rollout` a new `resourceCreation` plugin reference. 
+
 There exist several other plugin types within the Argo Rollouts codebase such as `stepPlugins`, `metricsPlugins`, and `trafficRouting` plugins. 
 This implementation would follow in those plugin footsteps and take the same approach. 
 A resource plugin would be responsible for the full lifecycle of the external resources. For example if using a resource plugin that manages statefulsets, the plugin should handle creation, updates, deletes, and rollbacks of the statefulset. 
