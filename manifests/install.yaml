@@ -13338,6 +13338,21 @@ spec:
                               servicePort:
                                 format: int32
                                 type: integer
+                              servicePorts:
+                                items:
+                                  properties:
+                                    ingress:
+                                      type: string
+                                    servicePorts:
+                                      items:
+                                        format: int32
+                                        type: integer
+                                      type: array
+                                  required:
+                                  - ingress
+                                  - servicePorts
+                                  type: object
+                                type: array
                               stickinessConfig:
                                 properties:
                                   durationSeconds:
@@ -13349,8 +13364,6 @@ spec:
                                 - durationSeconds
                                 - enabled
                                 type: object
-                            required:
-                            - servicePort
                             type: object
                           ambassador:
                             properties:
