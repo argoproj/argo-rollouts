@@ -176,6 +176,10 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
+var insecureTransport *http.Transport = &http.Transport{
+	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+}
+
 func NewWebMetricHttpClient(metric v1alpha1.Metric) (*http.Client, error) {
 	var timeout time.Duration
 	var oauthCfg clientcredentials.Config
@@ -191,10 +195,7 @@ func NewWebMetricHttpClient(metric v1alpha1.Metric) (*http.Client, error) {
 		Timeout: timeout,
 	}
 	if metric.Provider.Web.Insecure {
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		c.Transport = tr
+		c.Transport = insecureTransport
 	}
 	if metric.Provider.Web.Authentication.OAuth2.TokenURL != "" {
 		if metric.Provider.Web.Authentication.OAuth2.ClientID == "" || metric.Provider.Web.Authentication.OAuth2.ClientSecret == "" {

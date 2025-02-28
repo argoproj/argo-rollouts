@@ -109,6 +109,9 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: .spec.selector is immutable
+                  rule: self == oldSelf
               strategy:
                 properties:
                   blueGreen:
@@ -661,6 +664,16 @@ spec:
                                   - type: integer
                                   - type: string
                                   x-kubernetes-int-or-string: true
+                              type: object
+                            plugin:
+                              properties:
+                                config:
+                                  type: object
+                                  x-kubernetes-preserve-unknown-fields: true
+                                name:
+                                  type: string
+                              required:
+                              - name
                               type: object
                             setCanaryScale:
                               properties:
@@ -3721,6 +3734,45 @@ spec:
                     type: object
                   stablePingPong:
                     type: string
+                  stepPluginStatuses:
+                    items:
+                      properties:
+                        backoff:
+                          type: string
+                        disabled:
+                          type: boolean
+                        executions:
+                          format: int32
+                          type: integer
+                        finishedAt:
+                          format: date-time
+                          type: string
+                        index:
+                          format: int32
+                          type: integer
+                        message:
+                          type: string
+                        name:
+                          type: string
+                        operation:
+                          type: string
+                        phase:
+                          type: string
+                        startedAt:
+                          format: date-time
+                          type: string
+                        status:
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        updatedAt:
+                          format: date-time
+                          type: string
+                      required:
+                      - index
+                      - name
+                      - operation
+                      type: object
+                    type: array
                   weights:
                     properties:
                       additional:

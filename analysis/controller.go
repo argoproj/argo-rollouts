@@ -5,11 +5,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/metric"
-	jobProvider "github.com/argoproj/argo-rollouts/metricproviders/job"
 	"github.com/aws/smithy-go/ptr"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/argoproj/argo-rollouts/metric"
+	jobProvider "github.com/argoproj/argo-rollouts/metricproviders/job"
 
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
@@ -54,7 +55,7 @@ type Controller struct {
 
 	metricsServer *metrics.MetricsServer
 
-	newProvider func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error)
+	newProvider func(logCtx log.Entry, namespace string, metric v1alpha1.Metric) (metric.Provider, error)
 
 	// used for unit testing
 	enqueueAnalysis      func(obj any)

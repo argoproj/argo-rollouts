@@ -143,7 +143,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		c.enqueueAnalysis(obj)
 	}
 	f.provider = &mocks.Provider{}
-	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error) {
+	c.newProvider = func(logCtx log.Entry, namespace string, metric v1alpha1.Metric) (metric.Provider, error) {
 		return f.provider, nil
 	}
 
@@ -370,7 +370,7 @@ func TestFailedToCreateProviderError(t *testing.T) {
 	f.objects = append(f.objects, ar)
 
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
-	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error) {
+	c.newProvider = func(logCtx log.Entry, namespace string, metric v1alpha1.Metric) (metric.Provider, error) {
 		return nil, fmt.Errorf("failed to create provider")
 	}
 

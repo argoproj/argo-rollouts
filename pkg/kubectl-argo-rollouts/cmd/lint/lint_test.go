@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 	"github.com/stretchr/testify/assert"
+
+	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
 
 func TestLintValidRollout(t *testing.T) {
@@ -85,7 +86,7 @@ func TestLintInvalidRollout(t *testing.T) {
 		},
 		{
 			filename: "testdata/invalid-nginx-canary.yml",
-			errmsg:   "Error: spec.strategy.steps[1].experiment.templates[0].weight: Invalid value: 20: Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time\n",
+			errmsg:   "Error: spec.strategy.steps[1].experiment.templates[0].weight: Invalid value: 20: Experiment template weight is only available for TrafficRouting with SMI, ALB, Istio and Plugins at this time\n",
 		},
 	}
 

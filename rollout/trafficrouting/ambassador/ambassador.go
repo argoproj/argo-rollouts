@@ -213,7 +213,7 @@ func (r *Reconciler) createCanaryMapping(ctx context.Context,
 	if weight != 0 {
 		msg := fmt.Sprintf("Ambassador mapping %q can not define weight", baseMappingName)
 		r.sendWarningEvent(AmbassadorMappingConfigError, msg)
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	canarySvc := r.Rollout.Spec.Strategy.Canary.CanaryService

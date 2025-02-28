@@ -499,10 +499,10 @@ func TestRolloutComplete(t *testing.T) {
 		return r
 	}
 	r := rollout(5, 5, 5, 5)
-	assert.Equal(t, true, RolloutCompleted(r, &r.Status))
+	assert.Equal(t, true, RolloutCompleted(&r.Status))
 
 	r.Status.StableRS = "not-current-pod-hash"
-	assert.Equal(t, false, RolloutCompleted(r, &r.Status))
+	assert.Equal(t, false, RolloutCompleted(&r.Status))
 }
 
 func TestRolloutTimedOut(t *testing.T) {
@@ -554,6 +554,22 @@ func TestRolloutTimedOut(t *testing.T) {
 				Conditions: conditions(ReplicaSetUpdatedReason, before),
 			},
 			expected: true,
+		},
+		{
+			name:                    "Rollout has not time out when paused",
+			progressDeadlineSeconds: 5,
+			newStatus: v1alpha1.RolloutStatus{
+				Conditions: conditions(RolloutPausedReason, before),
+			},
+			expected: false,
+		},
+		{
+			name:                    "Rollout has not time out when aborted",
+			progressDeadlineSeconds: 5,
+			newStatus: v1alpha1.RolloutStatus{
+				Conditions: conditions(RolloutAbortedReason, before),
+			},
+			expected: false,
 		},
 	}
 	for i := range tests {

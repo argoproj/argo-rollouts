@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/metricproviders"
-	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/argoproj/pkg/kubeclientmetrics"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -22,6 +21,10 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/argoproj/argo-rollouts/metricproviders"
+	"github.com/argoproj/argo-rollouts/rollout"
+	"github.com/argoproj/argo-rollouts/utils/record"
 
 	"github.com/argoproj/argo-rollouts/controller"
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -65,6 +68,7 @@ func newCommand() *cobra.Command {
 		analysisThreads                int
 		serviceThreads                 int
 		ingressThreads                 int
+		ephemeralMetadataThreads       int
 		istioVersion                   string
 		trafficSplitVersion            string
 		traefikAPIGroup                string
@@ -79,6 +83,7 @@ func newCommand() *cobra.Command {
 		printVersion                   bool
 		selfServiceNotificationEnabled bool
 		controllersEnabled             []string
+		pprofAddress                   string
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
@@ -204,6 +209,11 @@ func newCommand() *cobra.Command {
 			ingressWrapper, err := ingressutil.NewIngressWrapper(mode, kubeClient, kubeInformerFactory)
 			checkError(err)
 
+			if pprofAddress != "" {
+				mux := controller.NewPProfServer()
+				go func() { log.Println(http.ListenAndServe(pprofAddress, mux)) }()
+			}
+
 			var cm *controller.Manager
 
 			enabledControllers, err := getEnabledControllers(controllersEnabled)
@@ -263,7 +273,8 @@ func newCommand() *cobra.Command {
 					istioDynamicInformerFactory,
 					namespaced,
 					kubeInformerFactory,
-					jobInformerFactory)
+					jobInformerFactory,
+					ephemeralMetadataThreads)
 			}
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
@@ -291,6 +302,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
+	command.Flags().IntVar(&ephemeralMetadataThreads, "ephemeral-metadata-threads", rollout.DefaultEphemeralMetadataThreads, "Set the number of worker threads for the Ephemeral Metadata reconciler")
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	command.Flags().StringVar(&ambassadorVersion, "ambassador-api-version", defaults.DefaultAmbassadorVersion, "Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings.")
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
@@ -310,6 +322,7 @@ func newCommand() *cobra.Command {
 	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled.")
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", false, "Allows rollouts controller to pull notification config from the namespace that the rollout resource is in. This is useful for self-service notification.")
 	command.Flags().StringSliceVar(&controllersEnabled, "controllers", nil, "Explicitly specify the list of controllers to run, currently only supports 'analysis', eg. --controller=analysis. Default: all controllers are enabled")
+	command.Flags().StringVar(&pprofAddress, "enable-pprof-address", "", "Enable pprof profiling on controller by providing a server address.")
 	return &command
 }
 

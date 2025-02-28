@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts
+    app.kubernetes.io/part-of: argo-rollouts
+  name: argo-rollouts-config
+  namespace: argo-rollouts
+data:
+  stepPlugins: |-
+    - name: "step/e2e-test" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
+      location: "file://plugin-bin/e2e-step-plugin" # supports http(s):// urls and file://
+      disabled: false
+    - name: "step/e2e-test-disabled" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
+      location: "file://plugin-bin/e2e-step-plugin" # supports http(s):// urls and file://
+      disabled: true

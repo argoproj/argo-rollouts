@@ -181,6 +181,9 @@ func CanaryStepString(c v1alpha1.CanaryStep) string {
 			return fmt.Sprintf("setCanaryScale{replicas: %d}", *c.SetCanaryScale.Replicas)
 		}
 	}
+	if c.Plugin != nil {
+		return fmt.Sprintf("plugin: %s", c.Plugin.Name)
+	}
 	return "invalid"
 }
 

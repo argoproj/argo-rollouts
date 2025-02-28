@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -13,6 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
@@ -178,7 +179,7 @@ func TestBackgroundLabels(t *testing.T) {
 }
 
 func TestValidateMetrics(t *testing.T) {
-	t.Run("Ensure count >= failureLimit", func(t *testing.T) {
+	t.Run("Ensure count >= failureLimit + consecutiveSuccessLimit", func(t *testing.T) {
 		failureLimit := intstr.FromInt(2)
 		count := intstr.FromInt(1)
 		spec := v1alpha1.AnalysisTemplateSpec{
@@ -194,7 +195,7 @@ func TestValidateMetrics(t *testing.T) {
 			},
 		}
 		err := ValidateMetrics(spec.Metrics)
-		assert.EqualError(t, err, "metrics[0]: count must be >= failureLimit")
+		assert.EqualError(t, err, "metrics[0]: count (1) must be >= failureLimit + consecutiveSuccessLimit (2 + 0) if both >= 0")
 		count = intstr.FromInt(0)
 		spec.Metrics[0].Count = &count
 		err = ValidateMetrics(spec.Metrics)
@@ -323,8 +324,8 @@ func TestValidateMetrics(t *testing.T) {
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[1]: duplicate name 'success-rate'")
 	})
-	t.Run("Ensure failureLimit >= 0", func(t *testing.T) {
-		failureLimit := intstr.FromInt(-1)
+	t.Run("Ensure failureLimit >= -1", func(t *testing.T) {
+		failureLimit := intstr.FromInt(-2)
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
 				{
@@ -337,7 +338,7 @@ func TestValidateMetrics(t *testing.T) {
 			},
 		}
 		err := ValidateMetrics(spec.Metrics)
-		assert.EqualError(t, err, "metrics[0]: failureLimit must be >= 0")
+		assert.EqualError(t, err, "metrics[0]: failureLimit must be >= 0, or -1 to be disabled")
 	})
 	t.Run("Ensure inconclusiveLimit >= 0", func(t *testing.T) {
 		inconclusiveLimit := intstr.FromInt(-1)
@@ -407,6 +408,40 @@ func TestValidateMetrics(t *testing.T) {
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: multiple providers specified")
 	})
+	t.Run("Ensure consecutiveSuccessLimit >= 0", func(t *testing.T) {
+		consecutiveSuccessLimit := intstr.FromInt(-1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:                    "success-rate",
+					ConsecutiveSuccessLimit: &consecutiveSuccessLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateMetrics(spec.Metrics)
+		assert.EqualError(t, err, "metrics[0]: consecutiveSuccessLimit must be >= 0")
+	})
+	t.Run("Ensure consecutiveSuccessLimit and failureLimit are not both disabled", func(t *testing.T) {
+		consecutiveSuccessLimit := intstr.FromInt(0)
+		failureLimit := intstr.FromInt(-1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:                    "success-rate",
+					ConsecutiveSuccessLimit: &consecutiveSuccessLimit,
+					FailureLimit:            &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateMetrics(spec.Metrics)
+		assert.EqualError(t, err, "metrics[0]: failureLimit and consecutiveSuccessLimit cannot both be disabled")
+	})
 }
 
 // TestResolveMetricArgs verifies that metric arguments are resolved
@@ -444,7 +479,7 @@ func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	}
 	newMetric, err := ResolveMetricArgs(metric, arguments)
 	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf(arg), newMetric.SuccessCondition)
+	assert.Equal(t, arg, newMetric.SuccessCondition)
 }
 
 func Test_extractValueFromRollout(t *testing.T) {

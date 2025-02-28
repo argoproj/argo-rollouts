@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as YAML from 'yaml';
 import {Helmet} from 'react-helmet';
 import {useParams} from 'react-router-dom';
 import {
@@ -6,6 +7,7 @@ import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep,
     RolloutReplicaSetInfo,
     RolloutRolloutInfo,
     RolloutServiceApi,
@@ -316,6 +318,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     const [openAnalysis, setOpenAnalysis] = React.useState(false);
     const [openHeader, setOpenHeader] = React.useState(false);
     const [openMirror, setOpenMirror] = React.useState(false);
+    const [openPlugin, setOpenPlugin] = React.useState(false);
 
     let icon: string;
     let content = '';
@@ -359,6 +362,11 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
         }
     }
 
+    if (props.step.plugin) {
+        content = `${props.step.plugin.name}`;
+        icon = 'fa-puzzle-piece';
+    }
+
     return (
         <React.Fragment>
             <div style={{zIndex: 1}} className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
@@ -368,7 +376,8 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                         (props.step.setCanaryScale && openCanary) ||
                         (props.step.analysis && openAnalysis) ||
                         (props.step.setHeaderRoute && openHeader) ||
-                        (props.step.setMirrorRoute && openMirror)
+                        (props.step.setMirrorRoute && openMirror) ||
+                        (props.step.plugin && openPlugin)
                             ? 'steps__step-title--experiment'
                             : ''
                     }`}
@@ -395,6 +404,11 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                             <i className={`fa ${openCanary ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
                         </div>
                     )}
+                    {props.step.plugin && props.step.plugin.config && (
+                        <div style={{marginLeft: 'auto'}} onClick={() => setOpenPlugin(!openPlugin)}>
+                            <i className={`fa ${openPlugin ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </div>
+                    )}
                 </div>
                 {props.step.experiment?.templates && (
                     <div className='steps__step__content'>
@@ -419,6 +433,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                     </div>
                 )}
                 {props.step?.setCanaryScale && openCanary && <WidgetItem values={props.step.setCanaryScale} />}
+                {props.step?.plugin && openPlugin && <WidgetItemPlugin values={props.step.plugin} />}
                 {props.step?.setHeaderRoute && openHeader && <WidgetItemSetHeader values={props.step.setHeaderRoute.match} />}
                 {props.step?.setMirrorRoute && openMirror && <WidgetItemSetMirror value={props.step.setMirrorRoute} />}
             </div>
@@ -560,6 +575,16 @@ const WidgetItemSetHeader = ({values}: {values: GithubComArgoprojArgoRolloutsPkg
                     </Fragment>
                 );
             })}
+        </div>
+    );
+};
+
+const WidgetItemPlugin = ({values}: {values: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep}) => {
+    if (!values.config) return null;
+    return (
+        <div>
+            <div className='steps__step__content-title'>CONFIG</div>
+            <div className='steps__step__content-value'>{YAML.stringify(values.config)}</div>
         </div>
     );
 };

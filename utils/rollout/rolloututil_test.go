@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/tj/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 func newCanaryRollout() *v1alpha1.Rollout {
@@ -388,6 +389,10 @@ func TestCanaryStepString(t *testing.T) {
 		{
 			step:           v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: pointer.Int32Ptr(5)}},
 			expectedString: "setCanaryScale{replicas: 5}",
+		},
+		{
+			step:           v1alpha1.CanaryStep{Plugin: &v1alpha1.PluginStep{Name: "foo"}},
+			expectedString: "plugin: foo",
 		},
 	}
 	for _, test := range tests {

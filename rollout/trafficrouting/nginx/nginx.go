@@ -325,6 +325,7 @@ func (r *Reconciler) SetWeightPerIngress(desiredWeight int32, ingresses []string
 		}
 
 		// Make patches
+		desiredCanaryIngress.SetAnnotations(getDesiredAnnotations(canaryIngress, desiredCanaryIngress))
 		patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress,
 			desiredCanaryIngress, ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
 
@@ -370,4 +371,17 @@ func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) err
 
 func (r *Reconciler) RemoveManagedRoutes() error {
 	return nil
+}
+
+func getDesiredAnnotations(current, desired *ingressutil.Ingress) map[string]string {
+	// Merge existing annotations into the desired Ingress (giving precedence to the desired values)
+	// This is necessary because the desired Ingress may not have all annotations previously added
+	// by other controllers (e.g. Rancher)
+	desiredAnnotations := desired.GetAnnotations()
+	for k, v := range current.GetAnnotations() {
+		if _, ok := desiredAnnotations[k]; !ok {
+			desiredAnnotations[k] = v
+		}
+	}
+	return desiredAnnotations
 }

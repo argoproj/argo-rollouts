@@ -166,17 +166,21 @@ func newReplicaSetFromTemplate(experiment *v1alpha1.Experiment, template v1alpha
 	newRSTemplate.Labels = labelsutil.CloneAndAddLabel(newRSTemplate.Labels, v1alpha1.DefaultRolloutUniqueLabelKey, podHash)
 	// Add podTemplateHash label to selector.
 	newRSSelector := labelsutil.CloneSelectorAndAddLabel(template.Selector, v1alpha1.DefaultRolloutUniqueLabelKey, podHash)
+	newRSLabels := map[string]string{}
+	// enrich with template labels
+	for k, v := range newRSTemplate.Labels {
+		newRSLabels[k] = v
+	}
+	newRSLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = podHash
 
 	// The annotations must be different for each template because annotations are used to match
 	// replicasets to templates. We inject the experiment and template name in the replicaset
 	// annotations to ensure uniqueness.
 	rs := appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", experiment.Name, template.Name),
-			Namespace: experiment.Namespace,
-			Labels: map[string]string{
-				v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
-			},
+			Name:            fmt.Sprintf("%s-%s", experiment.Name, template.Name),
+			Namespace:       experiment.Namespace,
+			Labels:          newRSLabels,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(experiment, controllerKind)},
 			Annotations:     replicaSetAnnotations,
 		},

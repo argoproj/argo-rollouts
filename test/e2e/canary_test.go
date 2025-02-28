@@ -4,6 +4,7 @@
 package e2e
 
 import (
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"log"
 	"testing"
 	"time"
@@ -47,7 +48,7 @@ func (s *CanarySuite) TestCanarySetCanaryScale() {
 - pause: {duration: 5s}
 `
 	s.Given().
-		RolloutTemplate("@functional/nginx-template.yaml", "set-canary-scale").
+		RolloutTemplate("@functional/nginx-template.yaml", map[string]string{"REPLACEME": "set-canary-scale"}).
 		SetSteps(canarySteps).
 		When().
 		ApplyManifests().
@@ -604,6 +605,7 @@ func (s *CanarySuite) TestCanaryWithPausedRollout() {
 		WaitForRolloutStatus("Paused").
 		UpdateSpec(). // update to revision 3
 		WaitForRolloutStatus("Paused").
+		Sleep(1*time.Second).
 		Then().
 		ExpectRevisionPodCount("1", 3).
 		ExpectRevisionPodCount("2", 0).
@@ -631,7 +633,7 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		ApplyManifests().
 		MarkPodsReady("1", 4). // mark all 4 pods ready
 		WaitForRolloutStatus("Healthy").
-		UpdateSpec().          // update to revision 2
+		UpdateSpec(). // update to revision 2
 		MarkPodsReady("2", 1). // mark 1 of 1 canary pods ready
 		WaitForRolloutStatus("Paused").
 		Sleep(2*time.Second).
@@ -707,7 +709,7 @@ func (s *CanarySuite) TestCanaryDynamicStableScaleRollbackToStable() {
 			assert.Equal(s.T(), int32(75), ro.Status.Canary.Weights.Stable.Weight)
 		}).
 		When().
-		MarkPodsReady("3", 1).           // marks the 4th pod of stableRS/newRS (revision 3) ready
+		MarkPodsReady("3", 1). // marks the 4th pod of stableRS/newRS (revision 3) ready
 		WaitForRevisionPodCount("2", 0). // make sure we scale down the previous desired (revision 2)
 		Then().
 		Assert(func(t *fixtures.Then) {
@@ -725,4 +727,57 @@ func (s *CanarySuite) TestCanaryDynamicStableScaleRollbackToStable() {
 			assert.Equal(s.T(), int32(100), ro.Status.Canary.Weights.Stable.Weight)
 
 		})
+}
+
+// TestCanaryWithSpecPause This tests that we do not go into a update loop where we flap back updating condition patches.
+func (s *CanarySuite) TestCanaryWithSpecPause() {
+	s.Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-canary-with-pause
+spec:
+  replicas: 3
+  revisionHistoryLimit: 2
+  progressDeadlineSeconds: 5
+  selector:
+    matchLabels:
+      app: rollout-canary-with-pause
+  template:
+    metadata:
+      labels:
+        app: rollout-canary-with-pause
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 30
+  strategy:
+    canary:
+      steps:
+      - setWeight: 20
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
+		WaitForRolloutReplicas(3).
+		UpdateSpec(`{"spec":{"paused": true}}`).
+		WaitForRolloutConditionToNotExist(func(ro *v1alpha1.Rollout) bool {
+			for _, c := range ro.Status.Conditions {
+				if c.Type == v1alpha1.RolloutProgressing && c.Reason == conditions.RolloutPausedReason && c.Status == corev1.ConditionUnknown {
+					return true
+				}
+			}
+			return false
+		}, "ProgressingPausedUnknown", 5*time.Second).
+		WaitForRolloutStatus("Paused")
 }

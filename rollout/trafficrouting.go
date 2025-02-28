@@ -41,9 +41,9 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio != nil {
 		if c.IstioController.VirtualServiceInformer.HasSynced() {
-			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, c.IstioController.VirtualServiceLister, c.IstioController.DestinationRuleLister))
+			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, c.IstioController.VirtualServiceLister, c.IstioController.DestinationRuleLister, roCtx.allRSs))
 		} else {
-			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, nil, nil))
+			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, nil, nil, roCtx.allRSs))
 		}
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
@@ -198,6 +198,15 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
 			// when newRS is not available or replicas num is 0. never weight to canary
 			weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
+			// If a user changes their mind in the middle of an V1 -> V2 update, and then applies a V3
+			// there might have been a V2 ReplicaSet that was scaled up, but is now defunct.
+			// During the V2 rollout, managed routes could have been setup and would continue
+			// to direct traffic to the canary service which is now in front of 0 available replicas.
+			// We want to remove these managed routes alongside the safety here of never weighting to the canary.
+			err := reconciler.RemoveManagedRoutes()
+			if err != nil {
+				return err
+			}
 		} else if c.rollout.Status.PromoteFull {
 			// on a promote full, desired stable weight should be 0 (100% to canary),
 			// But we can only increase canary weight according to available replica counts of the canary.

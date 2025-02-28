@@ -116,7 +116,7 @@ docker run quay.io/argoproj/kubectl-argo-rollouts:master version
 
 ## Supported versions
 
-Check [e2e testing file]( https://github.com/argoproj/argo-rollouts/blob/master/.github/workflows/e2e.yaml#L40-L44) to see what the Kubernetes version is being fully tested.
+Check [e2e testing file](https://github.com/argoproj/argo-rollouts/blob/master/.github/workflows/testing.yaml#L82-L89) to see what the Kubernetes version is being fully tested.
 
 You can switch to different tags to see what relevant Kubernetes versions were being tested for the respective version.
 

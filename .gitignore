@@ -4,7 +4,7 @@
 dist/
 *.iml
 # delve debug binaries
-__debug_bin
+__debug_bin*
 cmd/**/debug
 debug.test
 coverage.out
@@ -19,3 +19,4 @@ server/static/*
 !server/static/.gitkeep
 coverage-output-e2e/
 coverage-output-unit/
+junit-unit-test.xml

@@ -112,6 +112,7 @@ type Metric struct {
 	FailureCondition string `json:"failureCondition,omitempty" protobuf:"bytes,6,opt,name=failureCondition"`
 	// FailureLimit is the maximum number of times the measurement is allowed to fail, before the
 	// entire metric is considered Failed (default: 0)
+	// -1 for making it disabled (when opting to use ConsecutiveSuccessLimit solely)
 	FailureLimit *intstrutil.IntOrString `json:"failureLimit,omitempty" protobuf:"bytes,7,opt,name=failureLimit"`
 	// InconclusiveLimit is the maximum number of times the measurement is allowed to measure
 	// Inconclusive, before the entire metric is considered Inconclusive (default: 0)
@@ -121,6 +122,9 @@ type Metric struct {
 	ConsecutiveErrorLimit *intstrutil.IntOrString `json:"consecutiveErrorLimit,omitempty" protobuf:"bytes,9,opt,name=consecutiveErrorLimit"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider" protobuf:"bytes,10,opt,name=provider"`
+	// ConsecutiveSuccessLimit is the number of consecutive times the measurement must succeed for the
+	// entire metric to be considered Successful (default: 0, which means it's disabled)
+	ConsecutiveSuccessLimit *intstrutil.IntOrString `json:"consecutiveSuccessLimit,omitempty" protobuf:"bytes,11,opt,name=consecutiveSuccessLimit"`
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.
@@ -297,6 +301,9 @@ type NewRelicMetric struct {
 	Profile string `json:"profile,omitempty" protobuf:"bytes,1,opt,name=profile"`
 	// Query is a raw newrelic NRQL query to perform
 	Query string `json:"query" protobuf:"bytes,2,opt,name=query"`
+	// Timeout represents the duration limit in seconds that will apply to the NRQL query
+	// +optional
+	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,3,opt,name=timeout"`
 }
 
 // JobMetric defines a job to run which acts as a metric
@@ -502,6 +509,9 @@ type MetricResult struct {
 	// the final state which gets used while taking measurements. For example, Prometheus uses this field
 	// to store the final resolved query after substituting the template arguments.
 	Metadata map[string]string `json:"metadata,omitempty" protobuf:"bytes,12,rep,name=metadata"`
+	// ConsecutiveSuccess is the number of times a measurement was successful in succession
+	// Resets to zero when failures, inconclusive measurements, or errors are encountered
+	ConsecutiveSuccess int32 `json:"consecutiveSuccess,omitempty" protobuf:"varint,13,opt,name=consecutiveSuccess"`
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured
@@ -617,4 +627,14 @@ type DatadogMetric struct {
 	// +kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area
 	// Aggregator is a type of aggregator to use for metrics-based queries (default: ""). Used for v2
 	Aggregator string `json:"aggregator,omitempty" protobuf:"bytes,6,opt,name=aggregator"`
+	// Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
+	// +optional
+	SecretRef SecretRef `json:"secretRef,omitempty" protobuf:"bytes,7,opt,name=secretRef"`
+}
+
+type SecretRef struct {
+	// Name refers to the name of the secret that should be used to integrate with Datadog.
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// Namespaced indicates whether the secret is in the namespace where rollouts it installed or in the namespace where the metric was found
+	Namespaced bool `json:"namespaced,omitempty" protobuf:"varint,2,opt,namespaced=dryRun"`
 }

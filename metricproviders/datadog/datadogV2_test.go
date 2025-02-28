@@ -8,7 +8,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -16,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func newQueryDefaultProvider() v1alpha1.MetricProvider {
@@ -59,6 +60,21 @@ func newQueryProviderSumAggregator() v1alpha1.MetricProvider {
 			Interval:   "5m",
 			Aggregator: "sum",
 			ApiVersion: "v2",
+		},
+	}
+}
+
+func newNamespacedSecretProvider() v1alpha1.MetricProvider {
+	return v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query:      "avg:kubernetes.cpu.user.total{*}",
+			Interval:   "5m",
+			Aggregator: "sum",
+			ApiVersion: "v2",
+			SecretRef: v1alpha1.SecretRef{
+				Name:       "secret",
+				Namespaced: true,
+			},
 		},
 	}
 }
@@ -233,7 +249,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field .Data.Attributes.Columns.Values of type []float64",
+			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field .Data.Attributes.Columns.Values of type []*float64",
 			useEnvVarForKeys:        false,
 		},
 
@@ -271,6 +287,20 @@ func TestRunSuiteV2(t *testing.T) {
 				Name:             "success with default and data",
 				SuccessCondition: "default(result, 0) < 0.05",
 				Provider:         newQueryProviderSumAggregator(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "0.006121378742186943",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedAggregator:      "sum",
+			useEnvVarForKeys:        false,
+		},
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"data": {"attributes": {"columns": [ {"values": [0.006121378742186943]}]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "success with default and data",
+				SuccessCondition: "default(result, 0) < 0.05",
+				Provider:         newNamespacedSecretProvider(),
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.006121378742186943",
@@ -401,8 +431,9 @@ func TestRunSuiteV2(t *testing.T) {
 			}
 			return true, tokenSecret, nil
 		})
+		namespace := "namespace"
 
-		provider, _ := NewDatadogProvider(*logCtx, fakeClient, test.metric)
+		provider, _ := NewDatadogProvider(*logCtx, fakeClient, namespace, test.metric)
 
 		metricsMetadata := provider.GetMetadata(test.metric)
 		assert.Nil(t, metricsMetadata)
