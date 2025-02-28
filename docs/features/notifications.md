@@ -68,7 +68,7 @@ To enable you need to add a flag to the controller `--self-service-notification-
 
 ## Default Trigger templates
 
-Currently the following triggers have [built-in templates](https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications).
+Currently, the following triggers have [built-in templates](https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications).
 
 * `on-analysis-run-error` when an error occurs during the execution of an analysis run
 * `on-analysis-run-failed` when an analysis run fails
