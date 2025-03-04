@@ -1,7 +1,6 @@
 module github.com/argoproj/argo-rollouts
 
 go 1.23
-
 require (
 	github.com/antonmedv/expr v1.15.5
 	github.com/argoproj/notifications-engine v0.4.1-0.20240403133627-f48567108f01
@@ -38,7 +37,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/tj/assert v0.0.3
 	github.com/valyala/fasttemplate v1.2.2
-	golang.org/x/oauth2 v0.26.0
+	golang.org/x/oauth2 v0.27.0
 	golang.org/x/sync v0.11.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241202173237-19429a94021a
 	google.golang.org/grpc v1.70.0
