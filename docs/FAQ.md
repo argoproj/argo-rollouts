@@ -15,7 +15,7 @@ Argo CD understands the health of Argo Rollouts resources via Argo CD’s [Lua h
 As a result, an operator can build automation to react to the states of the Argo Rollouts resources. For example, if a Rollout created by Argo CD is paused, Argo CD detects that and marks the Application as suspended. Once the new version is verified to be good, the operator can use Argo CD’s resume resource action to unpause the Rollout so it can continue to make progress. 
 
 ### Can we run the Argo Rollouts kubectl plugin commands via Argo CD?
-Argo CD supports running Lua scripts to modify resource kinds (i.e. suspending a CronJob by setting the `.spec.suspend` to true). These Lua Scripts can be configured in the argocd-cm ConfigMap or upstreamed to the Argo CD's [resource_customizations](https://github.com/argoproj/argo-cd/tree/master/resource_customizations) directory. These custom actions have two Lua scripts: one to modify the said resource and another to detect if the action can be executed (i.e. A user should not be able to resuming a unpaused Rollout). Argo CD allows users to execute these actions via the UI or CLI.
+Argo CD supports running Lua scripts to modify resource kinds (i.e. suspending a CronJob by setting the `.spec.suspend` to true). These Lua Scripts can be configured in the argocd-cm ConfigMap or upstreamed to the Argo CD's [resource_customizations](https://github.com/argoproj/argo-cd/tree/master/resource_customizations) directory. These custom actions have two Lua scripts: one to modify the said resource and another to detect if the action can be executed (i.e. A user should not be able to resuming an unpaused Rollout). Argo CD allows users to execute these actions via the UI or CLI.
 
 In the CLI, a user (or a CI system) can run
 ```bash

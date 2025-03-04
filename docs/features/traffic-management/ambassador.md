@@ -65,7 +65,7 @@ When Ambassador is configured in the `trafficRouting` attribute of the manifest,
 
 ## Endpoint Resolver
 
-By default, Ambassador uses kube-proxy to route traffic to Pods. However we should configure it to bypass kube-proxy and route traffic directly to pods. This will provide true L7 load balancing which is desirable in a canary workflow. This approach is called [endpoint routing](https://www.getambassador.io/docs/latest/topics/running/load-balancer/) and can be achieve by configuring [endpoint resolvers](https://www.getambassador.io/docs/latest/topics/running/resolvers/#the-kubernetes-endpoint-resolver).
+By default, Ambassador uses kube-proxy to route traffic to Pods. However we should configure it to bypass kube-proxy and route traffic directly to pods. This will provide true L7 load balancing which is desirable in a canary workflow. This approach is called [endpoint routing](https://www.getambassador.io/docs/latest/topics/running/load-balancer/) and can be achieved by configuring [endpoint resolvers](https://www.getambassador.io/docs/latest/topics/running/resolvers/#the-kubernetes-endpoint-resolver).
 
 To configure Ambassador to use endpoint resolver it is necessary to apply the following resource in the cluster:
 

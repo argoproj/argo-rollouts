@@ -42,7 +42,7 @@ This feature will not modify any of the ReplicaSet's pre-existing affinity rules
 Users have a choice between these scheduling rules: `RequiredDuringSchedulingIgnoredDuringExecution` and `PreferredDuringSchedulingIgnoredDuringExecution`.
 
 `RequiredDuringSchedulingIgnoredDuringExecution` requires a new version's pods to be on a separate node than the previous versions. If this
-is not possible, the the new version's pods will not be scheduled.
+is not possible, the new version's pods will not be scheduled.
 
 ```yaml
 strategy:

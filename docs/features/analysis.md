@@ -1151,7 +1151,7 @@ A use case for having `Inconclusive` analysis runs are to enable Argo Rollouts t
 whether or not measurement value is acceptable and decide to proceed or abort.
 
 ## Delay Analysis Runs
-If the analysis run does not need to start immediately (i.e give the metric provider time to collect
+If the analysis run does not need to start immediately (i.e. give the metric provider time to collect
 metrics on the canary version), Analysis Runs can delay the specific metric analysis. Each metric
 can be configured to have a different delay. In additional to the metric specific delays, the rollouts
 with background analysis can delay creating an analysis run until a certain step is reached

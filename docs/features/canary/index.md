@@ -90,7 +90,7 @@ match the traffic weight. Some use cases for this:
 
     Setting canary scale is only available when using the canary strategy with a traffic router, since the basic canary needs to control canary scale in order to approximate canary weight.
 
-To control canary scales and weights during steps, use the `setCanaryScale` step and indicate which scale the
+To control canary scales and weights during steps, use the `setCanaryScale` step and indicate which scale
 the canary should use:
 
 - explicit replica count without changing traffic weight (`replicas`)
@@ -202,7 +202,7 @@ Defaults to nil
 
 ### antiAffinity
 
-Check out the [Anti Affinity document](anti-affinity/anti-affinity.md) document for more information.
+Check out the [Anti Affinity](anti-affinity/anti-affinity.md) document for more information.
 
 Defaults to nil
 
