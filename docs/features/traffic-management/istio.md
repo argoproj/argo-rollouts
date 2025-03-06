@@ -19,6 +19,10 @@ are available as options in Argo Rollouts:
 1. [Host-level traffic splitting](#host-level-traffic-splitting)
 2. [Subset-level traffic splitting](#subset-level-traffic-splitting)
 
+!!! note
+
+    When using Istio only traffic that is within the service mesh will follow the rollout strategy. Pods excluded from the service mesh (e.g., because of a `sidecar.istio.io/inject="false"` label) will follow default Kubernetes traffic routing.
+
 ## Host-level Traffic Splitting
 
 The first approach to traffic splitting using Argo Rollouts and Istio, is splitting between two
@@ -303,7 +307,7 @@ spec:
 
 ## Multicluster Setup
 If you have [Istio multicluster setup](https://istio.io/latest/docs/setup/install/multicluster/)
-where the primary Istio cluster is different than the cluster where the Argo Rollout controller
+where the primary Istio cluster is different from the cluster where the Argo Rollout controller
 is running, then you need to do the following setup:
 
 1. Create a `ServiceAccount` in the Istio primary cluster.
@@ -439,12 +443,12 @@ leverage the following Argo CD features:
       ignoreDifferences:
       - group: networking.istio.io
         kind: VirtualService
-        jsonPointers:
-        - /spec/http/0
+        jqPathExpressions:
+        - .spec.http[].route[].weight
     ```
 
-    Ignoring the differences in the VirtualServices HTTP route, prevents gitops differences
-    in the VirtualService HTTP routes to contribute to the overall sync status of the Argo CD
+    Ignoring the differences in the VirtualServices HTTP route weights, prevents GitOps differences
+    in the VirtualService HTTP route weights to contribute to the overall sync status of the Argo CD
     application. This adds the additional benefit of prevent auto-sync operations from being
     triggered.
 
@@ -459,6 +463,7 @@ leverage the following Argo CD features:
       syncPolicy:
         syncOptions:
         - ApplyOutOfSyncOnly=true
+        - RespectIgnoreDifferences=true
     ```
 
     By default, when Argo CD  syncs an application, it runs `kubectl apply` against all resources in
@@ -467,11 +472,6 @@ leverage the following Argo CD features:
     which are `OutOfSync`. This option, when used in conjunction with the `ignoreDifferences`
     feature, provides a way to manage the conflict in the desired state of a VirtualService between
     Argo CD and Argo Rollouts.
-
-Argo CD also has an [open issue here](https://github.com/argoproj/argo-cd/issues/2913) which would
-help address this problem. The proposed solution is to introduce an annotation to resources, which
-indicates to Argo CD to respect and preserve the differences at a specified path, in order to allow
-other controllers (e.g. Argo Rollouts) controller manage them instead.
 
 ## Ping Pong
 

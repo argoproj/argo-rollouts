@@ -104,7 +104,7 @@ The completion command supports bash, zsh, fish and powershell.
 See the [completion command documentation](./generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion.md) for more details.
 
 
-## Using the CLI  with Docker
+## Using the CLI with Docker
 
 The CLI is also available as a container image at [https://quay.io/repository/argoproj/kubectl-argo-rollouts](https://quay.io/repository/argoproj/kubectl-argo-rollouts)
 

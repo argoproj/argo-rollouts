@@ -23,7 +23,7 @@ argocd app actions run my-app restart --kind Rollout --resource-name my-rollout
 ```
 
 Both of these mechanisms updates the Rollout's `.spec.restartAt` to the current time in the
-form of a [RFC 3339 formatted](https://tools.ietf.org/html/rfc3339) UTC string
+form of an [RFC 3339 formatted](https://tools.ietf.org/html/rfc3339) UTC string
 (e.g. 2020-03-30T21:19:35Z), which indicates to the Rollout controller that all of a Rollout's
 Pods should have been created after this timestamp.
 
