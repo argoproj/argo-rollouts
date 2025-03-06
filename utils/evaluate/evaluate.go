@@ -100,8 +100,8 @@ func EvalCondition(resultValue any, condition string) (bool, error) {
 		"asFloat": asFloat,
 		"isNaN":   math.IsNaN,
 		"isInf":   isInf,
-		"isNil":   isNilFunc(resultValue),
-		"default": defaultFunc(resultValue),
+		"isNil":   isNil,
+		"default": defaultFunc,
 	}
 
 	unwrapFileErr := func(e error) error {
@@ -222,19 +222,11 @@ func Equal(a, b []string) bool {
 	return true
 }
 
-func defaultFunc(resultValue any) func(any, any) any {
-	return func(_ any, defaultValue any) any {
-		if isNil(resultValue) {
-			return defaultValue
-		}
-		return valueFromPointer(resultValue)
+func defaultFunc(resultValue any, defaultValue any) any {
+	if isNil(resultValue) {
+		return defaultValue
 	}
-}
-
-func isNilFunc(resultValue any) func(any) bool {
-	return func(_ any) bool {
-		return isNil(resultValue)
-	}
+	return valueFromPointer(resultValue)
 }
 
 // isNil is courtesy of: https://gist.github.com/mangatmodi/06946f937cbff24788fa1d9f94b6b138

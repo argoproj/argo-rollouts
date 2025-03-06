@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -184,7 +185,7 @@ func (p *Provider) createRequest(dd *v1alpha1.DatadogMetric, now int64, interval
 		dd.Queries = map[string]string{"query": dd.Query}
 	}
 
-	return p.createRequestV2(dd.Queries, dd.Formula, now, interval, dd.Aggregator, url)
+	return p.createRequestV2(dd.Queries, dd.Formula, dd.Formulas, now, interval, dd.Aggregator, url)
 }
 
 func (p *Provider) createRequestV1(query string, now int64, interval int64, url *url.URL) (*http.Request, error) {
@@ -211,15 +212,31 @@ func buildQueriesPayload(queries map[string]string, aggregator string) []map[str
 	return qp
 }
 
-func (p *Provider) createRequestV2(queries map[string]string, formula string, now int64, interval int64, aggregator string, url *url.URL) (*http.Request, error) {
-	formulas := []map[string]string{}
-	// ddAPI supports multiple formulas but doesn't make sense in our context
-	// can't have a 'blank' formula, so have to guard
+func (p *Provider) createRequestV2(queries map[string]string, formula string, formulas []string, now int64, interval int64, aggregator string, url *url.URL) (*http.Request, error) {
+
+	var fp []map[string]string
+
+	// We know either formula formulas are provided, but not both.
 	if formula != "" {
-		formulas = []map[string]string{{
+		fp = []map[string]string{{
 			"formula": formula,
 		}}
+	} else if len(formulas) != 0 {
+		fp = make([]map[string]string, len(formulas))
+		for i, v := range formulas {
+			// can't have a 'blank' formula, so have to guard
+			// This won't happen though since we check in validateIncomingProps
+			if v != "" {
+				p := map[string]string{
+					"formula": v,
+				}
+				fp[i] = p
+			}
+		}
+	} else {
+		fp = []map[string]string{}
 	}
+
 	// we cannot leave aggregator empty as it will be passed as such to datadog API and fail
 	if aggregator == "" {
 		aggregator = "last"
@@ -230,7 +247,7 @@ func (p *Provider) createRequestV2(queries map[string]string, formula string, no
 		From:     (now - interval) * 1000,
 		To:       now * 1000,
 		Queries:  buildQueriesPayload(queries, aggregator),
-		Formulas: formulas,
+		Formulas: fp,
 	}
 
 	queryBody, err := json.Marshal(datadogRequest{
@@ -296,6 +313,36 @@ func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Respon
 	return strconv.FormatFloat(value, 'f', -1, 64), status, err
 }
 
+func valuesToResultStr(value interface{}) string {
+
+	if v, ok := value.(float64); ok {
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	}
+
+	if valueSlice, ok := value.([]interface{}); ok {
+
+		results := []string{}
+
+		for _, v := range valueSlice {
+			// This never happens
+			if v == nil {
+				continue
+			}
+
+			// This is always true
+			if vFloat, ok := v.(float64); ok {
+				results = append(results, strconv.FormatFloat(vFloat, 'f', -1, 64))
+			}
+		}
+
+		return fmt.Sprintf("[%s]", strings.Join(results, ","))
+	}
+
+	// We should never reach here
+	return ""
+
+}
+
 func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -319,17 +366,65 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("There were errors in your query: %v", res.Data.Errors)
 	}
 
+	var somethingNil, allNil bool
+	var value interface{}
+	var nilFloat64 *float64
+
+	// formulasLength is the length of formulas array provided
+	formulasLength := len(metric.Provider.Datadog.Formulas)
+	// valuesLength is the length of returned values to access
+	// if no formulas array provided, that means it is only 1 value
+	// (the result of the signle formula or query)
+	valuesLength := formulasLength
+	if formulasLength == 0 {
+		valuesLength = 1
+	}
+
+	// Evalulate whether all formulas are nil
+	allNil = reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Columns) == 0
+
+	// Populate value and evalulate somethingNil
+	// value is a slice of interface, which is really a slice of float64 (and nils)
+	// somethingNil indicates whether there exists a formula with null response
+	value = make([]interface{}, valuesLength)
+	valueAsSlice := value.([]interface{})
+
+	if allNil {
+		for i := range len(valueAsSlice) {
+			valueAsSlice[i] = nilFloat64
+		}
+	} else {
+		for i := range len(valueAsSlice) {
+			if len(res.Data.Attributes.Columns[i].Values) == 0 || res.Data.Attributes.Columns[i].Values[0] == nil {
+				valueAsSlice[i] = nilFloat64
+				somethingNil = true
+			} else {
+				valueAsSlice[i] = *res.Data.Attributes.Columns[i].Values[0]
+			}
+		}
+	}
+
+	// To preserve backward conditions accessing `result` directly
+	// instead of `result[0]`. Cast value back to float64 instead of a slice
+	// when no `formulas` array is provided
+	if formulasLength == 0 {
+		value = valueAsSlice[0]
+	}
+
 	// Handle an empty query result
-	if reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Columns) == 0 || len(res.Data.Attributes.Columns[0].Values) == 0 || res.Data.Attributes.Columns[0].Values[0] == nil {
-		var nilFloat64 *float64
-		status, err := evaluate.EvaluateResult(nilFloat64, metric, p.logCtx)
+	if allNil || somethingNil {
+		status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
 
 		var attributesBytes []byte
 		var jsonErr error
 		// Should be impossible for this to not be true, based on dd openapi spec.
 		// But in this case, better safe than sorry
-		if len(res.Data.Attributes.Columns) == 1 {
-			attributesBytes, jsonErr = json.Marshal(res.Data.Attributes.Columns[0].Values)
+		if len(res.Data.Attributes.Columns) >= 1 {
+			allValues := []*float64{}
+			for i := range len(res.Data.Attributes.Columns) {
+				allValues = append(allValues, res.Data.Attributes.Columns[i].Values...)
+			}
+			attributesBytes, jsonErr = json.Marshal(allValues)
 		} else {
 			attributesBytes, jsonErr = json.Marshal(res.Data.Attributes)
 		}
@@ -342,10 +437,9 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 	}
 
 	// Handle a populated query result
-	column := res.Data.Attributes.Columns[0]
-	value := *column.Values[0]
 	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
-	return strconv.FormatFloat(value, 'f', -1, 64), status, err
+	return valuesToResultStr(value), status, err
+
 }
 
 // Resume should not be used the Datadog provider since all the work should occur in the Run method
@@ -381,21 +475,35 @@ func validateIncomingProps(dd *v1alpha1.DatadogMetric) error {
 		return errors.New("Cannot have both a query and queries. Please review the Analysis Template.")
 	}
 
+	// check that we have ONE OF formula/formulas
+	if dd.Formula != "" && len(dd.Formulas) > 0 {
+		return errors.New("Cannot have both a formula and formulas. Please review the Analysis Template.")
+	}
+
 	// check that query is set for apiversion v1
 	if dd.ApiVersion == "v1" && dd.Query == "" {
 		return errors.New("Query is empty. API Version v1 only supports using the query parameter in your Analysis Template.")
 	}
 
 	// formula <3 queries. won't go anywhere without them
-	if dd.Formula != "" && len(dd.Queries) == 0 {
-		return errors.New("Formula are only valid when queries are set. Please review the Analysis Template.")
+	if (dd.Formula != "" || len(dd.Formulas) > 0) && len(dd.Queries) == 0 {
+		return errors.New("Formula/Formulas are only valid when queries are set. Please review the Analysis Template.")
 	}
 
-	// Reject queries with more than 1 when NO formula provided. While this would technically work
+	// validate that if formulas are set, no one of them is an empty string
+	if len(dd.Formulas) != 0 {
+		for _, f := range dd.Formulas {
+			if f == "" {
+				return errors.New("All formulas within Formulas field must be non-empty strings.")
+			}
+		}
+	}
+
+	// Reject queries with more than 1 when NO formula/formulas provided. While this would technically work
 	// DD will return 2 columns of data, and there is no guarantee what order they would be in, so
 	// there is no way to guess at intention of user. Since this is about metrics and monitoring, we should
 	// avoid ambiguity.
-	if dd.Formula == "" && len(dd.Queries) > 1 {
+	if (dd.Formula == "" && len(dd.Formulas) == 0) && len(dd.Queries) > 1 {
 		return errors.New("When multiple queries are provided you must include a formula.")
 	}
 
