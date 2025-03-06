@@ -10,6 +10,8 @@ import (
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin"
 
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
@@ -27,7 +29,6 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	"github.com/argoproj/argo-rollouts/utils/weightutil"
-	appsv1 "k8s.io/api/apps/v1"
 )
 
 // NewTrafficRoutingReconciler identifies return the TrafficRouting Plugin that the rollout wants to modify
