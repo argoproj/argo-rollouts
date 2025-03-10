@@ -24,6 +24,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/metricproviders"
 	"github.com/argoproj/argo-rollouts/rollout"
+	"github.com/argoproj/argo-rollouts/utils/errors"
 	"github.com/argoproj/argo-rollouts/utils/record"
 
 	"github.com/argoproj/argo-rollouts/controller"
@@ -116,12 +117,12 @@ func newCommand() *cobra.Command {
 			defaults.SetTraefikVersion(traefikVersion)
 
 			config, err := clientConfig.ClientConfig()
-			checkError(err)
+			errors.CheckError(err)
 			config.QPS = qps
 			config.Burst = burst
 			namespace := metav1.NamespaceAll
 			configNS, _, err := clientConfig.Namespace()
-			checkError(err)
+			errors.CheckError(err)
 			if namespaced {
 				namespace = configNS
 				log.Infof("Using namespace %s", namespace)
@@ -131,15 +132,15 @@ func newCommand() *cobra.Command {
 			kubeclientmetrics.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
 
 			kubeClient, err := kubernetes.NewForConfig(config)
-			checkError(err)
+			errors.CheckError(err)
 			argoprojClient, err := clientset.NewForConfig(config)
-			checkError(err)
+			errors.CheckError(err)
 			dynamicClient, err := dynamic.NewForConfig(config)
-			checkError(err)
+			errors.CheckError(err)
 			discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
-			checkError(err)
+			errors.CheckError(err)
 			smiClient, err := smiclientset.NewForConfig(config)
-			checkError(err)
+			errors.CheckError(err)
 			resyncDuration := time.Duration(rolloutResyncPeriod) * time.Second
 			kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
@@ -150,7 +151,7 @@ func newCommand() *cobra.Command {
 				options.LabelSelector = instanceIDSelector.String()
 			}
 			jobKubeClient, _, err := metricproviders.GetAnalysisJobClientset(kubeClient)
-			checkError(err)
+			errors.CheckError(err)
 			jobNs := metricproviders.GetAnalysisJobNamespace()
 			if jobNs == "" {
 				// if not set explicitly use the configured ns
@@ -205,9 +206,9 @@ func newCommand() *cobra.Command {
 			)
 
 			mode, err := ingressutil.DetermineIngressMode(ingressVersion, kubeClient.DiscoveryClient)
-			checkError(err)
+			errors.CheckError(err)
 			ingressWrapper, err := ingressutil.NewIngressWrapper(mode, kubeClient, kubeInformerFactory)
-			checkError(err)
+			errors.CheckError(err)
 
 			if pprofAddress != "" {
 				mux := controller.NewPProfServer()
@@ -217,7 +218,7 @@ func newCommand() *cobra.Command {
 			var cm *controller.Manager
 
 			enabledControllers, err := getEnabledControllers(controllersEnabled)
-			checkError(err)
+			errors.CheckError(err)
 
 			// currently only supports running analysis controller independently
 			if enabledControllers[controllerAnalysis] {
@@ -369,12 +370,6 @@ func createFormatter(logFormat string) log.Formatter {
 	}
 
 	return formatType
-}
-
-func checkError(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 func getEnabledControllers(controllersEnabled []string) (map[string]bool, error) {
