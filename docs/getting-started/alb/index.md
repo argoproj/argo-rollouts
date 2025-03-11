@@ -38,10 +38,30 @@ spec:
           # Reference to a Service that the Ingress must target in one of the rules (optional).
           # If omitted, uses canary.stableService.
           rootService: rollouts-demo-root
-          # Service port is the port which the Service listens on (required).
+          # Service port is the port which the Service listens on.
           servicePort: 443
 ...
 ```
+
+If you need to manage more than one ingress or an ingress with multiple ports, you can use `ingresses` and `servicePorts` fields:
+
+```yaml
+...
+      trafficRouting:
+        alb:
+          ingresses:
+            - rollouts-demo-ingress
+            - some-other-ingress
+          # Reference to a Service that the Ingress must target in one of the rules (optional).
+          # If omitted, uses canary.stableService.
+          servicePorts:
+            - ingress: rollouts-demo-ingress
+              servicePorts: [443]
+            - ingress: some-other-ingress
+              servicePorts: [80, 443]
+...
+```
+
 
 The Ingress referenced by the Rollout must have a rule which matches one of Rollout services.
 This should be `canary.trafficRouting.alb.rootService` (if specified), otherwise the rollout will
