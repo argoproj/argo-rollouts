@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -118,7 +119,19 @@ func DownloadPlugins(fd FileDownloader, kubeClient kubernetes.Interface) error {
 	}
 
 	for _, plugin := range config.GetAllPlugins() {
-		urlObj, err := url.ParseRequestURI(plugin.Location)
+
+		mapper := func(placeholderName string) string {
+			switch placeholderName {
+			case "GOARCH":
+				return runtime.GOARCH
+			case "GOOS":
+				return runtime.GOOS
+			}
+
+			return ""
+		}
+
+		urlObj, err := url.ParseRequestURI(os.Expand(plugin.Location, mapper))
 		if err != nil {
 			return fmt.Errorf("failed to parse plugin location: %w", err)
 		}
