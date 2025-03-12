@@ -199,6 +199,10 @@ spec:
                               type: string
                             formula:
                               type: string
+                            formulas:
+                              items:
+                                type: string
+                              type: array
                             interval:
                               default: 5m
                               type: string
