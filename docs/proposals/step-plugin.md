@@ -286,7 +286,7 @@ A user wants to use an API to publish information about the rollout. The plugin 
 Other steps need to use the conversationID during their execution.
 The plugin step receives in parameters the full rollout object and the pluginName. This information can be used to retrieve the status of other plugin execution.
 
-An utility function such as `PluginHelper.GetStatuses(rollout, pluginName)` can be implemented and made available to the plugins.
+A utility function such as `PluginHelper.GetStatuses(rollout, pluginName)` can be implemented and made available to the plugins.
 
 ##### I want my rollout to continue event if my plugin failed
 

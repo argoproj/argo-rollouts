@@ -242,7 +242,7 @@ Status:
 Events:          <none>
 ```
 
-Here we see the recommendation for cpu, memory with lowerbound, upper bound, Target etc., are provided. If we check the status of the pods.. the older pods with initial configuration would get terminated and newer pods get created.
+Here we see the recommendation for cpu, memory with lowerbound, upper bound, Target etc., are provided. If we check the status of the pods, the older pods with initial configuration would get terminated and newer pods get created.
 
 ```yaml
 # kubectl get po -n test-vpa -w   
@@ -337,7 +337,7 @@ Events:
 ## Requirements  
 In order for the VPA to manipulate the rollout, the Kubernetes cluster hosting the rollout CRD needs the subresources support for CRDs.  This feature was introduced as alpha in Kubernetes version 1.10 and transitioned to beta in Kubernetes version 1.11.  If a user wants to use VPA on v1.10, the Kubernetes Cluster operator will need to add a custom feature flag to the API server.  After 1.10, the flag is turned on by default.  Check out the following [link](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) for more information on setting the custom feature flag.
 
-When installing VPA you may need to add the following in RBAC configurations for `system:vpa-target-reader` cluster role as by default VPA maynot support rollouts in all the versions.
+When installing VPA you may need to add the following in RBAC configurations for `system:vpa-target-reader` cluster role as by default VPA may not support rollouts in all the versions.
 
 ```yaml
   - apiGroups:
