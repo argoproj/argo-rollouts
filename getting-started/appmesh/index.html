@@ -3575,7 +3575,7 @@ kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> <
 <div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>-n<span class="w"> </span>argo-examples<span class="w"> </span>port-forward<span class="w"> </span>svc/my-svc<span class="w"> </span><span class="m">8181</span>:80
 </code></pre></div>
 <h2 id="3-rollout-new-version">3. Rollout new version<a class="headerlink" href="#3-rollout-new-version" title="Permanent link">&para;</a></h2>
-<p>Now its time to deploy new version. Update the rollout with new image.</p>
+<p>Now it's time to deploy new version. Update the rollout with new image.</p>
 <div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span><span class="nb">set</span><span class="w"> </span>image<span class="w"> </span>my-rollout<span class="w"> </span><span class="nv">demo</span><span class="o">=</span>argoproj/rollouts-demo:green<span class="w"> </span>-n<span class="w"> </span>argo-examples
 </code></pre></div>
 <p>Rollout should deploy a new canary revision and update the weights under virtual-router.</p>

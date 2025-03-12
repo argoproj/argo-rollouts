@@ -3489,7 +3489,7 @@ As a result, the cluster auto-scaler must create 2 nodes to host the new Replica
 This feature will not modify any of the ReplicaSet's pre-existing affinity rules. </p>
 <p>Users have a choice between these scheduling rules: <code>RequiredDuringSchedulingIgnoredDuringExecution</code> and <code>PreferredDuringSchedulingIgnoredDuringExecution</code>.</p>
 <p><code>RequiredDuringSchedulingIgnoredDuringExecution</code> requires a new version's pods to be on a separate node than the previous versions. If this
-is not possible, the the new version's pods will not be scheduled.</p>
+is not possible, the new version's pods will not be scheduled.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">strategy</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">bluegreen</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">antiAffinity</span><span class="p">:</span>

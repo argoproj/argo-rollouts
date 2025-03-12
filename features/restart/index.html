@@ -3478,7 +3478,7 @@ be performed via the Argo CD UI or CLI:</p>
 <div class="highlight"><pre><span></span><code>argocd<span class="w"> </span>app<span class="w"> </span>actions<span class="w"> </span>run<span class="w"> </span>my-app<span class="w"> </span>restart<span class="w"> </span>--kind<span class="w"> </span>Rollout<span class="w"> </span>--resource-name<span class="w"> </span>my-rollout
 </code></pre></div>
 <p>Both of these mechanisms updates the Rollout's <code>.spec.restartAt</code> to the current time in the
-form of a <a href="https://tools.ietf.org/html/rfc3339">RFC 3339 formatted</a> UTC string
+form of an <a href="https://tools.ietf.org/html/rfc3339">RFC 3339 formatted</a> UTC string
 (e.g. 2020-03-30T21:19:35Z), which indicates to the Rollout controller that all of a Rollout's
 Pods should have been created after this timestamp.</p>
 <p>During a restart, the controller iterates through each ReplicaSet to see if all the Pods have a 

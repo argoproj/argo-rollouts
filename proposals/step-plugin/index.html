@@ -3896,7 +3896,7 @@ After the state is persisted, the error is propagated to the controller and the 
 <p>A user wants to use an API to publish information about the rollout. The plugin first calls the API that returns a conversation ID.
 Other steps need to use the conversationID during their execution.
 The plugin step receives in parameters the full rollout object and the pluginName. This information can be used to retrieve the status of other plugin execution.</p>
-<p>An utility function such as <code>PluginHelper.GetStatuses(rollout, pluginName)</code> can be implemented and made available to the plugins.</p>
+<p>A utility function such as <code>PluginHelper.GetStatuses(rollout, pluginName)</code> can be implemented and made available to the plugins.</p>
 <h5 id="i-want-my-rollout-to-continue-event-if-my-plugin-failed">I want my rollout to continue event if my plugin failed<a class="headerlink" href="#i-want-my-rollout-to-continue-event-if-my-plugin-failed" title="Permanent link">&para;</a></h5>
 <p>A parameter such as <code>abortOnFailure</code> can be added to the Rollout plugin step configuration object.
 When specified, the controller can use the value to modify the default logic.</p>

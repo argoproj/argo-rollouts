@@ -3512,7 +3512,7 @@
 
 <h1 id="web-metrics">Web Metrics<a class="headerlink" href="#web-metrics" title="Permanent link">&para;</a></h1>
 <p>An HTTP request can be performed against some external service to obtain the measurement. This example
-makes a HTTP GET request to some URL. The webhook response must return JSON content. The result of
+makes an HTTP GET request to some URL. The webhook response must return JSON content. The result of
 the optional <code>jsonPath</code> expression will be assigned to the <code>result</code> variable that can be referenced
 in the <code>successCondition</code> and <code>failureCondition</code> expressions. If omitted, will use the entire body
 of the as the result variable.</p>
@@ -3633,7 +3633,7 @@ to convert a result value to a numeric type so that mathematical comparison oper
 <span class="w">        </span><span class="nt">authentication</span><span class="p">:</span>
 <span class="w">          </span><span class="nt">oauth2</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">tokenUrl</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://my-oauth2-provider/token</span>
-<span class="w">            </span><span class="nt">clientId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-cliend-id</span>
+<span class="w">            </span><span class="nt">clientId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-client-id</span>
 <span class="w">            </span><span class="nt">clientSecret</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.oauthSecret</span><span class="nv"> </span><span class="s">}}&quot;</span>
 <span class="w">            </span><span class="nt">scopes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span>
 <span class="w">              </span><span class="s">&quot;my-oauth2-scope&quot;</span>

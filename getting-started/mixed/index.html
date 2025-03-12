@@ -3538,7 +3538,7 @@ the following mandatory fields:</p>
 <span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
 <span class="nn">...</span>
 </code></pre></div>
-<p>A combination of both should have comply with each TrafficRouting requirements, in this case:</p>
+<p>A combination of both should have to comply with each TrafficRouting requirements, in this case:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -3633,7 +3633,7 @@ ingress controller to achieve canary traffic splitting. The name of the generate
 formulated using <code>&lt;ROLLOUT-NAME&gt;-&lt;INGRESS-NAME&gt;-canary</code>. More details on the second Ingress are
 discussed in the following section.</p>
 <h2 id="2-perform-an-update">2. Perform an update<a class="headerlink" href="#2-perform-an-update" title="Permanent link">&para;</a></h2>
-<p>Now perform an update the rollout by changing the image, and wait for it to reached the paused state.</p>
+<p>Now perform an update the rollout by changing the image, and wait for it to reach the paused state.</p>
 <div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span><span class="nb">set</span><span class="w"> </span>image<span class="w"> </span>rollouts-demo<span class="w"> </span>rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
 kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>get<span class="w"> </span>rollout<span class="w"> </span>rollouts-demo
 </code></pre></div>
@@ -3661,7 +3661,7 @@ changes over the original ingress:</p>
 <li>Two additional
 <a href="https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#canary">NGINX specific canary annotations</a>
 are added to the annotations.</li>
-<li>The Ingress rules will have an rule which points the backend to the <em>canary</em> service.</li>
+<li>The Ingress rules will have a rule which points the backend to the <em>canary</em> service.</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span>

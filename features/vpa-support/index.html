@@ -3710,7 +3710,7 @@ NOTE: This feature of VPA is experimental and may cause downtime for your applic
 <span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">500Mi</span>
 <span class="nt">Events</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span>
 </code></pre></div>
-<p>Here we see the recommendation for cpu, memory with lowerbound, upper bound, Target etc., are provided. If we check the status of the pods.. the older pods with initial configuration would get terminated and newer pods get created.</p>
+<p>Here we see the recommendation for cpu, memory with lowerbound, upper bound, Target etc., are provided. If we check the status of the pods, the older pods with initial configuration would get terminated and newer pods get created.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># kubectl get po -n test-vpa -w   </span>
 <span class="l l-Scalar l-Scalar-Plain">NAME                               READY   STATUS    RESTARTS   AGE</span>
 <span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-65f26   1/1     Running   0          17m</span>
@@ -3797,7 +3797,7 @@ NOTE: This feature of VPA is experimental and may cause downtime for your applic
 </code></pre></div>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <p>In order for the VPA to manipulate the rollout, the Kubernetes cluster hosting the rollout CRD needs the subresources support for CRDs.  This feature was introduced as alpha in Kubernetes version 1.10 and transitioned to beta in Kubernetes version 1.11.  If a user wants to use VPA on v1.10, the Kubernetes Cluster operator will need to add a custom feature flag to the API server.  After 1.10, the flag is turned on by default.  Check out the following <a href="https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/">link</a> for more information on setting the custom feature flag.</p>
-<p>When installing VPA you may need to add the following in RBAC configurations for <code>system:vpa-target-reader</code> cluster role as by default VPA maynot support rollouts in all the versions.</p>
+<p>When installing VPA you may need to add the following in RBAC configurations for <code>system:vpa-target-reader</code> cluster role as by default VPA may not support rollouts in all the versions.</p>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">apiGroups</span><span class="p">:</span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io</span>
 <span class="w">    </span><span class="nt">resources</span><span class="p">:</span>

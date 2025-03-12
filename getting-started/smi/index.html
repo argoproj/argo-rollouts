@@ -3567,7 +3567,7 @@ These values will be updated during an update.</p>
 <span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
 </code></pre></div>
 <h2 id="2-perform-an-update">2. Perform an update<a class="headerlink" href="#2-perform-an-update" title="Permanent link">&para;</a></h2>
-<p>Now perform an update the rollout by changing the image, and wait for it to reached the paused state.</p>
+<p>Now perform an update the rollout by changing the image, and wait for it to reach the paused state.</p>
 <div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span><span class="nb">set</span><span class="w"> </span>image<span class="w"> </span>rollouts-demo<span class="w"> </span>rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
 kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>get<span class="w"> </span>rollout<span class="w"> </span>rollouts-demo
 </code></pre></div>

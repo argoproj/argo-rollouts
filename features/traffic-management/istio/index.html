@@ -3702,6 +3702,10 @@ are available as options in Argo Rollouts:</p>
 <li><a href="#host-level-traffic-splitting">Host-level traffic splitting</a></li>
 <li><a href="#subset-level-traffic-splitting">Subset-level traffic splitting</a></li>
 </ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When using Istio only traffic that is within the service mesh will follow the rollout strategy. Pods excluded from the service mesh (e.g., because of a <code>sidecar.istio.io/inject="false"</code> label) will follow default Kubernetes traffic routing.</p>
+</div>
 <h2 id="host-level-traffic-splitting">Host-level Traffic Splitting<a class="headerlink" href="#host-level-traffic-splitting" title="Permanent link">&para;</a></h2>
 <p>The first approach to traffic splitting using Argo Rollouts and Istio, is splitting between two
 hostnames, or Kubernetes Services: a canary Service and a stable Service. This approach is
@@ -3955,7 +3959,7 @@ weights can be 100% to stable, and 0% to canary.</p>
 </code></pre></div>
 <h2 id="multicluster-setup">Multicluster Setup<a class="headerlink" href="#multicluster-setup" title="Permanent link">&para;</a></h2>
 <p>If you have <a href="https://istio.io/latest/docs/setup/install/multicluster/">Istio multicluster setup</a>
-where the primary Istio cluster is different than the cluster where the Argo Rollout controller
+where the primary Istio cluster is different from the cluster where the Argo Rollout controller
 is running, then you need to do the following setup:</p>
 <ol>
 <li>Create a <code>ServiceAccount</code> in the Istio primary cluster.
@@ -4070,11 +4074,11 @@ leverage the following Argo CD features:</p>
 <span class="w">  </span><span class="nt">ignoreDifferences</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.istio.io</span>
 <span class="w">    </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">VirtualService</span>
-<span class="w">    </span><span class="nt">jsonPointers</span><span class="p">:</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/spec/http/0</span>
+<span class="w">    </span><span class="nt">jqPathExpressions</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.spec.http[].route[].weight</span>
 </code></pre></div>
-<p>Ignoring the differences in the VirtualServices HTTP route, prevents gitops differences
-in the VirtualService HTTP routes to contribute to the overall sync status of the Argo CD
+<p>Ignoring the differences in the VirtualServices HTTP route weights, prevents GitOps differences
+in the VirtualService HTTP route weights to contribute to the overall sync status of the Argo CD
 application. This adds the additional benefit of prevent auto-sync operations from being
 triggered.</p>
 </li>
@@ -4088,6 +4092,7 @@ triggered.</p>
 <span class="w">  </span><span class="nt">syncPolicy</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">syncOptions</span><span class="p">:</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ApplyOutOfSyncOnly=true</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">RespectIgnoreDifferences=true</span>
 </code></pre></div>
 <p>By default, when Argo CD  syncs an application, it runs <code>kubectl apply</code> against all resources in
 git which are part of the application. The <code>ApplyOutOfSyncOnly=true</code> sync option indicates to
@@ -4097,10 +4102,6 @@ feature, provides a way to manage the conflict in the desired state of a Virtual
 Argo CD and Argo Rollouts.</p>
 </li>
 </ol>
-<p>Argo CD also has an <a href="https://github.com/argoproj/argo-cd/issues/2913">open issue here</a> which would
-help address this problem. The proposed solution is to introduce an annotation to resources, which
-indicates to Argo CD to respect and preserve the differences at a specified path, in order to allow
-other controllers (e.g. Argo Rollouts) controller manage them instead.</p>
 <h2 id="ping-pong">Ping Pong<a class="headerlink" href="#ping-pong" title="Permanent link">&para;</a></h2>
 <div class="admonition important">
 <p class="admonition-title">Important</p>

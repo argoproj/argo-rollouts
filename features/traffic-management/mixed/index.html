@@ -3461,12 +3461,12 @@ how teams can implement gradually new technologies. An example, where an existin
 such as Ambassador and is already performing canary in a North-South fashion as part of their rollouts can gradually 
 implement more providers such as Istio, SMI, etc.</p>
 <h3 id="hybrid-scenarios">Hybrid Scenarios<a class="headerlink" href="#hybrid-scenarios" title="Permanent link">&para;</a></h3>
-<p>In this case, its very similar to avoiding the Big-Bang, either if it is part of the platform roadmap or a new redesign
+<p>In this case, it's very similar to avoiding the Big-Bang, either if it is part of the platform roadmap or a new redesign
 of the architecture, there are multiple scenarios where having the capacity of using multiple trafficRoutings is very 
 much in need: gradual implementation, eased rollback of architecture or even for a fallback.</p>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <p>The use of multiple providers requires that both providers comply with its minimum requirements independently.
-By example, if you want to use NGiNX and SMI you would need to have both SMI and NGiNX in place and produce the rollout configuration
+For example, if you want to use NGiNX and SMI you would need to have both SMI and NGiNX in place and produce the rollout configuration
 for both.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
