@@ -3,8 +3,9 @@ package newrelic
 import (
 	"reflect"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/newrelic/newrelic-client-go/v2/pkg/nrdb"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 type mockAPI struct {

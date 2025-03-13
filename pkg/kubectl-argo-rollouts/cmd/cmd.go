@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	notificationcmd "github.com/argoproj/notifications-engine/pkg/cmd"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/completion"
@@ -20,7 +22,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/version"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/utils/record"
-	notificationcmd "github.com/argoproj/notifications-engine/pkg/cmd"
 
 	"github.com/spf13/cobra"
 )

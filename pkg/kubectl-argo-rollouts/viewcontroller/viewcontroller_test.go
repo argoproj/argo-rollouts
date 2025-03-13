@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
-	rolloutsfake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
+	rolloutsfake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )

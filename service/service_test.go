@@ -16,11 +16,12 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/util/workqueue"
 
+	"k8s.io/client-go/tools/cache"
+
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
-	"k8s.io/client-go/tools/cache"
 )
 
 func newService(name string, port int, selector map[string]string) *corev1.Service {

@@ -7,13 +7,14 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc/mocks"
-	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc/mocks"
+	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
 
 func Test_stepPlugin_Run(t *testing.T) {

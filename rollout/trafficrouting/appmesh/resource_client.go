@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 
-	appmeshutil "github.com/argoproj/argo-rollouts/utils/appmesh"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
+
+	appmeshutil "github.com/argoproj/argo-rollouts/utils/appmesh"
 )
 
 type ResourceClient struct {

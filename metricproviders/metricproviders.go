@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/argoproj/argo-rollouts/metric"
 	"github.com/argoproj/argo-rollouts/metricproviders/influxdb"
 	"github.com/argoproj/argo-rollouts/metricproviders/skywalking"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
 	"github.com/argoproj/argo-rollouts/metricproviders/datadog"

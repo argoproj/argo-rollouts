@@ -3,9 +3,10 @@ package trafficrouting
 import (
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 const PING_SVC = "ping-service"

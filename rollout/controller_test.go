@@ -602,6 +602,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		MetricsServer:                   metricsServer,
 		Recorder:                        record.NewFakeEventRecorder(),
 		RefResolver:                     &FakeWorkloadRefResolver{},
+		EphemeralMetadataThreads:        DefaultEphemeralMetadataThreads,
 	})
 
 	c.enqueueRollout = func(obj any) {
@@ -960,7 +961,7 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet {
+func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {

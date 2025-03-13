@@ -1,8 +1,9 @@
 package completion
 
 import (
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/spf13/cobra"
+
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 )
 
 func NewCmdCompletion(o *options.ArgoRolloutsOptions) *cobra.Command {

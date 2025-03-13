@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")

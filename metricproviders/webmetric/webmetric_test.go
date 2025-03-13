@@ -10,9 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 const (

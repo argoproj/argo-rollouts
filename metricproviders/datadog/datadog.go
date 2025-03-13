@@ -451,7 +451,7 @@ func findCredentials(logCtx log.Entry, kubeclientset kubernetes.Interface, names
 	}
 	for _, finder := range finders {
 		address, apiKey, appKey := finder.FindCredentials(logCtx)
-		if address != "" && apiKey != "" && appKey != "" {
+		if apiKey != "" && appKey != "" {
 			return address, apiKey, appKey, nil
 		}
 	}

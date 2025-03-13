@@ -276,7 +276,7 @@ spec:
         # Pauses indefinitely until manually resumed
         - pause: {}
 
-        # set canary scale to a explicit count without changing traffic weight
+        # set canary scale to an explicit count without changing traffic weight
         # (supported only with trafficRouting)
         - setCanaryScale:
             replicas: 3

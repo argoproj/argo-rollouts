@@ -4,6 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -15,11 +21,6 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututils "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 )
 
 const (

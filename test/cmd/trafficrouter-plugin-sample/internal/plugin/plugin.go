@@ -8,11 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
-	pluginTypes "github.com/argoproj/argo-rollouts/utils/plugin/types"
 	"github.com/sirupsen/logrus"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -23,6 +18,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
+	pluginTypes "github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
 
 var _ rpc.TrafficRouterPlugin = &RpcPlugin{}

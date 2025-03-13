@@ -5,11 +5,12 @@ import (
 	"os/exec"
 	"sync"
 
+	goPlugin "github.com/hashicorp/go-plugin"
+
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/plugin"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
-	goPlugin "github.com/hashicorp/go-plugin"
 )
 
 type metricPlugin struct {

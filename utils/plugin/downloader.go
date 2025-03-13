@@ -11,9 +11,10 @@ import (
 	"path/filepath"
 	"time"
 
-	argoConfig "github.com/argoproj/argo-rollouts/utils/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	argoConfig "github.com/argoproj/argo-rollouts/utils/config"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 

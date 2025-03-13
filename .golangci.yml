@@ -6,7 +6,7 @@ issues:
     - pkg/client
   exclude-files:
     - ".*\\.pb\\.go"
-linter-settings:
+linters-settings:
   goimports:
     local-prefixes: github.com/argoproj/argo-rollouts
 linters:

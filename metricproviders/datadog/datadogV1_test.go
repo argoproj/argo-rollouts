@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -16,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func TestRunSuite(t *testing.T) {

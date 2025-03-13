@@ -6,16 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/mocks"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
-	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/mocks"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 func newStepPluginRollout() *v1alpha1.Rollout {

@@ -7,9 +7,10 @@ import (
 
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	goPlugin "github.com/hashicorp/go-plugin"
 	"github.com/tj/assert"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 var testHandshake = goPlugin.HandshakeConfig{

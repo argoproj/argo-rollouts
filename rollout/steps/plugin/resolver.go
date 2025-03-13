@@ -3,12 +3,13 @@ package plugin
 import (
 	"fmt"
 
+	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/client"
 	"github.com/argoproj/argo-rollouts/utils/config"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
-	"github.com/sirupsen/logrus"
-	log "github.com/sirupsen/logrus"
 )
 
 type resolver struct {

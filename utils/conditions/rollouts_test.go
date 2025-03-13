@@ -499,10 +499,10 @@ func TestRolloutComplete(t *testing.T) {
 		return r
 	}
 	r := rollout(5, 5, 5, 5)
-	assert.Equal(t, true, RolloutCompleted(r, &r.Status))
+	assert.Equal(t, true, RolloutCompleted(&r.Status))
 
 	r.Status.StableRS = "not-current-pod-hash"
-	assert.Equal(t, false, RolloutCompleted(r, &r.Status))
+	assert.Equal(t, false, RolloutCompleted(&r.Status))
 }
 
 func TestRolloutTimedOut(t *testing.T) {

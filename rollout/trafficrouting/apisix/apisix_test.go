@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix/mocks"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix/mocks"
 )
 
 const SetHeaderRouteName = "set-header"

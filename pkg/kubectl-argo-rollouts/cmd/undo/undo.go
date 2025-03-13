@@ -15,14 +15,15 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
-	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
-	routils "github.com/argoproj/argo-rollouts/utils/unstructured"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	appsclient "k8s.io/client-go/kubernetes/typed/apps/v1"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
+	routils "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 const (

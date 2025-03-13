@@ -109,6 +109,9 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: .spec.selector is immutable
+                  rule: self == oldSelf
               strategy:
                 properties:
                   blueGreen:

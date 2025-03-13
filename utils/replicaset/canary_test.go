@@ -1339,14 +1339,19 @@ func TestSyncEphemeralPodMetadata(t *testing.T) {
 			"ddd": "444",
 		},
 	}
-	{
-		// verify modified is false if there are no changes
+	t.Run("verify modified is false if there are no changes", func(t *testing.T) {
 		newMetadata, modified := SyncEphemeralPodMetadata(&meta, &existing, &existing)
 		assert.False(t, modified)
 		assert.Equal(t, meta, *newMetadata)
-	}
-	{
-		// verify we don't touch metadata that we did not inject ourselves
+	})
+	t.Run("verify modified is false if there are no actual deletions", func(t *testing.T) {
+		existingWithExtraLabel := existing.DeepCopy()
+		existingWithExtraLabel.Labels["foo"] = "bar"
+		newMetadata, modified := SyncEphemeralPodMetadata(&meta, existingWithExtraLabel, &existing)
+		assert.False(t, modified)
+		assert.Equal(t, meta, *newMetadata)
+	})
+	t.Run("verify we don't touch metadata that we did not inject ourselves", func(t *testing.T) {
 		desired := v1alpha1.PodTemplateMetadata{
 			Labels: map[string]string{
 				"aaa": "222",
@@ -1356,7 +1361,6 @@ func TestSyncEphemeralPodMetadata(t *testing.T) {
 			},
 		}
 		newMetadata, modified := SyncEphemeralPodMetadata(&meta, &existing, &desired)
-		assert.True(t, modified)
 		expected := metav1.ObjectMeta{
 			Labels: map[string]string{
 				"aaa":    "222",
@@ -1369,8 +1373,7 @@ func TestSyncEphemeralPodMetadata(t *testing.T) {
 		}
 		assert.True(t, modified)
 		assert.Equal(t, expected, *newMetadata)
-	}
-
+	})
 }
 
 func TestGetReplicasForScaleDown(t *testing.T) {

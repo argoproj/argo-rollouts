@@ -13,15 +13,16 @@ import (
 
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 
+	"github.com/prometheus/client_golang/api"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/prometheus/common/model"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
-	"github.com/prometheus/client_golang/api"
-	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
-	"github.com/prometheus/common/model"
-	log "github.com/sirupsen/logrus"
 )
 
 const EnvVarArgoRolloutsPrometheusAddress string = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"

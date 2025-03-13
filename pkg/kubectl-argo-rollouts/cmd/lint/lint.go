@@ -6,11 +6,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
-	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	"github.com/spf13/cobra"
 	goyaml "gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
@@ -19,6 +14,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 )
 
 type LintOptions struct {

@@ -1,10 +1,11 @@
 package rollout
 
 import (
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 )
 
 type rolloutContext struct {

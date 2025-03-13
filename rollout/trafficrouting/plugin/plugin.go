@@ -3,11 +3,12 @@ package plugin
 import (
 	"fmt"
 
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/client"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/utils/record"
-	"k8s.io/client-go/kubernetes"
 )
 
 type ReconcilerConfig struct {

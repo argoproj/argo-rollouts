@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
-	log "github.com/sirupsen/logrus"
 )
 
 var (

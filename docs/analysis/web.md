@@ -1,7 +1,7 @@
 # Web Metrics
 
 An HTTP request can be performed against some external service to obtain the measurement. This example
-makes a HTTP GET request to some URL. The webhook response must return JSON content. The result of
+makes an HTTP GET request to some URL. The webhook response must return JSON content. The result of
 the optional `jsonPath` expression will be assigned to the `result` variable that can be referenced
 in the `successCondition` and `failureCondition` expressions. If omitted, will use the entire body
 of the as the result variable.
@@ -143,7 +143,7 @@ spec:
         authentication:
           oauth2:
             tokenUrl: https://my-oauth2-provider/token
-            clientId: my-cliend-id
+            clientId: my-client-id
             clientSecret: "{{ args.oauthSecret }}"
             scopes: [
               "my-oauth2-scope"

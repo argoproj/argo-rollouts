@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informerfactory "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"

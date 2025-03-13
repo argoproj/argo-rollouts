@@ -8,11 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
