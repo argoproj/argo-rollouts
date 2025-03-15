@@ -162,7 +162,14 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 			}
 		} else if abortScaleDownDelaySeconds != nil {
 			// Don't annotate until need to ensure the stable RS is fully scaled
-			if c.stableRS.Status.AvailableReplicas == *c.rollout.Spec.Replicas {
+
+			// We only perform this check if we had something to do with scaling down the stable RS.
+			// That is, when dynamicStableScale is used. Otherwise, we shouldn't wait for
+			// it to be the case. Since external influences (cluster autoscalers with their disruptions)
+			// may prevent the stable rs of becoming fully available for a while, irrelevant to us.
+
+			usesDynamicStableScaling := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.DynamicStableScale
+			if c.stableRS.Status.AvailableReplicas == *c.rollout.Spec.Replicas || !usesDynamicStableScaling {
 				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
 				if err != nil {
 					return false, err
