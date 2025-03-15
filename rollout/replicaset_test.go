@@ -649,3 +649,156 @@ func TestScaleDownProgressively(t *testing.T) {
 
 	}
 }
+
+func TestReconcileNewReplicaSetOnAbortWithDynamicStableScaling(t *testing.T) {
+	tests := []struct {
+		name                       string
+		rolloutReplicas            int
+		newReplicas                int
+		scaleExpected              bool
+		abortScaleDownDelaySeconds int32
+		abortScaleDownAnnotated    bool
+		abortScaleDownDelayPassed  bool
+		expectedNewReplicas        int
+		failRSUpdate               bool
+	}{
+		{
+			name:                       "Explicit abortScaleDownDelaySeconds annotated deadline passed: scale down",
+			rolloutReplicas:            10,
+			newReplicas:                10,
+			abortScaleDownDelaySeconds: 5,
+			abortScaleDownAnnotated:    true,
+			abortScaleDownDelayPassed:  true,
+			scaleExpected:              true,
+			expectedNewReplicas:        0,
+		},
+		{
+			name:                       "Explicit abortScaleDownDelaySeconds annotated deadline not passed: no scale down",
+			rolloutReplicas:            10,
+			newReplicas:                8,
+			abortScaleDownDelaySeconds: 5,
+			abortScaleDownAnnotated:    true,
+			abortScaleDownDelayPassed:  false,
+			scaleExpected:              false,
+		},
+		{
+			name:                       "Explicit abortScaleDownDelaySeconds not annotated deadline not passed: no scale down",
+			rolloutReplicas:            10,
+			newReplicas:                10,
+			abortScaleDownDelaySeconds: 5,
+			abortScaleDownAnnotated:    false,
+			scaleExpected:              false,
+		},
+		{
+			name:                       "No explicit abortScaleDownDelaySeconds annotation failure: no scale down",
+			rolloutReplicas:            10,
+			newReplicas:                10,
+			scaleExpected:              false,
+			failRSUpdate:               true,
+			abortScaleDownDelaySeconds: -1,
+		},
+		{
+			name:                       "Explicit abortScaleDownDelaySeconds annotation failure: no scale down",
+			rolloutReplicas:            10,
+			newReplicas:                10,
+			scaleExpected:              false,
+			failRSUpdate:               true,
+			abortScaleDownDelaySeconds: 5,
+		},
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			oldRS := rs("foo-v1", test.newReplicas, nil, noTimestamp, nil)
+			newRS := rs("foo-v2", test.newReplicas, nil, noTimestamp, nil)
+			rollout := newCanaryRollout("foo", test.rolloutReplicas, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+			fake := fake.Clientset{}
+			k8sfake := k8sfake.Clientset{}
+
+			if test.failRSUpdate {
+				k8sfake.PrependReactor("patch", "replicasets", func(action core.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &appsv1.ReplicaSet{}, fmt.Errorf("should not patch replica set")
+				})
+			}
+
+			f := newFixture(t)
+			defer f.Close()
+			f.objects = append(f.objects, rollout)
+			f.replicaSetLister = append(f.replicaSetLister, oldRS, newRS)
+			f.kubeobjects = append(f.kubeobjects, oldRS, newRS)
+			_, informers, k8sInformer := f.newController(noResyncPeriodFunc)
+			stopCh := make(chan struct{})
+			informers.Start(stopCh)
+			informers.WaitForCacheSync(stopCh)
+			close(stopCh)
+
+			roCtx := rolloutContext{
+				log:      logutil.WithRollout(rollout),
+				rollout:  rollout,
+				newRS:    newRS,
+				stableRS: oldRS,
+				reconcilerBase: reconcilerBase{
+					argoprojclientset:  &fake,
+					kubeclientset:      &k8sfake,
+					recorder:           record.NewFakeEventRecorder(),
+					resyncPeriod:       30 * time.Second,
+					replicaSetInformer: k8sInformer.Apps().V1().ReplicaSets().Informer(),
+				},
+				pauseContext: &pauseContext{
+					rollout: rollout,
+				},
+			}
+			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
+
+			rollout.Status.Abort = true
+			roCtx.stableRS.Status.AvailableReplicas = int32(test.rolloutReplicas)
+			rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = &test.abortScaleDownDelaySeconds
+			rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+			rollout.Spec.Strategy.Canary.DynamicStableScale = true
+
+			if test.abortScaleDownDelaySeconds > 0 {
+				if test.abortScaleDownAnnotated {
+					var deadline string
+					if test.abortScaleDownDelayPassed {
+						deadline = timeutil.Now().Add(-time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+					} else {
+						deadline = timeutil.Now().Add(time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+					}
+					roCtx.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
+				}
+			}
+
+			if test.abortScaleDownDelaySeconds < 0 {
+				rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = nil
+			}
+
+			scaled, err := roCtx.reconcileNewReplicaSet()
+			if test.failRSUpdate && (test.scaleExpected || test.abortScaleDownDelaySeconds > 0) {
+				assert.Error(t, err)
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if !test.scaleExpected {
+				if scaled || len(fake.Actions()) > 0 {
+					t.Errorf("unexpected scaling: %v", fake.Actions())
+				}
+				return
+			}
+			if test.scaleExpected && !scaled {
+				t.Errorf("expected scaling to occur")
+				return
+			}
+			if len(k8sfake.Actions()) != 1 {
+				t.Errorf("expected 1 action during scale, got: %v", fake.Actions())
+				return
+			}
+			updated := k8sfake.Actions()[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+			if e, a := test.expectedNewReplicas, int(*(updated.Spec.Replicas)); e != a {
+				t.Errorf("expected update to %d replicas, got %d", e, a)
+			}
+		})
+	}
+}
