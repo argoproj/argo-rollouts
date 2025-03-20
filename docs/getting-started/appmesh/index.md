@@ -91,7 +91,7 @@ kubectl -n argo-examples port-forward svc/my-svc 8181:80
 
 ## 3. Rollout new version
 
-Now its time to deploy new version. Update the rollout with new image.
+Now it's time to deploy new version. Update the rollout with new image.
 
 ```shell
 kubectl argo rollouts set image my-rollout demo=argoproj/rollouts-demo:green -n argo-examples
