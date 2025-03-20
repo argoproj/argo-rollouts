@@ -1,4 +1,29 @@
 
+<a name="v1.8.1"></a>
+## [v1.8.1](https://github.com/argoproj/argo-rollouts/compare/v1.8.0...v1.8.1) (2025-03-15)
+
+### Chore
+
+* **deps:** Updated go version in go.mod file ([#4182](https://github.com/argoproj/argo-rollouts/issues/4182))
+
+### Docs
+
+* new syntax for docs conf ([#4012](https://github.com/argoproj/argo-rollouts/issues/4012))
+
+### Fix
+
+* guardrail to not overload stable replicaset ([#3878](https://github.com/argoproj/argo-rollouts/issues/3878))
+* redo PR 3639 ([#4114](https://github.com/argoproj/argo-rollouts/issues/4114))
+* check ephemeral metadata is set before delete ([#4089](https://github.com/argoproj/argo-rollouts/issues/4089))
+* correct typo in linter settings key name ([#4094](https://github.com/argoproj/argo-rollouts/issues/4094))
+* loop when paused and completed ([#4134](https://github.com/argoproj/argo-rollouts/issues/4134))
+* nil pointer on logging ([#4127](https://github.com/argoproj/argo-rollouts/issues/4127))
+* Upgrade go-retryablehttp to v0.7.7 ([#3743](https://github.com/argoproj/argo-rollouts/issues/3743))
+* **controller:**  rollout stuck in `Progressing`. fixes [#3988](https://github.com/argoproj/argo-rollouts/issues/3988) ([#4072](https://github.com/argoproj/argo-rollouts/issues/4072))
+* **dashboard:** Revert react-scripts upgrade due to performance regression. Fixes [#4122](https://github.com/argoproj/argo-rollouts/issues/4122) ([#4166](https://github.com/argoproj/argo-rollouts/issues/4166))
+* **metricprovider:** not require address in kubernetes secret for Datadog. Fixes [#4103](https://github.com/argoproj/argo-rollouts/issues/4103) ([#4145](https://github.com/argoproj/argo-rollouts/issues/4145))
+
+
 <a name="v1.8.0"></a>
 ## [v1.8.0](https://github.com/argoproj/argo-rollouts/compare/v1.8.0-rc2...v1.8.0) (2024-12-17)
 
@@ -20,6 +45,7 @@
 * remove ReplicaSet write-back ([#4044](https://github.com/argoproj/argo-rollouts/issues/4044))
 * **controller:** Fixed broken pprof links [#4037](https://github.com/argoproj/argo-rollouts/issues/4037) ([#4038](https://github.com/argoproj/argo-rollouts/issues/4038))
 * **experiments:** move recorder event to after experiment reconciliation, fixes [#4021](https://github.com/argoproj/argo-rollouts/issues/4021) ([#4022](https://github.com/argoproj/argo-rollouts/issues/4022))
+
 
 <a name="v1.8.0-rc1"></a>
 ## [v1.8.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.7.2...v1.8.0-rc1) (2024-12-06)
