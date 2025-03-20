@@ -23,7 +23,6 @@
 * **dashboard:** Revert react-scripts upgrade due to performance regression. Fixes [#4122](https://github.com/argoproj/argo-rollouts/issues/4122) ([#4166](https://github.com/argoproj/argo-rollouts/issues/4166))
 * **metricprovider:** not require address in kubernetes secret for Datadog. Fixes [#4103](https://github.com/argoproj/argo-rollouts/issues/4103) ([#4145](https://github.com/argoproj/argo-rollouts/issues/4145))
 
-
 <a name="v1.8.0"></a>
 ## [v1.8.0](https://github.com/argoproj/argo-rollouts/compare/v1.8.0-rc2...v1.8.0) (2024-12-17)
 
