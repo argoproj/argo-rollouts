@@ -107,16 +107,6 @@ func (c *rolloutContext) removeScaleDownDeadlines() error {
 			toRemove = append(toRemove, c.stableRS)
 		}
 	}
-	for _, rs := range c.otherRSs {
-		remainScaleDownDeadlines, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
-		if err != nil {
-			c.log.Warnf("%v", err)
-			continue
-		}
-		if replicasetutil.HasScaleDownDeadline(rs) && remainScaleDownDeadlines == nil {
-			toRemove = append(toRemove, rs)
-		}
-	}
 	for _, rs := range toRemove {
 		err := c.removeScaleDownDelay(rs)
 		if err != nil {
