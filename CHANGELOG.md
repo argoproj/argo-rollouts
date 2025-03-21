@@ -1,4 +1,13 @@
 
+<a name="v1.8.2"></a>
+## [v1.8.2](https://github.com/argoproj/argo-rollouts/compare/v1.8.1...v1.8.2) (2025-03-21)
+
+### Fix
+
+* Revert "fix(controller):  rollout stuck in `Progressing`. fixes [#3988](https://github.com/argoproj/argo-rollouts/issues/3988)" ([#4201](https://github.com/argoproj/argo-rollouts/issues/4201))
+* **analysis:** prevent promotion on inconclusive background run. Fixes: [#3850](https://github.com/argoproj/argo-rollouts/issues/3850) ([#3873](https://github.com/argoproj/argo-rollouts/issues/3873))
+
+
 <a name="v1.8.1"></a>
 ## [v1.8.1](https://github.com/argoproj/argo-rollouts/compare/v1.8.0...v1.8.1) (2025-03-15)
 
@@ -22,6 +31,7 @@
 * **controller:**  rollout stuck in `Progressing`. fixes [#3988](https://github.com/argoproj/argo-rollouts/issues/3988) ([#4072](https://github.com/argoproj/argo-rollouts/issues/4072))
 * **dashboard:** Revert react-scripts upgrade due to performance regression. Fixes [#4122](https://github.com/argoproj/argo-rollouts/issues/4122) ([#4166](https://github.com/argoproj/argo-rollouts/issues/4166))
 * **metricprovider:** not require address in kubernetes secret for Datadog. Fixes [#4103](https://github.com/argoproj/argo-rollouts/issues/4103) ([#4145](https://github.com/argoproj/argo-rollouts/issues/4145))
+
 
 <a name="v1.8.0"></a>
 ## [v1.8.0](https://github.com/argoproj/argo-rollouts/compare/v1.8.0-rc2...v1.8.0) (2024-12-17)
