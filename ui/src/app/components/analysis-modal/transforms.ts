@@ -618,9 +618,11 @@ const transformMeasurementValue = (conditionKeys: string[], value?: string): Mea
         };
     }
 
+    const safeValue = value.replace(/\bNaN\b/g, 'null');
+    
     let parsedValue;
     try {
-        parsedValue = JSON.parse(value);
+        parsedValue = JSON.parse(safeValue);
     } catch {
         return {
             canChart: true,
