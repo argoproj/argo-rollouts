@@ -184,7 +184,7 @@ type TrafficRouterPlugin interface {
 type StepPlugin interface {
   // InitPlugin initializes the canary step plugin. This gets called once when the plugin is loaded.
   InitPlugin() RpcError
-	// Run executes a step plugin for the RpcStepContext and returns the result to the controller or an RpcError for unexpeted failures
+	// Run executes a step plugin for the RpcStepContext and returns the result to the controller or an RpcError for unexpected failures
 	Run(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)
 	// Terminate stops an uncompleted operation started by the Run operation
 	Terminate(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)

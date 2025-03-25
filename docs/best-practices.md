@@ -13,7 +13,7 @@ Note that using Argo Rollouts for "infrastructure" applications such as cert-man
 
 ## Understand the scope of Argo Rollouts
 
-Currently Argo Rollouts works with a single Kubernetes deployment/application and within a single cluster only. You also need to have the controller deployed on *every* cluster where a Rollout is running if have more than one clusters using Rollout workloads.
+Currently, Argo Rollouts works with a single Kubernetes deployment/application and within a single cluster only. You also need to have the controller deployed on *every* cluster where a Rollout is running if have more than one clusters using Rollout workloads.
 
 If you want to look at multiple-services on multiple clusters
 see discussion at issues [2737](https://github.com/argoproj/argo-rollouts/issues/2737), [451](https://github.com/argoproj/argo-rollouts/issues/451) and [2088](https://github.com/argoproj/argo-rollouts/issues/2088).
@@ -37,11 +37,11 @@ Then somebody deploys 1.5
 1. Some people believe that the new state should be 1.3 stable and 1.5 as preview
 1. Some people believe that the new state should be 1.4 stable and 1.5 as preview
 
-Currently Argo Rollouts follows the first approach, under the assumption that something was really wrong with 1.4 and 1.5 is the hotfix. 
+Currently, Argo Rollouts follows the first approach, under the assumption that something was really wrong with 1.4 and 1.5 is the hotfix. 
 
 And then let's say that 1.5 has an issue. Some people believe that Argo rollouts should "rollback" to 1.3 while other people think it should rollback to 1.4
 
-Currently Argo Rollouts assumes that the version to rollback is always 1.3 regardless of how many "hotfixes" have been previewed in-between.
+Currently, Argo Rollouts assumes that the version to rollback is always 1.3 regardless of how many "hotfixes" have been previewed in-between.
 
 All these problems are not present if you make the assumption that each release stays active only for a minimal time and you always create one new version when the previous one has finished.
 
@@ -144,7 +144,7 @@ spec:
             number: 443
 ```
 
-The above technique has the a benefit in that it would not incur additional cost of allocating
+The above technique has a benefit in that it would not incur additional cost of allocating
 additional load balancers.
 
 ## Reducing operator memory usage

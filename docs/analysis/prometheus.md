@@ -172,7 +172,7 @@ spec:
         authentication:
           oauth2:
             tokenUrl: https://my-oauth2-provider/token
-            clientId: my-cliend-id
+            clientId: my-client-id
             clientSecret: "{{ args.oauthSecret }}"
             scopes: [
               "my-oauth2-scope"

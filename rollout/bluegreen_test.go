@@ -1406,7 +1406,6 @@ func TestBlueGreenReadyToScaleDownOldReplica(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
-	f.expectPatchReplicaSetAction(rs2)
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
