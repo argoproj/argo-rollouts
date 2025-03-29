@@ -1810,7 +1810,8 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
-			Ingress: "alb-ingress-name",
+			Ingress:     "alb-ingress-name",
+			ServicePort: 80,
 		},
 	}
 	r.Namespace = metav1.NamespaceDefault
@@ -1880,7 +1881,8 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
-			Ingresses: ingresses,
+			Ingresses:   ingresses,
+			ServicePort: 80,
 		},
 	}
 	r.Namespace = metav1.NamespaceDefault
@@ -2018,6 +2020,119 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.objects = append(f.objects, r)
 
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		ingresses, err := roCtx.getReferencedIngresses()
+		assert.NoError(t, err)
+		assert.Len(t, *ingresses, 2, "Should find the main ingress and the additional ingress")
+	})
+}
+
+func TestGetReferencedIngressesALBServicePortsIngress(t *testing.T) {
+	ingresses := []*extensionsv1beta1.Ingress{
+		{ObjectMeta: metav1.ObjectMeta{Name: "first-ingress", Namespace: metav1.NamespaceDefault}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "second-ingress", Namespace: metav1.NamespaceDefault}},
+	}
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Namespace = metav1.NamespaceDefault
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		ALB: &v1alpha1.ALBTrafficRouting{},
+	}
+	for _, ingress := range ingresses {
+		ingress.Spec = extensionsv1beta1.IngressSpec{
+			IngressClassName: pointer.StringPtr("alb"),
+			Backend: &extensionsv1beta1.IngressBackend{
+				ServiceName: "stable",
+				ServicePort: intstr.IntOrString{IntVal: 80},
+			},
+			Rules: []extensionsv1beta1.IngressRule{
+				{
+					Host: "example.com",
+					IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+						HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+							Paths: []extensionsv1beta1.HTTPIngressPath{{
+								Path:     "",
+								PathType: nil,
+								Backend: extensionsv1beta1.IngressBackend{
+									ServiceName: "stable",
+									ServicePort: intstr.IntOrString{IntVal: 80},
+								},
+							},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		r.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses = append(
+			r.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses,
+			ingress.Name,
+		)
+		r.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePorts = append(
+			r.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePorts, v1alpha1.ALBIngressWithPorts{
+				Ingress:      ingress.Name,
+				ServicePorts: []int32{80, 443},
+			},
+		)
+	}
+
+	f := newFixture(t)
+	stableSvc := newService("stable", 80, nil, r)
+	canarySvc := newService("canary", 80, nil, r)
+	r.Spec.Strategy.Canary.StableService = stableSvc.Name
+	r.Spec.Strategy.Canary.CanaryService = canarySvc.Name
+	f.kubeobjects = append(f.kubeobjects, stableSvc, canarySvc)
+	f.serviceLister = append(f.serviceLister, stableSvc, canarySvc)
+	f.objects = append(f.objects, r)
+	f.rolloutLister = append(f.rolloutLister, r)
+
+	defer f.Close()
+
+	ingressesField := r.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses
+	tests := []struct {
+		name        string
+		ingresses   []*ingressutil.Ingress
+		expectedErr *field.Error
+	}{
+		{
+			"get referenced ALB ingress - fail first ingress when both missing",
+			[]*ingressutil.Ingress{},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingresses"), ingressesField, fmt.Sprintf("ingress.extensions \"%s\" not found", "first-ingress")),
+		},
+		{
+			"get referenced ALB ingress - fail on primary when additional present",
+			[]*ingressutil.Ingress{
+				ingressutil.NewLegacyIngress(ingresses[1].DeepCopy()),
+			},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingresses"), ingressesField, fmt.Sprintf("ingress.extensions \"%s\" not found", "first-ingress")),
+		},
+		{
+			"get referenced ALB ingress - fail on secondary when only secondary missing",
+			[]*ingressutil.Ingress{
+				ingressutil.NewLegacyIngress(ingresses[0].DeepCopy()),
+			},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingresses"), ingressesField, fmt.Sprintf("ingress.extensions \"%s\" not found", "second-ingress")),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// clear fixture
+			f.ingressLister = []*ingressutil.Ingress{}
+			f.ingressLister = append(f.ingressLister, test.ingresses...)
+			c, _, _ := f.newController(noResyncPeriodFunc)
+			_, err := c.newRolloutContext(r)
+			assert.Equal(t, test.expectedErr.Error(), err.Error())
+		})
+	}
+
+	t.Run("get referenced ALB ingress - success", func(t *testing.T) {
+		// clear fixture
+		f.ingressLister = []*ingressutil.Ingress{}
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingresses[0]))
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingresses[1]))
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
