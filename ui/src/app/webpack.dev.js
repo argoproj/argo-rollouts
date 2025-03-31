@@ -2,13 +2,20 @@ const {merge} = require('webpack-merge');
 const common = require('./webpack.common.js');
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 const webpack = require('webpack');
+const dotenv = require('dotenv');
+const path = require('path');
+
+// Load environment variables from .env file located two folders up
+const env = dotenv.config({ path: path.resolve(__dirname, '../../.env') }).parsed || {};
+
+console.log('env', env);
 
 module.exports = merge(common, {
     mode: 'development',
     plugins: [
         new BundleAnalyzerPlugin(),
         new webpack.DefinePlugin({
-            'process.env.NODE_ENV': JSON.stringify('development'),
+            'process.env': JSON.stringify(env), // Pass all .env variables to process.env
         }),
     ],
     devServer: {
