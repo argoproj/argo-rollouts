@@ -24231,16 +24231,13 @@
                                             "x-kubernetes-patch-strategy": "merge"
                                         },
                                         "volumes": {
-                                            "items": {
-                                                "x-kubernetes-preserve-unknown-fields": true
-                                            },
-                                            "type": "array",
                                             "x-kubernetes-list-map-keys": [
                                                 "name"
                                             ],
                                             "x-kubernetes-list-type": "map",
                                             "x-kubernetes-patch-merge-key": "name",
-                                            "x-kubernetes-patch-strategy": "merge,retainKeys"
+                                            "x-kubernetes-patch-strategy": "merge,retainKeys",
+                                            "x-kubernetes-preserve-unknown-fields": true
                                         }
                                     },
                                     "required": [
