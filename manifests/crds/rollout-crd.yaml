@@ -3747,12 +3747,7 @@ spec:
                         - whenUnsatisfiable
                         x-kubernetes-list-type: map
                       volumes:
-                        items:
-                          x-kubernetes-preserve-unknown-fields: true
-                        type: array
-                        x-kubernetes-list-map-keys:
-                        - name
-                        x-kubernetes-list-type: map
+                        x-kubernetes-preserve-unknown-fields: true
                     required:
                     - containers
                     type: object
