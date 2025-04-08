@@ -103,7 +103,6 @@ func newCommand() *cobra.Command {
 			}
 			logutil.SetKLogLogger(logger)
 			logutil.SetKLogLevel(klogLevel)
-			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 
 			// set up signals so we handle the first shutdown signal gracefully
 			ctx := signals.SetupSignalHandlerContext()
@@ -125,8 +124,14 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 			if namespaced {
 				namespace = configNS
-				log.Infof("Using namespace %s", namespace)
 			}
+			log.WithFields(log.Fields{
+				"version":     version.GetVersion(),
+				"namespace":   namespace,
+				"instanceID":  instanceID,
+				"metricsPort": metricsPort,
+				"healthzPort": healthzPort,
+			}).Info("Argo Rollouts controller starting")
 
 			k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
 			kubeclientmetrics.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
