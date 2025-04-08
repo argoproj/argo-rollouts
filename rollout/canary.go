@@ -32,9 +32,19 @@ func (c *rolloutContext) rolloutCanary() error {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err)
 	}
 
-	err = c.podRestarter.Reconcile(c)
+	restarted, err := c.podRestarter.Reconcile(c)
 	if err != nil {
 		return err
+	}
+	if restarted > 0 {
+		// If we restarted any pods, we can no longer trust the current availability counts of our
+		// ReplicaSets, since those counts do not factor in the unavailability of pods we just
+		// restarted. We would cause downtime if we continue the reconciliation and *also* scale
+		// down a ReplicaSet (e.g. because of a canary update scaling). Therefore, we return early,
+		// so that the *next* reconciliation will have an accurate availability count to calculate
+		// the safe number of pods to scale down for the update.
+		c.log.Infof("Finished reconciliation due to %d restarted pods", restarted)
+		return nil
 	}
 
 	err = c.reconcileEphemeralMetadata()

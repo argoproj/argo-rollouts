@@ -36,7 +36,7 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 	}
 
-	err = c.podRestarter.Reconcile(c)
+	_, err = c.podRestarter.Reconcile(c)
 	if err != nil {
 		return err
 	}
