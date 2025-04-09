@@ -103,7 +103,6 @@ func newCommand() *cobra.Command {
 			}
 			logutil.SetKLogLogger(logger)
 			logutil.SetKLogLevel(klogLevel)
-			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 
 			// set up signals so we handle the first shutdown signal gracefully
 			ctx := signals.SetupSignalHandlerContext()
@@ -125,8 +124,14 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 			if namespaced {
 				namespace = configNS
-				log.Infof("Using namespace %s", namespace)
 			}
+			log.WithFields(log.Fields{
+				"version":     version.GetVersion(),
+				"namespace":   namespace,
+				"instanceID":  instanceID,
+				"metricsPort": metricsPort,
+				"healthzPort": healthzPort,
+			}).Info("Argo Rollouts controller starting")
 
 			k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
 			kubeclientmetrics.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
@@ -307,8 +312,8 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	command.Flags().StringVar(&ambassadorVersion, "ambassador-api-version", defaults.DefaultAmbassadorVersion, "Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings.")
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
-	command.Flags().StringVar(&traefikAPIGroup, "traefik-api-group", defaults.DefaultTraefikAPIGroup, "Set the default Traerfik apiGroup that controller uses.")
-	command.Flags().StringVar(&traefikVersion, "traefik-api-version", defaults.DefaultTraefikVersion, "Set the default Traerfik apiVersion that controller uses.")
+	command.Flags().StringVar(&traefikAPIGroup, "traefik-api-group", defaults.DefaultTraefikAPIGroup, "Set the default Traefik apiGroup that controller uses.")
+	command.Flags().StringVar(&traefikVersion, "traefik-api-version", defaults.DefaultTraefikVersion, "Set the default Traefik apiVersion that controller uses.")
 	command.Flags().StringVar(&ingressVersion, "ingress-api-version", "", "Set the Ingress apiVersion that the controller should use.")
 	command.Flags().StringVar(&appmeshCRDVersion, "appmesh-crd-version", defaults.DefaultAppMeshCRDVersion, "Set the default AppMesh CRD Version that controller uses when manipulating resources.")
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
