@@ -50,6 +50,7 @@ type rolloutContext struct {
 }
 
 func (c *rolloutContext) reconcile() error {
+	c.log.Info("DEP-2595 log patched")
 	err := c.checkPausedConditions()
 	if err != nil {
 		return err

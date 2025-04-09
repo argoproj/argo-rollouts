@@ -115,6 +115,36 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
 		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.rollout.Status.Canary.Weights)
 	}
+
+
+	var canaryWeightsInfo string
+	if c.newStatus.Canary.Weights == nil {
+		canaryWeightsInfo = "c.newStatus.Canary.Weights is nil"
+	} else if c.newStatus.Canary.Weights.Verified == nil {
+		canaryWeightsInfo = "c.newStatus.Canary.Weights.Verified: nil"
+	} else {
+		canaryWeightsInfo = fmt.Sprintf("c.newStatus.Canary.Weights.Verified: %t", *c.newStatus.Canary.Weights.Verified)
+	}
+
+	isScalingEvent, err := c.isScalingEvent()
+	if err != nil {
+		c.log.Infof("DEP-2595 reconcileCanaryStableReplicaSet isScalingEvent error: %v", err)
+	}
+
+	c.log.Infof("DEP-2595 reconcileCanaryStableReplicaSet desiredStableRSReplicaCount: %d, isScalingEvent: %t, %s", desiredStableRSReplicaCount, isScalingEvent, canaryWeightsInfo)
+
+	if c.newStatus.Canary.Weights != nil && c.newStatus.Canary.Weights.Verified != nil && !*c.newStatus.Canary.Weights.Verified {
+		return false, fmt.Errorf("Weights have not been verified yet, skip adjusting stable rs replica count.")
+	}
+
+	if desiredStableRSReplicaCount == 0 && c.rollout.Spec.Strategy.Canary.TrafficRouting != nil {
+ 		if c.stableRS == nil || c.stableRS.Spec.Replicas == nil {
+ 			return false, fmt.Errorf("DEP-2595 stableRS or its replicas spec is nil")
+ 		}
+		desiredStableRSReplicaCount = *c.stableRS.Spec.Replicas
+		c.log.Info("Skipping scale operation as desiredStableRSReplicaCount is zero and TrafficRouting is enabled")
+	}
+
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
 		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileCanaryStableReplicaSet: %w", err)
@@ -210,17 +240,9 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 			}
 		} else {
 			if rolloututil.IsFullyPromoted(c.rollout) || replicasetutil.HasScaleDownDeadline(targetRS) {
-				// If we are fully promoted and we encounter an old ReplicaSet, we can infer that
-				// this ReplicaSet is likely the previous stable. We should do one of two things:
-				if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-					// 1. if we are using dynamic scaling, then this should be scaled down to 0 now
-					desiredReplicaCount = 0
-				} else {
-					// 2. otherwise, honor scaledown delay second and keep replicas of the current step
-					annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
-					if err != nil {
-						return totalScaledDown, err
-					}
+				annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
+				if err != nil {
+					return totalScaledDown, err
 				}
 			} else {
 				// If we get here, we are *not* fully promoted and are in the middle of an update.

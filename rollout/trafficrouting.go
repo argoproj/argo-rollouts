@@ -302,6 +302,11 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 
 		weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
 		c.newStatus.Canary.Weights.Verified = weightVerified
+		if weightVerified == nil {
+			c.log.Infof("DEP-2595 reconcileTrafficRouting weightVerified: nil")
+		} else {
+			c.log.Infof("DEP-2595 reconcileTrafficRouting weightVerified: %t", *weightVerified)
+		}
 		if err != nil {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.WeightVerifyErrorReason}, conditions.WeightVerifyErrorMessage, err)
 			return nil // return nil instead of error since we want to continue with normal reconciliation

@@ -200,6 +200,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	if !r.getShouldVerifyWeightCfg() {
 		r.cfg.Status.ALB = nil
 		r.cfg.Status.ALBs = nil
+		r.log.Infof("DEP-2595 VerifyWeight getShouldVerifyWeightCfg: false")
 		return nil, nil
 	}
 
@@ -209,6 +210,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		// r.cfg.Rollout.Status.ALB is nil. However, if we should not verify, and we have already updated the status once
 		// we return early to avoid calling AWS apis.
 		if r.cfg.Rollout.Status.ALBs != nil || r.cfg.Rollout.Status.ALB != nil {
+			r.log.Infof("DEP-2595 VerifyWeight ShouldVerifyWeight: false")
 			return nil, nil
 		}
 	}
