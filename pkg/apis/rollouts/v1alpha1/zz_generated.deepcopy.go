@@ -1148,6 +1148,11 @@ func (in *DatadogMetric) DeepCopyInto(out *DatadogMetric) {
 		}
 	}
 	out.SecretRef = in.SecretRef
+	if in.Formulas != nil {
+		in, out := &in.Formulas, &out.Formulas
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
