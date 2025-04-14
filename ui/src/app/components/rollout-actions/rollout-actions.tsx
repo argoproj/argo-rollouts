@@ -59,7 +59,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                 label: 'ABORT',
                 icon: faExclamationCircle,
                 action: api.rolloutServiceAbortRollout,
-                disabled: !isDeploying,
+                disabled: true,
                 shouldConfirm: true,
             },
         ],
