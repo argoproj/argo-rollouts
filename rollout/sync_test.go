@@ -605,6 +605,31 @@ func Test_shouldFullPromote(t *testing.T) {
 	result := ctx.shouldFullPromote(newStatus)
 	assert.Equal(t, result, "Rollback within window")
 
+	// test canary, the toleratedUnavailable aspect
+	toleratedUnavailable := intstr.FromInt(1)
+
+	ctx.rollout.Spec.Replicas = int32Ptr(10)
+	ctx.rollout.Spec.Strategy.Canary.ToleratedUnavailable = &toleratedUnavailable
+	ctx.newRS.Spec.Replicas = int32Ptr(10)
+	ctx.newRS.Status.AvailableReplicas = 8
+
+	result = ctx.shouldFullPromote(newStatus)
+	assert.Equal(t, result, "")
+
+	// set toleratedUnavailable to a higher value, 2 replicas for example.
+	// should return "Rollback within window", since 8 available replicas >= (10-2=8)
+	toleratedUnavailable = intstr.FromInt(2)
+	ctx.rollout.Spec.Strategy.Canary.ToleratedUnavailable = &toleratedUnavailable
+	result = ctx.shouldFullPromote(newStatus)
+	assert.Equal(t, result, "Rollback within window")
+
+	// set toleratedUnavailable to a a percentage, 10% for example.
+	// should return "", since 8 available replicas < (100%-10%)*10=9
+	toleratedUnavailablePercentage := intstr.FromString("10%")
+	ctx.rollout.Spec.Strategy.Canary.ToleratedUnavailable = &toleratedUnavailablePercentage
+	result = ctx.shouldFullPromote(newStatus)
+	assert.Equal(t, result, "")
+
 	// test bluegreen
 	podHash := "xxx"
 	ctx.rollout.Spec.Strategy.Canary = nil
