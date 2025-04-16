@@ -1,7 +1,6 @@
 module github.com/argoproj/argo-rollouts
 
 go 1.23.4
-
 require (
 	github.com/antonmedv/expr v1.15.5
 	github.com/argoproj/notifications-engine v0.4.1-0.20240403133627-f48567108f01
@@ -9,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.8
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.44.1
-	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.31.3
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.45.1
 	github.com/aws/smithy-go v1.22.3
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bombsimon/logrusr/v4 v4.1.0
