@@ -1,0 +1,55 @@
+FROM jfrog.ais.acquia.io/devops-pipeline-prod/acquia/amazonlinux:2023 as argo-rollouts-builder
+
+# Update packages
+USER root
+RUN yum makecache \
+  && yum update -y \
+  && yum install -y tar gcc git \
+  && yum clean all \
+  && rm -rf /var/cache/yum
+
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+# Install Go
+RUN GOLANG_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -n 1 | sed 's/go//') && \
+    echo "Installing Go version ${GOLANG_VERSION}" && \
+    curl -LO "https://go.dev/dl/go${GOLANG_VERSION}.${TARGETOS}-${TARGETARCH}.tar.gz" && \
+    tar -C /usr/local -xzf "go${GOLANG_VERSION}.${TARGETOS}-${TARGETARCH}.tar.gz" && \
+    rm -f "go${GOLANG_VERSION}.${TARGETOS}-${TARGETARCH}.tar.gz" && \
+    ls -la /usr/local/go/bin && \
+    chmod +x /usr/local/go/bin/go
+
+# Set Golang environment variables
+ENV GOPATH="/go"
+ENV GOROOT="/usr/local/go"
+ENV GOBIN="${GOPATH}/bin"
+ENV GO111MODULE="on"
+ENV GOOS=${TARGETOS}
+ENV GOARCH=${TARGETARCH}
+ENV GOPRIVATE=github.com/acquia
+
+# FIPS
+ENV GOEXPERIMENT=boringcrypto
+ENV CGO_ENABLED=1
+
+# Add path to go binaries
+ENV PATH="${PATH}:${GOROOT}/bin:${GOBIN}"
+
+WORKDIR /go/src/github.com/argoproj/argo-rollouts
+
+# Perform the build
+COPY . .
+
+ARG MAKE_TARGET="controller-fips"
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make ${MAKE_TARGET}
+
+#####################################################################################################
+## Final image
+#####################################################################################################
+FROM jfrog.ais.acquia.io/devops-pipeline-prod/acquia/amazonlinux:2023
+COPY --from=argo-rollouts-builder /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
+
+USER 999
+
+ENTRYPOINT [ "/bin/rollouts-controller" ]

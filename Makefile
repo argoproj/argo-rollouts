@@ -329,3 +329,22 @@ checksums:
 
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+###############################
+## Acquia specific make targets
+###############################
+
+IMAGE_TAG=fips-v1.8.0
+
+.PHONY: build-fips
+build-fips:
+	DOCKER_BUILDKIT=1 docker build --platform=linux/amd64 -t argo-rollouts:$(IMAGE_TAG) -f Dockerfile-FIPS .
+
+.PHONY: controller-fips
+controller-fips:
+	GOEXPERIMENT=boringcrypto CGO_ENABLED=1 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
+
+# Note: This target might not work as expected on arm64 architecture.
+.PHONY: check-fips
+check-fips: controller-fips
+	go tool nm ${DIST_DIR}/rollouts-controller | grep "_Cfunc__goboringcrypto_" || (echo "CGO boringcrypto could not be detected in the go application binary" && exit 1)
