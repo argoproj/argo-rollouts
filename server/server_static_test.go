@@ -6,6 +6,7 @@ import (
 	"mime"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -107,6 +108,28 @@ func TestInvalidFilesOrHackingAttemptReturn404(t *testing.T) {
 			res := w.Result()
 			defer res.Body.Close()
 			assert.Equal(t, res.StatusCode, http.StatusNotFound)
+		})
+	}
+}
+
+func TestCacheControlHeader(t *testing.T) {
+	tests := []struct {
+		envValue       string
+		expectedHeader string
+	}{
+		{"", ""}, // Default behavior: no Cache-Control header
+		{"public, max-age=3600", "public, max-age=3600"}, // Custom Cache-Control header
+	}
+
+	for _, test := range tests {
+		t.Run(test.envValue, func(t *testing.T) {
+			os.Setenv("CACHE_CONTROL_HEADER", test.envValue)
+			req := httptest.NewRequest(http.MethodGet, TestRootPath+"/main.css", nil)
+			w := httptest.NewRecorder()
+			mockServerPrefix.staticFileHttpHandler(w, req)
+			res := w.Result()
+			defer res.Body.Close()
+			assert.Equal(t, test.expectedHeader, res.Header.Get("Cache-Control"))
 		})
 	}
 }
