@@ -221,6 +221,13 @@ type BlueGreenStrategy struct {
 	// Default is 30 second
 	// +optional
 	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,14,opt,name=abortScaleDownDelaySeconds"`
+
+	// KeepPreviousActive specifies whether the previous active ReplicaSet should be kept scaled up
+	// after the switchover. If set to true, the previous ReplicaSet will not be scaled down, allowing
+	// for a permanent blue/green setup where both versions remain running.
+	// Defaults to false.
+	// +optional
+	KeepPreviousActive *bool `json:"keepPreviousActive,omitempty" protobuf:"varint,15,opt,name=keepPreviousActive"`
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection

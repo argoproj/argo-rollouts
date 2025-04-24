@@ -220,6 +220,16 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 	annotationedRSs := int32(0)
 	rolloutReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
 	for _, targetRS := range oldRSs {
+		// Check if we should keep the previous active ReplicaSet alive
+		if c.rollout.Spec.Strategy.BlueGreen != nil && c.rollout.Spec.Strategy.BlueGreen.KeepPreviousActive != nil && *c.rollout.Spec.Strategy.BlueGreen.KeepPreviousActive {
+			// After the switch, the StableRS field holds the hash of the *previous* active ReplicaSet.
+			// If this targetRS is the previous active one, skip scaling it down.
+			if targetRS.Labels != nil && targetRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == c.rollout.Status.StableRS {
+				c.log.Infof("KeepPreviousActive enabled, skipping scale down of previous active ReplicaSet '%s'", targetRS.Name)
+				continue
+			}
+		}
+
 		if c.isReplicaSetReferenced(targetRS) {
 			// We might get here if user interrupted an an update in order to move back to stable.
 			c.log.Infof("Skip scale down of older RS '%s': still referenced", targetRS.Name)
