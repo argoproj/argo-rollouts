@@ -27,6 +27,8 @@ var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")
 const (
 	addScaleDownAtAnnotationsPatch    = `[{ "op": "add", "path": "/metadata/annotations/%s", "value": "%s"}]`
 	removeScaleDownAtAnnotationsPatch = `[{ "op": "remove", "path": "/metadata/annotations/%s"}]`
+	FinalStatusSuccess                = "success"
+	FinalStatusAbort                  = "abort"
 )
 
 // removeScaleDownDelay removes the `scale-down-deadline` annotation from the ReplicaSet (if it exists)
