@@ -159,6 +159,9 @@ const (
 	// LabelKeyControllerInstanceID is the label the controller uses for the rollout, experiment, analysis segregation
 	// between controllers. Controllers will only operate on objects with the same instanceID as the controller.
 	LabelKeyControllerInstanceID = "argo-rollouts.argoproj.io/controller-instance-id"
+
+	// ReplicaSetFinalStatusKey is utilized to evaluate if a replicaset is safe to rollback to if a future rollout attempt fails.
+	ReplicaSetFinalStatusKey = "argo-rollouts.argoproj.io/final-status"
 )
 
 // RolloutStrategy defines strategy to apply during next rollout
