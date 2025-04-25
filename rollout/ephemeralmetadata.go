@@ -100,6 +100,7 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 			fetchedPod, err := c.kubeclientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
 			if err != nil {
 				c.log.Infof("failed to fetch Pod %s: %v", pod.Name, err)
+				return nil
 			}
 			newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&fetchedPod.ObjectMeta, existingPodMetadata, podMetadata)
 			if podModified {
@@ -107,6 +108,7 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 				_, err = c.kubeclientset.CoreV1().Pods(fetchedPod.Namespace).Update(ctx, fetchedPod, metav1.UpdateOptions{})
 				if err != nil {
 					c.log.Infof("failed to sync ephemeral metadata %v to Pod %s: %v", podMetadata, fetchedPod.Name, err)
+					return nil
 				}
 				c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, fetchedPod.Name)
 			}
@@ -114,7 +116,7 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 		})
 	}
 
-	_ = eg.Wait()
+	eg.Wait()
 
 	return nil
 }
