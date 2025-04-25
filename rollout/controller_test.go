@@ -832,6 +832,12 @@ func (f *fixture) expectListPodAction(namespace string) int {
 	return len
 }
 
+func (f *fixture) expectGetPodAction(p *corev1.Pod) int {
+	len := len(f.kubeactions)
+	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "pods"}, p.Namespace, p.Name))
+	return len
+}
+
 func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int { //nolint:unused
 	len := len(f.actions)
 	f.kubeactions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
