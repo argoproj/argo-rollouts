@@ -94,22 +94,27 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 
 	for _, pod := range pods {
 		eg.Go(func() error {
-			newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&pod.ObjectMeta, existingPodMetadata, podMetadata)
+			// It's better to fetch the latest version of the Pod
+			// to make sure that there are no conflicts when doing the update
+			// This also prevents update calls to pods that have been terminated/deleted
+			fetchedPod, err := c.kubeclientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
+			if err != nil {
+				c.log.Infof("failed to fetch Pod %s: %v", pod.Name, err)
+			}
+			newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&fetchedPod.ObjectMeta, existingPodMetadata, podMetadata)
 			if podModified {
-				pod.ObjectMeta = *newPodObjectMeta
-				_, err = c.kubeclientset.CoreV1().Pods(pod.Namespace).Update(ctx, pod, metav1.UpdateOptions{})
+				fetchedPod.ObjectMeta = *newPodObjectMeta
+				_, err = c.kubeclientset.CoreV1().Pods(fetchedPod.Namespace).Update(ctx, fetchedPod, metav1.UpdateOptions{})
 				if err != nil {
-					return err
+					c.log.Infof("failed to sync ephemeral metadata %v to Pod %s: %v", podMetadata, fetchedPod.Name, err)
 				}
-				c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, pod.Name)
+				c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, fetchedPod.Name)
 			}
 			return nil
 		})
 	}
 
-	if err := eg.Wait(); err != nil {
-		return err
-	}
+	_ = eg.Wait()
 
 	return nil
 }
