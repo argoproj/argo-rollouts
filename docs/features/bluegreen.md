@@ -15,7 +15,7 @@ When there is a change to the `.spec.template` field of a rollout, the controlle
     ALB Ingress with Rollout blue-green strategy is not support!
 
     When using and AWS ALB to ingress traffic to the service, the ALB Ingress controller does not update the target groups in an atomic/safe order. This means that when the service selectors are changed on the stable blue-green service, at the end of the deployment. There is a chance that the ALB will not have any pods registered to the stable target group. Because, we asked the ALB controller to remove all current pods from the target group by switching to pods from the desired replicaset.
-    The desired pods need to pass their inital configured health check to be considered healthy from the ALB's perspective. This means that there is a chance that the ALB will not have any healthy pods registered to the target group depending on the ordering of deregistraion and timing of registration of new pods. This can cause downtime for the application that the rollouts controller can not mitigate.
+    The desired pods need to pass their inital configured health check on the stable target group to be considered healthy from the ALB's perspective. This means that there is a chance that the ALB will not have any healthy pods registered to the target group depending on the ordering of deregistraion and timing of registration of new pods. This can cause downtime for the application that the rollouts controller can not mitigate.
 
 ## Example
 
