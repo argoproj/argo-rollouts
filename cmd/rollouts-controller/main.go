@@ -70,6 +70,7 @@ func newCommand() *cobra.Command {
 		serviceThreads                 int
 		ingressThreads                 int
 		ephemeralMetadataThreads       int
+		ephemeralMetadataPodRetries    int
 		istioVersion                   string
 		trafficSplitVersion            string
 		traefikAPIGroup                string
@@ -280,7 +281,8 @@ func newCommand() *cobra.Command {
 					namespaced,
 					kubeInformerFactory,
 					jobInformerFactory,
-					ephemeralMetadataThreads)
+					ephemeralMetadataThreads,
+					ephemeralMetadataPodRetries)
 			}
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
@@ -309,6 +311,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
 	command.Flags().IntVar(&ephemeralMetadataThreads, "ephemeral-metadata-threads", rollout.DefaultEphemeralMetadataThreads, "Set the number of worker threads for the Ephemeral Metadata reconciler")
+	command.Flags().IntVar(&ephemeralMetadataPodRetries, "ephemeral-metadata-update-pod-retries", rollout.DefaultEphemeralMetadataPodRetries, "Set the number of retries to update pod Ephemeral Metadata")
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	command.Flags().StringVar(&ambassadorVersion, "ambassador-api-version", defaults.DefaultAmbassadorVersion, "Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings.")
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")

@@ -603,6 +603,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Recorder:                        record.NewFakeEventRecorder(),
 		RefResolver:                     &FakeWorkloadRefResolver{},
 		EphemeralMetadataThreads:        DefaultEphemeralMetadataThreads,
+		EphemeralMetadataPodRetries:     DefaultEphemeralMetadataPodRetries,
 	})
 
 	c.enqueueRollout = func(obj any) {
@@ -830,12 +831,6 @@ func (f *fixture) expectUpdatePodAction(p *corev1.Pod) int {
 func (f *fixture) expectListPodAction(namespace string) int {
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewListAction(schema.GroupVersionResource{Resource: "pods"}, schema.GroupVersionKind{Kind: "Pod", Version: "v1"}, namespace, metav1.ListOptions{}))
-	return len
-}
-
-func (f *fixture) expectGetPodAction(p *corev1.Pod) int {
-	len := len(f.kubeactions)
-	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "pods"}, p.Namespace, p.Name))
 	return len
 }
 
