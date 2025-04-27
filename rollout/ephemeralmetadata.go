@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -14,6 +15,9 @@ import (
 
 // DefaultEphemeralMetadataThreads is the default number of worker threads to run when reconciling ephemeral metadata
 const DefaultEphemeralMetadataThreads = 10
+
+// DefaultUpdatePodMaxRetries is the default number of retries when attempting to update pod ephemeral metadata
+const DefaultEphemeralMetadataPodRetries = 3
 
 // reconcileEphemeralMetadata syncs canary/stable ephemeral metadata to ReplicaSets and pods
 func (c *rolloutContext) reconcileEphemeralMetadata() error {
@@ -94,23 +98,30 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 
 	for _, pod := range pods {
 		eg.Go(func() error {
-			// It's better to fetch the latest version of the Pod
-			// to make sure that there are no conflicts when doing the update
-			// This also prevents update calls to pods that have been terminated/deleted
-			fetchedPod, err := c.kubeclientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
-			if err != nil {
-				c.log.Infof("failed to fetch Pod %s: %v", pod.Name, err)
-				return nil
-			}
-			newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&fetchedPod.ObjectMeta, existingPodMetadata, podMetadata)
-			if podModified {
-				fetchedPod.ObjectMeta = *newPodObjectMeta
-				_, err = c.kubeclientset.CoreV1().Pods(fetchedPod.Namespace).Update(ctx, fetchedPod, metav1.UpdateOptions{})
-				if err != nil {
-					c.log.Infof("failed to sync ephemeral metadata %v to Pod %s: %v", podMetadata, fetchedPod.Name, err)
-					return nil
+			var retryLimit int = 0
+			fetchedPod := pod.DeepCopy()
+			// Retry Updating pod Metadata
+			for retryLimit < c.ephemeralMetadataPodRetries {
+				newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&fetchedPod.ObjectMeta, existingPodMetadata, podMetadata)
+				if podModified {
+					fetchedPod.ObjectMeta = *newPodObjectMeta
+					_, err = c.kubeclientset.CoreV1().Pods(fetchedPod.Namespace).Update(ctx, fetchedPod, metav1.UpdateOptions{})
+					if err == nil {
+						c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, fetchedPod.Name)
+						return nil
+					}
+					if errors.IsNotFound(err) {
+						c.log.Infof("Skipping sync ephemeral metadata %v to Pod %s: as it no longer exists", podMetadata, fetchedPod.Name)
+						return nil
+					}
+					// If there is a mismatch of versions between the live pod object
+					// and sent in the update call then we refetch the pod Object
+					if errors.IsConflict(err) {
+						fetchedPod, err = c.kubeclientset.CoreV1().Pods(fetchedPod.Namespace).Get(ctx, fetchedPod.Name, metav1.GetOptions{})
+					}
+					c.log.Infof("failed to sync ephemeral metadata %v to Pod %s: %v, in retry attempt %d", podMetadata, fetchedPod.Name, err, retryLimit)
+					retryLimit++
 				}
-				c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, fetchedPod.Name)
 			}
 			return nil
 		})
