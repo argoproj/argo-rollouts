@@ -11,6 +11,12 @@ When there is a change to the `.spec.template` field of a rollout, the controlle
 !!! important
     When the rollout changes the selector on a service, there is a propagation delay before all the nodes update their IP tables to send traffic to the new pods instead of the old. During this delay, traffic will be directed to the old pods if the nodes have not been updated yet. In order to prevent the packets from being sent to a node that killed the old pod, the rollout uses the scaleDownDelaySeconds field to give nodes enough time to broadcast the IP table changes.
 
+!!! important
+    ALB Ingress with Rollouts blue-green strategy is not supported without a chance of downtime.
+
+    When using an AWS ALB to route traffic to a service, the ALB Ingress Controller does not update the target groups in an atomic or safe manner. This can result in a situation where, during a deployment, the stable target group temporarily has no pods registered. This occurs because the ALB Controller removes all current pods from the target group before registering pods from the desired ReplicaSet.
+    The desired pods must pass their initial configured health check on the stable target group to be considered healthy by the ALB. This creates a risk where the ALB may temporarily have no healthy pods registered to the target group, depending on the timing of deregistration and registration of new pods. This can lead to application downtime that the rollouts controller cannot prevent.
+
 ## Example
 
 ```yaml
