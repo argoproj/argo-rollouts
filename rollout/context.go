@@ -7,13 +7,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
-	"github.com/argoproj/argo-rollouts/utils/diff"
 )
 
 type rolloutContext struct {
@@ -164,14 +161,7 @@ func (c *rolloutContext) setFinalRSStatus(rs *appsv1.ReplicaSet, status string) 
 	ctx := context.Background()
 	newRS, err := c.setFinalRSStatusViaUpdate(ctx, rs, status)
 	if err != nil {
-		if k8serrors.IsConflict(err) {
-			newRS, err = c.setFinalRSStatusViaPatch(ctx, rs, status)
-			if err != nil {
-				return fmt.Errorf("error patching replicaset in setFinalRSStatus %s: %w", rs.Name, err)
-			}
-		} else {
-			return fmt.Errorf("error updating replicaset in setFinalRSStatus %s: %w", rs.Name, err)
-		}
+		return fmt.Errorf("error updating replicaset in setFinalRSStatus %s: %w", rs.Name, err)
 	}
 
 	err = c.replicaSetInformer.GetIndexer().Update(newRS)
@@ -179,40 +169,11 @@ func (c *rolloutContext) setFinalRSStatus(rs *appsv1.ReplicaSet, status string) 
 		return fmt.Errorf("error updating replicaset informer in setFinalRSStatus %s: %w", rs.Name, err)
 	}
 
-	return err
+	return nil
 }
 
 func (c *rolloutContext) setFinalRSStatusViaUpdate(ctx context.Context, rs *appsv1.ReplicaSet, status string) (*appsv1.ReplicaSet, error) {
 	rs.Annotations[v1alpha1.ReplicaSetFinalStatusKey] = status
 	c.log.Infof("Updating replicaset with status: %s", status)
 	return c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
-}
-
-func (c *rolloutContext) setFinalRSStatusViaPatch(ctx context.Context, rs *appsv1.ReplicaSet, status string) (*appsv1.ReplicaSet, error) {
-	patchWithRSFinalStatus := c.generateRSFinalStatusPatch(status)
-	patch, _, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchWithRSFinalStatus, appsv1.ReplicaSet{})
-	if err != nil {
-		return nil, fmt.Errorf("error creating patch for conflict log in setFinalRSStatusViaPatch %s: %w", rs.Name, err)
-	}
-
-	c.log.Infof("Patching replicaset with patch: %s", string(patch))
-	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(
-		ctx,
-		rs.Name,
-		patchtypes.StrategicMergePatchType,
-		patch,
-		metav1.PatchOptions{},
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("error patching replicaset in setFinalRSStatusViaPatch %s: %w", rs.Name, err)
-	}
-	return updatedRS, err
-}
-
-func (c *rolloutContext) generateRSFinalStatusPatch(status string) *appsv1.ReplicaSet {
-	patchRS := appsv1.ReplicaSet{}
-	patchRS.Annotations = make(map[string]string)
-	patchRS.Annotations[v1alpha1.ReplicaSetFinalStatusKey] = status
-	return &patchRS
 }
