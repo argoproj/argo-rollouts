@@ -125,10 +125,10 @@ func ValidateService(svc ServiceWithType, rollout *v1alpha1.Rollout) field.Error
 func validSvcSelectorForType(rollout *v1alpha1.Rollout, serviceType ServiceType, svcName, svcLabelKey, svcLabelValue string) bool {
 	switch serviceType {
 	case StableService:
-		if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.StableMetadata == nil {
-			return false
-		}
-		if svcName != rollout.Spec.Strategy.Canary.StableService {
+		if rollout.Spec.Strategy.Canary == nil ||
+			svcName != rollout.Spec.Strategy.Canary.StableService ||
+			rollout.Spec.Strategy.Canary.StableMetadata == nil ||
+			rollout.Spec.Strategy.Canary.StableMetadata.Labels == nil {
 			return false
 		}
 		if v, ok := rollout.Spec.Strategy.Canary.StableMetadata.Labels[svcLabelKey]; ok && v == svcLabelValue {
@@ -136,10 +136,10 @@ func validSvcSelectorForType(rollout *v1alpha1.Rollout, serviceType ServiceType,
 		}
 		return false
 	case CanaryService:
-		if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.CanaryMetadata == nil {
-			return false
-		}
-		if svcName != rollout.Spec.Strategy.Canary.CanaryService {
+		if rollout.Spec.Strategy.Canary == nil ||
+			svcName != rollout.Spec.Strategy.Canary.CanaryService ||
+			rollout.Spec.Strategy.Canary.CanaryMetadata == nil ||
+			rollout.Spec.Strategy.Canary.CanaryMetadata.Labels == nil {
 			return false
 		}
 		if v, ok := rollout.Spec.Strategy.Canary.CanaryMetadata.Labels[svcLabelKey]; ok && v == svcLabelValue {
@@ -147,10 +147,10 @@ func validSvcSelectorForType(rollout *v1alpha1.Rollout, serviceType ServiceType,
 		}
 		return false
 	case ActiveService:
-		if rollout.Spec.Strategy.BlueGreen == nil && rollout.Spec.Strategy.BlueGreen.ActiveMetadata == nil {
-			return false
-		}
-		if svcName != rollout.Spec.Strategy.BlueGreen.ActiveService {
+		if rollout.Spec.Strategy.BlueGreen == nil ||
+			svcName != rollout.Spec.Strategy.BlueGreen.ActiveService ||
+			rollout.Spec.Strategy.BlueGreen.ActiveMetadata == nil ||
+			rollout.Spec.Strategy.BlueGreen.ActiveMetadata.Labels == nil {
 			return false
 		}
 		if v, ok := rollout.Spec.Strategy.BlueGreen.ActiveMetadata.Labels[svcLabelKey]; ok && v == svcLabelValue {
@@ -158,10 +158,10 @@ func validSvcSelectorForType(rollout *v1alpha1.Rollout, serviceType ServiceType,
 		}
 		return false
 	case PreviewService:
-		if rollout.Spec.Strategy.BlueGreen == nil && rollout.Spec.Strategy.BlueGreen.PreviewMetadata == nil {
-			return false
-		}
-		if svcName != rollout.Spec.Strategy.BlueGreen.PreviewService {
+		if rollout.Spec.Strategy.BlueGreen == nil ||
+			svcName != rollout.Spec.Strategy.BlueGreen.PreviewService ||
+			rollout.Spec.Strategy.BlueGreen.PreviewMetadata == nil ||
+			rollout.Spec.Strategy.BlueGreen.PreviewMetadata.Labels == nil {
 			return false
 		}
 		if v, ok := rollout.Spec.Strategy.BlueGreen.PreviewMetadata.Labels[svcLabelKey]; ok && v == svcLabelValue {
