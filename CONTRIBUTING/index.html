@@ -3912,6 +3912,24 @@ kubectl apply -f test/e2e/crds
 <p>To run a subset of e2e tests, you need to specify the suite with <code>-run</code>, and the specific test regex with <code>-testify.m</code>.</p>
 <div class="highlight"><pre><span></span><code>E2E_TEST_OPTIONS=&quot;-run &#39;TestCanarySuite&#39; -testify.m &#39;TestCanaryScaleDownOnAbortNoTrafficRouting&#39;&quot; make test-e2e
 </code></pre></div>
+<p>Available test suites <a href="https://github.com/argoproj/argo-rollouts/tree/master/test/e2e">are the following</a>:</p>
+<ul>
+<li><code>TestBlueGreenSuite</code></li>
+<li><code>TestCanarySuite</code></li>
+<li><code>TestAnalysisSuite</code></li>
+<li><code>TestExperimentSuite</code></li>
+<li><code>TestFunctionalSuite</code></li>
+<li><code>TestRollbackSuite</code></li>
+<li><code>TestIstioSuite</code></li>
+<li><code>TestHeaderRoutingSuite</code> (Istio only)</li>
+<li><code>TestMirrorRouteSuite</code> (Istio only)</li>
+<li><code>TestAPISIXSuite</code></li>
+<li><code>TestAppMeshSuite</code></li>
+<li><code>TestAWSSuite</code></li>
+<li><code>StepPluginSuite</code></li>
+<li><code>SMISuite</code> (SMI is <a href="https://www.cncf.io/blog/2023/10/03/cncf-archives-the-service-mesh-interface-smi-project/">deprecated</a>)</li>
+<li><code>SMIIngressSuite</code> (SMI is <a href="https://www.cncf.io/blog/2023/10/03/cncf-archives-the-service-mesh-interface-smi-project/">deprecated</a>)</li>
+</ul>
 <h2 id="running-the-ui">Running the UI<a class="headerlink" href="#running-the-ui" title="Permanent link">&para;</a></h2>
 <p>If you'd like to run the UI locally, you first need a running Rollouts controller. This can be a locally running controller with a k3d cluster, as described above, or a controller running in a remote Kubernetes cluster.</p>
 <p>In order for the local React app to communicate with the controller and Kubernetes API, run the following to open a port forward to the dashboard:</p>
