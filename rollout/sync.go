@@ -754,6 +754,11 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 		newStatus.WorkloadObservedGeneration = ""
 	}
 
+	err := c.calculateReplicaSetFinalStatus(newStatus)
+	if err != nil {
+		return err
+	}
+
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(c.rollout.Spec, *newStatus)
 

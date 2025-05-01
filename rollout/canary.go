@@ -421,15 +421,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 			return err
 		}
 
-		// mark RS final status as success if found
-		promotedRS := c.getPromotedRS(newStatus)
-		if promotedRS != nil {
-			err = c.setFinalRSStatus(promotedRS, FinalStatusSuccess)
-			if err != nil {
-				return err
-			}
-		}
-
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
@@ -441,12 +432,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 			} else {
 				newStatus.CurrentStepIndex = ptr.To[int32](0)
 			}
-		}
-
-		// mark RS final status as aborted
-		err := c.setFinalRSStatus(c.newRS, FinalStatusAbort)
-		if err != nil {
-			return err
 		}
 
 		newStatus = c.calculateRolloutConditions(newStatus)
