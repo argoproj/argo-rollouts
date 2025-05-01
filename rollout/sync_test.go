@@ -394,9 +394,15 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, previewSvc, activeSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
-	f.expectPatchServiceAction(activeSvc, rs2PodHash) // update active to rs2
-	patchRolloutIdx := f.expectPatchRolloutAction(r2) // update rollout status
+	f.expectPatchServiceAction(activeSvc, rs2PodHash)     // update active to rs2
+	patchRolloutIdx := f.expectPatchRolloutAction(r2)     // update rollout status
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	patchedRollout := f.getPatchedRolloutAsObject(patchRolloutIdx)
 	assert.Equal(t, rs2PodHash, patchedRollout.Status.StableRS)
