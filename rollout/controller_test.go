@@ -1204,6 +1204,7 @@ func (f *fixture) assertEvents(events []string) {
 	assert.Equal(f.t, events, f.events)
 }
 
+// TODO: is this the right update to the test?
 func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1219,6 +1220,7 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.expectPatchRolloutAction(r)
 	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
 	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{}) // set final status of new RS to success
 	f.run(getKey(r, t))
 }
 
@@ -1241,7 +1243,13 @@ func TestAdoptReplicaSet(t *testing.T) {
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r) // update rollout progressing condition
 	f.expectPatchServiceAction(previewSvc, "")
 	f.expectPatchRolloutAction(r)
+	updateRsIndex := f.expectUpdateReplicaSetAction(rs) // set final status of new RS to success
 	f.run(getKey(r, t))
+
+	// validate final status for replica set is success
+	updatedRs := f.getUpdatedReplicaSet(updateRsIndex)
+	assert.NotNil(t, updatedRs)
+	assert.Equal(t, FinalStatusSuccess, updatedRs.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
 	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
@@ -1444,6 +1452,7 @@ requests:
 		f.expectPatchRolloutAction(r)
 		rs := newReplicaSet(r, 1)
 		rsIdx := f.expectCreateReplicaSetAction(rs)
+		f.expectUpdateReplicaSetAction(rs) // set final status of new RS to success
 		f.run(getKey(r, t))
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
@@ -1513,6 +1522,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectUpdateReplicaSetAction(rs) // set final status of RS to success
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 	expectedPatch := `{"status":{"observedGeneration":"123"}}`
@@ -1585,6 +1595,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
 	i := f.expectPatchRolloutAction(r)
+	f.expectUpdateReplicaSetAction(rs) // set final status of RS to success
 	f.objects = append(f.objects, r)
 	f.run(getKey(r, t))
 	patch := f.getPatchedRollout(i)

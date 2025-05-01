@@ -832,8 +832,14 @@ func TestCanaryRolloutScaleDownOldRsDontScaleDownTooMuch(t *testing.T) {
 
 	updatedRS1Index := f.expectUpdateReplicaSetAction(rs1)
 	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2)
+	updatedRS3Index := f.expectUpdateReplicaSetAction(rs3)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs3 := f.getUpdatedReplicaSet(updatedRS3Index)
+	assert.NotNil(t, updatedRs3)
+	assert.Equal(t, FinalStatusSuccess, updatedRs3.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	updatedRS1 := f.getUpdatedReplicaSet(updatedRS1Index)
 	assert.Equal(t, int32(0), *updatedRS1.Spec.Replicas)
@@ -956,9 +962,15 @@ func TestRollBackToStable(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1) // Bump replicaset revision from 1 to 3
+	updateRs1Index := f.expectUpdateReplicaSetAction(rs1) // set final status of stable RS to success
 	f.expectUpdateRolloutAction(r2)                       // Bump rollout revision from 1 to 3
 	patchIndex := f.expectPatchRolloutAction(r2)          // Patch rollout status
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs1 := f.getUpdatedReplicaSet(updateRs1Index)
+	assert.NotNil(t, updatedRs1)
+	assert.Equal(t, FinalStatusSuccess, updatedRs1.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	expectedRS1 := rs1.DeepCopy()
 	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
@@ -1094,10 +1106,15 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
-	//f.expectUpdateReplicaSetAction(rs1)
+	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
 	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs1 := f.getUpdatedReplicaSet(updateRs1Index)
+	assert.NotNil(t, updatedRs1)
+	assert.Equal(t, FinalStatusSuccess, updatedRs1.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	updatedReplicaSet := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, "3", updatedReplicaSet.Annotations[annotations.RevisionAnnotation])

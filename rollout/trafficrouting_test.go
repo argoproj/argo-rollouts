@@ -1376,7 +1376,13 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+	updateRs1Index := f.expectUpdateReplicaSetAction(rs1) // set final status of new RS to success
 	f.run(getKey(r1, t))
+
+	// validate final status for replica set is success
+	updatedRs1 := f.getUpdatedReplicaSet(updateRs1Index)
+	assert.NotNil(t, updatedRs1)
+	assert.Equal(t, FinalStatusSuccess, updatedRs1.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	// Make sure we scale up stable ReplicaSet to 10
 	rs1Updated := f.getUpdatedReplicaSet(scaleUpIndex)
@@ -1530,6 +1536,7 @@ func TestCheckReplicaSetAvailable(t *testing.T) {
 	fix.expectUpdateReplicaSetAction(replicaSet1)
 	fix.expectUpdateRolloutAction(rollout2)
 	fix.expectUpdateReplicaSetAction(replicaSet1)
+	fix.expectUpdateReplicaSetAction(replicaSet2) // set final status of new RS to success
 	fix.expectPatchRolloutAction(rollout2)
 	fix.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	fix.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything, mock.Anything).Return(nil)
