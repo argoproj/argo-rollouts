@@ -2091,8 +2091,13 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	patchIndex := f.expectPatchRolloutAction(r1)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
 
 	f.run(getKey(r2, t))
+
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	newConditions := generateConditionsPatchWithHealthy(true, conditions.NewRSAvailableReason, rs2, true, "", true, true)
 	expectedPatch := fmt.Sprintf(`{
@@ -2133,7 +2138,12 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r)
 	f.expectUpdateReplicaSetAction(rs) // scale RS
 	f.expectPatchRolloutAction(r)
+	updateRsIndex := f.expectUpdateReplicaSetAction(rs)
 	f.run(getKey(r, t))
+
+	updatedRs := f.getUpdatedReplicaSet(updateRsIndex)
+	assert.NotNil(t, updatedRs)
+	assert.Equal(t, FinalStatusSuccess, updatedRs.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 }
 
 // TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
@@ -2294,7 +2304,15 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
@@ -2361,7 +2379,15 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
@@ -2480,7 +2506,15 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is abort
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusAbort, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {
@@ -2592,7 +2626,14 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r2)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
@@ -2719,7 +2760,15 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is abort
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusAbort, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {

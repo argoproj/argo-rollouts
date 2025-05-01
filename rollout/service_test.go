@@ -389,8 +389,14 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, svc)
 
 	f.expectGetEndpointsAction(ep)
-	patchIndex := f.expectPatchRolloutAction(r2) // update status message
+	patchIndex := f.expectPatchRolloutAction(r2)          // update status message
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := fmt.Sprintf(`{"status":{"message":null,"phase":"Healthy","stableRS":"%s"}}`, rs2PodHash)

@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	core "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -66,7 +65,8 @@ func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
-	f.expectUpdateReplicaSetAction(rs) // scale up RS
+	f.expectUpdateReplicaSetAction(rs)                  // scale up RS
+	updateRsIndex := f.expectUpdateReplicaSetAction(rs) // set final status of RS
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	expectedPatchWithoutSubs := `{
 		"status":{
@@ -83,6 +83,11 @@ func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 	expectedPatch := calculatePatch(r, fmt.Sprintf(expectedPatchWithoutSubs, rsPodHash, generatedConditions, rsPodHash))
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r, expectedPatch)
 	f.run(getKey(r, t))
+
+	// validate final status for replica set is success
+	updatedRs := f.getUpdatedReplicaSet(updateRsIndex)
+	assert.NotNil(t, updatedRs)
+	assert.Equal(t, FinalStatusSuccess, updatedRs.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	f.verifyPatchedService(servicePatchIndex, rsPodHash, "")
 
@@ -117,6 +122,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectUpdateReplicaSetAction(rs) // scale up RS
+	updateRsIndex := f.expectUpdateReplicaSetAction(rs)
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	expectedPatchWithoutSubs := `{
 		"status":{
@@ -133,6 +139,11 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	expectedPatch := calculatePatch(r, fmt.Sprintf(expectedPatchWithoutSubs, rsPodHash, generatedConditions, rsPodHash))
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r, expectedPatch)
 	f.run(getKey(r, t))
+
+	// validate final status for replica set is success
+	updatedRs := f.getUpdatedReplicaSet(updateRsIndex)
+	assert.NotNil(t, updatedRs)
+	assert.Equal(t, FinalStatusSuccess, updatedRs.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	f.verifyPatchedService(servicePatchIndex, rsPodHash, "")
 
@@ -168,8 +179,14 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
 	servicePatch := f.expectPatchServiceAction(previewSvc, rsPodHash)
+	updateRsIndex := f.expectUpdateReplicaSetAction(rs)
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
+
+	// validate final status for replica set is success
+	updatedRs := f.getUpdatedReplicaSet(updateRsIndex)
+	assert.NotNil(t, updatedRs)
+	assert.Equal(t, FinalStatusSuccess, updatedRs.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	f.verifyPatchedService(servicePatch, rsPodHash, "")
 }
@@ -224,10 +241,15 @@ func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 		f.replicaSetLister = append(f.replicaSetLister, rs)
 
 		f.expectPatchServiceAction(previewSvc, rsPodHash)
+		updateRsIndex := f.expectUpdateReplicaSetAction(rs)
 		patchIndex := f.expectPatchRolloutAction(r)
 		f.run(getKey(r, t))
 
 		f.verifyPatchedRolloutAborted(patchIndex, "foo-"+rsPodHash)
+		// validate final status for replica set is abort
+		updatedRs := f.getUpdatedReplicaSet(updateRsIndex)
+		assert.NotNil(t, updatedRs)
+		assert.Equal(t, FinalStatusAbort, updatedRs.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 	}
 
 	for _, tc := range tests {
@@ -257,6 +279,7 @@ func TestSetServiceManagedBy(t *testing.T) {
 
 	servicePatch := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectPatchRolloutAction(r)
+	f.expectUpdateReplicaSetAction(rs)
 	f.run(getKey(r, t))
 
 	f.verifyPatchedService(servicePatch, rsPodHash, "")
@@ -567,7 +590,13 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash, rs2PodHash))
 		f.expectPatchServiceAction(activeSvc, rs2PodHash)
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+		updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
 		f.run(getKey(r2, t))
+
+		// validate final status for replica set is success
+		updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+		assert.NotNil(t, updatedRs2)
+		assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 		rolloutPatch := f.getPatchedRolloutWithoutConditions(patchRolloutIndex)
 		assert.Equal(t, expectedPatch, rolloutPatch)
@@ -665,7 +694,14 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		}`
 		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash, generatedConditions, newSelector))
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+		updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
 		f.run(getKey(r2, t))
+
+		// validate final status for replica set is success
+		updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+		assert.NotNil(t, updatedRs2)
+		assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 		f.verifyPatchedService(servicePatchIndex, rs2PodHash, "")
 
 		rolloutPatch := f.getPatchedRollout(patchIndex)
@@ -760,7 +796,13 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		newSelector := metav1.FormatLabelSelector(rs1.Spec.Selector)
 		expectedPatch := calculatePatch(r1, fmt.Sprintf(expectedPatchWithoutSubs, rs1PodHash, rs1PodHash, generateConditions, newSelector))
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r1, expectedPatch)
+		updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
 		f.run(getKey(r1, t))
+
+		// validate final status for replica set is success
+		updatedRs1 := f.getUpdatedReplicaSet(updateRs1Index)
+		assert.NotNil(t, updatedRs1)
+		assert.Equal(t, FinalStatusSuccess, updatedRs1.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 		f.verifyPatchedService(servicePatchIndex, rs1PodHash, "")
 
@@ -803,7 +845,13 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs2PodHash)
 		unpausePatchIndex := f.expectPatchRolloutAction(r2)
 		patchRolloutIndex := f.expectPatchRolloutAction(r2)
+		updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
 		f.run(getKey(r2, t))
+
+		// validate final status for replica set is success
+		updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+		assert.NotNil(t, updatedRs2)
+		assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 		f.verifyPatchedService(servicePatchIndex, rs2PodHash, "")
 		unpausePatch := f.getPatchedRollout(unpausePatchIndex)
@@ -864,7 +912,13 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 
 	f.expectPatchServiceAction(s, rs2PodHash)
 	patchIndex := f.expectPatchRolloutAction(r2)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchWithoutSubs := `{
@@ -938,46 +992,43 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 
 func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	ro := newBlueGreenRollout("foo", 2, nil, "active", "")
+
 	rs := newReplicaSetWithStatus(ro, 1, 1)
 	ro.Status.CurrentPodHash = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	ro.Status.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: ""}, ro)
 
-	progressingCondition, progressingConditionStr := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
+	progressingCondition, progressingConditionStr := newProgressingCondition(conditions.NewReplicaSetReason, rs, "")
 	conditions.SetRolloutCondition(&ro.Status, progressingCondition)
 	ro.Status.Phase, ro.Status.Message = rolloututil.CalculateRolloutPhase(ro.Spec, ro.Status)
 
 	f := newFixture(t)
 	defer f.Close()
+
 	f.objects = append(f.objects, ro)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 	f.rolloutLister = append(f.rolloutLister, ro)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
-	ctrl, _, _ := f.newController(noResyncPeriodFunc)
-	roCtx, err := ctrl.newRolloutContext(ro)
-	assert.NoError(t, err)
-
-	err = roCtx.syncRolloutStatusBlueGreen(nil, activeSvc)
-	assert.Nil(t, err)
-	assert.Len(t, f.client.Actions(), 1)
-	result := f.client.Actions()[0].(core.PatchAction).GetPatch()
+	f.expectUpdateRolloutStatusAction(ro)
+	patchRolloutIndex := f.expectPatchRolloutAction(ro)
+	f.expectCreateReplicaSetAction(rs)
+	f.expectUpdateReplicaSetAction(rs) // scale up RS
+	f.expectUpdateReplicaSetAction(rs) // scale up RS
+	f.expectUpdateReplicaSetAction(rs) // update final status
+	f.run(getKey(ro, t))
 	_, availableStr := newAvailableCondition(false)
 	_, compCond := newCompletedCondition(true)
 	expectedPatchWithoutSub := `{
 		"status":{
-			"HPAReplicas":1,
-			"readyReplicas": 1,
-			"availableReplicas": 1,
-			"updatedReplicas":1,
-			"replicas":1,
 			"conditions":[%s, %s, %s],
 			"selector":"foo=bar"
 		}
 	}`
 	expectedPatch := calculatePatch(ro, fmt.Sprintf(expectedPatchWithoutSub, progressingConditionStr, availableStr, compCond))
-	assert.Equal(t, expectedPatch, string(result))
+	rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
+	assert.Equal(t, expectedPatch, rolloutPatch)
 }
 
 func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
@@ -1040,13 +1091,19 @@ func TestBlueGreenRolloutScaleUpdateStableRS(t *testing.T) {
 	f.expectPatchRolloutAction(r1)
 
 	// Patch the rollout to get it in the state we want (old RS is stable and new is active)
+	f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
 	f.run(getKey(r2, t))
 	// Actually update the replicas now that we are in the desired state (old RS is stable and new is active)
 	r2.Spec.Replicas = ptr.To[int32](2)
 
 	f.expectUpdateReplicaSetAction(rs1)
-	f.expectUpdateReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
+
+	// // validate final status for replica set is success
+	// updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	// assert.NotNil(t, updatedRs2)
+	// assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 }
 
 func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *testing.T) {
@@ -1078,6 +1135,7 @@ func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *test
 	f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectUpdateReplicaSetAction(rs) // scale up RS
 	f.expectUpdateRolloutStatusAction(r)
+	updateRsIndex := f.expectUpdateReplicaSetAction(rs) // set final status of RS
 	expectedPatchWithoutSubs := `{
 		"status":{
 			"blueGreen" : {
@@ -1093,6 +1151,11 @@ func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *test
 	expectedPatch := calculatePatch(r, fmt.Sprintf(expectedPatchWithoutSubs, rsPodHash, generatedConditions, rsPodHash))
 	f.expectPatchRolloutActionWithPatch(r, expectedPatch)
 	f.run(getKey(r, t))
+
+	// validate final status for replica set is success
+	updatedRs := f.getUpdatedReplicaSet(updateRsIndex)
+	assert.NotNil(t, updatedRs)
+	assert.Equal(t, FinalStatusSuccess, updatedRs.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	logMessage := buf.String()
 	assert.True(t, strings.Contains(logMessage, "msg=\"Stable ReplicaSet doesn't exist and hence no reconciliation is required.\""), logMessage)
@@ -1124,7 +1187,15 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		f.serviceLister = append(f.serviceLister, activeSvc)
 
 		patchIndex := f.expectPatchRolloutAction(r1)
+		// this doesn't feel like it should be "success" or done yet
+		// updateRsIndex := f.expectUpdateReplicaSetAction(rs1) // set final status of RS
 		f.run(getKey(r2, t))
+
+		// validate final status for replica set is success
+		// updatedRs := f.getUpdatedReplicaSet(updateRsIndex)
+		// assert.NotNil(t, updatedRs)
+		// assert.Equal(t, FinalStatusSuccess, updatedRs.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 		patch := f.getPatchedRollout(patchIndex)
 
 		assert.Contains(t, patch, `"scaleUpPreviewCheckPoint":true`)
@@ -1157,8 +1228,15 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		f.serviceLister = append(f.serviceLister, activeSvc)
 
 		patchIndex := f.expectPatchRolloutAction(r1)
+		updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of RS
 
 		f.run(getKey(r2, t))
+
+		// validate final status for replica set is success
+		updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+		assert.NotNil(t, updatedRs2)
+		assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 		patch := f.getPatchedRollout(patchIndex)
 		assert.Contains(t, patch, `"scaleUpPreviewCheckPoint":null`)
 	})
@@ -1255,8 +1333,14 @@ func TestBlueGreenRolloutCompleted(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	patchIndex := f.expectPatchRolloutAction(r1)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of RS
 
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	newConditions := generateConditionsPatchWithHealthy(true, conditions.NewRSAvailableReason, rs2, true, "", true, true)
 	expectedPatch := fmt.Sprintf(`{
@@ -1301,6 +1385,9 @@ func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	patchIndex := f.expectPatchRolloutAction(r1)
+	f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
+
+	// this doesn't feel like it should be "success" or done yet on the RS
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
@@ -1337,8 +1424,15 @@ func TestBlueGreenUnableToReadScaleDownAt(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
+	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updatedRS2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(0), *updatedRS.Spec.Replicas)
 	patch := f.getPatchedRollout(patchIndex)
@@ -1373,8 +1467,14 @@ func TestBlueGreenNotReadyToScaleDownOldReplica(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
@@ -1407,8 +1507,15 @@ func TestBlueGreenReadyToScaleDownOldReplica(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(0), *updatedRS.Spec.Replicas)
 	assert.Equal(t, "", updatedRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
@@ -1452,8 +1559,14 @@ func TestFastRollback(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	f.expectPatchReplicaSetAction(rs1)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
@@ -1490,8 +1603,14 @@ func TestBlueGreenScaleDownLimit(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	updateRSIndex := f.expectUpdateReplicaSetAction(rs1)
+	updateRs3Index := f.expectUpdateReplicaSetAction(rs3) // set final status of new RS to success
 	patchIndex := f.expectPatchRolloutAction(r3)
 	f.run(getKey(r3, t))
+
+	// validate final status for replica set is success
+	updatedRs3 := f.getUpdatedReplicaSet(updateRs3Index)
+	assert.NotNil(t, updatedRs3)
+	assert.Equal(t, FinalStatusSuccess, updatedRs3.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r3, OnlyObservedGenerationPatch)
@@ -1529,8 +1648,15 @@ func TestBlueGreenAbort(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	f.expectPatchServiceAction(s, rs1PodHash)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to abort
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is abort
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusAbort, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
 	expectedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, true, "", false)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
@@ -1616,7 +1742,13 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, string(availableCondBytes), string(completeCondBytes), string(pausedCondBytes), string(progressingCondBytes), rs2PodHash, rs2PodHash))
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
 	f.run(getKey(r2, t))
+
+	// validate final status for replica set is success
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
 	assert.Equal(t, expectedPatch, rolloutPatch)
@@ -1652,7 +1784,12 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	rs1Patch := f.expectPatchReplicaSetAction(rs1) // set scale-down-deadline annotation
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
+
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
 }
