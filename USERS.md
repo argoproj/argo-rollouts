@@ -63,6 +63,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Verkada](https://verkada.com)
 1. [VISITS Technologies](https://visits.world/en)
 1. [WeLab Bank](https://www.welab.bank/)
+1. [Yahoo](https://yahoo.com)
 1. [Yotpo](https://www.yotpo.com/)
 1. [Yuno](https://y.uno/)
 1. [VGS](https://www.vgs.io)
