@@ -3,6 +3,8 @@ package rollout
 import (
 	"time"
 
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
+
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -209,6 +211,10 @@ func (c *rolloutContext) checkEnqueueRolloutDuringWait(startTime metav1.Time, du
 	if nextResync.After(expiredTime) && expiredTime.After(now.Time) {
 		timeRemaining := expiredTime.Sub(now.Time)
 		c.log.Infof("Enqueueing Rollout in %s seconds", timeRemaining.String())
+
+		logCtx := logutil.WithRollout(c.rollout)
+		logCtx.Info("rollout enqueue during wait")
+
 		c.enqueueRolloutAfter(c.rollout, timeRemaining)
 	}
 }

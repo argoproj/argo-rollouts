@@ -173,6 +173,8 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 		}
 		if !verifyRes.Verified {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered, verifyRes.EndpointsTotal)
+			logCtx := logutil.WithRollout(c.rollout)
+			logCtx.Info("rollout enqueue due to awsVerifyTargetGroups")
 			c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 			return nil
 		}

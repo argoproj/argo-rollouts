@@ -840,11 +840,13 @@ func (c *rolloutContext) requeueStuckRollout(newStatus v1alpha1.RolloutStatus) t
 	// Make it ratelimited so we stay on the safe side, eventually the Deployment should
 	// transition either to a Complete or to a TimedOut condition.
 	if after < time.Second {
-		c.log.Infof("Queueing up Rollout for a progress check now")
+		logCtx := logutil.WithRollout(c.rollout)
+		logCtx.Info("rollout enqueue due to stuck event")
 		c.enqueueRollout(c.rollout)
 		return time.Duration(0)
 	}
-	c.log.Infof("Queueing up rollout for a progress after %ds", int(after.Seconds()))
+	logCtx := logutil.WithRollout(c.rollout)
+	logCtx.Infof("Queueing up rollout for a progress after %ds", int(after.Seconds()))
 	// Add a second to avoid milliseconds skew in AddAfter.
 	// See https://github.com/kubernetes/kubernetes/issues/39785#issuecomment-279959133 for more info.
 	c.enqueueRolloutAfter(c.rollout, after+time.Second)
