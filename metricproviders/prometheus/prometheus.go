@@ -20,12 +20,13 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 
+	"google.golang.org/api/option"
+	gcphttp "google.golang.org/api/transport/http"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
-	"google.golang.org/api/option"
-	gcphttp "google.golang.org/api/transport/http"
 )
 
 const (
