@@ -13,7 +13,6 @@ spec:
     shortNames:
     - at
     singular: analysistemplate
-  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:

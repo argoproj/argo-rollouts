@@ -13,7 +13,6 @@ spec:
     shortNames:
     - cat
     singular: clusteranalysistemplate
-  preserveUnknownFields: false
   scope: Cluster
   versions:
   - additionalPrinterColumns:
