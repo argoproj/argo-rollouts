@@ -24,6 +24,8 @@ const (
 	DefaultMaxSurge = "25"
 	// DefaultMaxUnavailable default number for the max number of unavailable pods during a rollout
 	DefaultMaxUnavailable = "25"
+	// DefaultToleratedUnavailable default number for tolerated unavailable weight of a replicaset's desired replicas number.
+	DefaultToleratedUnavailable = 0
 	// DefaultProgressDeadlineSeconds default number of seconds for the rollout to be making progress
 	DefaultProgressDeadlineSeconds = int32(600)
 	// DefaultScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
@@ -151,6 +153,14 @@ func GetMaxUnavailableOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
 		return rollout.Spec.Strategy.Canary.MaxUnavailable
 	}
 	defaultValue := intstr.FromString(DefaultMaxUnavailable)
+	return &defaultValue
+}
+
+func GetToleratedUnavailableOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
+	if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.ToleratedUnavailable != nil {
+		return rollout.Spec.Strategy.Canary.ToleratedUnavailable
+	}
+	defaultValue := intstr.FromInt(DefaultToleratedUnavailable)
 	return &defaultValue
 }
 

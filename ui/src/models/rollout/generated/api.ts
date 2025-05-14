@@ -875,6 +875,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
      */
     minPodsPerReplicaSet?: number;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    toleratedUnavailable?: K8sIoApimachineryPkgUtilIntstrIntOrString;
 }
 /**
  * 
