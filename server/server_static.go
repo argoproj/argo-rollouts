@@ -29,9 +29,17 @@ const (
 func (s *ArgoRolloutsServer) staticFileHttpHandler(w http.ResponseWriter, r *http.Request) {
 	requestedURI := path.Clean(r.RequestURI)
 	rootPath := path.Clean("/" + s.Options.RootPath)
+	trimmedPath := strings.TrimPrefix(requestedURI, rootPath)
 
 	if requestedURI == "/" && rootPath != "/" {
 		http.Redirect(w, r, rootPath+"/", http.StatusFound)
+		return
+	}
+
+	// Perform strict validation
+	if strings.Contains(trimmedPath, "..") {
+		log.Warnf("Potentially malicious path detected: %s", requestedURI)
+		http.NotFound(w, r)
 		return
 	}
 
@@ -41,7 +49,7 @@ func (s *ArgoRolloutsServer) staticFileHttpHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	embedPath := path.Join(staticBasePath, strings.TrimPrefix(requestedURI, rootPath))
+	embedPath := path.Join(staticBasePath, trimmedPath)
 
 	//If the rootPath is the requestedURI, serve index.html
 	if requestedURI == rootPath {
