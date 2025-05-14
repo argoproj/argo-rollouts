@@ -270,6 +270,7 @@ func TestNewManager(t *testing.T) {
 		nil,
 		nil,
 		rolloutController.DefaultEphemeralMetadataThreads,
+		rolloutController.DefaultEphemeralMetadataPodRetries,
 	)
 
 	assert.NotNil(t, cm)
