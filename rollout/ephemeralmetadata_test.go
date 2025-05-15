@@ -39,7 +39,7 @@ func TestSyncCanaryEphemeralMetadataInitialRevision(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r1)
 	idx := f.expectCreateReplicaSetAction(rs1)
 	f.expectUpdateReplicaSetAction(rs1)
-	f.expectUpdateReplicaSetAction(rs1) // set final status to success
+	f.expectPatchReplicaSetAction(rs1) // set final status to success
 	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r1, t))
 	createdRS1 := f.getCreatedReplicaSet(idx)
@@ -80,14 +80,11 @@ func TestSyncBlueGreenEphemeralMetadataInitialRevision(t *testing.T) {
 	idx := f.expectCreateReplicaSetAction(rs1)
 	f.expectPatchRolloutAction(r1)
 	f.expectPatchServiceAction(previewSvc, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
-	f.expectUpdateReplicaSetAction(rs1)                   // scale replicaset
-	updateRs1Index := f.expectUpdateReplicaSetAction(rs1) // set final status of new RS to success
+	f.expectUpdateReplicaSetAction(rs1) // scale replicaset
+	patchFinalStatusRs1Index := f.expectPatchReplicaSetAction(rs1)
 	f.run(getKey(r1, t))
 
-	// validate final status for replica set is success
-	updatedRs1 := f.getUpdatedReplicaSet(updateRs1Index)
-	assert.NotNil(t, updatedRs1)
-	assert.Equal(t, FinalStatusSuccess, updatedRs1.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs1Index, FinalStatusSuccess)
 
 	createdRS1 := f.getCreatedReplicaSet(idx)
 	expectedLabels := map[string]string{
@@ -224,23 +221,20 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
-	f.expectUpdateRolloutStatusAction(r2)                 // Update Rollout conditions
-	rs2idx := f.expectCreateReplicaSetAction(rs2)         // Create revision 2 ReplicaSet
-	f.expectPatchServiceAction(previewSvc, rs2PodHash)    // Update preview service to point at revision 2 replicaset
-	f.expectUpdateReplicaSetAction(rs2)                   // scale revision 2 ReplicaSet up
-	rs1idx := f.expectUpdateReplicaSetAction(rs1)         // update stable replicaset with stable metadata
-	f.expectListPodAction(r1.Namespace)                   // list pods to patch ephemeral data on revision 1 ReplicaSets pods`
-	pod1Idx := f.expectUpdatePodAction(&pod1)             // Update pod1 with ephemeral data
-	pod2Idx := f.expectUpdatePodAction(pod2)              // Update pod2 with ephemeral data
-	f.expectPatchRolloutAction(r2)                        // Patch Rollout status
-	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
+	f.expectUpdateRolloutStatusAction(r2)                          // Update Rollout conditions
+	rs2idx := f.expectCreateReplicaSetAction(rs2)                  // Create revision 2 ReplicaSet
+	f.expectPatchServiceAction(previewSvc, rs2PodHash)             // Update preview service to point at revision 2 replicaset
+	f.expectUpdateReplicaSetAction(rs2)                            // scale revision 2 ReplicaSet up
+	rs1idx := f.expectUpdateReplicaSetAction(rs1)                  // update stable replicaset with stable metadata
+	f.expectListPodAction(r1.Namespace)                            // list pods to patch ephemeral data on revision 1 ReplicaSets pods`
+	pod1Idx := f.expectUpdatePodAction(&pod1)                      // Update pod1 with ephemeral data
+	pod2Idx := f.expectUpdatePodAction(pod2)                       // Update pod2 with ephemeral data
+	f.expectPatchRolloutAction(r2)                                 // Patch Rollout status
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
 
 	f.run(getKey(r2, t))
 
-	// validate final status for replica set is success
-	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
-	assert.NotNil(t, updatedRs2)
-	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
 
 	// revision 2 replicaset should been updated to use canary metadata
 	createdRS2 := f.getCreatedReplicaSet(rs2idx)

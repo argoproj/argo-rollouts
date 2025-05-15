@@ -161,7 +161,9 @@ const (
 	LabelKeyControllerInstanceID = "argo-rollouts.argoproj.io/controller-instance-id"
 
 	// ReplicaSetFinalStatusKey is utilized to evaluate if a replicaset is safe to rollback to if a future rollout attempt fails.
-	ReplicaSetFinalStatusKey = "argo-rollouts.argoproj.io/final-status"
+	// see https://www.rfc-editor.org/rfc/rfc6901#section-3 for why ~1 instead of /.
+	// TestErrorConditionAfterErrorAnalysisRunStep fails if ~1 is not used.
+	ReplicaSetFinalStatusKey = "argo-rollouts.argoproj.io~1final-status"
 )
 
 // RolloutStrategy defines strategy to apply during next rollout
