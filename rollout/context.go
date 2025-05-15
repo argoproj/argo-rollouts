@@ -1,17 +1,13 @@
 package rollout
 
 import (
-	"context"
-	"fmt"
 	"slices"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
 type rolloutContext struct {
@@ -156,57 +152,4 @@ func (c *rolloutContext) getPromotedRS(newStatus *v1alpha1.RolloutStatus) *appsv
 		rs = c.allRSs[i]
 	}
 	return rs
-}
-
-// calculateReplicaSetFinalStatus marks the new RS (canary RS or preview RS depending on canary or bluegreen deployment)
-// as success or abort if the rollout has failed or is done. Always nil if in the middle of
-// an active rollout.
-func (c *rolloutContext) calculateReplicaSetFinalStatus(newStatus *v1alpha1.RolloutStatus) error {
-	if newStatus.Abort {
-		return c.setFinalRSStatusAbort()
-	} else if conditions.RolloutCompleted(newStatus) {
-		return c.setFinalRSStatusSuccess(newStatus)
-	} else {
-		// this is if there is a condition besides aborted/success
-		// e.g. middle of a rollout that hasn't failed and isn't done yet.
-		return nil
-	}
-}
-
-func (c *rolloutContext) setFinalRSStatusAbort() error {
-	// mark RS final status as aborted
-	return c.setFinalRSStatus(c.newRS, FinalStatusAbort)
-}
-
-func (c *rolloutContext) setFinalRSStatusSuccess(newStatus *v1alpha1.RolloutStatus) error {
-	// mark RS final status as success if found
-	promotedRS := c.getPromotedRS(newStatus)
-	if promotedRS != nil {
-		err := c.setFinalRSStatus(promotedRS, FinalStatusSuccess)
-		if err != nil {
-			return err
-		}
-	} else {
-		c.log.Infof("ReplicaSet not Found: %s", newStatus.StableRS)
-	}
-
-	return nil
-}
-
-func (c *rolloutContext) setFinalRSStatus(rs *appsv1.ReplicaSet, status string) error {
-	ctx := context.Background()
-	rs.Annotations[v1alpha1.ReplicaSetFinalStatusKey] = status
-	c.log.Infof("Updating replicaset with status: %s", status)
-	newRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
-
-	if err != nil {
-		return fmt.Errorf("error updating replicaset in setFinalRSStatus %s: %w", rs.Name, err)
-	}
-
-	err = c.replicaSetInformer.GetIndexer().Update(newRS)
-	if err != nil {
-		return fmt.Errorf("error updating replicaset informer in setFinalRSStatus %s: %w", rs.Name, err)
-	}
-
-	return nil
 }

@@ -16,6 +16,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
@@ -29,6 +30,7 @@ const (
 	removeScaleDownAtAnnotationsPatch = `[{ "op": "remove", "path": "/metadata/annotations/%s"}]`
 	FinalStatusSuccess                = "success"
 	FinalStatusAbort                  = "abort"
+	addAnnotationsPatch               = `[{ "op": "add", "path": "/metadata/annotations/%s", "value": "%s"}]`
 )
 
 // removeScaleDownDelay removes the `scale-down-deadline` annotation from the ReplicaSet (if it exists)
@@ -63,11 +65,60 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 	}
 	deadline := timeutil.MetaNow().Add(scaleDownDelaySeconds).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
-	rs, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("error adding scale-down-deadline annotation to RS '%s': %w", rs.Name, err)
 	}
 	c.log.Infof("Set '%s' annotation on '%s' to %s (%s)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
+	return err
+}
+
+// calculateReplicaSetFinalStatus marks the new RS (canary RS or preview RS depending on canary or bluegreen deployment)
+// as success or abort if the rollout has failed or is done. Always nil if in the middle of
+// an active rollout.
+func (c *rolloutContext) calculateReplicaSetFinalStatus(newStatus *v1alpha1.RolloutStatus) error {
+	if newStatus.Abort {
+		return c.setFinalRSStatusAbort()
+	} else if conditions.RolloutCompleted(newStatus) {
+		return c.setFinalRSStatusSuccess(newStatus)
+	} else {
+		// this is if there is a condition besides aborted/success
+		// e.g. middle of a rollout that hasn't failed and isn't done yet.
+		return nil
+	}
+}
+
+func (c *rolloutContext) setFinalRSStatusAbort() error {
+	// mark RS final status as aborted
+	return c.setFinalRSStatus(c.newRS, FinalStatusAbort)
+}
+
+func (c *rolloutContext) setFinalRSStatusSuccess(newStatus *v1alpha1.RolloutStatus) error {
+	// mark RS final status as success if found
+	promotedRS := c.getPromotedRS(newStatus)
+	if promotedRS != nil {
+		err := c.setFinalRSStatus(promotedRS, FinalStatusSuccess)
+		if err != nil {
+			return err
+		}
+	} else {
+		c.log.Infof("ReplicaSet not Found: %s", newStatus.StableRS)
+	}
+
+	return nil
+}
+
+func (c *rolloutContext) setFinalRSStatus(rs *appsv1.ReplicaSet, status string) error {
+	ctx := context.Background()
+	if rs == nil {
+		return nil
+	}
+	patch := fmt.Sprintf(addAnnotationsPatch, v1alpha1.ReplicaSetFinalStatusKey, status)
+	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("error adding final-status annotation to RS '%s': %v", rs.Name, err)
+	}
+	c.log.Infof("Set '%s' annotation on '%s' to %s", v1alpha1.ReplicaSetFinalStatusKey, rs.Name, status)
 	return err
 }
 

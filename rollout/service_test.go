@@ -389,14 +389,12 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, svc)
 
 	f.expectGetEndpointsAction(ep)
-	patchIndex := f.expectPatchRolloutAction(r2)          // update status message
-	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
+	patchIndex := f.expectPatchRolloutAction(r2)                   // update status message
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
 	f.run(getKey(r2, t))
 
-	// validate final status for replica set is success
-	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
-	assert.NotNil(t, updatedRs2)
-	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := fmt.Sprintf(`{"status":{"message":null,"phase":"Healthy","stableRS":"%s"}}`, rs2PodHash)
@@ -502,10 +500,10 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 
 	f.expectGetEndpointsAction(ep)
 	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
-	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status to success
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status to success
 	f.run(getKey(r2, t))
-	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
-	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
 	f.assertEvents([]string{
 		conditions.TargetGroupUnverifiedReason,
 	})
@@ -610,11 +608,11 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	scaleDownRSIndex := f.expectPatchReplicaSetAction(rs1)
 
 	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
-	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status to success
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status to success
 	f.run(getKey(r2, t))
-	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
-	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
-	f.verifyPatchedReplicaSet(scaleDownRSIndex, 30)
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetScaleDownDelaySeconds(scaleDownRSIndex, 30)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
 	})
@@ -677,12 +675,12 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, ing, rootSvc, canarySvc, stableSvc)
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
-	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status to success
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status to success
 
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t)) // there should be no api calls
-	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
-	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
 
 	f.assertEvents(nil)
 
