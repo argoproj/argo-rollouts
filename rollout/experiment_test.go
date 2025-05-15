@@ -299,11 +299,11 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 	f.objects = append(f.objects, r2, ex)
 
 	patchIndex := f.expectPatchRolloutAction(r1)
-	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status to abort
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
 
-	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
-	assert.Equal(t, FinalStatusAbort, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusAbort)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
@@ -515,15 +515,14 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	f.expectCreateReplicaSetAction(rs2)
-	f.expectUpdateRolloutAction(r2)                       // update revision
-	f.expectUpdateRolloutStatusAction(r2)                 // update progressing condition
-	f.expectUpdateReplicaSetAction(rs2)                   // scale replicaset
-	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status to success
+	f.expectUpdateRolloutAction(r2)                                // update revision
+	f.expectUpdateRolloutStatusAction(r2)                          // update progressing condition
+	f.expectUpdateReplicaSetAction(rs2)                            // scale replicaset
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status to success
 	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r2, t))
 
-	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
-	assert.Equal(t, FinalStatusSuccess, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
 }
 
 func TestGetExperimentFromTemplate(t *testing.T) {
@@ -741,10 +740,11 @@ func TestCancelExperimentWhenAborted(t *testing.T) {
 
 	f.expectPatchExperimentAction(ex)
 	f.expectPatchRolloutAction(r2)
-	updateRs2Index := f.expectUpdateReplicaSetAction(rs2) // set final status to abort
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
-	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
-	assert.Equal(t, FinalStatusAbort, updatedRs2.GetObjectMeta().GetAnnotations()[v1alpha1.ReplicaSetFinalStatusKey])
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusAbort)
 }
 
 func TestRolloutCreateExperimentWithInstanceID(t *testing.T) {
