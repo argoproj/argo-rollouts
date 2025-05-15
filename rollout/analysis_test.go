@@ -1587,7 +1587,12 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	f.objects = append(f.objects, r2, at, ar)
 
 	patchIndex := f.expectPatchRolloutAction(r2)
+	updateRs2Index := f.expectPatchReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusAbort)
+
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {
@@ -1664,7 +1669,13 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 	f.objects = append(f.objects, r2, at, ar)
 
 	patchIndex := f.expectPatchRolloutAction(r2)
+	updateRs2Index := f.expectPatchReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusAbort)
+
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {
@@ -1729,7 +1740,12 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 	cancelCurrentAr := f.expectPatchAnalysisRunAction(ar)
 	cancelOldAr := f.expectPatchAnalysisRunAction(olderAr)
 	patchIndex := f.expectPatchRolloutAction(r2)
+	updateRs2Index := f.expectPatchReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusAbort)
 
 	assert.True(t, f.verifyPatchedAnalysisRun(cancelOldAr, olderAr))
 	assert.True(t, f.verifyPatchedAnalysisRun(cancelCurrentAr, ar))
@@ -1788,7 +1804,12 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 	f.objects = append(f.objects, r2, at, ar)
 
 	patchIndex := f.expectPatchRolloutAction(r2)
+	updateRs2Index := f.expectPatchReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusSuccess)
 
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Contains(t, patch, `"currentBackgroundAnalysisRunStatus":null`)
@@ -1880,7 +1901,12 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
 	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
 	f.expectPatchRolloutAction(r1)
+	updateRs1Index := f.expectPatchReplicaSetAction(rs1)
+
 	f.run(getKey(r1, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs1Index, FinalStatusSuccess)
 }
 
 // Same as TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout but when Status.StableRS is ""
@@ -1915,7 +1941,12 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
 	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
 	f.expectPatchRolloutAction(r1)
+	updateRs1Index := f.expectPatchReplicaSetAction(rs1)
+
 	f.run(getKey(r1, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs1Index, FinalStatusSuccess)
 }
 
 func TestDoNotCreateBackgroundAnalysisRunWhenWithinRollbackWindow(t *testing.T) {
@@ -2053,8 +2084,12 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	patchIndex := f.expectPatchRolloutAction(r1)
+	updateRs2Index := f.expectPatchReplicaSetAction(rs2)
 
 	f.run(getKey(r2, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusSuccess)
 
 	newConditions := generateConditionsPatchWithHealthy(true, conditions.NewRSAvailableReason, rs2, true, "", true, true)
 	expectedPatch := fmt.Sprintf(`{
@@ -2095,7 +2130,12 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r)
 	f.expectUpdateReplicaSetAction(rs) // scale RS
 	f.expectPatchRolloutAction(r)
+	updateRsIndex := f.expectPatchReplicaSetAction(rs)
+
 	f.run(getKey(r, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRsIndex, FinalStatusSuccess)
 }
 
 // TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
@@ -2256,7 +2296,13 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	updateRs2Index := f.expectPatchReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusSuccess)
+
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
@@ -2323,7 +2369,13 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	updateRs2Index := f.expectPatchReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusSuccess)
+
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
@@ -2442,7 +2494,13 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	updateRs2Index := f.expectPatchReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusAbort)
+
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {
@@ -2554,7 +2612,13 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r2)
+	updateRs2Index := f.expectPatchReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusSuccess)
+
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
@@ -2681,7 +2745,13 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	updateRs2Index := f.expectPatchReplicaSetAction(rs2)
+
 	f.run(getKey(r2, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusAbort)
+
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {

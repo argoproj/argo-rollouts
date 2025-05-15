@@ -389,8 +389,12 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, svc)
 
 	f.expectGetEndpointsAction(ep)
-	patchIndex := f.expectPatchRolloutAction(r2) // update status message
+	patchIndex := f.expectPatchRolloutAction(r2)                   // update status message
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
 	f.run(getKey(r2, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := fmt.Sprintf(`{"status":{"message":null,"phase":"Healthy","stableRS":"%s"}}`, rs2PodHash)
@@ -496,7 +500,10 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 
 	f.expectGetEndpointsAction(ep)
 	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status to success
 	f.run(getKey(r2, t))
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
 	f.assertEvents([]string{
 		conditions.TargetGroupUnverifiedReason,
 	})
@@ -601,8 +608,11 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	scaleDownRSIndex := f.expectPatchReplicaSetAction(rs1)
 
 	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status to success
 	f.run(getKey(r2, t))
-	f.verifyPatchedReplicaSet(scaleDownRSIndex, 30)
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetScaleDownDelaySeconds(scaleDownRSIndex, 30)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
 	})
@@ -665,9 +675,13 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, ing, rootSvc, canarySvc, stableSvc)
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
+	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status to success
 
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t)) // there should be no api calls
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+
 	f.assertEvents(nil)
 
 	patch := f.getPatchedRollout(patchIndex)
