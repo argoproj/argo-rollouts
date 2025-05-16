@@ -232,6 +232,6 @@ Defaults to 25%
 
 ### trafficRouting
 
-The [traffic management](traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.
+The [traffic management](../traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.
 
 Defaults to nil

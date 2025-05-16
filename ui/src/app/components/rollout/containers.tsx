@@ -52,10 +52,10 @@ export const ContainersWidget = (props: ContainersWidgetProps) => {
                                 danger={error}
                                 onClick={() => {
                                     for (const container of Object.keys(inputs)) {
-                                        const split = inputs[container].split(':');
-                                        if (split.length > 1) {
-                                            const image = split[0];
-                                            const tag = split[1];
+                                        const index = inputs[container].lastIndexOf(':');
+                                        if (index > 0 && index !== inputs[container].length -1) {
+                                            const image = inputs[container].substring(0, index);
+                                            const tag = inputs[container].substring(index + 1);
                                             interactive.setImage(container, image, tag);
                                             setTimeout(() => {
                                                 setEditing(false);
