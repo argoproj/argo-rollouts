@@ -34,6 +34,7 @@ spec:
           image: nginx:1.15.4
           ports:
             - containerPort: 80
+              protocol: TCP
   minReadySeconds: 30
   revisionHistoryLimit: 3
   strategy:
