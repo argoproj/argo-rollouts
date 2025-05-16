@@ -633,6 +633,124 @@ func TestValidateRolloutStrategyCanarySetHeaderRouteIstio(t *testing.T) {
 	})
 }
 
+func TestValidateRolloutTrafficRoutingALB(t *testing.T) {
+	ro := &v1alpha1.Rollout{}
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		CanaryService: "canary",
+		StableService: "stable",
+		TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+			ALB: &v1alpha1.ALBTrafficRouting{
+				RootService: "action_name",
+			},
+		},
+	}
+
+	t.Run("Only .Ingress defined, .ServicePorts refers to unknown ingress", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ALB = &v1alpha1.ALBTrafficRouting{
+			Ingress: "some-ingress",
+			ServicePorts: []v1alpha1.ALBIngressWithPorts{{
+				Ingress:      "unknown-ingress",
+				ServicePorts: []int32{80},
+			}},
+		}
+
+		allErrs := ValidateRolloutStrategy(invalidRo, field.NewPath(""))
+		assert.Equal(t, ALBServicePortsReferToUnknownIngress, allErrs[0].Detail)
+	})
+
+	t.Run(".Ingresses defined, .ServicePorts refers to unknown ingress", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ALB = &v1alpha1.ALBTrafficRouting{
+			Ingresses: []string{"some-ingress", "some-other-ingress"},
+			ServicePorts: []v1alpha1.ALBIngressWithPorts{{
+				Ingress:      "unknown-ingress",
+				ServicePorts: []int32{80},
+			}},
+		}
+
+		allErrs := ValidateRolloutStrategy(invalidRo, field.NewPath(""))
+		assert.Equal(t, ALBServicePortsReferToUnknownIngress, allErrs[0].Detail)
+	})
+
+	t.Run(".Ingress defined, but neither .ServicePort nor .ServicePorts specified", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ALB = &v1alpha1.ALBTrafficRouting{
+			Ingress: "some-ingress",
+		}
+
+		allErrs := ValidateRolloutStrategy(invalidRo, field.NewPath(""))
+		assert.Equal(t, ALBNoServicePortsForIngress, allErrs[0].Detail)
+	})
+
+	t.Run("No service port defined for one of ingresses in .Ingresses", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ALB = &v1alpha1.ALBTrafficRouting{
+			Ingresses: []string{"some-ingress", "some-other-ingress"},
+			ServicePorts: []v1alpha1.ALBIngressWithPorts{{
+				Ingress:      "some-other-ingress",
+				ServicePorts: []int32{80},
+			}},
+		}
+
+		allErrs := ValidateRolloutStrategy(invalidRo, field.NewPath(""))
+		assert.Equal(t, ALBNoServicePortsForIngress, allErrs[0].Detail)
+	})
+
+	t.Run(".Ingresses and default .ServicePort specified", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ALB = &v1alpha1.ALBTrafficRouting{
+			Ingresses:   []string{"some-ingress", "some-other-ingress"},
+			ServicePort: 80,
+		}
+
+		allErrs := ValidateRolloutStrategy(invalidRo, field.NewPath(""))
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run(".Ingresses and .ServicePorts", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ALB = &v1alpha1.ALBTrafficRouting{
+			Ingresses: []string{"some-ingress", "some-other-ingress"},
+			ServicePorts: []v1alpha1.ALBIngressWithPorts{{
+				Ingress:      "some-ingress",
+				ServicePorts: []int32{80},
+			}, {
+				Ingress:      "some-other-ingress",
+				ServicePorts: []int32{443},
+			}},
+		}
+
+		allErrs := ValidateRolloutStrategy(invalidRo, field.NewPath(""))
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run(".Ingress defined, port specified via .ServicePorts", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ALB = &v1alpha1.ALBTrafficRouting{
+			Ingress: "some-ingress",
+			ServicePorts: []v1alpha1.ALBIngressWithPorts{{
+				Ingress:      "some-ingress",
+				ServicePorts: []int32{80},
+			}},
+		}
+
+		allErrs := ValidateRolloutStrategy(invalidRo, field.NewPath(""))
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run(".Ingress defined, port specified via .ServicePort", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ALB = &v1alpha1.ALBTrafficRouting{
+			Ingress:     "some-ingress",
+			ServicePort: 80,
+		}
+
+		allErrs := ValidateRolloutStrategy(invalidRo, field.NewPath(""))
+		assert.Empty(t, allErrs)
+	})
+}
+
 func TestValidateRolloutStrategyCanarySetHeaderRoutingALB(t *testing.T) {
 	ro := &v1alpha1.Rollout{}
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
