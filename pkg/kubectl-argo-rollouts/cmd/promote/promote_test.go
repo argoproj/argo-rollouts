@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -130,10 +130,10 @@ func TestPromoteCmdSuccesSkipAllSteps(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: ptr.To[int32](1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: ptr.To[int32](2),
 						},
 					},
 				},
@@ -180,10 +180,10 @@ func TestPromoteCmdSuccesFirstStepWithSkipFirstStep(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: ptr.To[int32](1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: ptr.To[int32](2),
 						},
 					},
 				},
@@ -230,10 +230,10 @@ func TestPromoteCmdSuccesFirstStep(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: ptr.To[int32](1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: ptr.To[int32](2),
 						},
 					},
 				},
@@ -280,17 +280,17 @@ func TestPromoteCmdSuccessDoNotGoPastLastStep(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: ptr.To[int32](1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: ptr.To[int32](2),
 						},
 					},
 				},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex: pointer.Int32Ptr(2),
+			CurrentStepIndex: ptr.To[int32](2),
 		},
 	}
 
@@ -503,10 +503,10 @@ func TestPromoteInconclusiveStep(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: ptr.To[int32](1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: ptr.To[int32](2),
 						},
 					},
 				},

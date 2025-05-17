@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"k8s.io/utils/pointer"
-
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -19,6 +17,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	fake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -266,7 +265,7 @@ func TestCanaryIngressCreate(t *testing.T) {
 			for _, ing := range test.ingresses {
 
 				stableIngress := extensionsIngress(ing, 80, stableService)
-				stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
+				stableIngress.Spec.IngressClassName = ptr.To[string]("nginx-ext")
 				i := ingressutil.NewLegacyIngress(stableIngress)
 
 				desiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 10)
@@ -646,7 +645,7 @@ func TestCanaryIngressRetainCurrentAnnotations(t *testing.T) {
 }
 
 func TestCanaryIngressMaxWeightInTrafficRouting(t *testing.T) {
-	maxWeights := []*int32{nil, pointer.Int32(1000)}
+	maxWeights := []*int32{nil, ptr.To[int32](1000)}
 	for _, maxWeight := range maxWeights {
 		tests := generateMultiIngressTestData()
 		for _, test := range tests {
@@ -705,7 +704,7 @@ func TestReconciler_canaryIngress(t *testing.T) {
 			}
 			for _, ing := range test.ingresses {
 				stableIngress := networkingIngress(ing, 80, stableService)
-				stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
+				stableIngress.Spec.IngressClassName = ptr.To[string]("nginx-ext")
 				i := ingressutil.NewIngress(stableIngress)
 
 				// when

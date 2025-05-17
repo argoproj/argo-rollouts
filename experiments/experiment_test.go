@@ -17,7 +17,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -129,7 +129,7 @@ func TestAddScaleDownDelayToRS(t *testing.T) {
 func TestRemoveScaleDownDelayFromRS(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = ptr.To[int32](0)
 	e.Status.AvailableAt = now()
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
@@ -407,7 +407,7 @@ func TestFailAddScaleDownDelay(t *testing.T) {
 	templates := generateTemplates("bar")
 	templates[0].Service = &v1alpha1.TemplateService{}
 	ex := newExperiment("foo", templates, "")
-	ex.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	ex.Spec.ScaleDownDelaySeconds = ptr.To[int32](0)
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusFailed, now()),
 	}
@@ -429,12 +429,12 @@ func TestFailAddScaleDownDelay(t *testing.T) {
 func TestFailAddScaleDownDelayIsConflict(t *testing.T) {
 	templates := generateTemplates("bar")
 	ex := newExperiment("foo", templates, "")
-	ex.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	ex.Spec.ScaleDownDelaySeconds = ptr.To[int32](0)
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
 	rs := templateToRS(ex, templates[0], 1)
-	rs.Spec.Replicas = pointer.Int32(0)
+	rs.Spec.Replicas = ptr.To[int32](0)
 
 	exCtx := newTestContext(ex, rs)
 	exCtx.templateRSs["bar"] = rs
@@ -485,7 +485,7 @@ func TestDeleteOutdatedService(t *testing.T) {
 
 func TestDeleteServiceIfServiceFieldNil(t *testing.T) {
 	templates := generateTemplates("bar")
-	templates[0].Replicas = pointer.Int32Ptr(0)
+	templates[0].Replicas = ptr.To[int32](0)
 	ex := newExperiment("foo", templates, "")
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),

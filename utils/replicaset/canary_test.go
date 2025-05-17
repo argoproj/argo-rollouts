@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -1030,19 +1030,19 @@ func TestBeforeStartingStep(t *testing.T) {
 	}
 	assert.False(t, BeforeStartingStep(ro))
 
-	ro.Spec.Strategy.Canary.Analysis.StartingStep = pointer.Int32Ptr(1)
+	ro.Spec.Strategy.Canary.Analysis.StartingStep = ptr.To[int32](1)
 	assert.False(t, BeforeStartingStep(ro))
 	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(1),
+			SetWeight: ptr.To[int32](1),
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{},
 		},
 	}
-	ro.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	ro.Status.CurrentStepIndex = ptr.To[int32](0)
 	assert.True(t, BeforeStartingStep(ro))
-	ro.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+	ro.Status.CurrentStepIndex = ptr.To[int32](1)
 	assert.False(t, BeforeStartingStep(ro))
 
 }
@@ -1089,8 +1089,8 @@ func TestAtDesiredReplicaCountsForCanary(t *testing.T) {
 
 	t.Run("we are at desired replica counts and availability", func(t *testing.T) {
 		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
-			Weight:             pointer.Int32Ptr(2),
-			Replicas:           pointer.Int32Ptr(2),
+			Weight:             ptr.To[int32](2),
+			Replicas:           ptr.To[int32](2),
 			MatchTrafficWeight: false,
 		}, nil)
 
@@ -1115,8 +1115,8 @@ func TestAtDesiredReplicaCountsForCanary(t *testing.T) {
 
 	t.Run("new replicaset is not at desired counts or availability", func(t *testing.T) {
 		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
-			Weight:             pointer.Int32Ptr(2),
-			Replicas:           pointer.Int32Ptr(2),
+			Weight:             ptr.To[int32](2),
+			Replicas:           ptr.To[int32](2),
 			MatchTrafficWeight: false,
 		}, nil)
 
@@ -1184,8 +1184,8 @@ func TestAtDesiredReplicaCountsForCanary(t *testing.T) {
 
 	t.Run("test that when status field lags behind spec.replicas we fail", func(t *testing.T) {
 		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
-			Weight:             pointer.Int32Ptr(2),
-			Replicas:           pointer.Int32Ptr(2),
+			Weight:             ptr.To[int32](2),
+			Replicas:           ptr.To[int32](2),
 			MatchTrafficWeight: false,
 		}, nil)
 
@@ -1227,22 +1227,22 @@ func TestGetCurrentExperiment(t *testing.T) {
 			},
 		},
 	}
-	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	rollout.Status.CurrentStepIndex = ptr.To[int32](0)
 
 	e := GetCurrentExperimentStep(rollout)
 	assert.Equal(t, v1alpha1.DurationString("1s"), e.Duration)
 
-	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+	rollout.Status.CurrentStepIndex = ptr.To[int32](1)
 
 	e = GetCurrentExperimentStep(rollout)
 	assert.Equal(t, v1alpha1.DurationString("1s"), e.Duration)
 
-	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(2)
+	rollout.Status.CurrentStepIndex = ptr.To[int32](2)
 
 	assert.Nil(t, GetCurrentExperimentStep(rollout))
 
-	rollout.Spec.Strategy.Canary.Steps[0] = v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(10)}
-	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+	rollout.Spec.Strategy.Canary.Steps[0] = v1alpha1.CanaryStep{SetWeight: ptr.To[int32](10)}
+	rollout.Status.CurrentStepIndex = ptr.To[int32](1)
 
 	assert.Nil(t, GetCurrentExperimentStep(rollout))
 
@@ -1391,7 +1391,7 @@ func TestGetReplicasForScaleDown(t *testing.T) {
 			name: "test expected replicas is less than actual replicas",
 			rs: &appsv1.ReplicaSet{
 				Spec: appsv1.ReplicaSetSpec{
-					Replicas: pointer.Int32Ptr(3),
+					Replicas: ptr.To[int32](3),
 				},
 				Status: appsv1.ReplicaSetStatus{
 					AvailableReplicas: 5,
@@ -1403,7 +1403,7 @@ func TestGetReplicasForScaleDown(t *testing.T) {
 			name: "test ignore availability",
 			rs: &appsv1.ReplicaSet{
 				Spec: appsv1.ReplicaSetSpec{
-					Replicas: pointer.Int32Ptr(3),
+					Replicas: ptr.To[int32](3),
 				},
 				Status: appsv1.ReplicaSetStatus{
 					AvailableReplicas: 2,
@@ -1416,7 +1416,7 @@ func TestGetReplicasForScaleDown(t *testing.T) {
 			name: "test not ignore availability",
 			rs: &appsv1.ReplicaSet{
 				Spec: appsv1.ReplicaSetSpec{
-					Replicas: pointer.Int32Ptr(3),
+					Replicas: ptr.To[int32](3),
 				},
 				Status: appsv1.ReplicaSetStatus{
 					AvailableReplicas: 2,
@@ -1458,11 +1458,11 @@ func TestGetCanaryReplicasOrWeight(t *testing.T) {
 						Canary: &v1alpha1.CanaryStrategy{
 							Steps: []v1alpha1.CanaryStep{
 								{
-									SetWeight: pointer.Int32Ptr(10),
+									SetWeight: ptr.To[int32](10),
 								},
 								{
 									SetCanaryScale: &v1alpha1.SetCanaryScale{
-										Weight: pointer.Int32Ptr(20),
+										Weight: ptr.To[int32](20),
 									},
 								},
 							},
@@ -1471,7 +1471,7 @@ func TestGetCanaryReplicasOrWeight(t *testing.T) {
 					},
 				},
 				Status: v1alpha1.RolloutStatus{
-					CurrentStepIndex: pointer.Int32Ptr(1),
+					CurrentStepIndex: ptr.To[int32](1),
 					StableRS:         "stable-rs",
 				},
 			},
@@ -1486,11 +1486,11 @@ func TestGetCanaryReplicasOrWeight(t *testing.T) {
 						Canary: &v1alpha1.CanaryStrategy{
 							Steps: []v1alpha1.CanaryStep{
 								{
-									SetWeight: pointer.Int32Ptr(10),
+									SetWeight: ptr.To[int32](10),
 								},
 								{
 									SetCanaryScale: &v1alpha1.SetCanaryScale{
-										Replicas: pointer.Int32Ptr(5),
+										Replicas: ptr.To[int32](5),
 									},
 								},
 							},
@@ -1499,11 +1499,11 @@ func TestGetCanaryReplicasOrWeight(t *testing.T) {
 					},
 				},
 				Status: v1alpha1.RolloutStatus{
-					CurrentStepIndex: pointer.Int32Ptr(1),
+					CurrentStepIndex: ptr.To[int32](1),
 					StableRS:         "stable-rs",
 				},
 			},
-			replicas: pointer.Int32(5),
+			replicas: ptr.To[int32](5),
 			weight:   0,
 		},
 		{
