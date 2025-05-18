@@ -940,6 +940,11 @@ func (in *CanaryStrategy) DeepCopyInto(out *CanaryStrategy) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.ToleratedUnavailable != nil {
+		in, out := &in.ToleratedUnavailable, &out.ToleratedUnavailable
+		*out = new(intstr.IntOrString)
+		**out = **in
+	}
 	return
 }
 
