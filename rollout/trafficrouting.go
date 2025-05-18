@@ -283,8 +283,14 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		}
 
 		err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
+		// Ignore early exit when the plugin delays DestinationRule updates so that
+		// progress deadline handling continues. See issue #4128.
 		if err != nil {
-			return err
+			if strings.HasPrefix(err.Error(), "delaying destination rule switch") {
+				c.log.Info(err.Error())
+			} else {
+				return err
+			}
 		}
 
 		err = reconciler.SetWeight(desiredWeight, weightDestinations...)

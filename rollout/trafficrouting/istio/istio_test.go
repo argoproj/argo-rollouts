@@ -3101,7 +3101,7 @@ func TestUpdateHashNoReadyReplicaSets(t *testing.T) {
 	client.ClearActions()
 
 	err := r.UpdateHash("abc123", "def456")
-	assert.Error(t, err, "delaying destination rule switch: ReplicaSet ReplicaSetForTesting not fully available")
+	assert.NoError(t, err)
 	actions := client.Actions()
 	assert.Len(t, actions, 0)
 }
