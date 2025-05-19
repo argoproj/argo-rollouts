@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
+
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
@@ -52,6 +53,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/diff"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
@@ -62,6 +64,8 @@ import (
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
+
+	patchtypes "k8s.io/apimachinery/pkg/types"
 )
 
 type TemplateRefResolver interface {
@@ -383,6 +387,32 @@ func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	return nil
 }
 
+// function for printing reconciliation error message in status of rollout object.
+func (c *rolloutContext) UpdateStatus(ctx context.Context, newStatus v1alpha1.RolloutStatus, rollout *v1alpha1.Rollout) error {
+	prevStatus := c.rollout.Status
+	errMsgStatus := newStatus
+	logCtx := logutil.WithVersionFields(c.log, rollout)
+	patch, _, err := diff.CreateTwoWayMergePatch(
+		&v1alpha1.Rollout{
+			Status: prevStatus,
+		},
+		&v1alpha1.Rollout{
+			Status: *&errMsgStatus,
+		}, v1alpha1.Rollout{})
+	if err != nil {
+		logCtx.Errorf("Error constructing app status patch: %v", err)
+		return err
+	}
+	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(ctx, c.rollout.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
+	if err != nil {
+		logCtx.Warningf("Error updating rollout: %v", err)
+		return err
+	}
+	c.newRollout = newRollout
+	return nil
+
+}
+
 // syncHandler compares the actual state with the desired, and attempts to
 // converge the two. It then updates the Phase block of the Rollout resource
 // with the current status of the resource.
@@ -463,6 +493,16 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	err = roCtx.reconcile()
 	if err != nil {
 		logCtx.Errorf("roCtx.reconcile err %v", err)
+
+		newStatus := roCtx.calculateBaseStatus()
+		errMsg := fmt.Sprintf("Rollout Reconciliation failed due to %v", err)
+		newStatus.Message = errMsg
+
+		errStatus := roCtx.UpdateStatus(ctx, newStatus, rollout)
+
+		if errStatus != nil {
+			return errStatus
+		}
 		// return an err here so that we do not update the informer cache with a "bad" rollout object, for the case when
 		// we get an error during reconciliation but c.newRollout still gets updated this can happen in syncReplicaSetRevision
 		// https://github.com/argoproj/argo-rollouts/issues/2522#issuecomment-1492181154 I also believe there are other cases
