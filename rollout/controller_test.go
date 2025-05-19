@@ -978,7 +978,7 @@ func (f *fixture) verifyPatchedReplicaSetScaleDownDelaySeconds(index int, scaleD
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
 	}
 	now := timeutil.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
-	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
+	patch := fmt.Sprintf(addAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
 	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
 
