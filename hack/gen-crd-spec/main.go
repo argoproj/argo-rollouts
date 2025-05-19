@@ -463,11 +463,6 @@ func main() {
 		err = json.Unmarshal(jsonBytes, &r.Object)
 		checkErr(err)
 
-		// Need to explicitly set spec.preserveUnknownFields to false, despite false being the
-		// default value in v1, in order to facilitate upgrades from apiextensions.k8s.io/v1beta1 v1.
-		// See https://github.com/argoproj/argo-rollouts/issues/1067
-		unstructured.SetNestedField(r.Object, false, "spec", "preserveUnknownFields")
-
 		// clean up crd yaml before marshalling
 		unstructured.RemoveNestedField(r.Object, "status")
 		unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
