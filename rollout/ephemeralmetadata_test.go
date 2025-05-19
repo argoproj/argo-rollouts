@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -21,7 +21,7 @@ func TestSyncCanaryEphemeralMetadataInitialRevision(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r1 := newCanaryRollout("foo", 1, nil, nil, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, nil, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.CanaryMetadata = &v1alpha1.PodTemplateMetadata{
 		Labels: map[string]string{
 			"role": "canary",
@@ -97,7 +97,7 @@ func TestSyncCanaryEphemeralMetadataSecondRevision(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r1 := newCanaryRollout("foo", 1, nil, nil, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, nil, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
 	r1.Annotations[annotations.RevisionAnnotation] = "1"
 	r1.Spec.Strategy.Canary.CanaryMetadata = &v1alpha1.PodTemplateMetadata{
 		Labels: map[string]string{
@@ -175,7 +175,7 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 3, nil, "active", "preview")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 	r1.Annotations[annotations.RevisionAnnotation] = "1"
 	r1.Spec.Strategy.BlueGreen.PreviewMetadata = &v1alpha1.PodTemplateMetadata{
 		Labels: map[string]string{

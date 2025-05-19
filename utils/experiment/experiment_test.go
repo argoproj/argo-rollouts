@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -163,7 +163,7 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 
 	newTemplateStatus := v1alpha1.TemplateStatus{
 		Name:           templateName,
-		CollisionCount: pointer.Int32Ptr(1),
+		CollisionCount: ptr.To[int32](1),
 	}
 	e.Status.TemplateStatuses = append(e.Status.TemplateStatuses, newTemplateStatus)
 	assert.Equal(t, "foo-template-688c48b575", ReplicasetNameFromExperiment(e, template))
@@ -423,7 +423,7 @@ func TestIsSemanticallyEqual(t *testing.T) {
 	right := left.DeepCopy()
 	right.Terminate = true
 	assert.True(t, IsSemanticallyEqual(*left, *right))
-	right.Templates[0].Replicas = pointer.Int32Ptr(1)
+	right.Templates[0].Replicas = ptr.To[int32](1)
 	assert.False(t, IsSemanticallyEqual(*left, *right))
 }
 

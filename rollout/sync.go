@@ -14,7 +14,7 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -162,7 +162,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 			Template:        newRSTemplate,
 		},
 	}
-	newRS.Spec.Replicas = pointer.Int32Ptr(0)
+	newRS.Spec.Replicas = ptr.To[int32](0)
 	// Set new replica set's annotation
 	annotations.SetNewReplicaSetAnnotations(c.rollout, newRS, newRevision, false)
 
