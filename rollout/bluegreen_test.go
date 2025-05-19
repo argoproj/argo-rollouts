@@ -65,8 +65,8 @@ func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
-	f.expectUpdateReplicaSetAction(rs)                           // scale up RS
-	patchFinalStatusRsIndex := f.expectPatchReplicaSetAction(rs) // set final status of RS
+	f.expectUpdateReplicaSetAction(rs)                     // scale up RS
+	patchStateRsIndex := f.expectPatchReplicaSetAction(rs) // set final status of RS
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	expectedPatchWithoutSubs := `{
 		"status":{
@@ -85,7 +85,7 @@ func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 	f.run(getKey(r, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRsIndex, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRsIndex, RSStateSuccess)
 
 	f.verifyPatchedService(servicePatchIndex, rsPodHash, "")
 
@@ -120,7 +120,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectUpdateReplicaSetAction(rs) // scale up RS
-	patchFinalStatusRsIndex := f.expectPatchReplicaSetAction(rs)
+	patchStateRsIndex := f.expectPatchReplicaSetAction(rs)
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	expectedPatchWithoutSubs := `{
 		"status":{
@@ -139,7 +139,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	f.run(getKey(r, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRsIndex, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRsIndex, RSStateSuccess)
 
 	f.verifyPatchedService(servicePatchIndex, rsPodHash, "")
 
@@ -175,12 +175,12 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
 	servicePatch := f.expectPatchServiceAction(previewSvc, rsPodHash)
-	patchFinalStatusRsIndex := f.expectPatchReplicaSetAction(rs)
+	patchStateRsIndex := f.expectPatchReplicaSetAction(rs)
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRsIndex, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRsIndex, RSStateSuccess)
 
 	f.verifyPatchedService(servicePatch, rsPodHash, "")
 }
@@ -241,7 +241,7 @@ func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 
 		f.verifyPatchedRolloutAborted(patchIndex, "foo-"+rsPodHash)
 		// validate expected RS final-status annotation is set
-		f.verifyPatchedReplicaSetFinalStatus(updateRsIndex, FinalStatusAbort)
+		f.verifyPatchedReplicaSetState(updateRsIndex, RSStateAbort)
 	}
 
 	for _, tc := range tests {
@@ -582,10 +582,10 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash, rs2PodHash))
 		f.expectPatchServiceAction(activeSvc, rs2PodHash)
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
-		patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
+		patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 		f.run(getKey(r2, t))
 
-		f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+		f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 		rolloutPatch := f.getPatchedRolloutWithoutConditions(patchRolloutIndex)
 		assert.Equal(t, expectedPatch, rolloutPatch)
@@ -683,10 +683,10 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		}`
 		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash, generatedConditions, newSelector))
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
-		patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
+		patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 		f.run(getKey(r2, t))
 
-		f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+		f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 		f.verifyPatchedService(servicePatchIndex, rs2PodHash, "")
 
@@ -782,11 +782,11 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		newSelector := metav1.FormatLabelSelector(rs1.Spec.Selector)
 		expectedPatch := calculatePatch(r1, fmt.Sprintf(expectedPatchWithoutSubs, rs1PodHash, rs1PodHash, generateConditions, newSelector))
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r1, expectedPatch)
-		patchFinalStatusRs1Index := f.expectPatchReplicaSetAction(rs1)
+		patchStateRs1Index := f.expectPatchReplicaSetAction(rs1)
 		f.run(getKey(r1, t))
 
 		// validate expected RS final-status annotation is set
-		f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs1Index, FinalStatusSuccess)
+		f.verifyPatchedReplicaSetState(patchStateRs1Index, RSStateSuccess)
 
 		f.verifyPatchedService(servicePatchIndex, rs1PodHash, "")
 
@@ -829,11 +829,11 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs2PodHash)
 		unpausePatchIndex := f.expectPatchRolloutAction(r2)
 		patchRolloutIndex := f.expectPatchRolloutAction(r2)
-		patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
+		patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 		f.run(getKey(r2, t))
 
 		// validate expected RS final-status annotation is set
-		f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+		f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 		f.verifyPatchedService(servicePatchIndex, rs2PodHash, "")
 		unpausePatch := f.getPatchedRollout(unpausePatchIndex)
@@ -894,11 +894,11 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 
 	f.expectPatchServiceAction(s, rs2PodHash)
 	patchIndex := f.expectPatchRolloutAction(r2)
-	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchWithoutSubs := `{
@@ -1109,7 +1109,7 @@ func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *test
 	f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectUpdateReplicaSetAction(rs) // scale up RS
 	f.expectUpdateRolloutStatusAction(r)
-	patchFinalStatusRsIndex := f.expectPatchReplicaSetAction(rs) // set final status of RS
+	patchStateRsIndex := f.expectPatchReplicaSetAction(rs) // set final status of RS
 	expectedPatchWithoutSubs := `{
 		"status":{
 			"blueGreen" : {
@@ -1127,7 +1127,7 @@ func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *test
 	f.run(getKey(r, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRsIndex, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRsIndex, RSStateSuccess)
 
 	logMessage := buf.String()
 	assert.True(t, strings.Contains(logMessage, "msg=\"Stable ReplicaSet doesn't exist and hence no reconciliation is required.\""), logMessage)
@@ -1193,12 +1193,12 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		f.serviceLister = append(f.serviceLister, activeSvc)
 
 		patchIndex := f.expectPatchRolloutAction(r1)
-		patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of RS
+		patchStateRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of RS
 
 		f.run(getKey(r2, t))
 
 		// validate expected RS final-status annotation is set
-		f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+		f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 		patch := f.getPatchedRollout(patchIndex)
 		assert.Contains(t, patch, `"scaleUpPreviewCheckPoint":null`)
@@ -1296,12 +1296,12 @@ func TestBlueGreenRolloutCompleted(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	patchIndex := f.expectPatchRolloutAction(r1)
-	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of RS
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of RS
 
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 	newConditions := generateConditionsPatchWithHealthy(true, conditions.NewRSAvailableReason, rs2, true, "", true, true)
 	expectedPatch := fmt.Sprintf(`{
@@ -1385,12 +1385,12 @@ func TestBlueGreenUnableToReadScaleDownAt(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
-	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(0), *updatedRS.Spec.Replicas)
@@ -1426,12 +1426,12 @@ func TestBlueGreenNotReadyToScaleDownOldReplica(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
-	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
@@ -1464,12 +1464,12 @@ func TestBlueGreenReadyToScaleDownOldReplica(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
-	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(0), *updatedRS.Spec.Replicas)
@@ -1514,12 +1514,12 @@ func TestFastRollback(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	f.expectPatchReplicaSetAction(rs1)
-	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
@@ -1556,12 +1556,12 @@ func TestBlueGreenScaleDownLimit(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, s)
 
 	updateRSIndex := f.expectUpdateReplicaSetAction(rs1)
-	patchFinalStatusRs3Index := f.expectPatchReplicaSetAction(rs3)
+	patchStateRs3Index := f.expectPatchReplicaSetAction(rs3)
 	patchIndex := f.expectPatchRolloutAction(r3)
 	f.run(getKey(r3, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs3Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs3Index, RSStateSuccess)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := calculatePatch(r3, OnlyObservedGenerationPatch)
@@ -1604,7 +1604,7 @@ func TestBlueGreenAbort(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusAbort)
+	f.verifyPatchedReplicaSetState(updateRs2Index, RSStateAbort)
 
 	expectedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, true, "", false)
 	expectedPatch := fmt.Sprintf(`{
@@ -1691,11 +1691,11 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, string(availableCondBytes), string(completeCondBytes), string(pausedCondBytes), string(progressingCondBytes), rs2PodHash, rs2PodHash))
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
-	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 	rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
 	assert.Equal(t, expectedPatch, rolloutPatch)
@@ -1731,11 +1731,11 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	rs1Patch := f.expectPatchReplicaSetAction(rs1) // set scale-down-deadline annotation
-	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 	f.verifyPatchedReplicaSetScaleDownDelaySeconds(rs1Patch, 30)
 }

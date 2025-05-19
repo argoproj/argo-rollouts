@@ -27,8 +27,8 @@ var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")
 
 const (
 	removeScaleDownAtAnnotationsPatch = `[{ "op": "remove", "path": "/metadata/annotations/%s"}]`
-	FinalStatusSuccess                = "success"
-	FinalStatusAbort                  = "abort"
+	RSStateSuccess                    = "success"
+	RSStateAbort                      = "abort"
 	addAnnotationsPatch               = `[{ "op": "add", "path": "/metadata/annotations/%s", "value": "%s"}]`
 )
 
@@ -72,10 +72,10 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 	return err
 }
 
-// calculateReplicaSetFinalStatus marks the new RS (canary RS or preview RS depending on canary or bluegreen deployment)
+// calculateReplicaSetState marks the new RS (canary RS or preview RS depending on canary or bluegreen deployment)
 // as success or abort if the rollout has failed or is done. Always nil if in the middle of
 // an active rollout.
-func (c *rolloutContext) calculateReplicaSetFinalStatus(newStatus *v1alpha1.RolloutStatus) error {
+func (c *rolloutContext) calculateReplicaSetState(newStatus *v1alpha1.RolloutStatus) error {
 	if newStatus.Abort {
 		return c.setFinalRSStatusAbort()
 	} else if conditions.RolloutCompleted(newStatus) {
@@ -89,14 +89,14 @@ func (c *rolloutContext) calculateReplicaSetFinalStatus(newStatus *v1alpha1.Roll
 
 func (c *rolloutContext) setFinalRSStatusAbort() error {
 	// mark RS final status as aborted
-	return c.setFinalRSStatus(c.newRS, FinalStatusAbort)
+	return c.setFinalRSStatus(c.newRS, RSStateAbort)
 }
 
 func (c *rolloutContext) setFinalRSStatusSuccess(newStatus *v1alpha1.RolloutStatus) error {
 	// mark RS final status as success if found
 	promotedRS := c.getPromotedRS(newStatus)
 	if promotedRS != nil {
-		err := c.setFinalRSStatus(promotedRS, FinalStatusSuccess)
+		err := c.setFinalRSStatus(promotedRS, RSStateSuccess)
 		if err != nil {
 			return err
 		}
@@ -112,12 +112,12 @@ func (c *rolloutContext) setFinalRSStatus(rs *appsv1.ReplicaSet, status string) 
 	if rs == nil {
 		return nil
 	}
-	patch := fmt.Sprintf(addAnnotationsPatch, v1alpha1.ReplicaSetFinalStatusKey, status)
+	patch := fmt.Sprintf(addAnnotationsPatch, v1alpha1.ReplicaSetStateKey, status)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("error adding final-status annotation to RS '%s': %v", rs.Name, err)
 	}
-	c.log.Infof("Set '%s' annotation on '%s' to %s", v1alpha1.ReplicaSetFinalStatusKey, rs.Name, status)
+	c.log.Infof("Set '%s' annotation on '%s' to %s", v1alpha1.ReplicaSetStateKey, rs.Name, status)
 	return err
 }
 

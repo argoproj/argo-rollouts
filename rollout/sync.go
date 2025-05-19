@@ -754,7 +754,7 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 		newStatus.WorkloadObservedGeneration = ""
 	}
 
-	err := c.calculateReplicaSetFinalStatus(newStatus)
+	err := c.calculateReplicaSetState(newStatus)
 	if err != nil {
 		return err
 	}
