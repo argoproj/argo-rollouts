@@ -160,10 +160,10 @@ const (
 	// between controllers. Controllers will only operate on objects with the same instanceID as the controller.
 	LabelKeyControllerInstanceID = "argo-rollouts.argoproj.io/controller-instance-id"
 
-	// ReplicaSetFinalStatusKey is utilized to evaluate if a replicaset is safe to rollback to if a future rollout attempt fails.
+	// ReplicaSetStateKey is utilized to evaluate if a replicaset is safe to rollback to if a future rollout attempt fails.
 	// see https://www.rfc-editor.org/rfc/rfc6901#section-3 for why ~1 instead of /.
 	// TestErrorConditionAfterErrorAnalysisRunStep fails if ~1 is not used.
-	ReplicaSetFinalStatusKey = "argo-rollouts.argoproj.io~1state"
+	ReplicaSetStateKey = "argo-rollouts.argoproj.io~1state"
 )
 
 // RolloutStrategy defines strategy to apply during next rollout

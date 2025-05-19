@@ -982,13 +982,13 @@ func (f *fixture) verifyPatchedReplicaSetScaleDownDelaySeconds(index int, scaleD
 	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
 
-func (f *fixture) verifyPatchedReplicaSetFinalStatus(index int, status string) {
+func (f *fixture) verifyPatchedReplicaSetState(index int, status string) {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
 	}
-	patch := fmt.Sprintf(addAnnotationsPatch, v1alpha1.ReplicaSetFinalStatusKey, status)
+	patch := fmt.Sprintf(addAnnotationsPatch, v1alpha1.ReplicaSetStateKey, status)
 	assert.Equal(f.t, patch, string(patchAction.GetPatch()))
 }
 
@@ -1248,11 +1248,11 @@ func TestAdoptReplicaSet(t *testing.T) {
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r) // update rollout progressing condition
 	f.expectPatchServiceAction(previewSvc, "")
 	f.expectPatchRolloutAction(r)
-	patchFinalStatusRsIndex := f.expectPatchReplicaSetAction(rs) // set final status of new RS to success
+	patchStateRsIndex := f.expectPatchReplicaSetAction(rs) // set final status of new RS to success
 	f.run(getKey(r, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRsIndex, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRsIndex, RSStateSuccess)
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
 	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)

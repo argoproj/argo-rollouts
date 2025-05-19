@@ -64,8 +64,8 @@ func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 	return newRollout
 }
 
-func setReplicaFixtureFinalStatus(rs *appsv1.ReplicaSet, status string) *appsv1.ReplicaSet {
-	rs.Annotations[v1alpha1.ReplicaSetFinalStatusKey] = status
+func setReplicaFixtureState(rs *appsv1.ReplicaSet, status string) *appsv1.ReplicaSet {
+	rs.Annotations[v1alpha1.ReplicaSetStateKey] = status
 	return rs
 }
 
@@ -379,11 +379,11 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	patchIndex := f.expectPatchRolloutAction(r2)
-	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchWithoutStableRS := `{
@@ -506,11 +506,11 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	f.expectUpdateReplicaSetAction(rs) // scale up rs
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
-	patchFinalStatusRsIndex := f.expectPatchReplicaSetAction(rs)
+	patchStateRsIndex := f.expectPatchReplicaSetAction(rs)
 	f.run(getKey(r, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRsIndex, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRsIndex, RSStateSuccess)
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
 	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
@@ -550,11 +550,11 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	f.expectUpdateReplicaSetAction(rs) // scale up rs
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
-	patchFinalStatusRsIndex := f.expectPatchReplicaSetAction(rs)
+	patchStateRsIndex := f.expectPatchReplicaSetAction(rs)
 	f.run(getKey(r, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRsIndex, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRsIndex, RSStateSuccess)
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
 	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
@@ -647,11 +647,11 @@ func TestCanaryRolloutWithMaxWeightInTrafficRouting(t *testing.T) {
 		updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
 		updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r2)
 		f.expectPatchRolloutAction(r2)
-		patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
+		patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 		f.run(getKey(r2, t))
 
 		// validate expected RS final-status annotation is set
-		f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+		f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 		createdRS := f.getCreatedReplicaSet(createdRSIndex)
 		assert.Equal(t, tc.expectedCreatedReplicas, *createdRS.Spec.Replicas)
@@ -690,11 +690,11 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r2)
 	f.expectPatchRolloutAction(r2)
-	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 	createdRS := f.getCreatedReplicaSet(createdRSIndex)
 	assert.Equal(t, int32(0), *createdRS.Spec.Replicas)
@@ -732,11 +732,11 @@ func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
-	patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
 
 	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(2), *updatedRS.Spec.Replicas)
@@ -826,12 +826,12 @@ func TestCanaryRolloutScaleDownOldRsDontScaleDownTooMuch(t *testing.T) {
 
 	updatedRS1Index := f.expectUpdateReplicaSetAction(rs1)
 	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2)
-	patchFinalStatusRs3Index := f.expectPatchReplicaSetAction(rs3)
+	patchStateRs3Index := f.expectPatchReplicaSetAction(rs3)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs3Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs3Index, RSStateSuccess)
 
 	updatedRS1 := f.getUpdatedReplicaSet(updatedRS1Index)
 	assert.Equal(t, int32(0), *updatedRS1.Spec.Replicas)
@@ -953,14 +953,14 @@ func TestRollBackToStable(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)          // Bump replicaset revision from 1 to 3
-	patchFinalStatusRs1Index := f.expectPatchReplicaSetAction(rs1) // set final status of stable RS to success
-	f.expectUpdateRolloutAction(r2)                                // Bump rollout revision from 1 to 3
-	patchIndex := f.expectPatchRolloutAction(r2)                   // Patch rollout status
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)    // Bump replicaset revision from 1 to 3
+	patchStateRs1Index := f.expectPatchReplicaSetAction(rs1) // set final status of stable RS to success
+	f.expectUpdateRolloutAction(r2)                          // Bump rollout revision from 1 to 3
+	patchIndex := f.expectPatchRolloutAction(r2)             // Patch rollout status
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs1Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs1Index, RSStateSuccess)
 
 	expectedRS1 := rs1.DeepCopy()
 	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
@@ -1096,13 +1096,13 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
-	patchFinalStatusRs1Index := f.expectPatchReplicaSetAction(rs1)
+	patchStateRs1Index := f.expectPatchReplicaSetAction(rs1)
 	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs1Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs1Index, RSStateSuccess)
 
 	updatedReplicaSet := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, "3", updatedReplicaSet.Annotations[annotations.RevisionAnnotation])
@@ -1376,11 +1376,11 @@ func TestCanaryRolloutWithCanaryService(t *testing.T) {
 
 	_ = f.expectPatchServiceAction(canarySvc, rollout.Status.CurrentPodHash)
 	_ = f.expectPatchRolloutAction(rollout)
-	patchFinalStatusRsIndex := f.expectPatchReplicaSetAction(rs)
+	patchStateRsIndex := f.expectPatchReplicaSetAction(rs)
 	f.run(getKey(rollout, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRsIndex, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRsIndex, RSStateSuccess)
 }
 
 func TestCanarySVCSelectors(t *testing.T) {
@@ -1646,11 +1646,11 @@ func TestCanaryRolloutWithStableService(t *testing.T) {
 
 	_ = f.expectPatchServiceAction(stableSvc, rollout.Status.CurrentPodHash)
 	_ = f.expectPatchRolloutAction(rollout)
-	patchFinalStatusRsIndex := f.expectPatchReplicaSetAction(rs)
+	patchStateRsIndex := f.expectPatchReplicaSetAction(rs)
 	f.run(getKey(rollout, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRsIndex, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRsIndex, RSStateSuccess)
 }
 
 func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
@@ -1702,11 +1702,11 @@ func TestCanaryRolloutWithPingPongServices(t *testing.T) {
 
 	_ = f.expectPatchServiceAction(pingSvc, r.Status.CurrentPodHash)
 	_ = f.expectPatchRolloutAction(r)
-	patchFinalStatusRs1Index := f.expectPatchReplicaSetAction(rs1)
+	patchStateRs1Index := f.expectPatchReplicaSetAction(rs1)
 	f.run(getKey(r, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs1Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(patchStateRs1Index, RSStateSuccess)
 }
 
 func TestCanaryRolloutWithInvalidPingServiceName(t *testing.T) {
@@ -1976,7 +1976,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 		}
 		r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 		rs1 := newReplicaSetWithStatus(r1, 9, 9)
-		rs1 = setReplicaFixtureFinalStatus(rs1, FinalStatusSuccess)
+		rs1 = setReplicaFixtureState(rs1, RSStateSuccess)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		r2 := bumpVersion(r1)
 		rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -1992,12 +1992,12 @@ func TestHandleCanaryAbort(t *testing.T) {
 		f.objects = append(f.objects, r2)
 
 		rsIndex := f.expectUpdateReplicaSetAction(rs2)
-		patchFinalStatusRs2Index := f.expectPatchReplicaSetAction(rs2)
+		patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 		patchIndex := f.expectPatchRolloutAction(r2)
 		f.run(getKey(r2, t))
 
 		// validate expected RS final-status annotation is set
-		f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRs2Index, FinalStatusAbort)
+		f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateAbort)
 
 		updatedRS := f.getUpdatedReplicaSet(rsIndex)
 		assert.Equal(t, int32(10), *updatedRS.Spec.Replicas)
@@ -2040,11 +2040,11 @@ func TestHandleCanaryAbort(t *testing.T) {
 		f.objects = append(f.objects, r1)
 
 		patchIndex := f.expectPatchRolloutAction(r1)
-		patchFinalStatusRsIndex := f.expectPatchReplicaSetAction(rs1)
+		patchStateRsIndex := f.expectPatchReplicaSetAction(rs1)
 		f.run(getKey(r1, t))
 
 		// validate expected RS final-status annotation is set
-		f.verifyPatchedReplicaSetFinalStatus(patchFinalStatusRsIndex, FinalStatusSuccess)
+		f.verifyPatchedReplicaSetState(patchStateRsIndex, RSStateSuccess)
 
 		patch := f.getPatchedRollout(patchIndex)
 		expectedPatch := `{

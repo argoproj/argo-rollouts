@@ -1591,7 +1591,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 
 	f.run(getKey(r2, t))
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusAbort)
+	f.verifyPatchedReplicaSetState(updateRs2Index, RSStateAbort)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
@@ -1674,7 +1674,7 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusAbort)
+	f.verifyPatchedReplicaSetState(updateRs2Index, RSStateAbort)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
@@ -1745,7 +1745,7 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusAbort)
+	f.verifyPatchedReplicaSetState(updateRs2Index, RSStateAbort)
 
 	assert.True(t, f.verifyPatchedAnalysisRun(cancelOldAr, olderAr))
 	assert.True(t, f.verifyPatchedAnalysisRun(cancelCurrentAr, ar))
@@ -1809,7 +1809,7 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(updateRs2Index, RSStateSuccess)
 
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Contains(t, patch, `"currentBackgroundAnalysisRunStatus":null`)
@@ -1906,7 +1906,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 	f.run(getKey(r1, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs1Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(updateRs1Index, RSStateSuccess)
 }
 
 // Same as TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout but when Status.StableRS is ""
@@ -1946,7 +1946,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 	f.run(getKey(r1, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs1Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(updateRs1Index, RSStateSuccess)
 }
 
 func TestDoNotCreateBackgroundAnalysisRunWhenWithinRollbackWindow(t *testing.T) {
@@ -2089,7 +2089,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(updateRs2Index, RSStateSuccess)
 
 	newConditions := generateConditionsPatchWithHealthy(true, conditions.NewRSAvailableReason, rs2, true, "", true, true)
 	expectedPatch := fmt.Sprintf(`{
@@ -2135,7 +2135,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	f.run(getKey(r, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRsIndex, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(updateRsIndex, RSStateSuccess)
 }
 
 // TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
@@ -2301,7 +2301,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(updateRs2Index, RSStateSuccess)
 
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
@@ -2374,7 +2374,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(updateRs2Index, RSStateSuccess)
 
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
@@ -2499,7 +2499,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusAbort)
+	f.verifyPatchedReplicaSetState(updateRs2Index, RSStateAbort)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
@@ -2617,7 +2617,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusSuccess)
+	f.verifyPatchedReplicaSetState(updateRs2Index, RSStateSuccess)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
@@ -2750,7 +2750,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	// validate expected RS final-status annotation is set
-	f.verifyPatchedReplicaSetFinalStatus(updateRs2Index, FinalStatusAbort)
+	f.verifyPatchedReplicaSetState(updateRs2Index, RSStateAbort)
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
