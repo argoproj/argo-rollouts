@@ -4126,6 +4126,10 @@ annotation.</p>
 <span class="w">        </span><span class="nt">args</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">--aws-verify-target-group</span><span class="p p-Indicator">]</span>
 <span class="w">        </span><span class="c1"># NOTE: in v1.0, the --alb-verify-weight flag should be used instead</span>
 </code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The <code>--aws-region</code> flag is mandatory for enabling AWS integrations, including TargetGroup verification. If the Argo Rollouts controller does not have the correct AWS region specified, or lacks access to validate the AWS ALB, the promotion process will fail. Ensure that the necessary AWS API permissions are granted to the controller and that the region is correctly configured.</p>
+</div>
 <p>For this feature to work, the argo-rollouts deployment requires the following AWS API permissions
 under the <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/Welcome.html">Elastic Load Balancing API</a>:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
