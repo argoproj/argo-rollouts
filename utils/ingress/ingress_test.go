@@ -698,3 +698,142 @@ func TestALBHeaderBasedConditionAnnotationKey(t *testing.T) {
 	}
 	assert.Equal(t, "alb.ingress.kubernetes.io/conditions.route", ALBHeaderBasedConditionAnnotationKey(r, "route"))
 }
+
+func TestCheckALBTrafficRoutingHasFieldsForMultiIngressScenario(t *testing.T) {
+	res := CheckALBTrafficRoutingHasFieldsForMultiIngressScenario(&v1alpha1.ALBTrafficRouting{
+		Ingress:     "alb-ingress",
+		ServicePort: 80,
+	})
+	assert.Equal(t, res, false)
+
+	res = CheckALBTrafficRoutingHasFieldsForMultiIngressScenario(&v1alpha1.ALBTrafficRouting{
+		Ingress:     "alb-ingress",
+		ServicePort: 80,
+		Ingresses:   []string{"alb-ingress", "alb-ingress-2"},
+	})
+	assert.Equal(t, res, true)
+
+	res = CheckALBTrafficRoutingHasFieldsForMultiIngressScenario(&v1alpha1.ALBTrafficRouting{
+		Ingress:     "alb-ingress",
+		ServicePort: 80,
+		Ingresses:   []string{"alb-ingress", "alb-ingress-2"},
+		ServicePorts: []v1alpha1.ALBIngressWithPorts{
+			{Ingress: "alb-ingress", ServicePorts: []int32{80, 433}},
+		},
+	})
+	assert.Equal(t, res, true)
+
+	res = CheckALBTrafficRoutingHasFieldsForMultiIngressScenario(&v1alpha1.ALBTrafficRouting{
+		Ingress: "alb-ingress",
+		ServicePorts: []v1alpha1.ALBIngressWithPorts{
+			{Ingress: "alb-ingress", ServicePorts: []int32{80, 433}},
+		},
+	})
+	assert.Equal(t, res, false)
+}
+
+func TestGetIngressesFromALBTrafficRouting(t *testing.T) {
+	res := GetIngressesFromALBTrafficRouting(&v1alpha1.ALBTrafficRouting{
+		Ingress:     "alb-ingress",
+		ServicePort: 80,
+	})
+	assert.Equal(t, res, []v1alpha1.ALBIngressWithPorts{
+		{Ingress: "alb-ingress", ServicePorts: []int32{80}},
+	})
+
+	// .ServicePort is ignored when .ServicePorts has matching ingress
+	res = GetIngressesFromALBTrafficRouting(&v1alpha1.ALBTrafficRouting{
+		Ingress:     "alb-ingress",
+		ServicePort: 80,
+		ServicePorts: []v1alpha1.ALBIngressWithPorts{
+			{Ingress: "alb-ingress", ServicePorts: []int32{80, 433}},
+		},
+	})
+	assert.Equal(t, res, []v1alpha1.ALBIngressWithPorts{
+		{Ingress: "alb-ingress", ServicePorts: []int32{80, 433}},
+	})
+
+	// .Ingress is ignored when .Ingresses is specified
+	res = GetIngressesFromALBTrafficRouting(&v1alpha1.ALBTrafficRouting{
+		Ingress:     "alb-ingress",
+		ServicePort: 80,
+		Ingresses:   []string{"alb-ingress-1", "alb-ingress-2"},
+	})
+	assert.Equal(t, res, []v1alpha1.ALBIngressWithPorts{
+		{Ingress: "alb-ingress-1", ServicePorts: []int32{80}},
+		{Ingress: "alb-ingress-2", ServicePorts: []int32{80}},
+	})
+
+	// Ports are taken from .ServicePorts if matching ingress is found
+	res = GetIngressesFromALBTrafficRouting(&v1alpha1.ALBTrafficRouting{
+		Ingress:     "alb-ingress",
+		ServicePort: 80,
+		Ingresses:   []string{"alb-ingress-1", "alb-ingress-2"},
+		ServicePorts: []v1alpha1.ALBIngressWithPorts{
+			{Ingress: "alb-ingress-2", ServicePorts: []int32{433}},
+		},
+	})
+	assert.Equal(t, res, []v1alpha1.ALBIngressWithPorts{
+		{Ingress: "alb-ingress-1", ServicePorts: []int32{80}},
+		{Ingress: "alb-ingress-2", ServicePorts: []int32{433}},
+	})
+}
+
+func TestGetAllIngressNamesFromALBTrafficRouting(t *testing.T) {
+	// without namespace
+	res := GetAllIngressNamesFromALBTrafficRouting(&v1alpha1.ALBTrafficRouting{
+		Ingress:   "alb-ingress",
+		Ingresses: []string{"alb-ingress-1", "alb-ingress-2"},
+		ServicePorts: []v1alpha1.ALBIngressWithPorts{
+			{Ingress: "alb-ingress-3", ServicePorts: []int32{433}},
+			{Ingress: "alb-ingress-4", ServicePorts: []int32{8080}},
+		},
+	}, "")
+	assert.ElementsMatch(t, res, []string{
+		"alb-ingress",
+		"alb-ingress-1",
+		"alb-ingress-2",
+		"alb-ingress-3",
+		"alb-ingress-4",
+	})
+
+	// with namespace
+	res = GetAllIngressNamesFromALBTrafficRouting(&v1alpha1.ALBTrafficRouting{
+		Ingress: "alb-ingress",
+		// intentionally with duplicate
+		Ingresses: []string{"alb-ingress-1", "alb-ingress-2", "alb-ingress-2"},
+		ServicePorts: []v1alpha1.ALBIngressWithPorts{
+			{Ingress: "alb-ingress-3", ServicePorts: []int32{433}},
+			{Ingress: "alb-ingress-4", ServicePorts: []int32{8080}},
+			// intentionally duplicate
+			{Ingress: "alb-ingress-4", ServicePorts: []int32{433}},
+		},
+	}, "some-namespace")
+	assert.ElementsMatch(t, res, []string{
+		"some-namespace/alb-ingress",
+		"some-namespace/alb-ingress-1",
+		"some-namespace/alb-ingress-2",
+		"some-namespace/alb-ingress-3",
+		"some-namespace/alb-ingress-4",
+	})
+}
+
+func TestCheckALBTrafficRoutingReferencesIngress(t *testing.T) {
+	rollout := &v1alpha1.ALBTrafficRouting{
+		Ingress: "alb-ingress",
+		// intentionally with duplicate
+		Ingresses: []string{"alb-ingress-1", "alb-ingress-2"},
+		ServicePorts: []v1alpha1.ALBIngressWithPorts{
+			{Ingress: "alb-ingress-3", ServicePorts: []int32{433}},
+			{Ingress: "alb-ingress-4", ServicePorts: []int32{8080}},
+		},
+	}
+	assert.Equal(t, true, CheckALBTrafficRoutingReferencesIngress(rollout, "alb-ingress"))
+	assert.Equal(t, true, CheckALBTrafficRoutingReferencesIngress(rollout, "alb-ingress-1"))
+	assert.Equal(t, true, CheckALBTrafficRoutingReferencesIngress(rollout, "alb-ingress-2"))
+	assert.Equal(t, true, CheckALBTrafficRoutingReferencesIngress(rollout, "alb-ingress-3"))
+	assert.Equal(t, true, CheckALBTrafficRoutingReferencesIngress(rollout, "alb-ingress-4"))
+
+	assert.Equal(t, false, CheckALBTrafficRoutingReferencesIngress(rollout, "alb-ingress-5"))
+	assert.Equal(t, false, CheckALBTrafficRoutingReferencesIngress(rollout, ""))
+}

@@ -49,9 +49,9 @@ spec:
         alb:
           # The referenced ingress will be injected with a custom action annotation, directing
           # the AWS Load Balancer Controller to split traffic between the canary and stable
-          # Service, according to the desired traffic weight (required).
+          # Service, according to the desired traffic weight.
           ingress: ingress
-          # If you want to controll multiple ingress resources you can use the ingresses field, if ingresses is specified
+          # If you want to control multiple ingress resources you can use the ingresses field, if ingresses is specified
           # the ingress field will need to be omitted.
           ingresses:
            - ingress-1
@@ -59,9 +59,16 @@ spec:
           # Reference to a Service that the Ingress must target in one of the rules (optional).
           # If omitted, uses canary.stableService.
           rootService: root-service
-          # Service port is the port which the Service listens on (required).
+          # Service port is the port which the Service listens on.
           servicePort: 443
+          # ServicePorts specify list of ports for given ingress. If no ports are listed for ingress
+          # under .servicePorts - it will fall back to .servicePort value as default
+          servicePorts:
+            - ingress: ingress-1
+              servicePorts: [80, 443]
 ```
+
+To avoid confusion with ingress/ingresses and servicePort/servicePorts fields use either `ingress` + `servicePort` only if you have a single ingress with a single port. In all other cases use `ingresses` + `servicePorts`.
 
 The referenced Ingress should be deployed with an ingress rule that matches the Rollout service:
 

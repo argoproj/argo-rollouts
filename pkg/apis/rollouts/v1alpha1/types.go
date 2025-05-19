@@ -340,8 +340,10 @@ type AnalysisRunStrategy struct {
 type ALBTrafficRouting struct {
 	// Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
 	Ingress string `json:"ingress,omitempty" protobuf:"bytes,1,opt,name=ingress"`
-	// ServicePort refers to the port that the Ingress action should route traffic to
-	ServicePort int32 `json:"servicePort" protobuf:"varint,2,opt,name=servicePort"`
+	// ServicePort refers to the port that the Ingress action should route traffic to.
+	// Can be omitted if ports for each Ingress from .Ingresses list specified via ServicePorts
+	// +optional
+	ServicePort int32 `json:"servicePort,omitempty" protobuf:"varint,2,opt,name=servicePort"`
 	// RootService references the service in the ingress to the controller should add the action to
 	RootService string `json:"rootService,omitempty" protobuf:"bytes,3,opt,name=rootService"`
 	// AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller
@@ -353,6 +355,17 @@ type ALBTrafficRouting struct {
 	// Ingresses refers to the name of an `Ingress` resource in the same namespace as the `Rollout` in a multi ingress scenario
 	// +optional
 	Ingresses []string `json:"ingresses,omitempty" protobuf:"bytes,6,opt,name=ingresses"`
+	// ServicePorts define ports for ingresses in a multi ingress scenario,
+	// in cases when when ingress has multiple ports or has port different from specified servicePort
+	// +optional
+	ServicePorts []ALBIngressWithPorts `json:"servicePorts,omitempty" protobuf:"bytes,7,opt,name=servicePorts"`
+}
+
+type ALBIngressWithPorts struct {
+	// Ingress specifies name of the ingress ServicePorts refer to
+	Ingress string `json:"ingress" protobuf:"bytes,1,name=name"`
+	// ServicePorts define list of ports to be set for the ingress
+	ServicePorts []int32 `json:"servicePorts" protobuf:"varint,2,rep,name=servicePorts"`
 }
 
 type StickinessConfig struct {

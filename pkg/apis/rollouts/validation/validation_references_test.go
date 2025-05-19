@@ -267,8 +267,8 @@ func getAlbRollout(ingress string) *v1alpha1.Rollout {
 	}
 }
 
-func getAlbRolloutMultiIngress(ingressNames []string) *v1alpha1.Rollout {
-	return &v1alpha1.Rollout{
+func getAlbRolloutMultiIngress(ingressNames []string, servicePortIngressNames []string) *v1alpha1.Rollout {
+	result := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
 				Canary: &v1alpha1.CanaryStrategy{
@@ -282,6 +282,17 @@ func getAlbRolloutMultiIngress(ingressNames []string) *v1alpha1.Rollout {
 			},
 		},
 	}
+
+	for _, ingress := range servicePortIngressNames {
+		result.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePorts = append(
+			result.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePorts,
+			v1alpha1.ALBIngressWithPorts{
+				Ingress:      ingress,
+				ServicePorts: []int32{8080, 80},
+			})
+	}
+
+	return result
 }
 
 func getRolloutSingleIngress(ingress string) *v1alpha1.Rollout {
@@ -632,7 +643,7 @@ func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 
 			var allErrs field.ErrorList
 			if test.multipleIngresses {
-				allErrs = ValidateRolloutReferencedResources(getAlbRolloutMultiIngress([]string{StableIngress, AddStableIngress1, AddStableIngress2}), refResources)
+				allErrs = ValidateRolloutReferencedResources(getAlbRolloutMultiIngress([]string{StableIngress, AddStableIngress1}, []string{AddStableIngress1, AddStableIngress2}), refResources)
 			} else {
 				allErrs = ValidateRolloutReferencedResources(getAlbRollout(StableIngress), refResources)
 			}
@@ -919,34 +930,53 @@ func TestValidateRolloutAlbIngressesConfig(t *testing.T) {
 	failureCase2 := field.InternalError(fldPath, fmt.Errorf("Either Ingress or Ingresses must be configured. Both are configured."))
 
 	tests := []struct {
-		name      string
-		Ingress   string
-		Ingresses []string
-		expected  error
+		name         string
+		Ingress      string
+		Ingresses    []string
+		ServicePorts []string
+		expected     error
 	}{
 		{
 			"No ingress configured",
 			emptyIngress,
 			emptyIngresses,
+			emptyIngresses,
 			failureCase1,
 		},
 		{
-			"Both ingresses configured",
+			"Both .Ingress and .Ingresses configured",
 			stableIngress,
 			stableIngresses,
+			emptyIngresses,
 			failureCase2,
 		},
 		{
-			"Just Ingress configured",
+			"Both .Ingress and .ServicePorts configured",
 			stableIngress,
+			emptyIngresses,
+			stableIngresses,
+			nil,
+		},
+		{
+			"Just .Ingress configured",
+			stableIngress,
+			emptyIngresses,
 			emptyIngresses,
 			nil,
 		},
 		{
-			"Just Ingresses configured",
+			"Just .Ingresses configured",
 			emptyIngress,
 			stableIngresses,
+			emptyIngresses,
 			nil,
+		},
+		{
+			"Just .ServicePorts configured",
+			emptyIngress,
+			emptyIngresses,
+			stableIngresses,
+			failureCase1,
 		},
 	}
 
@@ -965,6 +995,17 @@ func TestValidateRolloutAlbIngressesConfig(t *testing.T) {
 						},
 					},
 				},
+			}
+
+			if len(test.ServicePorts) > 0 {
+				for _, ingress := range test.ServicePorts {
+					ro.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePorts = append(
+						ro.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePorts,
+						v1alpha1.ALBIngressWithPorts{
+							Ingress:      ingress,
+							ServicePorts: []int32{8080, 80},
+						})
+				}
 			}
 
 			assert.Equal(t, test.expected, ValidateRolloutAlbIngressesConfig(ro))

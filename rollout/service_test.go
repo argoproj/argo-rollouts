@@ -456,6 +456,7 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
+			ServicePort: 80,
 			RootService: "root",
 		},
 	}
@@ -559,6 +560,7 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
+			ServicePort: 80,
 			RootService: "root",
 		},
 	}
@@ -626,6 +628,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
+			ServicePort: 80,
 			RootService: "root",
 		},
 	}
