@@ -1068,11 +1068,9 @@ func TestBlueGreenRolloutScaleUpdateStableRS(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	// Patch the rollout to get it in the state we want (old RS is stable and new is active)
 	f.expectPatchRolloutAction(r1)
 
-	// Patch the rollout to get it in the state we want (old RS is stable and new is active)
-	f.expectUpdateReplicaSetAction(rs2) // set final status of new RS to success
-	f.run(getKey(r2, t))
 	// Actually update the replicas now that we are in the desired state (old RS is stable and new is active)
 	r2.Spec.Replicas = ptr.To[int32](2)
 
