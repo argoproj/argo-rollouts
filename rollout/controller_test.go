@@ -305,7 +305,11 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 	}
 
 	if optionalMessage != "" {
-		msg = optionalMessage
+		if msg != "" {
+			msg += ": " + optionalMessage
+		} else {
+			msg = optionalMessage
+		}
 	}
 
 	condition := v1alpha1.RolloutCondition{
