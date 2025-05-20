@@ -172,7 +172,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/samber/lo v1.50.0 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/slack-go/slack v0.12.2 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
