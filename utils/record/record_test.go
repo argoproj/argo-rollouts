@@ -549,7 +549,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
 				return map[string]interface{}{
 					"rollout":      obj,
-					"analysisRuns": nil,
+					"analysisRuns": make([]*v1alpha1.AnalysisRun, 0),
 					"time":         timeExprs,
 					"secrets":      expectedSecrets,
 				}
@@ -590,7 +590,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
 				return map[string]interface{}{
 					"rollout":      obj,
-					"analysisRuns": nil,
+					"analysisRuns": make([]*v1alpha1.AnalysisRun, 0),
 					"time":         timeExprs,
 					"secrets":      expectedSecrets,
 				}
