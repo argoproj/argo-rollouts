@@ -1647,7 +1647,7 @@ func TestReconcileInferredSingleRoute(t *testing.T) {
 	vsTcpRoutes, _, _ := unstructured.NestedSlice(vsvcUn.Object, "spec", "tcp")
 	routeBytes, _ = json.Marshal(vsTcpRoutes)
 	var tcpRoutes []VirtualServiceTCPRoute
-	err = json.Unmarshal(routeBytes, &tlsRoutes)
+	err = json.Unmarshal(routeBytes, &tcpRoutes)
 	assert.Nil(t, err)
 	tcpRoute := tcpRoutes[0]
 	checkDestination(t, tcpRoute.Route, "stable", 90)
