@@ -32,6 +32,6 @@ kube::codegen::gen_client pkg/apis \
   --with-watch \
   --output-pkg github.com/argoproj/argo-rollouts/pkg/client \
   --output-dir "${TEMP_DIR}" \
-  --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt"
+  --boilerplate "${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt"
 
 cp -rf "${TEMP_DIR}/." "${SCRIPT_ROOT}/pkg/client/"

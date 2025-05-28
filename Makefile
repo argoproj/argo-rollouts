@@ -159,12 +159,12 @@ gen-mocks-fast:
 
 # generates openapi_generated.go
 .PHONY: gen-openapi
-gen-openapi: $(DIST_DIR)/openapi-gen ## generate openapi files
-	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} openapi-gen \
+gen-openapi: install-go-tools-local $(DIST_DIR)/openapi-gen ## generate openapi files
+	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} openapi-gen ${CURRENT_DIR}/pkg/apis/rollouts/v1alpha1 \
 		--go-header-file ${CURRENT_DIR}/hack/custom-boilerplate.go.txt \
-		--input-dirs github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
-		--output-package github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
-		--report-filename pkg/apis/api-rules/violation_exceptions.list
+		--output-pkg github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
+		--output-dir ${CURRENT_DIR}/pkg/apis/rollouts/v1alpha1 \
+		--report-filename ${CURRENT_DIR}/pkg/apis/api-rules/violation_exceptions.list
 
 ##@ Plugins
 
