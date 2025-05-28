@@ -3200,3 +3200,108 @@ func TestGetHttpRouteIndexesToPatch(t *testing.T) {
 		assert.Nil(t, indexes)
 	})
 }
+
+// TestUpdateHashAbortSkipsReplicaSetCheck verifies we skip ReplicaSet availability checks during abort scenarios
+func TestUpdateHashAbortSkipsReplicaSetCheck(t *testing.T) {
+	// Create a rollout with DestinationRule but no canary/stable services (the problematic scenario)
+	ro := rolloutWithDestinationRule()
+	ro.Spec.Strategy.Canary.CanaryService = ""
+	ro.Spec.Strategy.Canary.StableService = ""
+	ro.Status.Abort = true
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  subsets:
+  - name: stable
+  - name: canary
+`)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+
+	// Create a ReplicaSet that is NOT available (simulating ImagePullBackOff scenario)
+	replicaSets := []*appsv1.ReplicaSet{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "FailingReplicaSet",
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: func() *int32 { i := int32(1); return &i }(),
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{
+				Replicas:          1,
+				AvailableReplicas: 0,
+			},
+		},
+	}
+
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, replicaSets)
+	client.ClearActions()
+
+	// This should succeed despite the ReplicaSet not being available because we're in abort state
+	err := r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err, "UpdateHash should succeed during abort even with unavailable ReplicaSets")
+
+	// Verify that the DestinationRule was actually updated
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+
+	// Verify the DestinationRule was updated with the correct hashes
+	dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
+	assert.NoError(t, err)
+	assert.Equal(t, dRule.Annotations[v1alpha1.ManagedByRolloutsKey], "rollout")
+	assert.Equal(t, dRule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "def456")
+	assert.Equal(t, dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "abc123")
+}
+
+// TestUpdateHashNonAbortStillChecksReplicaSetAvailability verifies that non-abort scenarios still check ReplicaSet availability
+func TestUpdateHashNonAbortStillChecksReplicaSetAvailability(t *testing.T) {
+	// Create a rollout with DestinationRule but no canary/stable services
+	ro := rolloutWithDestinationRule()
+	ro.Spec.Strategy.Canary.CanaryService = ""
+	ro.Spec.Strategy.Canary.StableService = ""
+	// Ensure abort status is false
+	ro.Status.Abort = false
+
+	client := testutil.NewFakeDynamicClient()
+	vsvcLister, druleLister := getIstioListers(client)
+
+	// Create a ReplicaSet that is not available
+	replicaSets := []*appsv1.ReplicaSet{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "FailingReplicaSet",
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: func() *int32 { i := int32(1); return &i }(),
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{
+				Replicas:          1,
+				AvailableReplicas: 0,
+			},
+		},
+	}
+
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, replicaSets)
+	client.ClearActions()
+
+	// This should fail because we're not in abort state and ReplicaSet is not available
+	err := r.UpdateHash("abc123", "def456")
+	assert.Error(t, err, "delaying destination rule switch: ReplicaSet FailingReplicaSet not fully available")
+
+	actions := client.Actions()
+	assert.Len(t, actions, 0)
+}

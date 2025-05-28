@@ -939,6 +939,10 @@ func (c *rolloutContext) isRollbackWithinWindow() bool {
 func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) string {
 	// NOTE: the order of these checks are significant
 	if c.stableRS == nil {
+		// For initial deployments, only promote if the new ReplicaSet is actually healthy
+		if c.newRS == nil || c.newRS.Status.AvailableReplicas != defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
+			return ""
+		}
 		return "Initial deploy"
 	} else if c.rollout.Spec.Strategy.Canary != nil {
 		if c.pauseContext.IsAborted() {
