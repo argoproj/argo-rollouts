@@ -1635,9 +1635,9 @@ func TestReconcileInferredSingleRoute(t *testing.T) {
 
 	// TLS Routes
 	vsTlsRoutes, _, _ := unstructured.NestedSlice(vsvcUn.Object, "spec", "tls")
-	tlsRouteBytes, _ := json.Marshal(vsTlsRoutes)
+	routeBytes, _ = json.Marshal(vsTlsRoutes)
 	var tlsRoutes []VirtualServiceTLSRoute
-	err = json.Unmarshal(tlsRouteBytes, &tlsRoutes)
+	err = json.Unmarshal(routeBytes, &tlsRoutes)
 	assert.Nil(t, err)
 	tlsRoute := tlsRoutes[0]
 	checkDestination(t, tlsRoute.Route, "stable", 90)
@@ -1645,9 +1645,9 @@ func TestReconcileInferredSingleRoute(t *testing.T) {
 
 	// TCP Routes
 	vsTcpRoutes, _, _ := unstructured.NestedSlice(vsvcUn.Object, "spec", "tcp")
-	tcpRouteBytes, _ := json.Marshal(vsTcpRoutes)
+	routeBytes, _ = json.Marshal(vsTcpRoutes)
 	var tcpRoutes []VirtualServiceTCPRoute
-	err = json.Unmarshal(tcpRouteBytes, &tcpRoutes)
+	err = json.Unmarshal(routeBytes, &tlsRoutes)
 	assert.Nil(t, err)
 	tcpRoute := tcpRoutes[0]
 	checkDestination(t, tcpRoute.Route, "stable", 90)
