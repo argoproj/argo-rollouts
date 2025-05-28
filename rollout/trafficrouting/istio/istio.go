@@ -323,12 +323,16 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
 	// We need to check if the replicasets are ready here as well if we didn't define any services in the rollout
 	// See: https://github.com/argoproj/argo-rollouts/issues/2507
-	// During abort scenarios, we should skip this check to allow traffic routing cleanup
-	if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" && !r.rollout.Status.Abort {
+	if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" {
 
 		for _, rs := range r.replicaSets {
-			if *rs.Spec.Replicas > 0 && !replicasetutil.IsReplicaSetAvailable(rs) {
-				return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
+			if *rs.Spec.Replicas > 0 {
+				rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+				// Only check availability for ReplicaSets that will receive traffic
+				if (rsHash == stableHash || rsHash == canaryHash) && rsHash != "" && !replicasetutil.IsReplicaSetAvailable(rs) {
+					r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
+					return nil
+				}
 			}
 		}
 	}

@@ -1635,9 +1635,9 @@ func TestReconcileInferredSingleRoute(t *testing.T) {
 
 	// TLS Routes
 	vsTlsRoutes, _, _ := unstructured.NestedSlice(vsvcUn.Object, "spec", "tls")
-	routeBytes, _ = json.Marshal(vsTlsRoutes)
+	tlsRouteBytes, _ := json.Marshal(vsTlsRoutes)
 	var tlsRoutes []VirtualServiceTLSRoute
-	err = json.Unmarshal(routeBytes, &tlsRoutes)
+	err = json.Unmarshal(tlsRouteBytes, &tlsRoutes)
 	assert.Nil(t, err)
 	tlsRoute := tlsRoutes[0]
 	checkDestination(t, tlsRoute.Route, "stable", 90)
@@ -1645,9 +1645,9 @@ func TestReconcileInferredSingleRoute(t *testing.T) {
 
 	// TCP Routes
 	vsTcpRoutes, _, _ := unstructured.NestedSlice(vsvcUn.Object, "spec", "tcp")
-	routeBytes, _ = json.Marshal(vsTcpRoutes)
+	tcpRouteBytes, _ := json.Marshal(vsTcpRoutes)
 	var tcpRoutes []VirtualServiceTCPRoute
-	err = json.Unmarshal(routeBytes, &tcpRoutes)
+	err = json.Unmarshal(tcpRouteBytes, &tcpRoutes)
 	assert.Nil(t, err)
 	tcpRoute := tcpRoutes[0]
 	checkDestination(t, tcpRoute.Route, "stable", 90)
@@ -3225,12 +3225,15 @@ spec:
 `)
 	}
 
-	createUnavailableReplicaSet := func(ro *v1alpha1.Rollout) *appsv1.ReplicaSet {
+	createUnavailableReplicaSet := func(ro *v1alpha1.Rollout, hash string) *appsv1.ReplicaSet {
 		return &appsv1.ReplicaSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "FailingReplicaSet",
+				Name:      "rs-" + hash,
 				UID:       uuid.NewUUID(),
 				Namespace: metav1.NamespaceDefault,
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
 			},
 			Spec: appsv1.ReplicaSetSpec{
 				Replicas: func() *int32 { i := int32(1); return &i }(),
@@ -3243,51 +3246,97 @@ spec:
 		}
 	}
 
-	setupReconciler := func(ro *v1alpha1.Rollout, client *dynamicfake.FakeDynamicClient, rs *appsv1.ReplicaSet) *Reconciler {
+	createAvailableReplicaSet := func(ro *v1alpha1.Rollout, hash string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rs-" + hash,
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: func() *int32 { i := int32(1); return &i }(),
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{
+				Replicas:          1,
+				AvailableReplicas: 1,
+			},
+		}
+	}
+
+	setupReconciler := func(ro *v1alpha1.Rollout, client *dynamicfake.FakeDynamicClient, rsList []*appsv1.ReplicaSet) *Reconciler {
 		vsvcLister, druleLister := getIstioListers(client)
-		r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, []*appsv1.ReplicaSet{rs})
+		r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, rsList)
 		client.ClearActions()
 		return r
 	}
 
-	t.Run("abort skips ReplicaSet availability check", func(t *testing.T) {
-		ro := createRollout(true)
+	t.Run("only checks relevant ReplicaSets for traffic routing", func(t *testing.T) {
+		ro := createRollout(false)
 		obj := createDestinationRuleObj()
 		client := testutil.NewFakeDynamicClient(obj)
-		rs := createUnavailableReplicaSet(ro)
-		r := setupReconciler(ro, client, rs)
 
-		// This should succeed despite ReplicaSet not being available because we're in abort state
-		err := r.UpdateHash("abc123", "def456")
-		assert.NoError(t, err, "UpdateHash should succeed during abort even with unavailable ReplicaSets")
+		stableRS := createAvailableReplicaSet(ro, "stable123")   // Available - will receive traffic
+		canaryRS := createUnavailableReplicaSet(ro, "canary456") // Unavailable - will receive traffic
+		otherRS := createUnavailableReplicaSet(ro, "other789")   // Unavailable - but won't receive traffic
+
+		rsList := []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
+		r := setupReconciler(ro, client, rsList)
+
+		// This should return nil (delaying update) because canary RS (which will receive traffic) is not available
+		err := r.UpdateHash("canary456", "stable123")
+		assert.NoError(t, err)
+
+		// Verify no actions were taken because update was delayed
+		actions := client.Actions()
+		assert.Len(t, actions, 0)
+	})
+
+	t.Run("succeeds when all traffic-receiving ReplicaSets are available", func(t *testing.T) {
+		ro := createRollout(false)
+		obj := createDestinationRuleObj()
+		client := testutil.NewFakeDynamicClient(obj)
+
+		stableRS := createAvailableReplicaSet(ro, "stable123") // Available - will receive traffic
+		canaryRS := createAvailableReplicaSet(ro, "canary456") // Available - will receive traffic
+		otherRS := createUnavailableReplicaSet(ro, "other789") // Unavailable - but won't receive traffic
+
+		rsList := []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
+		r := setupReconciler(ro, client, rsList)
+
+		// This should succeed because all ReplicaSets that will receive traffic are available
+		// otherRS being unavailable doesn't matter since it won't receive traffic
+		err := r.UpdateHash("canary456", "stable123")
+		assert.NoError(t, err)
 
 		// Verify DestinationRule was updated
 		actions := client.Actions()
 		assert.Len(t, actions, 1)
 		assert.Equal(t, "update", actions[0].GetVerb())
-
-		// Verify correct hashes were set
-		dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
-		assert.NoError(t, err)
-		_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
-		assert.NoError(t, err)
-		assert.Equal(t, dRule.Annotations[v1alpha1.ManagedByRolloutsKey], "rollout")
-		assert.Equal(t, dRule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "def456")
-		assert.Equal(t, dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "abc123")
 	})
 
-	t.Run("non-abort still checks ReplicaSet availability", func(t *testing.T) {
-		ro := createRollout(false)
-		client := testutil.NewFakeDynamicClient()
-		rs := createUnavailableReplicaSet(ro)
-		r := setupReconciler(ro, client, rs)
+	t.Run("works correctly during abort scenarios", func(t *testing.T) {
+		ro := createRollout(true) // Aborted rollout
+		obj := createDestinationRuleObj()
+		client := testutil.NewFakeDynamicClient(obj)
 
-		// This should fail because we're not in abort state and ReplicaSet is not available
-		err := r.UpdateHash("abc123", "def456")
-		assert.Error(t, err, "delaying destination rule switch: ReplicaSet FailingReplicaSet not fully available")
+		stableRS := createAvailableReplicaSet(ro, "stable123")
+		canaryRS := createUnavailableReplicaSet(ro, "canary456")
+		otherRS := createUnavailableReplicaSet(ro, "other789")
 
-		// Verify no actions were taken
+		rsList := []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
+		r := setupReconciler(ro, client, rsList)
+
+		// Since stable is available, this should succeed
+		err := r.UpdateHash("", "stable123") // Empty canary hash = no traffic to canary
+		assert.NoError(t, err)
+
+		// Verify DestinationRule was updated
 		actions := client.Actions()
-		assert.Len(t, actions, 0)
+		assert.Len(t, actions, 1)
+		assert.Equal(t, "update", actions[0].GetVerb())
 	})
 }
