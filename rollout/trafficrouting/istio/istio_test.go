@@ -1593,9 +1593,9 @@ func TestTlsReconcileInferredSingleRoute(t *testing.T) {
 	var tlsRoutes []VirtualServiceTLSRoute
 	err = json.Unmarshal(routeBytes, &tlsRoutes)
 	assert.Nil(t, err)
-	tlsRoute := tlsRoutes[0]
-	checkDestination(t, tlsRoute.Route, "stable", 90)
-	checkDestination(t, tlsRoute.Route, "canary", 10)
+	route := tlsRoutes[0]
+	checkDestination(t, route.Route, "stable", 90)
+	checkDestination(t, route.Route, "canary", 10)
 }
 
 func TestTcpReconcileInferredSingleRoute(t *testing.T) {
@@ -1610,9 +1610,9 @@ func TestTcpReconcileInferredSingleRoute(t *testing.T) {
 	var tcpRoutes []VirtualServiceTCPRoute
 	err = json.Unmarshal(routeBytes, &tcpRoutes)
 	assert.Nil(t, err)
-	tcpRoute := tcpRoutes[0]
-	checkDestination(t, tcpRoute.Route, "stable", 90)
-	checkDestination(t, tcpRoute.Route, "canary", 10)
+	route := tcpRoutes[0]
+	checkDestination(t, route.Route, "stable", 90)
+	checkDestination(t, route.Route, "canary", 10)
 }
 
 func TestReconcileInferredSingleRoute(t *testing.T) {
