@@ -34,7 +34,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -1311,12 +1311,12 @@ func TestRequeueStuckRollout(t *testing.T) {
 		},
 		{
 			name:               "Less than a second",
-			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(10)),
+			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](10)),
 			requeueImmediately: true,
 		},
 		{
 			name:    "More than a second",
-			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(20)),
+			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](20)),
 		},
 	}
 	for i := range tests {
@@ -1836,7 +1836,7 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -1947,7 +1947,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -1978,7 +1978,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -2057,7 +2057,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -2176,7 +2176,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -2207,7 +2207,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},

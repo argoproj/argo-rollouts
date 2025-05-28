@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -318,7 +318,7 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 
 // createReplicaSetForTemplate initializes ReplicaSet with zero replicas for given experiment template
 func (ec *experimentContext) createReplicaSetForTemplate(template v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, logCtx *log.Entry, now metav1.Time) {
-	template.Replicas = pointer.Int32Ptr(0)
+	template.Replicas = ptr.To[int32](0)
 	rs, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
 	if err != nil {
 		logCtx.Warnf("Failed to create ReplicaSet: %v", err)

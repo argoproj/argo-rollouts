@@ -5,7 +5,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -15,7 +15,7 @@ import (
 func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 
 	templates := generateTemplates("bar")
-	templates[0].Replicas = pointer.Int32Ptr(2)
+	templates[0].Replicas = ptr.To[int32](2)
 	e := newExperiment("foo", templates, "")
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
 		Name: "bar",
@@ -53,7 +53,7 @@ func TestEnterTimeoutDegradedState(t *testing.T) {
 		Name:   "bar",
 		Status: v1alpha1.TemplateStatusProgressing,
 	}}
-	e.Spec.ProgressDeadlineSeconds = pointer.Int32Ptr(30)
+	e.Spec.ProgressDeadlineSeconds = ptr.To[int32](30)
 	prevTime := metav1.NewTime(timeutil.Now().Add(-1 * time.Minute).Truncate(time.Second))
 	e.Status.TemplateStatuses[0].LastTransitionTime = &prevTime
 
