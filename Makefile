@@ -149,7 +149,7 @@ gen-k8scodegen: go-mod-vendor ## generate kubernetes codegen files
 # generates ./manifests/crds/
 .PHONY: gen-crd
 gen-crd: go-mod-vendor install-go-tools-local ## generate crd manifests
-	go run ./hack/gen-crd-spec/main.go
+	go run -mod=mod ./hack/gen-crd-spec/main.go
 
 # generates mock files from interfaces
 .PHONY: gen-mocks
