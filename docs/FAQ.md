@@ -47,6 +47,10 @@ Yes. A k8s cluster can run multiple replicas of Argo-rollouts controllers to ach
 
 No you cannot do that (even though Argo CD can work that way). This is by design because the Rollout is a custom resource unknown to vanilla Kubernetes. You need the Rollout CRD as well as the controller in the deployment cluster (every cluster that will use workloads with Rollouts).
 
+### What is the version skew policy between the controller and the kubectl plugin?
+
+The Argo Rollout CLI/Kubectl plugin just patch the Rollout object or reads fields from it. There is no separate "Argo Rollouts API". Old versions of the plugin might not understand new fields that are added in the Rollout specification. We have never made a breaking change intentionally (removed something from the Rollout Spec). So old clients should work even with newer Rollout versions (excluding new features).
+
 ## Rollouts
 
 ### Which deployment strategies does Argo Rollouts support?
