@@ -109,7 +109,7 @@ install-toolchain: install-go-tools-local install-protoc-local
 
 # generates all auto-generated code
 .PHONY: codegen
-codegen: go-mod-vendor gen-proto gen-k8scodegen gen-openapi gen-mocks docs gen-crd manifests
+codegen: go-mod-vendor gen-proto gen-k8scodegen gen-openapi gen-mocks gen-crd manifests docs
 
 # generates all files related to proto files
 .PHONY: gen-proto
@@ -126,7 +126,7 @@ k8s-proto: go-mod-vendor install-protoc-local install-go-tools-local $(TYPES) ##
 		--proto-import=${GOPATH}/src \
 		--proto-import=${DIST_DIR}/protoc-include
 	touch pkg/apis/rollouts/v1alpha1/generated.proto
-	cp -R $(CURDIR)/github.com/argoproj/argo-rollouts/ . | true
+	cp -Rf $(CURDIR)/github.com/argoproj/argo-rollouts/ . | true
 	# removing generated files
 	rm -Rf $(CURDIR)/github.com/
 	rm -Rf $(CURDIR)/k8s.io/
@@ -296,6 +296,7 @@ serve-docs: docs ## serve docs locally
 
 .PHONY: docs
 docs: ## build docs
+	go mod tidy
 	go run -mod=mod ./hack/gen-docs/main.go
 
 ##@ Release
