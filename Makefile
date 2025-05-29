@@ -295,8 +295,7 @@ serve-docs: docs ## serve docs locally
 	docker run --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs squidfunk/mkdocs-material serve -a 0.0.0.0:8000
 
 .PHONY: docs
-docs: ## build docs
-	go mod tidy
+docs: go-mod-vendor install-go-tools-local ## build docs
 	go run -mod=mod ./hack/gen-docs/main.go
 
 ##@ Release
