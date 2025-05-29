@@ -166,6 +166,7 @@ gen-openapi: install-go-tools-local $(DIST_DIR)/openapi-gen ## generate openapi 
 		--go-header-file ${CURRENT_DIR}/hack/custom-boilerplate.go.txt \
 		--output-pkg github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
 		--output-dir ${CURRENT_DIR}/pkg/apis/rollouts/v1alpha1 \
+		 --output-file openapi_generated.go \
 		--report-filename ${CURRENT_DIR}/pkg/apis/api-rules/violation_exceptions.list
 
 ##@ Plugins
