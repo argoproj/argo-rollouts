@@ -49,7 +49,7 @@ No you cannot do that (even though Argo CD can work that way). This is by design
 
 ### What is the version skew policy between the controller and the kubectl plugin?
 
-The Argo Rollout CLI/Kubectl plugin just patch the Rollout object or reads fields from it. There is no separate "Argo Rollouts API". Old versions of the plugin might not understand new fields that are added in the Rollout specification. We have never made a breaking change intentionally (removed something from the Rollout Spec). So old clients should work even with newer Rollout versions (excluding new features).
+The Argo Rollout CLI/Kubectl plugin just patches the Rollout object or reads fields from it. [There is no separate "Argo Rollouts API"](../best-practices#there-is-no-argo-rollouts-api). Old versions of the plugin might not understand new fields that are added in the [Rollout specification](../features/specification/). We have never made a breaking change intentionally (removed something from the Rollout Spec). So old clients should work even with newer Rollout versions (excluding new features).
 
 ## Rollouts
 
