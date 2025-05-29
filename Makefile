@@ -126,8 +126,10 @@ k8s-proto: go-mod-vendor install-protoc-local install-go-tools-local $(TYPES) ##
 		--proto-import=${GOPATH}/src \
 		--proto-import=${DIST_DIR}/protoc-include
 	touch pkg/apis/rollouts/v1alpha1/generated.proto
-	cp -R ${GOPATH}/src/github.com/argoproj/argo-rollouts/pkg . | true
-
+	cp -R $(CURDIR)/github.com/argoproj/argo-rollouts/ . | true
+	# removing generated files
+	rm -Rf $(CURDIR)/github.com/
+	rm -Rf $(CURDIR)/k8s.io/
 
 # generates *.pb.go, *.pb.gw.go, swagger from .proto files
 .PHONY: api-proto
