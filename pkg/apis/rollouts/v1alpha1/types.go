@@ -796,17 +796,17 @@ const (
 
 const (
 	// RolloutTypeLabel indicates how the rollout created the analysisRun
-	RolloutTypeLabel = "rollout-type"
+	RolloutTypeLabel string = "rollout-type"
 	// RolloutTypeStepLabel indicates that the analysisRun was created as a canary step
-	RolloutTypeStepLabel = "Step"
+	RolloutTypeStepLabel string = "Step"
 	// RolloutTypeBackgroundRunLabel indicates that the analysisRun was created in Background to an execution
-	RolloutTypeBackgroundRunLabel = "Background"
+	RolloutTypeBackgroundRunLabel string = "Background"
 	// RolloutTypePrePromotionLabel indicates that the analysisRun was created before the active service promotion
-	RolloutTypePrePromotionLabel = "PrePromotion"
+	RolloutTypePrePromotionLabel string = "PrePromotion"
 	// RolloutTypePostPromotionLabel indicates that the analysisRun was created after the active service promotion
-	RolloutTypePostPromotionLabel = "PostPromotion"
+	RolloutTypePostPromotionLabel string = "PostPromotion"
 	// RolloutCanaryStepIndexLabel indicates which step created this analysisRun
-	RolloutCanaryStepIndexLabel = "step-index"
+	RolloutCanaryStepIndexLabel string = "step-index"
 )
 
 // RolloutPause defines a pause stage for a rollout

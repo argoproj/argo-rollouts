@@ -443,7 +443,7 @@ func (c *rolloutContext) reconcileRevisionHistoryLimit(oldRSs []*appsv1.ReplicaS
 	c.log.Infof("Cleaning up %d old replicasets from revision history limit %d", len(cleanableRSes), revHistoryLimit)
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(cleanableRSes))
-	podHashToArList := analysisutil.SortAnalysisRunByPodHash(c.otherArs)
+	podHashToArList := analysisutil.SortAnalysisRunByPodHash(c.analysisContext.otherArs)
 	podHashToExList := experimentutil.SortExperimentsByPodHash(c.otherExs)
 	c.log.Info("Looking to cleanup old replica sets")
 	for i := int32(0); i < diff; i++ {
@@ -989,7 +989,7 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 			if replicasetutil.HasScaleDownDeadline(c.newRS) {
 				return fmt.Sprintf("Rollback to '%s' within scaleDownDelay", c.newRS.Name)
 			}
-			currentPostPromotionAnalysisRun := c.currentArs.BlueGreenPostPromotion
+			currentPostPromotionAnalysisRun := c.analysisContext.CurrentBlueGreenPostPromotion.AnalysisRun()
 			if currentPostPromotionAnalysisRun == nil || currentPostPromotionAnalysisRun.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
 				// we have yet to start post-promotion analysis or post-promotion was not successful
 				return ""
