@@ -20,29 +20,6 @@ import (
 )
 
 // CurrentAnalysisRuns holds all the current analysis runs for a Rollout
-type CurrentAnalysisRuns struct {
-	BlueGreenPrePromotion  *v1alpha1.AnalysisRun
-	BlueGreenPostPromotion *v1alpha1.AnalysisRun
-	CanaryStep             *v1alpha1.AnalysisRun
-	CanaryBackground       *v1alpha1.AnalysisRun
-}
-
-func (c CurrentAnalysisRuns) ToArray() []*v1alpha1.AnalysisRun {
-	currentAnalysisRuns := []*v1alpha1.AnalysisRun{}
-	if c.BlueGreenPostPromotion != nil {
-		currentAnalysisRuns = append(currentAnalysisRuns, c.BlueGreenPostPromotion)
-	}
-	if c.BlueGreenPrePromotion != nil {
-		currentAnalysisRuns = append(currentAnalysisRuns, c.BlueGreenPrePromotion)
-	}
-	if c.CanaryStep != nil {
-		currentAnalysisRuns = append(currentAnalysisRuns, c.CanaryStep)
-	}
-	if c.CanaryBackground != nil {
-		currentAnalysisRuns = append(currentAnalysisRuns, c.CanaryBackground)
-	}
-	return currentAnalysisRuns
-}
 
 // analysisStatusOrder is a list of completed analysis sorted in best to worst condition
 var analysisStatusOrder = []v1alpha1.AnalysisPhase{
