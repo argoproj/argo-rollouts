@@ -55,6 +55,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Shipt](https://www.shipt.com/)
 1. [Skillz](https://www.skillz.com)
 1. [Spotify](https://www.spotify.com/)
+1. [suXess-it](https://www.suxess-it.com/)
 1. [Synamedia](https://www.synamedia.com)
 1. [Taboola](https://www.taboola.com)
 1. [TBC Bank](https://tbcbank.ge/)
