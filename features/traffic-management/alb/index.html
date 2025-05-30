@@ -3992,7 +3992,7 @@ is no longer managed, and is reset to point only the stable service with 100 wei
 <p>By default, a rollout will inject the <code>alb.ingress.kubernetes.io/actions.&lt;SERVICE-NAME&gt;</code> annotation
 using the service/action name specified under <code>spec.strategy.canary.stableService</code>. However, it may
 be desirable to specify an explicit service/action name different from the <code>stableService</code>. For
-example, <a href="/argo-rollouts/best-practices/#ingress-desiredstable-host-routes">one pattern</a> is to use a single
+example, <a href="/best-practices/#ingress-desiredstable-host-routes">one pattern</a> is to use a single
 Ingress containing three different rules to reach the canary, stable, and root service separately
 (e.g. for testing purposes). In this case, you may want to specify a "root" service as the
 service/action name instead of stable. To do so, reference a service under <code>rootService</code> under the
