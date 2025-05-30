@@ -326,8 +326,13 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 	if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" {
 
 		for _, rs := range r.replicaSets {
-			if *rs.Spec.Replicas > 0 && !replicasetutil.IsReplicaSetAvailable(rs) {
-				return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
+			if *rs.Spec.Replicas > 0 {
+				rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+				// Only check availability for ReplicaSets that will receive traffic
+				if (rsHash == stableHash || rsHash == canaryHash) && rsHash != "" && !replicasetutil.IsReplicaSetAvailable(rs) {
+					r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
+					return nil
+				}
 			}
 		}
 	}
