@@ -3295,6 +3295,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#what-is-the-version-skew-policy-between-the-controller-and-the-kubectl-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      What is the version skew policy between the controller and the kubectl plugin?
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3878,6 +3887,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#what-is-the-version-skew-policy-between-the-controller-and-the-kubectl-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      What is the version skew policy between the controller and the kubectl plugin?
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4110,6 +4128,8 @@ solution that does not follow the GitOps approach.</p>
 <p>Yes. A k8s cluster can run multiple replicas of Argo-rollouts controllers to achieve HA. To enable this feature, run the controller with <code>--leader-elect</code> flag and increase the number of replicas in the controller's deployment manifest. The implementation is based on the <a href="https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#section-documentation">k8s client-go's leaderelection package</a>. This implementation is tolerant to <em>arbitrary clock skew</em> among replicas. The level of tolerance to skew rate can be configured by setting <code>--leader-election-lease-duration</code> and <code>--leader-election-renew-deadline</code> appropriately. Please refer to the <a href="https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#pkg-overview">package documentation</a> for details.</p>
 <h3 id="can-we-install-argo-rollouts-centrally-in-a-cluster-and-manage-rollout-resources-in-external-clusters">Can we install Argo Rollouts centrally in a cluster and manage Rollout resources in external clusters?<a class="headerlink" href="#can-we-install-argo-rollouts-centrally-in-a-cluster-and-manage-rollout-resources-in-external-clusters" title="Permanent link">&para;</a></h3>
 <p>No you cannot do that (even though Argo CD can work that way). This is by design because the Rollout is a custom resource unknown to vanilla Kubernetes. You need the Rollout CRD as well as the controller in the deployment cluster (every cluster that will use workloads with Rollouts).</p>
+<h3 id="what-is-the-version-skew-policy-between-the-controller-and-the-kubectl-plugin">What is the version skew policy between the controller and the kubectl plugin?<a class="headerlink" href="#what-is-the-version-skew-policy-between-the-controller-and-the-kubectl-plugin" title="Permanent link">&para;</a></h3>
+<p>The Argo Rollout CLI/Kubectl plugin just patches the Rollout object or reads fields from it. <a href="../best-practices#there-is-no-argo-rollouts-api">There is no separate "Argo Rollouts API"</a>. Old versions of the plugin might not understand new fields that are added in the <a href="../features/specification/">Rollout specification</a>. We have never made a breaking change intentionally (removed something from the Rollout Spec). So old clients should work even with newer Rollout versions (excluding new features).</p>
 <h2 id="rollouts">Rollouts<a class="headerlink" href="#rollouts" title="Permanent link">&para;</a></h2>
 <h3 id="which-deployment-strategies-does-argo-rollouts-support">Which deployment strategies does Argo Rollouts support?<a class="headerlink" href="#which-deployment-strategies-does-argo-rollouts-support" title="Permanent link">&para;</a></h3>
 <p>Argo Rollouts supports BlueGreen, Canary, and Rolling Update. Additionally, Progressive Delivery features can be enabled on top of the blue-green/canary update, which further provides advanced deployment such as automated analysis and rollback.</p>
