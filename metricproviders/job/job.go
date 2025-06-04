@@ -73,8 +73,20 @@ func (p *JobProvider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 // fit into a 63 character label, since the k8s job controller incorporates the job name into the
 // pod spec labels.
 func newJobName(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) string {
+	const Kubernetes_DNS_Limit = 63
+
 	jobID := getJobIDSuffix(run, metric.Name)
-	return fmt.Sprintf("%s.%s.%d", run.UID, metric.Name, jobID)
+	jobName := fmt.Sprintf("%s.%s.%d", run.UID, metric.Name, jobID)
+
+	// Kubernetes can accept this job name without any issues
+	if len(jobName) <= Kubernetes_DNS_Limit {
+		return jobName
+	}
+
+	//We are over 63 characters so Kubernetes will reject this job name.
+	charactersOverLimit := len(jobName) - Kubernetes_DNS_Limit
+	truncateTo := len(metric.Name) - charactersOverLimit
+	return fmt.Sprintf("%s.%s.%d", run.UID, metric.Name[:truncateTo], jobID)
 }
 
 // getJobIDSuffix returns a numeric id which will be used as part of the job name. This is equal

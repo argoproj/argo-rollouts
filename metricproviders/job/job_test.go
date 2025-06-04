@@ -324,3 +324,75 @@ func TestGarbageCollect(t *testing.T) {
 		}
 	}
 }
+
+func TestJobNameWithin63characters(t *testing.T) {
+	ctx := context.Background()
+	p := newTestJobProvider()
+	run := newRunWithJobMetric()
+
+	// Set the UID to a realistic value
+	run.UID = types.UID("34e4d823-4ba9-4afe-8775-6384561d7ef3")
+
+	// Create a metric with a short name that is within 63 characters (Kubernetes JOB DNS restriction)
+	longMetricName := "short-job-name"
+	run.Spec.Metrics[0].Name = longMetricName
+	metric := run.Spec.Metrics[0]
+
+	// First measurement
+	measurement := p.Run(run, metric)
+	expectedName := fmt.Sprintf("%s.%s.1", run.UID, metric.Name)
+	assert.Equal(t, expectedName, measurement.Metadata[JobNameKey], "Job name should not be truncated")
+
+	// Ensure the job was created with the correct name
+	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, expectedName, jobs.Items[0].Name, "Job name should match the expected name")
+
+	// Verify that the job name is less than or equal to 63 characters
+	assert.LessOrEqual(t, len(jobs.Items[0].Name), 63, "Job name should be less than or equal to 63 characters")
+}
+
+func TestJobNameWithTruncation(t *testing.T) {
+	ctx := context.Background()
+	p := newTestJobProvider()
+	run := newRunWithJobMetric()
+
+	// Set the UID to a realistic value
+	run.UID = types.UID("5d610152-d78d-4af9-aa6a-81c227ea422c")
+
+	// Create a metric where the name itself is within limits, but it is larger than 63 characters if the UUID is included
+	longMetricName := "service-endpoint-reachable"
+	run.Spec.Metrics[0].Name = longMetricName
+	metric := run.Spec.Metrics[0]
+
+	// First measurement
+	measurement := p.Run(run, metric)
+	assert.Len(t, measurement.Metadata[JobNameKey], 63, "Job name should be truncated to 63 characters")
+
+	// Ensure that job is submitted
+	_, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+}
+
+func TestLongJobName(t *testing.T) {
+	ctx := context.Background()
+	p := newTestJobProvider()
+	run := newRunWithJobMetric()
+
+	// Set the UID to a realistic value
+	run.UID = types.UID("5d610152-d78d-4af9-aa6a-81c227ea422c")
+
+	// Create a metric with a long name (70 characters) that is obviously longer than 63 characters
+	longMetricName := "this-is-a-very-long-metric-name-that-is-exactly-seventy-characters-long"
+	run.Spec.Metrics[0].Name = longMetricName
+	metric := run.Spec.Metrics[0]
+
+	// First measurement
+	measurement := p.Run(run, metric)
+	assert.Len(t, measurement.Metadata[JobNameKey], 63, "Job name should be truncated to 63 characters")
+
+	// Ensure that job is submitted
+	_, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+
+}
