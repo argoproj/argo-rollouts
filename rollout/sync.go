@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
 	"k8s.io/utils/ptr"
@@ -944,7 +945,15 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.pauseContext.IsAborted() {
 			return ""
 		}
-		if c.newRS == nil || c.newRS.Status.AvailableReplicas != defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
+
+		toleratedReplicas, err := intstrutil.GetScaledValueFromIntOrPercent(defaults.GetToleratedUnavailableOrDefault(c.rollout), int(defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)), false)
+		if err != nil {
+			c.log.Warnf("error calculating toleratedReplicas number in shouldFullPromote: %s, defaulting to 0 tolerance", err.Error())
+			toleratedReplicas = 0
+		}
+		requiredNumberOfReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) - int32(toleratedReplicas)
+
+		if c.newRS == nil || c.newRS.Status.AvailableReplicas < requiredNumberOfReplicas {
 			return ""
 		}
 		if c.rollout.Status.PromoteFull {

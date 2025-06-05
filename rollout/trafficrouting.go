@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin"
 
 	appsv1 "k8s.io/api/apps/v1"
+	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -145,6 +146,14 @@ func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWe
 	totalReplicas := *c.rollout.Spec.Replicas
 
 	desiredReplicas := (desiredWeight * totalReplicas) / 100
+
+	toleratedReplicas, err := intstrutil.GetScaledValueFromIntOrPercent(defaults.GetToleratedUnavailableOrDefault(c.rollout), int(desiredReplicas), false)
+	if err != nil {
+		c.log.Warnf("error calculating toleratedReplicas number in checkReplicasAvailable: %s, defaulting to 0 tolerance", err.Error())
+		toleratedReplicas = 0
+	}
+	desiredReplicas -= int32(toleratedReplicas)
+
 	if availableReplicas < desiredReplicas {
 		c.log.Infof("ReplicaSet '%s' has %d available replicas, waiting for %d", rs.Name, availableReplicas, desiredReplicas)
 		return false
