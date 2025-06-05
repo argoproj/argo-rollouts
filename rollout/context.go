@@ -1,6 +1,8 @@
 package rollout
 
 import (
+	"slices"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 
@@ -139,4 +141,15 @@ func (c *rolloutContext) haltProgress() string {
 		return "inconclusive analysis"
 	}
 	return ""
+}
+
+func (c *rolloutContext) getPromotedRS(newStatus *v1alpha1.RolloutStatus) *appsv1.ReplicaSet {
+	i := slices.IndexFunc(c.allRSs, func(rs *appsv1.ReplicaSet) bool {
+		return rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == newStatus.StableRS
+	})
+	var rs *appsv1.ReplicaSet
+	if i != -1 {
+		rs = c.allRSs[i]
+	}
+	return rs
 }
