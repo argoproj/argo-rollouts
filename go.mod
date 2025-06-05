@@ -1,6 +1,6 @@
 module github.com/argoproj/argo-rollouts
 
-go 1.24.3
+go 1.23.4
 
 require (
 	github.com/antonmedv/expr v1.15.5
@@ -45,7 +45,7 @@ require (
 	google.golang.org/protobuf v1.36.5
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.30.13
-	k8s.io/apiextensions-apiserver v0.30.11
+	k8s.io/apiextensions-apiserver v0.30.13
 	k8s.io/apimachinery v0.30.13
 	k8s.io/apiserver v0.30.13
 	k8s.io/cli-runtime v0.30.13
@@ -54,7 +54,7 @@ require (
 	k8s.io/component-base v0.30.13
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff
-	k8s.io/kubectl v0.30.11
+	k8s.io/kubectl v0.30.13
 	k8s.io/kubernetes v1.30.13
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/yaml v1.4.0
@@ -217,7 +217,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/cloud-provider v0.30.11 // indirect
+	k8s.io/cloud-provider v0.30.13 // indirect
 	k8s.io/cluster-bootstrap v0.25.8 // indirect
 	k8s.io/component-helpers v0.30.13 // indirect
 	k8s.io/controller-manager v0.30.13 // indirect
