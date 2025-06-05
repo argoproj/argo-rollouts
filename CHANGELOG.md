@@ -28,6 +28,7 @@
 * Revert "fix(controller):  rollout stuck in `Progressing`. fixes [#3988](https://github.com/argoproj/argo-rollouts/issues/3988)" ([#4201](https://github.com/argoproj/argo-rollouts/issues/4201))
 * **analysis:** prevent promotion on inconclusive background run. Fixes: [#3850](https://github.com/argoproj/argo-rollouts/issues/3850) ([#3873](https://github.com/argoproj/argo-rollouts/issues/3873))
 
+
 <a name="v1.8.1"></a>
 ## [v1.8.1](https://github.com/argoproj/argo-rollouts/compare/v1.8.0...v1.8.1) (2025-03-15)
 
