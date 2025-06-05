@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 var noResyncPeriodFunc = func() time.Duration { return 0 }
@@ -334,8 +335,8 @@ func TestJobNameWithin63characters(t *testing.T) {
 	run.UID = types.UID("34e4d823-4ba9-4afe-8775-6384561d7ef3")
 
 	// Create a metric with a short name that is within 63 characters (Kubernetes JOB DNS restriction)
-	longMetricName := "short-job-name"
-	run.Spec.Metrics[0].Name = longMetricName
+	shortMetricName := "short-job-name"
+	run.Spec.Metrics[0].Name = shortMetricName
 	metric := run.Spec.Metrics[0]
 
 	// First measurement
@@ -349,7 +350,7 @@ func TestJobNameWithin63characters(t *testing.T) {
 	assert.Equal(t, expectedName, jobs.Items[0].Name, "Job name should match the expected name")
 
 	// Verify that the job name is less than or equal to 63 characters
-	assert.LessOrEqual(t, len(jobs.Items[0].Name), 63, "Job name should be less than or equal to 63 characters")
+	assert.LessOrEqual(t, len(jobs.Items[0].Name), defaults.Kubernetes_DNS_Limit, "Job name should be less than or equal to 63 characters")
 }
 
 func TestJobNameWithTruncation(t *testing.T) {
@@ -367,7 +368,7 @@ func TestJobNameWithTruncation(t *testing.T) {
 
 	// First measurement
 	measurement := p.Run(run, metric)
-	assert.Len(t, measurement.Metadata[JobNameKey], 63, "Job name should be truncated to 63 characters")
+	assert.Len(t, measurement.Metadata[JobNameKey], defaults.Kubernetes_DNS_Limit, "Job name should be truncated to 63 characters")
 
 	// Ensure that job is submitted
 	_, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(ctx, metav1.ListOptions{})
@@ -380,7 +381,7 @@ func TestLongJobName(t *testing.T) {
 	run := newRunWithJobMetric()
 
 	// Set the UID to a realistic value
-	run.UID = types.UID("5d610152-d78d-4af9-aa6a-81c227ea422c")
+	run.UID = types.UID("a3f5c9b2-1d4e-4b8a-9f3e-2c7d8e6a4b1c")
 
 	// Create a metric with a long name (70 characters) that is obviously longer than 63 characters
 	longMetricName := "this-is-a-very-long-metric-name-that-is-exactly-seventy-characters-long"
@@ -389,7 +390,7 @@ func TestLongJobName(t *testing.T) {
 
 	// First measurement
 	measurement := p.Run(run, metric)
-	assert.Len(t, measurement.Metadata[JobNameKey], 63, "Job name should be truncated to 63 characters")
+	assert.Len(t, measurement.Metadata[JobNameKey], defaults.Kubernetes_DNS_Limit, "Job name should be truncated to 63 characters")
 
 	// Ensure that job is submitted
 	_, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(ctx, metav1.ListOptions{})
