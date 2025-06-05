@@ -1526,7 +1526,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 			return fmt.Errorf("[RemoveManagedRoutes] failed to get virtual service: %w", err)
 		}
 
-		httpRouteI, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
+		_, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
 		if err != nil {
 			return fmt.Errorf("[RemoveManagedRoutes] failed to get http routes from virtual service: %w", err)
 		}
@@ -1570,7 +1570,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 
 		if len(managedRoutes) > 0 {
 			// Refresh httpRouteI after potential header route removals
-			httpRouteI, found, err = unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
+			httpRouteI, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
 			if err != nil {
 				return fmt.Errorf("[RemoveManagedRoutes] failed to get http routes from virtual service: %w", err)
 			}

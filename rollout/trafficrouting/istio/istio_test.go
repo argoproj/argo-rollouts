@@ -3367,7 +3367,7 @@ func TestRemoveManagedRoutesWithHeaderRoutes(t *testing.T) {
 		},
 		{
 			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
-				Name: "test-header-2", 
+				Name: "test-header-2",
 				Match: []v1alpha1.HeaderRoutingMatch{
 					{
 						HeaderName: "x-version",
@@ -3379,7 +3379,7 @@ func TestRemoveManagedRoutesWithHeaderRoutes(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Add managed routes
 	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
 		{Name: "managed-route-1"},
