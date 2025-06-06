@@ -83,8 +83,6 @@ spec:
                   - templateName
                   type: object
                 type: array
-              rolloutCreated:
-                type: boolean
               analysisRunMetadata:
                 properties:
                   annotations:
@@ -123,6 +121,8 @@ spec:
               progressDeadlineSeconds:
                 format: int32
                 type: integer
+              rolloutCreated:
+                type: boolean
               scaleDownDelaySeconds:
                 format: int32
                 type: integer
