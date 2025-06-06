@@ -68,6 +68,10 @@ type ExperimentSpec struct {
 	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
 	// +optional
 	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,9,opt,name=analysisRunMetadata"`
+
+	// RolloutCreated indicates that this experiment was created by the rollouts controller
+	// +optional
+	RolloutCreated bool `json:"rolloutCreated,omitempty" protobuf:"varint,10,opt,name=rolloutCreated"`
 }
 
 type TemplateSpec struct {

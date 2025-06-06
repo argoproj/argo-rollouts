@@ -335,7 +335,7 @@ func (ec *experimentContext) createReplicaSetForTemplate(template v1alpha1.Templ
 
 func (ec *experimentContext) deleteTemplateService(svc *corev1.Service, templateStatus *v1alpha1.TemplateStatus, templateName string, isSvcNil bool) {
 	if svc != nil {
-		if !ec.ex.Spec.Terminate && !isSvcNil {
+		if ec.ex.Spec.RolloutCreated && !ec.ex.Spec.Terminate && !isSvcNil {
 			ec.log.Warnf("skipping service deletion: experiment %v is not terminated", ec.ex.ObjectMeta.Name)
 			return
 		}

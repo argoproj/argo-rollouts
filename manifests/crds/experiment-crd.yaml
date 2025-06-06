@@ -83,6 +83,8 @@ spec:
                   - templateName
                   type: object
                 type: array
+              rolloutCreated:
+                type: boolean
               analysisRunMetadata:
                 properties:
                   annotations:
