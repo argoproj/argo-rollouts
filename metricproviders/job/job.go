@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -73,8 +74,19 @@ func (p *JobProvider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 // fit into a 63 character label, since the k8s job controller incorporates the job name into the
 // pod spec labels.
 func newJobName(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) string {
+
 	jobID := getJobIDSuffix(run, metric.Name)
-	return fmt.Sprintf("%s.%s.%d", run.UID, metric.Name, jobID)
+	jobName := fmt.Sprintf("%s.%s.%d", run.UID, metric.Name, jobID)
+
+	// Kubernetes can accept this job name without any issues
+	if len(jobName) <= defaults.Kubernetes_DNS_Limit {
+		return jobName
+	}
+
+	//We are over 63 characters so Kubernetes will reject this job name. We need to truncate it to 63 characters.
+	charactersOverLimit := len(jobName) - defaults.Kubernetes_DNS_Limit
+	truncateTo := len(metric.Name) - charactersOverLimit
+	return fmt.Sprintf("%s.%s.%d", run.UID, metric.Name[:truncateTo], jobID)
 }
 
 // getJobIDSuffix returns a numeric id which will be used as part of the job name. This is equal
