@@ -198,7 +198,7 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 
 // TestScaleDownRSAfterFinish verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down and service is deleted because experiment is terminated
 func TestScaleDownRSAfterFinishAndTerminate(t *testing.T) {
-	tmpl := generateTemplates("template1", "template2") 
+	tmpl := generateTemplates("template1", "template2")
 	tmpl[0].Service = &v1alpha1.TemplateService{}
 
 	exp := newExperiment("test-exp", tmpl, "")
@@ -230,13 +230,13 @@ func TestScaleDownRSAfterFinishAndTerminate(t *testing.T) {
 	expPatchIdx := fixture.expectPatchExperimentAction(exp)
 
 	fixture.run(getKey(exp, t))
-	
+
 	updatedRS1 := fixture.getUpdatedReplicaSet(rs1UpdateIdx)
 	assert.NotNil(t, updatedRS1)
 	assert.Equal(t, int32(0), *updatedRS1.Spec.Replicas)
 
 	updatedRS2 := fixture.getUpdatedReplicaSet(rs2UpdateIdx)
-	assert.NotNil(t, updatedRS2) 
+	assert.NotNil(t, updatedRS2)
 	assert.Equal(t, int32(0), *updatedRS2.Spec.Replicas)
 
 	patchedExp := fixture.getPatchedExperimentAsObj(expPatchIdx)
