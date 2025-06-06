@@ -247,7 +247,7 @@ func TestScaleDownRSAfterFinishAndTerminateForRolloutCreatedExperiment(t *testin
 
 // TestScaleDownRSAfterFinish verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down and service is not deleted because experiment is notterminated
 func TestScaleDownRSAfterFinishForRolloutCreatedExperiment(t *testing.T) {
-	specs := generateTemplates("template1", "template2") 
+	specs := generateTemplates("template1", "template2")
 	specs[0].Service = &v1alpha1.TemplateService{}
 
 	testExp := newExperiment("test-exp", specs, "")
