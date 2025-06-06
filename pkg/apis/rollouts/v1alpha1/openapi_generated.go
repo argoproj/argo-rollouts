@@ -2389,6 +2389,13 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunMetadata"),
 						},
 					},
+					"rolloutCreated": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RolloutCreated indicates that this experiment was created by the rollouts controller",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"templates"},
 			},
