@@ -152,7 +152,7 @@ func TestRemoveScaleDownDelayFromRS(t *testing.T) {
 	f.verifyPatchedReplicaSetRemoveScaleDownDelayAnnotation(patchRs1Index)
 }
 
-// TestScaleDownRSAfterFinish verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down
+// TestScaleDownRSAfterFinish verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down but service is not deleted because experiment is not terminated
 func TestScaleDownRSAfterFinish(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	templates[0].Service = &v1alpha1.TemplateService{}
@@ -168,6 +168,51 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
 		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
 	}
+	e.Status.TemplateStatuses[0].ServiceName = s1.Name
+	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
+	e.Status.Conditions = append(e.Status.Conditions, *cond)
+
+	inThePast := timeutil.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
+	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
+
+	f := newFixture(t, e, rs1, rs2, s1)
+	defer f.Close()
+
+	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
+	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
+	expPatchIndex := f.expectPatchExperimentAction(e)
+
+	f.run(getKey(e, t))
+	updatedRs1 := f.getUpdatedReplicaSet(updateRs1Index)
+	assert.NotNil(t, updatedRs1)
+	assert.Equal(t, int32(0), *updatedRs1.Spec.Replicas)
+
+	updatedRs2 := f.getUpdatedReplicaSet(updateRs2Index)
+	assert.NotNil(t, updatedRs2)
+	assert.Equal(t, int32(0), *updatedRs2.Spec.Replicas)
+
+	expPatchObj := f.getPatchedExperimentAsObj(expPatchIndex)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, expPatchObj.Status.Phase)
+}
+
+// TestScaleDownRSAfterFinish verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down and service is deleted because experiment is terminated
+func TestScaleDownRSAfterFinishAndTerminate(t *testing.T) {
+	templates := generateTemplates("bar", "baz")
+	templates[0].Service = &v1alpha1.TemplateService{}
+
+	e := newExperiment("foo", templates, "")
+	rs1 := templateToRS(e, templates[0], 1)
+	rs2 := templateToRS(e, templates[1], 1)
+	s1 := templateToService(e, templates[0], *rs1)
+
+	e.Status.AvailableAt = now()
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
+	}
+	e.Spec.Terminate = true
 	e.Status.TemplateStatuses[0].ServiceName = s1.Name
 	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
 	e.Status.Conditions = append(e.Status.Conditions, *cond)
@@ -196,7 +241,6 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	expPatchObj := f.getPatchedExperimentAsObj(expPatchIndex)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, expPatchObj.Status.Phase)
 }
-
 func TestSetAvailableAt(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "")
