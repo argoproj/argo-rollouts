@@ -17,7 +17,7 @@ on:
         default: false
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.22'
+  GOLANG_VERSION: '1.23'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.4.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
@@ -79,21 +79,21 @@ jobs:
       fail-fast: false
       matrix:
         kubernetes:
-          - version: 1.26
+          - version: '1.28'
             latest: false
-          - version: 1.27
+          - version: '1.29'
             latest: false
-          - version: 1.28
+          - version: '1.30'
             latest: false
-          - version: 1.29
+          - version: '1.31'
             latest: true
     name: Run end-to-end tests
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.4.0
         with:
-          go-version: '1.22'
+          go-version: '1.23'
       - uses: actions/checkout@v4
       - name: Setup k3s
         env:
@@ -165,18 +165,18 @@ jobs:
       - test-e2e
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.4.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
       - uses: actions/checkout@v4
       - name: Get e2e code coverage
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: coverage-output-e2e
           path: coverage-output-e2e
       - name: Get unit test code coverage
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: coverage-output-unit
           path: coverage-output-unit
@@ -184,7 +184,7 @@ jobs:
         run: |
           go tool covdata textfmt -i=coverage-output-unit/,coverage-output-e2e/ -o full-coverage.out
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
+        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
           file: full-coverage.out
           fail_ci_if_error: false

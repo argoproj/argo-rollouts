@@ -1701,6 +1701,11 @@ func (in *Metric) DeepCopyInto(out *Metric) {
 		**out = **in
 	}
 	in.Provider.DeepCopyInto(&out.Provider)
+	if in.ConsecutiveSuccessLimit != nil {
+		in, out := &in.ConsecutiveSuccessLimit, &out.ConsecutiveSuccessLimit
+		*out = new(intstr.IntOrString)
+		**out = **in
+	}
 	return
 }
 

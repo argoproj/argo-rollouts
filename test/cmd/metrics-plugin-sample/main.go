@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
-	"github.com/argoproj/argo-rollouts/test/cmd/metrics-plugin-sample/internal/plugin"
 	goPlugin "github.com/hashicorp/go-plugin"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
+	"github.com/argoproj/argo-rollouts/test/cmd/metrics-plugin-sample/internal/plugin"
 )
 
 // handshakeConfigs are used to just do a basic handshake between

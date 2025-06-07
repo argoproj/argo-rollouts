@@ -14,7 +14,6 @@ spec:
     shortNames:
     - ar
     singular: analysisrun
-  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -95,6 +94,11 @@ spec:
                 items:
                   properties:
                     consecutiveErrorLimit:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      x-kubernetes-int-or-string: true
+                    consecutiveSuccessLimit:
                       anyOf:
                       - type: integer
                       - type: string
@@ -3220,6 +3224,9 @@ spec:
                     consecutiveError:
                       format: int32
                       type: integer
+                    consecutiveSuccess:
+                      format: int32
+                      type: integer
                     count:
                       format: int32
                       type: integer
@@ -3326,7 +3333,6 @@ spec:
     shortNames:
     - at
     singular: analysistemplate
-  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -3403,6 +3409,11 @@ spec:
                 items:
                   properties:
                     consecutiveErrorLimit:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      x-kubernetes-int-or-string: true
+                    consecutiveSuccessLimit:
                       anyOf:
                       - type: integer
                       - type: string
@@ -6512,7 +6523,6 @@ spec:
     shortNames:
     - cat
     singular: clusteranalysistemplate
-  preserveUnknownFields: false
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -6589,6 +6599,11 @@ spec:
                 items:
                   properties:
                     consecutiveErrorLimit:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      x-kubernetes-int-or-string: true
+                    consecutiveSuccessLimit:
                       anyOf:
                       - type: integer
                       - type: string
@@ -9698,7 +9713,6 @@ spec:
     shortNames:
     - exp
     singular: experiment
-  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -12557,7 +12571,6 @@ spec:
     shortNames:
     - ro
     singular: rollout
-  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -12653,6 +12666,9 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: .spec.selector is immutable
+                  rule: self == oldSelf
               strategy:
                 properties:
                   blueGreen:

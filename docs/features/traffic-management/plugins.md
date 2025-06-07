@@ -13,7 +13,7 @@ here: [rollouts-plugin-trafficrouter-sample-nginx](https://github.com/argoproj-l
 ## Installing
 
 There are two methods of installing and using an argo rollouts plugin. The first method is to mount up the plugin executable
-into the rollouts controller container. The second method is to use a HTTP(S) server to host the plugin executable.
+into the rollouts controller container. The second method is to use an HTTP(S) server to host the plugin executable.
 
 ### Mounting the plugin executable into the rollouts controller container
 
@@ -33,11 +33,11 @@ metadata:
   name: argo-rollouts-config
 data:
   trafficRouterPlugins: |-
-    - name: "argoproj-labs/sample-nginx" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
+    - name: "argoproj-labs/sample-nginx" # name of the plugin, it must match the name required by the plugin so it can find its configuration
       location: "file://./my-custom-plugin" # supports http(s):// urls and file://
 ```
 
-### Using a HTTP(S) server to host the plugin executable
+### Using an HTTP(S) server to host the plugin executable
 
 !!! warning "Installing a plugin with http(s)"
 
@@ -52,7 +52,7 @@ data:
     deleted during a server outage, the other pods will still be able to take over because there will already be a plugin executable available to it. It is the
     responsibility of the Argo Rollouts administrator to define the plugin installation method considering the risks of each approach.
 
-Argo Rollouts supports downloading the plugin executable from a HTTP(S) server. To use this method, you will need to
+Argo Rollouts supports downloading the plugin executable from an HTTP(S) server. To use this method, you will need to
 configure the controller via the `argo-rollouts-config` configmap and set `pluginLocation` to a http(s) url. Example:
 
 ```yaml
@@ -62,9 +62,20 @@ metadata:
   name: argo-rollouts-config
 data:
   trafficRouterPlugins: |-
-    - name: "argoproj-labs/sample-nginx" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
+    - name: "argoproj-labs/sample-nginx" # name of the plugin, it must match the name required by the plugin so it can find its configuration
       location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-sample-nginx/releases/download/v0.0.1/metric-plugin-linux-amd64" # supports http(s):// urls and file://
       sha256: "08f588b1c799a37bbe8d0fc74cc1b1492dd70b2c" #optional sha256 checksum of the plugin executable
+      headersFrom: #optional headers for the download via http request 
+        - secretRef:
+            name: secret-name
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-name
+stringData:
+  Authorization: Basic <Base 64 TOKEN>
+  My-Header: value
 ```
 
 ## List of Available Plugins (alphabetical order)

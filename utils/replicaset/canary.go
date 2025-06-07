@@ -640,18 +640,26 @@ func SyncEphemeralPodMetadata(metadata *metav1.ObjectMeta, existingPodMetadata, 
 	if existingPodMetadata != nil {
 		for k := range existingPodMetadata.Annotations {
 			if desiredPodMetadata == nil || !isMetadataStillDesired(k, desiredPodMetadata.Annotations) {
-				if metadata.Annotations != nil {
-					delete(metadata.Annotations, k)
-					modified = true
+				if metadata.Annotations == nil {
+					continue
 				}
+				if _, ok := metadata.Annotations[k]; !ok {
+					continue
+				}
+				delete(metadata.Annotations, k)
+				modified = true
 			}
 		}
 		for k := range existingPodMetadata.Labels {
 			if desiredPodMetadata == nil || !isMetadataStillDesired(k, desiredPodMetadata.Labels) {
-				if metadata.Labels != nil {
-					delete(metadata.Labels, k)
-					modified = true
+				if metadata.Labels == nil {
+					continue
 				}
+				if _, ok := metadata.Labels[k]; !ok {
+					continue
+				}
+				delete(metadata.Labels, k)
+				modified = true
 			}
 		}
 	}

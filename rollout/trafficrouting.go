@@ -6,9 +6,13 @@ import (
 	"strconv"
 	"strings"
 
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
+
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin"
+
+	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -133,6 +137,23 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	return nil, nil
 }
 
+func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWeight int32) bool {
+	if rs == nil {
+		return false
+	}
+	availableReplicas := rs.Status.AvailableReplicas
+	totalReplicas := *c.rollout.Spec.Replicas
+
+	desiredReplicas := (desiredWeight * totalReplicas) / 100
+	if availableReplicas < desiredReplicas {
+		c.log.Infof("ReplicaSet '%s' has %d available replicas, waiting for %d", rs.Name, availableReplicas, desiredReplicas)
+		return false
+	}
+
+	return true
+
+}
+
 // this currently only be used in the canary strategy
 func (c *rolloutContext) reconcileTrafficRouting() error {
 	reconcilers, err := c.newTrafficRoutingReconciler(c)
@@ -243,6 +264,10 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				desiredWeight = weightutil.MaxTrafficWeight(c.rollout)
 			}
 		}
+
+		if !c.checkReplicasAvailable(c.stableRS, weightutil.MaxTrafficWeight(c.rollout)-desiredWeight) {
+			return nil
+		}
 		// We need to check for revision > 1 because when we first install the rollout we run step 0 this prevents that.
 		// There is a bigger fix needed for the reasons on why we run step 0 on rollout install, that needs to be explored.
 		revision, revisionFound := annotations.GetRevisionAnnotation(c.rollout)
@@ -296,6 +321,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				c.log.Infof("Desired weight (stepIdx: %s) %d verified", indexString, desiredWeight)
 			} else {
 				c.log.Infof("Desired weight (stepIdx: %s) %d not yet verified", indexString, desiredWeight)
+				logCtx := logutil.WithRollout(c.rollout)
+				logCtx.Info("rollout enqueue due to trafficrouting")
 				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 				// At the end of the rollout we need to verify the weight is correct, and return an error if not because we don't want the rest of the
 				// reconcile process to continue. We don't need to do this if we are in the middle of the rollout because the rest of the reconcile

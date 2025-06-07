@@ -6,10 +6,11 @@ import (
 	"strings"
 	"time"
 
-	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc"
-	"github.com/argoproj/argo-rollouts/test/cmd/step-plugin-sample/internal/plugin"
 	goPlugin "github.com/hashicorp/go-plugin"
 	log "github.com/sirupsen/logrus"
+
+	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc"
+	"github.com/argoproj/argo-rollouts/test/cmd/step-plugin-sample/internal/plugin"
 )
 
 // handshakeConfigs are used to just do a basic handshake between

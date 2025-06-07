@@ -276,7 +276,7 @@ spec:
         # Pauses indefinitely until manually resumed
         - pause: {}
 
-        # set canary scale to a explicit count without changing traffic weight
+        # set canary scale to an explicit count without changing traffic weight
         # (supported only with trafficRouting)
         - setCanaryScale:
             replicas: 3
@@ -446,6 +446,11 @@ spec:
       # is aborted for canary strategy with traffic routing (not applicable for basic canary).
       # 0 means canary pods are not scaled down. Default is 30 seconds.
       abortScaleDownDelaySeconds: 30
+
+      # Automatically reduce the number of stable pods as the number of canary pods increases
+      # Only available when traffic routing is used. Default value is false meaning that as more canary pods
+      # are created the number of stable pods stays the same. 
+      dynamicStableScale: false
 
 status:
   pauseConditions:

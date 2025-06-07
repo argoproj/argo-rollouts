@@ -13,8 +13,9 @@ import (
 
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 
-	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 	goPlugin "github.com/hashicorp/go-plugin"
+
+	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -238,7 +239,7 @@ func NewAnalysisManager(
 		log.Fatalf("Failed to init config: %v", err)
 	}
 
-	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{})
+	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{}, kubeclientset)
 	if err != nil {
 		log.Fatalf("Failed to download plugins: %v", err)
 	}
@@ -281,6 +282,7 @@ func NewManager(
 	namespaced bool,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	jobInformerFactory kubeinformers.SharedInformerFactory,
+	ephemeralMetadataThreads int,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -345,6 +347,7 @@ func NewManager(
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   metricsServer,
 		Recorder:                        recorder,
+		EphemeralMetadataThreads:        ephemeralMetadataThreads,
 	})
 
 	experimentController := experiments.NewController(experiments.ControllerConfig{
@@ -444,7 +447,7 @@ func NewManager(
 		log.Fatalf("Failed to init config: %v", err)
 	}
 
-	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{})
+	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{}, kubeclientset)
 	if err != nil {
 		log.Fatalf("Failed to download plugins: %v", err)
 	}

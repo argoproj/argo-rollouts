@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"strings"
 
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	"github.com/mitchellh/mapstructure"
 	appsv1 "k8s.io/api/apps/v1"
+
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 
@@ -325,8 +326,13 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 	if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" {
 
 		for _, rs := range r.replicaSets {
-			if *rs.Spec.Replicas > 0 && !replicasetutil.IsReplicaSetAvailable(rs) {
-				return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
+			if *rs.Spec.Replicas > 0 {
+				rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+				// Only check availability for ReplicaSets that will receive traffic
+				if (rsHash == stableHash || rsHash == canaryHash) && rsHash != "" && !replicasetutil.IsReplicaSetAvailable(rs) {
+					r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
+					return nil
+				}
 			}
 		}
 	}
@@ -903,8 +909,13 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 // getHttpRouteIndexesToPatch returns array indices of the httpRoutes which need to be patched when updating weights
 func getHttpRouteIndexesToPatch(routeNames []string, httpRoutes []VirtualServiceHTTPRoute) ([]int, error) {
 	//We have no routes listed in spec.strategy.canary.trafficRouting.istio.virtualService.routes so find index
-	//of the first empty named route
+	//of the first empty named route.
+	// If there is only one HTTPRoute defined in the VirtualService, then we can patch it without a name.
 	if len(routeNames) == 0 {
+		if len(httpRoutes) == 1 {
+			return []int{0}, nil
+		}
+
 		for i, route := range httpRoutes {
 			if route.Name == "" {
 				return []int{i}, nil

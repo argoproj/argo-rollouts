@@ -68,9 +68,14 @@ To enable you need to add a flag to the controller `--self-service-notification-
 
 ## Default Trigger templates
 
-Currently the following triggers have [built-in templates](https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications).
+Currently, the following triggers have [built-in templates](https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications).
 
+* `on-analysis-run-error` when an error occurs during the execution of an analysis run
+* `on-analysis-run-failed` when an analysis run fails
+* `on-analysis-run-running` when an analysis run is running
+* `on-rollout-aborted` when a rollout process is aborted before completion.
 * `on-rollout-completed` when a rollout is finished and all its steps are completed
+* `on-rollout-paused` when a rollout is paused
 * `on-rollout-step-completed` when an individual step inside a rollout definition is completed
 * `on-rollout-updated` when a rollout definition is changed
 * `on-scaling-replica-set` when the number of replicas in a rollout is changed
@@ -141,8 +146,8 @@ add blocks and attachments for Slack, subject for Email or URL path, and body fo
 In addition to custom notification template administrator and configure custom triggers. Custom trigger defines the
 condition when the notification should be sent. The definition includes name, condition and notification templates reference.
 The condition is a predicate expression that returns true if the notification should be sent. The trigger condition
-evaluation is powered by [antonmedv/expr](https://github.com/antonmedv/expr).
-The condition language syntax is described at [Language-Definition.md](https://github.com/antonmedv/expr/blob/master/docs/Language-Definition.md).
+evaluation is powered by [expr-lang/expr](https://github.com/expr-lang/expr).
+The condition language syntax is described at [Language-Definition.md](https://github.com/expr-lang/expr/blob/master/docs/language-definition.md).
 
 The trigger is configured in `argo-rollouts-notification-configmap` ConfigMap. For example the following trigger sends a notification
 when rollout pod spec uses `argoproj/rollouts-demo:purple` image:

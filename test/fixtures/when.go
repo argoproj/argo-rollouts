@@ -278,6 +278,14 @@ func (w *When) WaitForRolloutStatus(status string, timeout ...time.Duration) *Wh
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), timeout...)
 }
 
+func (w *When) WaitForRolloutMessage(message string, timeout ...time.Duration) *When {
+	checkStatus := func(ro *rov1.Rollout) bool {
+		_, m := rolloututil.GetRolloutPhase(ro)
+		return m == message
+	}
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("message=%s", message), timeout...)
+}
+
 func (w *When) MarkPodsReady(revision string, count int, timeouts ...time.Duration) *When {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -465,6 +473,45 @@ func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, conditi
 			}
 		case <-timeoutCh:
 			w.t.Fatalf("timeout after %v waiting for condition %s", timeout, condition)
+		}
+	}
+}
+
+// WaitForRolloutConditionToNotExist this function will check for the condition to exist for the given duration, if it is found
+// the test fails.
+func (w *When) WaitForRolloutConditionToNotExist(test func(ro *rov1.Rollout) bool, condition string, timeout time.Duration) *When {
+	start := time.Now()
+	w.log.Infof("Waiting for condition to not exist: %s", condition)
+	rolloutIf := w.dynamicClient.Resource(rov1.RolloutGVR).Namespace(w.namespace)
+	ro, err := rolloutIf.Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	retryWatcher, err := watchutil.NewRetryWatcher(ro.GetResourceVersion(), &cache.ListWatch{
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", w.rollout.GetName())).String()}
+			return w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Watch(w.Context, opts)
+		},
+	})
+	w.CheckError(err)
+	defer retryWatcher.Stop()
+	timeoutCh := make(chan bool, 1)
+	go func() {
+		time.Sleep(timeout)
+		timeoutCh <- true
+	}()
+	for {
+		select {
+		case event := <-retryWatcher.ResultChan():
+			ro, ok := event.Object.(*rov1.Rollout)
+			if ok {
+				if test(ro) {
+					//w.PrintRollout(ro)
+					w.log.Infof("Condition '%s' met after %v", condition, time.Since(start).Truncate(time.Second))
+					w.t.Fatal("not ok")
+				}
+			}
+		case <-timeoutCh:
+			w.t.Logf("Condition %s not found after %v", condition, timeout)
+			return w
 		}
 	}
 }

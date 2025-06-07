@@ -90,7 +90,7 @@ match the traffic weight. Some use cases for this:
 
     Setting canary scale is only available when using the canary strategy with a traffic router, since the basic canary needs to control canary scale in order to approximate canary weight.
 
-To control canary scales and weights during steps, use the `setCanaryScale` step and indicate which scale the
+To control canary scales and weights during steps, use the `setCanaryScale` step and indicate which scale
 the canary should use:
 
 - explicit replica count without changing traffic weight (`replicas`)
@@ -196,13 +196,13 @@ spec:
 
 ### analysis
 
-Configure the background [Analysis](analysis.md) to execute during the rollout. If the analysis is unsuccessful the rollout will be aborted.
+Configure the background [Analysis](../analysis.md) to execute during the rollout. If the analysis is unsuccessful the rollout will be aborted.
 
 Defaults to nil
 
 ### antiAffinity
 
-Check out the [Anti Affinity document](anti-affinity/anti-affinity.md) document for more information.
+Check out the [Anti Affinity](../anti-affinity/anti-affinity.md) document for more information.
 
 Defaults to nil
 
@@ -232,6 +232,6 @@ Defaults to 25%
 
 ### trafficRouting
 
-The [traffic management](traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.
+The [traffic management](../traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.
 
 Defaults to nil

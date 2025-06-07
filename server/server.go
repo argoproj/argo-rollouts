@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/errors"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
@@ -39,6 +38,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	"github.com/argoproj/argo-rollouts/utils/errors"
 	"github.com/argoproj/argo-rollouts/utils/json"
 	versionutils "github.com/argoproj/argo-rollouts/utils/version"
 )
@@ -179,7 +179,10 @@ func (s *ArgoRolloutsServer) initRolloutViewController(namespace string, name st
 }
 
 func (s *ArgoRolloutsServer) getRolloutInfo(namespace string, name string) (*rollout.RolloutInfo, error) {
-	controller := s.initRolloutViewController(namespace, name, context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	controller := s.initRolloutViewController(namespace, name, ctx)
 	ri, err := controller.GetRolloutInfo()
 	if err != nil {
 		return nil, err
