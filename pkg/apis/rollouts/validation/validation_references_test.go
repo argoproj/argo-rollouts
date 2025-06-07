@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -674,8 +674,8 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 	t.Run("failure - duplicate metrics", func(t *testing.T) {
 		rollout := getAlbRollout("alb-ingress")
 		templates := getAnalysisTemplatesWithType()
-		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "metric1-name", Value: pointer.StringPtr("true")})
-		templates.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
+		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "metric1-name", Value: ptr.To[string]("true")})
+		templates.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: ptr.To[string]("true")}
 		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
 		assert.Empty(t, allErrs)
 	})
@@ -741,7 +741,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
 				Name:  "service-name",
-				Value: pointer.StringPtr("service-name"),
+				Value: ptr.To[string]("service-name"),
 			},
 		}
 		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
@@ -800,7 +800,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		templates.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
 				Name:  "service-name",
-				Value: pointer.StringPtr("service-name"),
+				Value: ptr.To[string]("service-name"),
 			},
 		}
 		rollout.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
@@ -1573,7 +1573,7 @@ func TestValidateAnalysisMetrics(t *testing.T) {
 	})
 
 	t.Run("Error: arg has both Value and ValueFrom", func(t *testing.T) {
-		args[2].Value = pointer.StringPtr("secret-value")
+		args[2].Value = ptr.To[string]("secret-value")
 		_, err := validateAnalysisMetrics(metrics, args)
 		assert.NotNil(t, err)
 		assert.Equal(t, "arg 'secret' has both Value and ValueFrom fields", err.Error())

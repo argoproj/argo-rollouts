@@ -6,7 +6,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -32,9 +32,19 @@ func (c *rolloutContext) rolloutCanary() error {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err)
 	}
 
-	err = c.podRestarter.Reconcile(c)
+	restarted, err := c.podRestarter.Reconcile(c)
 	if err != nil {
 		return err
+	}
+	if restarted > 0 {
+		// If we restarted any pods, we can no longer trust the current availability counts of our
+		// ReplicaSets, since those counts do not factor in the unavailability of pods we just
+		// restarted. We would cause downtime if we continue the reconciliation and *also* scale
+		// down a ReplicaSet (e.g. because of a canary update scaling). Therefore, we return early,
+		// so that the *next* reconciliation will have an accurate availability count to calculate
+		// the safe number of pods to scale down for the update.
+		c.log.Infof("Finished reconciliation due to %d restarted pods", restarted)
+		return nil
 	}
 
 	err = c.reconcileEphemeralMetadata()
@@ -419,7 +429,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 			if newStatus.StableRS == newStatus.CurrentPodHash {
 				newStatus.CurrentStepIndex = &stepCount
 			} else {
-				newStatus.CurrentStepIndex = pointer.Int32Ptr(0)
+				newStatus.CurrentStepIndex = ptr.To[int32](0)
 			}
 		}
 		newStatus = c.calculateRolloutConditions(newStatus)

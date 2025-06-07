@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -145,7 +145,7 @@ func getResolvedMetricsWithoutSecrets(metrics []v1alpha1.Metric, args []v1alpha1
 		newArg := arg.DeepCopy()
 		if newArg.ValueFrom != nil && newArg.ValueFrom.SecretKeyRef != nil {
 			newArg.ValueFrom = nil
-			newArg.Value = pointer.StringPtr("temp-for-secret")
+			newArg.Value = ptr.To[string]("temp-for-secret")
 		}
 		newArgs = append(newArgs, *newArg)
 	}
