@@ -196,13 +196,13 @@ spec:
 
 ### analysis
 
-Configure the background [Analysis](analysis.md) to execute during the rollout. If the analysis is unsuccessful the rollout will be aborted.
+Configure the background [Analysis](../analysis.md) to execute during the rollout. If the analysis is unsuccessful the rollout will be aborted.
 
 Defaults to nil
 
 ### antiAffinity
 
-Check out the [Anti Affinity](anti-affinity/anti-affinity.md) document for more information.
+Check out the [Anti Affinity](../anti-affinity/anti-affinity.md) document for more information.
 
 Defaults to nil
 

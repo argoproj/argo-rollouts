@@ -1,4 +1,25 @@
 
+<a name="v1.8.3"></a>
+## [v1.8.3](https://github.com/argoproj/argo-rollouts/compare/v1.8.2...v1.8.3) (2025-05-31)
+
+### Chore
+
+* **deps:** bump github.com/golang-jwt/jwt to 4.5.2 ([#4235](https://github.com/argoproj/argo-rollouts/issues/4235)) ([#4236](https://github.com/argoproj/argo-rollouts/issues/4236))
+* **deps:** bump golang.org/x/oauth2 from 0.24.0 to 0.29.0 to fix CVE-2025-22868 ([#4225](https://github.com/argoproj/argo-rollouts/issues/4225))
+
+### Docs
+
+* explain skew policy between the kubectl plugin and the controller ([#4300](https://github.com/argoproj/argo-rollouts/issues/4300))
+* blue green w/ ALB not supported without downtime ([#4259](https://github.com/argoproj/argo-rollouts/issues/4259))
+
+### Fix
+
+* abort scenario where canary/stable service is not provided ([#4299](https://github.com/argoproj/argo-rollouts/issues/4299))
+* restarts during updates could cause downtime ([#4221](https://github.com/argoproj/argo-rollouts/issues/4221))
+* **experiments:** fire rollout event on experiment step ([#4124](https://github.com/argoproj/argo-rollouts/issues/4124))
+* **trafficrouting:** patch VirtualService when there is only one named route ([#4055](https://github.com/argoproj/argo-rollouts/issues/4055))
+
+
 <a name="v1.8.2"></a>
 ## [v1.8.2](https://github.com/argoproj/argo-rollouts/compare/v1.8.1...v1.8.2) (2025-03-21)
 
