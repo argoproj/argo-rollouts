@@ -3440,12 +3440,12 @@ spec:
 
 	obj := unstructuredutil.StrToUnstructuredUnsafe(vsvcWithRoutes)
 	client := testutil.NewFakeDynamicClient(obj)
-	
+
 	// First verify the VirtualService exists in the client
 	vsvcCheck, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), "vsvc", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, vsvcCheck)
-	
+
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
 	client.ClearActions()
@@ -3558,6 +3558,6 @@ func TestRemoveManagedRoutesMultipleVirtualServicesWithOneNotFound(t *testing.T)
 			updateCount++
 		}
 	}
-	assert.Equal(t, 3, getCount) // Attempts to get all three
+	assert.Equal(t, 3, getCount)          // Attempts to get all three
 	assert.LessOrEqual(t, updateCount, 2) // Updates only the existing ones if needed
 }
