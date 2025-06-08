@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,17 +68,36 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 }
 
 func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1.AnalysisRun, error) {
-
-	if run.ShouldCancel() || shouldSkip(run.ARType(), c.rollout, c.newRS) {
-		return nil, c.cancelAnalysisRun(run.AnalysisRun())
+	step, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	specAnalysis := func(run CurrentAnalysisRun) *v1alpha1.RolloutAnalysis {
+		switch run.ARType() {
+		case v1alpha1.RolloutTypeBackgroundRunLabel:
+			return &c.rollout.Spec.Strategy.Canary.Analysis.RolloutAnalysis
+		case v1alpha1.RolloutTypeStepLabel:
+			return step.Analysis
+		case v1alpha1.RolloutTypePrePromotionLabel:
+			return c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis
+		case v1alpha1.RolloutTypePostPromotionLabel:
+			return c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis
+		}
+		return nil
 	}
-	if run.ShouldReturnCur() {
+	fmt.Println("reconcileAnalysisRun", run)
+	// need to provide a sshouldcanceel option to cancel the analysis run
+	if run.ShouldCancel(WithBackgroundAnalysis(c.rollout.Spec.Strategy.Canary), WithStep(step), WithStepIndex(index)) || shouldSkip(run.ARType(), c.rollout, c.newRS) {
+		fmt.Println("run.ShouldCancel()")
+		return nil, c.cancelCurrentAnalysisRun(run)
+	}
+	if run.ShouldReturnCur(WithAbort(c.rollout.Status.Abort), WithConditions(c.rollout.Status.PauseConditions)) {
+		fmt.Println("ShouldReturnCur()")
 		return run.AnalysisRun(), nil
 	}
 	if run.NeedsNew(c.rollout.Status.ControllerPause, c.rollout.Status.PauseConditions, c.rollout.Status.AbortedAt) {
+		fmt.Println("NeedsNew()")
+		fmt.Println("type", run.ARType())
 		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
 		instanceID := analysisutil.GetInstanceID(c.rollout)
-		return c.createAnalysisRun(run.RolloutAnalysis(), run.Infix(), run.Labels(podHash, instanceID))
+		return c.createAnalysisRun(specAnalysis(run), run.Infix(InfixWithIndex(index)), run.Labels(podHash, instanceID, WithStepIndexLabel(index)))
 	}
 	return run.AnalysisRun(), nil
 }
@@ -93,8 +111,10 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 		if err != nil {
 			return err
 		}
-		c.setPauseOrAbort(run.AnalysisRun())
-		c.analysisContext.UpdateCurrentAnalysisRuns(currentRun, run.ARType())
+		if run.IsPresent() {
+			c.setPauseOrAbort(run.AnalysisRun())
+			c.analysisContext.UpdateCurrentAnalysisRuns(currentRun, run.ARType())
+		}
 	}
 
 	c.SetCurrentAnalysisRuns()
@@ -130,7 +150,18 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 		return err
 	}
 
-	c.reconcileAnalysisRunStatusChanges(c.analysisContext.CurrentAnalysisRuns)
+	// emits a Kubernetes event if the analysis run of that type has changed status
+	for _, event := range c.analysisContext.reconcileAnalysisRunStatusChanges(
+		map[string]*v1alpha1.RolloutAnalysisRunStatus{
+			v1alpha1.RolloutTypeBackgroundRunLabel: c.rollout.Status.Canary.CurrentBackgroundAnalysisRunStatus,
+			v1alpha1.RolloutTypeStepLabel:          c.rollout.Status.Canary.CurrentStepAnalysisRunStatus,
+			v1alpha1.RolloutTypePostPromotionLabel: c.rollout.Status.BlueGreen.PostPromotionAnalysisRunStatus,
+			v1alpha1.RolloutTypePrePromotionLabel:  c.rollout.Status.BlueGreen.PrePromotionAnalysisRunStatus,
+		},
+	) {
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventType: event.EventType, EventReason: event.EventReason}, event.msg)
+	}
+
 	return nil
 }
 
@@ -162,82 +193,11 @@ func (c *rolloutContext) setPauseOrAbort(ar *v1alpha1.AnalysisRun) {
 	}
 }
 
-func needsNewAnalysisRun(currentAr *v1alpha1.AnalysisRun, rollout *v1alpha1.Rollout) bool {
-	if currentAr == nil {
-		return true
-	}
-
-	// Here the controller is checking that rollout has already paused for a inconclusive analysis run. If it has paused
-	// for the inconclusive analysisrun, the controller needs to create a new AnalysisRun. Otherwise, the controller has
-	// not processed the inconclusive run yet (and needs to add a pause). It checks this by seeing if the controllerPause
-	// is set and then seeing if the last status was inconclusive.
-	// There is an additional check for the BlueGreen Pause because the prepromotion analysis always has the BlueGreen
-	// Pause and that causes controllerPause to be set. The extra check for the BlueGreen Pause ensures that a new Analysis
-	// Run is created only when the previous AnalysisRun is inconclusive.
-	// Additional check for the Canary Pause prevents Canary promotion when AnalysisRun is inconclusive and reached
-	// inconclusiveLimit. Otherwise, another AnalysisRun will be spawned and can cause Success status,
-	// because of termination when the AnalysisRun is still in-flight.
-	if rollout.Status.ControllerPause &&
-		getPauseCondition(rollout, v1alpha1.PauseReasonCanaryPauseStep) == nil &&
-		getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause) == nil {
-
-		return currentAr.Status.Phase == v1alpha1.AnalysisPhaseInconclusive
-	}
-	return rollout.Status.AbortedAt != nil
-}
-
 func validPause(controllerPause bool, pauseConditions []v1alpha1.PauseCondition) bool {
 	return controllerPause &&
 		!pauseConditionsInclude(pauseConditions, v1alpha1.PauseReasonCanaryPauseStep) &&
 		!pauseConditionsInclude(pauseConditions, v1alpha1.PauseReasonBlueGreenPause)
 
-}
-
-// emitAnalysisRunStatusChanges emits a Kubernetes event if the analysis run of that type has changed status
-func (c *rolloutContext) emitAnalysisRunStatusChanges(prevStatus *v1alpha1.RolloutAnalysisRunStatus, ar *v1alpha1.AnalysisRun, arType string) {
-	if ar != nil && ar.Status.Phase != "" {
-		if prevStatus == nil || prevStatus.Name == ar.Name && prevStatus.Status != ar.Status.Phase {
-			prevStatusStr := "NoPreviousStatus"
-			if prevStatus != nil {
-				prevStatusStr = string(prevStatus.Status)
-			}
-
-			eventType := corev1.EventTypeNormal
-			if ar.Status.Phase == v1alpha1.AnalysisPhaseFailed || ar.Status.Phase == v1alpha1.AnalysisPhaseError {
-				eventType = corev1.EventTypeWarning
-			}
-			msg := fmt.Sprintf("%s Analysis Run '%s' Status New: '%s' Previous: '%s'", arType, ar.Name, ar.Status.Phase, prevStatusStr)
-			c.recorder.Eventf(c.rollout, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(ar.Status.Phase)}, msg)
-		}
-	}
-}
-
-// reconcileAnalysisRunStatusChanges for each analysisRun type, the controller checks if the analysis run status has changed
-// for that type
-func (c *rolloutContext) reconcileAnalysisRunStatusChanges(currARs CurrentAnalysisRuns) {
-	c.emitAnalysisRunStatusChanges(
-		c.rollout.Status.BlueGreen.PostPromotionAnalysisRunStatus,
-		currARs.CurrentBlueGreenPostPromotion.Run,
-		v1alpha1.RolloutTypePostPromotionLabel,
-	)
-
-	c.emitAnalysisRunStatusChanges(
-		c.rollout.Status.BlueGreen.PrePromotionAnalysisRunStatus,
-		currARs.CurrentBlueGreenPrePromotion.Run,
-		v1alpha1.RolloutTypePrePromotionLabel,
-	)
-
-	c.emitAnalysisRunStatusChanges(
-		c.rollout.Status.Canary.CurrentStepAnalysisRunStatus,
-		currARs.CurrentCanaryStep.Run,
-		v1alpha1.RolloutTypeStepLabel,
-	)
-
-	c.emitAnalysisRunStatusChanges(
-		c.rollout.Status.Canary.CurrentBackgroundAnalysisRunStatus,
-		currARs.CurrentCanaryBackground.Run,
-		v1alpha1.RolloutTypeBackgroundRunLabel,
-	)
 }
 
 // skipPrePromotionAnalysisRun checks if the controller should skip creating a pre promotion
@@ -282,6 +242,9 @@ func skipPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.Repli
 }
 
 func (c *rolloutContext) createAnalysisRun(rolloutAnalysis *v1alpha1.RolloutAnalysis, infix string, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+	fmt.Println("createAnalysisRun")
+	fmt.Println("rolloutAnalysis", rolloutAnalysis, "infix", infix, "labels", labels)
+
 	args, err := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, c.stableRS, c.newRS, c.rollout)
 	if err != nil {
 		return nil, err
@@ -299,11 +262,28 @@ func (c *rolloutContext) createAnalysisRun(rolloutAnalysis *v1alpha1.RolloutAnal
 	return analysisutil.CreateWithCollisionCounter(c.log, analysisRunIf, *ar)
 }
 
+func (c *rolloutContext) cancelCurrentAnalysisRun(ar CurrentAnalysisRun) error {
+	ctx := context.TODO()
+	if ar == nil {
+		return nil
+	}
+	run := ar.AnalysisRun()
+
+	if run != nil && !run.Spec.Terminate && !run.Status.Phase.Completed() {
+		c.log.WithField(logutil.AnalysisRunKey, run.Name).Infof("Canceling the analysis run '%s'", run.Name)
+		_, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(run.Namespace).Patch(ctx, run.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun), metav1.PatchOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *rolloutContext) cancelAnalysisRun(ar *v1alpha1.AnalysisRun) error {
 	ctx := context.TODO()
-	isNotCompleted := ar == nil || !ar.Status.Phase.Completed()
-	if ar != nil && !ar.Spec.Terminate && isNotCompleted {
-		c.log.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis run '%s'", ar.Name)
+
+	if ar != nil && !ar.Spec.Terminate && !ar.Status.Phase.Completed() {
+		c.log.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis ar '%s'", ar.Name)
 		_, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Patch(ctx, ar.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun), metav1.PatchOptions{})
 		if err != nil {
 			return err
@@ -315,8 +295,7 @@ func (c *rolloutContext) cancelAnalysisRun(ar *v1alpha1.AnalysisRun) error {
 func (c *rolloutContext) cancelAnalysisRuns() error {
 	ctx := context.TODO()
 	for _, ar := range c.analysisContext.AllAnalysisRuns() {
-		isNotCompleted := ar == nil || !ar.Status.Phase.Completed()
-		if ar != nil && !ar.Spec.Terminate && isNotCompleted {
+		if ar != nil && !ar.Spec.Terminate && !ar.Status.Phase.Completed() {
 			c.log.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis run '%s'", ar.Name)
 			_, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Patch(ctx, ar.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun), metav1.PatchOptions{})
 			if err != nil {
