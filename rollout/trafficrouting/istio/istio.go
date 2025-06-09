@@ -1523,10 +1523,15 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
 		istioVirtualService, err := r.getVirtualService(namespace, vsvcName, client, ctx)
 		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				// VirtualService doesn't exist, nothing to remove
+				r.log.Debugf("VirtualService %s not found, skipping managed routes removal", vsvcName)
+				continue
+			}
 			return fmt.Errorf("[RemoveManagedRoutes] failed to get virtual service: %w", err)
 		}
 
-		httpRouteI, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
+		_, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
 		if err != nil {
 			return fmt.Errorf("[RemoveManagedRoutes] failed to get http routes from virtual service: %w", err)
 		}
@@ -1537,39 +1542,78 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 			return nil
 		}
 
+		// First, remove any header/mirror routes created by SetHeaderRoute/SetMirrorRoute steps
+		modified := false
+		if r.rollout.Spec.Strategy.Canary != nil && len(r.rollout.Spec.Strategy.Canary.Steps) > 0 {
+			for _, step := range r.rollout.Spec.Strategy.Canary.Steps {
+				if step.SetHeaderRoute != nil {
+					err := removeRoute(istioVirtualService, step.SetHeaderRoute.Name)
+					if err != nil {
+						log.Warnf("[RemoveManagedRoutes] failed to remove header route '%s': %v", step.SetHeaderRoute.Name, err)
+					} else {
+						modified = true
+						r.log.Infof("Removed header route '%s' from VirtualService", step.SetHeaderRoute.Name)
+					}
+				}
+				if step.SetMirrorRoute != nil {
+					err := removeRoute(istioVirtualService, step.SetMirrorRoute.Name)
+					if err != nil {
+						log.Warnf("[RemoveManagedRoutes] failed to remove mirror route '%s': %v", step.SetMirrorRoute.Name, err)
+					} else {
+						modified = true
+						r.log.Infof("Removed mirror route '%s' from VirtualService", step.SetMirrorRoute.Name)
+					}
+				}
+			}
+		}
+
+		// Then remove managed routes
 		managedRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes
-		if len(managedRoutes) == 0 {
-			return nil
-		}
-		httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes, err := splitManagedRoutesAndNonManagedRoutes(managedRoutes, httpRouteI)
-		if err != nil {
-			return fmt.Errorf("[RemoveManagedRoutes] failed to split managaed and non-managed routes: %w", err)
-		}
-
-		if len(httpRoutesWithinManagedRoutes) == 0 {
-			//no routes to remove
+		if len(managedRoutes) == 0 && !modified {
 			return nil
 		}
 
-		jsonNonManagedRoutes, err := json.Marshal(httpRoutesNotWithinManagedRoutes)
-		if err != nil {
-			return fmt.Errorf("[RemoveManagedRoutes] failed to marshal non-managed routes: %w", err)
-		}
-		var nonManagedRoutesI []any
-		if err := json.Unmarshal(jsonNonManagedRoutes, &nonManagedRoutesI); err != nil {
-			return fmt.Errorf("[RemoveManagedRoutes] failed to split managaed and non-managed routes: %w", err)
+		if len(managedRoutes) > 0 {
+			// Refresh httpRouteI after potential header route removals
+			httpRouteI, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
+			if err != nil {
+				return fmt.Errorf("[RemoveManagedRoutes] failed to get http routes from virtual service: %w", err)
+			}
+			if !found {
+				log.Debugf("[RemoveManagedRoutes] %s: not removing any routes", SpecHttpNotFound)
+				return nil
+			}
+
+			httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes, err := splitManagedRoutesAndNonManagedRoutes(managedRoutes, httpRouteI)
+			if err != nil {
+				return fmt.Errorf("[RemoveManagedRoutes] failed to split managaed and non-managed routes: %w", err)
+			}
+
+			if len(httpRoutesWithinManagedRoutes) > 0 {
+				jsonNonManagedRoutes, err := json.Marshal(httpRoutesNotWithinManagedRoutes)
+				if err != nil {
+					return fmt.Errorf("[RemoveManagedRoutes] failed to marshal non-managed routes: %w", err)
+				}
+				var nonManagedRoutesI []any
+				if err := json.Unmarshal(jsonNonManagedRoutes, &nonManagedRoutesI); err != nil {
+					return fmt.Errorf("[RemoveManagedRoutes] failed to split managaed and non-managed routes: %w", err)
+				}
+
+				if err := unstructured.SetNestedSlice(istioVirtualService.Object, nonManagedRoutesI, "spec", Http); err != nil {
+					return fmt.Errorf("[RemoveManagedRoutes] failed to set nested slice on virtual service to remove managed routes: %w", err)
+				}
+				modified = true
+			}
 		}
 
-		if err := unstructured.SetNestedSlice(istioVirtualService.Object, nonManagedRoutesI, "spec", Http); err != nil {
-			return fmt.Errorf("[RemoveManagedRoutes] failed to set nested slice on virtual service to remove managed routes: %w", err)
-		}
-
-		_, err = client.Update(ctx, istioVirtualService, metav1.UpdateOptions{})
-		if err == nil {
-			r.log.Debugf("Updated VirtualService: %s", istioVirtualService)
-			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` removed all managed routes.", vsvcName)
-		} else {
-			return fmt.Errorf("[RemoveManagedRoutes] failed to update kubernetes virtual service: %w", err)
+		if modified {
+			_, err = client.Update(ctx, istioVirtualService, metav1.UpdateOptions{})
+			if err == nil {
+				r.log.Debugf("Updated VirtualService: %s", istioVirtualService)
+				r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` removed all managed routes.", vsvcName)
+			} else {
+				return fmt.Errorf("[RemoveManagedRoutes] failed to update kubernetes virtual service: %w", err)
+			}
 		}
 	}
 	return nil
