@@ -997,7 +997,8 @@ type CanaryStatus struct {
 	CurrentBackgroundAnalysisRunStatus *RolloutAnalysisRunStatus `json:"currentBackgroundAnalysisRunStatus,omitempty" protobuf:"bytes,2,opt,name=currentBackgroundAnalysisRunStatus"`
 	// CurrentExperiment indicates the running experiment
 	CurrentExperiment string `json:"currentExperiment,omitempty" protobuf:"bytes,3,opt,name=currentExperiment"`
-	// Weights records the weights which have been set on traffic provider. Only valid when using traffic routing
+	// Weights records the weights which have been set for the canary and stable ReplicaSets.
+	// This field is now always set for canary rollouts, regardless of whether traffic routing is enabled.
 	Weights *TrafficWeights `json:"weights,omitempty" protobuf:"bytes,4,opt,name=weights"`
 	// StablePingPong For the ping-pong feature holds the current stable service, ping or pong
 	StablePingPong PingPongType `json:"stablePingPong,omitempty" protobuf:"bytes,5,opt,name=stablePingPong"`
