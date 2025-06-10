@@ -19,6 +19,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 const (
@@ -72,22 +73,40 @@ func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1
 	specAnalysis := func(run CurrentAnalysisRun) *v1alpha1.RolloutAnalysis {
 		switch run.ARType() {
 		case v1alpha1.RolloutTypeBackgroundRunLabel:
+			if c.rollout.Spec.Strategy.Canary == nil || c.rollout.Spec.Strategy.Canary.Analysis == nil {
+				return nil
+			}
 			return &c.rollout.Spec.Strategy.Canary.Analysis.RolloutAnalysis
 		case v1alpha1.RolloutTypeStepLabel:
+			if c.rollout.Spec.Strategy.Canary == nil || step == nil {
+				return nil
+			}
 			return step.Analysis
 		case v1alpha1.RolloutTypePrePromotionLabel:
+			if c.rollout.Spec.Strategy.BlueGreen == nil {
+				return nil
+			}
 			return c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis
 		case v1alpha1.RolloutTypePostPromotionLabel:
+			if c.rollout.Spec.Strategy.BlueGreen == nil {
+				return nil
+			}
 			return c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis
 		}
 		return nil
 	}
-	if run.ShouldCancel(WithBackgroundAnalysis(c.rollout.Spec.Strategy.Canary), WithStep(step), WithStepIndex(index), WithShouldSkip(shouldSkip(run.ARType(), c.rollout, c.newRS))) {
+	if run.ShouldCancel(WithAnalysis(specAnalysis(run)), WithBackgroundAnalysis(&c.rollout.Spec.Strategy), WithStep(step), WithStepIndex(index), WithShouldSkip(shouldSkip(run.ARType(), c.rollout, c.newRS))) {
 		return nil, c.cancelCurrentAnalysisRun(run)
 	}
+
+	if run.OutsideAnalysisBoundaries(WithIsFullyPromoted(rolloututil.IsFullyPromoted(c.rollout)), WithIsBeforeStartingStep(replicasetutil.BeforeStartingStep(c.rollout)), WithIsJustCreated(rolloututil.IsJustCreated(c.rollout))) {
+		return nil, nil
+	}
+
 	if run.ShouldReturnCur(WithAbort(c.rollout.Status.Abort), WithConditions(c.rollout.Status.PauseConditions)) {
 		return run.AnalysisRun(), nil
 	}
+
 	if run.NeedsNew(c.rollout.Status.ControllerPause, c.rollout.Status.PauseConditions, c.rollout.Status.AbortedAt) {
 		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
 		instanceID := analysisutil.GetInstanceID(c.rollout)
@@ -95,6 +114,7 @@ func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1
 		run.UpdateRun(newRun)
 		return newRun, err
 	}
+
 	return run.AnalysisRun(), nil
 }
 

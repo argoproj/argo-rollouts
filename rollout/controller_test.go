@@ -493,7 +493,6 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 	}
 	newBytes, err := strategicpatch.StrategicMergePatch(origBytes, []byte(patch), v1alpha1.Rollout{})
 	if err != nil {
-		fmt.Println(patch)
 		panic(err)
 	}
 	newRO := &v1alpha1.Rollout{}

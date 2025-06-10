@@ -29,6 +29,7 @@ type CurrentAnalysisRun interface {
 	Labels(podHash, instanceID string, options ...LabelsOption) map[string]string
 	IsPresent() bool
 	UpdateRun(run *v1alpha1.AnalysisRun)
+	OutsideAnalysisBoundaries(options ...OutsideAnalysisBoundariesOption) bool
 }
 
 type AnalysisRunEvent struct {
@@ -40,6 +41,7 @@ type AnalysisRunEvent struct {
 type cancelOpts struct {
 	step               *v1alpha1.CanaryStep
 	stepIndex          *int32
+	analysis           *v1alpha1.RolloutAnalysis
 	backgroundAnalysis *v1alpha1.RolloutAnalysisBackground
 	shouldSkip         bool
 }
@@ -52,13 +54,23 @@ func WithShouldSkip(shouldSkip bool) CancelOption {
 	}
 }
 
-func WithBackgroundAnalysis(canaryStrat *v1alpha1.CanaryStrategy) CancelOption {
-	var analysis *v1alpha1.RolloutAnalysisBackground
-	if canaryStrat != nil {
-		analysis = canaryStrat.Analysis
+func WithBackgroundAnalysis(strategy *v1alpha1.RolloutStrategy) CancelOption {
+	if strategy == nil || strategy.Canary == nil || strategy.Canary.Analysis == nil {
+		return func(opts *cancelOpts) {}
 	}
 	return func(opts *cancelOpts) {
-		opts.backgroundAnalysis = analysis
+		opts.backgroundAnalysis = strategy.Canary.Analysis
+	}
+}
+
+// // Do not create a background run if the rollout is completely rolled out, just created, before the starting step
+// 	if rolloututil.IsFullyPromoted(c.rollout) || c.rollout.Status.StableRS == "" || c.rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(c.rollout) {
+// 		return nil, nil
+// 	}
+
+func WithAnalysis(analysis *v1alpha1.RolloutAnalysis) CancelOption {
+	return func(opts *cancelOpts) {
+		opts.analysis = analysis
 	}
 }
 
@@ -121,6 +133,32 @@ type InfixOption func(*InfixOpts)
 func InfixWithIndex(index *int32) InfixOption {
 	return func(opts *InfixOpts) {
 		opts.index = index
+	}
+}
+
+type OutsideAnalysisBoundariesOpts struct {
+	isFullyPromoted      bool
+	isJustCreated        bool
+	isBeforeStartingStep bool
+}
+
+type OutsideAnalysisBoundariesOption func(*OutsideAnalysisBoundariesOpts)
+
+func WithIsFullyPromoted(isFullyPromoted bool) OutsideAnalysisBoundariesOption {
+	return func(opts *OutsideAnalysisBoundariesOpts) {
+		opts.isFullyPromoted = isFullyPromoted
+	}
+}
+
+func WithIsJustCreated(isJustCreated bool) OutsideAnalysisBoundariesOption {
+	return func(opts *OutsideAnalysisBoundariesOpts) {
+		opts.isJustCreated = isJustCreated
+	}
+}
+
+func WithIsBeforeStartingStep(isBeforeStartingStep bool) OutsideAnalysisBoundariesOption {
+	return func(opts *OutsideAnalysisBoundariesOpts) {
+		opts.isBeforeStartingStep = isBeforeStartingStep
 	}
 }
 

@@ -20,6 +20,10 @@ func IsFullyPromoted(ro *v1alpha1.Rollout) bool {
 	return ro.Status.StableRS == ro.Status.CurrentPodHash
 }
 
+func IsJustCreated(ro *v1alpha1.Rollout) bool {
+	return ro.Status.StableRS == "" || ro.Status.CurrentPodHash == ""
+}
+
 // GetRolloutPhase returns a status and message for a rollout. Takes into consideration whether
 // or not metadata.generation was observed in status.observedGeneration
 // use this instead of CalculateRolloutPhase

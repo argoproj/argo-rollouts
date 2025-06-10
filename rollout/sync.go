@@ -443,7 +443,11 @@ func (c *rolloutContext) reconcileRevisionHistoryLimit(oldRSs []*appsv1.ReplicaS
 	c.log.Infof("Cleaning up %d old replicasets from revision history limit %d", len(cleanableRSes), revHistoryLimit)
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(cleanableRSes))
-	podHashToArList := analysisutil.SortAnalysisRunByPodHash(c.analysisContext.otherArs)
+	otherArs := []*v1alpha1.AnalysisRun{}
+	if c.analysisContext != nil {
+		otherArs = c.analysisContext.otherArs
+	}
+	podHashToArList := analysisutil.SortAnalysisRunByPodHash(otherArs)
 	podHashToExList := experimentutil.SortExperimentsByPodHash(c.otherExs)
 	c.log.Info("Looking to cleanup old replica sets")
 	for i := int32(0); i < diff; i++ {

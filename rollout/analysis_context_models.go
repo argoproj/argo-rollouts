@@ -72,7 +72,11 @@ func (ar *BaseRun) CurrentStatus() *v1alpha1.RolloutAnalysisRunStatus {
 }
 
 func (ar *BaseRun) ShouldCancel(cancelOptions ...CancelOption) bool {
-	return ar == nil || ar.rolloutAnalysis == nil
+	opts := &cancelOpts{}
+	for _, option := range cancelOptions {
+		option(opts)
+	}
+	return opts.analysis == nil || opts.shouldSkip
 }
 
 func (ar *BaseRun) ShouldReturnCur(options ...ShouldReturnCurOption) bool {
@@ -88,6 +92,10 @@ func (ar *BaseRun) NeedsNew(controllerPause bool, pauseConditions []v1alpha1.Pau
 	return ar.Run == nil ||
 		validPause(controllerPause, pauseConditions) && ar.Run.Status.Phase == v1alpha1.AnalysisPhaseInconclusive ||
 		abortedAt != nil
+}
+
+func (ar *BaseRun) OutsideAnalysisBoundaries(options ...OutsideAnalysisBoundariesOption) bool {
+	return false
 }
 
 func (ar *BaseRun) RolloutAnalysis() *v1alpha1.RolloutAnalysis {
@@ -204,4 +212,12 @@ func (ar *CanaryBackgroundAR) ShouldCancel(options ...CancelOption) bool {
 	}
 
 	return opts.backgroundAnalysis == nil || len(opts.backgroundAnalysis.Templates) == 0
+}
+
+func (ar *CanaryBackgroundAR) OutsideAnalysisBoundaries(options ...OutsideAnalysisBoundariesOption) bool {
+	opts := &OutsideAnalysisBoundariesOpts{}
+	for _, option := range options {
+		option(opts)
+	}
+	return opts.isBeforeStartingStep || opts.isFullyPromoted || opts.isJustCreated
 }
