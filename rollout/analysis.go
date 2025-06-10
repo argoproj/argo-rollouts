@@ -82,22 +82,18 @@ func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1
 		}
 		return nil
 	}
-	fmt.Println("reconcileAnalysisRun", run)
-	// need to provide a sshouldcanceel option to cancel the analysis run
-	if run.ShouldCancel(WithBackgroundAnalysis(c.rollout.Spec.Strategy.Canary), WithStep(step), WithStepIndex(index)) || shouldSkip(run.ARType(), c.rollout, c.newRS) {
-		fmt.Println("run.ShouldCancel()")
+	if run.ShouldCancel(WithBackgroundAnalysis(c.rollout.Spec.Strategy.Canary), WithStep(step), WithStepIndex(index), WithShouldSkip(shouldSkip(run.ARType(), c.rollout, c.newRS))) {
 		return nil, c.cancelCurrentAnalysisRun(run)
 	}
 	if run.ShouldReturnCur(WithAbort(c.rollout.Status.Abort), WithConditions(c.rollout.Status.PauseConditions)) {
-		fmt.Println("ShouldReturnCur()")
 		return run.AnalysisRun(), nil
 	}
 	if run.NeedsNew(c.rollout.Status.ControllerPause, c.rollout.Status.PauseConditions, c.rollout.Status.AbortedAt) {
-		fmt.Println("NeedsNew()")
-		fmt.Println("type", run.ARType())
 		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
 		instanceID := analysisutil.GetInstanceID(c.rollout)
-		return c.createAnalysisRun(specAnalysis(run), run.Infix(InfixWithIndex(index)), run.Labels(podHash, instanceID, WithStepIndexLabel(index)))
+		newRun, err := c.createAnalysisRun(specAnalysis(run), run.Infix(InfixWithIndex(index)), run.Labels(podHash, instanceID, WithStepIndexLabel(index)))
+		run.UpdateRun(newRun)
+		return newRun, err
 	}
 	return run.AnalysisRun(), nil
 }
@@ -242,9 +238,6 @@ func skipPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.Repli
 }
 
 func (c *rolloutContext) createAnalysisRun(rolloutAnalysis *v1alpha1.RolloutAnalysis, infix string, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
-	fmt.Println("createAnalysisRun")
-	fmt.Println("rolloutAnalysis", rolloutAnalysis, "infix", infix, "labels", labels)
-
 	args, err := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, c.stableRS, c.newRS, c.rollout)
 	if err != nil {
 		return nil, err

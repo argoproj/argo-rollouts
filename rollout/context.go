@@ -95,20 +95,20 @@ func (c *rolloutContext) SetCurrentAnalysisRuns() {
 	}
 }
 func (c *rolloutContext) setCurrentCanaryAnalysisRuns() {
-	if c.analysisContext.CurrentCanaryBackground != nil {
+	if c.analysisContext.CurrentCanaryBackground.AnalysisRun() != nil {
 		c.newStatus.Canary.CurrentBackgroundAnalysisRunStatus = c.analysisContext.CanaryBackgroundARStatus()
 	}
-	if c.analysisContext.CurrentCanaryStep != nil {
+	if c.analysisContext.CurrentCanaryStep.AnalysisRun() != nil {
 		c.newStatus.Canary.CurrentStepAnalysisRunStatus = c.analysisContext.CanaryStepARStatus()
 	}
 }
 
 func (c *rolloutContext) setCurrentBlueGreenAnalysisRuns() {
 
-	if c.analysisContext.CurrentBlueGreenPrePromotion != nil {
+	if c.analysisContext.CurrentBlueGreenPrePromotion.AnalysisRun() != nil {
 		c.newStatus.BlueGreen.PrePromotionAnalysisRunStatus = c.analysisContext.BlueGreenPrePromotionARStatus()
 	}
-	if c.analysisContext.CurrentBlueGreenPostPromotion != nil {
+	if c.analysisContext.CurrentBlueGreenPostPromotion.AnalysisRun() != nil {
 		c.newStatus.BlueGreen.PostPromotionAnalysisRunStatus = c.analysisContext.BlueGreenPostPromotionARStatus()
 	}
 }
