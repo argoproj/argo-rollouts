@@ -44,8 +44,8 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 		assert.Len(t, analysisContext.otherArs, 1)
 		assert.Equal(t, analysisContext.CurrentCanaryStep.AnalysisRun(), ars[0])
 		assert.Equal(t, analysisContext.CurrentCanaryBackground.AnalysisRun(), ars[1])
-		assert.Nil(t, analysisContext.CurrentBlueGreenPostPromotion)
-		assert.Nil(t, analysisContext.CurrentBlueGreenPrePromotion)
+		assert.Nil(t, analysisContext.CurrentBlueGreenPostPromotion.AnalysisRun())
+		assert.Nil(t, analysisContext.CurrentBlueGreenPrePromotion.AnalysisRun())
 	})
 	t.Run("BlueGreen", func(t *testing.T) {
 		r := &v1alpha1.Rollout{
@@ -64,7 +64,7 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 		assert.Len(t, analysisContext.otherArs, 1)
 		assert.Equal(t, analysisContext.CurrentBlueGreenPrePromotion.AnalysisRun(), ars[0])
 		assert.Equal(t, analysisContext.CurrentBlueGreenPostPromotion.AnalysisRun(), ars[1])
-		assert.Nil(t, analysisContext.CurrentCanaryStep)
-		assert.Nil(t, analysisContext.CurrentCanaryStep)
+		assert.Nil(t, analysisContext.CurrentCanaryStep.AnalysisRun())
+		assert.Nil(t, analysisContext.CurrentCanaryStep.AnalysisRun())
 	})
 }

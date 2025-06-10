@@ -1965,7 +1965,7 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To(false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
