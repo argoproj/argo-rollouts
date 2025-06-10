@@ -3,7 +3,6 @@ package rollout
 import (
 	"context"
 	"fmt"
-	"maps"
 	"strconv"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -18,17 +17,20 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 )
 
-type ARType string
+type CurrentAnalysisRun interface {
+	CurrentStatus() *v1alpha1.RolloutAnalysisRunStatus
+	ShouldCancel(cancelOptions ...CancelOption) bool
+	ShouldReturnCur(options ...ShouldReturnCurOption) bool
+	NeedsNew(controllerPause bool, pauseConditions []v1alpha1.PauseCondition, abortedAt *metav1.Time) bool
+	Infix(options ...InfixOption) string
+	ARType() string
+	AnalysisRun() *v1alpha1.AnalysisRun
+	RolloutAnalysis() *v1alpha1.RolloutAnalysis
+	Labels(podHash, instanceID string, options ...LabelsOption) map[string]string
+	IsPresent() bool
+	UpdateRun(run *v1alpha1.AnalysisRun)
+}
 
-const (
-	PrePromotionk    ARType = "PrePromotion"
-	PostPromotion    ARType = "PostPromotion"
-	CanarySteps      ARType = "CanarySteps"
-	CanaryBackground ARType = "CanaryBackground"
-)
-
-// msg := fmt.Sprintf("%s Analysis Run '%s' Status New: '%s' Previous: '%s'", arType, ar.Name, ar.Status.Phase, prevStatusStr)
-// c.recorder.Eventf(c.rollout, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(ar.Status.Phase)}, msg)
 type AnalysisRunEvent struct {
 	msg         string
 	EventType   string
@@ -39,9 +41,16 @@ type cancelOpts struct {
 	step               *v1alpha1.CanaryStep
 	stepIndex          *int32
 	backgroundAnalysis *v1alpha1.RolloutAnalysisBackground
+	shouldSkip         bool
 }
 
 type CancelOption func(*cancelOpts)
+
+func WithShouldSkip(shouldSkip bool) CancelOption {
+	return func(opts *cancelOpts) {
+		opts.shouldSkip = shouldSkip
+	}
+}
 
 func WithBackgroundAnalysis(canaryStrat *v1alpha1.CanaryStrategy) CancelOption {
 	var analysis *v1alpha1.RolloutAnalysisBackground
@@ -115,372 +124,11 @@ func InfixWithIndex(index *int32) InfixOption {
 	}
 }
 
-type CurrentAnalysisRun interface {
-	CurrentStatus() *v1alpha1.RolloutAnalysisRunStatus
-	ShouldCancel(cancelOptions ...CancelOption) bool
-	ShouldReturnCur(options ...ShouldReturnCurOption) bool
-	NeedsNew(controllerPause bool, pauseConditions []v1alpha1.PauseCondition, abortedAt *metav1.Time) bool
-	Infix(options ...InfixOption) string
-	ARType() string
-	AnalysisRun() *v1alpha1.AnalysisRun
-	RolloutAnalysis() *v1alpha1.RolloutAnalysis
-	Labels(podHash, instanceID string, options ...LabelsOption) map[string]string
-	IsPresent() bool
-}
-
-type NewAnalysisRunOpts struct {
-	index string
-}
-
-type NewAnalysisRunOption func(*NewAnalysisRunOpts)
-
-func WithIndex(index *int32) NewAnalysisRunOption {
-	return func(options *NewAnalysisRunOpts) {
-		if index == nil {
-			options.index = "0"
-		} else {
-			options.index = strconv.Itoa(int(*index))
-		}
-	}
-}
-
-func NewAnalysisRun(ar *v1alpha1.AnalysisRun, artype string, options ...NewAnalysisRunOption) CurrentAnalysisRun {
-	opts := &NewAnalysisRunOpts{}
-	for _, option := range options {
-		option(opts)
-	}
-	switch artype {
-	case v1alpha1.RolloutTypePrePromotionLabel:
-		return &BlueGreenPrePromotionAR{
-			BaseRun: BaseRun{
-				AnalysisType: v1alpha1.RolloutTypePrePromotionLabel,
-				Run:          ar,
-			},
-		}
-	case v1alpha1.RolloutTypePostPromotionLabel:
-		return &BlueGreenPostPromotionAR{
-			BaseRun: BaseRun{
-				AnalysisType: v1alpha1.RolloutTypePostPromotionLabel,
-				Run:          ar,
-			},
-		}
-	case v1alpha1.RolloutTypeStepLabel:
-		return &CanaryStepAR{
-			BaseRun: BaseRun{
-				AnalysisType: v1alpha1.RolloutTypeStepLabel,
-				Run:          ar,
-			},
-		}
-	case v1alpha1.RolloutTypeBackgroundRunLabel:
-		return &CanaryBackgroundAR{
-			BaseRun: BaseRun{
-				AnalysisType: v1alpha1.RolloutTypeBackgroundRunLabel,
-				Run:          ar,
-			},
-		}
-	default:
-		return &BaseRun{
-			Run: ar,
-		}
-	}
-}
-
-type BaseRun struct {
-	rolloutAnalysis *v1alpha1.RolloutAnalysis
-	AnalysisType    string
-	Run             *v1alpha1.AnalysisRun
-}
-
-func (ar *BaseRun) IsPresent() bool {
-	return ar != nil && ar.Run != nil
-}
-
-func (ar *BaseRun) ARType() string {
-	if ar == nil {
-		return ""
-	}
-	return ar.AnalysisType
-}
-
-func (ar *BaseRun) Infix(options ...InfixOption) string {
-	return ""
-}
-
-func (ar *BaseRun) CurrentStatus() *v1alpha1.RolloutAnalysisRunStatus {
-	return &v1alpha1.RolloutAnalysisRunStatus{
-		Name:    ar.Run.Name,
-		Status:  ar.Run.Status.Phase,
-		Message: ar.Run.Status.Message,
-	}
-}
-
-func (ar *BaseRun) ShouldCancel(cancelOptions ...CancelOption) bool {
-	return false
-}
-
-func (ar *BaseRun) ShouldReturnCur(options ...ShouldReturnCurOption) bool {
-	opts := &shouldReturnCurOpts{}
-	for _, option := range options {
-		option(opts)
-	}
-
-	return pauseConditionsInclude(opts.pauseConditions, v1alpha1.PauseReasonInconclusiveAnalysis)
-}
-
-func (ar *BaseRun) NeedsNew(controllerPause bool, pauseConditions []v1alpha1.PauseCondition, abortedAt *metav1.Time) bool {
-	return ar == nil ||
-		validPause(controllerPause, pauseConditions) && ar.Run.Status.Phase == v1alpha1.AnalysisPhaseInconclusive ||
-		abortedAt != nil
-}
-
-func (ar *BaseRun) RolloutAnalysis() *v1alpha1.RolloutAnalysis {
-	if ar == nil {
-		return nil
-	}
-	return ar.rolloutAnalysis
-}
-
-func (ar *BaseRun) AnalysisRun() *v1alpha1.AnalysisRun {
-	if ar == nil {
-		return nil
-	}
-	return ar.Run
-}
-
-func (ar *BaseRun) Labels(podHash, instanceID string, options ...LabelsOption) map[string]string {
-	opts := &OptionalLabels{}
-	for _, option := range options {
-		option(opts)
-	}
-
-	optionalLabels := labels.MergeLabels(opts.Labels)
-	labels := map[string]string{
-		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
-		v1alpha1.RolloutTypeLabel:             ar.AnalysisType,
-	}
-	if instanceID != "" {
-		labels[v1alpha1.LabelKeyControllerInstanceID] = instanceID
-	}
-	// this overrides any existing label in labels with the same key from optional labels.
-	// is this the behavior we want?
-	maps.Copy(labels, optionalLabels)
-	return labels
-
-}
-
-type BlueGreenPrePromotionAR struct {
-	BaseRun
-}
-
-func (ar *BlueGreenPrePromotionAR) Infix(options ...InfixOption) string {
-	return "pre"
-
-}
-
-func (ar *BlueGreenPrePromotionAR) ARType() string {
-	return v1alpha1.RolloutTypePrePromotionLabel
-}
-
-func (ar *BlueGreenPrePromotionAR) IsPresent() bool {
-	return ar != nil && ar.Run != nil
-}
-
-func (ar *BlueGreenPrePromotionAR) AnalysisRun() *v1alpha1.AnalysisRun {
-	if ar == nil {
-		return nil
-	}
-	return ar.Run
-}
-func (ar *BlueGreenPrePromotionAR) ShouldCancel(cancelOptions ...CancelOption) bool {
-	return ar == nil || ar.rolloutAnalysis == nil
-}
-
-func (ar *BlueGreenPrePromotionAR) RolloutAnalysis() *v1alpha1.RolloutAnalysis {
-	if ar == nil {
-		return nil
-	}
-	return ar.rolloutAnalysis
-}
-
-func (ar *BlueGreenPrePromotionAR) Labels(podHash, instanceID string, options ...LabelsOption) map[string]string {
-	if ar == nil {
-		baseRun := BaseRun{}
-		return baseRun.Labels(podHash, instanceID, options...)
-	}
-	return ar.BaseRun.Labels(podHash, instanceID, options...)
-}
-
-type BlueGreenPostPromotionAR struct {
-	BaseRun
-}
-
-func (ar *BlueGreenPostPromotionAR) Infix(options ...InfixOption) string {
-	return "post"
-}
-
-func (ar *BlueGreenPostPromotionAR) ARType() string {
-	return v1alpha1.RolloutTypePostPromotionLabel
-}
-
-func (ar *BlueGreenPostPromotionAR) AnalysisRun() *v1alpha1.AnalysisRun {
-	if ar == nil {
-		return nil
-	}
-	return ar.Run
-}
-
-func (ar *BlueGreenPostPromotionAR) IsPresent() bool {
-	return ar != nil && ar.Run != nil
-}
-
-func (ar *BlueGreenPostPromotionAR) ShouldCancel(cancelOptions ...CancelOption) bool {
-	return ar == nil || ar.rolloutAnalysis == nil
-}
-
-func (ar *BlueGreenPostPromotionAR) RolloutAnalysis() *v1alpha1.RolloutAnalysis {
-	if ar == nil {
-		return nil
-	}
-	return ar.rolloutAnalysis
-}
-
-func (ar *BlueGreenPostPromotionAR) Labels(podHash, instanceID string, options ...LabelsOption) map[string]string {
-	if ar == nil {
-		baseRun := BaseRun{}
-		return baseRun.Labels(podHash, instanceID, options...)
-	}
-	return ar.BaseRun.Labels(podHash, instanceID, options...)
-}
-
-type CanaryStepAR struct {
-	BaseRun
-}
-
-func (ar *CanaryStepAR) Infix(options ...InfixOption) string {
-	opts := &InfixOpts{}
-	for _, option := range options {
-		option(opts)
-	}
-	if opts.index == nil {
-		return ""
-	}
-	return strconv.Itoa(int(*opts.index))
-}
-
-func (ar *CanaryStepAR) ARType() string {
-	return v1alpha1.RolloutTypeStepLabel
-}
-
-func (ar *CanaryStepAR) AnalysisRun() *v1alpha1.AnalysisRun {
-	if ar == nil {
-		return nil
-	}
-	return ar.Run
-}
-
-func (ar *CanaryStepAR) IsPresent() bool {
-	return ar != nil && ar.Run != nil
-}
-
-func (ar *CanaryStepAR) ShouldCancel(options ...CancelOption) bool {
-	opts := &cancelOpts{}
-	for _, option := range options {
-		option(opts)
-	}
-	return opts.step == nil || opts.step.Analysis == nil || opts.stepIndex == nil || (ar != nil && ar.Run != nil && ar.Run.GetLabels()[v1alpha1.RolloutCanaryStepIndexLabel] != strconv.Itoa(int(*opts.stepIndex)))
-}
-
-func (ar *CanaryStepAR) ShouldReturnCur(options ...ShouldReturnCurOption) bool {
-	opts := &shouldReturnCurOpts{}
-	for _, option := range options {
-		option(opts)
-	}
-
-	return len(opts.pauseConditions) > 0 || opts.abort
-}
-
-func (ar *CanaryStepAR) Labels(podHash, instanceID string, options ...LabelsOption) map[string]string {
-	if ar == nil {
-		baseRun := BaseRun{}
-		return baseRun.Labels(podHash, instanceID, options...)
-	}
-	return ar.BaseRun.Labels(podHash, instanceID, options...)
-}
-
-func (ar *CanaryStepAR) RolloutAnalysis() *v1alpha1.RolloutAnalysis {
-	if ar == nil {
-		return nil
-	}
-	return ar.rolloutAnalysis
-}
-
-type CanaryBackgroundAR struct {
-	BaseRun
-}
-
-func (ar *CanaryBackgroundAR) Infix(options ...InfixOption) string {
-	return ""
-}
-
-func (ar *CanaryBackgroundAR) ARType() string {
-	return v1alpha1.RolloutTypeBackgroundRunLabel
-}
-
-func (ar *CanaryBackgroundAR) IsPresent() bool {
-	return ar != nil && ar.Run != nil
-}
-
-func (ar *CanaryBackgroundAR) AnalysisRun() *v1alpha1.AnalysisRun {
-	if ar == nil {
-		return nil
-	}
-	return ar.Run
-}
-
-func (ar *CanaryBackgroundAR) ShouldCancel(options ...CancelOption) bool {
-	opts := &cancelOpts{}
-	for _, option := range options {
-		option(opts)
-	}
-
-	return opts.backgroundAnalysis == nil || len(opts.backgroundAnalysis.Templates) == 0
-}
-
-func (ar *CanaryBackgroundAR) ShouldReturnCur(options ...ShouldReturnCurOption) bool {
-	opts := &shouldReturnCurOpts{}
-	for _, option := range options {
-		option(opts)
-	}
-
-	return pauseConditionsInclude(opts.pauseConditions, v1alpha1.PauseReasonInconclusiveAnalysis)
-}
-
-func (ar *CanaryBackgroundAR) NeedsNew(controllerPause bool, pauseConditions []v1alpha1.PauseCondition, abortedAt *metav1.Time) bool {
-	return ar == nil ||
-		validPause(controllerPause, pauseConditions) && ar.Run.Status.Phase == v1alpha1.AnalysisPhaseInconclusive ||
-		abortedAt != nil
-}
-
-func (ar *CanaryBackgroundAR) RolloutAnalysis() *v1alpha1.RolloutAnalysis {
-	if ar == nil {
-		return nil
-	}
-	return ar.rolloutAnalysis
-}
-
-func (ar *CanaryBackgroundAR) Labels(podHash, instanceID string, options ...LabelsOption) map[string]string {
-	if ar == nil {
-		baseRun := BaseRun{}
-		return baseRun.Labels(podHash, instanceID, options...)
-	}
-	return ar.BaseRun.Labels(podHash, instanceID, options...)
-}
-
 type CurrentAnalysisRuns struct {
-	CurrentBlueGreenPrePromotion  *BlueGreenPrePromotionAR
-	CurrentBlueGreenPostPromotion *BlueGreenPostPromotionAR
-	CurrentCanaryStep             *CanaryStepAR
-	CurrentCanaryBackground       *CanaryBackgroundAR
+	CurrentBlueGreenPrePromotion  BlueGreenPrePromotionAR
+	CurrentBlueGreenPostPromotion BlueGreenPostPromotionAR
+	CurrentCanaryStep             CanaryStepAR
+	CurrentCanaryBackground       CanaryBackgroundAR
 }
 
 type AnalysisContext struct {
@@ -489,34 +137,30 @@ type AnalysisContext struct {
 	log      *log.Entry
 }
 
-func (ac *AnalysisContext) UpdateCurrentAnalysisRuns(ar *v1alpha1.AnalysisRun, artype string, options ...NewAnalysisRunOption) *AnalysisContext {
+func (ac *AnalysisContext) UpdateCurrentAnalysisRuns(ar *v1alpha1.AnalysisRun, artype string) *AnalysisContext {
 	switch artype {
 	case v1alpha1.RolloutTypePrePromotionLabel:
-		ac.CurrentAnalysisRuns.CurrentBlueGreenPrePromotion = &BlueGreenPrePromotionAR{
+		ac.CurrentAnalysisRuns.CurrentBlueGreenPrePromotion = BlueGreenPrePromotionAR{
 			BaseRun: BaseRun{
-				AnalysisType: v1alpha1.RolloutTypePrePromotionLabel,
-				Run:          ar,
+				Run: ar,
 			},
 		}
 	case v1alpha1.RolloutTypePostPromotionLabel:
-		ac.CurrentAnalysisRuns.CurrentBlueGreenPostPromotion = &BlueGreenPostPromotionAR{
+		ac.CurrentAnalysisRuns.CurrentBlueGreenPostPromotion = BlueGreenPostPromotionAR{
 			BaseRun: BaseRun{
-				AnalysisType: v1alpha1.RolloutTypePostPromotionLabel,
-				Run:          ar,
+				Run: ar,
 			},
 		}
 	case v1alpha1.RolloutTypeStepLabel:
-		ac.CurrentAnalysisRuns.CurrentCanaryStep = &CanaryStepAR{
+		ac.CurrentAnalysisRuns.CurrentCanaryStep = CanaryStepAR{
 			BaseRun: BaseRun{
-				AnalysisType: v1alpha1.RolloutTypeStepLabel,
-				Run:          ar,
+				Run: ar,
 			},
 		}
 	case v1alpha1.RolloutTypeBackgroundRunLabel:
-		ac.CurrentAnalysisRuns.CurrentCanaryBackground = &CanaryBackgroundAR{
+		ac.CurrentAnalysisRuns.CurrentCanaryBackground = CanaryBackgroundAR{
 			BaseRun: BaseRun{
-				AnalysisType: v1alpha1.RolloutTypeBackgroundRunLabel,
-				Run:          ar,
+				Run: ar,
 			},
 		}
 	}
@@ -525,8 +169,24 @@ func (ac *AnalysisContext) UpdateCurrentAnalysisRuns(ar *v1alpha1.AnalysisRun, a
 }
 
 func NewAnalysisContext(analysisRuns []*v1alpha1.AnalysisRun, r *v1alpha1.Rollout) *AnalysisContext {
-	fmt.Println("NewAnalysisContext", analysisRuns, r)
-	ac := &AnalysisContext{}
+	ac := &AnalysisContext{
+		CurrentAnalysisRuns: CurrentAnalysisRuns{
+			CurrentBlueGreenPrePromotion: BlueGreenPrePromotionAR{
+				BaseRun: BaseRun{},
+			},
+			CurrentBlueGreenPostPromotion: BlueGreenPostPromotionAR{
+				BaseRun: BaseRun{},
+			},
+			CurrentCanaryStep: CanaryStepAR{
+				BaseRun: BaseRun{},
+			},
+			CurrentCanaryBackground: CanaryBackgroundAR{
+				BaseRun: BaseRun{},
+			},
+		},
+		otherArs: []*v1alpha1.AnalysisRun{},
+		log:      nil,
+	}
 	otherArs := []*v1alpha1.AnalysisRun{}
 	getArName := func(s *v1alpha1.RolloutAnalysisRunStatus) string {
 		if s == nil {
@@ -557,10 +217,10 @@ func NewAnalysisContext(analysisRuns []*v1alpha1.AnalysisRun, r *v1alpha1.Rollou
 
 func (c *AnalysisContext) AllCurrentAnalysisRuns() []CurrentAnalysisRun {
 	return []CurrentAnalysisRun{
-		c.CurrentBlueGreenPrePromotion,
-		c.CurrentBlueGreenPostPromotion,
-		c.CurrentCanaryStep,
-		c.CurrentCanaryBackground,
+		&c.CurrentBlueGreenPrePromotion,
+		&c.CurrentBlueGreenPostPromotion,
+		&c.CurrentCanaryStep,
+		&c.CurrentCanaryBackground,
 	}
 }
 
@@ -586,30 +246,18 @@ func (c *AnalysisContext) AllAnalysisRuns() []*v1alpha1.AnalysisRun {
 }
 
 func (ac *AnalysisContext) BlueGreenPrePromotionAR() *v1alpha1.AnalysisRun {
-	if ac.CurrentBlueGreenPrePromotion == nil {
-		return nil
-	}
 	return ac.CurrentBlueGreenPrePromotion.AnalysisRun()
 }
 
 func (ac *AnalysisContext) BlueGreenPostPromotionAR() *v1alpha1.AnalysisRun {
-	if ac.CurrentBlueGreenPostPromotion == nil {
-		return nil
-	}
 	return ac.CurrentBlueGreenPostPromotion.AnalysisRun()
 }
 
 func (ac *AnalysisContext) CanaryStepAR() *v1alpha1.AnalysisRun {
-	if ac.CurrentCanaryStep == nil {
-		return nil
-	}
 	return ac.CurrentCanaryStep.AnalysisRun()
 }
 
 func (ac *AnalysisContext) CanaryBackgroundAR() *v1alpha1.AnalysisRun {
-	if ac.CurrentCanaryBackground == nil {
-		return nil
-	}
 	return ac.CurrentCanaryBackground.AnalysisRun()
 }
 func (ac *AnalysisContext) BlueGreenPrePromotionARStatus() *v1alpha1.RolloutAnalysisRunStatus {
@@ -626,10 +274,6 @@ func (ac *AnalysisContext) CanaryStepARStatus() *v1alpha1.RolloutAnalysisRunStat
 
 func (ac *AnalysisContext) CanaryBackgroundARStatus() *v1alpha1.RolloutAnalysisRunStatus {
 	return ac.CurrentCanaryBackground.CurrentStatus()
-}
-
-func (c *AnalysisContext) cancelAllAnalysisRuns(client clientset.Interface) error {
-	return c.cancelAnalysisRuns(client, c.AllAnalysisRuns())
 }
 
 func (c *AnalysisContext) cancelAnalysisRuns(client clientset.Interface, analysisRuns []*v1alpha1.AnalysisRun) error {
