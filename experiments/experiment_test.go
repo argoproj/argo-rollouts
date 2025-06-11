@@ -198,8 +198,8 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, expPatchObj.Status.Phase)
 }
 
-// TestScaleDownRSAfterFinish verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down and service is not deleted because available replicas are not 0
-func TestScaleDownRSAfterFinishAndTerminateForRolloutCreatedExperiment(t *testing.T) {
+// TestScaleDownRSAWhenSvcNotDeleted verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down and service is not deleted because available replicas are not 0
+func TestScaleDownRSWhenSvcNotDeleted(t *testing.T) {
 	tmpl := generateTemplates("template1", "template2")
 	tmpl[0].Service = &v1alpha1.TemplateService{}
 
