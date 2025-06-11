@@ -805,10 +805,6 @@ message ExperimentSpec {
   // AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
   // +optional
   optional AnalysisRunMetadata analysisRunMetadata = 9;
-
-  // RolloutCreated indicates that this experiment was created by the rollouts controller
-  // +optional
-  optional bool rolloutCreated = 10;
 }
 
 // ExperimentStatus is the status for a Experiment resource

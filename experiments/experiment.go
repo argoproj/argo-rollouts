@@ -142,7 +142,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			// If service field nil but service exists, then delete it
 			// Code should not enter this path
 			svc := ec.templateServices[template.Name]
-			ec.deleteTemplateService(svc, templateStatus, template.Name, true)
+			ec.deleteTemplateService(svc, templateStatus, template.Name)
 		}
 
 		// add scaleDownDelaySeconds if replicas will be scaled down
@@ -273,9 +273,9 @@ func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, template v1a
 		templateStatus.Status = v1alpha1.TemplateStatusError
 		templateStatus.Message = fmt.Sprintf("Unable to scale ReplicaSet for template '%s' to desired replica count '%v': %v", templateStatus.Name, desiredReplicaCount, err)
 	} else {
-		if desiredReplicaCount == 0 && template.Service != nil {
+		if desiredReplicaCount == 0 && template.Service != nil && rs.Status.AvailableReplicas == 0 {
 			svc := ec.templateServices[template.Name]
-			ec.deleteTemplateService(svc, templateStatus, template.Name, false)
+			ec.deleteTemplateService(svc, templateStatus, template.Name)
 		}
 	}
 }
@@ -333,12 +333,8 @@ func (ec *experimentContext) createReplicaSetForTemplate(template v1alpha1.Templ
 	}
 }
 
-func (ec *experimentContext) deleteTemplateService(svc *corev1.Service, templateStatus *v1alpha1.TemplateStatus, templateName string, isSvcNil bool) {
+func (ec *experimentContext) deleteTemplateService(svc *corev1.Service, templateStatus *v1alpha1.TemplateStatus, templateName string) {
 	if svc != nil {
-		if ec.ex.Spec.RolloutCreated && !ec.ex.Spec.Terminate && !isSvcNil {
-			ec.log.Warnf("skipping service deletion: experiment %v is not terminated", ec.ex.ObjectMeta.Name)
-			return
-		}
 		err := ec.deleteService(*svc)
 		if err != nil {
 			templateStatus.Status = v1alpha1.TemplateStatusError

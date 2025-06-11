@@ -9821,8 +9821,6 @@ spec:
               progressDeadlineSeconds:
                 format: int32
                 type: integer
-              rolloutCreated:
-                type: boolean
               scaleDownDelaySeconds:
                 format: int32
                 type: integer

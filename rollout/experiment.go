@@ -57,7 +57,6 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			ProgressDeadlineSeconds: r.Spec.ProgressDeadlineSeconds,
 			DryRun:                  step.DryRun,
 			AnalysisRunMetadata:     step.AnalysisRunMetadata,
-			RolloutCreated:          true,
 		},
 	}
 
