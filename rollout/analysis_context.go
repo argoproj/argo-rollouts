@@ -17,6 +17,14 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 )
 
+const (
+	cancelAnalysisRun = `{
+		"spec": {
+			"terminate": true
+		}
+	}`
+)
+
 type CurrentAnalysisRun interface {
 	CurrentStatus() *v1alpha1.RolloutAnalysisRunStatus
 	ShouldCancel(cancelOptions ...CancelOption) bool
@@ -30,6 +38,7 @@ type CurrentAnalysisRun interface {
 	IsPresent() bool
 	UpdateRun(run *v1alpha1.AnalysisRun)
 	OutsideAnalysisBoundaries(options ...OutsideAnalysisBoundariesOption) bool
+	setPauseOrAbort(*pauseContext)
 }
 
 type AnalysisRunEvent struct {
@@ -172,7 +181,6 @@ type CurrentAnalysisRuns struct {
 type AnalysisContext struct {
 	CurrentAnalysisRuns
 	otherArs []*v1alpha1.AnalysisRun
-	log      *log.Entry
 }
 
 func (ac *AnalysisContext) UpdateCurrentAnalysisRuns(ar *v1alpha1.AnalysisRun, artype string) *AnalysisContext {
@@ -223,7 +231,6 @@ func NewAnalysisContext(analysisRuns []*v1alpha1.AnalysisRun, r *v1alpha1.Rollou
 			},
 		},
 		otherArs: []*v1alpha1.AnalysisRun{},
-		log:      nil,
 	}
 	otherArs := []*v1alpha1.AnalysisRun{}
 	getArName := func(s *v1alpha1.RolloutAnalysisRunStatus) string {
@@ -314,16 +321,16 @@ func (ac *AnalysisContext) CanaryBackgroundARStatus() *v1alpha1.RolloutAnalysisR
 	return ac.CurrentCanaryBackground.CurrentStatus()
 }
 
-func (c *AnalysisContext) cancelAnalysisRuns(client clientset.Interface, analysisRuns []*v1alpha1.AnalysisRun) error {
+func (ac *AnalysisContext) cancelAnalysisRuns(logEntry *log.Entry, client clientset.Interface) error {
 	ctx := context.TODO()
-	for _, ar := range analysisRuns {
+	for _, ar := range ac.AllAnalysisRuns() {
 		isNotCompleted := ar == nil || !ar.Status.Phase.Completed()
 		if !ar.Spec.Terminate && isNotCompleted {
-			c.log.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis run '%s'", ar.Name)
+			logEntry.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis run '%s'", ar.Name)
 			_, err := client.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Patch(ctx, ar.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun), metav1.PatchOptions{})
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
-					c.log.Warnf("AnalysisRun '%s' not found", ar.Name)
+					logEntry.Warnf("AnalysisRun '%s' not found", ar.Name)
 					continue
 				}
 				return err
@@ -333,14 +340,44 @@ func (c *AnalysisContext) cancelAnalysisRuns(client clientset.Interface, analysi
 	return nil
 }
 
-func (c *AnalysisContext) deleteAnalysisRuns(client clientset.Interface, ars []*v1alpha1.AnalysisRun) error {
+func (ac *AnalysisContext) cancelAnalysisRun(logEntry *log.Entry, client clientset.Interface, ar *v1alpha1.AnalysisRun) error {
+	ctx := context.TODO()
+
+	if ar != nil && !ar.Spec.Terminate && !ar.Status.Phase.Completed() {
+		logEntry.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis ar '%s'", ar.Name)
+		_, err := client.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Patch(ctx, ar.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun), metav1.PatchOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *AnalysisContext) cancelCurrentAnalysisRun(logEntry *log.Entry, client clientset.Interface, ar CurrentAnalysisRun) error {
+	ctx := context.TODO()
+	if ar == nil {
+		return nil
+	}
+	run := ar.AnalysisRun()
+
+	if run != nil && !run.Spec.Terminate && !run.Status.Phase.Completed() {
+		logEntry.WithField(logutil.AnalysisRunKey, run.Name).Infof("Canceling the analysis run '%s'", run.Name)
+		_, err := client.ArgoprojV1alpha1().AnalysisRuns(run.Namespace).Patch(ctx, run.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun), metav1.PatchOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ac *AnalysisContext) deleteAnalysisRuns(logEntry *log.Entry, client clientset.Interface, ars []*v1alpha1.AnalysisRun) error {
 	ctx := context.TODO()
 	for i := range ars {
 		ar := ars[i]
 		if ar.DeletionTimestamp != nil {
 			continue
 		}
-		c.log.Infof("Trying to cleanup analysis run '%s'", ar.Name)
+		logEntry.Infof("Trying to cleanup analysis run '%s'", ar.Name)
 		err := client.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Delete(ctx, ar.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return err

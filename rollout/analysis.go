@@ -6,11 +6,9 @@ import (
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -20,14 +18,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
-)
-
-const (
-	cancelAnalysisRun = `{
-		"spec": {
-			"terminate": true
-		}
-	}`
 )
 
 // getAnalysisRunsForRollout get all analysisRuns owned by the Rollout
@@ -96,7 +86,7 @@ func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1
 		return nil
 	}
 	if run.ShouldCancel(WithAnalysis(specAnalysis(run)), WithBackgroundAnalysis(&c.rollout.Spec.Strategy), WithStep(step), WithStepIndex(index), WithShouldSkip(shouldSkip(run.ARType(), c.rollout, c.newRS))) {
-		return nil, c.cancelCurrentAnalysisRun(run)
+		return nil, c.analysisContext.cancelCurrentAnalysisRun(c.log, c.argoprojclientset, run)
 	}
 
 	if run.OutsideAnalysisBoundaries(WithIsFullyPromoted(rolloututil.IsFullyPromoted(c.rollout)), WithIsBeforeStartingStep(replicasetutil.BeforeStartingStep(c.rollout)), WithIsJustCreated(rolloututil.IsJustCreated(c.rollout))) {
@@ -120,7 +110,7 @@ func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1
 
 func (c *rolloutContext) reconcileAnalysisRuns() error {
 	if c.shouldCancelAllAnalysisRuns() {
-		return c.cancelAnalysisRuns()
+		return c.analysisContext.cancelAnalysisRuns(c.log, c.argoprojclientset)
 	}
 	for _, run := range c.analysisContext.AllCurrentAnalysisRuns() {
 		currentRun, err := c.reconcileAnalysisRun(run)
@@ -128,7 +118,7 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 			return err
 		}
 		if run.IsPresent() {
-			c.setPauseOrAbort(run.AnalysisRun())
+			run.setPauseOrAbort(c.pauseContext)
 			c.analysisContext.UpdateCurrentAnalysisRuns(currentRun, run.ARType())
 		}
 	}
@@ -152,7 +142,7 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 	})
 
 	for _, ar := range otherArs {
-		err := c.cancelAnalysisRun(ar)
+		err := c.analysisContext.cancelAnalysisRun(c.log, c.argoprojclientset, ar)
 		if err != nil {
 			return err
 		}
@@ -161,7 +151,7 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 	limitSucceedArs := defaults.GetAnalysisRunSuccessfulHistoryLimitOrDefault(c.rollout)
 	limitFailedArs := defaults.GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(c.rollout)
 	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, c.allRSs, limitSucceedArs, limitFailedArs)
-	err := c.deleteAnalysisRuns(arsToDelete)
+	err := c.analysisContext.deleteAnalysisRuns(c.log, c.argoprojclientset, arsToDelete)
 	if err != nil {
 		return err
 	}
@@ -195,25 +185,6 @@ func (c *rolloutContext) shouldCancelAllAnalysisRuns() bool {
 		return true
 	}
 	return false
-}
-
-func (c *rolloutContext) setPauseOrAbort(ar *v1alpha1.AnalysisRun) {
-	if ar == nil {
-		return
-	}
-	switch ar.Status.Phase {
-	case v1alpha1.AnalysisPhaseInconclusive:
-		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
-	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		c.pauseContext.AddAbort(ar.Status.Message)
-	}
-}
-
-func validPause(controllerPause bool, pauseConditions []v1alpha1.PauseCondition) bool {
-	return controllerPause &&
-		!pauseConditionsInclude(pauseConditions, v1alpha1.PauseReasonCanaryPauseStep) &&
-		!pauseConditionsInclude(pauseConditions, v1alpha1.PauseReasonBlueGreenPause)
-
 }
 
 // skipPrePromotionAnalysisRun checks if the controller should skip creating a pre promotion
@@ -273,54 +244,6 @@ func (c *rolloutContext) createAnalysisRun(rolloutAnalysis *v1alpha1.RolloutAnal
 	}
 	analysisRunIf := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(c.rollout.Namespace)
 	return analysisutil.CreateWithCollisionCounter(c.log, analysisRunIf, *ar)
-}
-
-func (c *rolloutContext) cancelCurrentAnalysisRun(ar CurrentAnalysisRun) error {
-	ctx := context.TODO()
-	if ar == nil {
-		return nil
-	}
-	run := ar.AnalysisRun()
-
-	if run != nil && !run.Spec.Terminate && !run.Status.Phase.Completed() {
-		c.log.WithField(logutil.AnalysisRunKey, run.Name).Infof("Canceling the analysis run '%s'", run.Name)
-		_, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(run.Namespace).Patch(ctx, run.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun), metav1.PatchOptions{})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *rolloutContext) cancelAnalysisRun(ar *v1alpha1.AnalysisRun) error {
-	ctx := context.TODO()
-
-	if ar != nil && !ar.Spec.Terminate && !ar.Status.Phase.Completed() {
-		c.log.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis ar '%s'", ar.Name)
-		_, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Patch(ctx, ar.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun), metav1.PatchOptions{})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *rolloutContext) cancelAnalysisRuns() error {
-	ctx := context.TODO()
-	for _, ar := range c.analysisContext.AllAnalysisRuns() {
-		if ar != nil && !ar.Spec.Terminate && !ar.Status.Phase.Completed() {
-			c.log.WithField(logutil.AnalysisRunKey, ar.Name).Infof("Canceling the analysis run '%s'", ar.Name)
-			_, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Patch(ctx, ar.Name, patchtypes.MergePatchType, []byte(cancelAnalysisRun), metav1.PatchOptions{})
-			if err != nil {
-				if k8serrors.IsNotFound(err) {
-					c.log.Warnf("AnalysisRun '%s' not found", ar.Name)
-					continue
-				}
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 // newAnalysisRunFromRollout generates an AnalysisRun from the rollouts, the AnalysisRun Step, the new/stable ReplicaSet, and any extra objects.
@@ -406,20 +329,4 @@ func (c *rolloutContext) getAnalysisTemplatesFromRefs(templateRefs *[]v1alpha1.A
 	}
 	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
 	return uniqueTemplates, uniqueClusterTemplates, nil
-}
-
-func (c *rolloutContext) deleteAnalysisRuns(ars []*v1alpha1.AnalysisRun) error {
-	ctx := context.TODO()
-	for i := range ars {
-		ar := ars[i]
-		if ar.DeletionTimestamp != nil {
-			continue
-		}
-		c.log.Infof("Trying to cleanup analysis run '%s'", ar.Name)
-		err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(ar.Namespace).Delete(ctx, ar.Name, metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
-	}
-	return nil
 }

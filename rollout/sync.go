@@ -465,7 +465,7 @@ func (c *rolloutContext) reconcileRevisionHistoryLimit(oldRSs []*appsv1.ReplicaS
 		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
 			if ars, ok := podHashToArList[podHash]; ok {
 				c.log.Infof("Cleaning up associated analysis runs with ReplicaSet '%s'", rs.Name)
-				err := c.deleteAnalysisRuns(ars)
+				err := c.analysisContext.deleteAnalysisRuns(c.log, c.argoprojclientset, ars)
 				if err != nil {
 					return err
 				}

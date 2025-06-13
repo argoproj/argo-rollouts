@@ -136,6 +136,18 @@ func (ar *BaseRun) UpdateRun(run *v1alpha1.AnalysisRun) {
 	ar.Run = run
 }
 
+func (ar *BaseRun) setPauseOrAbort(pauseCxt *pauseContext) {
+	if ar.Run == nil {
+		return
+	}
+	switch ar.Run.Status.Phase {
+	case v1alpha1.AnalysisPhaseInconclusive:
+		pauseCxt.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
+	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
+		pauseCxt.AddAbort(ar.Run.Status.Message)
+	}
+}
+
 type BlueGreenPrePromotionAR struct {
 	BaseRun
 }
@@ -220,4 +232,10 @@ func (ar *CanaryBackgroundAR) OutsideAnalysisBoundaries(options ...OutsideAnalys
 		option(opts)
 	}
 	return opts.isBeforeStartingStep || opts.isFullyPromoted || opts.isJustCreated
+}
+
+func validPause(controllerPause bool, pauseConditions []v1alpha1.PauseCondition) bool {
+	return controllerPause &&
+		!pauseConditionsInclude(pauseConditions, v1alpha1.PauseReasonCanaryPauseStep) &&
+		!pauseConditionsInclude(pauseConditions, v1alpha1.PauseReasonBlueGreenPause)
 }
