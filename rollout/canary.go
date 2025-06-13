@@ -352,7 +352,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 		experiment := c.currentEx
 		return experiment != nil && experiment.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
 	case currentStep.Analysis != nil:
-		currentStepAr := c.currentArs.CanaryStep
+		currentStepAr := c.analysisContext.CurrentCanaryStep.AnalysisRun()
 		analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Phase.Completed()
 		return analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
 	case currentStep.SetHeaderRoute != nil:

@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"slices"
 	"time"
 
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -133,9 +134,15 @@ func getPauseCondition(rollout *v1alpha1.Rollout, reason v1alpha1.PauseReason) *
 	return nil
 }
 
+func pauseConditionsInclude(conditions []v1alpha1.PauseCondition, reason v1alpha1.PauseReason) bool {
+	return slices.ContainsFunc(conditions, func(condition v1alpha1.PauseCondition) bool {
+		return condition.Reason == reason
+	})
+}
+
 // completedPrePromotionAnalysis checks if the Pre Promotion Analysis has completed successfully
 func (c *rolloutContext) completedPrePromotionAnalysis() bool {
-	currentAr := c.currentArs.BlueGreenPrePromotion
+	currentAr := c.analysisContext.CurrentBlueGreenPrePromotion.AnalysisRun()
 	noPrePromotionAnalysis := c.rollout.Spec.Strategy.BlueGreen == nil || c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil
 	return noPrePromotionAnalysis || currentAr != nil && currentAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
 }
