@@ -271,6 +271,14 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 // syncReplicasOnly is responsible for reconciling rollouts on scaling events.
 func (c *rolloutContext) syncReplicasOnly() error {
 	c.log.Infof("Syncing replicas only due to scaling event")
+	
+	// Check if we should skip deployment scaling for completed progressive migration
+	if c.rollout.Spec.WorkloadRef != nil && 
+		c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownProgressively &&
+		c.isProgressiveMigrationComplete() {
+		c.log.Infof("Progressive migration complete, skipping deployment scaling during replica sync")
+	}
+	
 	var err error
 	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
