@@ -6,7 +6,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -429,7 +429,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 			if newStatus.StableRS == newStatus.CurrentPodHash {
 				newStatus.CurrentStepIndex = &stepCount
 			} else {
-				newStatus.CurrentStepIndex = pointer.Int32Ptr(0)
+				newStatus.CurrentStepIndex = ptr.To[int32](0)
 			}
 		}
 		newStatus = c.calculateRolloutConditions(newStatus)

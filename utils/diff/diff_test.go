@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -37,7 +37,7 @@ func TestCreateTwoWayMergeInvalidDataStruct(t *testing.T) {
 			Name: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: ptr.To[int32](1),
 		},
 	}
 	_, _, err := CreateTwoWayMergePatch(rollout, rollout2, nil)
@@ -55,7 +55,7 @@ func TestCreateTwoWayMergeCreatePatch(t *testing.T) {
 			Name: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: ptr.To[int32](1),
 		},
 	}
 	patch, isPatched, err := CreateTwoWayMergePatch(rollout, rollout2, v1alpha1.Rollout{})
