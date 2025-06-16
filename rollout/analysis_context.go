@@ -25,6 +25,13 @@ const (
 	}`
 )
 
+type AnalysisRunEvent struct {
+	msg         string
+	EventType   string
+	EventReason string
+}
+
+// API for interacting with an active AnalysisRun
 type CurrentAnalysisRun interface {
 	CurrentStatus() *v1alpha1.RolloutAnalysisRunStatus
 	ShouldCancel(cancelOptions ...CancelOption) bool
@@ -41,12 +48,7 @@ type CurrentAnalysisRun interface {
 	setPauseOrAbort(*pauseContext)
 }
 
-type AnalysisRunEvent struct {
-	msg         string
-	EventType   string
-	EventReason string
-}
-
+// ShouldCancel Optional params
 type cancelOpts struct {
 	step               *v1alpha1.CanaryStep
 	stepIndex          *int32
@@ -72,11 +74,6 @@ func WithBackgroundAnalysis(strategy *v1alpha1.RolloutStrategy) CancelOption {
 	}
 }
 
-// // Do not create a background run if the rollout is completely rolled out, just created, before the starting step
-// 	if rolloututil.IsFullyPromoted(c.rollout) || c.rollout.Status.StableRS == "" || c.rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(c.rollout) {
-// 		return nil, nil
-// 	}
-
 func WithAnalysis(analysis *v1alpha1.RolloutAnalysis) CancelOption {
 	return func(opts *cancelOpts) {
 		opts.analysis = analysis
@@ -94,6 +91,7 @@ func WithStepIndex(index *int32) CancelOption {
 	}
 }
 
+// shouldReturnCur() Optional params
 type shouldReturnCurOpts struct {
 	pauseConditions []v1alpha1.PauseCondition
 	abort           bool
@@ -112,6 +110,7 @@ func WithConditions(conditions []v1alpha1.PauseCondition) ShouldReturnCurOption 
 	}
 }
 
+// Labels() Optional params
 type OptionalLabels struct {
 	Labels []labels.Label[string, string]
 }
@@ -133,6 +132,7 @@ func WithStepIndexLabel(index *int32) LabelsOption {
 	}
 }
 
+// Infix() Optional params
 type InfixOpts struct {
 	index *int32
 }
@@ -145,6 +145,7 @@ func InfixWithIndex(index *int32) InfixOption {
 	}
 }
 
+// OutsideAnalysisBoundaries() Optional params
 type OutsideAnalysisBoundariesOpts struct {
 	isFullyPromoted      bool
 	isJustCreated        bool
@@ -172,10 +173,10 @@ func WithIsBeforeStartingStep(isBeforeStartingStep bool) OutsideAnalysisBoundari
 }
 
 type CurrentAnalysisRuns struct {
-	CurrentBlueGreenPrePromotion  BlueGreenPrePromotionAR
-	CurrentBlueGreenPostPromotion BlueGreenPostPromotionAR
-	CurrentCanaryStep             CanaryStepAR
-	CurrentCanaryBackground       CanaryBackgroundAR
+	BlueGreenPrePromotion  BlueGreenPrePromotionAR
+	BlueGreenPostPromotion BlueGreenPostPromotionAR
+	CanaryStep             CanaryStepAR
+	CanaryBackground       CanaryBackgroundAR
 }
 
 type AnalysisContext struct {
@@ -186,25 +187,25 @@ type AnalysisContext struct {
 func (ac *AnalysisContext) UpdateCurrentAnalysisRuns(ar *v1alpha1.AnalysisRun, artype string) *AnalysisContext {
 	switch artype {
 	case v1alpha1.RolloutTypePrePromotionLabel:
-		ac.CurrentAnalysisRuns.CurrentBlueGreenPrePromotion = BlueGreenPrePromotionAR{
+		ac.CurrentAnalysisRuns.BlueGreenPrePromotion = BlueGreenPrePromotionAR{
 			BaseRun: BaseRun{
 				Run: ar,
 			},
 		}
 	case v1alpha1.RolloutTypePostPromotionLabel:
-		ac.CurrentAnalysisRuns.CurrentBlueGreenPostPromotion = BlueGreenPostPromotionAR{
+		ac.CurrentAnalysisRuns.BlueGreenPostPromotion = BlueGreenPostPromotionAR{
 			BaseRun: BaseRun{
 				Run: ar,
 			},
 		}
 	case v1alpha1.RolloutTypeStepLabel:
-		ac.CurrentAnalysisRuns.CurrentCanaryStep = CanaryStepAR{
+		ac.CurrentAnalysisRuns.CanaryStep = CanaryStepAR{
 			BaseRun: BaseRun{
 				Run: ar,
 			},
 		}
 	case v1alpha1.RolloutTypeBackgroundRunLabel:
-		ac.CurrentAnalysisRuns.CurrentCanaryBackground = CanaryBackgroundAR{
+		ac.CurrentAnalysisRuns.CanaryBackground = CanaryBackgroundAR{
 			BaseRun: BaseRun{
 				Run: ar,
 			},
@@ -217,16 +218,16 @@ func (ac *AnalysisContext) UpdateCurrentAnalysisRuns(ar *v1alpha1.AnalysisRun, a
 func NewAnalysisContext(analysisRuns []*v1alpha1.AnalysisRun, r *v1alpha1.Rollout) *AnalysisContext {
 	ac := &AnalysisContext{
 		CurrentAnalysisRuns: CurrentAnalysisRuns{
-			CurrentBlueGreenPrePromotion: BlueGreenPrePromotionAR{
+			BlueGreenPrePromotion: BlueGreenPrePromotionAR{
 				BaseRun: BaseRun{},
 			},
-			CurrentBlueGreenPostPromotion: BlueGreenPostPromotionAR{
+			BlueGreenPostPromotion: BlueGreenPostPromotionAR{
 				BaseRun: BaseRun{},
 			},
-			CurrentCanaryStep: CanaryStepAR{
+			CanaryStep: CanaryStepAR{
 				BaseRun: BaseRun{},
 			},
-			CurrentCanaryBackground: CanaryBackgroundAR{
+			CanaryBackground: CanaryBackgroundAR{
 				BaseRun: BaseRun{},
 			},
 		},
@@ -262,26 +263,26 @@ func NewAnalysisContext(analysisRuns []*v1alpha1.AnalysisRun, r *v1alpha1.Rollou
 
 func (c *AnalysisContext) AllCurrentAnalysisRuns() []CurrentAnalysisRun {
 	return []CurrentAnalysisRun{
-		&c.CurrentBlueGreenPrePromotion,
-		&c.CurrentBlueGreenPostPromotion,
-		&c.CurrentCanaryStep,
-		&c.CurrentCanaryBackground,
+		&c.BlueGreenPrePromotion,
+		&c.BlueGreenPostPromotion,
+		&c.CanaryStep,
+		&c.CanaryBackground,
 	}
 }
 
 func (c *AnalysisContext) CurrentAnalysisRunsToArray() []*v1alpha1.AnalysisRun {
 	currentAnalysisRuns := []*v1alpha1.AnalysisRun{}
-	if c.CurrentBlueGreenPrePromotion.Run != nil {
-		currentAnalysisRuns = append(currentAnalysisRuns, c.CurrentBlueGreenPrePromotion.Run)
+	if c.BlueGreenPrePromotion.Run != nil {
+		currentAnalysisRuns = append(currentAnalysisRuns, c.BlueGreenPrePromotion.Run)
 	}
-	if c.CurrentBlueGreenPostPromotion.Run != nil {
-		currentAnalysisRuns = append(currentAnalysisRuns, c.CurrentBlueGreenPostPromotion.Run)
+	if c.BlueGreenPostPromotion.Run != nil {
+		currentAnalysisRuns = append(currentAnalysisRuns, c.BlueGreenPostPromotion.Run)
 	}
-	if c.CurrentCanaryStep.Run != nil {
-		currentAnalysisRuns = append(currentAnalysisRuns, c.CurrentCanaryStep.Run)
+	if c.CanaryStep.Run != nil {
+		currentAnalysisRuns = append(currentAnalysisRuns, c.CanaryStep.Run)
 	}
-	if c.CurrentCanaryBackground.Run != nil {
-		currentAnalysisRuns = append(currentAnalysisRuns, c.CurrentCanaryBackground.Run)
+	if c.CanaryBackground.Run != nil {
+		currentAnalysisRuns = append(currentAnalysisRuns, c.CanaryBackground.Run)
 	}
 	return currentAnalysisRuns
 }
@@ -291,34 +292,36 @@ func (c *AnalysisContext) AllAnalysisRuns() []*v1alpha1.AnalysisRun {
 }
 
 func (ac *AnalysisContext) BlueGreenPrePromotionAR() *v1alpha1.AnalysisRun {
-	return ac.CurrentBlueGreenPrePromotion.AnalysisRun()
+	return ac.BlueGreenPrePromotion.AnalysisRun()
 }
 
 func (ac *AnalysisContext) BlueGreenPostPromotionAR() *v1alpha1.AnalysisRun {
-	return ac.CurrentBlueGreenPostPromotion.AnalysisRun()
+	return ac.BlueGreenPostPromotion.AnalysisRun()
 }
 
 func (ac *AnalysisContext) CanaryStepAR() *v1alpha1.AnalysisRun {
-	return ac.CurrentCanaryStep.AnalysisRun()
+	return ac.CanaryStep.AnalysisRun()
 }
 
 func (ac *AnalysisContext) CanaryBackgroundAR() *v1alpha1.AnalysisRun {
-	return ac.CurrentCanaryBackground.AnalysisRun()
+	return ac.CanaryBackground.AnalysisRun()
 }
+
+// could make this include the boolean check in the return; see rollout/context.go
 func (ac *AnalysisContext) BlueGreenPrePromotionARStatus() *v1alpha1.RolloutAnalysisRunStatus {
-	return ac.CurrentBlueGreenPrePromotion.CurrentStatus()
+	return ac.BlueGreenPrePromotion.CurrentStatus()
 }
 
 func (ac *AnalysisContext) BlueGreenPostPromotionARStatus() *v1alpha1.RolloutAnalysisRunStatus {
-	return ac.CurrentBlueGreenPostPromotion.CurrentStatus()
+	return ac.BlueGreenPostPromotion.CurrentStatus()
 }
 
 func (ac *AnalysisContext) CanaryStepARStatus() *v1alpha1.RolloutAnalysisRunStatus {
-	return ac.CurrentCanaryStep.CurrentStatus()
+	return ac.CanaryStep.CurrentStatus()
 }
 
 func (ac *AnalysisContext) CanaryBackgroundARStatus() *v1alpha1.RolloutAnalysisRunStatus {
-	return ac.CurrentCanaryBackground.CurrentStatus()
+	return ac.CanaryBackground.CurrentStatus()
 }
 
 func (ac *AnalysisContext) cancelAnalysisRuns(logEntry *log.Entry, client clientset.Interface) error {
@@ -353,7 +356,7 @@ func (ac *AnalysisContext) cancelAnalysisRun(logEntry *log.Entry, client clients
 	return nil
 }
 
-func (c *AnalysisContext) cancelCurrentAnalysisRun(logEntry *log.Entry, client clientset.Interface, ar CurrentAnalysisRun) error {
+func (ac *AnalysisContext) cancelCurrentAnalysisRun(logEntry *log.Entry, client clientset.Interface, ar CurrentAnalysisRun) error {
 	ctx := context.TODO()
 	if ar == nil {
 		return nil
@@ -386,7 +389,7 @@ func (ac *AnalysisContext) deleteAnalysisRuns(logEntry *log.Entry, client client
 	return nil
 }
 
-func (c *AnalysisContext) emitAnalysisRunStatusChanges(prevStatus *v1alpha1.RolloutAnalysisRunStatus, ar *v1alpha1.AnalysisRun, arType string) *AnalysisRunEvent {
+func (ac *AnalysisContext) emitAnalysisRunStatusChanges(prevStatus *v1alpha1.RolloutAnalysisRunStatus, ar *v1alpha1.AnalysisRun, arType string) *AnalysisRunEvent {
 	if ar.Status.Phase != "" {
 		if prevStatus == nil || prevStatus.Name == ar.Name && prevStatus.Status != ar.Status.Phase {
 			prevStatusStr := "NoPreviousStatus"
@@ -411,11 +414,11 @@ func (c *AnalysisContext) emitAnalysisRunStatusChanges(prevStatus *v1alpha1.Roll
 
 // reconcileAnalysisRunStatusChanges for each analysisRun type, the controller checks if the analysis run status has changed
 // for that type
-func (c *AnalysisContext) reconcileAnalysisRunStatusChanges(previousStatuses map[string]*v1alpha1.RolloutAnalysisRunStatus) []*AnalysisRunEvent {
+func (ac *AnalysisContext) reconcileAnalysisRunStatusChanges(previousStatuses map[string]*v1alpha1.RolloutAnalysisRunStatus) []*AnalysisRunEvent {
 	events := make([]*AnalysisRunEvent, 0)
-	for _, run := range c.AllCurrentAnalysisRuns() {
+	for _, run := range ac.AllCurrentAnalysisRuns() {
 		if run.IsPresent() {
-			event := c.emitAnalysisRunStatusChanges(previousStatuses[run.ARType()], run.AnalysisRun(), run.ARType())
+			event := ac.emitAnalysisRunStatusChanges(previousStatuses[run.ARType()], run.AnalysisRun(), run.ARType())
 			if event != nil {
 				events = append(events, event)
 			}

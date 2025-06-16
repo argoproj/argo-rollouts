@@ -56,7 +56,7 @@ func NewRolloutInfo(
 		roInfo.SetWeight = strconv.Itoa(int(replicasetutil.GetCurrentSetWeight(ro)))
 
 		roInfo.ActualWeight = "0"
-		currentStep, _ := replicasetutil.GetCurrentCanaryStep(ro)
+		currentStep, _ := replicasetutil.GetCanaryStep(ro)
 
 		if currentStep == nil {
 			roInfo.ActualWeight = fmt.Sprintf("%d", weightutil.MaxTrafficWeight(ro))

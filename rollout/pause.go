@@ -142,7 +142,7 @@ func pauseConditionsInclude(conditions []v1alpha1.PauseCondition, reason v1alpha
 
 // completedPrePromotionAnalysis checks if the Pre Promotion Analysis has completed successfully
 func (c *rolloutContext) completedPrePromotionAnalysis() bool {
-	currentAr := c.analysisContext.CurrentBlueGreenPrePromotion.AnalysisRun()
+	currentAr := c.analysisContext.BlueGreenPrePromotion.AnalysisRun()
 	noPrePromotionAnalysis := c.rollout.Spec.Strategy.BlueGreen == nil || c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil
 	return noPrePromotionAnalysis || currentAr != nil && currentAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
 }

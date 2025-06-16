@@ -565,7 +565,7 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 // isIndefiniteStep returns whether or not the rollout is at an Experiment or Analysis or Pause step which should
 // not affect the progressDeadlineSeconds
 func isIndefiniteStep(r *v1alpha1.Rollout) bool {
-	currentStep, _ := replicasetutil.GetCurrentCanaryStep(r)
+	currentStep, _ := replicasetutil.GetCanaryStep(r)
 	if currentStep != nil && (currentStep.Experiment != nil || currentStep.Analysis != nil || currentStep.Pause != nil) {
 		return true
 	}
@@ -957,7 +957,7 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.isRollbackWithinWindow() {
 			return "Rollback within window"
 		}
-		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
+		_, currentStepIndex := replicasetutil.GetCanaryStep(c.rollout)
 		stepCount := len(c.rollout.Spec.Strategy.Canary.Steps)
 		completedAllSteps := stepCount == 0 || (currentStepIndex != nil && *currentStepIndex == int32(stepCount))
 		if completedAllSteps {
@@ -993,7 +993,7 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 			if replicasetutil.HasScaleDownDeadline(c.newRS) {
 				return fmt.Sprintf("Rollback to '%s' within scaleDownDelay", c.newRS.Name)
 			}
-			currentPostPromotionAnalysisRun := c.analysisContext.CurrentBlueGreenPostPromotion.AnalysisRun()
+			currentPostPromotionAnalysisRun := c.analysisContext.BlueGreenPostPromotion.AnalysisRun()
 			if currentPostPromotionAnalysisRun == nil || currentPostPromotionAnalysisRun.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
 				// we have yet to start post-promotion analysis or post-promotion was not successful
 				return ""

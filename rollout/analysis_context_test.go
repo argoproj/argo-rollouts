@@ -42,10 +42,10 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 		}
 		analysisContext := NewAnalysisContext(ars, r)
 		assert.Len(t, analysisContext.otherArs, 1)
-		assert.Equal(t, analysisContext.CurrentCanaryStep.AnalysisRun(), ars[0])
-		assert.Equal(t, analysisContext.CurrentCanaryBackground.AnalysisRun(), ars[1])
-		assert.Nil(t, analysisContext.CurrentBlueGreenPostPromotion.AnalysisRun())
-		assert.Nil(t, analysisContext.CurrentBlueGreenPrePromotion.AnalysisRun())
+		assert.Equal(t, analysisContext.CanaryStep.AnalysisRun(), ars[0])
+		assert.Equal(t, analysisContext.CanaryBackground.AnalysisRun(), ars[1])
+		assert.Nil(t, analysisContext.BlueGreenPostPromotion.AnalysisRun())
+		assert.Nil(t, analysisContext.BlueGreenPrePromotion.AnalysisRun())
 	})
 	t.Run("BlueGreen", func(t *testing.T) {
 		r := &v1alpha1.Rollout{
@@ -62,9 +62,9 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 		}
 		analysisContext := NewAnalysisContext(ars, r)
 		assert.Len(t, analysisContext.otherArs, 1)
-		assert.Equal(t, analysisContext.CurrentBlueGreenPrePromotion.AnalysisRun(), ars[0])
-		assert.Equal(t, analysisContext.CurrentBlueGreenPostPromotion.AnalysisRun(), ars[1])
-		assert.Nil(t, analysisContext.CurrentCanaryStep.AnalysisRun())
-		assert.Nil(t, analysisContext.CurrentCanaryStep.AnalysisRun())
+		assert.Equal(t, analysisContext.BlueGreenPrePromotion.AnalysisRun(), ars[0])
+		assert.Equal(t, analysisContext.BlueGreenPostPromotion.AnalysisRun(), ars[1])
+		assert.Nil(t, analysisContext.CanaryStep.AnalysisRun())
+		assert.Nil(t, analysisContext.CanaryStep.AnalysisRun())
 	})
 }

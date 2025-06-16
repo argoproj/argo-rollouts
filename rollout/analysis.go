@@ -59,7 +59,7 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 }
 
 func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1.AnalysisRun, error) {
-	step, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	step, index := replicasetutil.GetCanaryStep(c.rollout)
 	specAnalysis := func(run CurrentAnalysisRun) *v1alpha1.RolloutAnalysis {
 		switch run.ARType() {
 		case v1alpha1.RolloutTypeBackgroundRunLabel:
@@ -125,12 +125,14 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 
 	c.SetCurrentAnalysisRuns()
 
+	// TODO: this filter/cancel logic in the next 15 or so line of code can probably be pulled into the
+	// analysisContext
+
 	// Due to the possibility that we are operating on stale/inconsistent data in the informer, it's
 	// possible that otherArs includes the current analysis runs that we just created or reclaimed
 	// in newCurrentAnalysisRuns, despite the fact that our rollout status did not have those set.
 	// To prevent us from terminating the runs that we just created moments ago, rebuild otherArs
 	// to ensure it does not include the newly created runs.
-
 	otherArs, _ := analysisutil.FilterAnalysisRuns(c.analysisContext.otherArs, func(ar *v1alpha1.AnalysisRun) bool {
 		for _, curr := range c.analysisContext.CurrentAnalysisRunsToArray() {
 			if ar.Name == curr.Name {
