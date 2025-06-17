@@ -174,7 +174,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	for _, reconciler := range reconcilers {
 		c.log.Infof("Reconciling TrafficRouting with type '%s'", reconciler.Type())
 
-		currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
+		currentStep, index := replicasetutil.GetCanaryStep(c.rollout)
 		desiredWeight := int32(0)
 		weightDestinations := make([]v1alpha1.WeightDestination, 0)
 

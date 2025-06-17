@@ -400,7 +400,7 @@ func BeforeStartingStep(rollout *v1alpha1.Rollout) bool {
 	if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.Analysis == nil || rollout.Spec.Strategy.Canary.Analysis.StartingStep == nil {
 		return false
 	}
-	_, currStep := GetCurrentCanaryStep(rollout)
+	_, currStep := GetCanaryStep(rollout)
 	if currStep == nil {
 		return false
 	}
@@ -447,9 +447,9 @@ func GetReplicasForScaleDown(rs *appsv1.ReplicaSet, ignoreAvailability bool) int
 	return rs.Status.AvailableReplicas
 }
 
-// GetCurrentCanaryStep returns the current canary step. If there are no steps or the rollout
+// GetCanaryStep returns the current canary step. If there are no steps or the rollout
 // has already executed the last step, the func returns nil
-func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int32) {
+func GetCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int32) {
 	if rollout.Spec.Strategy.Canary == nil || len(rollout.Spec.Strategy.Canary.Steps) == 0 {
 		return nil, nil
 	}
@@ -485,7 +485,7 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 	if rollout.Status.Abort {
 		return 0
 	}
-	currentStep, currentStepIndex := GetCurrentCanaryStep(rollout)
+	currentStep, currentStepIndex := GetCanaryStep(rollout)
 	if currentStep == nil {
 		return weightutil.MaxTrafficWeight(rollout)
 	}
@@ -514,7 +514,7 @@ func UseSetCanaryScale(rollout *v1alpha1.Rollout) *v1alpha1.SetCanaryScale {
 			return nil
 		}
 	}
-	currentStep, currentStepIndex := GetCurrentCanaryStep(rollout)
+	currentStep, currentStepIndex := GetCanaryStep(rollout)
 	if currentStep == nil {
 		// setCanaryScale feature is unused
 		return nil
@@ -570,7 +570,7 @@ func GetStableRS(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, rslist []*
 
 // GetCurrentExperimentStep grabs the latest Experiment step
 func GetCurrentExperimentStep(r *v1alpha1.Rollout) *v1alpha1.RolloutExperimentStep {
-	currentStep, currentStepIndex := GetCurrentCanaryStep(r)
+	currentStep, currentStepIndex := GetCanaryStep(r)
 	if currentStep == nil {
 		return nil
 	}

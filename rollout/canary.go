@@ -144,7 +144,7 @@ func (c *rolloutContext) reconcileCanaryPause() bool {
 		c.log.Info("Rollout does not have any steps")
 		return false
 	}
-	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	currentStep, currentStepIndex := replicasetutil.GetCanaryStep(c.rollout)
 
 	if totalSteps <= int(*currentStepIndex) {
 		c.log.Info("No Steps remain in the canary steps")
@@ -326,11 +326,11 @@ func (c *rolloutContext) canProceedWithScaleDownAnnotation(oldRSs []*appsv1.Repl
 	return canProceed, nil
 }
 
-func (c *rolloutContext) completedCurrentCanaryStep() bool {
+func (c *rolloutContext) completedCanaryStep() bool {
 	if c.rollout.Spec.Paused {
 		return false
 	}
-	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	currentStep, currentStepIndex := replicasetutil.GetCanaryStep(c.rollout)
 	if currentStep == nil {
 		return false
 	}
@@ -352,7 +352,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 		experiment := c.currentEx
 		return experiment != nil && experiment.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
 	case currentStep.Analysis != nil:
-		currentStepAr := c.currentArs.CanaryStep
+		currentStepAr := c.analysisContext.CanaryStep.AnalysisRun()
 		analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Phase.Completed()
 		return analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
 	case currentStep.SetHeaderRoute != nil:
@@ -384,7 +384,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.Canary.StepPluginStatuses = c.rollout.Status.Canary.StepPluginStatuses
 	c.stepPluginContext.updateStatus(&newStatus)
 
-	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	currentStep, currentStepIndex := replicasetutil.GetCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(c.rollout)
 	stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
@@ -436,7 +436,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	if c.completedCurrentCanaryStep() {
+	if c.completedCanaryStep() {
 		stepStr := rolloututil.CanaryStepString(*currentStep)
 		*currentStepIndex++
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
