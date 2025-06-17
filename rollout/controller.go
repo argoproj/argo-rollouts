@@ -36,6 +36,8 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 
+	patchtypes "k8s.io/apimachinery/pkg/types"
+
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -1000,14 +1002,62 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 	return &remarshalled
 }
 
+// patchReplicaSet patches the replicas, annotations, and labels of a ReplicaSet using a strategic merge patch.
+func (c *rolloutContext) patchReplicaSet(
+	ctx context.Context,
+	rs *appsv1.ReplicaSet,
+	newScale int32,
+	annotations map[string]string,
+	labels map[string]string,
+) (*appsv1.ReplicaSet, error) {
+	patchSpec := map[string]interface{}{
+		"replicas": newScale,
+	}
+
+	// Always patch minReadySeconds and affinity to ensure they are up to date
+	patchSpec["minReadySeconds"] = rs.Spec.MinReadySeconds
+	if rs.Spec.Template.Spec.Affinity != nil {
+		patchSpecTemplate := map[string]interface{}{
+			"spec": map[string]interface{}{
+				"affinity": rs.Spec.Template.Spec.Affinity,
+			},
+		}
+		patchSpec["template"] = patchSpecTemplate
+	}
+
+	patchObj := map[string]interface{}{
+		"spec": patchSpec,
+	}
+
+	if annotations != nil {
+		patchObj["metadata"] = map[string]interface{}{"annotations": annotations}
+	}
+	if labels != nil {
+		if patchObj["metadata"] == nil {
+			patchObj["metadata"] = map[string]interface{}{}
+		}
+		patchObj["metadata"].(map[string]interface{})["labels"] = labels
+	}
+
+	patchBytes, err := json.Marshal(patchObj)
+	if err != nil {
+		return nil, err
+	}
+	patchedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return patchedRS, nil
+}
+
 // updateReplicaSet updates the replicaset using kubeclient update. It returns the updated replicaset and copies the updated replicaset
 // into the passed in pointer as well.
-func (c *rolloutContext) updateReplicaSet(ctx context.Context, rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
-	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("error updating replicaset in updateReplicaSet %s: %w", rs.Name, err)
-	}
-	updatedRS.DeepCopyInto(rs)
+// func (c *rolloutContext) updateReplicaSet(ctx context.Context, rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
+// 	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
+// 	if err != nil {
+// 		return nil, fmt.Errorf("error updating replicaset in updateReplicaSet %s: %w", rs.Name, err)
+// 	}
+// 	updatedRS.DeepCopyInto(rs)
 
-	return rs, err
-}
+// 	return rs, err
+// }

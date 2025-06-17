@@ -809,11 +809,11 @@ func (f *fixture) expectCreateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	return len
 }
 
-func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) int {
-	len := len(f.kubeactions)
-	f.kubeactions = append(f.kubeactions, core.NewUpdateAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r))
-	return len
-}
+// func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) int {
+// 	len := len(f.kubeactions)
+// 	f.kubeactions = append(f.kubeactions, core.NewUpdateAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r))
+// 	return len
+// }
 
 func (f *fixture) expectPatchReplicaSetAction(rs *appsv1.ReplicaSet) int {
 	len := len(f.kubeactions)
@@ -1218,7 +1218,7 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r)
 	f.expectPatchRolloutAction(r)
 	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
-	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.expectPatchReplicaSetAction(&appsv1.ReplicaSet{})
 	f.run(getKey(r, t))
 }
 
