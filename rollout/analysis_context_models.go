@@ -98,13 +98,6 @@ func (ar *BaseRun) OutsideAnalysisBoundaries(options ...OutsideAnalysisBoundarie
 	return false
 }
 
-func (ar *BaseRun) RolloutAnalysis() *v1alpha1.RolloutAnalysis {
-	if ar == nil {
-		return nil
-	}
-	return ar.rolloutAnalysis
-}
-
 func (ar *BaseRun) AnalysisRun() *v1alpha1.AnalysisRun {
 	if ar == nil {
 		return nil

@@ -539,7 +539,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		olderRSs:        olderRSs,
 		otherRSs:        otherRSs,
 		allRSs:          rsList,
-		analysisContext: NewAnalysisContext(arList, rollout),
+		analysisContext: NewAnalysisContext(arList, rollout, logCtx, c.reconcilerBase.argoprojclientset),
 		currentEx:       currentEx,
 		otherExs:        otherExs,
 		newStatus: v1alpha1.RolloutStatus{

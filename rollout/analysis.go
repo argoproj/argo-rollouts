@@ -2,7 +2,6 @@ package rollout
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -86,7 +85,7 @@ func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1
 		return nil
 	}
 	if run.ShouldCancel(WithAnalysis(specAnalysis(run)), WithBackgroundAnalysis(&c.rollout.Spec.Strategy), WithStep(step), WithStepIndex(index), WithShouldSkip(shouldSkip(run.ARType(), c.rollout, c.newRS))) {
-		return nil, c.analysisContext.cancelCurrentAnalysisRun(c.log, c.argoprojclientset, run)
+		return nil, c.analysisContext.cancelCurrentAnalysisRun(run)
 	}
 
 	if run.OutsideAnalysisBoundaries(WithIsFullyPromoted(rolloututil.IsFullyPromoted(c.rollout)), WithIsBeforeStartingStep(replicasetutil.BeforeStartingStep(c.rollout)), WithIsJustCreated(rolloututil.IsJustCreated(c.rollout))) {
@@ -100,7 +99,19 @@ func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1
 	if run.NeedsNew(c.rollout.Status.ControllerPause, c.rollout.Status.PauseConditions, c.rollout.Status.AbortedAt) {
 		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
 		instanceID := analysisutil.GetInstanceID(c.rollout)
-		newRun, err := c.createAnalysisRun(specAnalysis(run), run.Infix(InfixWithIndex(index)), run.Labels(podHash, instanceID, WithStepIndexLabel(index)))
+		rolloutAnalysis := specAnalysis(run)
+		args, err := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, c.stableRS, c.newRS, c.rollout)
+		if err != nil {
+			return nil, err
+		}
+		newRun, err := c.analysisContext.createAnalysisRun(
+			rolloutAnalysis,
+			c.newRS,
+			args,
+			run.Infix(InfixWithIndex(index)),
+			run.Labels(podHash, instanceID, WithStepIndexLabel(index)),
+			c.newAnalysisRunFromRollout,
+		)
 		run.UpdateRun(newRun)
 		return newRun, err
 	}
@@ -110,7 +121,7 @@ func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1
 
 func (c *rolloutContext) reconcileAnalysisRuns() error {
 	if c.shouldCancelAllAnalysisRuns() {
-		return c.analysisContext.cancelAnalysisRuns(c.log, c.argoprojclientset)
+		return c.analysisContext.cancelAnalysisRuns()
 	}
 	for _, run := range c.analysisContext.AllCurrentAnalysisRuns() {
 		currentRun, err := c.reconcileAnalysisRun(run)
@@ -125,35 +136,12 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 
 	c.SetCurrentAnalysisRuns()
 
-	// TODO: this filter/cancel logic in the next 15 or so line of code can probably be pulled into the
-	// analysisContext
-
-	// Due to the possibility that we are operating on stale/inconsistent data in the informer, it's
-	// possible that otherArs includes the current analysis runs that we just created or reclaimed
-	// in newCurrentAnalysisRuns, despite the fact that our rollout status did not have those set.
-	// To prevent us from terminating the runs that we just created moments ago, rebuild otherArs
-	// to ensure it does not include the newly created runs.
-	otherArs, _ := analysisutil.FilterAnalysisRuns(c.analysisContext.otherArs, func(ar *v1alpha1.AnalysisRun) bool {
-		for _, curr := range c.analysisContext.CurrentAnalysisRunsToArray() {
-			if ar.Name == curr.Name {
-				c.log.Infof("Rescued %s from inadvertent termination", ar.Name)
-				return false
-			}
-		}
-		return true
-	})
-
-	for _, ar := range otherArs {
-		err := c.analysisContext.cancelAnalysisRun(c.log, c.argoprojclientset, ar)
-		if err != nil {
-			return err
-		}
-	}
+	c.analysisContext.cancelOtherArs()
 
 	limitSucceedArs := defaults.GetAnalysisRunSuccessfulHistoryLimitOrDefault(c.rollout)
 	limitFailedArs := defaults.GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(c.rollout)
-	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, c.allRSs, limitSucceedArs, limitFailedArs)
-	err := c.analysisContext.deleteAnalysisRuns(c.log, c.argoprojclientset, arsToDelete)
+	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(c.analysisContext.otherArs, c.allRSs, limitSucceedArs, limitFailedArs)
+	err := c.analysisContext.deleteAnalysisRuns(arsToDelete)
 	if err != nil {
 		return err
 	}
@@ -228,24 +216,6 @@ func skipPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.Repli
 	currentPodHash := replicasetutil.GetPodTemplateHash(newRS)
 	activeSelector := rollout.Status.BlueGreen.ActiveSelector
 	return rollout.Status.StableRS == currentPodHash || activeSelector != currentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS)
-}
-
-func (c *rolloutContext) createAnalysisRun(rolloutAnalysis *v1alpha1.RolloutAnalysis, infix string, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
-	args, err := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, c.stableRS, c.newRS, c.rollout)
-	if err != nil {
-		return nil, err
-	}
-
-	podHash := replicasetutil.GetPodTemplateHash(c.newRS)
-	if podHash == "" {
-		return nil, fmt.Errorf("Latest ReplicaSet '%s' has no pod hash in the labels", c.newRS.Name)
-	}
-	ar, err := c.newAnalysisRunFromRollout(rolloutAnalysis, args, podHash, infix, labels)
-	if err != nil {
-		return nil, err
-	}
-	analysisRunIf := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(c.rollout.Namespace)
-	return analysisutil.CreateWithCollisionCounter(c.log, analysisRunIf, *ar)
 }
 
 // newAnalysisRunFromRollout generates an AnalysisRun from the rollouts, the AnalysisRun Step, the new/stable ReplicaSet, and any extra objects.

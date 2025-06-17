@@ -4,11 +4,13 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
+	f := newFixture(t)
 	ars := []*v1alpha1.AnalysisRun{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -40,7 +42,8 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 				},
 			},
 		}
-		analysisContext := NewAnalysisContext(ars, r)
+
+		analysisContext := NewAnalysisContext(ars, r, logutil.WithRollout(r), f.client)
 		assert.Len(t, analysisContext.otherArs, 1)
 		assert.Equal(t, analysisContext.CanaryStep.AnalysisRun(), ars[0])
 		assert.Equal(t, analysisContext.CanaryBackground.AnalysisRun(), ars[1])
@@ -60,7 +63,7 @@ func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
 				},
 			},
 		}
-		analysisContext := NewAnalysisContext(ars, r)
+		analysisContext := NewAnalysisContext(ars, r, logutil.WithRollout(r), f.client)
 		assert.Len(t, analysisContext.otherArs, 1)
 		assert.Equal(t, analysisContext.BlueGreenPrePromotion.AnalysisRun(), ars[0])
 		assert.Equal(t, analysisContext.BlueGreenPostPromotion.AnalysisRun(), ars[1])
