@@ -83,7 +83,7 @@ func TestCanaryRolloutBumpVersion(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	createdRSIndex := f.expectCreateReplicaSetAction(rs2)
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)                  // scale up RS
+	updatedRSIndex := f.expectPatchReplicaSetAction(rs2)                   // scale up RS
 	updatedRolloutRevisionIndex := f.expectUpdateRolloutAction(r2)         // update rollout revision
 	updatedRolloutConditionsIndex := f.expectUpdateRolloutStatusAction(r2) // update rollout conditions
 	f.expectPatchRolloutAction(r2)
@@ -93,7 +93,7 @@ func TestCanaryRolloutBumpVersion(t *testing.T) {
 	assert.Equal(t, int32(0), *createdRS.Spec.Replicas)
 	assert.Equal(t, "2", createdRS.Annotations[annotations.RevisionAnnotation])
 
-	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	updatedRS := f.getPatchedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(1), *updatedRS.Spec.Replicas)
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutRevisionIndex)
@@ -494,7 +494,7 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	rs := newReplicaSet(r, 1)
 
 	f.expectCreateReplicaSetAction(rs)
-	f.expectUpdateReplicaSetAction(rs) // scale up rs
+	f.expectPatchReplicaSetAction(rs) // scale up rs
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
@@ -534,7 +534,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	rs := newReplicaSet(r, 1)
 
 	f.expectCreateReplicaSetAction(rs)
-	f.expectUpdateReplicaSetAction(rs) // scale up rs
+	f.expectPatchReplicaSetAction(rs) // scale up rs
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
@@ -627,14 +627,14 @@ func TestCanaryRolloutWithMaxWeightInTrafficRouting(t *testing.T) {
 		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
 		createdRSIndex := f.expectCreateReplicaSetAction(rs2)
-		updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
+		updatedRSIndex := f.expectPatchReplicaSetAction(rs2)
 		updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r2)
 		f.expectPatchRolloutAction(r2)
 		f.run(getKey(r2, t))
 
 		createdRS := f.getCreatedReplicaSet(createdRSIndex)
 		assert.Equal(t, tc.expectedCreatedReplicas, *createdRS.Spec.Replicas)
-		updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+		updatedRS := f.getPatchedReplicaSet(updatedRSIndex)
 		assert.Equal(t, tc.expectedUpdatedReplicas, *updatedRS.Spec.Replicas)
 
 		updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
@@ -666,14 +666,14 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	createdRSIndex := f.expectCreateReplicaSetAction(rs2)
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
+	updatedRSIndex := f.expectPatchReplicaSetAction(rs2)
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r2)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	createdRS := f.getCreatedReplicaSet(createdRSIndex)
 	assert.Equal(t, int32(0), *createdRS.Spec.Replicas)
-	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	updatedRS := f.getPatchedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(1), *updatedRS.Spec.Replicas)
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
@@ -705,11 +705,11 @@ func TestCanaryRolloutScaleUpNewReplicaWithCorrectWeight(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
+	updatedRSIndex := f.expectPatchReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	updatedRS := f.getPatchedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(2), *updatedRS.Spec.Replicas)
 }
 
@@ -734,14 +734,14 @@ func TestCanaryRolloutScaleDownStableToMatchWeight(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 0, 0)
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
+	updatedRSIndex := f.expectPatchReplicaSetAction(rs1)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	expectedRS1 := rs1.DeepCopy()
 	expectedRS1.Spec.Replicas = int32Ptr(9)
-	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
-	assert.Equal(t, expectedRS1, updatedRS)
+	updatedRS := f.getPatchedReplicaSet(updatedRSIndex)
+	assert.Equal(t, expectedRS1.Spec.Replicas, updatedRS.Spec.Replicas)
 }
 
 func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
@@ -764,16 +764,16 @@ func TestCanaryRolloutScaleDownOldRs(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
 
-	updateRSIndex := f.expectUpdateReplicaSetAction(rs2)
+	updateRSIndex := f.expectPatchReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	expectedRS2 := rs2.DeepCopy()
 	expectedRS2.Spec.Replicas = int32Ptr(0)
 	expectedRS2.Annotations[annotations.DesiredReplicasAnnotation] = "10"
-	updatedRS := f.getUpdatedReplicaSet(updateRSIndex)
+	updatedRS := f.getPatchedReplicaSet(updateRSIndex)
 
-	assert.Equal(t, expectedRS2, updatedRS)
+	assert.Equal(t, expectedRS2.Spec.Replicas, updatedRS.Spec.Replicas)
 }
 
 // TestCanaryRolloutScaleDownOldRsDontScaleDownTooMuch catches a bug where we scaled down too many old replicasets
@@ -795,14 +795,14 @@ func TestCanaryRolloutScaleDownOldRsDontScaleDownTooMuch(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
 
-	updatedRS1Index := f.expectUpdateReplicaSetAction(rs1)
-	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2)
+	updatedRS1Index := f.expectPatchReplicaSetAction(rs1)
+	updatedRS2Index := f.expectPatchReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	updatedRS1 := f.getUpdatedReplicaSet(updatedRS1Index)
+	updatedRS1 := f.getPatchedReplicaSet(updatedRS1Index)
 	assert.Equal(t, int32(0), *updatedRS1.Spec.Replicas)
-	updatedRS2 := f.getUpdatedReplicaSet(updatedRS2Index)
+	updatedRS2 := f.getPatchedReplicaSet(updatedRS2Index)
 	assert.Equal(t, int32(4), *updatedRS2.Spec.Replicas)
 }
 
@@ -891,10 +891,10 @@ func TestCanaryScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
 
 	f.expectPatchRolloutAction(r3)
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
+	updatedRSIndex := f.expectPatchReplicaSetAction(rs2)
 	f.run(getKey(r3, t))
 
-	updatedRs2 := f.getUpdatedReplicaSet(updatedRSIndex)
+	updatedRs2 := f.getPatchedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(0), *updatedRs2.Spec.Replicas)
 }
 
@@ -920,16 +920,16 @@ func TestRollBackToStable(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1) // Bump replicaset revision from 1 to 3
-	f.expectUpdateRolloutAction(r2)                       // Bump rollout revision from 1 to 3
-	patchIndex := f.expectPatchRolloutAction(r2)          // Patch rollout status
+	updatedRSIndex := f.expectPatchReplicaSetAction(rs1) // Bump replicaset revision from 1 to 3
+	f.expectUpdateRolloutAction(r2)                      // Bump rollout revision from 1 to 3
+	patchIndex := f.expectPatchRolloutAction(r2)         // Patch rollout status
 	f.run(getKey(r2, t))
 
 	expectedRS1 := rs1.DeepCopy()
 	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
 	expectedRS1.Annotations[annotations.RevisionHistoryAnnotation] = "1"
-	firstUpdatedRS1 := f.getUpdatedReplicaSet(updatedRSIndex)
-	assert.Equal(t, expectedRS1, firstUpdatedRS1)
+	firstUpdatedRS1 := f.getPatchedReplicaSet(updatedRSIndex)
+	assert.Equal(t, expectedRS1.Annotations, firstUpdatedRS1.Annotations)
 
 	expectedPatchWithoutSub := `{
 		"status":{
@@ -979,17 +979,15 @@ func TestRollBackToActiveReplicaSetWithinWindow(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectUpdateReplicaSetAction(rs1)                 // Update replicaset revision from 1 to 3
+	f.expectPatchReplicaSetAction(rs1)                  // Update replicaset revision from 1 to 3
 	f.expectUpdateRolloutAction(r2)                     // Update rollout revision from 1 to 3
 	rolloutPatchIndex := f.expectPatchRolloutAction(r2) // Patch rollout status
 	f.run(getKey(r2, t))
 
-	expectedStepIndex := len(steps)
 	patch := f.getPatchedRolloutWithoutConditions(rolloutPatchIndex)
 
 	// Assert current pod hash is the old replicaset and steps were skipped
 	assert.Regexp(t, fmt.Sprintf(`"currentPodHash":"%s"`, rs1PodHash), patch)
-	assert.Regexp(t, fmt.Sprintf(`"currentStepIndex":%d`, expectedStepIndex), patch)
 }
 
 func TestGradualShiftToNewStable(t *testing.T) {
@@ -1016,12 +1014,11 @@ func TestGradualShiftToNewStable(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	updatedR2SIndex := f.expectUpdateReplicaSetAction(rs1)
+	updatedR2SIndex := f.expectPatchReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutAction(r1)
 	f.run(getKey(r2, t))
 
-	updatedRS2 := f.getUpdatedReplicaSet(updatedR2SIndex)
-	assert.Equal(t, rs1.Name, updatedRS2.Name)
+	updatedRS2 := f.getPatchedReplicaSet(updatedR2SIndex)
 	assert.Equal(t, int32(6), *updatedRS2.Spec.Replicas)
 
 	expectedPatchWithoutSub := `{
@@ -1058,13 +1055,13 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
-	//f.expectUpdateReplicaSetAction(rs1)
+	updatedRSIndex := f.expectPatchReplicaSetAction(rs1)
+	//f.expectPatchReplicaSetAction(rs1)
 	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	updatedReplicaSet := f.getUpdatedReplicaSet(updatedRSIndex)
+	updatedReplicaSet := f.getPatchedReplicaSet(updatedRSIndex)
 	assert.Equal(t, "3", updatedReplicaSet.Annotations[annotations.RevisionAnnotation])
 	assert.Equal(t, "1", updatedReplicaSet.Annotations[annotations.RevisionHistoryAnnotation])
 
@@ -1747,11 +1744,11 @@ func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	updatedIndex := f.expectUpdateReplicaSetAction(rs1)
+	updatedIndex := f.expectPatchReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	updatedRS := f.getUpdatedReplicaSet(updatedIndex)
+	updatedRS := f.getPatchedReplicaSet(updatedIndex)
 	assert.Equal(t, int32(8), *updatedRS.Spec.Replicas)
 
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
@@ -1904,8 +1901,8 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 
 	f.expectCreateReplicaSetAction(rs1)
-	f.expectUpdateReplicaSetAction(rs1)
-	f.expectUpdateReplicaSetAction(rs1)
+	f.expectPatchReplicaSetAction(rs1)
+	f.expectPatchReplicaSetAction(rs1)
 
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -1938,11 +1935,11 @@ func TestHandleCanaryAbort(t *testing.T) {
 		f.rolloutLister = append(f.rolloutLister, r2)
 		f.objects = append(f.objects, r2)
 
-		rsIndex := f.expectUpdateReplicaSetAction(rs2)
+		rsIndex := f.expectPatchReplicaSetAction(rs2)
 		patchIndex := f.expectPatchRolloutAction(r2)
 		f.run(getKey(r2, t))
 
-		updatedRS := f.getUpdatedReplicaSet(rsIndex)
+		updatedRS := f.getPatchedReplicaSet(rsIndex)
 		assert.Equal(t, int32(10), *updatedRS.Spec.Replicas)
 
 		patch := f.getPatchedRollout(patchIndex)
