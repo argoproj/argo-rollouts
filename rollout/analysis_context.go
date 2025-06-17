@@ -44,6 +44,9 @@ type CurrentAnalysisRun interface {
 	// CurrentStatus returns the current status of the analysis run.
 	CurrentStatus() *v1alpha1.RolloutAnalysisRunStatus
 
+	// AnalysisRun returns the analysis run object.
+	RolloutAnalysis(options ...RolloutAnalysisOption) *v1alpha1.RolloutAnalysis
+
 	// ShouldCancel determines whether the analysis run should be canceled based on the provided options.
 	// cancelOptions: a variable number of CancelOption values that influence the cancellation decision.
 	// Returns true if the analysis run should be canceled, false otherwise.
@@ -183,6 +186,33 @@ func WithStepIndexLabel(index *int32) LabelsOption {
 				strconv.Itoa(int(*index)),
 			),
 		)
+	}
+}
+
+// RolloutAnalysis() Optional params
+type RolloutAnalysisOpts struct {
+	canary     *v1alpha1.CanaryStrategy
+	canaryStep *v1alpha1.CanaryStep
+	blueGreen  *v1alpha1.BlueGreenStrategy
+}
+
+type RolloutAnalysisOption func(*RolloutAnalysisOpts)
+
+func WithCanary(canary *v1alpha1.CanaryStrategy) RolloutAnalysisOption {
+	return func(opts *RolloutAnalysisOpts) {
+		opts.canary = canary
+	}
+}
+
+func WithCanaryStep(canaryStep *v1alpha1.CanaryStep) RolloutAnalysisOption {
+	return func(opts *RolloutAnalysisOpts) {
+		opts.canaryStep = canaryStep
+	}
+}
+
+func WithBlueGreen(blueGreen *v1alpha1.BlueGreenStrategy) RolloutAnalysisOption {
+	return func(opts *RolloutAnalysisOpts) {
+		opts.blueGreen = blueGreen
 	}
 }
 

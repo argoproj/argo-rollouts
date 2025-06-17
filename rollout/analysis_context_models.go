@@ -9,10 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type BlueGreenPostPromotionAR struct {
-	BaseRun
-}
-
 func NewAnalysisRun(ar *v1alpha1.AnalysisRun, artype string) CurrentAnalysisRun {
 	switch artype {
 	case v1alpha1.RolloutTypePrePromotionLabel:
@@ -49,6 +45,10 @@ func NewAnalysisRun(ar *v1alpha1.AnalysisRun, artype string) CurrentAnalysisRun 
 type BaseRun struct {
 	rolloutAnalysis *v1alpha1.RolloutAnalysis
 	Run             *v1alpha1.AnalysisRun
+}
+
+func (ar *BaseRun) RolloutAnalysis(options ...RolloutAnalysisOption) *v1alpha1.RolloutAnalysis {
+	return nil
 }
 
 func (ar *BaseRun) IsPresent() bool {
@@ -145,6 +145,17 @@ type BlueGreenPrePromotionAR struct {
 	BaseRun
 }
 
+func (ar *BlueGreenPrePromotionAR) RolloutAnalysis(options ...RolloutAnalysisOption) *v1alpha1.RolloutAnalysis {
+	opts := &RolloutAnalysisOpts{}
+	for _, option := range options {
+		option(opts)
+	}
+	if opts.blueGreen != nil {
+		return opts.blueGreen.PrePromotionAnalysis
+	}
+	return nil
+}
+
 func (ar *BlueGreenPrePromotionAR) Infix(options ...InfixOption) string {
 	return "pre"
 
@@ -152,6 +163,21 @@ func (ar *BlueGreenPrePromotionAR) Infix(options ...InfixOption) string {
 
 func (ar *BlueGreenPrePromotionAR) ARType() string {
 	return v1alpha1.RolloutTypePrePromotionLabel
+}
+
+type BlueGreenPostPromotionAR struct {
+	BaseRun
+}
+
+func (ar *BlueGreenPostPromotionAR) RolloutAnalysis(options ...RolloutAnalysisOption) *v1alpha1.RolloutAnalysis {
+	opts := &RolloutAnalysisOpts{}
+	for _, option := range options {
+		option(opts)
+	}
+	if opts.blueGreen != nil {
+		return opts.blueGreen.PostPromotionAnalysis
+	}
+	return nil
 }
 
 func (ar *BlueGreenPostPromotionAR) Infix(options ...InfixOption) string {
@@ -164,6 +190,17 @@ func (ar *BlueGreenPostPromotionAR) ARType() string {
 
 type CanaryStepAR struct {
 	BaseRun
+}
+
+func (ar *CanaryStepAR) RolloutAnalysis(options ...RolloutAnalysisOption) *v1alpha1.RolloutAnalysis {
+	opts := &RolloutAnalysisOpts{}
+	for _, option := range options {
+		option(opts)
+	}
+	if opts.canary != nil && opts.canaryStep != nil {
+		return opts.canaryStep.Analysis
+	}
+	return nil
 }
 
 func (ar *CanaryStepAR) Infix(options ...InfixOption) string {
@@ -200,6 +237,17 @@ func (ar *CanaryStepAR) ShouldReturnCur(options ...ShouldReturnCurOption) bool {
 
 type CanaryBackgroundAR struct {
 	BaseRun
+}
+
+func (ar *CanaryBackgroundAR) RolloutAnalysis(options ...RolloutAnalysisOption) *v1alpha1.RolloutAnalysis {
+	opts := &RolloutAnalysisOpts{}
+	for _, option := range options {
+		option(opts)
+	}
+	if opts.canary != nil && opts.canary.Analysis != nil {
+		return &opts.canary.Analysis.RolloutAnalysis
+	}
+	return nil
 }
 
 func (ar *CanaryBackgroundAR) Infix(options ...InfixOption) string {

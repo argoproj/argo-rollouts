@@ -59,32 +59,8 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 
 func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1.AnalysisRun, error) {
 	step, index := replicasetutil.GetCanaryStep(c.rollout)
-	specAnalysis := func(run CurrentAnalysisRun) *v1alpha1.RolloutAnalysis {
-		switch run.ARType() {
-		case v1alpha1.RolloutTypeBackgroundRunLabel:
-			if c.rollout.Spec.Strategy.Canary == nil || c.rollout.Spec.Strategy.Canary.Analysis == nil {
-				return nil
-			}
-			return &c.rollout.Spec.Strategy.Canary.Analysis.RolloutAnalysis
-		case v1alpha1.RolloutTypeStepLabel:
-			if c.rollout.Spec.Strategy.Canary == nil || step == nil {
-				return nil
-			}
-			return step.Analysis
-		case v1alpha1.RolloutTypePrePromotionLabel:
-			if c.rollout.Spec.Strategy.BlueGreen == nil {
-				return nil
-			}
-			return c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis
-		case v1alpha1.RolloutTypePostPromotionLabel:
-			if c.rollout.Spec.Strategy.BlueGreen == nil {
-				return nil
-			}
-			return c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis
-		}
-		return nil
-	}
-	if run.ShouldCancel(WithAnalysis(specAnalysis(run)), WithBackgroundAnalysis(&c.rollout.Spec.Strategy), WithStep(step), WithStepIndex(index), WithShouldSkip(shouldSkip(run.ARType(), c.rollout, c.newRS))) {
+	rolloutAnalysis := run.RolloutAnalysis(WithBlueGreen(c.rollout.Spec.Strategy.BlueGreen), WithCanary(c.rollout.Spec.Strategy.Canary), WithCanaryStep(step))
+	if run.ShouldCancel(WithAnalysis(rolloutAnalysis), WithBackgroundAnalysis(&c.rollout.Spec.Strategy), WithStep(step), WithStepIndex(index), WithShouldSkip(shouldSkip(run.ARType(), c.rollout, c.newRS))) {
 		return nil, c.analysisContext.cancelCurrentAnalysisRun(run)
 	}
 
@@ -99,7 +75,6 @@ func (c *rolloutContext) reconcileAnalysisRun(run CurrentAnalysisRun) (*v1alpha1
 	if run.NeedsNew(c.rollout.Status.ControllerPause, c.rollout.Status.PauseConditions, c.rollout.Status.AbortedAt) {
 		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
 		instanceID := analysisutil.GetInstanceID(c.rollout)
-		rolloutAnalysis := specAnalysis(run)
 		args, err := analysisutil.BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, c.stableRS, c.newRS, c.rollout)
 		if err != nil {
 			return nil, err
