@@ -147,6 +147,42 @@ func (w *When) UpdateSpec(texts ...string) *When {
 	return w
 }
 
+// UpdateWorkloadRef updates the workload referenced by the rollout (e.g., deployment)
+func (w *When) UpdateWorkloadRef(deploymentName string, texts ...string) *When {
+	if w.rollout == nil {
+		w.t.Fatal("Rollout not set")
+	}
+
+	currentRo, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	if currentRo.Spec.WorkloadRef == nil {
+		w.t.Fatal("Rollout does not have workloadRef")
+	}
+
+	var patchBytes []byte
+	if len(texts) == 0 {
+		nowStr := time.Now().Format(time.RFC3339Nano)
+		patchBytes = []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, nowStr))
+		w.log.Infof("Updating workload ref deployment with timestamp: %s", nowStr)
+	} else {
+		var err error
+		patchBytes, err = yaml.YAMLToJSON([]byte(texts[0]))
+		w.CheckError(err)
+		w.log.Infof("Updating workload ref deployment: %s", string(patchBytes))
+	}
+
+	_, err = w.kubeClient.AppsV1().Deployments(w.namespace).Patch(
+		w.Context,
+		deploymentName,
+		types.MergePatchType,
+		patchBytes,
+		metav1.PatchOptions{},
+	)
+	w.CheckError(err)
+	w.log.Infof("Updated workload ref deployment: %s", deploymentName)
+	return w
+}
+
 func (w *When) PromoteRollout() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
@@ -215,6 +251,46 @@ func (w *When) ScaleRollout(scale int) *When {
 	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.Context, w.rollout.GetName(), types.MergePatchType, []byte(patchStr), metav1.PatchOptions{})
 	w.CheckError(err)
 	w.log.Infof("Scaled rollout to %d", scale)
+	return w
+}
+
+// ScaleRolloutWithWorkloadRef scales a rollout with workload reference using JSON patch
+// to ensure only the replicas field is modified and template remains untouched
+func (w *When) ScaleRolloutWithWorkloadRef(scale int) *When {
+	if w.rollout == nil {
+		w.t.Fatal("Rollout not set")
+	}
+
+	currentRo, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	w.log.Infof("Current rollout replicas: %d, workloadRef: %v", *currentRo.Spec.Replicas, currentRo.Spec.WorkloadRef != nil)
+
+	// Create JSON patch that only modifies replicas
+	patch := []map[string]interface{}{
+		{
+			"op":    "replace",
+			"path":  "/spec/replicas",
+			"value": scale,
+		},
+	}
+
+	patchBytes, err := json.Marshal(patch)
+	w.CheckError(err)
+
+	_, err = w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(
+		w.Context,
+		w.rollout.GetName(),
+		types.JSONPatchType,
+		patchBytes,
+		metav1.PatchOptions{},
+	)
+	w.CheckError(err)
+
+	// Verify the patch was successful
+	updatedRo, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	w.log.Infof("Scaled rollout with workload ref to %d (actual: %d)", scale, *updatedRo.Spec.Replicas)
+
 	return w
 }
 

@@ -179,21 +179,23 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 		// Check if migration is already complete
 		if c.isProgressiveMigrationComplete() {
 			// Migration complete, ensure deployment stays at 0
-			deployment, err := c.kubeclientset.AppsV1().Deployments(c.rollout.Namespace).Get(
+			deployment, deploymentErr := c.kubeclientset.AppsV1().Deployments(c.rollout.Namespace).Get(
 				context.TODO(), c.rollout.Spec.WorkloadRef.Name, metav1.GetOptions{})
-			if err == nil && deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0 {
+			if deploymentErr == nil && deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0 {
 				c.log.Infof("Progressive migration complete, scaling deployment %s to 0", deployment.Name)
 				var targetScale int32 = 0
-				err = c.scaleDeployment(&targetScale)
+				if err := c.scaleDeployment(&targetScale); err != nil {
+					c.log.Errorf("Failed to scale deployment to 0: %v", err)
+				}
 			}
 		} else {
-			// Migration in progress, continue progressive scale down
+			// Migration in progress, scale down the deployment when the rollout has ready replicas or scale up the deployment if rollout fails
 			oldScale := defaults.GetReplicasOrDefault(c.newRS.Spec.Replicas)
 			if c.rollout.Spec.Replicas != nil && (c.rollout.Status.ReadyReplicas > 0 || oldScale > newReplicasCount) {
 				targetScale := *c.rollout.Spec.Replicas - c.rollout.Status.ReadyReplicas
-				c.log.Infof("Progressive scale down: deployment target scale %d (rollout replicas: %d, ready: %d)", 
-					targetScale, *c.rollout.Spec.Replicas, c.rollout.Status.ReadyReplicas)
-				err = c.scaleDeployment(&targetScale)
+				if err := c.scaleDeployment(&targetScale); err != nil {
+					c.log.Errorf("Failed to scale deployment during progressive migration: %v", err)
+				}
 			}
 		}
 	}

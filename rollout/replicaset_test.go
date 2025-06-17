@@ -592,60 +592,77 @@ func TestScaleDownProgressively(t *testing.T) {
 		newRSRevision              string
 		rolloutReplicas            int32
 		rolloutReadyReplicas       int32
+		rolloutPhase               v1alpha1.RolloutPhase
 		abortScaleDownDelaySeconds int32
 		expectedDeploymentReplicas int32
 	}{
 		{
-			name:                       "Scale down deployment",
+			name:                       "Scale down deployment - migration in progress",
 			deploymentReplicas:         5,
 			newRSReplicas:              5,
 			newRSRevision:              "1",
 			rolloutReplicas:            5,
 			rolloutReadyReplicas:       3,
+			rolloutPhase:               v1alpha1.RolloutPhaseProgressing,
 			abortScaleDownDelaySeconds: 0,
 			expectedDeploymentReplicas: 2,
 		},
 		{
-			name:                       "Scale up deployment",
+			name:                       "Scale up deployment - migration in progress",
 			deploymentReplicas:         0,
 			newRSReplicas:              5,
 			newRSRevision:              "1",
 			rolloutReplicas:            5,
 			rolloutReadyReplicas:       1,
+			rolloutPhase:               v1alpha1.RolloutPhaseProgressing,
 			abortScaleDownDelaySeconds: 0,
 			expectedDeploymentReplicas: 4,
 		},
 		{
-			name:                       "Do not scale deployment",
+			name:                       "Do not scale deployment - different revision",
 			deploymentReplicas:         5,
 			newRSReplicas:              5,
 			newRSRevision:              "2",
 			rolloutReplicas:            5,
 			rolloutReadyReplicas:       3,
+			rolloutPhase:               v1alpha1.RolloutPhaseHealthy,
 			abortScaleDownDelaySeconds: 0,
 			expectedDeploymentReplicas: 5,
+		},
+		{
+			name:                       "Migration complete - deployment scaled to 0",
+			deploymentReplicas:         2,
+			newRSReplicas:              5,
+			newRSRevision:              "1",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       5,
+			rolloutPhase:               v1alpha1.RolloutPhaseHealthy,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 0,
 		},
 	}
 
 	for _, test := range tests {
-		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownProgressively, test.deploymentReplicas, true, nil)
-		ctx.rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
-			BlueGreen: &v1alpha1.BlueGreenStrategy{
-				AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
-			},
-		}
-		ctx.newRS = rs("foo-v2", test.newRSReplicas, nil, noTimestamp, nil)
-		ctx.newRS.ObjectMeta.Annotations[annotations.RevisionAnnotation] = test.newRSRevision
-		ctx.pauseContext.removeAbort = true
-		ctx.rollout.Spec.Replicas = &test.rolloutReplicas
-		ctx.rollout.Status.ReadyReplicas = test.rolloutReadyReplicas
+		t.Run(test.name, func(t *testing.T) {
+			ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownProgressively, test.deploymentReplicas, true, nil)
+			ctx.rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
+				},
+			}
+			ctx.newRS = rs("foo-v2", test.newRSReplicas, nil, noTimestamp, nil)
+			ctx.newRS.ObjectMeta.Annotations[annotations.RevisionAnnotation] = test.newRSRevision
+			ctx.pauseContext.removeAbort = true
+			ctx.rollout.Spec.Replicas = &test.rolloutReplicas
+			ctx.rollout.Status.ReadyReplicas = test.rolloutReadyReplicas
+			ctx.rollout.Status.Phase = test.rolloutPhase // Set the appropriate phase
 
-		_, err := ctx.reconcileNewReplicaSet()
-		assert.Nil(t, err)
-		k8sfakeClient := ctx.kubeclientset.(*k8sfake.Clientset)
-		updatedDeployment, err := k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
-		assert.Nil(t, err)
-		assert.Equal(t, test.expectedDeploymentReplicas, *updatedDeployment.Spec.Replicas)
-
+			_, err := ctx.reconcileNewReplicaSet()
+			assert.Nil(t, err)
+			k8sfakeClient := ctx.kubeclientset.(*k8sfake.Clientset)
+			updatedDeployment, err := k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
+			assert.Nil(t, err)
+			assert.Equal(t, test.expectedDeploymentReplicas, *updatedDeployment.Spec.Replicas)
+		})
 	}
 }
