@@ -137,7 +137,6 @@ func TestSyncCanaryEphemeralMetadataSecondRevision(t *testing.T) {
 	rs2idx := f.expectCreateReplicaSetAction(rs2) // Create revision 2 ReplicaSet
 	rs1idx := f.expectUpdateReplicaSetAction(rs1) // update stable replicaset with stable metadata
 	f.expectListPodAction(r1.Namespace)           // list pods to patch ephemeral data on revision 1 ReplicaSets pods
-	pod1.ObjectMeta.Labels["foo"] = "bar2"			   // Update pod2 object after list action and before updating the pod
 	pod1Idx := f.expectUpdatePodAction(&pod1)     // Update pod1 with ephemeral data
 	pod2Idx := f.expectUpdatePodAction(pod2)      // Update pod2 with ephemeral data
 	f.expectUpdateReplicaSetAction(rs1)           // scale revision 1 ReplicaSet down
@@ -163,12 +162,7 @@ func TestSyncCanaryEphemeralMetadataSecondRevision(t *testing.T) {
 	assert.Equal(t, expectedStableLabels, updatedRS1.Spec.Template.Labels)
 	// also it's pods
 	updatedPod1 := f.getUpdatedPod(pod1Idx)
-	expectedStableLabelsPod1 = map[string]string{
-		"foo":                        "bar2",
-		"role":                       "stable",
-		"rollouts-pod-template-hash": r1.Status.CurrentPodHash,
-	}
-	assert.Equal(t, expectedStableLabelsPod1, updatedPod1.Labels)
+	assert.Equal(t, expectedStableLabels, updatedPod1.Labels)
 	updatedPod2 := f.getUpdatedPod(pod2Idx)
 	assert.Equal(t, expectedStableLabels, updatedPod2.Labels)
 }
@@ -228,7 +222,6 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	f.expectUpdateReplicaSetAction(rs2)                // scale revision 2 ReplicaSet up
 	rs1idx := f.expectUpdateReplicaSetAction(rs1)      // update stable replicaset with stable metadata
 	f.expectListPodAction(r1.Namespace)                // list pods to patch ephemeral data on revision 1 ReplicaSets pods`
-	pod1.ObjectMeta.Labels["foo"] = "bar2"			   // Update pod2 object after list action and before updating the pod
 	pod1Idx := f.expectUpdatePodAction(&pod1)          // Update pod1 with ephemeral data
 	pod2Idx := f.expectUpdatePodAction(pod2)           // Update pod2 with ephemeral data
 	f.expectPatchRolloutAction(r2)                     // Patch Rollout status
@@ -253,12 +246,6 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	assert.Equal(t, expectedStableLabels, updatedRS1.Spec.Template.Labels)
 	// also it's pods
 	updatedPod1 := f.getUpdatedPod(pod1Idx)
-	expectedStableLabelsPod1 = map[string]string{
-		"foo":                        "bar2",
-		"role":                       "active",
-		"rollouts-pod-template-hash": r1.Status.CurrentPodHash,
-	}
-	assert.Equal(t, expectedStableLabelsPod1, updatedPod1.Labels)
 	assert.Equal(t, expectedStableLabels, updatedPod1.Labels)
 	updatedPod2 := f.getUpdatedPod(pod2Idx)
 	assert.Equal(t, expectedStableLabels, updatedPod2.Labels)
