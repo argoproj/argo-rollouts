@@ -93,7 +93,7 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 	spc.cleanStatusForRetry(rollout)
 
 	// Normal execution flow of a step plugin
-	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
+	currentStep, currentStepIndex := replicasetutil.GetCanaryStep(rollout)
 	if currentStep == nil || currentStep.Plugin == nil {
 		return nil
 	}
@@ -261,7 +261,7 @@ func (spc *stepPluginContext) cleanStatusForRetry(rollout *v1alpha1.Rollout) {
 		return
 	}
 
-	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
+	currentStep, currentStepIndex := replicasetutil.GetCanaryStep(rollout)
 	if currentStep == nil || int(*currentStepIndex) > 0 {
 		// Nothing to clean if rollout steps are completed or in progress
 		return

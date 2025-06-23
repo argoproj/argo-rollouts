@@ -164,7 +164,7 @@ func (c *rolloutContext) reconcileExperiments() error {
 		return nil
 	}
 
-	step, stepIdx := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	step, stepIdx := replicasetutil.GetCanaryStep(c.rollout)
 
 	currentEx := c.currentEx
 	if step != nil && step.Experiment != nil {

@@ -5,7 +5,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 )
 
 type rolloutContext struct {
@@ -30,8 +29,7 @@ type rolloutContext struct {
 	// otherRSs are ReplicaSets which are neither new or stable (allRSs - newRS - stableRS)
 	otherRSs []*appsv1.ReplicaSet
 
-	currentArs analysisutil.CurrentAnalysisRuns
-	otherArs   []*v1alpha1.AnalysisRun
+	analysisContext *AnalysisContext
 
 	currentEx *v1alpha1.Experiment
 	otherExs  []*v1alpha1.Experiment
@@ -88,43 +86,30 @@ func (c *rolloutContext) SetCurrentExperiment(ex *v1alpha1.Experiment) {
 	}
 }
 
-func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnalysisRuns) {
-	c.currentArs = currARs
+func (c *rolloutContext) SetCurrentAnalysisRuns() {
 
 	if c.rollout.Spec.Strategy.Canary != nil {
-		currBackgroundAr := currARs.CanaryBackground
-		if currBackgroundAr != nil {
-			c.newStatus.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
-				Name:    currBackgroundAr.Name,
-				Status:  currBackgroundAr.Status.Phase,
-				Message: currBackgroundAr.Status.Message,
-			}
-		}
-		currStepAr := currARs.CanaryStep
-		if currStepAr != nil {
-			c.newStatus.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
-				Name:    currStepAr.Name,
-				Status:  currStepAr.Status.Phase,
-				Message: currStepAr.Status.Message,
-			}
-		}
+		c.setCurrentCanaryAnalysisRuns()
 	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
-		currPrePromoAr := currARs.BlueGreenPrePromotion
-		if currPrePromoAr != nil {
-			c.newStatus.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
-				Name:    currPrePromoAr.Name,
-				Status:  currPrePromoAr.Status.Phase,
-				Message: currPrePromoAr.Status.Message,
-			}
-		}
-		currPostPromoAr := currARs.BlueGreenPostPromotion
-		if currPostPromoAr != nil {
-			c.newStatus.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
-				Name:    currPostPromoAr.Name,
-				Status:  currPostPromoAr.Status.Phase,
-				Message: currPostPromoAr.Status.Message,
-			}
-		}
+		c.setCurrentBlueGreenAnalysisRuns()
+	}
+}
+func (c *rolloutContext) setCurrentCanaryAnalysisRuns() {
+	if c.analysisContext.CanaryBackground.AnalysisRun() != nil {
+		c.newStatus.Canary.CurrentBackgroundAnalysisRunStatus = c.analysisContext.CanaryBackgroundARStatus()
+	}
+	if c.analysisContext.CanaryStep.AnalysisRun() != nil {
+		c.newStatus.Canary.CurrentStepAnalysisRunStatus = c.analysisContext.CanaryStepARStatus()
+	}
+}
+
+func (c *rolloutContext) setCurrentBlueGreenAnalysisRuns() {
+
+	if c.analysisContext.BlueGreenPrePromotion.AnalysisRun() != nil {
+		c.newStatus.BlueGreen.PrePromotionAnalysisRunStatus = c.analysisContext.BlueGreenPrePromotionARStatus()
+	}
+	if c.analysisContext.BlueGreenPostPromotion.AnalysisRun() != nil {
+		c.newStatus.BlueGreen.PostPromotionAnalysisRunStatus = c.analysisContext.BlueGreenPostPromotionARStatus()
 	}
 }
 
