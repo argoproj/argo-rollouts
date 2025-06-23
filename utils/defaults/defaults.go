@@ -27,9 +27,9 @@ const (
 	// DefaultProgressDeadlineSeconds default number of seconds for the rollout to be making progress
 	DefaultProgressDeadlineSeconds = int32(600)
 	// DefaultScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
-	DefaultScaleDownDelaySeconds = int32(30)
+	DefaultScaleDownDelaySeconds = int32(60)
 	// DefaultAbortScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
-	DefaultAbortScaleDownDelaySeconds = int32(30)
+	DefaultAbortScaleDownDelaySeconds = int32(60)
 	// DefaultAutoPromotionEnabled default value for auto promoting a blueGreen strategy
 	DefaultAutoPromotionEnabled = true
 	// DefaultConsecutiveErrorLimit is the default number times a metric can error in sequence before
