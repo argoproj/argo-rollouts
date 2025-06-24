@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -154,9 +155,33 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 					newReplicasCount = int32(0)
 				}
 			}
-		} else if abortScaleDownDelaySeconds != nil {
-			// Don't annotate until need to ensure the stable RS is fully scaled
-			if c.stableRS.Status.AvailableReplicas == *c.rollout.Spec.Replicas {
+		} else {
+			// Don't annotate until need to ensure the stable RS is fully available, with
+			// rollout.Spec.Strategy.Canary.ToleratedUnavailable used as tolerance.
+
+			// We respect and utilize ToleratedUnavailable only when we had something to do with scaling
+			// down the stable replicaset. That is, for canary with dynamicStableScale, and never for bluegreen.
+
+			// Otherwise, we add the annotation immediately.
+
+			annotate := true
+
+			usesDynamicStableScaling := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.DynamicStableScale
+			if usesDynamicStableScaling {
+
+				toleratedReplicas, err := intstrutil.GetScaledValueFromIntOrPercent(defaults.GetToleratedUnavailableOrDefault(c.rollout), int(defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)), false)
+				if err != nil {
+					c.log.Warnf("error calculating toleratedReplicas number in reconcileNewReplicaSet: %s, defaulting to 0 tolerance", err.Error())
+					toleratedReplicas = 0
+				}
+				requiredNumberOfReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) - int32(toleratedReplicas)
+
+				if c.stableRS.Status.AvailableReplicas < requiredNumberOfReplicas {
+					annotate = false
+				}
+			}
+
+			if annotate {
 				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
 				if err != nil {
 					return false, err
