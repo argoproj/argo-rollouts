@@ -262,6 +262,30 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 		if err = ValidateHTTPRoutes(r.rollout, vsvcRouteNames, httpRoutes); err != nil {
 			return nil, false, err
 		}
+
+		// Returns the host specified within the DestinationRule.spec.host object
+		host, err := r.getDestinationRuleHost()
+		if err != nil {
+			return nil, false, err
+		}
+
+		// Host being defined is required by Istio, see
+		// https://istio.io/latest/docs/reference/config/networking/destination-rule/#DestinationRule-host
+		if host != "" {
+			var routeDestinations []VirtualServiceRouteDestination
+			for i, vsvsHTTPRoute := range httpRoutes {
+				for _, r := range vsvsHTTPRoute.Route {
+					if r.Destination.Host == host {
+						routeDestinations = append(routeDestinations, VirtualServiceRouteDestination{
+							Destination: r.Destination,
+							Weight:      r.Weight,
+						})
+					}
+				}
+
+				httpRoutes[i].Route = routeDestinations
+			}
+		}
 	}
 
 	// TLS Routes
