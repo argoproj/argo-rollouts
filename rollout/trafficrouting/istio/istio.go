@@ -107,6 +107,12 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []any, tlsRo
 			}
 			if patch.toDelete {
 				destinations = append(destinations[:patch.destinationIndex], destinations[patch.destinationIndex+1:]...)
+			} else if patch.host != destination["host"] {
+				// If the patch does not exactly match the host we are trying to overwrite, Argo Rollouts should not modify the weights assigned to it.
+				// For example, if you have a subset DestinationRule that Argo Rollouts does not manage (with host rollout-subset),
+				// then this check makes sure that Argo Rollouts does not modify the weights assigned to it when Argo Rollouts manages
+				// only the weights assigned to the host (with name rollout).
+				continue
 			} else {
 				destination["weight"] = float64(patch.weight)
 				destinations[patch.destinationIndex] = destination
@@ -193,10 +199,13 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 func processRoutes(routeType string, routeIdx int, destinations []VirtualServiceRouteDestination, desiredWeight int64, svcSubsets svcSubsets, patches virtualServicePatches, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
 	svcToDest := map[string]v1alpha1.WeightDestination{}
 	stableWeight := 100 - desiredWeight
+
+	// handle additional destinations weight distribution
 	for _, dest := range additionalDestinations {
 		svcToDest[dest.ServiceName] = dest
 		stableWeight -= int64(dest.Weight)
 	}
+
 	for idx, destination := range destinations {
 		host := getHost(destination)
 		subset := destination.Destination.Subset
@@ -263,19 +272,19 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 			return nil, false, err
 		}
 
-		// Returns the host specified within the DestinationRule.spec.host object
+		// Get the host specified within DestinationRule.host object to add additional DestinationRules specified
+		// in a VirtualService template. This ensures that Argo Rollouts does not modify the weights assigned to
+		// DestinationRules that are not managed by Argo Rollouts.
 		host, err := r.getDestinationRuleHost()
 		if err != nil {
 			return nil, false, err
 		}
 
-		// Host being defined is required by Istio, see
-		// https://istio.io/latest/docs/reference/config/networking/destination-rule/#DestinationRule-host
 		if host != "" {
 			var routeDestinations []VirtualServiceRouteDestination
-			for i, vsvsHTTPRoute := range httpRoutes {
-				for _, r := range vsvsHTTPRoute.Route {
-					if r.Destination.Host == host {
+			for i, route := range httpRoutes {
+				for _, r := range route.Route {
+					if r.Destination.Host == host { // if the host matches the host in the DestinationRule, add the destination to the routeDestinations
 						routeDestinations = append(routeDestinations, VirtualServiceRouteDestination{
 							Destination: r.Destination,
 							Weight:      r.Weight,
