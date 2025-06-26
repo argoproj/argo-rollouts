@@ -3,6 +3,7 @@ package rollout
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,8 +17,11 @@ import (
 // DefaultEphemeralMetadataThreads is the default number of worker threads to run when reconciling ephemeral metadata
 const DefaultEphemeralMetadataThreads = 10
 
-// DefaultUpdatePodMaxRetries is the default number of retries when attempting to update pod ephemeral metadata
+// DefaultEphemeralMetadataPodRetries is the default number of retries when attempting to update pod ephemeral metadata
 const DefaultEphemeralMetadataPodRetries = 3
+
+// DefaultEphemeralMetadataRetryBackoff is the base duration for exponential backoff between retry attempts
+const DefaultEphemeralMetadataRetryBackoff = 100 * time.Millisecond
 
 // reconcileEphemeralMetadata syncs canary/stable ephemeral metadata to ReplicaSets and pods
 func (c *rolloutContext) reconcileEphemeralMetadata() error {
@@ -98,36 +102,56 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 
 	for _, pod := range pods {
 		eg.Go(func() error {
-			var retryLimit int = 0
 			fetchedPod := pod.DeepCopy()
+
 			// Retry Updating pod Metadata
-			for retryLimit < c.ephemeralMetadataPodRetries {
-				newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&fetchedPod.ObjectMeta, existingPodMetadata, podMetadata)
-				if podModified {
-					fetchedPod.ObjectMeta = *newPodObjectMeta
-					_, err = c.kubeclientset.CoreV1().Pods(fetchedPod.Namespace).Update(ctx, fetchedPod, metav1.UpdateOptions{})
-					if err == nil {
-						c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, fetchedPod.Name)
-						return nil
-					}
-					if errors.IsNotFound(err) {
-						c.log.Infof("Skipping sync ephemeral metadata %v to Pod %s: as it no longer exists", podMetadata, fetchedPod.Name)
-						return nil
-					}
-					// If there is a mismatch of versions between the live pod object
-					// and sent in the update call then we refetch the pod Object
-					if errors.IsConflict(err) {
-						fetchedPod, err = c.kubeclientset.CoreV1().Pods(fetchedPod.Namespace).Get(ctx, fetchedPod.Name, metav1.GetOptions{})
-					}
-					c.log.Infof("failed to sync ephemeral metadata %v to Pod %s: %v, in retry attempt %d", podMetadata, fetchedPod.Name, err, retryLimit)
-					retryLimit++
+			for attempt := 0; attempt < c.ephemeralMetadataPodRetries; attempt++ {
+				// Add exponential backoff for retries (except first attempt)
+				if attempt > 0 {
+					backoff := time.Duration(attempt) * DefaultEphemeralMetadataRetryBackoff
+					time.Sleep(backoff)
 				}
+
+				newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&fetchedPod.ObjectMeta, existingPodMetadata, podMetadata)
+				if !podModified {
+					// No changes needed, exit successfully
+					return nil
+				}
+
+				fetchedPod.ObjectMeta = *newPodObjectMeta
+				_, err = c.kubeclientset.CoreV1().Pods(fetchedPod.Namespace).Update(ctx, fetchedPod, metav1.UpdateOptions{})
+				if err == nil {
+					c.log.Infof("synced ephemeral metadata %v to Pod %s", podMetadata, fetchedPod.Name)
+					return nil
+				}
+
+				if errors.IsNotFound(err) {
+					c.log.Infof("Skipping sync ephemeral metadata %v to Pod %s: as it no longer exists", podMetadata, fetchedPod.Name)
+					return nil
+				}
+
+				// If there is a mismatch of versions between the live pod object
+				// and sent in the update call then we refetch the pod Object
+				if errors.IsConflict(err) {
+					fetchedPod, err = c.kubeclientset.CoreV1().Pods(fetchedPod.Namespace).Get(ctx, fetchedPod.Name, metav1.GetOptions{})
+					if err != nil {
+						c.log.Infof("failed to refetch pod %s during retry %d: %v", fetchedPod.Name, attempt, err)
+						// Fall through to log the original error and continue retrying
+					}
+				}
+
+				c.log.Infof("failed to sync ephemeral metadata %v to Pod %s: %v, in retry attempt %d of %d", podMetadata, fetchedPod.Name, err, attempt+1, c.ephemeralMetadataPodRetries)
 			}
-			return nil
+
+			// If we've exhausted all retries, log final failure and return error
+			c.log.Warnf("exhausted all %d retries to sync ephemeral metadata %v to Pod %s", c.ephemeralMetadataPodRetries, podMetadata, fetchedPod.Name)
+			return err
 		})
 	}
 
-	eg.Wait()
+	if err := eg.Wait(); err != nil {
+		return err
+	}
 
 	return nil
 }
