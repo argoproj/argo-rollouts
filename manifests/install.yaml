@@ -13408,6 +13408,10 @@ spec:
                             properties:
                               destinationRule:
                                 properties:
+                                  additionalSubsetNames:
+                                    items:
+                                      type: string
+                                    type: array
                                   canarySubsetName:
                                     type: string
                                   name:
