@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -72,10 +73,11 @@ type virtualServicePatch struct {
 type virtualServicePatches []virtualServicePatch
 
 type svcSubsets struct {
-	canarySvc    string
-	stableSvc    string
-	canarySubset string
-	stableSubset string
+	canarySvc             string
+	stableSvc             string
+	canarySubset          string
+	stableSubset          string
+	additionalSubsetNames []string
 }
 
 const (
@@ -107,12 +109,6 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []any, tlsRo
 			}
 			if patch.toDelete {
 				destinations = append(destinations[:patch.destinationIndex], destinations[patch.destinationIndex+1:]...)
-			} else if patch.host != destination["host"] {
-				// If the patch does not exactly match the host we are trying to overwrite, Argo Rollouts should not modify the weights assigned to it.
-				// For example, if you have a subset DestinationRule that Argo Rollouts does not manage (with host rollout-subset),
-				// then this check makes sure that Argo Rollouts does not modify the weights assigned to it when Argo Rollouts manages
-				// only the weights assigned to the host (with name rollout).
-				continue
 			} else {
 				destination["weight"] = float64(patch.weight)
 				destinations[patch.destinationIndex] = destination
@@ -140,9 +136,11 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout, false)
 	canarySubset := ""
 	stableSubset := ""
+	var additionalSubsetNames []string
 	if r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule != nil {
 		canarySubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.CanarySubsetName
 		stableSubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.StableSubsetName
+		additionalSubsetNames = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.AdditionalSubsetNames
 	}
 
 	// Go through all the routes on the Istio Virtual Service looking for routes that are Istio mirror routes as well as on the
@@ -167,10 +165,11 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 
 	patches := virtualServicePatches{}
 	svcSubsets := svcSubsets{
-		canarySvc:    canarySvc,
-		stableSvc:    stableSvc,
-		canarySubset: canarySubset,
-		stableSubset: stableSubset,
+		canarySvc:             canarySvc,
+		stableSvc:             stableSvc,
+		canarySubset:          canarySubset,
+		stableSubset:          stableSubset,
+		additionalSubsetNames: additionalSubsetNames,
 	}
 	// Process HTTP Routes
 	for _, routeIdx := range httpRouteIndexesToPatch {
@@ -196,6 +195,10 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 	return patches
 }
 
+func isAnAdditionalSubsetName(subset string, additionalSubsetNames []string) bool {
+	return subset != "" && additionalSubsetNames != nil && slices.Contains(additionalSubsetNames, subset)
+}
+
 func processRoutes(routeType string, routeIdx int, destinations []VirtualServiceRouteDestination, desiredWeight int64, svcSubsets svcSubsets, patches virtualServicePatches, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
 	svcToDest := map[string]v1alpha1.WeightDestination{}
 	stableWeight := 100 - desiredWeight
@@ -204,6 +207,22 @@ func processRoutes(routeType string, routeIdx int, destinations []VirtualService
 	for _, dest := range additionalDestinations {
 		svcToDest[dest.ServiceName] = dest
 		stableWeight -= int64(dest.Weight)
+	}
+
+	// update stable weights when taking into account additional subset DestinationRule weights
+	if svcSubsets.additionalSubsetNames != nil {
+		log.Debugf("Additional subset names encountered within rollout spec")
+		for _, destination := range destinations {
+			subset := destination.Destination.Subset
+			if isAnAdditionalSubsetName(subset, svcSubsets.additionalSubsetNames) {
+				stableWeight -= destination.Weight
+			}
+		}
+	}
+
+	// In case of a negative stableWeight, set to 0. Istio does not allow negative weights
+	if stableWeight < 0 {
+		stableWeight = 0
 	}
 
 	for idx, destination := range destinations {
@@ -218,6 +237,8 @@ func processRoutes(routeType string, routeIdx int, destinations []VirtualService
 			} else if dest, ok := svcToDest[host]; ok { // Patch weight for existing experiment services
 				patches = appendPatch(routeIdx, routeType, weight, int64(dest.Weight), idx, host, false, patches)
 				delete(svcToDest, host)
+			} else if isAnAdditionalSubsetName(subset, svcSubsets.additionalSubsetNames) { // Keep weight for additional subset DestinationRules unchanged
+				patches = appendPatch(routeIdx, routeType, weight, weight, idx, host, false, patches)
 			} else {
 				patches = appendPatch(routeIdx, routeType, weight, 0, idx, host, true, patches)
 			}
@@ -270,30 +291,6 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 		}
 		if err = ValidateHTTPRoutes(r.rollout, vsvcRouteNames, httpRoutes); err != nil {
 			return nil, false, err
-		}
-
-		// Get the host specified within DestinationRule.host object to add additional DestinationRules specified
-		// in a VirtualService template. This ensures that Argo Rollouts does not modify the weights assigned to
-		// DestinationRules that are not managed by Argo Rollouts.
-		host, err := r.getDestinationRuleHost()
-		if err != nil {
-			return nil, false, err
-		}
-
-		if host != "" {
-			var routeDestinations []VirtualServiceRouteDestination
-			for i, route := range httpRoutes {
-				for _, r := range route.Route {
-					if r.Destination.Host == host { // if the host matches the host in the DestinationRule, add the destination to the routeDestinations
-						routeDestinations = append(routeDestinations, VirtualServiceRouteDestination{
-							Destination: r.Destination,
-							Weight:      r.Weight,
-						})
-					}
-				}
-
-				httpRoutes[i].Route = routeDestinations
-			}
 		}
 	}
 

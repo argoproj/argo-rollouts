@@ -1175,6 +1175,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestin
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestinationRule
      */
     stableSubsetName?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestinationRule
+     */
+    additionalSubsetNames?: Array<string>;
 }
 /**
  * 
