@@ -1302,6 +1302,13 @@
         "stableSubsetName": {
           "type": "string",
           "title": "StableSubsetName is the subset name to modify labels with stable ReplicaSet pod template hash value"
+        },
+        "additionalSubsetNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "AdditionalSubsetNames contains a list of additional names for subset DestinationRules that are not controlled by Argo Rollouts\n+optional"
         }
       },
       "title": "IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic"
