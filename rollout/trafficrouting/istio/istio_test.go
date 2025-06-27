@@ -686,7 +686,19 @@ spec:
   hosts:
   - istio-rollout.dev.argoproj.io
   http:
-  - invalid`
+  - route:
+    - destination:
+        host: rollout-service
+        subset: stable
+      weight: 100
+    - destination:
+        host: rollout-service
+        subset: canary
+      weight: 0
+    - destination:
+        host: example-service
+        subset: stable
+      weight: 25`
 
 const invalidTlsVsvc = `apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -898,30 +910,6 @@ spec:
 	assert.Equal(t, httpRoutes[0].Route[2].Destination.Host, "additional-service")
 	assert.Equal(t, httpRoutes[0].Route[2].Destination.Subset, "stable-subset")
 	assert.Equal(t, httpRoutes[0].Route[2].Weight, int64(20))
-}
-func TestHttpReconcileInvalidMultipleDestRule(t *testing.T) {
-	ro := rolloutWithDestinationRule()
-	// set to invalid destination rule
-	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule = &v1alpha1.IstioDestinationRule{
-		Name:             "invalid-destination-rule",
-		CanarySubsetName: "canary",
-		StableSubsetName: "stable",
-	}
-
-	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "vsvc"
-	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes = nil
-
-	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteSubsetMultipleDestRuleVsvc)
-	client := testutil.NewFakeDynamicClient(obj)
-	vsvcLister, druleLister := getIstioListers(client)
-	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
-	client.ClearActions()
-
-	vsvcRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes
-	vsvcTLSRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes
-	vsvcTCPRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TCPRoutes
-	_, _, err := r.reconcileVirtualService(obj, vsvcRoutes, vsvcTLSRoutes, vsvcTCPRoutes, 10)
-	assert.Error(t, err, "expected destination rule not found")
 }
 
 func TestHttpReconcileHeaderRouteHostBased(t *testing.T) {
@@ -3448,4 +3436,28 @@ spec:
 		assert.Len(t, actions, 1)
 		assert.Equal(t, "update", actions[0].GetVerb())
 	})
+}
+
+func TestUpdateHashInvalidDestinationRule(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+	// set to invalid destination rule
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule = &v1alpha1.IstioDestinationRule{
+		Name:             "invalid-destination-rule",
+		CanarySubsetName: "canary",
+		StableSubsetName: "stable",
+	}
+
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "vsvc"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes = nil
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteSubsetMultipleDestRuleVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	// Test UpdateHash since that's where DestinationRule validation occurs
+	err := r.UpdateHash("abc123", "def456")
+	assert.Error(t, err, "expected destination rule not found")
+	assert.Contains(t, err.Error(), "invalid-destination-rule")
 }

@@ -107,12 +107,6 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []any, tlsRo
 			}
 			if patch.toDelete {
 				destinations = append(destinations[:patch.destinationIndex], destinations[patch.destinationIndex+1:]...)
-			} else if patch.host != destination["host"] {
-				// If the patch does not exactly match the host we are trying to overwrite, Argo Rollouts should not modify the weights assigned to it.
-				// For example, if you have a subset DestinationRule that Argo Rollouts does not manage (with host rollout-subset),
-				// then this check makes sure that Argo Rollouts does not modify the weights assigned to it when Argo Rollouts manages
-				// only the weights assigned to the host (with name rollout).
-				continue
 			} else {
 				destination["weight"] = float64(patch.weight)
 				destinations[patch.destinationIndex] = destination
@@ -215,6 +209,8 @@ func processRoutes(routeType string, routeIdx int, destinations []VirtualService
 				patches = appendPatch(routeIdx, routeType, weight, desiredWeight, idx, host, false, patches)
 			} else if host == svcSubsets.stableSvc || (subset != "" && subset == svcSubsets.stableSubset) {
 				patches = appendPatch(routeIdx, routeType, weight, stableWeight, idx, host, false, patches)
+			} else if subset != "" && subset != svcSubsets.canarySubset && subset != svcSubsets.stableSubset { // don't delete subset DestinationRules with different hosts not controlled by Argo Rollouts
+				patches = appendPatch(routeIdx, routeType, weight, weight, idx, host, false, patches)
 			} else if dest, ok := svcToDest[host]; ok { // Patch weight for existing experiment services
 				patches = appendPatch(routeIdx, routeType, weight, int64(dest.Weight), idx, host, false, patches)
 				delete(svcToDest, host)
@@ -270,30 +266,6 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 		}
 		if err = ValidateHTTPRoutes(r.rollout, vsvcRouteNames, httpRoutes); err != nil {
 			return nil, false, err
-		}
-
-		// Get the host specified within DestinationRule.host object to add additional DestinationRules specified
-		// in a VirtualService template. This ensures that Argo Rollouts does not modify the weights assigned to
-		// DestinationRules that are not managed by Argo Rollouts.
-		host, err := r.getDestinationRuleHost()
-		if err != nil {
-			return nil, false, err
-		}
-
-		if host != "" {
-			var routeDestinations []VirtualServiceRouteDestination
-			for i, route := range httpRoutes {
-				for _, r := range route.Route {
-					if r.Destination.Host == host { // if the host matches the host in the DestinationRule, add the destination to the routeDestinations
-						routeDestinations = append(routeDestinations, VirtualServiceRouteDestination{
-							Destination: r.Destination,
-							Weight:      r.Weight,
-						})
-					}
-				}
-
-				httpRoutes[i].Route = routeDestinations
-			}
 		}
 	}
 
