@@ -193,10 +193,13 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 func processRoutes(routeType string, routeIdx int, destinations []VirtualServiceRouteDestination, desiredWeight int64, svcSubsets svcSubsets, patches virtualServicePatches, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
 	svcToDest := map[string]v1alpha1.WeightDestination{}
 	stableWeight := 100 - desiredWeight
+
+	// handle additional destinations weight distribution
 	for _, dest := range additionalDestinations {
 		svcToDest[dest.ServiceName] = dest
 		stableWeight -= int64(dest.Weight)
 	}
+
 	for idx, destination := range destinations {
 		host := getHost(destination)
 		subset := destination.Destination.Subset
@@ -206,6 +209,8 @@ func processRoutes(routeType string, routeIdx int, destinations []VirtualService
 				patches = appendPatch(routeIdx, routeType, weight, desiredWeight, idx, host, false, patches)
 			} else if host == svcSubsets.stableSvc || (subset != "" && subset == svcSubsets.stableSubset) {
 				patches = appendPatch(routeIdx, routeType, weight, stableWeight, idx, host, false, patches)
+			} else if subset != "" && subset != svcSubsets.canarySubset && subset != svcSubsets.stableSubset { // don't delete subset DestinationRules with different hosts not controlled by Argo Rollouts
+				patches = appendPatch(routeIdx, routeType, weight, weight, idx, host, false, patches)
 			} else if dest, ok := svcToDest[host]; ok { // Patch weight for existing experiment services
 				patches = appendPatch(routeIdx, routeType, weight, int64(dest.Weight), idx, host, false, patches)
 				delete(svcToDest, host)
