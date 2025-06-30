@@ -1589,3 +1589,19 @@ func TestParseExistingPodMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestAllDesiredAreAvailablePercentage(t *testing.T) {
+
+}
+
+func TestAllDesiredAreAvailableNumber(t *testing.T) {
+
+}
+
+func TestAllDesiredAreAvailableIncorrectUserFormatting(t *testing.T) {
+
+}
+
+func TestAllDesiredAreAvailableNoThreshold(t *testing.T) {
+
+}

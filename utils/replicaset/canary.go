@@ -3,12 +3,14 @@ package replicaset
 import (
 	"encoding/json"
 	"math"
+	"strconv"
 
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -20,8 +22,26 @@ const (
 	EphemeralMetadataAnnotation = annotations.RolloutLabel + "/ephemeral-metadata"
 )
 
-func allDesiredAreAvailable(rs *appsv1.ReplicaSet, desired int32) bool {
-	return rs != nil && desired == *rs.Spec.Replicas && desired == rs.Status.AvailableReplicas
+func allDesiredAreAvailable(threshold *intstr.IntOrString, rs *appsv1.ReplicaSet, desired int32) bool {
+	// user did not specify a threshold, so we default to 100%
+	if threshold == nil {
+		threshold = &intstr.IntOrString{
+			Type:   intstr.String,
+			StrVal: "100%",
+		}
+	}
+	// deal with the cases when the user input a number
+	if threshold.Type == intstr.Int {
+		return rs != nil && threshold.IntVal == rs.Status.AvailableReplicas
+	}
+
+	percentageThreshold, err := strconv.ParseInt(threshold.StrVal[:2], 10, 64)
+	if err != nil {
+		// if the user input an invalid percentage, its safer and less intrusive
+		// to default to 100% rather than 0% or returning false
+		percentageThreshold = 100
+	}
+	return rs != nil && (rs.Status.AvailableReplicas/desired) >= int32(percentageThreshold)
 }
 
 func allDesiredAreCreated(rs *appsv1.ReplicaSet, desired int32) bool {
@@ -35,7 +55,7 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 	} else {
 		desiredNewRSReplicaCount, desiredStableRSReplicaCount = CalculateReplicaCountsForTrafficRoutedCanary(ro, weights)
 	}
-	if !allDesiredAreAvailable(newRS, desiredNewRSReplicaCount) {
+	if !allDesiredAreAvailable(ro.Spec.Strategy.Canary.ReplicaProgressThreshold, newRS, desiredNewRSReplicaCount) {
 		return false
 	}
 	if ro.Spec.Strategy.Canary.TrafficRouting == nil || !ro.Spec.Strategy.Canary.DynamicStableScale {
