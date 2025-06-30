@@ -251,6 +251,7 @@ type CanaryStrategy struct {
 	// Steps define the order of phases to execute the canary deployment
 	// +optional
 	Steps []CanaryStep `json:"steps,omitempty" protobuf:"bytes,3,rep,name=steps"`
+
 	// TrafficRouting hosts all the supported service meshes supported to enable more fine-grained traffic routing
 	TrafficRouting *RolloutTrafficRouting `json:"trafficRouting,omitempty" protobuf:"bytes,4,opt,name=trafficRouting"`
 
@@ -317,6 +318,11 @@ type CanaryStrategy struct {
 	// Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
 	// MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
 	MinPodsPerReplicaSet *int32 `json:"minPodsPerReplicaSet,omitempty" protobuf:"varint,16,opt,name=minPodsPerReplicaSet"`
+
+	// ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.
+	// Defaults to 100% of total replicas.
+	// +optional
+	ReplicaProgressThreshold *intstr.IntOrString `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,17,opt,name=replicaProgressThreshold"`
 }
 
 // PingPongSpec holds the ping and pong service name.
