@@ -1589,3 +1589,139 @@ func TestParseExistingPodMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestAllDesiredAreAvailable(t *testing.T) {
+	tests := []struct {
+		name      string
+		threshold *intstr.IntOrString
+		rs        *appsv1.ReplicaSet
+		desired   int32
+		want      bool
+	}{
+		{
+			name: "test that 90% availability of pods passes",
+			threshold: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: "90%",
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 9,
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+		{
+			name: "test that under 90% availability of pods fails",
+			threshold: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: "90%",
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 8,
+				},
+			},
+			desired: 10,
+			want:    false,
+		},
+		{
+			name: "test that availability passes with a number threshold",
+			threshold: &intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: 8,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 8,
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+		{
+			name: "test that availability fails with a number threshold not met",
+			threshold: &intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: 8,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 7,
+				},
+			},
+			desired: 10,
+			want:    false,
+		},
+		{
+			name: "test that non number strings default to 100%",
+			threshold: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: "-what-is-this",
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 10,
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+		{
+			name: "test that negative percentages default to 100%",
+			threshold: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: "-80%",
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 9,
+				},
+			},
+			desired: 10,
+			want:    false,
+		},
+		{
+			name: "test that negative numbers default to 100% of desired pods",
+			threshold: &intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: -8,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 10,
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+		{
+			name: "test that empty / nil ReplicaSet instantly returns false",
+			threshold: &intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: 10,
+			},
+			rs:      nil,
+			desired: 10,
+			want:    false,
+		},
+		{
+			name:      "test that empty / nil thresholds default to 100% of available pods being required",
+			threshold: nil,
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 10,
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, allDesiredAreAvailable(tt.threshold, tt.rs, tt.desired), "allDesiredAreAvailable(%v, %v, %v)", tt.threshold, tt.rs, tt.desired)
+		})
+	}
+}
