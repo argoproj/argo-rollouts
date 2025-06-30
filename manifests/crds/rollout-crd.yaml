@@ -442,6 +442,11 @@ spec:
                         - pingService
                         - pongService
                         type: object
+                      replicaProgressThreshold:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        x-kubernetes-int-or-string: true
                       scaleDownDelayRevisionLimit:
                         format: int32
                         type: integer
