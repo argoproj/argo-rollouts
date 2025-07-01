@@ -252,10 +252,10 @@ type CanaryStrategy struct {
 	// +optional
 	Steps []CanaryStep `json:"steps,omitempty" protobuf:"bytes,3,rep,name=steps"`
 
-	// ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.
+	// ReplicaProgressThreshold is the threhold number representing the percentage of pods that need to be available before a rollout promotion.
 	// Defaults to 100% of total replicas.
 	// +optional
-	ReplicaProgressThreshold *intstr.IntOrString `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,10,opt,name=replicaProgressThreshold"`
+	ReplicaProgressThreshold int32 `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,10,opt,name=replicaProgressThreshold"`
 
 	// TrafficRouting hosts all the supported service meshes supported to enable more fine-grained traffic routing
 	TrafficRouting *RolloutTrafficRouting `json:"trafficRouting,omitempty" protobuf:"bytes,4,opt,name=trafficRouting"`
