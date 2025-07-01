@@ -93,6 +93,7 @@ func TestSetRolloutRevisionServerSideApply(t *testing.T) {
 	assert.Equal(t, "2", patchedRollout.Annotations[annotations.RevisionAnnotation])
 
 	retrievedRollout, err := fakeArgoprojClientset.ArgoprojV1alpha1().Rollouts("default").Get(context.TODO(), "test-rollout", metav1.GetOptions{})
+	require.NoError(t, err)
 	assert.Equal(
 		t,
 		map[string]string{

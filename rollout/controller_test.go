@@ -927,6 +927,16 @@ func (f *fixture) expectPatchRolloutActionWithPatch(rollout *v1alpha1.Rollout, p
 	return len
 }
 
+func (f *fixture) expectPatchMainRolloutAction(rollout *v1alpha1.Rollout) int {
+	rolloutSchema := schema.GroupVersionResource{
+		Resource: "rollouts",
+		Version:  "v1alpha1",
+	}
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewPatchAction(rolloutSchema, rollout.Namespace, rollout.Name, types.ApplyPatchType, nil))
+	return len
+}
+
 func (f *fixture) expectGetEndpointsAction(ep *corev1.Endpoints) int {
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "endpoints"}, ep.Namespace, ep.Name))

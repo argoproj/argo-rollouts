@@ -335,7 +335,7 @@ func TestCanaryPromoteFull(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // create new ReplicaSet (size 0)
-	f.expectUpdateRolloutAction(r2)                        // update rollout revision
+	f.expectPatchMainRolloutAction(r2)                     // update rollout revision
 	f.expectUpdateRolloutStatusAction(r2)                  // update rollout conditions
 	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // scale new ReplicaSet to 10
 	patchedRolloutIndex := f.expectPatchRolloutAction(r2)
@@ -679,7 +679,7 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, oldRs, stableRs)
 	f.replicaSetLister = append(f.replicaSetLister, oldRs, stableRs)
 
-	f.expectUpdateRolloutAction(r2) // update rollout revision
+	f.expectPatchMainRolloutAction(r2) // update rollout revision
 	f.expectUpdateRolloutStatusAction(r2)
 	updatedROIndex := f.expectPatchRolloutAction(r2)
 	createdRS2Index := f.expectCreateReplicaSetAction(stableRs)

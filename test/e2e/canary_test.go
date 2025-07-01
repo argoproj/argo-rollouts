@@ -633,7 +633,7 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		ApplyManifests().
 		MarkPodsReady("1", 4). // mark all 4 pods ready
 		WaitForRolloutStatus("Healthy").
-		UpdateSpec(). // update to revision 2
+		UpdateSpec().          // update to revision 2
 		MarkPodsReady("2", 1). // mark 1 of 1 canary pods ready
 		WaitForRolloutStatus("Paused").
 		Sleep(2*time.Second).
@@ -709,7 +709,7 @@ func (s *CanarySuite) TestCanaryDynamicStableScaleRollbackToStable() {
 			assert.Equal(s.T(), int32(75), ro.Status.Canary.Weights.Stable.Weight)
 		}).
 		When().
-		MarkPodsReady("3", 1). // marks the 4th pod of stableRS/newRS (revision 3) ready
+		MarkPodsReady("3", 1).           // marks the 4th pod of stableRS/newRS (revision 3) ready
 		WaitForRevisionPodCount("2", 0). // make sure we scale down the previous desired (revision 2)
 		Then().
 		Assert(func(t *fixtures.Then) {
