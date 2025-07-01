@@ -2,7 +2,9 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"time"
@@ -116,9 +118,37 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 
 func (c *rolloutContext) setRolloutRevision(revision string) error {
 	if annotations.SetRolloutRevision(c.rollout, revision) {
-		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
+		desired := make(map[string]string)
+		maps.Copy(desired, c.rollout.Annotations)
+		desired[annotations.RevisionAnnotation] = revision
+		rolloutForApply := &v1alpha1.Rollout{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "argoproj.io/v1alpha1",
+				Kind:       "Rollout",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        c.rollout.Name,
+				Namespace:   c.rollout.Namespace,
+				Annotations: desired,
+			},
+		}
+
+		// Use server-side apply to update only the revision annotation
+		data, err := json.Marshal(rolloutForApply)
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout revision")
+			c.log.WithError(err).Error("Error: marshaling rollout for server-side apply")
+			return err
+		}
+
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(
+			context.TODO(),
+			c.rollout.Name,
+			patchtypes.ApplyPatchType,
+			data,
+			metav1.PatchOptions{FieldManager: "rollouts-controller"},
+		)
+		if err != nil {
+			c.log.WithError(err).Error("Error: applying rollout revision with server-side apply")
 			return err
 		}
 		c.rollout = updatedRollout.DeepCopy()
