@@ -13,6 +13,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
@@ -133,8 +135,15 @@ func (c *rolloutContext) setRolloutRevision(revision string) error {
 			},
 		}
 
-		// Use server-side apply to update only the revision annotation
-		data, err := json.Marshal(rolloutForApply)
+		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(rolloutForApply)
+		if err != nil {
+			c.log.WithError(err).Error("Error: converting rollout to unstructured kube object for server-side apply")
+			return err
+		}
+		// This field exists in the Rollout type representation but is not part of the CRD schema.
+		// As a result, it needs to be removed, else the patch will be rejected by the API server.
+		unstructured.RemoveNestedField(obj, "spec", "template", "metadata", "creationTimestamp")
+		data, err := json.Marshal(obj)
 		if err != nil {
 			c.log.WithError(err).Error("Error: marshaling rollout for server-side apply")
 			return err
