@@ -860,6 +860,14 @@ message HeaderRoutingMatch {
 
   // HeaderValue the value of the header
   optional StringMatch headerValue = 2;
+
+  // Method What http methods should be matched
+  // +optional
+  optional StringMatch method = 3;
+
+  // Path What url paths should be matched
+  // +optional
+  optional StringMatch path = 4;
 }
 
 // InfluxdbMetric defines the InfluxDB Flux query to perform canary analysis
