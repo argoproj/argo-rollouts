@@ -1271,6 +1271,14 @@
         "headerValue": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
           "title": "HeaderValue the value of the header"
+        },
+        "method": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
+          "title": "Method What http methods should be matched\n+optional"
+        },
+        "path": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
+          "title": "Path What url paths should be matched\n+optional"
         }
       }
     },
