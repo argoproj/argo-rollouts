@@ -574,6 +574,11 @@ message CanaryStrategy {
   // Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
   // MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
   optional int32 minPodsPerReplicaSet = 16;
+
+  // ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.
+  // Defaults to 100% of total replicas.
+  // +optional
+  optional ReplicaProgressThreshold replicaProgressThreshold = 17;
 }
 
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
@@ -1271,6 +1276,16 @@ message PrometheusRangeQueryArgs {
 
   // The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).
   optional string step = 3;
+}
+
+message ReplicaProgressThreshold {
+  // ThresholdType is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.
+  optional string thresholdType = 1;
+
+  // Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step.
+  // If not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step.
+  // Value must also be greater than 0. Required.
+  optional int32 value = 2;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
