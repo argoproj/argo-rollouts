@@ -1425,6 +1425,16 @@ func (in *HeaderRoutingMatch) DeepCopyInto(out *HeaderRoutingMatch) {
 		*out = new(StringMatch)
 		**out = **in
 	}
+	if in.Method != nil {
+		in, out := &in.Method, &out.Method
+		*out = new(StringMatch)
+		**out = **in
+	}
+	if in.Path != nil {
+		in, out := &in.Path, &out.Path
+		*out = new(StringMatch)
+		**out = **in
+	}
 	return
 }
 
