@@ -240,6 +240,23 @@ type PreferredDuringSchedulingIgnoredDuringExecution struct {
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
 type RequiredDuringSchedulingIgnoredDuringExecution struct{}
 
+// ThresholdType is the type which could be used when specifying the replica progress threshold. Percentage | Pods
+type ThresholdType string
+
+const (
+	ThresholdTypePercentage ThresholdType = "Percent"
+	ThresholdTypePods       ThresholdType = "Pods"
+)
+
+type ReplicaProgressThreshold struct {
+	// ThresholdType is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.
+	ThresholdType ThresholdType `json:"thresholdType" protobuf:"bytes,1,opt,name=thresholdType"`
+	// Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step.
+	// If not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step.
+	// Value must also be greater than 0. Required.
+	Value int32 `json:"value" protobuf:"varint,2,opt,name=value"`
+}
+
 // CanaryStrategy defines parameters for a Replica Based Canary
 type CanaryStrategy struct {
 	// CanaryService holds the name of a service which selects pods with canary version and don't select any pods with stable version.
@@ -317,6 +334,11 @@ type CanaryStrategy struct {
 	// Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
 	// MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
 	MinPodsPerReplicaSet *int32 `json:"minPodsPerReplicaSet,omitempty" protobuf:"varint,16,opt,name=minPodsPerReplicaSet"`
+
+	// ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.
+	// Defaults to 100% of total replicas.
+	// +optional
+	ReplicaProgressThreshold *ReplicaProgressThreshold `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,17,opt,name=replicaProgressThreshold"`
 }
 
 // PingPongSpec holds the ping and pong service name.
