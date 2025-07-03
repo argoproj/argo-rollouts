@@ -870,7 +870,7 @@ func createHeaderRoute(virtualService v1alpha1.IstioVirtualService, unVsvc *unst
 
 func createHeaderRouteMatch(hrm v1alpha1.HeaderRoutingMatch) any {
 	res := map[string]any{}
-	
+
 	// Add header matching
 	if hrm.HeaderName != "" && hrm.HeaderValue != nil {
 		value := hrm.HeaderValue
@@ -880,7 +880,7 @@ func createHeaderRouteMatch(hrm v1alpha1.HeaderRoutingMatch) any {
 		setMapValueIfNotEmpty(headerMatch, "prefix", value.Prefix)
 		res["headers"] = map[string]any{hrm.HeaderName: headerMatch}
 	}
-	
+
 	// Add method matching
 	if hrm.Method != nil {
 		methodMatch := map[string]any{}
@@ -889,7 +889,7 @@ func createHeaderRouteMatch(hrm v1alpha1.HeaderRoutingMatch) any {
 		setMapValueIfNotEmpty(methodMatch, "prefix", hrm.Method.Prefix)
 		res["method"] = methodMatch
 	}
-	
+
 	// Add path matching
 	if hrm.Path != nil {
 		pathMatch := map[string]any{}
@@ -898,7 +898,7 @@ func createHeaderRouteMatch(hrm v1alpha1.HeaderRoutingMatch) any {
 		setMapValueIfNotEmpty(pathMatch, "prefix", hrm.Path.Prefix)
 		res["uri"] = pathMatch
 	}
-	
+
 	return res
 }
 
