@@ -726,6 +726,12 @@ type HeaderRoutingMatch struct {
 	HeaderName string `json:"headerName" protobuf:"bytes,1,opt,name=headerName"`
 	// HeaderValue the value of the header
 	HeaderValue *StringMatch `json:"headerValue" protobuf:"bytes,2,opt,name=headerValue"`
+	// Method What http methods should be matched
+	// +optional
+	Method *StringMatch `json:"method,omitempty" protobuf:"bytes,3,opt,name=method"`
+	// Path What url paths should be matched
+	// +optional
+	Path *StringMatch `json:"path,omitempty" protobuf:"bytes,4,opt,name=path"`
 }
 
 // SetCanaryScale defines how to scale the newRS without changing traffic weight
