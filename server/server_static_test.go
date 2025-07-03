@@ -17,8 +17,8 @@ const TestRootPath = "/test-root"
 var (
 	//go:embed static_test/*
 	staticTestData   embed.FS //nolint
-	mockServerPrefix ArgoRolloutsServer
-	mockServerRoot   ArgoRolloutsServer
+	mockServerPrefix *ArgoRolloutsServer
+	mockServerRoot   *ArgoRolloutsServer
 )
 
 func init() {
@@ -31,7 +31,7 @@ func init() {
 
 func TestIndexHtmlIsServed(t *testing.T) {
 	tests := []struct {
-		server      ArgoRolloutsServer
+		server      *ArgoRolloutsServer
 		requestPath string
 	}{
 		{mockServerPrefix, TestRootPath + "/"},
@@ -111,8 +111,8 @@ func TestInvalidFilesOrHackingAttemptReturn404(t *testing.T) {
 	}
 }
 
-func mockArgoRolloutServer(rootPath string) ArgoRolloutsServer {
-	s := ArgoRolloutsServer{
+func mockArgoRolloutServer(rootPath string) *ArgoRolloutsServer {
+	s := &ArgoRolloutsServer{
 		Options: ServerOptions{
 			RootPath: rootPath,
 		},
