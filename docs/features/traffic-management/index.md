@@ -89,15 +89,21 @@ spec:
 ##### Traffic router support: (Istio)
 
 Argo Rollouts has ability to send all traffic to the canary-service based on a http request header value.
-The step for the header based traffic routing is `setHeaderRoute` and has a list of matchers for the header. 
+The step for the header based traffic routing is `setHeaderRoute` and has a list of matchers for the header.
 
 `name` - name of the header route.
 
-`match` - header matching rules is an array of `headerName, headerValue` pairs.
+`match` - The matching rules for the header route, if this is missing it acts as a removal of the route.
+All conditions inside a single match block have AND semantics, while the list of match blocks have OR semantics.
+Each type within a match (headerValue, method, path) must have one and only one match type (exact, regex, prefix).
+Not all match types (exact, regex, prefix) will be supported by all traffic routers.
 
-`headerName` - name of the header to match.
+Available match criteria:
+- `headerName` - The name of the request header
+- `headerValue` - The value of the header (supports exact, regex, prefix)
+- `method` - The HTTP method (supports exact, regex, prefix) 
+- `path` - The URL path (supports exact, regex, prefix)
 
-`headerValue`-  contains exactly one of `exact` - specify the exact header value, 
 `regex` - value in a regex format, `prefix` - the prefix of the value could be provided. Not all traffic routers will support
 all match types.
 
@@ -134,6 +140,17 @@ spec:
           - headerName: Custom-Header3 # or Custom-Header3 value match regex: Mozilla(.*)
             headerValue:
               regex: Mozilla(.*)
+          - method: # Route GET requests
+              exact: GET
+            path: # Route requests to /v1/api path
+              prefix: /v1/api
+          - headerName: User-Agent # Combine header, method and path matching
+            headerValue:
+              exact: Chrome
+            method:
+              exact: POST
+            path:
+              prefix: /v2/api
       - pause: {}
       - setHeaderRoute:
           name: "set-header-1" # disable header based traffic routing
