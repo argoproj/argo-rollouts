@@ -13001,10 +13001,16 @@ spec:
                         - pongService
                         type: object
                       replicaProgressThreshold:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        x-kubernetes-int-or-string: true
+                        properties:
+                          thresholdType:
+                            type: string
+                          value:
+                            format: int32
+                            type: integer
+                        required:
+                        - thresholdType
+                        - value
+                        type: object
                       scaleDownDelayRevisionLimit:
                         format: int32
                         type: integer

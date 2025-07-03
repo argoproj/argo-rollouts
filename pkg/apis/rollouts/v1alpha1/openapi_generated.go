@@ -102,6 +102,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution": schema_pkg_apis_rollouts_v1alpha1_PreferredDuringSchedulingIgnoredDuringExecution(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":                                schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusRangeQueryArgs":                        schema_pkg_apis_rollouts_v1alpha1_PrometheusRangeQueryArgs(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ReplicaProgressThreshold":                        schema_pkg_apis_rollouts_v1alpha1_ReplicaProgressThreshold(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution":  schema_pkg_apis_rollouts_v1alpha1_RequiredDuringSchedulingIgnoredDuringExecution(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RollbackWindowSpec":                              schema_pkg_apis_rollouts_v1alpha1_RollbackWindowSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Rollout":                                         schema_pkg_apis_rollouts_v1alpha1_Rollout(ref),
@@ -1625,11 +1626,17 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							Format:      "int32",
 						},
 					},
+					"replicaProgressThreshold": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion. Defaults to 100% of total replicas.",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ReplicaProgressThreshold"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PingPongSpec", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PingPongSpec", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ReplicaProgressThreshold", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
@@ -3777,6 +3784,35 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusRangeQueryArgs(ref common.Refer
 						},
 					},
 				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_ReplicaProgressThreshold(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"thresholdType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ThresholdType is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step. If not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step. Value must also be greater than 0. Required.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"thresholdType", "value"},
 			},
 		},
 	}

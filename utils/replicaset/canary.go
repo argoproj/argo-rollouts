@@ -3,14 +3,12 @@ package replicaset
 import (
 	"encoding/json"
 	"math"
-	"strconv"
 
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -22,41 +20,40 @@ const (
 	EphemeralMetadataAnnotation = annotations.RolloutLabel + "/ephemeral-metadata"
 )
 
-func allDesiredAreAvailable(threshold *intstr.IntOrString, rs *appsv1.ReplicaSet, desired int32) bool {
-	if rs == nil {
-		return false
-	}
-	// user did not specify a threshold, so we default to 100%
-	if threshold == nil {
-		threshold = &intstr.IntOrString{
-			Type:   intstr.String,
-			StrVal: "100%",
-		}
-	}
-	// deal with the cases when the user input a number
-	if threshold.Type == intstr.Int {
-		if threshold.IntVal < 0 {
-			threshold.IntVal = desired
-		}
-		return rs.Status.AvailableReplicas >= threshold.IntVal
-	}
-
-	percentageIndex := len(threshold.StrVal) - 1
-	percentageThreshold, err := strconv.ParseInt(threshold.StrVal[:percentageIndex], 10, 64)
-	if err != nil {
-		// if the user input an invalid percentage, its safer and less intrusive
-		// to default to 100% rather than 0% or returning false (aka never promoting)
-		percentageThreshold = 100
-	} else if percentageThreshold < 0 {
-		percentageThreshold = 100
-	}
-	currentPercentage := float64(rs.Status.AvailableReplicas) / float64(desired) * 100
-	epsilon := 1e-10
-	return math.Abs(currentPercentage-float64(percentageThreshold)) <= epsilon
+func allDesiredAreAvailable(rs *appsv1.ReplicaSet, desired int32) bool {
+	return rs != nil && desired == *rs.Spec.Replicas && desired == rs.Status.AvailableReplicas
 }
 
 func allDesiredAreCreated(rs *appsv1.ReplicaSet, desired int32) bool {
 	return rs != nil && desired == *rs.Spec.Replicas && desired == rs.Status.Replicas
+}
+
+// replicaProgressThresholdMet checks if number or perentage of pods that are available to handle traffic is met
+// for the given replica set and desired replica count of the next step. For example, if the next step of the canary
+// is desired to scale up to 10 pods, the user has specified a threshold of 70%, then once 7 pods are available,
+// replicaProgressThresholdMet will return true. If the user has not specified a threshold or the threshold value is under 0,
+// the function will default to returning true only once 100% of the desired replicas are available.
+func ReplicaProgressThresholdMet(threshold *v1alpha1.ReplicaProgressThreshold, rs *appsv1.ReplicaSet, desired int32) bool {
+	if threshold == nil || rs == nil || threshold.Value < 0 {
+		return allDesiredAreAvailable(rs, desired)
+	}
+
+	// flow when users specify a Percent
+	if threshold.ThresholdType == v1alpha1.ThresholdTypePercentage {
+		if desired == 0 { // if no pods are desired, then by default, the threshold is met
+			return true
+		}
+
+		currentPercentage := float64(rs.Status.AvailableReplicas) / float64(desired) * 100
+		epsilon := 1e-10
+
+		// Check whether the current percent is well above the threshold. Due to floating point precision errors,
+		// we need to account for small differences in floating point numbers to allow for a promotion.
+		return currentPercentage >= float64(threshold.Value) || math.Abs(currentPercentage-float64(threshold.Value)) <= epsilon
+	}
+
+	// flow when users specify number of Pods
+	return rs.Status.AvailableReplicas >= threshold.Value
 }
 
 func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, weights *v1alpha1.TrafficWeights) bool {
@@ -66,9 +63,11 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 	} else {
 		desiredNewRSReplicaCount, desiredStableRSReplicaCount = CalculateReplicaCountsForTrafficRoutedCanary(ro, weights)
 	}
-	if !allDesiredAreAvailable(ro.Spec.Strategy.Canary.ReplicaProgressThreshold, newRS, desiredNewRSReplicaCount) {
+
+	if !ReplicaProgressThresholdMet(ro.Spec.Strategy.Canary.ReplicaProgressThreshold, newRS, desiredNewRSReplicaCount) {
 		return false
 	}
+
 	if ro.Spec.Strategy.Canary.TrafficRouting == nil || !ro.Spec.Strategy.Canary.DynamicStableScale {
 		if !allDesiredAreCreated(stableRS, desiredStableRSReplicaCount) {
 			// only check stable RS if we are not using dynamic stable scaling

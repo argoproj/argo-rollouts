@@ -1592,17 +1592,65 @@ func TestParseExistingPodMetadata(t *testing.T) {
 
 func TestAllDesiredAreAvailable(t *testing.T) {
 	tests := []struct {
+		name    string
+		rs      *appsv1.ReplicaSet
+		desired int32
+		want    bool
+	}{
+		{
+			name: "test correct return (true) when all desired pods are available",
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 10,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](10),
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+		{
+			name: "test correct return (false) when not all desired pods are available",
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 9,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](10),
+				},
+			},
+			desired: 10,
+			want:    false,
+		},
+		{
+			name:    "test correct return (false) when all ReplicaSet is nil",
+			rs:      nil,
+			desired: 10,
+			want:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, allDesiredAreAvailable(tt.rs, tt.desired), "allDesiredAreAvailable(%v, %v)", tt.rs, tt.desired)
+		})
+	}
+}
+
+func TestAllReplicaProgressThresholdMet(t *testing.T) {
+	tests := []struct {
 		name      string
-		threshold *intstr.IntOrString
+		threshold *v1alpha1.ReplicaProgressThreshold
 		rs        *appsv1.ReplicaSet
 		desired   int32
 		want      bool
 	}{
 		{
-			name: "test that 90% availability of pods passes",
-			threshold: &intstr.IntOrString{
-				Type:   intstr.String,
-				StrVal: "90%",
+			name: "test using percentage that 90% availability of pods passes",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				ThresholdType: v1alpha1.ThresholdTypePercentage,
+				Value:         90,
 			},
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{
@@ -1613,10 +1661,24 @@ func TestAllDesiredAreAvailable(t *testing.T) {
 			want:    true,
 		},
 		{
-			name: "test that under 90% availability of pods fails",
-			threshold: &intstr.IntOrString{
-				Type:   intstr.String,
-				StrVal: "90%",
+			name: "test using pod values that 90% availability of pods correctly passes",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				ThresholdType: v1alpha1.ThresholdTypePods,
+				Value:         9,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 9,
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+		{
+			name: "test using percentage that under 90% availability of pods correctly fails",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				ThresholdType: v1alpha1.ThresholdTypePercentage,
+				Value:         90,
 			},
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{
@@ -1627,24 +1689,10 @@ func TestAllDesiredAreAvailable(t *testing.T) {
 			want:    false,
 		},
 		{
-			name: "test that availability passes with a number threshold",
-			threshold: &intstr.IntOrString{
-				Type:   intstr.Int,
-				IntVal: 8,
-			},
-			rs: &appsv1.ReplicaSet{
-				Status: appsv1.ReplicaSetStatus{
-					AvailableReplicas: 8,
-				},
-			},
-			desired: 10,
-			want:    true,
-		},
-		{
-			name: "test that availability fails with a number threshold not met",
-			threshold: &intstr.IntOrString{
-				Type:   intstr.Int,
-				IntVal: 8,
+			name: "test using pod values that under 8 pods correctly fails",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				ThresholdType: v1alpha1.ThresholdTypePods,
+				Value:         8,
 			},
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{
@@ -1655,63 +1703,55 @@ func TestAllDesiredAreAvailable(t *testing.T) {
 			want:    false,
 		},
 		{
-			name: "test that non number strings default to 100%",
-			threshold: &intstr.IntOrString{
-				Type:   intstr.String,
-				StrVal: "-what-is-this",
+			name: "test that when threshold is under 0, it defaults to 100% of pods being available to return true",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				ThresholdType: v1alpha1.ThresholdTypePods,
+				Value:         -100,
 			},
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{
 					AvailableReplicas: 10,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](10),
 				},
 			},
 			desired: 10,
 			want:    true,
 		},
 		{
-			name: "test that negative percentages default to 100%",
-			threshold: &intstr.IntOrString{
-				Type:   intstr.String,
-				StrVal: "-80%",
-			},
+			name:      "test that when threshold is nil, it defaults to 100% of pods being available to return true",
+			threshold: nil,
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{
-					AvailableReplicas: 9,
+					AvailableReplicas: 10,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](5), // this is why we want to return false
 				},
 			},
 			desired: 10,
 			want:    false,
 		},
 		{
-			name: "test that negative numbers default to 100% of desired pods",
-			threshold: &intstr.IntOrString{
-				Type:   intstr.Int,
-				IntVal: -8,
-			},
-			rs: &appsv1.ReplicaSet{
-				Status: appsv1.ReplicaSetStatus{
-					AvailableReplicas: 10,
-				},
-			},
-			desired: 10,
-			want:    true,
-		},
-		{
-			name: "test that empty / nil ReplicaSet instantly returns false",
-			threshold: &intstr.IntOrString{
-				Type:   intstr.Int,
-				IntVal: 10,
+			name: "test that when the replicaset is nil, it always returns false",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				ThresholdType: v1alpha1.ThresholdTypePods,
+				Value:         5,
 			},
 			rs:      nil,
 			desired: 10,
 			want:    false,
 		},
 		{
-			name:      "test that empty / nil thresholds default to 100% of available pods being required",
-			threshold: nil,
+			name: "test that percentages well above the required threshold correctly pass",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				ThresholdType: v1alpha1.ThresholdTypePercentage,
+				Value:         100,
+			},
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{
-					AvailableReplicas: 10,
+					AvailableReplicas: 100,
 				},
 			},
 			desired: 10,
@@ -1721,7 +1761,7 @@ func TestAllDesiredAreAvailable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, allDesiredAreAvailable(tt.threshold, tt.rs, tt.desired), "allDesiredAreAvailable(%v, %v, %v)", tt.threshold, tt.rs, tt.desired)
+			assert.Equalf(t, tt.want, ReplicaProgressThresholdMet(tt.threshold, tt.rs, tt.desired), "allDesiredAreAvailable(%v, %v, %v)", tt.threshold, tt.rs, tt.desired)
 		})
 	}
 }

@@ -1101,6 +1101,10 @@
           "type": "integer",
           "format": "int32",
           "title": "Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least\nMinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary"
+        },
+        "replicaProgressThreshold": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaProgressThreshold",
+          "title": "ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.\nDefaults to 100% of total replicas.\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
@@ -1890,6 +1894,20 @@
         }
       },
       "title": "Arguments to perform a prometheus range query"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaProgressThreshold": {
+      "type": "object",
+      "properties": {
+        "thresholdType": {
+          "type": "string",
+          "description": "ThresholdType is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified."
+        },
+        "value": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step.\nIf not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step.\nValue must also be greater than 0. Required."
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution": {
       "type": "object",
