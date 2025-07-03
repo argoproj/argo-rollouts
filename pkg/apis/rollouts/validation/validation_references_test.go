@@ -993,7 +993,7 @@ func TestValidateService(t *testing.T) {
 		svc.Service.Spec.Selector = map[string]string{"app": "unmatch-rollout-label"}
 		allErrs := ValidateService(svc, getAlbRollout("alb-ingress"))
 		assert.Len(t, allErrs, 1)
-		expectedErr := field.Invalid(GetServiceWithTypeFieldPath(svc.Type), svc.Service.Name, "Service \"stable-service-name\" has unmatch label \"app\" in rollout")
+		expectedErr := field.Invalid(GetServiceWithTypeFieldPath(svc.Type), svc.Service.Name, "Service \"stable-service-name\" has label that doesn't match \"app\" in rollout")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
 
