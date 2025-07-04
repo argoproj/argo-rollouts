@@ -16,6 +16,7 @@ import (
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/sigv4"
+	"github.com/prometheus/prometheus/promql/parser"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
@@ -58,6 +59,10 @@ func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 
 func (p *Provider) executeQuery(ctx context.Context, metric v1alpha1.Metric) (model.Value, v1.Warnings, error) {
 	if metric.Provider.Prometheus.RangeQuery != nil {
+		_, err := parser.ParseExpr(metric.Provider.Prometheus.Query)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to parse query : %w", err)
+		}
 		start, err := evaluate.EvalTime(metric.Provider.Prometheus.RangeQuery.Start)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to parse rangeQuery.start as time: %w", err)
