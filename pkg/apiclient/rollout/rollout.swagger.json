@@ -1898,9 +1898,9 @@
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaProgressThreshold": {
       "type": "object",
       "properties": {
-        "thresholdType": {
+        "type": {
           "type": "string",
-          "description": "ThresholdType is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified."
+          "description": "Type is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified."
         },
         "value": {
           "type": "integer",

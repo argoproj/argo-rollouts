@@ -39,7 +39,7 @@ func ReplicaProgressThresholdMet(threshold *v1alpha1.ReplicaProgressThreshold, r
 	}
 
 	// flow when users specify a Percent
-	if threshold.ThresholdType == v1alpha1.ThresholdTypePercentage {
+	if threshold.Type == v1alpha1.ProgressTypePercentage {
 		if desired == 0 { // if no pods are desired, then by default, the threshold is met
 			return true
 		}

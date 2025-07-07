@@ -444,13 +444,13 @@ spec:
                         type: object
                       replicaProgressThreshold:
                         properties:
-                          thresholdType:
+                          type:
                             type: string
                           value:
                             format: int32
                             type: integer
                         required:
-                        - thresholdType
+                        - type
                         - value
                         type: object
                       scaleDownDelayRevisionLimit:

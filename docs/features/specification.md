@@ -294,13 +294,13 @@ spec:
         # The percentage or number of replica pods within the applications ReplicaSet
         # that are available and ready when a rollout is ready to be promoted. Useful if your application
         # configured an HPA to help handle different loads of traffic, but you still want quick promotions.
-        #  Defaults to 100% if replicaProgressThreshold is not specified.
-        # thresholdType should be either "Percent" | "Pod"
+        # Defaults to 100% if replicaProgressThreshold is not specified.
+        # The 'type' field should be either "Percent" | "Pod"
         # Current percentage that is checked against the input percent value is calculated by the following:
         # CURRENT PERCENTAGE = available replicas / desired replicas for the current step
         # +optional
         - replicaProgressThreshold:
-            thresholdType: "Percent"
+            type: Percent
             value: 90
 
 

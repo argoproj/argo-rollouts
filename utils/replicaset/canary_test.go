@@ -1649,8 +1649,8 @@ func TestAllReplicaProgressThresholdMet(t *testing.T) {
 		{
 			name: "test using percentage that 90% availability of pods passes",
 			threshold: &v1alpha1.ReplicaProgressThreshold{
-				ThresholdType: v1alpha1.ThresholdTypePercentage,
-				Value:         90,
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
 			},
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{
@@ -1663,8 +1663,8 @@ func TestAllReplicaProgressThresholdMet(t *testing.T) {
 		{
 			name: "test using pod values that 90% availability of pods correctly passes",
 			threshold: &v1alpha1.ReplicaProgressThreshold{
-				ThresholdType: v1alpha1.ThresholdTypePods,
-				Value:         9,
+				Type:  v1alpha1.ProgressTypePods,
+				Value: 9,
 			},
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{
@@ -1677,8 +1677,8 @@ func TestAllReplicaProgressThresholdMet(t *testing.T) {
 		{
 			name: "test using percentage that under 90% availability of pods correctly fails",
 			threshold: &v1alpha1.ReplicaProgressThreshold{
-				ThresholdType: v1alpha1.ThresholdTypePercentage,
-				Value:         90,
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
 			},
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{
@@ -1691,8 +1691,8 @@ func TestAllReplicaProgressThresholdMet(t *testing.T) {
 		{
 			name: "test using pod values that under 8 pods correctly fails",
 			threshold: &v1alpha1.ReplicaProgressThreshold{
-				ThresholdType: v1alpha1.ThresholdTypePods,
-				Value:         8,
+				Type:  v1alpha1.ProgressTypePods,
+				Value: 8,
 			},
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{
@@ -1705,8 +1705,8 @@ func TestAllReplicaProgressThresholdMet(t *testing.T) {
 		{
 			name: "test that when threshold is under 0, it defaults to 100% of pods being available to return true",
 			threshold: &v1alpha1.ReplicaProgressThreshold{
-				ThresholdType: v1alpha1.ThresholdTypePods,
-				Value:         -100,
+				Type:  v1alpha1.ProgressTypePods,
+				Value: -100,
 			},
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{
@@ -1736,8 +1736,8 @@ func TestAllReplicaProgressThresholdMet(t *testing.T) {
 		{
 			name: "test that when the replicaset is nil, it always returns false",
 			threshold: &v1alpha1.ReplicaProgressThreshold{
-				ThresholdType: v1alpha1.ThresholdTypePods,
-				Value:         5,
+				Type:  v1alpha1.ProgressTypePods,
+				Value: 5,
 			},
 			rs:      nil,
 			desired: 10,
@@ -1746,8 +1746,8 @@ func TestAllReplicaProgressThresholdMet(t *testing.T) {
 		{
 			name: "test that percentages well above the required threshold correctly pass",
 			threshold: &v1alpha1.ReplicaProgressThreshold{
-				ThresholdType: v1alpha1.ThresholdTypePercentage,
-				Value:         100,
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 100,
 			},
 			rs: &appsv1.ReplicaSet{
 				Status: appsv1.ReplicaSetStatus{

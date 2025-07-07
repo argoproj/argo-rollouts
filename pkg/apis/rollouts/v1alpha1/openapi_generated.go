@@ -3795,9 +3795,9 @@ func schema_pkg_apis_rollouts_v1alpha1_ReplicaProgressThreshold(ref common.Refer
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"thresholdType": {
+					"type": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ThresholdType is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.",
+							Description: "Type is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -3812,7 +3812,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ReplicaProgressThreshold(ref common.Refer
 						},
 					},
 				},
-				Required: []string{"thresholdType", "value"},
+				Required: []string{"type", "value"},
 			},
 		},
 	}

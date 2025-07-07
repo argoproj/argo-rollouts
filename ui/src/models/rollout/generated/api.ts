@@ -1962,11 +1962,11 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusR
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold {
     /**
-     * ThresholdType is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.
+     * Type is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.
      * @type {string}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold
      */
-    thresholdType?: string;
+    type?: string;
     /**
      * Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step. If not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step. Value must also be greater than 0. Required.
      * @type {number}
