@@ -175,13 +175,10 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	inThePast := timeutil.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
 	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
-	rs1.Status.AvailableReplicas = 0
-	rs2.Status.AvailableReplicas = 0
 	f := newFixture(t, e, rs1, rs2, s1)
 	defer f.Close()
 
 	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
-	f.expectDeleteServiceAction(s1)
 	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
 	expPatchIndex := f.expectPatchExperimentAction(e)
 
@@ -196,6 +193,13 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 
 	expPatchObj := f.getPatchedExperimentAsObj(expPatchIndex)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, expPatchObj.Status.Phase)
+
+	rs1.Status.AvailableReplicas = 0
+	rs2.Status.AvailableReplicas = 0
+
+	f = newFixture(t, e, rs1, rs2, s1)
+	defer f.Close()
+	f.expectDeleteServiceAction(s1)
 }
 
 // TestScaleDownRSAWhenSvcNotDeleted verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down and service is not deleted because available replicas are not 0
