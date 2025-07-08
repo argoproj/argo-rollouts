@@ -1,14 +1,22 @@
 package rollout
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -282,4 +290,115 @@ func TestReconcileEphemeralMetadata(t *testing.T) {
 	mockContext.rollout.Status.StableRS = "" // Set stable ReplicaSet to empty to simulate an upgrading state
 	err = mockContext.reconcileEphemeralMetadata()
 	assert.NoError(t, err)
+}
+
+// TestSyncEphemeralMetadata verifies that syncEphemeralMetadata correctly applies metadata to pods
+// and handles retry logic when pod updates encounter conflicts.
+func TestSyncEphemeralMetadata(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	testRSName := "test-rs"
+	testPodName := "test-pod"
+	testNamespace := "default"
+	testUID := types.UID("test-uid")
+	testPodHash := "abc123"
+	testRoleLabel := "role"
+	testRoleValue := "canary"
+
+	rs := &v1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testRSName,
+			Namespace: testNamespace,
+			UID:       testUID,
+			Labels: map[string]string{
+				"rollouts-pod-template-hash": testPodHash,
+			},
+		},
+		Spec: v1.ReplicaSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"rollouts-pod-template-hash": testPodHash,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"foo":                        "bar",
+						"rollouts-pod-template-hash": testPodHash,
+					},
+				},
+			},
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            testPodName,
+			Namespace:       testNamespace,
+			ResourceVersion: "1",
+			Labels: map[string]string{
+				"foo":                        "bar",
+				"rollouts-pod-template-hash": testPodHash,
+				// Missing testRoleLabel: testRoleValue - this will trigger the update
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "ReplicaSet",
+					Name:       testRSName,
+					UID:        testUID,
+					Controller: ptr.To[bool](true),
+				},
+			},
+		},
+	}
+
+	f.kubeobjects = append(f.kubeobjects, rs, pod)
+	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
+
+	// Mock pod update to fail first time, succeed second time (to test retry logic)
+	updateAttempts := 0
+	f.kubeclient.Fake.PrependReactor("update", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		updateAttempts++
+		if updateAttempts == 1 {
+			// First attempt fails with conflict
+			return true, nil, errors.NewConflict(corev1.Resource("pods"), testPodName, fmt.Errorf("conflict"))
+		}
+		// Second attempt succeeds - let the fake clientset handle the update normally
+		return false, nil, nil
+	})
+
+	// Create rollout context with minimal setup
+	ctx := &rolloutContext{
+		reconcilerBase: reconcilerBase{
+			kubeclientset:               f.kubeclient,
+			ephemeralMetadataThreads:    DefaultEphemeralMetadataThreads,
+			ephemeralMetadataPodRetries: DefaultEphemeralMetadataPodRetries,
+		},
+		log: logrus.WithField("test", "retry"),
+	}
+
+	// Metadata to apply (this will trigger pod update since pod is missing role label)
+	metadata := &v1alpha1.PodTemplateMetadata{
+		Labels: map[string]string{
+			testRoleLabel: testRoleValue,
+		},
+	}
+
+	// Call the function under test
+	err := ctx.syncEphemeralMetadata(context.Background(), rs, metadata)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 2, updateAttempts)
+
+	// Verify the pod now has the expected metadata
+	updatedPod, err := f.kubeclient.CoreV1().Pods(testNamespace).Get(context.Background(), testPodName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	expectedLabels := map[string]string{
+		"foo":                        "bar",
+		"rollouts-pod-template-hash": testPodHash,
+		testRoleLabel:                testRoleValue, // This should be added by syncEphemeralMetadata
+	}
+	assert.Equal(t, expectedLabels, updatedPod.Labels)
 }
