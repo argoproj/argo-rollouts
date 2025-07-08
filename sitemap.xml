@@ -461,6 +461,10 @@
          <lastmod>2025-07-08</lastmod>
     </url>
     <url>
+         <loc>https://argo-rollouts.readthedocs.io/proposals/parameterized-build-system/</loc>
+         <lastmod>2025-07-08</lastmod>
+    </url>
+    <url>
          <loc>https://argo-rollouts.readthedocs.io/proposals/step-plugin/</loc>
          <lastmod>2025-07-08</lastmod>
     </url>
