@@ -48,6 +48,8 @@ const (
 	InvalidDurationMessage = "Duration needs to be greater than 0"
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
 	InvalidMaxSurgeMaxUnavailable = "MaxSurge and MaxUnavailable both can not be zero"
+	// InvalidToleratedUnavailable if toleratedUnavailableStableWeight is < 0 or > 100
+	InvalidToleratedUnavailable = "ToleratedUnavailable must either be a percentage between > 0% and < 100% or an absolute positive integer"
 	// InvalidStepMessage indicates that a step must have either experiment, setWeight, setCanaryScale, plugin or pause
 	InvalidStepMessage = "Step must have one of the following set: experiment, setWeight, setCanaryScale, plugin or pause"
 	// InvalidStrategyMessage indicates that multiple strategies can not be listed
@@ -258,6 +260,18 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 	allErrs = append(allErrs, invalidMaxSurgeMaxUnavailable(rollout, fldPath.Child("maxSurge"))...)
 	if canary.CanaryService != "" && canary.StableService != "" && canary.CanaryService == canary.StableService {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, DuplicatedServicesCanaryMessage))
+	}
+	if canary.ToleratedUnavailable != nil {
+		r, err := intstr.GetScaledValueFromIntOrPercent(canary.ToleratedUnavailable, 100, false)
+		if err != nil {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("toleratedUnavailable"), canary.ToleratedUnavailable, InvalidToleratedUnavailable))
+		} else if canary.ToleratedUnavailable.Type == intstr.String && r >= 100 {
+			// In case of a percentage >= 100%.
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("toleratedUnavailable"), canary.ToleratedUnavailable, InvalidToleratedUnavailable))
+		} else if canary.ToleratedUnavailable.Type == intstr.Int && r < 0 {
+			// In case of a negative integer.
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("toleratedUnavailable"), canary.ToleratedUnavailable, InvalidToleratedUnavailable))
+		}
 	}
 	if canary.PingPong != nil {
 		if canary.TrafficRouting != nil && canary.TrafficRouting.ALB == nil && canary.TrafficRouting.Istio == nil {

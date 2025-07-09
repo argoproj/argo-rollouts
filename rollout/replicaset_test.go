@@ -126,10 +126,325 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 
 }
 
-func TestReconcileNewReplicaSet(t *testing.T) {
+/*
+	Traffic-Routed Canary:
+
+		= Annotation not yet added
+			- dynamicStableScale=false
+				+ Test that annotation is always immediately added. (Test Case 1)
+			- dynamicStableScale=true
+				+ abortScaleDownDelay not explicitly set.
+					* Test that an immediate scale-down happens. (Test Case 2)
+				+ abortScaleDownDelay explicitly set to a value > 0.
+					* Test that an annotation is added, respecting toleratedUnavailable. (Test Case 3, 4, and 5)
+
+		= Annotation added
+			- Test the abort logic. (Test Case 7 and 8)
+*/
+
+func TestReconcileNewReplicaSetForAbortLogicTrafficRoutedCanary(t *testing.T) {
+
+	tests := []struct {
+		name string
+
+		rolloutReplicas      int
+		oldReplicas          int
+		oldAvailableReplicas int
+		newReplicas          int
+
+		usesDynamicStableScale bool
+
+		toleratedUnavailable intstr.IntOrString
+
+		abort                      bool
+		abortScaleDownAnnotated    bool
+		abortScaleDownDelaySeconds int32
+		abortScaleDownDelayPassed  bool
+
+		scaleExpected       bool
+		expectedNewReplicas int
+
+		failRSUpdate bool
+	}{
+		{
+			// Test Case 1 (See description above)
+			name: "Annotation not yet added. dynamicStableScale=false. Expect annotation to be added",
+
+			rolloutReplicas:      10,
+			oldReplicas:          10,
+			oldAvailableReplicas: 8,
+			newReplicas:          2,
+
+			usesDynamicStableScale: false,
+
+			toleratedUnavailable: intstr.FromInt(-1),
+
+			abort:                      true,
+			abortScaleDownAnnotated:    false,
+			abortScaleDownDelaySeconds: -1,
+
+			scaleExpected: false,
+
+			failRSUpdate: true,
+		},
+		// Test Case 2 (See description above)
+		{
+			name: "Annotation not yet added. dynamicStableScale=true. abortScaleDownDelay not explicitly set. Expect immediate scale-down.",
+
+			rolloutReplicas:      10,
+			oldReplicas:          10,
+			oldAvailableReplicas: 8,
+			newReplicas:          2,
+
+			usesDynamicStableScale: true,
+
+			toleratedUnavailable: intstr.FromInt(-1),
+
+			abort:                      true,
+			abortScaleDownAnnotated:    false,
+			abortScaleDownDelaySeconds: -1,
+
+			scaleExpected: true,
+
+			failRSUpdate: false,
+		},
+		// Test Case 3 (See description above)
+		{
+			name: "Annotation not yet added. dynamicStableScale=true. abortScaleDownDelay explicitly set > 0. toleratedUnavailable=0 (default) and stableRS not fully available. Expect no annotation added.",
+
+			rolloutReplicas:      10,
+			oldReplicas:          10,
+			oldAvailableReplicas: 8,
+			newReplicas:          2,
+
+			usesDynamicStableScale: true,
+
+			toleratedUnavailable: intstr.FromInt(-1),
+
+			abort:                      true,
+			abortScaleDownAnnotated:    false,
+			abortScaleDownDelaySeconds: 10,
+
+			scaleExpected: false,
+
+			failRSUpdate: false,
+		},
+		// Test Case 4 (See description above)
+		{
+			name: "Annotation not yet added. dynamicStableScale=true. abortScaleDownDelay explicitly set > 0. toleratedUnavailable=0 (default) and stableRS fully available. Expect annotation added.",
+
+			rolloutReplicas:      10,
+			oldReplicas:          10,
+			oldAvailableReplicas: 10,
+			newReplicas:          2,
+
+			usesDynamicStableScale: true,
+
+			toleratedUnavailable: intstr.FromInt(-1),
+
+			abort:                      true,
+			abortScaleDownAnnotated:    false,
+			abortScaleDownDelaySeconds: 10,
+
+			scaleExpected: false,
+
+			failRSUpdate: true,
+		},
+		// Test Case 5 (See description above)
+		{
+			name: "Annotation not yet added. dynamicStableScale=true. abortScaleDownDelay explicitly set > 0. toleratedUnavailable=20 and stableRS is >=80% available. Expect annotation added.",
+
+			rolloutReplicas:      10,
+			oldReplicas:          10,
+			oldAvailableReplicas: 9,
+			newReplicas:          2,
+
+			usesDynamicStableScale: true,
+
+			toleratedUnavailable: intstr.FromString("20%"),
+
+			abort:                      true,
+			abortScaleDownAnnotated:    false,
+			abortScaleDownDelaySeconds: 10,
+
+			scaleExpected: false,
+
+			failRSUpdate: true,
+		},
+		// Test Case 6 (See description above)
+		{
+			name: "Annotation not yet added. dynamicStableScale=true. abortScaleDownDelay explicitly set > 0. toleratedUnavailable=20 and stableRS is <80% available. Expect no annotation added.",
+
+			rolloutReplicas:      10,
+			oldReplicas:          10,
+			oldAvailableReplicas: 5,
+			newReplicas:          2,
+
+			usesDynamicStableScale: true,
+
+			toleratedUnavailable: intstr.FromString("20%"),
+
+			abort:                      true,
+			abortScaleDownAnnotated:    false,
+			abortScaleDownDelaySeconds: 10,
+
+			scaleExpected: false,
+
+			failRSUpdate: false,
+		},
+		// Test Case 7 (See description above)
+		{
+			name: "Annotation already added, and abortScaleDownDelayPassed=true. Expect scale down",
+
+			rolloutReplicas:      10,
+			oldReplicas:          10,
+			oldAvailableReplicas: 10,
+			newReplicas:          2,
+
+			abort:                      true,
+			abortScaleDownAnnotated:    true,
+			abortScaleDownDelaySeconds: 10,
+			abortScaleDownDelayPassed:  true,
+
+			scaleExpected: true,
+		},
+		// Test Case 8 (See description above)
+		{
+			name: "Annotation already added, and abortScaleDownDelayPassed=false. No scale down",
+
+			rolloutReplicas:      10,
+			oldReplicas:          10,
+			oldAvailableReplicas: 10,
+			newReplicas:          2,
+
+			abort:                      true,
+			abortScaleDownAnnotated:    true,
+			abortScaleDownDelaySeconds: 10,
+			abortScaleDownDelayPassed:  false,
+
+			scaleExpected: false,
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			test := tests[i]
+
+			oldRollout := newCanaryRollout("foo", test.rolloutReplicas, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+			rollout := bumpVersion(oldRollout)
+
+			oldRS := newReplicaSetWithStatus(oldRollout, test.oldReplicas, test.oldAvailableReplicas)
+			newRS := newReplicaSetWithStatus(rollout, test.newReplicas, test.newReplicas)
+
+			rollout.Status.StableRS = oldRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			rollout.Status.CurrentPodHash = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+			fake := fake.Clientset{}
+			k8sfake := k8sfake.Clientset{}
+
+			if test.failRSUpdate {
+				k8sfake.PrependReactor("patch", "replicasets", func(action core.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &appsv1.ReplicaSet{}, fmt.Errorf("should not patch replica set")
+				})
+			}
+
+			f := newFixture(t)
+			defer f.Close()
+			f.objects = append(f.objects, rollout)
+			f.replicaSetLister = append(f.replicaSetLister, oldRS, newRS)
+			f.kubeobjects = append(f.kubeobjects, oldRS, newRS)
+			_, informers, k8sInformer := f.newController(noResyncPeriodFunc)
+			stopCh := make(chan struct{})
+			informers.Start(stopCh)
+			informers.WaitForCacheSync(stopCh)
+			close(stopCh)
+
+			roCtx := rolloutContext{
+				log:      logutil.WithRollout(rollout),
+				rollout:  rollout,
+				newRS:    newRS,
+				stableRS: oldRS,
+				reconcilerBase: reconcilerBase{
+					argoprojclientset:  &fake,
+					kubeclientset:      &k8sfake,
+					recorder:           record.NewFakeEventRecorder(),
+					resyncPeriod:       30 * time.Second,
+					replicaSetInformer: k8sInformer.Apps().V1().ReplicaSets().Informer(),
+				},
+				pauseContext: &pauseContext{
+					rollout: rollout,
+				},
+			}
+			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
+
+			rollout.Status.Abort = test.abort
+			roCtx.stableRS.Status.AvailableReplicas = int32(test.oldAvailableReplicas)
+
+			// TODO: user explicitly set abortScaleDownDelaySeconds to 0.
+			abortScaleDownDelaySeconds := &test.abortScaleDownDelaySeconds
+			if test.abortScaleDownDelaySeconds > 0 {
+				if test.abortScaleDownAnnotated {
+					var deadline string
+					if test.abortScaleDownDelayPassed {
+						deadline = timeutil.Now().Add(-time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+					} else {
+						deadline = timeutil.Now().Add(time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+					}
+					roCtx.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
+				}
+			} else if test.abortScaleDownDelaySeconds < 0 {
+				abortScaleDownDelaySeconds = nil
+			}
+
+			var toleratedUnavailable *intstr.IntOrString
+			if test.toleratedUnavailable.Type == intstr.Int && test.toleratedUnavailable.IntVal == -1 {
+				toleratedUnavailable = nil
+			} else {
+				toleratedUnavailable = &test.toleratedUnavailable
+			}
+
+			rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = abortScaleDownDelaySeconds
+			rollout.Spec.Strategy.Canary.DynamicStableScale = test.usesDynamicStableScale
+			rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+			rollout.Spec.Strategy.Canary.ToleratedUnavailable = toleratedUnavailable
+
+			scaled, err := roCtx.reconcileNewReplicaSet()
+			if test.failRSUpdate {
+				assert.Error(t, err)
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if !test.scaleExpected {
+				if scaled || len(fake.Actions()) > 0 {
+					t.Errorf("unexpected scaling: %v", fake.Actions())
+				}
+				return
+			}
+			if test.scaleExpected && !scaled {
+				t.Errorf("expected scaling to occur")
+				return
+			}
+			if len(k8sfake.Actions()) != 1 {
+				t.Errorf("expected 1 action during scale, got: %v", fake.Actions())
+				return
+			}
+			updated := k8sfake.Actions()[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+			if e, a := test.expectedNewReplicas, int(*(updated.Spec.Replicas)); e != a {
+				t.Errorf("expected update to %d replicas, got %d", e, a)
+			}
+		})
+	}
+}
+
+func TestReconcileNewReplicaSetBlueGreen(t *testing.T) {
 	tests := []struct {
 		name                       string
 		rolloutReplicas            int
+		oldAvailableReplicas       int
 		newReplicas                int
 		scaleExpected              bool
 		abortScaleDownDelaySeconds int32
@@ -140,30 +455,34 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 		abort                      bool
 	}{
 		{
-			name:            "New Replica Set matches rollout replica: No scale",
-			rolloutReplicas: 10,
-			newReplicas:     10,
-			scaleExpected:   false,
+			name:                 "New Replica Set matches rollout replica: No scale",
+			rolloutReplicas:      10,
+			oldAvailableReplicas: 10,
+			newReplicas:          10,
+			scaleExpected:        false,
 		},
 		{
-			name:                "New Replica Set higher than rollout replica: Scale down",
-			rolloutReplicas:     10,
-			newReplicas:         12,
-			scaleExpected:       true,
-			expectedNewReplicas: 10,
+			name:                 "New Replica Set higher than rollout replica: Scale down",
+			rolloutReplicas:      10,
+			oldAvailableReplicas: 10,
+			newReplicas:          12,
+			scaleExpected:        true,
+			expectedNewReplicas:  10,
 		},
 		{
-			name:                "New Replica Set lower than rollout replica: Scale up",
-			rolloutReplicas:     10,
-			newReplicas:         8,
-			scaleExpected:       true,
-			expectedNewReplicas: 10,
+			name:                 "New Replica Set lower than rollout replica: Scale up",
+			rolloutReplicas:      10,
+			oldAvailableReplicas: 10,
+			newReplicas:          8,
+			scaleExpected:        true,
+			expectedNewReplicas:  10,
 		},
 
 		{
-			name:            "New Replica scaled down to 0: scale down on abort - deadline passed",
-			rolloutReplicas: 10,
-			newReplicas:     10,
+			name:                 "New Replica scaled down to 0: scale down on abort - deadline passed",
+			rolloutReplicas:      10,
+			oldAvailableReplicas: 10,
+			newReplicas:          10,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
 			abort:                      true,
@@ -173,9 +492,10 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			expectedNewReplicas:        0,
 		},
 		{
-			name:            "New Replica scaled down to 0: scale down on abort - deadline not passed",
-			rolloutReplicas: 10,
-			newReplicas:     8,
+			name:                 "New Replica scaled down to 0: scale down on abort - deadline not passed",
+			rolloutReplicas:      10,
+			oldAvailableReplicas: 10,
+			newReplicas:          8,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
 			abort:                      true,
@@ -187,6 +507,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 		{
 			name:                       "New Replica scaled down to 0: scale down on abort - add annotation",
 			rolloutReplicas:            10,
+			oldAvailableReplicas:       10,
 			newReplicas:                10,
 			abortScaleDownDelaySeconds: 5,
 			abort:                      true,
@@ -194,9 +515,11 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			scaleExpected:              false,
 			expectedNewReplicas:        0,
 		},
+		// 	Test that the annotation is immediately added regardless of stable RS availability.
 		{
-			name:                       "Fail to update RS: No scale and add default annotation",
+			name:                       "Fail to update RS: No scale and add default annotation. Stable RS availability doesn't matter.",
 			rolloutReplicas:            10,
+			oldAvailableReplicas:       8,
 			newReplicas:                10,
 			scaleExpected:              false,
 			failRSUpdate:               true,
@@ -250,7 +573,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
 
 			rollout.Status.Abort = test.abort
-			roCtx.stableRS.Status.AvailableReplicas = int32(test.rolloutReplicas)
+			roCtx.stableRS.Status.AvailableReplicas = int32(test.oldAvailableReplicas)
 			rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
 				BlueGreen: &v1alpha1.BlueGreenStrategy{
 					AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,

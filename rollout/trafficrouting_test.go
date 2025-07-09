@@ -1436,69 +1436,126 @@ func TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate(t *testing.T) {
 
 }
 
-// This test verifies that if we are shifting traffic to stable replicaset without the stable replicaset being available proportional to the weight, the traffic shouldn't be switched immediately to the stable replicaset.
+// This test verifies that if we are shifting traffic to stable replicaset without the stable replicaset being available proportional to the weight,
+// the traffic shouldn't be switched immediately to the stable replicaset. Respects rollout.Spec.Strategy.Canary.ToleratedUnavailable.
 func TestCheckReplicaSetAvailable(t *testing.T) {
-	fix := newFixture(t)
-	defer fix.Close()
 
-	steps := []v1alpha1.CanaryStep{
+	tests := []struct {
+		name                     string
+		toleratedUnavailable     intstr.IntOrString
+		shouldProceedToSetWeight bool
+	}{
 		{
-			SetWeight: ptr.To[int32](60),
+			// 1 available < 9 desired
+			name:                     "No toleratedUnavailable set. Should not proceed",
+			toleratedUnavailable:     intstr.FromInt(-1),
+			shouldProceedToSetWeight: false,
 		},
 		{
-			Pause: &v1alpha1.RolloutPause{},
+			// 1 available < (math.Floor(9 desired - 2 tolerated) = 7)
+			name:                     "Small tolerated unavailable as an absolute number. Should not proceed.",
+			toleratedUnavailable:     intstr.FromInt(2),
+			shouldProceedToSetWeight: false,
+		},
+		{
+			// 1 available >= (math.Floor(9 desired - 8 tolerated) = 1)
+			name:                     "Large tolerated unavailable as an absolute number. Should proceed.",
+			toleratedUnavailable:     intstr.FromInt(8),
+			shouldProceedToSetWeight: true,
+		},
+		{
+			// 1 available < (math.Floor(9 desired - 9 * 0.2 tolerated) = floor(7.2) = 7)
+			name:                     "Small tolerated unavailable as a percentage. Should not proceed.",
+			toleratedUnavailable:     intstr.FromString("20%"),
+			shouldProceedToSetWeight: false,
+		},
+		{
+			// 1 available >= (math.Floor(9 desired - 9 * 0.9) = math.Floor(0.9)=0)
+			name:                     "Large tolerated unavailable as a percentage. Should proceed.",
+			toleratedUnavailable:     intstr.FromString("90%"),
+			shouldProceedToSetWeight: true,
 		},
 	}
 
-	rollout1 := newCanaryRollout("test-rollout", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
-	rollout1.Spec.Strategy.Canary.DynamicStableScale = true
-	rollout1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-		SMI: &v1alpha1.SMITrafficRouting{},
+	for _, test := range tests {
+
+		t.Run(test.name, func(t *testing.T) {
+
+			fix := newFixture(t)
+			defer fix.Close()
+
+			steps := []v1alpha1.CanaryStep{
+				{
+					SetWeight: ptr.To[int32](60),
+				},
+				{
+					Pause: &v1alpha1.RolloutPause{},
+				},
+			}
+
+			rollout1 := newCanaryRollout("test-rollout", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
+			rollout1.Spec.Strategy.Canary.DynamicStableScale = true
+			rollout1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+				SMI: &v1alpha1.SMITrafficRouting{},
+			}
+			rollout1.Spec.Strategy.Canary.CanaryService = "canary-service"
+			rollout1.Spec.Strategy.Canary.StableService = "stable-service"
+			rollout1.Status.ReadyReplicas = 10
+			rollout1.Status.AvailableReplicas = 10
+
+			rollout2 := bumpVersion(rollout1)
+
+			replicaSet1 := newReplicaSetWithStatus(rollout1, 1, 1)
+			replicaSet2 := newReplicaSetWithStatus(rollout2, 9, 9)
+
+			replicaSet1Hash := replicaSet1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			replicaSet2Hash := replicaSet2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: replicaSet2Hash}
+			stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: replicaSet1Hash}
+			canarySvc := newService("canary-service", 80, canarySelector, rollout1)
+			stableSvc := newService("stable-service", 80, stableSelector, rollout1)
+
+			rollout2.Spec = rollout1.Spec
+			rollout2.Status.StableRS = replicaSet1Hash
+			rollout2.Status.CurrentPodHash = replicaSet1Hash
+			rollout2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+				Canary: v1alpha1.WeightDestination{
+					Weight:          10,
+					ServiceName:     "canary-service",
+					PodTemplateHash: replicaSet2Hash,
+				},
+				Stable: v1alpha1.WeightDestination{
+					Weight:          90,
+					ServiceName:     "stable-service",
+					PodTemplateHash: replicaSet1Hash,
+				},
+			}
+
+			if test.toleratedUnavailable.Type == intstr.Int && test.toleratedUnavailable.IntVal == -1 {
+				rollout2.Spec.Strategy.Canary.ToleratedUnavailable = nil
+			} else {
+				rollout2.Spec.Strategy.Canary.ToleratedUnavailable = &test.toleratedUnavailable
+			}
+
+			fix.kubeobjects = append(fix.kubeobjects, replicaSet1, replicaSet2, canarySvc, stableSvc)
+			fix.replicaSetLister = append(fix.replicaSetLister, replicaSet1, replicaSet2)
+
+			fix.rolloutLister = append(fix.rolloutLister, rollout2)
+			fix.objects = append(fix.objects, rollout2)
+
+			fix.expectUpdateReplicaSetAction(replicaSet1)
+			fix.expectUpdateRolloutAction(rollout2)
+			fix.expectUpdateReplicaSetAction(replicaSet1)
+			fix.expectPatchRolloutAction(rollout2)
+
+			fix.run(getKey(rollout1, t))
+
+			// Expect that we proceed to SetWeight
+			if test.shouldProceedToSetWeight {
+				fix.fakeTrafficRouting.AssertCalled(t, "SetWeight", mock.Anything, mock.Anything)
+			}
+
+		})
+
 	}
-	rollout1.Spec.Strategy.Canary.CanaryService = "canary-service"
-	rollout1.Spec.Strategy.Canary.StableService = "stable-service"
-	rollout1.Status.ReadyReplicas = 10
-	rollout1.Status.AvailableReplicas = 10
-
-	rollout2 := bumpVersion(rollout1)
-
-	replicaSet1 := newReplicaSetWithStatus(rollout1, 1, 1)
-	replicaSet2 := newReplicaSetWithStatus(rollout2, 9, 9)
-
-	replicaSet1Hash := replicaSet1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	replicaSet2Hash := replicaSet2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: replicaSet2Hash}
-	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: replicaSet1Hash}
-	canarySvc := newService("canary-service", 80, canarySelector, rollout1)
-	stableSvc := newService("stable-service", 80, stableSelector, rollout1)
-
-	rollout2.Spec = rollout1.Spec
-	rollout2.Status.StableRS = replicaSet1Hash
-	rollout2.Status.CurrentPodHash = replicaSet1Hash
-	rollout2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
-		Canary: v1alpha1.WeightDestination{
-			Weight:          10,
-			ServiceName:     "canary-service",
-			PodTemplateHash: replicaSet2Hash,
-		},
-		Stable: v1alpha1.WeightDestination{
-			Weight:          90,
-			ServiceName:     "stable-service",
-			PodTemplateHash: replicaSet1Hash,
-		},
-	}
-
-	fix.kubeobjects = append(fix.kubeobjects, replicaSet1, replicaSet2, canarySvc, stableSvc)
-	fix.replicaSetLister = append(fix.replicaSetLister, replicaSet1, replicaSet2)
-
-	fix.rolloutLister = append(fix.rolloutLister, rollout2)
-	fix.objects = append(fix.objects, rollout2)
-
-	fix.expectUpdateReplicaSetAction(replicaSet1)
-	fix.expectUpdateRolloutAction(rollout2)
-	fix.expectUpdateReplicaSetAction(replicaSet1)
-	fix.expectPatchRolloutAction(rollout2)
-	fix.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	fix.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	fix.run(getKey(rollout1, t))
 }

@@ -317,6 +317,19 @@ type CanaryStrategy struct {
 	// Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
 	// MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
 	MinPodsPerReplicaSet *int32 `json:"minPodsPerReplicaSet,omitempty" protobuf:"varint,16,opt,name=minPodsPerReplicaSet"`
+	// The number of unavailable replicas to tolerate in a few checks before proceeding. The checks this is used in are
+	// (can be extended in the future):
+	// 1. How many canary replicas are tolerated to be unavailable before fully promoting it to be the stable replicaset? Note: this check is done
+	//    after all steps are finished, and a 100% weight is reached. If set to a ratio, it will be with respect to `rollout.spec.replicas`.
+	// 2. How many stable replicas are tolerated to be unavailable before adding the scaledown annotation to the canary replicaset when aborting?
+	//    If set to a ratio, it will be with respect to `rollout.spec.replicas`.
+	// 3. How many stable replicas are tolerated to be unavailable before changing the desired traffic weight sent to it? If set to a ratio,
+	//    it will be with respect to the desired number of replicas for the stable replicaset (which is corresponding to the desired traffic
+	//    weight).
+	// This is used to solve the problem in dynamic environments with cluster autoscalers, where pod evictions can happen for various
+	// reasons: consolidation, rotation, etc. Defaults to 0, which is a rigid requirement for full availability. Set to a higher value
+	// for more flexibility. Rounded down if a percentage.
+	ToleratedUnavailable *intstr.IntOrString `json:"toleratedUnavailable,omitempty" protobuf:"bytes,17,opt,name=toleratedUnavailable"`
 }
 
 // PingPongSpec holds the ping and pong service name.

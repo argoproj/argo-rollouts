@@ -1625,6 +1625,12 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							Format:      "int32",
 						},
 					},
+					"toleratedUnavailable": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The number of unavailable replicas to tolerate in a few checks before proceeding. The checks this is used in are (can be extended in the future): 1. How many canary replicas are tolerated to be unavailable before fully promoting it to be the stable replicaset? Note: this check is done\n   after all steps are finished, and a 100% weight is reached. If set to a ratio, it will be with respect to `rollout.spec.replicas`.\n2. How many stable replicas are tolerated to be unavailable before adding the scaledown annotation to the canary replicaset when aborting?\n   If set to a ratio, it will be with respect to `rollout.spec.replicas`.\n3. How many stable replicas are tolerated to be unavailable before changing the desired traffic weight sent to it? If set to a ratio,\n   it will be with respect to the desired number of replicas for the stable replicaset (which is corresponding to the desired traffic\n   weight).\nThis is used to solve the problem in dynamic environments with cluster autoscalers, where pod evictions can happen for various reasons: consolidation, rotation, etc. Defaults to 0, which is a rigid requirement for full availability. Set to a higher value for more flexibility. Rounded down if a percentage.",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+						},
+					},
 				},
 			},
 		},
