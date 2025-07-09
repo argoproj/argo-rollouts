@@ -1586,7 +1586,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 
 			httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes, err := splitManagedRoutesAndNonManagedRoutes(managedRoutes, httpRouteI)
 			if err != nil {
-				return fmt.Errorf("[RemoveManagedRoutes] failed to split managaed and non-managed routes: %w", err)
+				return fmt.Errorf("[RemoveManagedRoutes] failed to split managed and non-managed routes: %w", err)
 			}
 
 			if len(httpRoutesWithinManagedRoutes) > 0 {
