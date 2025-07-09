@@ -1221,6 +1221,13 @@
         "secretRef": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SecretRef",
           "title": "Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.\n+optional"
+        },
+        "formulas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Formulas is a list of formula strings. You can then use query_name_as_key inside Formula.\nMutually Exclusive with Formula. Used for v2"
         }
       }
     },

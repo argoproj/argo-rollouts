@@ -630,6 +630,9 @@ type DatadogMetric struct {
 	// Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
 	// +optional
 	SecretRef SecretRef `json:"secretRef,omitempty" protobuf:"bytes,7,opt,name=secretRef"`
+	// Formulas is a list of formula strings. You can then use query_name_as_key inside Formula.
+	// Mutually Exclusive with Formula. Used for v2
+	Formulas []string `json:"formulas,omitempty" protobuf:"bytes,8,opt,name=formulas"`
 }
 
 type SecretRef struct {

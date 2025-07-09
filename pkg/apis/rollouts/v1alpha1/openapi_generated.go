@@ -1971,6 +1971,21 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SecretRef"),
 						},
 					},
+					"formulas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Formulas is a list of formula strings. You can then use query_name_as_key inside Formula. Mutually Exclusive with Formula. Used for v2",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
