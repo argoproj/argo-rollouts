@@ -875,6 +875,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
      */
     minPodsPerReplicaSet?: number;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    replicaProgressThreshold?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold;
 }
 /**
  * 
@@ -1948,6 +1954,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusR
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
      */
     step?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold {
+    /**
+     * Type is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold
+     */
+    type?: string;
+    /**
+     * Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step. If not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step. Value must also be greater than 0. Required.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold
+     */
+    value?: number;
 }
 /**
  * 
