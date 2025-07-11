@@ -175,12 +175,10 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	inThePast := timeutil.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
 	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
-
 	f := newFixture(t, e, rs1, rs2, s1)
 	defer f.Close()
 
 	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
-	f.expectDeleteServiceAction(s1)
 	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
 	expPatchIndex := f.expectPatchExperimentAction(e)
 
@@ -195,6 +193,60 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 
 	expPatchObj := f.getPatchedExperimentAsObj(expPatchIndex)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, expPatchObj.Status.Phase)
+
+	rs1.Status.AvailableReplicas = 0
+	rs2.Status.AvailableReplicas = 0
+
+	f = newFixture(t, e, rs1, rs2, s1)
+	defer f.Close()
+	f.expectDeleteServiceAction(s1)
+}
+
+// TestScaleDownRSAWhenSvcNotDeleted verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down and service is not deleted because available replicas are not 0
+func TestScaleDownRSWhenSvcNotDeleted(t *testing.T) {
+	tmpl := generateTemplates("template1", "template2")
+	tmpl[0].Service = &v1alpha1.TemplateService{}
+
+	exp := newExperiment("test-exp", tmpl, "")
+	replicaSet1 := templateToRS(exp, tmpl[0], 1)
+	replicaSet2 := templateToRS(exp, tmpl[1], 1)
+	svc := templateToService(exp, tmpl[0], *replicaSet1)
+
+	exp.Status.AvailableAt = now()
+	exp.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	exp.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("template1", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
+		generateTemplatesStatus("template2", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
+	}
+	exp.Spec.Terminate = true
+	exp.Status.TemplateStatuses[0].ServiceName = svc.Name
+	condition := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"test-exp\" is running.")
+	exp.Status.Conditions = append(exp.Status.Conditions, *condition)
+
+	pastTime := timeutil.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
+	replicaSet1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = pastTime
+	replicaSet2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = pastTime
+	replicaSet1.Status.AvailableReplicas = 1
+	replicaSet2.Status.AvailableReplicas = 1
+	fixture := newFixture(t, exp, replicaSet1, replicaSet2, svc)
+	defer fixture.Close()
+
+	rs1UpdateIdx := fixture.expectUpdateReplicaSetAction(replicaSet1)
+	rs2UpdateIdx := fixture.expectUpdateReplicaSetAction(replicaSet2)
+	expPatchIdx := fixture.expectPatchExperimentAction(exp)
+
+	fixture.run(getKey(exp, t))
+
+	updatedRS1 := fixture.getUpdatedReplicaSet(rs1UpdateIdx)
+	assert.NotNil(t, updatedRS1)
+	assert.Equal(t, int32(0), *updatedRS1.Spec.Replicas)
+
+	updatedRS2 := fixture.getUpdatedReplicaSet(rs2UpdateIdx)
+	assert.NotNil(t, updatedRS2)
+	assert.Equal(t, int32(0), *updatedRS2.Spec.Replicas)
+
+	patchedExp := fixture.getPatchedExperimentAsObj(expPatchIdx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, patchedExp.Status.Phase)
 }
 
 func TestSetAvailableAt(t *testing.T) {

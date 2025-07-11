@@ -137,7 +137,14 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			// Create service for template if service field is set
 			if desiredReplicaCount != 0 {
 				ec.createTemplateService(&template, templateStatus, rs)
+			} else {
+				if rs.Status.AvailableReplicas == 0 {
+					// Check if service should be deleted when ReplicaSet has scaled down to 0 available replicas
+					svc := ec.templateServices[template.Name]
+					ec.deleteTemplateService(svc, templateStatus, template.Name)
+				}
 			}
+
 		} else {
 			// If service field nil but service exists, then delete it
 			// Code should not enter this path
@@ -157,6 +164,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			ec.scaleTemplateRS(rs, template, templateStatus, desiredReplicaCount, experimentReplicas)
 			templateStatus.LastTransitionTime = &now
 		}
+
 	}
 
 	if rs == nil {
@@ -272,11 +280,6 @@ func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, template v1a
 	if err != nil {
 		templateStatus.Status = v1alpha1.TemplateStatusError
 		templateStatus.Message = fmt.Sprintf("Unable to scale ReplicaSet for template '%s' to desired replica count '%v': %v", templateStatus.Name, desiredReplicaCount, err)
-	} else {
-		if desiredReplicaCount == 0 && template.Service != nil {
-			svc := ec.templateServices[template.Name]
-			ec.deleteTemplateService(svc, templateStatus, template.Name)
-		}
 	}
 }
 
