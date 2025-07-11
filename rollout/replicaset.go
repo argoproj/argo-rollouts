@@ -184,7 +184,8 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 			if deploymentErr == nil && deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0 {
 				c.log.Infof("Progressive migration complete, scaling deployment %s to 0", deployment.Name)
 				var targetScale int32 = 0
-				if err := c.scaleDeployment(&targetScale); err != nil {
+				err = c.scaleDeployment(&targetScale)
+				if err != nil {
 					c.log.Errorf("Failed to scale deployment to 0: %v", err)
 				}
 			}
@@ -193,7 +194,8 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 			oldScale := defaults.GetReplicasOrDefault(c.newRS.Spec.Replicas)
 			if c.rollout.Spec.Replicas != nil && (c.rollout.Status.ReadyReplicas > 0 || oldScale > newReplicasCount) {
 				targetScale := *c.rollout.Spec.Replicas - c.rollout.Status.ReadyReplicas
-				if err := c.scaleDeployment(&targetScale); err != nil {
+				err = c.scaleDeployment(&targetScale)
+				if err != nil {
 					c.log.Errorf("Failed to scale deployment during progressive migration: %v", err)
 				}
 			}
