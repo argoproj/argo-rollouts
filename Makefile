@@ -117,16 +117,19 @@ gen-proto: k8s-proto api-proto ui-proto
 
 # generates the .proto files affected by changes to types.go
 .PHONY: k8s-proto
-k8s-proto: go-mod-vendor $(TYPES) ## generate kubernetes protobuf files
+k8s-proto: go-mod-vendor install-protoc-local install-go-tools-local $(TYPES) ## generate kubernetes protobuf files
 	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} go-to-protobuf \
 		--go-header-file=./hack/custom-boilerplate.go.txt \
 		--packages=github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
 		--apimachinery-packages=${APIMACHINERY_PKGS} \
-		--proto-import $(CURDIR)/vendor \
+		--proto-import=${CURDIR}/vendor \
+		--proto-import=${GOPATH}/src \
 		--proto-import=${DIST_DIR}/protoc-include
 	touch pkg/apis/rollouts/v1alpha1/generated.proto
-	cp -R ${GOPATH}/src/github.com/argoproj/argo-rollouts/pkg . | true
-
+	cp -Rf $(CURDIR)/github.com/argoproj/argo-rollouts/pkg . | true
+	# removing generated files
+	rm -Rf $(CURDIR)/github.com/
+	rm -Rf $(CURDIR)/k8s.io/
 
 # generates *.pb.go, *.pb.gw.go, swagger from .proto files
 .PHONY: api-proto
@@ -145,8 +148,8 @@ gen-k8scodegen: go-mod-vendor ## generate kubernetes codegen files
 
 # generates ./manifests/crds/
 .PHONY: gen-crd
-gen-crd: install-go-tools-local ## generate crd manifests
-	go run ./hack/gen-crd-spec/main.go
+gen-crd: go-mod-vendor install-go-tools-local ## generate crd manifests
+	go run -mod=mod ./hack/gen-crd-spec/main.go
 
 # generates mock files from interfaces
 .PHONY: gen-mocks
@@ -158,12 +161,13 @@ gen-mocks-fast:
 
 # generates openapi_generated.go
 .PHONY: gen-openapi
-gen-openapi: $(DIST_DIR)/openapi-gen ## generate openapi files
-	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} openapi-gen \
+gen-openapi: install-go-tools-local $(DIST_DIR)/openapi-gen ## generate openapi files
+	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} openapi-gen ${CURRENT_DIR}/pkg/apis/rollouts/v1alpha1 \
 		--go-header-file ${CURRENT_DIR}/hack/custom-boilerplate.go.txt \
-		--input-dirs github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
-		--output-package github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
-		--report-filename pkg/apis/api-rules/violation_exceptions.list
+		--output-pkg github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
+		--output-dir ${CURRENT_DIR}/pkg/apis/rollouts/v1alpha1 \
+		--output-file openapi_generated.go \
+		--report-filename ${CURRENT_DIR}/pkg/apis/api-rules/violation_exceptions.list
 
 ##@ Plugins
 
@@ -291,8 +295,8 @@ serve-docs: docs ## serve docs locally
 	docker run --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs squidfunk/mkdocs-material serve -a 0.0.0.0:8000
 
 .PHONY: docs
-docs: ## build docs
-	go run ./hack/gen-docs/main.go
+docs: go-mod-vendor install-go-tools-local ## build docs
+	go run -mod=mod ./hack/gen-docs/main.go
 
 ##@ Release
 

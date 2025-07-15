@@ -3368,6 +3368,12 @@ export interface K8sIoApiBatchV1JobSpec {
     podFailurePolicy?: K8sIoApiBatchV1PodFailurePolicy;
     /**
      * 
+     * @type {K8sIoApiBatchV1SuccessPolicy}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    successPolicy?: K8sIoApiBatchV1SuccessPolicy;
+    /**
+     * 
      * @type {number}
      * @memberof K8sIoApiBatchV1JobSpec
      */
@@ -3426,6 +3432,12 @@ export interface K8sIoApiBatchV1JobSpec {
      * @memberof K8sIoApiBatchV1JobSpec
      */
     podReplacementPolicy?: string;
+    /**
+     * ManagedBy field indicates the controller that manages a Job. The k8s Job controller reconciles jobs which don't have this field at all or the field value is the reserved string `kubernetes.io/job-controller`, but skips reconciling Jobs with a custom value for this field. The value must be a valid domain-prefixed path (e.g. acme.io/foo) - all characters before the first \"/\" must be a valid subdomain as defined by RFC 1123. All characters trailing the first \"/\" must be valid HTTP Path characters as defined by RFC 3986. The value cannot exceed 64 characters.  This field is alpha-level. The job controller accepts setting the field when the feature gate JobManagedBy is enabled (disabled by default). +optional
+     * @type {string}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    managedBy?: string;
 }
 /**
  * PodFailurePolicy describes how failed pods influence the backoffLimit.
@@ -3510,6 +3522,38 @@ export interface K8sIoApiBatchV1PodFailurePolicyRule {
     onPodConditions?: Array<K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern>;
 }
 /**
+ * SuccessPolicy describes when a Job can be declared as succeeded based on the success of some indexes.
+ * @export
+ * @interface K8sIoApiBatchV1SuccessPolicy
+ */
+export interface K8sIoApiBatchV1SuccessPolicy {
+    /**
+     * 
+     * @type {Array<K8sIoApiBatchV1SuccessPolicyRule>}
+     * @memberof K8sIoApiBatchV1SuccessPolicy
+     */
+    rules?: Array<K8sIoApiBatchV1SuccessPolicyRule>;
+}
+/**
+ * SuccessPolicyRule describes rule for declaring a Job as succeeded. Each rule must have at least one of the \"succeededIndexes\" or \"succeededCount\" specified.
+ * @export
+ * @interface K8sIoApiBatchV1SuccessPolicyRule
+ */
+export interface K8sIoApiBatchV1SuccessPolicyRule {
+    /**
+     * succeededIndexes specifies the set of indexes which need to be contained in the actual set of the succeeded indexes for the Job. The list of indexes must be within 0 to \".spec.completions-1\" and must not contain duplicates. At least one element is required. The indexes are represented as intervals separated by commas. The intervals can be a decimal integer or a pair of decimal integers separated by a hyphen. The number are listed in represented by the first and last element of the series, separated by a hyphen. For example, if the completed indexes are 1, 3, 4, 5 and 7, they are represented as \"1,3-5,7\". When this field is null, this field doesn't default to any value and is never evaluated at any time.  +optional
+     * @type {string}
+     * @memberof K8sIoApiBatchV1SuccessPolicyRule
+     */
+    succeededIndexes?: string;
+    /**
+     * succeededCount specifies the minimal required size of the actual set of the succeeded indexes for the Job. When succeededCount is used along with succeededIndexes, the check is constrained only to the set of indexes specified by succeededIndexes. For example, given that succeededIndexes is \"1-4\", succeededCount is \"3\", and completed indexes are \"1\", \"3\", and \"5\", the Job isn't declared as succeeded because only \"1\" and \"3\" indexes are considered in that rules. When this field is null, this doesn't default to any value and is never evaluated at any time. When specified it needs to be a positive integer.  +optional
+     * @type {number}
+     * @memberof K8sIoApiBatchV1SuccessPolicyRule
+     */
+    succeededCount?: number;
+}
+/**
  * Represents a Persistent Disk resource in AWS.  An AWS EBS disk must exist before mounting to a container. The disk must also be in the same AWS zone as the kubelet. An AWS EBS disk can only be mounted as read/write once. AWS EBS volumes support ownership management and SELinux relabeling.
  * @export
  * @interface K8sIoApiCoreV1AWSElasticBlockStoreVolumeSource
@@ -3564,6 +3608,25 @@ export interface K8sIoApiCoreV1Affinity {
      * @memberof K8sIoApiCoreV1Affinity
      */
     podAntiAffinity?: K8sIoApiCoreV1PodAntiAffinity;
+}
+/**
+ * 
+ * @export
+ * @interface K8sIoApiCoreV1AppArmorProfile
+ */
+export interface K8sIoApiCoreV1AppArmorProfile {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1AppArmorProfile
+     */
+    type?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1AppArmorProfile
+     */
+    localhostProfile?: string;
 }
 /**
  * AzureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.
@@ -4741,13 +4804,13 @@ export interface K8sIoApiCoreV1HTTPHeader {
  */
 export interface K8sIoApiCoreV1HostAlias {
     /**
-     * IP address of the host file entry.
+     * 
      * @type {string}
      * @memberof K8sIoApiCoreV1HostAlias
      */
     ip?: string;
     /**
-     * Hostnames for the above IP address.
+     * 
      * @type {Array<string>}
      * @memberof K8sIoApiCoreV1HostAlias
      */
@@ -4927,7 +4990,7 @@ export interface K8sIoApiCoreV1LifecycleHandler {
  */
 export interface K8sIoApiCoreV1LocalObjectReference {
     /**
-     * 
+     * Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. TODO: Add other useful fields. apiVersion, kind, uid? More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names +optional +default=\"\" +kubebuilder:default=\"\" TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
      * @type {string}
      * @memberof K8sIoApiCoreV1LocalObjectReference
      */
@@ -4984,7 +5047,7 @@ export interface K8sIoApiCoreV1NodeAffinity {
  */
 export interface K8sIoApiCoreV1NodeSelector {
     /**
-     * Required. A list of node selector terms. The terms are ORed.
+     * 
      * @type {Array<K8sIoApiCoreV1NodeSelectorTerm>}
      * @memberof K8sIoApiCoreV1NodeSelector
      */
@@ -5420,6 +5483,12 @@ export interface K8sIoApiCoreV1PodSecurityContext {
      * @memberof K8sIoApiCoreV1PodSecurityContext
      */
     seccompProfile?: K8sIoApiCoreV1SeccompProfile;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1AppArmorProfile}
+     * @memberof K8sIoApiCoreV1PodSecurityContext
+     */
+    appArmorProfile?: K8sIoApiCoreV1AppArmorProfile;
 }
 /**
  * PodSpec is a description of a pod.
@@ -5650,7 +5719,7 @@ export interface K8sIoApiCoreV1PodSpec {
      */
     hostUsers?: boolean;
     /**
-     * SchedulingGates is an opaque list of values that if specified will block scheduling the pod. If schedulingGates is not empty, the pod will stay in the SchedulingGated state and the scheduler will not attempt to schedule the pod.  SchedulingGates can only be set at pod creation time, and be removed only afterwards.  This is a beta feature enabled by the PodSchedulingReadiness feature gate.  +patchMergeKey=name +patchStrategy=merge +listType=map +listMapKey=name +featureGate=PodSchedulingReadiness +optional
+     * SchedulingGates is an opaque list of values that if specified will block scheduling the pod. If schedulingGates is not empty, the pod will stay in the SchedulingGated state and the scheduler will not attempt to schedule the pod.  SchedulingGates can only be set at pod creation time, and be removed only afterwards.  +patchMergeKey=name +patchStrategy=merge +listType=map +listMapKey=name +optional
      * @type {Array<K8sIoApiCoreV1PodSchedulingGate>}
      * @memberof K8sIoApiCoreV1PodSpec
      */
@@ -6274,6 +6343,12 @@ export interface K8sIoApiCoreV1SecurityContext {
      * @memberof K8sIoApiCoreV1SecurityContext
      */
     seccompProfile?: K8sIoApiCoreV1SeccompProfile;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1AppArmorProfile}
+     * @memberof K8sIoApiCoreV1SecurityContext
+     */
+    appArmorProfile?: K8sIoApiCoreV1AppArmorProfile;
 }
 /**
  * ServiceAccountTokenProjection represents a projected service account token volume. This projection can be used to insert a service account token into the pods runtime filesystem for use against APIs (Kubernetes API Server or otherwise).
@@ -6456,7 +6531,7 @@ export interface K8sIoApiCoreV1TopologySpreadConstraint {
      */
     labelSelector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
     /**
-     * MinDomains indicates a minimum number of eligible domains. When the number of eligible domains with matching topology keys is less than minDomains, Pod Topology Spread treats \"global minimum\" as 0, and then the calculation of Skew is performed. And when the number of eligible domains with matching topology keys equals or greater than minDomains, this value has no effect on scheduling. As a result, when the number of eligible domains is less than minDomains, scheduler won't schedule more than maxSkew Pods to those domains. If value is nil, the constraint behaves as if MinDomains is equal to 1. Valid values are integers greater than 0. When value is not nil, WhenUnsatisfiable must be DoNotSchedule.  For example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same labelSelector spread as 2/2/2: +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ |  P P  |  P P  |  P P  | +-------+-------+-------+ The number of domains is less than 5(MinDomains), so \"global minimum\" is treated as 0. In this situation, new pod with the same labelSelector cannot be scheduled, because computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones, it will violate MaxSkew.  This is a beta field and requires the MinDomainsInPodTopologySpread feature gate to be enabled (enabled by default). +optional
+     * MinDomains indicates a minimum number of eligible domains. When the number of eligible domains with matching topology keys is less than minDomains, Pod Topology Spread treats \"global minimum\" as 0, and then the calculation of Skew is performed. And when the number of eligible domains with matching topology keys equals or greater than minDomains, this value has no effect on scheduling. As a result, when the number of eligible domains is less than minDomains, scheduler won't schedule more than maxSkew Pods to those domains. If value is nil, the constraint behaves as if MinDomains is equal to 1. Valid values are integers greater than 0. When value is not nil, WhenUnsatisfiable must be DoNotSchedule.  For example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same labelSelector spread as 2/2/2: +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ |  P P  |  P P  |  P P  | +-------+-------+-------+ The number of domains is less than 5(MinDomains), so \"global minimum\" is treated as 0. In this situation, new pod with the same labelSelector cannot be scheduled, because computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones, it will violate MaxSkew. +optional
      * @type {number}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
@@ -6592,6 +6667,12 @@ export interface K8sIoApiCoreV1VolumeMount {
      * @memberof K8sIoApiCoreV1VolumeMount
      */
     readOnly?: boolean;
+    /**
+     * RecursiveReadOnly specifies whether read-only mounts should be handled recursively.  If ReadOnly is false, this field has no meaning and must be unspecified.  If ReadOnly is true, and this field is set to Disabled, the mount is not made recursively read-only.  If this field is set to IfPossible, the mount is made recursively read-only, if it is supported by the container runtime.  If this field is set to Enabled, the mount is made recursively read-only if it is supported by the container runtime, otherwise the pod will not be started and an error will be generated to indicate the reason.  If this field is set to IfPossible or Enabled, MountPropagation must be set to None (or be unspecified, which defaults to None).  If this field is not specified, it is treated as an equivalent of Disabled.  +featureGate=RecursiveReadOnlyMounts +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1VolumeMount
+     */
+    recursiveReadOnly?: string;
     /**
      * Path within the container at which the volume should be mounted.  Must not contain ':'.
      * @type {string}
@@ -7145,7 +7226,7 @@ export interface K8sIoApimachineryPkgApisMetaV1ObjectMeta {
      */
     finalizers?: Array<string>;
     /**
-     * ManagedFields maps workflow-id and version to the set of fields that are managed by that workflow. This is mostly for internal housekeeping, and users typically shouldn't need to set or understand this field. A workflow can be the user's name, a controller's name, or the name of a specific apply path like \"ci-cd\". The set of fields is always in the version that the workflow used when modifying the object.  +optional
+     * ManagedFields maps workflow-id and version to the set of fields that are managed by that workflow. This is mostly for internal housekeeping, and users typically shouldn't need to set or understand this field. A workflow can be the user's name, a controller's name, or the name of a specific apply path like \"ci-cd\". The set of fields is always in the version that the workflow used when modifying the object.  +optional +listType=atomic
      * @type {Array<K8sIoApimachineryPkgApisMetaV1ManagedFieldsEntry>}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
