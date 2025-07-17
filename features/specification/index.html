@@ -3879,6 +3879,19 @@
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setCanaryScale</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">matchTrafficWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 
+<span class="w">        </span><span class="c1"># The percentage or number of replica pods within the applications ReplicaSet</span>
+<span class="w">        </span><span class="c1"># that are available and ready when a rollout is ready to be promoted. Useful if your application</span>
+<span class="w">        </span><span class="c1"># configured an HPA to help handle different loads of traffic, but you still want quick promotions.</span>
+<span class="w">        </span><span class="c1"># Defaults to 100% if replicaProgressThreshold is not specified.</span>
+<span class="w">        </span><span class="c1"># The &#39;type&#39; field should be either &quot;Percent&quot; | &quot;Pod&quot;</span>
+<span class="w">        </span><span class="c1"># Current percentage that is checked against the input percent value is calculated by the following:</span>
+<span class="w">        </span><span class="c1"># CURRENT PERCENTAGE = available replicas / desired replicas for the current step</span>
+<span class="w">        </span><span class="c1"># +optional</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">replicaProgressThreshold</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Percent</span>
+<span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">90</span>
+
+
 <span class="w">        </span><span class="c1"># executes the configured plugin by name with the provided configuration</span>
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">plugin</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example</span>
