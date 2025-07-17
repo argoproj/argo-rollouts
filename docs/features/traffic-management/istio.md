@@ -142,8 +142,8 @@ During the lifecycle of a Rollout update, Argo Rollouts will continuously:
 
 The second approach to traffic splitting using Argo Rollouts and Istio, is splitting between two
 Istio [DestinationRule Subsets](https://istio.io/latest/docs/reference/config/networking/destination-rule/#Subset):
-a canary subset and a stable subset. When splitting by DestinationRule subsets, the user is
-required to deploy the following resources:
+a canary subset and a stable subset. User's can also specify [additional subset DestinationRule's](#additional-subset-destinationrules) to direct traffic towards.
+When splitting by DestinationRule subsets, the user is required to deploy the following resources:
 
 * Rollout
 * Service
@@ -248,6 +248,83 @@ During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts wil
 * modify the VirtualService `spec.http[].route[].weight` to match the current desired canary weight
 * modify the DestinationRule `spec.subsets[].labels` to contain the `rollouts-pod-template-hash`
   label of the canary and stable ReplicaSets
+
+### Additional Subset DestinationRule's
+
+Argo Rollouts also allows users to add additional subset DestinationRule's.
+One use case could be to direct additional traffic served by an API's path (e.g. `/api/mypath`) to
+a service handled by Argo Rollouts (with a stable and canary DestinationRule) *and* a service using an experimental image.
+
+For example, you could have subsets for:
+- `canary` - the new version being tested
+- `stable` - the current production version  
+- `legacy` - an older version for backward compatibility
+- `experimental` - a version with experimental features
+
+To enable this feature, follow the steps above for a regular subset DestinationRule deployment.
+Aftewards, modify your VirtualService containing the canary and subset DestinationRule's
+to include the additional subset names and the desired traffic weight:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: rollout-vsvc
+spec:
+  ...
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: rollout-example # same as the steps above
+        subset: stable
+      weight: 100 # you can leave this as 100, Argo Rollouts will handle the adjusted total weight so that the weights add up to 100%
+    - destination:
+        host: rollout-example
+        subset: canary
+      weight: 0
+    - destination:
+        host: experiment-host # this references the host of the additional Service (or whatever is configured by the additional Service)
+        subset: experiment # new and additional subset DestinationRule, referencing the spec.subsets.name of the DestinationRule
+      weight: 20
+```
+
+Also ensure that you deploy the additional DestinationRule (alongside whatever Services, Deployments, etc. that your additional DestinationRule depends on)
+as well, with the appropriate `spec.host`, `spec.subsets.name`, and `spec.subsets.labels.app` fields:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: experiemental-destrule
+spec:
+  host: experimental-host
+  exportTo:
+    - .
+    - ingress-system
+  subsets:
+    - name: experiment
+      labels:
+        app: experimental-host
+```
+
+Finally, add the names of the additional DestinationRule's to your Rollout spec as such:
+
+```yaml
+...
+destinationRule:
+  name: rollout-destrule    # required
+  canarySubsetName: canary  # required
+  stableSubsetName: stable  # required
+  additionalSubsetNames:    # not required, optional
+    ...                     # any other additional DestinationRule's
+    - "experiment"
+```
+
+The Argo Rollouts controller will manage the traffic weights between the canary and stable subsets,
+subtracting the weight directed to the additional subset DestinationRule's from the stable traffic.
+E.g.: Stable starts off at 100%, but with an additional DestinationRule taking up 20% of the traffic weight,
+it would then actually start off at 80%.
 
 ## TCP Traffic Splitting
 
