@@ -298,7 +298,7 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&logFormat, "logformat", "", "Set the logging format. One of: text|json")
 	command.Flags().IntVar(&klogLevel, "kloglevel", 0, "Set the klog logging level")
-	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
+	command.Flags().IntVar(&metricsPort, "metricsPort", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
 	command.Flags().IntVar(&healthzPort, "healthzPort", controller.DefaultHealthzPort, "Set the port the healthz endpoint should be exposed over")
 	command.Flags().StringVar(&instanceID, "instance-id", "", "Indicates which argo rollout objects the controller should operate on")
 	command.Flags().Float32Var(&qps, "qps", defaults.DefaultQPS, "Maximum QPS (queries per second) to the K8s API server")
