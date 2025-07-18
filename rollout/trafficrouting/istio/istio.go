@@ -870,13 +870,36 @@ func createHeaderRoute(virtualService v1alpha1.IstioVirtualService, unVsvc *unst
 
 func createHeaderRouteMatch(hrm v1alpha1.HeaderRoutingMatch) any {
 	res := map[string]any{}
-	value := hrm.HeaderValue
-	setMapValueIfNotEmpty(res, "exact", value.Exact)
-	setMapValueIfNotEmpty(res, "regex", value.Regex)
-	setMapValueIfNotEmpty(res, "prefix", value.Prefix)
-	return map[string]any{
-		"headers": map[string]any{hrm.HeaderName: res},
+
+	// Add header matching
+	if hrm.HeaderName != "" && hrm.HeaderValue != nil {
+		value := hrm.HeaderValue
+		headerMatch := map[string]any{}
+		setMapValueIfNotEmpty(headerMatch, "exact", value.Exact)
+		setMapValueIfNotEmpty(headerMatch, "regex", value.Regex)
+		setMapValueIfNotEmpty(headerMatch, "prefix", value.Prefix)
+		res["headers"] = map[string]any{hrm.HeaderName: headerMatch}
 	}
+
+	// Add method matching
+	if hrm.Method != nil {
+		methodMatch := map[string]any{}
+		setMapValueIfNotEmpty(methodMatch, "exact", hrm.Method.Exact)
+		setMapValueIfNotEmpty(methodMatch, "regex", hrm.Method.Regex)
+		setMapValueIfNotEmpty(methodMatch, "prefix", hrm.Method.Prefix)
+		res["method"] = methodMatch
+	}
+
+	// Add path matching
+	if hrm.Path != nil {
+		pathMatch := map[string]any{}
+		setMapValueIfNotEmpty(pathMatch, "exact", hrm.Path.Exact)
+		setMapValueIfNotEmpty(pathMatch, "regex", hrm.Path.Regex)
+		setMapValueIfNotEmpty(pathMatch, "prefix", hrm.Path.Prefix)
+		res["uri"] = pathMatch
+	}
+
+	return res
 }
 
 func setMapValueIfNotEmpty(m map[string]any, key string, value string) {

@@ -3340,3 +3340,75 @@ spec:
 		assert.Equal(t, "update", actions[0].GetVerb())
 	})
 }
+
+func TestHttpReconcileHeaderRouteWithMethodAndPath(t *testing.T) {
+	const headerName = "test-header-route-method-path"
+
+	// Setup test environment
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: headerName,
+	}}...)
+
+	// Create SetHeaderRoute with method and path
+	hr := &v1alpha1.SetHeaderRoute{
+		Name: headerName,
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName:  "agent",
+				HeaderValue: &v1alpha1.StringMatch{Exact: "firefox"},
+				Method:      &v1alpha1.StringMatch{Exact: "GET"},
+				Path:        &v1alpha1.StringMatch{Prefix: "/v1/api"},
+			},
+		},
+	}
+
+	// Test setting the header route
+	err := r.SetHeaderRoute(hr)
+	assert.Nil(t, err)
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+
+	// Verify route configuration
+	assert.Equal(t, httpRoutes[0].Name, headerName)
+	checkDestination(t, httpRoutes[0].Route, "canary", 100)
+	assert.Equal(t, len(httpRoutes[0].Route), 1)
+
+	// Verify match conditions (header, method, path)
+	assert.Equal(t, len(httpRoutes[0].Match), 1)
+	match := httpRoutes[0].Match[0]
+
+	assert.NotNil(t, match.Headers)
+	assert.Contains(t, match.Headers, "agent")
+	assert.Equal(t, "firefox", match.Headers["agent"].Exact)
+
+	assert.NotNil(t, match.Method)
+	assert.Equal(t, "GET", match.Method.Exact)
+
+	assert.NotNil(t, match.Uri)
+	assert.Equal(t, "/v1/api", match.Uri.Prefix)
+
+	assert.Equal(t, httpRoutes[1].Name, "primary")
+	checkDestination(t, httpRoutes[1].Route, "stable", 100)
+	assert.Equal(t, httpRoutes[2].Name, "secondary")
+
+	// Test removing the header route
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{Name: headerName})
+	assert.Nil(t, err)
+
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, httpRoutes[0].Name, "primary")
+	assert.Equal(t, httpRoutes[1].Name, "secondary")
+}
