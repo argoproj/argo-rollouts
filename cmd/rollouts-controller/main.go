@@ -70,6 +70,8 @@ func newCommand() *cobra.Command {
 		serviceThreads                 int
 		ingressThreads                 int
 		ephemeralMetadataThreads       int
+		targetGroupBindingVersion      string
+		albTagKeyResourceID            string
 		istioVersion                   string
 		trafficSplitVersion            string
 		traefikAPIGroup                string
@@ -108,6 +110,8 @@ func newCommand() *cobra.Command {
 			ctx := signals.SetupSignalHandlerContext()
 
 			defaults.SetVerifyTargetGroup(awsVerifyTargetGroup)
+			defaults.SetTargetGroupBindingAPIVersion(targetGroupBindingVersion)
+			defaults.SetalbTagKeyResourceID(albTagKeyResourceID)
 			defaults.SetIstioAPIVersion(istioVersion)
 			defaults.SetAmbassadorAPIVersion(ambassadorVersion)
 			defaults.SetSMIAPIVersion(trafficSplitVersion)
@@ -309,6 +313,8 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
 	command.Flags().IntVar(&ephemeralMetadataThreads, "ephemeral-metadata-threads", rollout.DefaultEphemeralMetadataThreads, "Set the number of worker threads for the Ephemeral Metadata reconciler")
+	command.Flags().StringVar(&targetGroupBindingVersion, "aws-target-group-binding-api-version", defaults.DefaultTargetGroupBindingAPIVersion, "Set the default AWS TargetGroupBinding apiVersion that controller uses when verifying target group weights.")
+	command.Flags().StringVar(&albTagKeyResourceID, "alb-tag-key-resource-id", defaults.DefaultAlbTagKeyResourceID, "Set the default AWS LoadBalancer tag key for resource ID that controller uses when verifying target group weights.")
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	command.Flags().StringVar(&ambassadorVersion, "ambassador-api-version", defaults.DefaultAmbassadorVersion, "Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings.")
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
