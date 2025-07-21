@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/log"
@@ -437,7 +437,7 @@ func TestRestartSortReplicaSetsByPriority(t *testing.T) {
 func TestRestartMaxUnavailable(t *testing.T) {
 	now := metav1.Now()
 	ro := rollout("test", now, nil)
-	ro.Spec.Replicas = pointer.Int32Ptr(3)
+	ro.Spec.Replicas = ptr.To[int32](3)
 	twoUnavailable := intstr.FromInt(2)
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		MaxUnavailable: &twoUnavailable,
@@ -558,7 +558,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 	})
 	t.Run("replicas:1 weight:50", func(t *testing.T) {
 		ro := ro.DeepCopy()
-		ro.Spec.Replicas = pointer.Int32Ptr(1)
+		ro.Spec.Replicas = ptr.To[int32](1)
 		ro.Spec.Strategy.Canary.MaxUnavailable = nil
 		rs2 := replicaSet("rollout-restart-def456", "test", 1, 1)
 		olderPod2 := pod("older2", "test", metav1.NewTime(now.Add(-10*time.Second)), rs2)
@@ -590,7 +590,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 	})
 	t.Run("replicas:1 weight:50, already at minAvailable", func(t *testing.T) {
 		ro := ro.DeepCopy()
-		ro.Spec.Replicas = pointer.Int32Ptr(1)
+		ro.Spec.Replicas = ptr.To[int32](1)
 		ro.Spec.Strategy.Canary.MaxUnavailable = nil
 		rs := replicaSet("rollout-restart-abc123", "test", 1, 1)
 		rs2 := replicaSet("rollout-restart-def456", "test", 1, 1)
@@ -623,7 +623,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 	})
 	t.Run("replicas:0", func(t *testing.T) {
 		ro := ro.DeepCopy()
-		ro.Spec.Replicas = pointer.Int32Ptr(0)
+		ro.Spec.Replicas = ptr.To[int32](0)
 		rs := replicaSet("rollout-restart-abc123", "test", 0, 0)
 		roCtx := &rolloutContext{
 			rollout:  ro,

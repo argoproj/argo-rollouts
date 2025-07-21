@@ -50,6 +50,8 @@ const (
 	DefaultRolloutPluginFolder = "plugin-bin"
 	// DefaultDescribeTagsLimit is the default number resources (ARNs) in a single call
 	DefaultDescribeTagsLimit int = 20
+	// Kubernetes_DNS_Limit is the maximum length of a DNS name in Kubernetes. Currently used for Analysis Job names
+	Kubernetes_DNS_Limit int = 63
 )
 
 const (

@@ -8,7 +8,7 @@ require (
 	github.com/argoproj/pkg v0.13.6
 	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.14
-	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.44.1
+	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.45.1
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.31.3
 	github.com/aws/smithy-go v1.22.3
 	github.com/blang/semver v3.5.1+incompatible
@@ -39,7 +39,7 @@ require (
 	github.com/tj/assert v0.0.3
 	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/oauth2 v0.29.0
-	golang.org/x/sync v0.11.0
+	golang.org/x/sync v0.16.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422
 	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.5

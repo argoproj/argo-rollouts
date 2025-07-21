@@ -114,6 +114,24 @@ To run a subset of e2e tests, you need to specify the suite with `-run`, and the
 E2E_TEST_OPTIONS="-run 'TestCanarySuite' -testify.m 'TestCanaryScaleDownOnAbortNoTrafficRouting'" make test-e2e
 ```
 
+Available test suites [are the following](https://github.com/argoproj/argo-rollouts/tree/master/test/e2e):
+
+* `TestBlueGreenSuite`
+* `TestCanarySuite`
+* `TestAnalysisSuite`
+* `TestExperimentSuite`
+* `TestFunctionalSuite`
+* `TestRollbackSuite`
+* `TestIstioSuite`
+* `TestHeaderRoutingSuite` (Istio only)
+* `TestMirrorRouteSuite` (Istio only)
+* `TestAPISIXSuite`
+* `TestAppMeshSuite`
+* `TestAWSSuite`
+* `StepPluginSuite`
+* `SMISuite` (SMI is [deprecated](https://www.cncf.io/blog/2023/10/03/cncf-archives-the-service-mesh-interface-smi-project/))
+* `SMIIngressSuite` (SMI is [deprecated](https://www.cncf.io/blog/2023/10/03/cncf-archives-the-service-mesh-interface-smi-project/))
+
 ## Running the UI
 
 If you'd like to run the UI locally, you first need a running Rollouts controller. This can be a locally running controller with a k3d cluster, as described above, or a controller running in a remote Kubernetes cluster.

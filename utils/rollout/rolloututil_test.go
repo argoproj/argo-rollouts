@@ -8,7 +8,7 @@ import (
 	"github.com/tj/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -21,12 +21,12 @@ func newCanaryRollout() *v1alpha1.Rollout {
 			Namespace: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(5),
+			Replicas: ptr.To[int32](5),
 			Strategy: v1alpha1.RolloutStrategy{
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(10),
+							SetWeight: ptr.To[int32](10),
 						},
 						{
 							Pause: &v1alpha1.RolloutPause{
@@ -34,14 +34,14 @@ func newCanaryRollout() *v1alpha1.Rollout {
 							},
 						},
 						{
-							SetWeight: pointer.Int32Ptr(20),
+							SetWeight: ptr.To[int32](20),
 						},
 					},
 				},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex:  pointer.Int32Ptr(1),
+			CurrentStepIndex:  ptr.To[int32](1),
 			Replicas:          4,
 			ReadyReplicas:     1,
 			UpdatedReplicas:   3,
@@ -57,13 +57,13 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 			Namespace: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(5),
+			Replicas: ptr.To[int32](5),
 			Strategy: v1alpha1.RolloutStrategy{
 				BlueGreen: &v1alpha1.BlueGreenStrategy{},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex:  pointer.Int32Ptr(1),
+			CurrentStepIndex:  ptr.To[int32](1),
 			Replicas:          4,
 			ReadyReplicas:     1,
 			UpdatedReplicas:   3,
@@ -116,7 +116,7 @@ func TestRolloutStatusPaused(t *testing.T) {
 func TestRolloutStatusProgressing(t *testing.T) {
 	{
 		ro := newCanaryRollout()
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.UpdatedReplicas = 4
 		ro.Status.AvailableReplicas = 4
 		ro.Status.Replicas = 5
@@ -126,7 +126,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 	}
 	{
 		ro := newCanaryRollout()
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.UpdatedReplicas = 5
 		ro.Status.AvailableReplicas = 4
 		ro.Status.Replicas = 5
@@ -136,7 +136,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 	}
 	{
 		ro := newCanaryRollout()
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.UpdatedReplicas = 5
 		ro.Status.AvailableReplicas = 5
 		ro.Status.Replicas = 7
@@ -149,7 +149,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro.Status.BlueGreen.ActiveSelector = "abc1234"
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "def5678"
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.Replicas = 5
 		ro.Status.UpdatedReplicas = 5
 		ro.Status.AvailableReplicas = 5
@@ -163,7 +163,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro.Status.BlueGreen.ActiveSelector = "def5678"
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "def5678"
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.Replicas = 5
 		ro.Status.UpdatedReplicas = 5
 		ro.Status.AvailableReplicas = 5
@@ -176,7 +176,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro.Status.BlueGreen.ActiveSelector = "def5678"
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "def5678"
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.Replicas = 5
 		ro.Status.UpdatedReplicas = 5
 		ro.Status.AvailableReplicas = 5
@@ -355,7 +355,7 @@ func TestCanaryStepString(t *testing.T) {
 		expectedString string
 	}{
 		{
-			step:           v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(20)},
+			step:           v1alpha1.CanaryStep{SetWeight: ptr.To[int32](20)},
 			expectedString: "setWeight: 20",
 		},
 		{
@@ -379,7 +379,7 @@ func TestCanaryStepString(t *testing.T) {
 			expectedString: "analysis",
 		},
 		{
-			step:           v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Weight: pointer.Int32Ptr(20)}},
+			step:           v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Weight: ptr.To[int32](20)}},
 			expectedString: "setCanaryScale{weight: 20}",
 		},
 		{
@@ -387,7 +387,7 @@ func TestCanaryStepString(t *testing.T) {
 			expectedString: "setCanaryScale{matchTrafficWeight: true}",
 		},
 		{
-			step:           v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: pointer.Int32Ptr(5)}},
+			step:           v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: ptr.To[int32](5)}},
 			expectedString: "setCanaryScale{replicas: 5}",
 		},
 		{
@@ -423,9 +423,9 @@ func TestIsUnpausing(t *testing.T) {
 func TestShouldVerifyWeight(t *testing.T) {
 	ro := newCanaryRollout()
 	ro.Status.StableRS = "34feab23f"
-	ro.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	ro.Status.CurrentStepIndex = ptr.To[int32](0)
 	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(20),
+		SetWeight: ptr.To[int32](20),
 	}}
 	assert.Equal(t, true, ShouldVerifyWeight(ro, 20))
 

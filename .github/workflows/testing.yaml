@@ -171,12 +171,12 @@ jobs:
         id: go
       - uses: actions/checkout@v4
       - name: Get e2e code coverage
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: coverage-output-e2e
           path: coverage-output-e2e
       - name: Get unit test code coverage
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: coverage-output-unit
           path: coverage-output-unit
@@ -184,7 +184,7 @@ jobs:
         run: |
           go tool covdata textfmt -i=coverage-output-unit/,coverage-output-e2e/ -o full-coverage.out
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@ad3126e916f78f00edff4ed0317cf185271ccc2d # v5.4.2
+        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
           file: full-coverage.out
           fail_ci_if_error: false
