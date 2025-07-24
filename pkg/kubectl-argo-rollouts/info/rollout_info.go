@@ -33,6 +33,7 @@ func NewRolloutInfo(
 			Labels:            ro.Labels,
 			Annotations:       ro.Annotations,
 			UID:               ro.UID,
+			Generation:        ro.Generation,
 			CreationTimestamp: ro.CreationTimestamp,
 			ResourceVersion:   ro.ObjectMeta.ResourceVersion,
 		},
