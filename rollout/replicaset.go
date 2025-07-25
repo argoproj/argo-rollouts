@@ -176,11 +176,23 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	revision, _ := replicasetutil.Revision(c.newRS)
 
 	if revision == 1 && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownProgressively {
-		oldScale := defaults.GetReplicasOrDefault(c.newRS.Spec.Replicas)
-		// scale down the deployment when the rollout has ready replicas or scale up the deployment if rollout fails
-		if c.rollout.Spec.Replicas != nil && (c.rollout.Status.ReadyReplicas > 0 || oldScale > newReplicasCount) {
-			targetScale := *c.rollout.Spec.Replicas - c.rollout.Status.ReadyReplicas
+		if c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy {
+			// Rollout is healthy, keep deployment at 0 replicas. This prevents external events of HPA/KEDA from scaling the deployment up and down
+			var targetScale int32 = 0
 			err = c.scaleDeployment(&targetScale)
+			if err != nil {
+				c.log.Errorf("Failed to scale deployment to 0 during progressive migration: %v", err)
+			}
+		} else {
+			// scale down the deployment when the rollout has ready replicas or scale up the deployment if rollout fails
+			oldScale := defaults.GetReplicasOrDefault(c.newRS.Spec.Replicas)
+			if c.rollout.Spec.Replicas != nil && (c.rollout.Status.ReadyReplicas > 0 || oldScale > newReplicasCount) {
+				targetScale := *c.rollout.Spec.Replicas - c.rollout.Status.ReadyReplicas
+				err = c.scaleDeployment(&targetScale)
+				if err != nil {
+					c.log.Errorf("Failed to scale deployment during progressive migration: %v", err)
+				}
+			}
 		}
 	}
 
