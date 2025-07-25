@@ -597,7 +597,7 @@ func TestScaleDownProgressively(t *testing.T) {
 		expectedDeploymentReplicas int32
 	}{
 		{
-			name:                       "Scale down deployment - migration in progress",
+			name:                       "Scale down deployment",
 			deploymentReplicas:         5,
 			newRSReplicas:              5,
 			newRSRevision:              "1",
@@ -608,7 +608,7 @@ func TestScaleDownProgressively(t *testing.T) {
 			expectedDeploymentReplicas: 2,
 		},
 		{
-			name:                       "Scale up deployment - migration in progress",
+			name:                       "Scale up deployment",
 			deploymentReplicas:         0,
 			newRSReplicas:              5,
 			newRSRevision:              "1",
@@ -619,7 +619,7 @@ func TestScaleDownProgressively(t *testing.T) {
 			expectedDeploymentReplicas: 4,
 		},
 		{
-			name:                       "Do not scale deployment - different revision",
+			name:                       "Do not scale deployment",
 			deploymentReplicas:         5,
 			newRSReplicas:              5,
 			newRSRevision:              "2",
@@ -630,7 +630,7 @@ func TestScaleDownProgressively(t *testing.T) {
 			expectedDeploymentReplicas: 5,
 		},
 		{
-			name:                       "Migration complete - deployment scaled to 0",
+			name:                       "Rollout healthy - Deployment scaled to 0",
 			deploymentReplicas:         2,
 			newRSReplicas:              5,
 			newRSRevision:              "1",
