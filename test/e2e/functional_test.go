@@ -1559,9 +1559,9 @@ spec:
 		ExpectDeploymentReplicasCount("The deployment has been scaled to 0 replicas", "rollout-ref-deployment", 0)
 }
 
-// TestProgressiveScaleDownCompletedMigration verifies that deployment stays at 0 replicas
-// after progressive migration is complete, even during scaling events (like KEDA scaling)
-func (s *FunctionalSuite) TestProgressiveScaleDownCompletedMigration() {
+// TestScaleDownProgressivelyCompleted verifies that deployment stays at 0 replicas
+// after Rollout is complete, even during scaling events (like KEDA scaling)
+func (s *FunctionalSuite) TestScaleDownProgressivelyCompleted() {
 	s.Given().
 		RolloutObjects(`
 kind: Service
@@ -1616,22 +1616,22 @@ spec:
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
-		Sleep(3*time.Second). // Give time for deployment to scale down
+		Sleep(3*time.Second). // Give time for Deployment to scale down
 		Then().
-		// Verify progressive migration completed - deployment should be at 0
-		ExpectDeploymentReplicasCount("The deployment has been scaled to 0 replicas after migration", "rollout-ref-deployment", 0).
+		// Verify Rollout has completed - Deployment should be at 0
+		ExpectDeploymentReplicasCount("The Deployment has been scaled to 0 replicas after Rollout", "rollout-ref-deployment", 0).
 		ExpectRollout("Rollout phase is healthy", func(r *v1alpha1.Rollout) bool {
 			return r.Status.Phase == v1alpha1.RolloutPhaseHealthy
 }).
     When().
-    // Simulate KEDA-like scaling event by increasing rollout replicas
+    // Simulate KEDA-like scaling event by increasing Rollout replicas
     ScaleRolloutWithWorkloadRef(6).
     WaitForRolloutAvailableReplicas(6).
-		Sleep(3*time.Second). // Give time for any potential deployment scaling
+		Sleep(3*time.Second). // Give time for any potential Deployment scaling
 		Then().
-    // Verify deployment STILL stays at 0 replicas (this is the key test for the fix)
+    // Verify Deployment STILL stays at 0 replicas (this is the key test for the fix)
     ExpectDeploymentReplicasCount("Deployment should remain at 0 replicas during scaling events", "rollout-ref-deployment", 0).
-    ExpectReplicaCounts(6, 6, 6, 6, 6). // All replicas should come from rollout
+    ExpectReplicaCounts(6, 6, 6, 6, 6). // All replicas should come from Rollout
     When().
     // Test scaling down as well
     ScaleRolloutWithWorkloadRef(2).
@@ -1642,19 +1642,19 @@ spec:
 		ExpectDeploymentReplicasCount("Deployment should remain at 0 replicas during scale down", "rollout-ref-deployment", 0).
 		ExpectReplicaCounts(2, 2, 2, 2, 2).
     When().
-    // Test a blue-green update to ensure deployment doesn't scale during revision changes
+    // Test a blue-green update to ensure Deployment doesn't scale during revision changes
     UpdateWorkloadRef("rollout-ref-deployment").
     WaitForRolloutStatus("Progressing").
 		WaitForRolloutStatus("Healthy").
 		Sleep(2*time.Second).
 		Then().
-		// Even after blue-green update, deployment should remain at 0
+		// Even after blue-green update, Deployment should remain at 0
 		ExpectDeploymentReplicasCount("Deployment should remain at 0 replicas after blue-green update", "rollout-ref-deployment", 0)
 }
 
-// TestProgressiveScaleDownCanaryCompletedMigration verifies that deployment stays at 0 replicas
-// after progressive migration is complete with Canary strategy, even during scaling events
-func (s *FunctionalSuite) TestProgressiveScaleDownCanaryCompletedMigration() {
+// TestScaleDownProgressivelyCompletedCanary verifies that deployment stays at 0 replicas
+// after Canary Rollout is complete, even during scaling events (like KEDA scaling)
+func (s *FunctionalSuite) TestScaleDownProgressivelyCompletedCanary() {
 	s.Given().
 		RolloutObjects(`
 kind: Service
@@ -1720,24 +1720,24 @@ spec:
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
-    Sleep(3*time.Second). // Give time for deployment to scale down
+    Sleep(3*time.Second). // Give time for Deployment to scale down
 		Then().
-		// Verify progressive migration completed - deployment should be at 0
-		ExpectDeploymentReplicasCount("The deployment has been scaled to 0 replicas after canary migration", "rollout-ref-canary", 0).
+		// Verify progressive migration completed - Deployment should be at 0
+		ExpectDeploymentReplicasCount("The Deployment has been scaled to 0 replicas after canary migration", "rollout-ref-canary", 0).
 		ExpectRollout("Rollout phase is healthy", func(r *v1alpha1.Rollout) bool {
 			return r.Status.Phase == v1alpha1.RolloutPhaseHealthy
 		}).
 		When().
-		// Simulate scaling event by increasing rollout replicas
+		// Simulate scaling event by increasing Rollout replicas
     ScaleRolloutWithWorkloadRef(8).        
 		WaitForRolloutAvailableReplicas(8).
-		Sleep(3*time.Second). // Give time for any potential deployment scaling
+		Sleep(3*time.Second). // Give time for any potential Deployment scaling
 		Then().
-		// Verify deployment STILL stays at 0 replicas after scaling up
+		// Verify Deployment STILL stays at 0 replicas after scaling up
 		ExpectDeploymentReplicasCount("Deployment should remain at 0 replicas during canary scaling events", "rollout-ref-canary", 0).
-		ExpectReplicaCounts(8, 8, 8, 8, 8). // All replicas should come from rollout
+		ExpectReplicaCounts(8, 8, 8, 8, 8). // All replicas should come from Rollout
 		When().
-		// Test a canary update to ensure deployment doesn't scale during revision changes
+		// Test a canary update to ensure Deployment doesn't scale during revision changes
 		UpdateWorkloadRef("rollout-ref-canary").
 		WaitForRolloutStatus("Paused"). // Should pause at first step (25%)
 		PromoteRollout().
@@ -1748,7 +1748,7 @@ spec:
 		WaitForRolloutStatus("Healthy"). // Should complete
 		Sleep(2*time.Second).
 		Then().
-		// Even after canary update, deployment should remain at 0
+		// Even after canary update, Deployment should remain at 0
 		ExpectDeploymentReplicasCount("Deployment should remain at 0 replicas after canary update", "rollout-ref-canary", 0)
 }
 

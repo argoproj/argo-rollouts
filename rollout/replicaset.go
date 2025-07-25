@@ -176,21 +176,15 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	revision, _ := replicasetutil.Revision(c.newRS)
 
 	if revision == 1 && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownProgressively {
-		// Check if migration is already complete
-		if c.isProgressiveMigrationComplete() {
-			// Migration complete, ensure deployment stays at 0
-			deployment, deploymentErr := c.kubeclientset.AppsV1().Deployments(c.rollout.Namespace).Get(
-				context.TODO(), c.rollout.Spec.WorkloadRef.Name, metav1.GetOptions{})
-			if deploymentErr == nil && deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0 {
-				c.log.Infof("Progressive migration complete, scaling deployment %s to 0", deployment.Name)
-				var targetScale int32 = 0
-				err = c.scaleDeployment(&targetScale)
-				if err != nil {
-					c.log.Errorf("Failed to scale deployment to 0: %v", err)
-				}
+		if c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy {
+			// Rollout is healthy, keep deployment at 0 replicas. This prevents external events of HPA/KEDA from scaling the deployment up and down
+			var targetScale int32 = 0
+			err = c.scaleDeployment(&targetScale)
+			if err != nil {
+				c.log.Errorf("Failed to scale deployment to 0 during progressive migration: %v", err)
 			}
 		} else {
-			// Migration in progress, scale down the deployment when the rollout has ready replicas or scale up the deployment if rollout fails
+			// scale down the deployment when the rollout has ready replicas or scale up the deployment if rollout fails
 			oldScale := defaults.GetReplicasOrDefault(c.newRS.Spec.Replicas)
 			if c.rollout.Spec.Replicas != nil && (c.rollout.Status.ReadyReplicas > 0 || oldScale > newReplicasCount) {
 				targetScale := *c.rollout.Spec.Replicas - c.rollout.Status.ReadyReplicas
