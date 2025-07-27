@@ -11,6 +11,7 @@ import {IconDefinition, faCheck, faCircleNotch, faClipboard, faExclamationTriang
 import {EllipsisMiddle} from '../ellipsis-middle/ellipsis-middle';
 import {InfoItem} from '../info-item/info-item';
 import {Ticker} from '../ticker/ticker';
+import Markdown from 'markdown-to-jsx';
 
 export enum PodStatus {
     Pending = 'pending',
@@ -105,6 +106,12 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                         )}
                     </div>
                 </Tooltip>
+            )}
+
+            {props.rs.description && (
+                <div className='pods__description'>
+                    <Markdown>{props.rs.description}</Markdown>
+                </div>
             )}
 
             <div className='pods__container'>
