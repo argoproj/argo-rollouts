@@ -19,36 +19,6 @@ func GetCurrentAnalysisRunByType(currentArs []*v1alpha1.AnalysisRun, kind string
 	return nil
 }
 
-// FilterCurrentRolloutAnalysisRuns returns analysisRuns that match the analysisRuns listed in the rollout status
-func FilterCurrentRolloutAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun, r *v1alpha1.Rollout) (CurrentAnalysisRuns, []*v1alpha1.AnalysisRun) {
-	currArs := CurrentAnalysisRuns{}
-	otherArs := []*v1alpha1.AnalysisRun{}
-	getArName := func(s *v1alpha1.RolloutAnalysisRunStatus) string {
-		if s == nil {
-			return ""
-		}
-		return s.Name
-	}
-	for i := range analysisRuns {
-		ar := analysisRuns[i]
-		if ar != nil {
-			switch ar.Name {
-			case getArName(r.Status.Canary.CurrentStepAnalysisRunStatus):
-				currArs.CanaryStep = ar
-			case getArName(r.Status.Canary.CurrentBackgroundAnalysisRunStatus):
-				currArs.CanaryBackground = ar
-			case getArName(r.Status.BlueGreen.PrePromotionAnalysisRunStatus):
-				currArs.BlueGreenPrePromotion = ar
-			case getArName(r.Status.BlueGreen.PostPromotionAnalysisRunStatus):
-				currArs.BlueGreenPostPromotion = ar
-			default:
-				otherArs = append(otherArs, ar)
-			}
-		}
-	}
-	return currArs, otherArs
-}
-
 // FilterAnalysisRunsByRolloutType returns a list of analysisRuns that have the rollout-type of the typeFilter
 func FilterAnalysisRunsByRolloutType(analysisRuns []*v1alpha1.AnalysisRun, typeFilter string) []*v1alpha1.AnalysisRun {
 	analysisRunsByType, _ := FilterAnalysisRuns(analysisRuns, func(ar *v1alpha1.AnalysisRun) bool {

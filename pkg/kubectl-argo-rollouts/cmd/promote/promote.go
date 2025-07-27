@@ -142,8 +142,8 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 	var specPatch, statusPatch, unifiedPatch []byte
 	switch {
 	case skipCurrentStep:
-		_, index := replicasetutil.GetCurrentCanaryStep(rollout)
-		// At this point, the controller knows that the rollout is a canary with steps and GetCurrentCanaryStep returns 0 if
+		_, index := replicasetutil.GetCanaryStep(rollout)
+		// At this point, the controller knows that the rollout is a canary with steps and GetCanaryStep returns 0 if
 		// the index is not set in the rollout
 		if index != nil {
 			if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
@@ -169,7 +169,7 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 		// so that rollout can proceed to next step
 		// without such patch, rollout will be stuck in inconclusive state in case if next step is pause step
 		if isInconclusive(rollout) && len(rollout.Status.PauseConditions) > 0 && rollout.Status.ControllerPause {
-			_, index := replicasetutil.GetCurrentCanaryStep(rollout)
+			_, index := replicasetutil.GetCanaryStep(rollout)
 			if index != nil {
 				if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
 					*index++
@@ -183,8 +183,8 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 			// this else block covers the case of promoting a rollout when it is in the middle of
 			// running analysis/experiment
 			// TODO: we currently do not handle promotion of two analysis steps in a row properly
-			_, index := replicasetutil.GetCurrentCanaryStep(rollout)
-			// At this point, the controller knows that the rollout is a canary with steps and GetCurrentCanaryStep returns 0 if
+			_, index := replicasetutil.GetCanaryStep(rollout)
+			// At this point, the controller knows that the rollout is a canary with steps and GetCanaryStep returns 0 if
 			// the index is not set in the rollout
 			if index != nil {
 				if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {

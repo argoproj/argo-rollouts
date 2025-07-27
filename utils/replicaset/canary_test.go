@@ -1047,10 +1047,10 @@ func TestBeforeStartingStep(t *testing.T) {
 
 }
 
-func TestGetCurrentCanaryStep(t *testing.T) {
+func TestGetCanaryStep(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "", nil, nil)
 	rollout.Spec.Strategy.Canary.Steps = nil
-	noCurrentSteps, _ := GetCurrentCanaryStep(rollout)
+	noCurrentSteps, _ := GetCanaryStep(rollout)
 	assert.Nil(t, noCurrentSteps)
 
 	rollout.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
@@ -1058,12 +1058,12 @@ func TestGetCurrentCanaryStep(t *testing.T) {
 	}}
 	rollout.Status.CurrentStepIndex = func(i int32) *int32 { return &i }(0)
 
-	currentStep, index := GetCurrentCanaryStep(rollout)
+	currentStep, index := GetCanaryStep(rollout)
 	assert.NotNil(t, currentStep)
 	assert.Equal(t, int32(0), *index)
 
 	rollout.Status.CurrentStepIndex = func(i int32) *int32 { return &i }(1)
-	noMoreStep, _ := GetCurrentCanaryStep(rollout)
+	noMoreStep, _ := GetCanaryStep(rollout)
 	assert.Nil(t, noMoreStep)
 }
 
