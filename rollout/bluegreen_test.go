@@ -1605,7 +1605,7 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 		}`
 	availableCondBytes, err := json.Marshal(r2.Status.Conditions[0])
 	assert.Nil(t, err)
-	updatedProgressingCond, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, fmt.Sprintf("ReplicaSet \"%s\" is progressing.", rs2.Name))
+	updatedProgressingCond, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
 	progressingCondBytes, err := json.Marshal(updatedProgressingCond)
 	assert.Nil(t, err)
 	pausedCondBytes, err := json.Marshal(r2.Status.Conditions[3])
