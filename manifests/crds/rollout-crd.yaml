@@ -13,7 +13,6 @@ spec:
     shortNames:
     - ro
     singular: rollout
-  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -444,6 +443,17 @@ spec:
                         required:
                         - pingService
                         - pongService
+                        type: object
+                      replicaProgressThreshold:
+                        properties:
+                          type:
+                            type: string
+                          value:
+                            format: int32
+                            type: integer
+                        required:
+                        - type
+                        - value
                         type: object
                       scaleDownDelayRevisionLimit:
                         format: int32

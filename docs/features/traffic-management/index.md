@@ -175,16 +175,16 @@ spec:
       steps:
         - setCanaryScale:
             weight: 25
-      - setMirrorRoute:
-          name: mirror-route
-          percentage: 35
-          match:
-            - method:
-                exact: GET
-              path:
-                prefix: /
-      - pause:
-          duration: 10m
-      - setMirrorRoute:
-          name: "mirror-route" # removes mirror based traffic route
+        - setMirrorRoute:
+            name: mirror-route
+            percentage: 35
+            match:
+              - method:
+                  exact: GET
+                path:
+                  prefix: /
+        - pause:
+            duration: 10m
+        - setMirrorRoute:
+            name: "mirror-route" # removes mirror based traffic route
 ```

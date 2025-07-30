@@ -19,4 +19,5 @@ server/static/*
 !server/static/.gitkeep
 coverage-output-e2e/
 coverage-output-unit/
-junit-unit-test.xml
+junit*
+

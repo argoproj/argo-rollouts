@@ -3200,3 +3200,143 @@ func TestGetHttpRouteIndexesToPatch(t *testing.T) {
 		assert.Nil(t, indexes)
 	})
 }
+
+// TestUpdateHashAbortScenarios tests both abort and non-abort scenarios for ReplicaSet availability checks
+func TestUpdateHashAbortScenarios(t *testing.T) {
+	createRollout := func(abort bool) *v1alpha1.Rollout {
+		ro := rolloutWithDestinationRule()
+		ro.Spec.Strategy.Canary.CanaryService = ""
+		ro.Spec.Strategy.Canary.StableService = ""
+		ro.Status.Abort = abort
+		return ro
+	}
+
+	createDestinationRuleObj := func() *unstructured.Unstructured {
+		return unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  subsets:
+  - name: stable
+  - name: canary
+`)
+	}
+
+	createUnavailableReplicaSet := func(ro *v1alpha1.Rollout, hash string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rs-" + hash,
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: func() *int32 { i := int32(1); return &i }(),
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{
+				Replicas:          1,
+				AvailableReplicas: 0,
+			},
+		}
+	}
+
+	createAvailableReplicaSet := func(ro *v1alpha1.Rollout, hash string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rs-" + hash,
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: func() *int32 { i := int32(1); return &i }(),
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{
+				Replicas:          1,
+				AvailableReplicas: 1,
+			},
+		}
+	}
+
+	setupReconciler := func(ro *v1alpha1.Rollout, client *dynamicfake.FakeDynamicClient, rsList []*appsv1.ReplicaSet) *Reconciler {
+		vsvcLister, druleLister := getIstioListers(client)
+		r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, rsList)
+		client.ClearActions()
+		return r
+	}
+
+	t.Run("only checks relevant ReplicaSets for traffic routing", func(t *testing.T) {
+		ro := createRollout(false)
+		obj := createDestinationRuleObj()
+		client := testutil.NewFakeDynamicClient(obj)
+
+		stableRS := createAvailableReplicaSet(ro, "stable123")   // Available - will receive traffic
+		canaryRS := createUnavailableReplicaSet(ro, "canary456") // Unavailable - will receive traffic
+		otherRS := createUnavailableReplicaSet(ro, "other789")   // Unavailable - but won't receive traffic
+
+		rsList := []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
+		r := setupReconciler(ro, client, rsList)
+
+		// This should return nil (delaying update) because canary RS (which will receive traffic) is not available
+		err := r.UpdateHash("canary456", "stable123")
+		assert.NoError(t, err)
+
+		// Verify no actions were taken because update was delayed
+		actions := client.Actions()
+		assert.Len(t, actions, 0)
+	})
+
+	t.Run("succeeds when all traffic-receiving ReplicaSets are available", func(t *testing.T) {
+		ro := createRollout(false)
+		obj := createDestinationRuleObj()
+		client := testutil.NewFakeDynamicClient(obj)
+
+		stableRS := createAvailableReplicaSet(ro, "stable123") // Available - will receive traffic
+		canaryRS := createAvailableReplicaSet(ro, "canary456") // Available - will receive traffic
+		otherRS := createUnavailableReplicaSet(ro, "other789") // Unavailable - but won't receive traffic
+
+		rsList := []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
+		r := setupReconciler(ro, client, rsList)
+
+		// This should succeed because all ReplicaSets that will receive traffic are available
+		// otherRS being unavailable doesn't matter since it won't receive traffic
+		err := r.UpdateHash("canary456", "stable123")
+		assert.NoError(t, err)
+
+		// Verify DestinationRule was updated
+		actions := client.Actions()
+		assert.Len(t, actions, 1)
+		assert.Equal(t, "update", actions[0].GetVerb())
+	})
+
+	t.Run("works correctly during abort scenarios", func(t *testing.T) {
+		ro := createRollout(true) // Aborted rollout
+		obj := createDestinationRuleObj()
+		client := testutil.NewFakeDynamicClient(obj)
+
+		stableRS := createAvailableReplicaSet(ro, "stable123")
+		canaryRS := createUnavailableReplicaSet(ro, "canary456")
+		otherRS := createUnavailableReplicaSet(ro, "other789")
+
+		rsList := []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
+		r := setupReconciler(ro, client, rsList)
+
+		// Since stable is available, this should succeed
+		err := r.UpdateHash("", "stable123") // Empty canary hash = no traffic to canary
+		assert.NoError(t, err)
+
+		// Verify DestinationRule was updated
+		actions := client.Actions()
+		assert.Len(t, actions, 1)
+		assert.Equal(t, "update", actions[0].GetVerb())
+	})
+}

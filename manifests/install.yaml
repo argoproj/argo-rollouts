@@ -14,7 +14,6 @@ spec:
     shortNames:
     - ar
     singular: analysisrun
-  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -3542,7 +3541,6 @@ spec:
     shortNames:
     - at
     singular: analysistemplate
-  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -6941,7 +6939,6 @@ spec:
     shortNames:
     - cat
     singular: clusteranalysistemplate
-  preserveUnknownFields: false
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -10340,7 +10337,6 @@ spec:
     shortNames:
     - exp
     singular: experiment
-  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -13389,7 +13385,6 @@ spec:
     shortNames:
     - ro
     singular: rollout
-  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -13820,6 +13815,17 @@ spec:
                         required:
                         - pingService
                         - pongService
+                        type: object
+                      replicaProgressThreshold:
+                        properties:
+                          type:
+                            type: string
+                          value:
+                            format: int32
+                            type: integer
+                        required:
+                        - type
+                        - value
                         type: object
                       scaleDownDelayRevisionLimit:
                         format: int32
@@ -17669,6 +17675,7 @@ rules:
   - get
 - apiGroups:
   - elbv2.k8s.aws
+  - eks.amazonaws.com
   resources:
   - targetgroupbindings
   verbs:

@@ -75,4 +75,4 @@ Here is a summary table for the possible approaches.
 | Advanced routing scenarios |         No               |       No                   |         Yes                    |
 |      Failure Blast Radius | Massive impact            |  Low impact                       | Low impact              |
 
-Note that that traffic manager can be any compatible Service Mesh or Ingress Controller or Gateway API implementation (via a plugin).
+Note that the traffic manager can be any compatible Service Mesh or Ingress Controller or Gateway API implementation (via a plugin).

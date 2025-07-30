@@ -33,6 +33,7 @@ const STABLE_SVC = "stable-svc"
 const CANARY_SVC = "canary-svc"
 const PING_SVC = "ping-service"
 const PONG_SVC = "pong-service"
+const ALB_TAG_KEY_RESOURCE_ID = "ingress.k8s.aws/resource"
 
 func fakeRollout(stableSvc, canarySvc string, pingPong *v1alpha1.PingPongSpec, stableIng string, port int32) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
@@ -893,7 +894,7 @@ func TestVerifyWeight(t *testing.T) {
 				},
 				Weight: ptr.To[int32](11),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -903,7 +904,7 @@ func TestVerifyWeight(t *testing.T) {
 				},
 				Weight: ptr.To[int32](89),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -935,7 +936,7 @@ func TestVerifyWeight(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -945,7 +946,7 @@ func TestVerifyWeight(t *testing.T) {
 				},
 				Weight: ptr.To[int32](11),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -977,7 +978,7 @@ func TestVerifyWeight(t *testing.T) {
 				},
 				Weight: ptr.To[int32](100),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -987,7 +988,7 @@ func TestVerifyWeight(t *testing.T) {
 				},
 				Weight: ptr.To[int32](0),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1018,7 +1019,7 @@ func TestVerifyWeight(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1028,7 +1029,7 @@ func TestVerifyWeight(t *testing.T) {
 				},
 				Weight: ptr.To[int32](11),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1161,7 +1162,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](11),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1171,7 +1172,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](89),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 			{
@@ -1181,7 +1182,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](11),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1191,7 +1192,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](89),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1227,7 +1228,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1237,7 +1238,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](90),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 			{
@@ -1247,7 +1248,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1257,7 +1258,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](90),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1437,7 +1438,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1447,7 +1448,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 				},
 				Weight: ptr.To[int32](90),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1477,7 +1478,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1487,7 +1488,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 				},
 				Weight: ptr.To[int32](100),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-1:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-1:443",
 				},
 			},
 			{
@@ -1497,7 +1498,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 				},
 				Weight: ptr.To[int32](100),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-2:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-2:443",
 				},
 			},
 			{
@@ -1507,7 +1508,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 				},
 				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1537,7 +1538,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1547,7 +1548,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 				},
 				Weight: &weightDestinations[0].Weight,
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-1:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-1:443",
 				},
 			},
 			{
@@ -1557,7 +1558,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 				},
 				Weight: &weightDestinations[1].Weight,
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-2:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-2:443",
 				},
 			},
 			{
@@ -1567,7 +1568,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 				},
 				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1665,7 +1666,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1675,7 +1676,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](90),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 			{
@@ -1685,7 +1686,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1695,7 +1696,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](90),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1730,7 +1731,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1740,7 +1741,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 			{
@@ -1750,7 +1751,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1760,7 +1761,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-stable-svc:443",
 				},
 			},
 			{
@@ -1770,7 +1771,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](100),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-1:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-1:443",
 				},
 			},
 			{
@@ -1780,7 +1781,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](100),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-2:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-2:443",
 				},
 			},
 		}
@@ -1816,7 +1817,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1826,7 +1827,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 			{
@@ -1836,7 +1837,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-canary-svc:443",
 				},
 			},
 			{
@@ -1846,7 +1847,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-stable-svc:443",
 				},
 			},
 			{
@@ -1856,7 +1857,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: &weightDestinations[0].Weight,
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-1:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-1:443",
 				},
 			},
 			{
@@ -1866,7 +1867,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 				},
 				Weight: &weightDestinations[1].Weight,
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-2:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-2:443",
 				},
 			},
 		}
