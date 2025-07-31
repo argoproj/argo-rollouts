@@ -1,5 +1,6 @@
 #!/bin/sh
 set -euo pipefail
+set -x
 
 # Grabbed from https://github.com/kubernetes/kubernetes/issues/79384
 VERSION=${1#"v"}
