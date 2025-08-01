@@ -176,4 +176,5 @@ func TestRolloutInfoMetadata(t *testing.T) {
 	assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[0].Name)
 	assert.Equal(t, roInfo.ObjectMeta.Annotations, rolloutObjs.Rollouts[0].Annotations)
 	assert.Equal(t, roInfo.ObjectMeta.Labels, rolloutObjs.Rollouts[0].Labels)
+	assert.Equal(t, roInfo.ObjectMeta.Generation, rolloutObjs.Rollouts[0].Generation)
 }
