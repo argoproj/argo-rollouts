@@ -2,7 +2,6 @@ package rollout
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/argoproj/argo-rollouts/utils/weightutil"
 
@@ -46,15 +45,12 @@ func GetRolloutPhase(ro *v1alpha1.Rollout) (v1alpha1.RolloutPhase, string) {
 // only applies to v0.10 rollout which uses a numeric status.observedGeneration. For v0.9 rollouts
 // and below this function always returns true.
 func isGenerationObserved(ro *v1alpha1.Rollout) bool {
-	observedGen, err := strconv.Atoi(ro.Status.ObservedGeneration)
-	if err != nil {
-		return true
-	}
+	observedGen := ro.Status.ObservedGeneration
 	// It's still possible for a v0.9 rollout to have an all numeric hash, this covers that corner case
-	if int64(observedGen) > ro.Generation {
+	if observedGen > ro.Generation {
 		return true
 	}
-	return int64(observedGen) == ro.Generation
+	return observedGen == ro.Generation
 }
 
 // IsUnpausing detects if we are in the process of unpausing a rollout. This is determined by seeing
@@ -73,12 +69,9 @@ func isWorkloadGenerationObserved(ro *v1alpha1.Rollout) bool {
 		return true
 	}
 	workloadGeneration, _ := annotations.GetWorkloadGenerationAnnotation(ro)
-	observedWorkloadGen, err := strconv.ParseInt(ro.Status.WorkloadObservedGeneration, 10, 32)
-	if err != nil {
-		return true
-	}
+	observedWorkloadGen := ro.Status.WorkloadObservedGeneration
 
-	return int32(observedWorkloadGen) == workloadGeneration
+	return observedWorkloadGen == workloadGeneration
 }
 
 // CalculateRolloutPhase calculates a rollout phase and message for the given rollout based on

@@ -243,11 +243,11 @@ func TestPersistWorkloadRefGeneration(t *testing.T) {
 
 	tests := []struct {
 		annotatedRefGeneration string
-		currentObserved        string
+		currentObserved        int64
 	}{
-		{"1", ""},
-		{"2", "1"},
-		{"", "1"},
+		{"1", 0},
+		{"2", 1},
+		{"", 1},
 	}
 
 	for _, tc := range tests {
@@ -266,7 +266,11 @@ func TestPersistWorkloadRefGeneration(t *testing.T) {
 			annotations.RemoveRolloutWorkloadRefGeneration(r)
 		}
 		roCtx.persistRolloutStatus(newStatus)
-		assert.Equal(t, tc.annotatedRefGeneration, newStatus.WorkloadObservedGeneration)
+		stGen := strconv.FormatInt(newStatus.WorkloadObservedGeneration, 10)
+		if stGen == "0" {
+			stGen = ""
+		} // handle zero value
+		assert.Equal(t, tc.annotatedRefGeneration, stGen)
 	}
 }
 

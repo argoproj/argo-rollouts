@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strconv"
 	"sync"
 	"time"
 
@@ -625,7 +624,7 @@ func (c *rolloutContext) createInvalidRolloutCondition(validationError error, r 
 		invalidSpecCond = conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errorMessage)
 	}
 	c.log.Error(errorMessage)
-	if r.Status.ObservedGeneration != strconv.Itoa(int(r.Generation)) || !reflect.DeepEqual(invalidSpecCond, prevCond) {
+	if r.Status.ObservedGeneration != r.Generation || !reflect.DeepEqual(invalidSpecCond, prevCond) {
 		newStatus := r.Status.DeepCopy()
 		// SetRolloutCondition only updates the condition when the status and/or reason changes, but
 		// the controller should update the invalidSpec if there is a change in why the spec is invalid

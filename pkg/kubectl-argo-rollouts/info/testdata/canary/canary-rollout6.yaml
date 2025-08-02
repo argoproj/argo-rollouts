@@ -80,7 +80,7 @@ status:
   currentPodHash: 65fb5ffc84
   currentStepHash: f64cdc9d
   currentStepIndex: 0
-  observedGeneration: "429"
+  observedGeneration: 429
   readyReplicas: 5
   replicas: 6
   selector: app=canary-demo-weights-na

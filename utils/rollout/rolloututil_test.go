@@ -1,7 +1,6 @@
 package rollout
 
 import (
-	"strconv"
 	"testing"
 	"time"
 
@@ -190,7 +189,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro := newCanaryRollout()
 		ro.Spec.Replicas = nil
 		ro.Status = v1alpha1.RolloutStatus{
-			ObservedGeneration: strconv.Itoa(int(ro.Generation)),
+			ObservedGeneration: ro.Generation,
 			StableRS:           "abc1234",
 			CurrentPodHash:     "abc1234",
 		}
@@ -206,26 +205,11 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro.Status = v1alpha1.RolloutStatus{
 			StableRS:           "abc1234",
 			CurrentPodHash:     "abc1234",
-			ObservedGeneration: "1",
+			ObservedGeneration: 1,
 		}
 		status, message := GetRolloutPhase(ro)
 		assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
 		assert.Equal(t, "waiting for rollout spec update to be observed", message)
-	}
-	{
-		// Make sure we skip isGenerationObserved check when rollout is a v0.9 legacy rollout using
-		// a hash and not a numeric observed generation
-		ro := newCanaryRollout()
-		ro.Generation = 2
-		ro.Spec.Replicas = nil
-		ro.Status = v1alpha1.RolloutStatus{
-			StableRS:           "abc1234",
-			CurrentPodHash:     "abc1234",
-			ObservedGeneration: "7d66d4485f",
-		}
-		status, message := GetRolloutPhase(ro)
-		assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
-		assert.Equal(t, "more replicas need to be updated", message)
 	}
 	{
 		// Verify isGenerationObserved detects a v0.9 legacy rollout which has an all numeric hash
@@ -235,7 +219,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro.Status = v1alpha1.RolloutStatus{
 			StableRS:           "abc1234",
 			CurrentPodHash:     "abc1234",
-			ObservedGeneration: "1366344857",
+			ObservedGeneration: 1366344857,
 		}
 		status, message := GetRolloutPhase(ro)
 		assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
@@ -262,7 +246,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro.Spec.TemplateResolvedFromRef = true
 		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
 		ro.Status = v1alpha1.RolloutStatus{
-			WorkloadObservedGeneration: "1",
+			WorkloadObservedGeneration: 1,
 		}
 		status, message := GetRolloutPhase(ro)
 		assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
@@ -275,15 +259,17 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		assert.True(t, observed)
 
 		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
-		ro.Status.WorkloadObservedGeneration = "222222222222222222"
+		// during the refactor of WorkloadObservedGeneration to int
+		// changed the following value to int64 and to mach annotation
+		ro.Status.WorkloadObservedGeneration = 2
 		observed = isWorkloadGenerationObserved(ro)
 		assert.True(t, observed)
 
-		ro.Status.WorkloadObservedGeneration = "1"
+		ro.Status.WorkloadObservedGeneration = 1
 		observed = isWorkloadGenerationObserved(ro)
 		assert.False(t, observed)
 
-		ro.Status.WorkloadObservedGeneration = "2"
+		ro.Status.WorkloadObservedGeneration = 2
 		observed = isWorkloadGenerationObserved(ro)
 		assert.True(t, observed)
 	}
@@ -340,7 +326,7 @@ func TestRolloutStatusHealthy(t *testing.T) {
 		ro.Status.ReadyReplicas = 5
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "abc1234"
-		ro.Status.WorkloadObservedGeneration = "2"
+		ro.Status.WorkloadObservedGeneration = 2
 		status, message := GetRolloutPhase(ro)
 		assert.Equal(t, v1alpha1.RolloutPhaseHealthy, status)
 		assert.Equal(t, "", message)
@@ -451,19 +437,10 @@ func Test_isGenerationObserved(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "test parse generation failed",
-			ro: &v1alpha1.Rollout{
-				Status: v1alpha1.RolloutStatus{
-					ObservedGeneration: "invalid",
-				},
-			},
-			want: true,
-		},
-		{
 			name: "test status.generation more than spec.generation",
 			ro: &v1alpha1.Rollout{
 				Status: v1alpha1.RolloutStatus{
-					ObservedGeneration: "10",
+					ObservedGeneration: 10,
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Generation: 9,
@@ -475,7 +452,7 @@ func Test_isGenerationObserved(t *testing.T) {
 			name: "test status.generation equal to spec.generation",
 			ro: &v1alpha1.Rollout{
 				Status: v1alpha1.RolloutStatus{
-					ObservedGeneration: "10",
+					ObservedGeneration: 10,
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Generation: 10,
@@ -487,7 +464,7 @@ func Test_isGenerationObserved(t *testing.T) {
 			name: "test status.generation less than spec.generation",
 			ro: &v1alpha1.Rollout{
 				Status: v1alpha1.RolloutStatus{
-					ObservedGeneration: "10",
+					ObservedGeneration: 10,
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Generation: 11,

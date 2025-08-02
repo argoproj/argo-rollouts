@@ -2,7 +2,6 @@ package rollout
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -290,7 +289,7 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	svc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true, false)
 	r2.Status.Message = ""
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 	completedHealthyCondition, _ := newHealthyCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, completedHealthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
@@ -375,7 +374,7 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	svc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true, false)
 	r2.Status.Message = "waiting for post-promotion verification to complete"
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 	completedCondition, _ := newHealthyCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
@@ -475,7 +474,7 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 6, 3, 6, false)
 	r2.Status.Message = ""
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 	r2.Status.StableRS = rs2PodHash
 	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 	availableCondition, _ := newAvailableCondition(true)
@@ -578,7 +577,7 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 6, 3, 6, false)
 	r2.Status.Message = ""
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 	r2.Status.StableRS = rs2PodHash
 	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 	availableCondition, _ := newAvailableCondition(true)
@@ -647,7 +646,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 6, 3, 6, false)
 	r2.Status.Message = ""
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 	r2.Status.StableRS = rs2PodHash
 	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 	availableCondition, _ := newAvailableCondition(true)

@@ -4690,8 +4690,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 					"observedGeneration": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The generation observed by the rollout controller from metadata.generation",
-							Type:        []string{"string"},
-							Format:      "",
+							Type:        []string{"integer"},
+							Format:      "int64",
 						},
 					},
 					"conditions": {
@@ -4773,8 +4773,8 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 					"workloadObservedGeneration": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The generation of referenced workload observed by the rollout controller",
-							Type:        []string{"string"},
-							Format:      "",
+							Type:        []string{"integer"},
+							Format:      "int64",
 						},
 					},
 					"alb": {
