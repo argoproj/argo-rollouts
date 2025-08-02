@@ -70,7 +70,7 @@ status:
   currentPodHash: db976bc44
   currentStepHash: 849b756fd4
   currentStepIndex: 0
-  observedGeneration: "15"
+  observedGeneration: 15
   readyReplicas: 1
   replicas: 1
   selector: app=rollout-background-analysis

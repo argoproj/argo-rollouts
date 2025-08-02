@@ -1305,7 +1305,7 @@ spec:
 		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectRollout("WorkloadObservedGeneration is 1", func(r *v1alpha1.Rollout) bool {
-			if r.Status.WorkloadObservedGeneration != "1" {
+			if r.Status.WorkloadObservedGeneration != 1 {
 				return false
 			}
 			return true
@@ -1327,7 +1327,7 @@ spec:
 		WaitForRolloutStatus("Degraded").
 		Then().
 		ExpectRollout("WorkloadObservedGeneration is 2 after workload ref updated", func(r *v1alpha1.Rollout) bool {
-			if r.Status.WorkloadObservedGeneration != "2" {
+			if r.Status.WorkloadObservedGeneration != 2 {
 				return false
 			}
 			return true
@@ -1394,7 +1394,7 @@ spec:
 `).WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectRollout("WorkloadObservedGeneration must be removed after switch to inline template", func(r *v1alpha1.Rollout) bool {
-			if r.Status.WorkloadObservedGeneration != "" {
+			if r.Status.WorkloadObservedGeneration != 0 {
 				return false
 			}
 			return true

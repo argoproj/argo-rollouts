@@ -745,8 +745,8 @@ func (w *When) waitForPauseConditionsSet() {
 		if err != nil {
 			return err
 		}
-		if ro.Status.ObservedGeneration != strconv.FormatInt(ro.Generation, 10) {
-			return fmt.Errorf("waiting for observedGeneration (%s) to match generation (%d)", ro.Status.ObservedGeneration, ro.Generation)
+		if ro.Status.ObservedGeneration != ro.Generation {
+			return fmt.Errorf("waiting for observedGeneration (%d) to match generation (%d)", ro.Status.ObservedGeneration, ro.Generation)
 		}
 		if ro.Status.ControllerPause && len(ro.Status.PauseConditions) == 0 {
 			return fmt.Errorf("waiting for pauseConditions to be set (controllerPause=true)")
@@ -812,12 +812,7 @@ func (w *When) clearControllerPauseIfNeeded() {
 					return err
 				}
 
-				observedGen, err := strconv.Atoi(ro.Status.ObservedGeneration)
-				if err != nil {
-					return err
-				}
-
-				if int64(observedGen) >= ro.Generation {
+				if ro.Status.ObservedGeneration >= ro.Generation {
 					return nil
 				}
 

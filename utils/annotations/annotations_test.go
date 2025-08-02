@@ -290,14 +290,14 @@ func TestAnnotationUtils(t *testing.T) {
 	t.Run("GetDesiredReplicasAnnotationNotSet", func(t *testing.T) {
 		generation, ok := GetWorkloadGenerationAnnotation(&tRollout)
 		assert.False(t, ok)
-		assert.Equal(t, int32(0), generation)
+		assert.Equal(t, int64(0), generation)
 	})
 
 	tRollout.Annotations[WorkloadGenerationAnnotation] = "1"
 	t.Run("GetDesiredReplicasAnnotation", func(t *testing.T) {
 		generation, ok := GetWorkloadGenerationAnnotation(&tRollout)
 		assert.True(t, ok)
-		assert.Equal(t, int32(1), generation)
+		assert.Equal(t, int64(1), generation)
 	})
 
 	tRollout.Annotations[WorkloadGenerationAnnotation] = "20000000000"
@@ -309,7 +309,7 @@ func TestAnnotationUtils(t *testing.T) {
 	t.Run("GetWorkloadGenerationAnnotationNilInput", func(t *testing.T) {
 		generation, ok := GetWorkloadGenerationAnnotation(nil)
 		assert.False(t, ok)
-		assert.Equal(t, int32(0), generation)
+		assert.Equal(t, int64(0), generation)
 	})
 
 	tRollout.Annotations[WorkloadGenerationAnnotation] = "Not a number"

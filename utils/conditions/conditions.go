@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
-	"strconv"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -308,7 +307,7 @@ func RolloutHealthy(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus
 
 	return newStatus.UpdatedReplicas == replicas &&
 		newStatus.AvailableReplicas == replicas &&
-		rollout.Status.ObservedGeneration == strconv.Itoa(int(rollout.Generation)) &&
+		rollout.Status.ObservedGeneration == rollout.Generation &&
 		completedStrategy
 }
 
