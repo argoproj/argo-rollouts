@@ -3,7 +3,6 @@ package rollout
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -822,7 +821,7 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 2, 1, 2, false)
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -878,7 +877,7 @@ func TestCanaryWithTrafficRoutingScaleDownLimit(t *testing.T) {
 	rs3PodHash := rs3.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r3 = updateCanaryRolloutStatus(r3, rs3PodHash, 2, 2, 2, false)
 
-	r3.Status.ObservedGeneration = strconv.Itoa(int(r3.Generation))
+	r3.Status.ObservedGeneration = r3.Generation
 	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}
 	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}
 	canarySvc := newService("canary", 80, canarySelector, r3)

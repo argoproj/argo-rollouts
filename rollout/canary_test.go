@@ -1155,7 +1155,7 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	completedCondition, _ := newCompletedCondition(false)
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
@@ -1194,7 +1194,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, true)
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
@@ -1783,7 +1783,7 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 1, 1, true)
 	overAMinuteAgo := metav1.Time{Time: time.Now().Add(-61 * time.Second)}
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
 		Reason:    v1alpha1.PauseReasonCanaryPauseStep,
 		StartTime: overAMinuteAgo,

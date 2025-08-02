@@ -64,7 +64,7 @@ status:
     type: Progressing
   controllerPause: true
   currentPodHash: 74b948fccb
-  observedGeneration: "410"
+  observedGeneration: 410
   pauseConditions:
   - reason: BlueGreenPause
     startTime: "2019-10-28T04:50:20Z"

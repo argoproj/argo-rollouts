@@ -43,4 +43,4 @@ status:
     reason: InvalidSpec
     status: "True"
     type: InvalidSpec
-  observedGeneration: "3"
+  observedGeneration: 3

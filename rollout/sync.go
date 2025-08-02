@@ -529,7 +529,7 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 	for _, condition := range conditionList {
 		conditions.SetRolloutCondition(newStatus, *condition)
 	}
-	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
+	newStatus.ObservedGeneration = c.rollout.Generation
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(r.Spec, *newStatus)
 
 	logCtx := logutil.WithVersionFields(c.log, r)
@@ -746,15 +746,15 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	c.pauseContext.CalculatePauseStatus(newStatus)
 	if c.rollout.Spec.TemplateResolvedFromRef {
 		workloadRefObservation, _ := annotations.GetWorkloadGenerationAnnotation(c.rollout)
-		currentWorkloadObservedGeneration, _ := strconv.ParseInt(newStatus.WorkloadObservedGeneration, 10, 32)
-		if workloadRefObservation != int32(currentWorkloadObservedGeneration) {
-			newStatus.WorkloadObservedGeneration = strconv.Itoa(int(workloadRefObservation))
+		currentWorkloadObservedGeneration := newStatus.WorkloadObservedGeneration
+		if workloadRefObservation != currentWorkloadObservedGeneration {
+			newStatus.WorkloadObservedGeneration = workloadRefObservation
 		}
 	} else {
-		newStatus.WorkloadObservedGeneration = ""
+		newStatus.WorkloadObservedGeneration = 0
 	}
 
-	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
+	newStatus.ObservedGeneration = c.rollout.Generation
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(c.rollout.Spec, *newStatus)
 
 	patch, modified, err := diff.CreateTwoWayMergePatch(

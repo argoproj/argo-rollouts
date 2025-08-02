@@ -1586,7 +1586,7 @@ message RolloutStatus {
 
   // The generation observed by the rollout controller from metadata.generation
   // +optional
-  optional string observedGeneration = 13;
+  optional int64 observedGeneration = 13;
 
   // Conditions a list of conditions a rollout can have.
   // +optional
@@ -1626,7 +1626,7 @@ message RolloutStatus {
 
   // The generation of referenced workload observed by the rollout controller
   // +optional
-  optional string workloadObservedGeneration = 24;
+  optional int64 workloadObservedGeneration = 24;
 
   // / ALB keeps information regarding the ALB and TargetGroups
   optional ALBStatus alb = 25;

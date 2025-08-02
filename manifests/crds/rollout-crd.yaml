@@ -3871,7 +3871,8 @@ spec:
               message:
                 type: string
               observedGeneration:
-                type: string
+                format: int64
+                type: integer
               pauseConditions:
                 items:
                   properties:
@@ -3906,7 +3907,8 @@ spec:
                 format: int32
                 type: integer
               workloadObservedGeneration:
-                type: string
+                format: int64
+                type: integer
             type: object
         required:
         - spec

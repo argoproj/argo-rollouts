@@ -1,7 +1,6 @@
 package conditions
 
 import (
-	"strconv"
 	"testing"
 	"time"
 
@@ -379,7 +378,7 @@ func TestRolloutHealthy(t *testing.T) {
 		r.Status.BlueGreen.ActiveSelector = activeSelector
 		r.Status.BlueGreen.PreviewSelector = previewSelector
 		if correctObservedGeneration {
-			r.Status.ObservedGeneration = strconv.Itoa(int(r.Generation))
+			r.Status.ObservedGeneration = r.Generation
 		}
 		return r
 	}
@@ -398,7 +397,7 @@ func TestRolloutHealthy(t *testing.T) {
 		r.Status.StableRS = stableRS
 		r.Status.CurrentStepIndex = stepIndex
 		if correctObservedGeneration {
-			r.Status.ObservedGeneration = strconv.Itoa(int(r.Generation))
+			r.Status.ObservedGeneration = r.Generation
 		}
 		return r
 	}

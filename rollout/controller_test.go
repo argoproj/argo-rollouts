@@ -67,7 +67,7 @@ var (
 const (
 	OnlyObservedGenerationPatch = `{
 			"status" : {
-				"observedGeneration": ""
+				"observedGeneration": 0
 			}
 	}`
 )
@@ -515,7 +515,7 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 	}
 	newRO := &v1alpha1.Rollout{}
 	json.Unmarshal(newBytes, newRO)
-	newObservedGen := strconv.Itoa(int(newRO.Generation))
+	newObservedGen := newRO.Generation
 
 	newPatch := make(map[string]any)
 	err = json.Unmarshal([]byte(patch), &newPatch)
@@ -1281,7 +1281,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 			}}
 		}
 		if rolloutCompleted {
-			r.Status.ObservedGeneration = strconv.Itoa(int(r.Generation))
+			r.Status.ObservedGeneration = r.Generation
 			r.Status.StableRS = "fakesha"
 			r.Status.CurrentPodHash = "fakesha"
 		}
@@ -1527,7 +1527,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
-	r.Status.ObservedGeneration = "122"
+	r.Status.ObservedGeneration = 122
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
@@ -1566,7 +1566,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
-	expectedPatch := `{"status":{"observedGeneration":"123"}}`
+	expectedPatch := `{"status":{"observedGeneration":123}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1582,7 +1582,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	r.Status.StableRS = "fakepodhash"
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
-	r.Status.ObservedGeneration = "122"
+	r.Status.ObservedGeneration = 122
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
@@ -1609,7 +1609,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
-	expectedPatch := `{"status":{"observedGeneration":"123"}}`
+	expectedPatch := `{"status":{"observedGeneration":123}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
 }

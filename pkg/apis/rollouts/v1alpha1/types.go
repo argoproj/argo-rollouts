@@ -958,7 +958,7 @@ type RolloutStatus struct {
 	CollisionCount *int32 `json:"collisionCount,omitempty" protobuf:"varint,12,opt,name=collisionCount"`
 	// The generation observed by the rollout controller from metadata.generation
 	// +optional
-	ObservedGeneration string `json:"observedGeneration,omitempty" protobuf:"bytes,13,opt,name=observedGeneration"`
+	ObservedGeneration int64 `json:"observedGeneration,omitempty" protobuf:"varint,13,opt,name=observedGeneration"`
 	// Conditions a list of conditions a rollout can have.
 	// +optional
 	Conditions []RolloutCondition `json:"conditions,omitempty" protobuf:"bytes,14,rep,name=conditions"`
@@ -987,7 +987,7 @@ type RolloutStatus struct {
 	Message string `json:"message,omitempty" protobuf:"bytes,23,opt,name=message"`
 	// The generation of referenced workload observed by the rollout controller
 	// +optional
-	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,24,opt,name=workloadObservedGeneration"`
+	WorkloadObservedGeneration int64 `json:"workloadObservedGeneration,omitempty" protobuf:"varint,24,opt,name=workloadObservedGeneration"`
 	/// ALB keeps information regarding the ALB and TargetGroups
 	ALB *ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
 	/// ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario
