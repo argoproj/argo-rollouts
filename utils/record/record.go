@@ -400,7 +400,7 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 		for _, c := range res {
 			log.Infof("Result when condition hash: %s, templates: %s", c.Key, c.Templates)
 			s := strings.Split(c.Key, ".")[1]
-			if s != emptyCondition && c.Triggered == true {
+			if s != emptyCondition && c.Triggered {
 				err = notificationsAPI.Send(objMap, c.Templates, destination)
 				if err != nil {
 					log.Errorf("Failed to execute the sending of notification on not empty condition, trigger: %s, destination: %s, namespace config: %s : %v",

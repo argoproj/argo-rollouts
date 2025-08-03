@@ -157,9 +157,7 @@ func newReplicaSetFromTemplate(experiment *v1alpha1.Experiment, template v1alpha
 	newRSTemplate := *template.Template.DeepCopy()
 	replicaSetAnnotations := newReplicaSetAnnotations(experiment.Name, template.Name)
 	if newRSTemplate.Labels != nil {
-		if _, ok := newRSTemplate.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
-			delete(newRSTemplate.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
-		}
+		delete(newRSTemplate.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 	}
 	podHash := hash.ComputePodTemplateHash(&newRSTemplate, collisionCount)
 

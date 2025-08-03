@@ -151,7 +151,7 @@ func (g *RpcPlugin) processResponse(metric v1alpha1.Metric, response model.Value
 
 func newPrometheusAPI(address string) (v1.API, error) {
 	envValuesByKey := make(map[string]string)
-	if value, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsPrometheusAddress)); ok {
+	if value, ok := os.LookupEnv(EnvVarArgoRolloutsPrometheusAddress); ok {
 		envValuesByKey[EnvVarArgoRolloutsPrometheusAddress] = value
 		log.Debugf("ARGO_ROLLOUTS_PROMETHEUS_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsPrometheusAddress])
 	}

@@ -61,11 +61,11 @@ func GetRevisionAnnotation(anyObj metav1.Object) (int32, bool) {
 		return 0, false
 	}
 	var obj interface{}
-	switch anyObj.(type) {
+	switch anyObj := anyObj.(type) {
 	case *v1alpha1.Rollout:
-		obj = anyObj.(*v1alpha1.Rollout)
+		obj = anyObj
 	case *v1alpha1.AnalysisRun:
-		obj = anyObj.(*v1alpha1.AnalysisRun)
+		obj = anyObj
 	default:
 		log.Warnf("object not supported type: %T", anyObj)
 		return 0, false

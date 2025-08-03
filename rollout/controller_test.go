@@ -1978,9 +1978,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// clear fixture
 			f.ingressLister = []*ingressutil.Ingress{}
-			for _, ing := range test.ingresses {
-				f.ingressLister = append(f.ingressLister, ing)
-			}
+			f.ingressLister = append(f.ingressLister, test.ingresses...)
 			c, _, _ := f.newController(noResyncPeriodFunc)
 			_, err := c.newRolloutContext(r)
 			assert.Error(t, err)
@@ -2209,9 +2207,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// clear fixture
 			f.ingressLister = []*ingressutil.Ingress{}
-			for _, ing := range test.ingresses {
-				f.ingressLister = append(f.ingressLister, ing)
-			}
+			f.ingressLister = append(f.ingressLister, test.ingresses...)
 			c, _, _ := f.newController(noResyncPeriodFunc)
 			_, err := c.newRolloutContext(r)
 			assert.Error(t, err)

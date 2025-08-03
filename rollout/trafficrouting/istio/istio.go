@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -498,8 +499,7 @@ func unMarshalSubsets(dRule *DestinationRule, dRuleBytes []byte) error {
 	var err error
 
 	unstructured := map[string]any{}
-	var extractFieldBytes func([]byte, string) ([]byte, error)
-	extractFieldBytes = func(input []byte, name string) ([]byte, error) {
+	var extractFieldBytes func([]byte, string) ([]byte, error) = func(input []byte, name string) ([]byte, error) {
 		err = json.Unmarshal(input, &unstructured)
 		if err != nil {
 			return nil, err
@@ -591,7 +591,7 @@ func jsonBytesToDestinationRule(dRuleBytes []byte) (*DestinationRule, error) {
 func GetHttpRoutesI(obj *unstructured.Unstructured) ([]any, error) {
 	httpRoutesI, notFound, err := unstructured.NestedSlice(obj.Object, "spec", Http)
 	if !notFound {
-		return nil, fmt.Errorf(SpecHttpNotFound)
+		return nil, errors.New(SpecHttpNotFound)
 	}
 	if err != nil {
 		return nil, err
@@ -602,7 +602,7 @@ func GetHttpRoutesI(obj *unstructured.Unstructured) ([]any, error) {
 func GetTlsRoutesI(obj *unstructured.Unstructured) ([]any, error) {
 	tlsRoutesI, notFound, err := unstructured.NestedSlice(obj.Object, "spec", Tls)
 	if !notFound {
-		return nil, fmt.Errorf(SpecHttpNotFound)
+		return nil, errors.New(SpecHttpNotFound)
 	}
 	if err != nil {
 		return nil, err
@@ -954,9 +954,7 @@ func getTlsRouteIndexesToPatch(tlsRoutes []v1alpha1.TLSRoute, istioTlsRoutes []V
 	for _, tlsRoute := range tlsRoutes {
 		routeIndices := searchTlsRoute(tlsRoute, istioTlsRoutes)
 		if len(routeIndices) > 0 {
-			for _, routeIndex := range routeIndices {
-				routeIndexesToPatch = append(routeIndexesToPatch, routeIndex)
-			}
+			routeIndexesToPatch = append(routeIndexesToPatch, routeIndices...)
 		} else {
 			return nil, fmt.Errorf("No matching TLS routes found in the defined Virtual Service.")
 		}
@@ -1011,9 +1009,7 @@ func getTcpRouteIndexesToPatch(tcpRoutes []v1alpha1.TCPRoute, istioTcpRoutes []V
 	for _, tcpRoute := range tcpRoutes {
 		routeIndices := searchTcpRoute(tcpRoute, istioTcpRoutes)
 		if len(routeIndices) > 0 {
-			for _, routeIndex := range routeIndices {
-				routeIndexesToPatch = append(routeIndexesToPatch, routeIndex)
-			}
+			routeIndexesToPatch = append(routeIndexesToPatch, routeIndices...)
 		} else {
 			return nil, fmt.Errorf("No matching TCP routes found in the defined Virtual Service.")
 		}
@@ -1257,7 +1253,7 @@ func (r *Reconciler) reconcileVirtualServiceMirrorRoutes(virtualService v1alpha1
 		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to get http routes from virtual service: %w", err)
 	}
 	if !found {
-		return fmt.Errorf(SpecHttpNotFound)
+		return errors.New(SpecHttpNotFound)
 	}
 	vsRoutes = append([]any{mR}, vsRoutes...)
 	if err := unstructured.SetNestedSlice(istioVirtualService.Object, vsRoutes, "spec", Http); err != nil {
@@ -1358,7 +1354,7 @@ func removeRoute(istioVirtualService *unstructured.Unstructured, routeName strin
 		return fmt.Errorf("[removeRoute] failed to get http routes from virtual service: %w", err)
 	}
 	if !found {
-		return fmt.Errorf(SpecHttpNotFound)
+		return errors.New(SpecHttpNotFound)
 	}
 
 	var newVsRoutes []any
@@ -1389,7 +1385,7 @@ func (r *Reconciler) orderRoutes(istioVirtualService *unstructured.Unstructured)
 		return fmt.Errorf("[orderRoutes] failed to get virtual service http routes: %w", err)
 	}
 	if !found {
-		return fmt.Errorf(SpecHttpNotFound)
+		return errors.New(SpecHttpNotFound)
 	}
 
 	if r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes == nil {

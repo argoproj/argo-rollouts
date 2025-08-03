@@ -15,10 +15,7 @@ type mockQuery struct {
 }
 
 func (m mockAPI) NewQuery(queryParams *wavefront_api.QueryParams) WavefrontQueryAPI {
-	return mockQuery{
-		response: m.response,
-		err:      m.err,
-	}
+	return mockQuery(m)
 }
 
 func (q mockQuery) Execute() (*wavefront_api.QueryResponse, error) {

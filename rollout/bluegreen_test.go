@@ -182,8 +182,7 @@ func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 	//      is changed to set ProgressDeadlineAbort
 	tests := []bool{true, false}
 
-	var runRolloutProgressDeadlineAbort func(isTimeout bool)
-	runRolloutProgressDeadlineAbort = func(isTimeout bool) {
+	var runRolloutProgressDeadlineAbort func(isTimeout bool) = func(isTimeout bool) {
 		f := newFixture(t)
 		defer f.Close()
 

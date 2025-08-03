@@ -3037,6 +3037,13 @@ spec:
                               type: string
                             authentication:
                               properties:
+                                basicAuth:
+                                  properties:
+                                    password:
+                                      type: string
+                                    username:
+                                      type: string
+                                  type: object
                                 oauth2:
                                   properties:
                                     clientId:
@@ -3109,6 +3116,13 @@ spec:
                           properties:
                             authentication:
                               properties:
+                                basicAuth:
+                                  properties:
+                                    password:
+                                      type: string
+                                    username:
+                                      type: string
+                                  type: object
                                 oauth2:
                                   properties:
                                     clientId:

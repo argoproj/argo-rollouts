@@ -155,7 +155,7 @@ func DownloadPlugins(fd FileDownloader, kubeClient kubernetes.Interface) error {
 			if err != nil {
 				return fmt.Errorf("failed to download plugin from %s: %w", plugin.Location, err)
 			}
-			timeTakenToDownload := time.Now().Sub(startTime)
+			timeTakenToDownload := time.Since(startTime)
 			log.Infof("Download complete, it took %s", timeTakenToDownload)
 
 			if plugin.Sha256 != "" {

@@ -2,12 +2,13 @@ package promote
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
@@ -63,7 +64,7 @@ func NewCmdPromote(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return o.UsageErr(c)
 			}
 			if skipCurrentStep && skipAllSteps {
-				return fmt.Errorf(useBothSkipFlagsError)
+				return errors.New(useBothSkipFlagsError)
 			}
 			name := args[0]
 			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(o.Namespace())
@@ -100,10 +101,10 @@ func PromoteRollout(rolloutIf clientset.RolloutInterface, name string, skipCurre
 	}
 	if skipCurrentStep || skipAllSteps {
 		if ro.Spec.Strategy.BlueGreen != nil {
-			return nil, fmt.Errorf(skipFlagsWithBlueGreenError)
+			return nil, errors.New(skipFlagsWithBlueGreenError)
 		}
 		if ro.Spec.Strategy.Canary != nil && len(ro.Spec.Strategy.Canary.Steps) == 0 {
-			return nil, fmt.Errorf(skipFlagWithNoStepCanaryError)
+			return nil, errors.New(skipFlagWithNoStepCanaryError)
 		}
 	}
 

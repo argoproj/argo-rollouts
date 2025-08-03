@@ -332,6 +332,10 @@ message Authentication {
   // OAuth2 config
   // +optional
   optional OAuth2Config oauth2 = 2;
+
+  // AuthBasic config
+  // +optional
+  optional BasicAuthConfig basicAuth = 3;
 }
 
 message AwsResourceRef {
@@ -342,6 +346,14 @@ message AwsResourceRef {
   // FullName is the full name of the resource
   // +optional
   optional string fullName = 3;
+}
+
+message BasicAuthConfig {
+  // Username is the username in grafana cloud
+  optional string username = 1;
+
+  // Password is the access policy token
+  optional string password = 2;
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout

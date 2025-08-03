@@ -432,7 +432,7 @@ func (w *When) WaitForRolloutStepPluginRunning(timeout ...time.Duration) *When {
 		}
 		return false
 	}
-	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("stepPluginStatus[currentIndex].phase=Running"), timeout...)
+	return w.WaitForRolloutCondition(checkStatus, "stepPluginStatus[currentIndex].phase=Running", timeout...)
 }
 
 func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeouts ...time.Duration) *When {

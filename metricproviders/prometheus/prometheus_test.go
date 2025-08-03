@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"encoding/base64"
 	"fmt"
 	"math"
 	"net/http"
@@ -20,7 +21,8 @@ import (
 )
 
 const (
-	AccessToken = "MyAccessToken"
+	AccessToken          = "MyAccessToken"
+	BasicAuthCredentials = "myuser:mypassword"
 )
 
 type OAuthResponse struct {
@@ -843,6 +845,71 @@ func TestRunErrorOAuthFailure(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 }
 
+func TestRunSuccessfulWithBasicAuth(t *testing.T) {
+	e := log.Entry{}
+	promServer := mockPromServer("")
+	defer promServer.Close()
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					BasicAuth: v1alpha1.BasicAuthConfig{
+						Username: "myuser",
+						Password: "mypassword",
+					},
+				},
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	p, err := NewPrometheusProvider(api, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
+	assert.Equal(t, "[10]", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+}
+
+func TestRunErrorBasicAuthFailure(t *testing.T) {
+	e := log.Entry{}
+	promServer := mockPromServer("")
+	defer promServer.Close()
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					BasicAuth: v1alpha1.BasicAuthConfig{
+						Username: "wronguser",
+						Password: "wrongpassword",
+					},
+				},
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	p, err := NewPrometheusProvider(api, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NoError(t, err)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
+
 func mockOAuthServer(accessToken string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.StandardLogger().Infof("Received oauth query")
@@ -879,12 +946,10 @@ func mockPromServer(expectedAuthorizationHeader string) *httptest.Server {
 
 		authorizationHeader := r.Header.Get("Authorization")
 		// Reject call if we don't find the expected oauth token
-		if expectedAuthorizationHeader != "" && ("Bearer "+expectedAuthorizationHeader) != authorizationHeader {
-
+		if (expectedAuthorizationHeader != "" && ("Bearer "+expectedAuthorizationHeader) != authorizationHeader) || (expectedAuthorizationHeader == "" && ("Basic "+base64.StdEncoding.EncodeToString([]byte(BasicAuthCredentials))) != authorizationHeader) {
 			log.StandardLogger().Infof("Authorization header not as expected, rejecting")
 			sc := http.StatusUnauthorized
 			w.WriteHeader(sc)
-
 		} else {
 			log.StandardLogger().Infof("Authorization header as expected, continuing")
 			promResponse := `{"data":{"result":[{"metric":{"__name__":"myMetric"},"value":[0, "10"]}],"resultType":"vector"},"status":"success"}`

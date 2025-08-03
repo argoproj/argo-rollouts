@@ -398,15 +398,11 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 				}
 			}
 			for _, analysis := range step.Experiment.Analyses {
-				for _, arg := range analysis.Args {
-					analysisRunArgs = append(analysisRunArgs, arg)
-				}
+				analysisRunArgs = append(analysisRunArgs, analysis.Args...)
 			}
 		}
 		if step.Analysis != nil {
-			for _, arg := range step.Analysis.Args {
-				analysisRunArgs = append(analysisRunArgs, arg)
-			}
+			analysisRunArgs = append(analysisRunArgs, step.Analysis.Args...)
 		}
 
 		for _, arg := range analysisRunArgs {

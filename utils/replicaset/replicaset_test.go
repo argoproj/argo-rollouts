@@ -340,7 +340,7 @@ func TestRevision(t *testing.T) {
 	assert.Equal(t, int64(1), revisionValue)
 
 	_, err = Revision(nil)
-	assert.Error(t, err, fmt.Sprintf("object does not implement the Object interfaces"))
+	assert.Error(t, err, "object does not implement the Object interfaces")
 
 	delete(rs.Annotations, annotations.RevisionAnnotation)
 	revisionValue, err = Revision(rs)

@@ -165,7 +165,7 @@ func (r *Reconciler) reconcileVirtualRouter(ctx context.Context, rRoutes []strin
 	routesFldPath := field.NewPath("spec", "routes")
 	routesI, found, err := unstructured.NestedSlice(uVrCopy.Object, "spec", "routes")
 	if !found || err != nil {
-		return field.Invalid(routesFldPath, uVrCopy.GetName(), fmt.Sprintf("No routes found"))
+		return field.Invalid(routesFldPath, uVrCopy.GetName(), "No routes found")
 	}
 
 	for idx, routeI := range routesI {

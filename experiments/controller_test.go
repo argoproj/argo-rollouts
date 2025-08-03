@@ -91,25 +91,25 @@ func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
 	f.objects = []runtime.Object{}
 	f.kubeobjects = []runtime.Object{}
 	for _, obj := range objects {
-		switch obj.(type) {
+		switch obj := obj.(type) {
 		case *v1alpha1.ClusterAnalysisTemplate:
 			f.objects = append(f.objects, obj)
-			f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, obj.(*v1alpha1.ClusterAnalysisTemplate))
+			f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, obj)
 		case *v1alpha1.AnalysisTemplate:
 			f.objects = append(f.objects, obj)
-			f.analysisTemplateLister = append(f.analysisTemplateLister, obj.(*v1alpha1.AnalysisTemplate))
+			f.analysisTemplateLister = append(f.analysisTemplateLister, obj)
 		case *v1alpha1.AnalysisRun:
 			f.objects = append(f.objects, obj)
-			f.analysisRunLister = append(f.analysisRunLister, obj.(*v1alpha1.AnalysisRun))
+			f.analysisRunLister = append(f.analysisRunLister, obj)
 		case *v1alpha1.Experiment:
 			f.objects = append(f.objects, obj)
-			f.experimentLister = append(f.experimentLister, obj.(*v1alpha1.Experiment))
+			f.experimentLister = append(f.experimentLister, obj)
 		case *appsv1.ReplicaSet:
 			f.kubeobjects = append(f.kubeobjects, obj)
-			f.replicaSetLister = append(f.replicaSetLister, obj.(*appsv1.ReplicaSet))
+			f.replicaSetLister = append(f.replicaSetLister, obj)
 		case *corev1.Service:
 			f.kubeobjects = append(f.kubeobjects, obj)
-			f.serviceLister = append(f.serviceLister, obj.(*corev1.Service))
+			f.serviceLister = append(f.serviceLister, obj)
 		}
 	}
 	f.client = fake.NewSimpleClientset(f.objects...)

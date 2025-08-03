@@ -658,7 +658,7 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "invalid"})
 		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
 		assert.Len(t, allErrs, 1)
-		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [analysis-template-name cluster-analysis-template-name]\": args.invalid was not resolved")
+		msg := "spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [analysis-template-name cluster-analysis-template-name]\": args.invalid was not resolved"
 		assert.Equal(t, msg, allErrs[0].Error())
 	})
 
@@ -709,7 +709,7 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 
 		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
 		assert.Len(t, allErrs, 1)
-		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [analysis-template-name cluster-analysis-template-name]\": two Measurement Retention metric rules have the same name 'example'")
+		msg := "spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [analysis-template-name cluster-analysis-template-name]\": two Measurement Retention metric rules have the same name 'example'"
 		assert.Equal(t, msg, allErrs[0].Error())
 	})
 

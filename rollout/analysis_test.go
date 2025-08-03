@@ -2623,7 +2623,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	expectedPatch := fmt.Sprint(`{
+	expectedPatch := `{
 		"status": {
 			"blueGreen": {
 				"postPromotionAnalysisRunStatus": {"status":"Inconclusive"}
@@ -2631,7 +2631,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 			"phase": "Paused",
 			"message": "InconclusiveAnalysisRun"
 		}
-	}`)
+	}`
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
