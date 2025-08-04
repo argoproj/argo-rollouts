@@ -1397,6 +1397,10 @@ message RolloutExperimentStep {
   // AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
   // +optional
   optional AnalysisRunMetadata analysisRunMetadata = 5;
+
+  // ScaleDownDelaySeconds is the number of seconds to wait before scaling down the old ReplicaSet
+  // +optional
+  optional int32 scaleDownDelaySeconds = 6;
 }
 
 message RolloutExperimentStepAnalysisTemplateRef {
