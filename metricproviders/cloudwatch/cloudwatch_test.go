@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -242,65 +242,65 @@ func TestConvertType(t *testing.T) {
 			query: []v1alpha1.CloudWatchMetricDataQuery{
 				{
 					Id:         "rate",
-					Expression: pointer.StringPtr("errors / requests"),
+					Expression: ptr.To[string]("errors / requests"),
 				},
 				{
 					Id: "errors",
 					MetricStat: &v1alpha1.CloudWatchMetricStat{
 						Metric: v1alpha1.CloudWatchMetricStatMetric{
-							Namespace:  pointer.StringPtr("app"),
+							Namespace:  ptr.To[string]("app"),
 							MetricName: "errors",
 						},
 						Period: period,
 						Stat:   "Sum",
 						Unit:   "Count",
 					},
-					ReturnData: pointer.BoolPtr(false),
+					ReturnData: ptr.To[bool](false),
 				},
 				{
 					Id: "requests",
 					MetricStat: &v1alpha1.CloudWatchMetricStat{
 						Metric: v1alpha1.CloudWatchMetricStatMetric{
-							Namespace:  pointer.StringPtr("app"),
+							Namespace:  ptr.To[string]("app"),
 							MetricName: "requests",
 						},
 						Period: period,
 						Stat:   "Sum",
 						Unit:   "Count",
 					},
-					ReturnData: pointer.BoolPtr(false),
+					ReturnData: ptr.To[bool](false),
 				},
 			},
 			expected: []types.MetricDataQuery{
 				{
-					Id:         pointer.StringPtr("rate"),
-					Expression: pointer.StringPtr("errors / requests"),
+					Id:         ptr.To[string]("rate"),
+					Expression: ptr.To[string]("errors / requests"),
 				},
 				{
-					Id: pointer.StringPtr("errors"),
+					Id: ptr.To[string]("errors"),
 					MetricStat: &types.MetricStat{
 						Metric: &types.Metric{
-							Namespace:  pointer.StringPtr("app"),
-							MetricName: pointer.StringPtr("errors"),
+							Namespace:  ptr.To[string]("app"),
+							MetricName: ptr.To[string]("errors"),
 						},
-						Period: pointer.Int32Ptr(300),
-						Stat:   pointer.StringPtr("Sum"),
+						Period: ptr.To[int32](300),
+						Stat:   ptr.To[string]("Sum"),
 						Unit:   types.StandardUnitCount,
 					},
-					ReturnData: pointer.BoolPtr(false),
+					ReturnData: ptr.To[bool](false),
 				},
 				{
-					Id: pointer.StringPtr("requests"),
+					Id: ptr.To[string]("requests"),
 					MetricStat: &types.MetricStat{
 						Metric: &types.Metric{
-							Namespace:  pointer.StringPtr("app"),
-							MetricName: pointer.StringPtr("requests"),
+							Namespace:  ptr.To[string]("app"),
+							MetricName: ptr.To[string]("requests"),
 						},
-						Period: pointer.Int32Ptr(300),
-						Stat:   pointer.StringPtr("Sum"),
+						Period: ptr.To[int32](300),
+						Stat:   ptr.To[string]("Sum"),
 						Unit:   types.StandardUnitCount,
 					},
-					ReturnData: pointer.BoolPtr(false),
+					ReturnData: ptr.To[bool](false),
 				},
 			},
 		},
@@ -308,7 +308,7 @@ func TestConvertType(t *testing.T) {
 			query: []v1alpha1.CloudWatchMetricDataQuery{
 				{
 					Id:         "rate",
-					Expression: pointer.StringPtr("errors / requests"),
+					Expression: ptr.To[string]("errors / requests"),
 				},
 				{
 					Id: "errors",
@@ -320,65 +320,65 @@ func TestConvertType(t *testing.T) {
 									Value: "fuga",
 								},
 							},
-							Namespace:  pointer.StringPtr("app1"),
+							Namespace:  ptr.To[string]("app1"),
 							MetricName: "errors",
 						},
 						Period: period,
 						Stat:   "Max",
 						Unit:   "Count",
 					},
-					ReturnData: pointer.BoolPtr(false),
+					ReturnData: ptr.To[bool](false),
 				},
 				{
 					Id: "requests",
 					MetricStat: &v1alpha1.CloudWatchMetricStat{
 						Metric: v1alpha1.CloudWatchMetricStatMetric{
-							Namespace:  pointer.StringPtr("app2"),
+							Namespace:  ptr.To[string]("app2"),
 							MetricName: "requests",
 						},
 						Period: period,
 						Stat:   "Sum",
 						Unit:   "Bytes/Second",
 					},
-					ReturnData: pointer.BoolPtr(true),
+					ReturnData: ptr.To[bool](true),
 				},
 			},
 			expected: []types.MetricDataQuery{
 				{
-					Id:         pointer.StringPtr("rate"),
-					Expression: pointer.StringPtr("errors / requests"),
+					Id:         ptr.To[string]("rate"),
+					Expression: ptr.To[string]("errors / requests"),
 				},
 				{
-					Id: pointer.StringPtr("errors"),
+					Id: ptr.To[string]("errors"),
 					MetricStat: &types.MetricStat{
 						Metric: &types.Metric{
-							Namespace:  pointer.StringPtr("app1"),
-							MetricName: pointer.StringPtr("errors"),
+							Namespace:  ptr.To[string]("app1"),
+							MetricName: ptr.To[string]("errors"),
 							Dimensions: []types.Dimension{
 								{
-									Name:  pointer.StringPtr("hoge"),
-									Value: pointer.StringPtr("fuga"),
+									Name:  ptr.To[string]("hoge"),
+									Value: ptr.To[string]("fuga"),
 								},
 							},
 						},
-						Period: pointer.Int32Ptr(300),
-						Stat:   pointer.StringPtr("Max"),
+						Period: ptr.To[int32](300),
+						Stat:   ptr.To[string]("Max"),
 						Unit:   types.StandardUnitCount,
 					},
-					ReturnData: pointer.BoolPtr(false),
+					ReturnData: ptr.To[bool](false),
 				},
 				{
-					Id: pointer.StringPtr("requests"),
+					Id: ptr.To[string]("requests"),
 					MetricStat: &types.MetricStat{
 						Metric: &types.Metric{
-							Namespace:  pointer.StringPtr("app2"),
-							MetricName: pointer.StringPtr("requests"),
+							Namespace:  ptr.To[string]("app2"),
+							MetricName: ptr.To[string]("requests"),
 						},
-						Period: pointer.Int32Ptr(300),
-						Stat:   pointer.StringPtr("Sum"),
+						Period: ptr.To[int32](300),
+						Stat:   ptr.To[string]("Sum"),
 						Unit:   types.StandardUnitBytesSecond,
 					},
-					ReturnData: pointer.BoolPtr(true),
+					ReturnData: ptr.To[bool](true),
 				},
 			},
 		},
@@ -386,7 +386,7 @@ func TestConvertType(t *testing.T) {
 			query: []v1alpha1.CloudWatchMetricDataQuery{
 				{
 					Id:         "rate",
-					Expression: pointer.StringPtr("errors / requests"),
+					Expression: ptr.To[string]("errors / requests"),
 				},
 				{
 					Id: "errors",
@@ -402,69 +402,69 @@ func TestConvertType(t *testing.T) {
 									Value: "doge",
 								},
 							},
-							Namespace:  pointer.StringPtr("app1"),
+							Namespace:  ptr.To[string]("app1"),
 							MetricName: "errors",
 						},
 						Period: period,
 						Stat:   "Max",
 						Unit:   "Count",
 					},
-					ReturnData: pointer.BoolPtr(false),
+					ReturnData: ptr.To[bool](false),
 				},
 				{
 					Id: "requests",
 					MetricStat: &v1alpha1.CloudWatchMetricStat{
 						Metric: v1alpha1.CloudWatchMetricStatMetric{
-							Namespace:  pointer.StringPtr("app2"),
+							Namespace:  ptr.To[string]("app2"),
 							MetricName: "requests",
 						},
 						Period: period,
 						Stat:   "Sum",
 						Unit:   "Bytes/Second",
 					},
-					ReturnData: pointer.BoolPtr(true),
+					ReturnData: ptr.To[bool](true),
 				},
 			},
 			expected: []types.MetricDataQuery{
 				{
-					Id:         pointer.StringPtr("rate"),
-					Expression: pointer.StringPtr("errors / requests"),
+					Id:         ptr.To[string]("rate"),
+					Expression: ptr.To[string]("errors / requests"),
 				},
 				{
-					Id: pointer.StringPtr("errors"),
+					Id: ptr.To[string]("errors"),
 					MetricStat: &types.MetricStat{
 						Metric: &types.Metric{
-							Namespace:  pointer.StringPtr("app1"),
-							MetricName: pointer.StringPtr("errors"),
+							Namespace:  ptr.To[string]("app1"),
+							MetricName: ptr.To[string]("errors"),
 							Dimensions: []types.Dimension{
 								{
-									Name:  pointer.StringPtr("hoge"),
-									Value: pointer.StringPtr("fuga"),
+									Name:  ptr.To[string]("hoge"),
+									Value: ptr.To[string]("fuga"),
 								},
 								{
-									Name:  pointer.StringPtr("poge"),
-									Value: pointer.StringPtr("doge"),
+									Name:  ptr.To[string]("poge"),
+									Value: ptr.To[string]("doge"),
 								},
 							},
 						},
-						Period: pointer.Int32Ptr(300),
-						Stat:   pointer.StringPtr("Max"),
+						Period: ptr.To[int32](300),
+						Stat:   ptr.To[string]("Max"),
 						Unit:   types.StandardUnitCount,
 					},
-					ReturnData: pointer.BoolPtr(false),
+					ReturnData: ptr.To[bool](false),
 				},
 				{
-					Id: pointer.StringPtr("requests"),
+					Id: ptr.To[string]("requests"),
 					MetricStat: &types.MetricStat{
 						Metric: &types.Metric{
-							Namespace:  pointer.StringPtr("app2"),
-							MetricName: pointer.StringPtr("requests"),
+							Namespace:  ptr.To[string]("app2"),
+							MetricName: ptr.To[string]("requests"),
 						},
-						Period: pointer.Int32Ptr(300),
-						Stat:   pointer.StringPtr("Sum"),
+						Period: ptr.To[int32](300),
+						Stat:   ptr.To[string]("Sum"),
 						Unit:   types.StandardUnitBytesSecond,
 					},
-					ReturnData: pointer.BoolPtr(true),
+					ReturnData: ptr.To[bool](true),
 				},
 			},
 		},

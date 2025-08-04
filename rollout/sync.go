@@ -14,7 +14,7 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -162,7 +162,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 			Template:        newRSTemplate,
 		},
 	}
-	newRS.Spec.Replicas = pointer.Int32Ptr(0)
+	newRS.Spec.Replicas = ptr.To[int32](0)
 	// Set new replica set's annotation
 	annotations.SetNewReplicaSetAnnotations(c.rollout, newRS, newRevision, false)
 
@@ -840,11 +840,13 @@ func (c *rolloutContext) requeueStuckRollout(newStatus v1alpha1.RolloutStatus) t
 	// Make it ratelimited so we stay on the safe side, eventually the Deployment should
 	// transition either to a Complete or to a TimedOut condition.
 	if after < time.Second {
-		c.log.Infof("Queueing up Rollout for a progress check now")
+		logCtx := logutil.WithRollout(c.rollout)
+		logCtx.Info("rollout enqueue due to stuck event")
 		c.enqueueRollout(c.rollout)
 		return time.Duration(0)
 	}
-	c.log.Infof("Queueing up rollout for a progress after %ds", int(after.Seconds()))
+	logCtx := logutil.WithRollout(c.rollout)
+	logCtx.Infof("Queueing up rollout for a progress after %ds", int(after.Seconds()))
 	// Add a second to avoid milliseconds skew in AddAfter.
 	// See https://github.com/kubernetes/kubernetes/issues/39785#issuecomment-279959133 for more info.
 	c.enqueueRolloutAfter(c.rollout, after+time.Second)

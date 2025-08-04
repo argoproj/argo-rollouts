@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	testclient "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 
@@ -358,7 +358,7 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	r1 := newBlueGreenRollout("foo", 10, nil, "active", "preview")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 	r1.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{
 			{

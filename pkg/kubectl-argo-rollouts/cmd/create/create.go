@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
@@ -372,7 +372,7 @@ func (c *CreateAnalysisRunOptions) ParseArgFlags() ([]v1alpha1.Argument, error) 
 		}
 		arg := v1alpha1.Argument{
 			Name:  argSplit[0],
-			Value: pointer.StringPtr(argSplit[1]),
+			Value: ptr.To[string](argSplit[1]),
 		}
 		args = append(args, arg)
 	}

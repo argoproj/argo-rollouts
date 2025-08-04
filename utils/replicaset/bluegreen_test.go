@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -49,7 +49,7 @@ func TestReadyForPause(t *testing.T) {
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abcd"},
 		},
 		Spec: appsv1.ReplicaSetSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: ptr.To[int32](1),
 		},
 		Status: appsv1.ReplicaSetStatus{
 			AvailableReplicas: 1,
@@ -61,7 +61,7 @@ func TestReadyForPause(t *testing.T) {
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abcd"},
 		},
 		Spec: appsv1.ReplicaSetSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: ptr.To[int32](1),
 		},
 		Status: appsv1.ReplicaSetStatus{
 			AvailableReplicas: 0,

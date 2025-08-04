@@ -14,7 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	core "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -268,7 +268,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 2, nil, "active", "preview")
-		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 		r2 := bumpVersion(r1)
 
 		rs1 := newReplicaSetWithStatus(r1, 2, 2)
@@ -300,7 +300,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 		r2 := bumpVersion(r1)
 		rs1 := newReplicaSetWithStatus(r1, 1, 1)
 		rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -347,7 +347,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 		r2 := bumpVersion(r1)
 
 		rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -387,7 +387,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 		r2 := bumpVersion(r1)
 
 		rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -428,7 +428,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 		r2 := bumpVersion(r1)
 		r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
@@ -634,7 +634,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 		r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
-		r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = pointer.Int32Ptr(10)
+		r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = ptr.To[int32](10)
 
 		progressingCondition, _ := newProgressingCondition(conditions.NewReplicaSetReason, rs2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
@@ -677,7 +677,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
-		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 		r2 := bumpVersion(r1)
 
 		rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -725,7 +725,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
-		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 
 		rs1 := newReplicaSetWithStatus(r1, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -773,7 +773,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 		r2 := bumpVersion(r1)
 
 		rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -781,7 +781,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = pointer.Int32Ptr(10)
+		r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = ptr.To[int32](10)
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
 		r2.Status.ControllerPause = true
 		completedCondition, _ := newCompletedCondition(false)
@@ -856,7 +856,7 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
-	r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = pointer.Int32Ptr(10)
+	r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = ptr.To[int32](10)
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -890,7 +890,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-	r.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+	r.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 	r2 := bumpVersion(r)
 
 	rs1 := newReplicaSetWithStatus(r, 1, 1)
@@ -992,7 +992,7 @@ func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
-	r2.Spec.Replicas = pointer.Int32Ptr(2)
+	r2.Spec.Replicas = ptr.To[int32](2)
 	f.rolloutLister = append(f.rolloutLister, r2)
 
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -1042,7 +1042,7 @@ func TestBlueGreenRolloutScaleUpdateStableRS(t *testing.T) {
 	// Patch the rollout to get it in the state we want (old RS is stable and new is active)
 	f.run(getKey(r2, t))
 	// Actually update the replicas now that we are in the desired state (old RS is stable and new is active)
-	r2.Spec.Replicas = pointer.Int32Ptr(2)
+	r2.Spec.Replicas = ptr.To[int32](2)
 
 	f.expectUpdateReplicaSetAction(rs1)
 	f.expectUpdateReplicaSetAction(rs2)
@@ -1104,7 +1104,7 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 5, nil, "active", "")
-		r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = pointer.Int32Ptr(3)
+		r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = ptr.To[int32](3)
 		rs1 := newReplicaSetWithStatus(r1, 5, 5)
 		r2 := bumpVersion(r1)
 
@@ -1135,8 +1135,8 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 5, nil, "active", "")
-		r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = pointer.Int32Ptr(3)
-		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+		r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = ptr.To[int32](3)
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 		rs1 := newReplicaSetWithStatus(r1, 5, 5)
 		r2 := bumpVersion(r1)
 
@@ -1167,7 +1167,7 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		defer f.Close()
 
 		r1 := newBlueGreenRollout("foo", 5, nil, "active", "")
-		r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = pointer.Int32Ptr(3)
+		r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = ptr.To[int32](3)
 		rs1 := newReplicaSetWithStatus(r1, 5, 5)
 		r2 := bumpVersion(r1)
 
@@ -1198,9 +1198,9 @@ func TestBlueGreenRolloutIgnoringScalingUsePreviewRSCount(t *testing.T) {
 	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-	r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = pointer.Int32Ptr(3)
+	r1.Spec.Strategy.BlueGreen.PreviewReplicaCount = ptr.To[int32](3)
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs1.Spec.Replicas = pointer.Int32Ptr(2)
+	rs1.Spec.Replicas = ptr.To[int32](2)
 	rs1.Annotations[annotations.DesiredReplicasAnnotation] = "2"
 	r2 := bumpVersion(r1)
 
@@ -1216,7 +1216,7 @@ func TestBlueGreenRolloutIgnoringScalingUsePreviewRSCount(t *testing.T) {
 
 	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 2, 1, 1, 1, false, true, true)
 	// Scaling up the rollout
-	r2.Spec.Replicas = pointer.Int32Ptr(2)
+	r2.Spec.Replicas = ptr.To[int32](2)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
@@ -1467,7 +1467,7 @@ func TestBlueGreenScaleDownLimit(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
 	r2 := bumpVersion(r1)
 	r3 := bumpVersion(r2)
-	r3.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(1)
+	r3.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit = ptr.To[int32](1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)

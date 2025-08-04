@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -207,7 +207,7 @@ func TestCreateAnalysisRunWithArg(t *testing.T) {
 			TemplateName: aTemplates[0].Name,
 			Args: []v1alpha1.Argument{{
 				Name:  "test",
-				Value: pointer.StringPtr("sss"),
+				Value: ptr.To[string]("sss"),
 			}},
 		},
 	}
@@ -239,7 +239,7 @@ func TestCreateAnalysisRunWithClusterTemplate(t *testing.T) {
 			ClusterScope: true,
 			Args: []v1alpha1.Argument{{
 				Name:  "test",
-				Value: pointer.StringPtr("sss"),
+				Value: ptr.To[string]("sss"),
 			}},
 		},
 	}
@@ -271,7 +271,7 @@ func TestAnalysisRunFailToResolveArg(t *testing.T) {
 			Args: []v1alpha1.Argument{{
 
 				Name:  "test",
-				Value: pointer.StringPtr("{{not a real substitution}}"),
+				Value: ptr.To[string]("{{not a real substitution}}"),
 			}},
 		},
 	}
@@ -480,7 +480,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = ptr.To[int32](0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -493,7 +493,7 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Spec.Duration = "5m"
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = ptr.To[int32](0)
 	e.Status.AvailableAt = secondsAgo(60)
 	rs := templateToRS(e, templates[0], 1)
 	ar1 := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
@@ -660,7 +660,7 @@ func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
 func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "1m")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = ptr.To[int32](0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -700,7 +700,7 @@ func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 func TestTerminateAnalysisRuns(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = ptr.To[int32](0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",

@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 
@@ -177,6 +177,11 @@ func NewController(cfg ControllerConfig) *Controller {
 		client:       cfg.KubeClientSet,
 		resyncPeriod: cfg.ResyncPeriod,
 		enqueueAfter: func(obj any, duration time.Duration) {
+			ro := unstructuredutil.ObjectToRollout(obj)
+			if ro != nil {
+				logCtx := logutil.WithRollout(ro)
+				logCtx.Info("rollout enqueue due to pod restart")
+			}
 			controllerutil.EnqueueAfter(obj, duration, cfg.RolloutWorkQueue)
 		},
 	}
@@ -238,6 +243,8 @@ func NewController(cfg ControllerConfig) *Controller {
 			controller.enqueueRollout(obj)
 			ro := unstructuredutil.ObjectToRollout(obj)
 			if ro != nil {
+				logCtx := logutil.WithRollout(ro)
+				logCtx.Info("rollout enqueue due to add event")
 				if cfg.Recorder != nil {
 					cfg.Recorder.Eventf(ro, record.EventOptions{
 						EventType:   corev1.EventTypeNormal,
@@ -262,12 +269,16 @@ func NewController(cfg ControllerConfig) *Controller {
 					controller.IstioController.EnqueueDestinationRule(key)
 				}
 			}
+			if newRollout != nil {
+				logCtx := logutil.WithRollout(newRollout)
+				logCtx.Info("rollout enqueue due to update event")
+			}
 			controller.enqueueRollout(new)
 		},
 		DeleteFunc: func(obj any) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				logCtx := logutil.WithRollout(ro)
-				logCtx.Info("rollout deleted")
+				logCtx.Info("rollout enqueue due to delete event")
 				controller.metricsServer.Remove(ro.Namespace, ro.Name, logutil.RolloutKey)
 				// Rollout is deleted, queue up the referenced Service and/or DestinationRules so
 				// that the rollouts-pod-template-hash can be cleared from each
@@ -408,8 +419,6 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	resolveErr := c.refResolver.Resolve(r)
-	// We could maybe lose setting the error condition from the below if resolveErr != nil {}, and just log the error to clean up the logic
 	roCtx, err := c.newRolloutContext(r)
 	if roCtx == nil {
 		logCtx.Error("newRolloutContext returned nil")
@@ -417,6 +426,8 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}
 	if err != nil {
 		if _, ok := err.(*field.Error); ok {
+			logCtx := logutil.WithRollout(roCtx.rollout)
+			logCtx.Info("rollout enqueue due to validation error")
 			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
 			// condition might be timing related (e.g. the Rollout was applied before the Service).
 			c.enqueueRolloutAfter(roCtx.rollout, 20*time.Second)
@@ -425,21 +436,12 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.Errorf("newRolloutContext err %v", err)
 		return err
 	}
-	// We should probably delete this if block and just log the error to clean up the logic, a bigger change would be to add a new
-	// field to the status maybe (reconcileErrMsg) and store the errors there from the processNextWorkItem function in controller/controller.go
-	if resolveErr != nil {
-		err := roCtx.createInvalidRolloutCondition(resolveErr, r)
-		if err != nil {
-			return fmt.Errorf("failed to create invalid rollout condition during resolving the rollout: %w", err)
-		}
-		return fmt.Errorf("failed to resolve rollout: %w", resolveErr)
-	}
 
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
 	if rollout.Spec.Replicas == nil {
 		logCtx.Info("Defaulting .spec.replica to 1")
-		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
+		r.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
 		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
 		if err == nil {
 			c.writeBackToInformer(newRollout)
@@ -495,6 +497,14 @@ func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {
+	// This needs to be run before replicasets are found/resolved below.
+	// Additionally, for whatever reason, the tests also have assertions that
+	// fail if we delay finding the replicasets, analysisruns and experiments
+	// until after the roll context is created. Thus any eventual error in
+	// resolving the workload ref will be handled immediately after the
+	// rollcontext is created.
+	resolveErr := c.refResolver.Resolve(rollout)
+
 	rsList, err := c.getReplicaSetsForRollouts(rollout)
 	if err != nil {
 		return nil, err
@@ -545,6 +555,15 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			log:      logCtx,
 		},
 		reconcilerBase: c.reconcilerBase,
+	}
+
+	if resolveErr != nil {
+		err := roCtx.createInvalidRolloutCondition(resolveErr, rollout)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create invalid rollout condition when resolving the rollout: %w", err)
+		}
+
+		return &roCtx, validation.InvalidWorkloadRef(roCtx.rollout, resolveErr)
 	}
 
 	// Get Rollout Validation errors

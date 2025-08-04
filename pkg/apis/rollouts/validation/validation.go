@@ -228,6 +228,11 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 	return allErrs
 }
 
+func InvalidWorkloadRef(rollout *v1alpha1.Rollout, err error) error {
+	fldPath := field.NewPath("spec")
+	return field.Invalid(fldPath.Child("workloadRef"), rollout.Spec.WorkloadRef, err.Error())
+}
+
 // requireCanaryStableServices returns true if the rollout requires canary.stableService and
 // canary.canaryService to be defined
 func requireCanaryStableServices(rollout *v1alpha1.Rollout) bool {

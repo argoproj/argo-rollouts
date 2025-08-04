@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
+
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin"
@@ -319,6 +321,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				c.log.Infof("Desired weight (stepIdx: %s) %d verified", indexString, desiredWeight)
 			} else {
 				c.log.Infof("Desired weight (stepIdx: %s) %d not yet verified", indexString, desiredWeight)
+				logCtx := logutil.WithRollout(c.rollout)
+				logCtx.Info("rollout enqueue due to trafficrouting")
 				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 				// At the end of the rollout we need to verify the weight is correct, and return an error if not because we don't want the rest of the
 				// reconcile process to continue. We don't need to do this if we are in the middle of the rollout because the rest of the reconcile

@@ -18,7 +18,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -506,7 +506,7 @@ func PodTemplateOrStepsChanged(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaS
 // ResetCurrentStepIndex resets the index back to zero unless there are no steps
 func ResetCurrentStepIndex(rollout *v1alpha1.Rollout) *int32 {
 	if rollout.Spec.Strategy.Canary != nil && len(rollout.Spec.Strategy.Canary.Steps) > 0 {
-		return pointer.Int32Ptr(0)
+		return ptr.To[int32](0)
 	}
 	return nil
 }

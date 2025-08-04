@@ -14,6 +14,8 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
 
+// "k8s.io/utils/ptr"
+
 func new(logCtx *log.Entry, seed int64) *rpcPlugin {
 	return &rpcPlugin{
 		LogCtx: logCtx,
@@ -223,7 +225,7 @@ func Test_rpcPlugin_Run(t *testing.T) {
 				},
 			},
 		}
-		rollout.Status.CurrentStepIndex = ptr.To(int32(0))
+		rollout.Status.CurrentStepIndex = ptr.To[int32](0)
 		rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
 				Index: 0,
@@ -274,7 +276,7 @@ func Test_rpcPlugin_Run(t *testing.T) {
 				},
 			},
 		}
-		rollout.Status.CurrentStepIndex = ptr.To(int32(1))
+		rollout.Status.CurrentStepIndex = ptr.To[int32](1)
 		rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
 				Index: 0,
@@ -330,7 +332,7 @@ func Test_rpcPlugin_Run(t *testing.T) {
 				},
 			},
 		}
-		rollout.Status.CurrentStepIndex = ptr.To(int32(2))
+		rollout.Status.CurrentStepIndex = ptr.To[int32](2)
 		rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
 				Index: 0,

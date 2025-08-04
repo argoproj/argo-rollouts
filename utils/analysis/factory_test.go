@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -124,13 +124,13 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 
 	args, err := BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, stableRS, newRS, ro)
 	assert.NoError(t, err)
-	assert.Contains(t, args, v1alpha1.Argument{Name: "hard-coded-value-key", Value: pointer.StringPtr("hard-coded-value")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "stable-key", Value: pointer.StringPtr("abcdef")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "new-key", Value: pointer.StringPtr("123456")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['app']", Value: pointer.StringPtr("app")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['env']", Value: pointer.StringPtr("test")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: annotationPath, Value: pointer.StringPtr("1")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "status.pauseConditions[0].reason", Value: pointer.StringPtr("test-reason")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "hard-coded-value-key", Value: ptr.To[string]("hard-coded-value")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "stable-key", Value: ptr.To[string]("abcdef")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "new-key", Value: ptr.To[string]("123456")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['app']", Value: ptr.To[string]("app")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['env']", Value: ptr.To[string]("test")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: annotationPath, Value: ptr.To[string]("1")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "status.pauseConditions[0].reason", Value: ptr.To[string]("test-reason")})
 }
 
 func TestPrePromotionLabels(t *testing.T) {

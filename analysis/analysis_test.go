@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -1393,7 +1393,7 @@ func TestGarbageCollectArgResolution(t *testing.T) {
 	}
 	run.Spec.Args = append(run.Spec.Args, v1alpha1.Argument{
 		Name:  "port",
-		Value: pointer.String("8080"),
+		Value: ptr.To[string]("8080"),
 	})
 	var measurementRetentionMetricsMap = map[string]*v1alpha1.MeasurementRetention{}
 	measurementRetentionMetricsMap["metric2"] = &v1alpha1.MeasurementRetention{MetricName: "metric2", Limit: 2}
@@ -2071,7 +2071,7 @@ func StartTerminatingAnalysisRun(t *testing.T, isDryRun bool) *v1alpha1.Analysis
 			Args: []v1alpha1.Argument{
 				{
 					Name:  "service",
-					Value: pointer.StringPtr("rollouts-demo-canary.default.svc.cluster.local"),
+					Value: ptr.To[string]("rollouts-demo-canary.default.svc.cluster.local"),
 				},
 			},
 			Metrics: []v1alpha1.Metric{{
@@ -2130,7 +2130,7 @@ func TestInvalidDryRunConfigThrowsError(t *testing.T) {
 			Args: []v1alpha1.Argument{
 				{
 					Name:  "service",
-					Value: pointer.StringPtr("rollouts-demo-canary.default.svc.cluster.local"),
+					Value: ptr.To[string]("rollouts-demo-canary.default.svc.cluster.local"),
 				},
 			},
 			Metrics: []v1alpha1.Metric{{
@@ -2171,7 +2171,7 @@ func TestInvalidMeasurementsRetentionConfigThrowsError(t *testing.T) {
 			Args: []v1alpha1.Argument{
 				{
 					Name:  "service",
-					Value: pointer.StringPtr("rollouts-demo-canary.default.svc.cluster.local"),
+					Value: ptr.To[string]("rollouts-demo-canary.default.svc.cluster.local"),
 				},
 			},
 			Metrics: []v1alpha1.Metric{{
@@ -2315,7 +2315,7 @@ func TestExceededTtlChecked(t *testing.T) {
 	})
 	// Test success TTL overrides completed TTL.
 	testTTLStrategy(t, &v1alpha1.TTLStrategy{
-		SecondsAfterCompletion: pointer.Int32Ptr(100000),
+		SecondsAfterCompletion: ptr.To[int32](100000),
 		SecondsAfterSuccess:    &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
@@ -2326,7 +2326,7 @@ func TestExceededTtlChecked(t *testing.T) {
 	})
 	// Test failed TTL overrides completed TTL.
 	testTTLStrategy(t, &v1alpha1.TTLStrategy{
-		SecondsAfterCompletion: pointer.Int32Ptr(100000),
+		SecondsAfterCompletion: ptr.To[int32](100000),
 		SecondsAfterFailure:    &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
@@ -2338,7 +2338,7 @@ func TestExceededTtlChecked(t *testing.T) {
 	// Test completed TTL still evaluated when non-matching overrides exist.
 	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterCompletion: &secondsOfOneDay,
-		SecondsAfterFailure:    pointer.Int32Ptr(86401),
+		SecondsAfterFailure:    ptr.To[int32](86401),
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
 		Phase:       v1alpha1.AnalysisPhaseSuccessful,
@@ -2454,7 +2454,7 @@ func TestReconcileAnalysisRunOnRunNotFound(t *testing.T) {
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			TTLStrategy: &v1alpha1.TTLStrategy{
-				SecondsAfterCompletion: pointer.Int32Ptr(1),
+				SecondsAfterCompletion: ptr.To[int32](1),
 			},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
@@ -2491,7 +2491,7 @@ func TestReconcileAnalysisRunOnOtherRunErrors(t *testing.T) {
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			TTLStrategy: &v1alpha1.TTLStrategy{
-				SecondsAfterCompletion: pointer.Int32Ptr(1),
+				SecondsAfterCompletion: ptr.To[int32](1),
 			},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
@@ -2563,7 +2563,7 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfWithDeletionTimestamp(t *testing.T)
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			TTLStrategy: &v1alpha1.TTLStrategy{
-				SecondsAfterCompletion: pointer.Int32Ptr(1),
+				SecondsAfterCompletion: ptr.To[int32](1),
 			},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
@@ -2590,7 +2590,7 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfNoCompletedAt(t *testing.T) {
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			TTLStrategy: &v1alpha1.TTLStrategy{
-				SecondsAfterCompletion: pointer.Int32Ptr(1),
+				SecondsAfterCompletion: ptr.To[int32](1),
 			},
 		},
 		Status: v1alpha1.AnalysisRunStatus{

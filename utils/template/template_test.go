@@ -7,7 +7,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 
@@ -75,7 +75,7 @@ func TestResolveArgsWithNoSubstitution(t *testing.T) {
 func TestResolveArgsRemoveWhiteSpace(t *testing.T) {
 	args := []v1alpha1.Argument{{
 		Name:  "var",
-		Value: pointer.StringPtr("foo"),
+		Value: ptr.To[string]("foo"),
 	}}
 	query, err := ResolveArgs("test-{{ args.var }}", args)
 	assert.Nil(t, err)
@@ -85,7 +85,7 @@ func TestResolveArgsRemoveWhiteSpace(t *testing.T) {
 func TestResolveArgsWithSubstitution(t *testing.T) {
 	args := []v1alpha1.Argument{{
 		Name:  "var",
-		Value: pointer.StringPtr("foo"),
+		Value: ptr.To[string]("foo"),
 	}}
 	query, err := ResolveArgs("test-{{args.var}}", args)
 	assert.Nil(t, err)
@@ -113,7 +113,7 @@ func TestResolveQuotedArgs(t *testing.T) {
 	args := []v1alpha1.Argument{
 		{
 			Name:  "var",
-			Value: pointer.StringPtr("double quotes\"newline\nand tab\t"),
+			Value: ptr.To[string]("double quotes\"newline\nand tab\t"),
 		},
 	}
 	{

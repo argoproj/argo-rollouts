@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -116,7 +116,7 @@ func TestNameCollision(t *testing.T) {
 		templateStatuses := []v1alpha1.TemplateStatus{
 			generateTemplatesStatus("bar", 0, 0, "", nil),
 		}
-		templateStatuses[0].CollisionCount = pointer.Int32Ptr(1)
+		templateStatuses[0].CollisionCount = ptr.To[int32](1)
 		validatePatch(t, patch, "", NoChange, templateStatuses, nil)
 	}
 	{
@@ -153,7 +153,7 @@ func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
 		templateStatuses := []v1alpha1.TemplateStatus{
 			generateTemplatesStatus("bar", 0, 0, "", nil),
 		}
-		templateStatuses[0].CollisionCount = pointer.Int32Ptr(1)
+		templateStatuses[0].CollisionCount = ptr.To[int32](1)
 		validatePatch(t, patch, "", NoChange, templateStatuses, nil)
 	}
 	{

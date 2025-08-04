@@ -15,7 +15,7 @@ import (
 	k8sinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -367,7 +367,7 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			oldRS.Status.AvailableReplicas = int32(test.readyPodsFromOldRS)
 
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "active-service", "preview-service")
-			rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(0)
+			rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit = ptr.To[int32](0)
 			rollout.Spec.Selector = &metav1.LabelSelector{MatchLabels: newSelector}
 
 			activeService := newService("active-service", 80, nil, nil)

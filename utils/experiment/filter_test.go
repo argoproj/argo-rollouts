@@ -7,7 +7,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -60,9 +60,9 @@ func TestSortExperimentsByPodHash(t *testing.T) {
 	}
 	exs := []*v1alpha1.Experiment{
 		ex(nil),
-		ex(pointer.StringPtr("ab")),
-		ex(pointer.StringPtr("abc")),
-		ex(pointer.StringPtr("abc")),
+		ex(ptr.To[string]("ab")),
+		ex(ptr.To[string]("abc")),
+		ex(ptr.To[string]("abc")),
 	}
 	exMap := SortExperimentsByPodHash(exs)
 	assert.Len(t, exMap, 2)

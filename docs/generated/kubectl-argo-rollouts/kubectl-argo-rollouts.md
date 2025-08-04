@@ -26,7 +26,7 @@ kubectl argo rollouts promote guestbook
 kubectl argo rollouts abort guestbook
 
 # Retry the guestbook rollout
-kubectl argo rollouts retry guestbook
+kubectl argo rollouts retry rollout guestbook
 ```
 
 ## Options

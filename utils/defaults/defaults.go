@@ -50,6 +50,8 @@ const (
 	DefaultRolloutPluginFolder = "plugin-bin"
 	// DefaultDescribeTagsLimit is the default number resources (ARNs) in a single call
 	DefaultDescribeTagsLimit int = 20
+	// Kubernetes_DNS_Limit is the maximum length of a DNS name in Kubernetes. Currently used for Analysis Job names
+	Kubernetes_DNS_Limit int = 63
 )
 
 const (
@@ -58,6 +60,7 @@ const (
 	DefaultIstioVersion                 = "v1alpha3"
 	DefaultSMITrafficSplitVersion       = "v1alpha1"
 	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
+	DefaultAlbTagKeyResourceID          = "ingress.k8s.aws/resource"
 	DefaultAppMeshCRDVersion            = "v1beta2"
 	DefaultTraefikAPIGroup              = "traefik.containo.us"
 	DefaultTraefikVersion               = "traefik.containo.us/v1alpha1"
@@ -73,6 +76,7 @@ var (
 	ambassadorAPIVersion         = DefaultAmbassadorVersion
 	smiAPIVersion                = DefaultSMITrafficSplitVersion
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
+	albTagKeyResourceID          = DefaultAlbTagKeyResourceID
 	appmeshCRDVersion            = DefaultAppMeshCRDVersion
 	defaultMetricCleanupDelay    = DefaultMetricCleanupDelay
 	defaultDescribeTagsLimit     = DefaultDescribeTagsLimit
@@ -321,6 +325,14 @@ func SetTraefikAPIGroup(apiGroup string) {
 
 func GetTraefikAPIGroup() string {
 	return traefikAPIGroup
+}
+
+func SetalbTagKeyResourceID(tagKey string) {
+	albTagKeyResourceID = tagKey
+}
+
+func GetalbTagKeyResourceID() string {
+	return albTagKeyResourceID
 }
 
 func SetTargetGroupBindingAPIVersion(apiVersion string) {
