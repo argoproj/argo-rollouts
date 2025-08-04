@@ -13164,6 +13164,9 @@ spec:
                                   type: array
                                 duration:
                                   type: string
+                                scaleDownDelaySeconds:
+                                  format: int32
+                                  type: integer
                                 templates:
                                   items:
                                     properties:
