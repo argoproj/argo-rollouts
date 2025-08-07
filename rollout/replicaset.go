@@ -177,12 +177,12 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 
 	if revision == 1 && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownProgressively {
 		// NOTE: Progressive deployment scaling is designed for one-time migration from Deployment to Rollout.
-        // It only triggers on revision == 1, which has a limitation: if the initial rollout (revision 1) fails
-        // and users fix the issue causing a new revision (revision 2+), the deployment will never be scaled down.
-        // This matches the behavior of scaleDown: onSuccess and may need to be addressed in a future enhancement.
-        //
-        // When healthy: Scale deployment to 0 to prevent external controllers (HPA/KEDA) from interfering
-        // When not healthy: Scale deployment based on rollout's ready replicas to maintain availability
+		// It only triggers on revision == 1, which has a limitation: if the initial rollout (revision 1) fails
+		// and users fix the issue causing a new revision (revision 2+), the deployment will never be scaled down.
+		// This matches the behavior of scaleDown: onSuccess and may need to be addressed in a future enhancement.
+		//
+		// When healthy: Scale deployment to 0 to prevent external controllers (HPA/KEDA) from interfering
+		// When not healthy: Scale deployment based on rollout's ready replicas to maintain availability
 		if c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy {
 			var targetScale int32 = 0
 			err = c.scaleDeployment(&targetScale)
