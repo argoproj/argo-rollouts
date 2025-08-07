@@ -101,6 +101,7 @@ install-tools-local: install-go-tools-local install-protoc-local install-devtool
 
 TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name openapi_generated.go -not -name '*generated*' -not -name '*test.go')
 APIMACHINERY_PKGS=k8s.io/apimachinery/pkg/util/intstr,+k8s.io/apimachinery/pkg/api/resource,+k8s.io/apimachinery/pkg/runtime/schema,+k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/api/batch/v1
+PKG := $(shell go list ./pkg/apis/rollouts/v1alpha1)
 
 .PHONY: install-toolchain
 install-toolchain: install-go-tools-local install-protoc-local
@@ -118,23 +119,29 @@ gen-proto: k8s-proto api-proto ui-proto
 # generates the .proto files affected by changes to types.go
 .PHONY: k8s-proto
 k8s-proto: go-mod-vendor install-protoc-local install-go-tools-local $(TYPES) ## generate kubernetes protobuf files
+	mkdir -p ${PKG}
+	cp -f $(CURDIR)/pkg/apis/rollouts/v1alpha1/*.* ${PKG}/
 	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} go-to-protobuf \
 		--go-header-file=./hack/custom-boilerplate.go.txt \
-		--packages=github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
+		--packages=${PKG} \
 		--apimachinery-packages=${APIMACHINERY_PKGS} \
 		--proto-import=${CURDIR}/vendor \
 		--proto-import=${GOPATH}/src \
-		--proto-import=${DIST_DIR}/protoc-include
+		--proto-import=${DIST_DIR}/protoc-include 
 	touch pkg/apis/rollouts/v1alpha1/generated.proto
 	cp -Rf $(CURDIR)/github.com/argoproj/argo-rollouts/pkg . | true
-	# removing generated files
+	# cleaning up
 	rm -Rf $(CURDIR)/github.com/
 	rm -Rf $(CURDIR)/k8s.io/
 
 # generates *.pb.go, *.pb.gw.go, swagger from .proto files
 .PHONY: api-proto
 api-proto: go-mod-vendor k8s-proto ## generate api protobuf files
+	mkdir -p ${PKG}
+	cp -f $(CURDIR)/pkg/apis/rollouts/v1alpha1/generated.proto ${PKG}
 	$(call protoc,pkg/apiclient/rollout/rollout.proto)
+	# cleaning up
+	rm -Rf $(CURDIR)/github.com/
 
 # generates ui related proto files
 .PHONY: ui-proto
@@ -283,6 +290,8 @@ manifests: ## generate manifests e.g. CRD, RBAC etc.
 clean: ## clean up build artifacts
 	-rm -rf ${CURRENT_DIR}/dist
 	-rm -rf ${CURRENT_DIR}/ui/dist
+	-rm -Rf ${CURRENT_DIR}/github.com/
+	-rm -Rf ${CURRENT_DIR}/k8s.io/
 
 .PHONY: precheckin
 precheckin: test lint
