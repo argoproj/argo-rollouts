@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/prometheus/common/config"
 	"net"
 	"net/http"
 	"net/url"
@@ -260,6 +261,16 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 			headers:      customHeaders,
 			roundTripper: roundTripper,
 		}
+	}
+
+	// Check if using basic auth to conect a prometheus instance (example: grafana cloud prometheus instance)
+	if metric.Provider.Prometheus.Authentication.BasicAuth.Username != "" && metric.Provider.Prometheus.Authentication.BasicAuth.Password != "" {
+		roundTripper = config.NewBasicAuthRoundTripper(
+			metric.Provider.Prometheus.Authentication.BasicAuth.Username,
+			config.Secret(metric.Provider.Prometheus.Authentication.BasicAuth.Password),
+			"",
+			"",
+			roundTripper)
 	}
 
 	//Check if using Amazon Managed Prometheus if true build sigv4 client
