@@ -64,8 +64,8 @@ define protoc
       -I ${GOPATH}/src \
       -I ${GOPATH}/pkg/mod/github.com/gogo/protobuf@v1.3.2/gogoproto \
       -I ${GOPATH}/pkg/mod/github.com/grpc-ecosystem/grpc-gateway@v1.16.0/third_party/googleapis \
-      --gogofast_out=plugins=grpc:${GOPATH}/src \
-      --grpc-gateway_out=logtostderr=true:${GOPATH}/src \
+      --gogofast_out=plugins=grpc:${CURDIR} \
+      --grpc-gateway_out=logtostderr=true:${CURDIR} \
       --swagger_out=logtostderr=true,fqn_for_swagger_name=true:. \
       $(1)
 endef
@@ -140,6 +140,7 @@ api-proto: go-mod-vendor k8s-proto ## generate api protobuf files
 	mkdir -p ${PKG}
 	cp -f $(CURDIR)/pkg/apis/rollouts/v1alpha1/generated.proto ${PKG}
 	$(call protoc,pkg/apiclient/rollout/rollout.proto)
+	cp -Rf $(CURDIR)/github.com/argoproj/argo-rollouts/pkg . | true
 	# cleaning up
 	rm -Rf $(CURDIR)/github.com/
 
