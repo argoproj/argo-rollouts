@@ -4905,6 +4905,17 @@
                                                     },
                                                     "authentication": {
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "properties": {
                                                                     "clientId": {
@@ -5016,6 +5027,17 @@
                                                 "properties": {
                                                     "authentication": {
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "properties": {
                                                                     "clientId": {
@@ -10037,6 +10059,17 @@
                                                     },
                                                     "authentication": {
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "properties": {
                                                                     "clientId": {
@@ -10148,6 +10181,17 @@
                                                 "properties": {
                                                     "authentication": {
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "properties": {
                                                                     "clientId": {
@@ -15182,6 +15226,17 @@
                                                     },
                                                     "authentication": {
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "properties": {
                                                                     "clientId": {
@@ -15293,6 +15348,17 @@
                                                 "properties": {
                                                     "authentication": {
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "properties": {
                                                                     "clientId": {
