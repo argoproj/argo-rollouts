@@ -5,7 +5,7 @@ PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/../..; pwd)
 DIST_PATH="${PROJECT_ROOT}/dist"
 PATH="${DIST_PATH}:${PATH}"
 
-protoc_version=26.1
+protoc_version=31.1
 
 OS=$(go env GOOS)
 ARCH=$(go env GOARCH)

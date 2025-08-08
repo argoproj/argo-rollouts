@@ -2962,11 +2962,11 @@
         },
         "podFailurePolicy": {
           "$ref": "#/definitions/k8s.io.api.batch.v1.PodFailurePolicy",
-          "description": "Specifies the policy of handling failed pods. In particular, it allows to\nspecify the set of actions and conditions which need to be\nsatisfied to take the associated action.\nIf empty, the default behaviour applies - the counter of failed pods,\nrepresented by the jobs's .status.failed field, is incremented and it is\nchecked against the backoffLimit. This field cannot be used in combination\nwith restartPolicy=OnFailure.\n\nThis field is beta-level. It can be used when the `JobPodFailurePolicy`\nfeature gate is enabled (enabled by default).\n+optional"
+          "description": "Specifies the policy of handling failed pods. In particular, it allows to\nspecify the set of actions and conditions which need to be\nsatisfied to take the associated action.\nIf empty, the default behaviour applies - the counter of failed pods,\nrepresented by the jobs's .status.failed field, is incremented and it is\nchecked against the backoffLimit. This field cannot be used in combination\nwith restartPolicy=OnFailure.\n\n+optional"
         },
         "successPolicy": {
           "$ref": "#/definitions/k8s.io.api.batch.v1.SuccessPolicy",
-          "description": "successPolicy specifies the policy when the Job can be declared as succeeded.\nIf empty, the default behavior applies - the Job is declared as succeeded\nonly when the number of succeeded pods equals to the completions.\nWhen the field is specified, it must be immutable and works only for the Indexed Jobs.\nOnce the Job meets the SuccessPolicy, the lingering pods are terminated.\n\nThis field  is alpha-level. To use this field, you must enable the\n`JobSuccessPolicy` feature gate (disabled by default).\n+optional"
+          "description": "successPolicy specifies the policy when the Job can be declared as succeeded.\nIf empty, the default behavior applies - the Job is declared as succeeded\nonly when the number of succeeded pods equals to the completions.\nWhen the field is specified, it must be immutable and works only for the Indexed Jobs.\nOnce the Job meets the SuccessPolicy, the lingering pods are terminated.\n\n+optional"
         },
         "backoffLimit": {
           "type": "integer",
@@ -2976,12 +2976,12 @@
         "backoffLimitPerIndex": {
           "type": "integer",
           "format": "int32",
-          "title": "Specifies the limit for the number of retries within an\nindex before marking this index as failed. When enabled the number of\nfailures per index is kept in the pod's\nbatch.kubernetes.io/job-index-failure-count annotation. It can only\nbe set when Job's completionMode=Indexed, and the Pod's restart\npolicy is Never. The field is immutable.\nThis field is beta-level. It can be used when the `JobBackoffLimitPerIndex`\nfeature gate is enabled (enabled by default).\n+optional"
+          "title": "Specifies the limit for the number of retries within an\nindex before marking this index as failed. When enabled the number of\nfailures per index is kept in the pod's\nbatch.kubernetes.io/job-index-failure-count annotation. It can only\nbe set when Job's completionMode=Indexed, and the Pod's restart\npolicy is Never. The field is immutable.\n+optional"
         },
         "maxFailedIndexes": {
           "type": "integer",
           "format": "int32",
-          "title": "Specifies the maximal number of failed indexes before marking the Job as\nfailed, when backoffLimitPerIndex is set. Once the number of failed\nindexes exceeds this number the entire Job is marked as Failed and its\nexecution is terminated. When left as null the job continues execution of\nall of its indexes and is marked with the `Complete` Job condition.\nIt can only be specified when backoffLimitPerIndex is set.\nIt can be null or up to completions. It is required and must be\nless than or equal to 10^4 when is completions greater than 10^5.\nThis field is beta-level. It can be used when the `JobBackoffLimitPerIndex`\nfeature gate is enabled (enabled by default).\n+optional"
+          "title": "Specifies the maximal number of failed indexes before marking the Job as\nfailed, when backoffLimitPerIndex is set. Once the number of failed\nindexes exceeds this number the entire Job is marked as Failed and its\nexecution is terminated. When left as null the job continues execution of\nall of its indexes and is marked with the `Complete` Job condition.\nIt can only be specified when backoffLimitPerIndex is set.\nIt can be null or up to completions. It is required and must be\nless than or equal to 10^4 when is completions greater than 10^5.\n+optional"
         },
         "selector": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector",
@@ -3014,7 +3014,7 @@
         },
         "managedBy": {
           "type": "string",
-          "description": "ManagedBy field indicates the controller that manages a Job. The k8s Job\ncontroller reconciles jobs which don't have this field at all or the field\nvalue is the reserved string `kubernetes.io/job-controller`, but skips\nreconciling Jobs with a custom value for this field.\nThe value must be a valid domain-prefixed path (e.g. acme.io/foo) -\nall characters before the first \"/\" must be a valid subdomain as defined\nby RFC 1123. All characters trailing the first \"/\" must be valid HTTP Path\ncharacters as defined by RFC 3986. The value cannot exceed 64 characters.\n\nThis field is alpha-level. The job controller accepts setting the field\nwhen the feature gate JobManagedBy is enabled (disabled by default).\n+optional"
+          "description": "ManagedBy field indicates the controller that manages a Job. The k8s Job\ncontroller reconciles jobs which don't have this field at all or the field\nvalue is the reserved string `kubernetes.io/job-controller`, but skips\nreconciling Jobs with a custom value for this field.\nThe value must be a valid domain-prefixed path (e.g. acme.io/foo) -\nall characters before the first \"/\" must be a valid subdomain as defined\nby RFC 1123. All characters trailing the first \"/\" must be valid HTTP Path\ncharacters as defined by RFC 3986. The value cannot exceed 63 characters.\nThis field is immutable.\n\nThis field is beta-level. The job controller accepts setting the field\nwhen the feature gate JobManagedBy is enabled (enabled by default).\n+optional"
         }
       },
       "description": "JobSpec describes how the job execution will look like."
@@ -3074,7 +3074,7 @@
       "properties": {
         "action": {
           "type": "string",
-          "description": "- FailJob: indicates that the pod's job is marked as Failed and all\n  running pods are terminated.\n- FailIndex: indicates that the pod's index is marked as Failed and will\n  not be restarted.\n  This value is beta-level. It can be used when the\n  `JobBackoffLimitPerIndex` feature gate is enabled (enabled by default).\n- Ignore: indicates that the counter towards the .backoffLimit is not\n  incremented and a replacement pod is created.\n- Count: indicates that the pod is handled in the default way - the\n  counter towards the .backoffLimit is incremented.\nAdditional values are considered to be added in the future. Clients should\nreact to an unknown action by skipping the rule.",
+          "description": "- FailJob: indicates that the pod's job is marked as Failed and all\n  running pods are terminated.\n- FailIndex: indicates that the pod's index is marked as Failed and will\n  not be restarted.\n- Ignore: indicates that the counter towards the .backoffLimit is not\n  incremented and a replacement pod is created.\n- Count: indicates that the pod is handled in the default way - the\n  counter towards the .backoffLimit is incremented.\nAdditional values are considered to be added in the future. Clients should\nreact to an unknown action by skipping the rule.",
           "title": "Specifies the action taken on a pod failure when the requirements are satisfied.\nPossible values are:"
         },
         "onExitCodes": {
@@ -3187,19 +3187,19 @@
         },
         "cachingMode": {
           "type": "string",
-          "title": "cachingMode is the Host Caching mode: None, Read Only, Read Write.\n+optional"
+          "title": "cachingMode is the Host Caching mode: None, Read Only, Read Write.\n+optional\n+default=ref(AzureDataDiskCachingReadWrite)"
         },
         "fsType": {
           "type": "string",
-          "title": "fsType is Filesystem type to mount.\nMust be a filesystem type supported by the host operating system.\nEx. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.\n+optional"
+          "title": "fsType is Filesystem type to mount.\nMust be a filesystem type supported by the host operating system.\nEx. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.\n+optional\n+default=\"ext4\""
         },
         "readOnly": {
           "type": "boolean",
-          "title": "readOnly Defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.\n+optional"
+          "title": "readOnly Defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.\n+optional\n+default=false"
         },
         "kind": {
           "type": "string",
-          "title": "kind expected values are Shared: multiple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared"
+          "title": "kind expected values are Shared: multiple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared\n+default=ref(AzureSharedBlobDisk)"
         }
       },
       "description": "AzureDisk represents an Azure Data Disk mount on the host and bind mount to the pod."
@@ -3325,20 +3325,6 @@
         }
       },
       "description": "Represents a cinder volume resource in Openstack.\nA Cinder volume must exist before mounting to a container.\nThe volume must also be in the same region as the kubelet.\nCinder volumes support ownership management and SELinux relabeling."
-    },
-    "k8s.io.api.core.v1.ClaimSource": {
-      "type": "object",
-      "properties": {
-        "resourceClaimName": {
-          "type": "string",
-          "description": "ResourceClaimName is the name of a ResourceClaim object in the same\nnamespace as this pod."
-        },
-        "resourceClaimTemplateName": {
-          "type": "string",
-          "description": "ResourceClaimTemplateName is the name of a ResourceClaimTemplate\nobject in the same namespace as this pod.\n\nThe template will be used to create a new ResourceClaim, which will\nbe bound to this pod. When this pod is deleted, the ResourceClaim\nwill also be deleted. The pod name and resource name, along with a\ngenerated component, will be used to form a unique name for the\nResourceClaim, which will be recorded in pod.status.resourceClaimStatuses.\n\nThis field is immutable and no changes will be made to the\ncorresponding ResourceClaim by the control plane after creating the\nResourceClaim."
-        }
-      },
-      "description": "ClaimSource describes a reference to a ResourceClaim.\n\nExactly one of these fields should be set.  Consumers of this type must\ntreat an empty object as if it has an unknown value."
     },
     "k8s.io.api.core.v1.ClusterTrustBundleProjection": {
       "type": "object",
@@ -3684,7 +3670,7 @@
       "properties": {
         "prefix": {
           "type": "string",
-          "title": "An optional identifier to prepend to each key in the ConfigMap. Must be a C_IDENTIFIER.\n+optional"
+          "title": "Optional text to prepend to the name of each environment variable. Must be a C_IDENTIFIER.\n+optional"
         },
         "configMapRef": {
           "$ref": "#/definitions/k8s.io.api.core.v1.ConfigMapEnvSource",
@@ -3695,7 +3681,7 @@
           "title": "The Secret to select from\n+optional"
         }
       },
-      "title": "EnvFromSource represents the source of a set of ConfigMaps"
+      "title": "EnvFromSource represents the source of a set of ConfigMaps or Secrets"
     },
     "k8s.io.api.core.v1.EnvVar": {
       "type": "object",
@@ -4011,7 +3997,8 @@
           "type": "string",
           "description": "Service is the name of the service to place in the gRPC HealthCheckRequest\n(see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).\n\nIf this is not specified, the default behavior is defined by gRPC.\n+optional\n+default=\"\""
         }
-      }
+      },
+      "description": "GRPCAction specifies an action involving a GRPC service."
     },
     "k8s.io.api.core.v1.GitRepoVolumeSource": {
       "type": "object",
@@ -4141,7 +4128,7 @@
         },
         "iscsiInterface": {
           "type": "string",
-          "title": "iscsiInterface is the interface Name that uses an iSCSI transport.\nDefaults to 'default' (tcp).\n+optional"
+          "title": "iscsiInterface is the interface Name that uses an iSCSI transport.\nDefaults to 'default' (tcp).\n+optional\n+default=\"default\""
         },
         "fsType": {
           "type": "string",
@@ -4177,6 +4164,20 @@
       },
       "description": "Represents an ISCSI disk.\nISCSI volumes can only be mounted as read/write once.\nISCSI volumes support ownership management and SELinux relabeling."
     },
+    "k8s.io.api.core.v1.ImageVolumeSource": {
+      "type": "object",
+      "properties": {
+        "reference": {
+          "type": "string",
+          "title": "Required: Image or artifact reference to be used.\nBehaves in the same way as pod.spec.containers[*].image.\nPull secrets will be assembled in the same way as for the container image by looking up node credentials, SA image pull secrets, and pod spec image pull secrets.\nMore info: https://kubernetes.io/docs/concepts/containers/images\nThis field is optional to allow higher level config management to default or override\ncontainer images in workload controllers like Deployments and StatefulSets.\n+optional"
+        },
+        "pullPolicy": {
+          "type": "string",
+          "title": "Policy for pulling OCI objects. Possible values are:\nAlways: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails.\nNever: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present.\nIfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.\nDefaults to Always if :latest tag is specified, or IfNotPresent otherwise.\n+optional"
+        }
+      },
+      "description": "ImageVolumeSource represents a image volume resource."
+    },
     "k8s.io.api.core.v1.KeyToPath": {
       "type": "object",
       "properties": {
@@ -4206,6 +4207,10 @@
         "preStop": {
           "$ref": "#/definitions/k8s.io.api.core.v1.LifecycleHandler",
           "title": "PreStop is called immediately before a container is terminated due to an\nAPI request or management event such as liveness/startup probe failure,\npreemption, resource contention, etc. The handler is not called if the\ncontainer crashes or exits. The Pod's termination grace period countdown begins before the\nPreStop hook is executed. Regardless of the outcome of the handler, the\ncontainer will eventually terminate within the Pod's termination grace\nperiod (unless delayed by finalizers). Other management of the container blocks until the hook completes\nor until the termination grace period is reached.\nMore info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks\n+optional"
+        },
+        "stopSignal": {
+          "type": "string",
+          "title": "StopSignal defines which signal will be sent to a container when it is being stopped.\nIf not specified, the default is defined by the container runtime in use.\nStopSignal can only be set for Pods with a non-empty .spec.os.name\n+optional"
         }
       },
       "description": "Lifecycle describes actions that the management system should take in response to container lifecycle\nevents. For the PostStart and PreStop lifecycle handlers, management of the container blocks\nuntil the action is complete, unless the container process fails, in which case the handler is aborted."
@@ -4215,19 +4220,19 @@
       "properties": {
         "exec": {
           "$ref": "#/definitions/k8s.io.api.core.v1.ExecAction",
-          "title": "Exec specifies the action to take.\n+optional"
+          "title": "Exec specifies a command to execute in the container.\n+optional"
         },
         "httpGet": {
           "$ref": "#/definitions/k8s.io.api.core.v1.HTTPGetAction",
-          "title": "HTTPGet specifies the http request to perform.\n+optional"
+          "title": "HTTPGet specifies an HTTP GET request to perform.\n+optional"
         },
         "tcpSocket": {
           "$ref": "#/definitions/k8s.io.api.core.v1.TCPSocketAction",
-          "title": "Deprecated. TCPSocket is NOT supported as a LifecycleHandler and kept\nfor the backward compatibility. There are no validation of this field and\nlifecycle hooks will fail in runtime when tcp handler is specified.\n+optional"
+          "title": "Deprecated. TCPSocket is NOT supported as a LifecycleHandler and kept\nfor backward compatibility. There is no validation of this field and\nlifecycle hooks will fail at runtime when it is specified.\n+optional"
         },
         "sleep": {
           "$ref": "#/definitions/k8s.io.api.core.v1.SleepAction",
-          "title": "Sleep represents the duration that the container should sleep before being terminated.\n+featureGate=PodLifecycleSleepAction\n+optional"
+          "title": "Sleep represents a duration that the container should sleep.\n+featureGate=PodLifecycleSleepAction\n+optional"
         }
       },
       "description": "LifecycleHandler defines a specific action that should be taken in a lifecycle\nhook. One and only one of the fields, except TCPSocket must be specified."
@@ -4237,10 +4242,10 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nTODO: Add other useful fields. apiVersion, kind, uid?\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names\n+optional\n+default=\"\"\n+kubebuilder:default=\"\"\nTODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896."
+          "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names\n+optional\n+default=\"\"\n+kubebuilder:default=\"\"\nTODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896."
         }
       },
-      "title": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace.\n+structType=atomic"
+      "description": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace.\n---\nNew uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.\n 1. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular\n    restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".\n    Those cannot be well described when embedded.\n 2. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.\n 3. We cannot easily change it.  Because this type is embedded in many locations, updates to this type\n    will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.\n\nInstead of using this type, create a locally provided and used type that is well-focused on your reference.\nFor example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .\n+structType=atomic"
     },
     "k8s.io.api.core.v1.NFSVolumeSource": {
       "type": "object",
@@ -4385,7 +4390,7 @@
         },
         "volumeAttributesClassName": {
           "type": "string",
-          "title": "volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim.\nIf specified, the CSI driver will create or update the volume with the attributes defined\nin the corresponding VolumeAttributesClass. This has a different purpose than storageClassName,\nit can be changed after the claim is created. An empty string value means that no VolumeAttributesClass\nwill be applied to the claim but it's not allowed to reset this field to empty string once it is set.\nIf unspecified and the PersistentVolumeClaim is unbound, the default VolumeAttributesClass\nwill be set by the persistentvolume controller if it exists.\nIf the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be\nset to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource\nexists.\nMore info: https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/\n(Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.\n+featureGate=VolumeAttributesClass\n+optional"
+          "title": "volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim.\nIf specified, the CSI driver will create or update the volume with the attributes defined\nin the corresponding VolumeAttributesClass. This has a different purpose than storageClassName,\nit can be changed after the claim is created. An empty string value means that no VolumeAttributesClass\nwill be applied to the claim but it's not allowed to reset this field to empty string once it is set.\nIf unspecified and the PersistentVolumeClaim is unbound, the default VolumeAttributesClass\nwill be set by the persistentvolume controller if it exists.\nIf the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be\nset to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource\nexists.\nMore info: https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/\n(Beta) Using this field requires the VolumeAttributesClass feature gate to be enabled (off by default).\n+featureGate=VolumeAttributesClass\n+optional"
         }
       },
       "title": "PersistentVolumeClaimSpec describes the common attributes of storage devices\nand allows a Source for provider-specific attributes"
@@ -4479,14 +4484,14 @@
           "items": {
             "type": "string"
           },
-          "title": "MatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both matchLabelKeys and labelSelector.\nAlso, matchLabelKeys cannot be set when labelSelector isn't set.\nThis is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.\n+listType=atomic\n+optional"
+          "description": "MatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both matchLabelKeys and labelSelector.\nAlso, matchLabelKeys cannot be set when labelSelector isn't set.\n\n+listType=atomic\n+optional"
         },
         "mismatchLabelKeys": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "title": "MismatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both mismatchLabelKeys and labelSelector.\nAlso, mismatchLabelKeys cannot be set when labelSelector isn't set.\nThis is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.\n+listType=atomic\n+optional"
+          "description": "MismatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both mismatchLabelKeys and labelSelector.\nAlso, mismatchLabelKeys cannot be set when labelSelector isn't set.\n\n+listType=atomic\n+optional"
         }
       },
       "title": "Defines a set of pods (namely those matching the labelSelector\nrelative to the given namespace(s)) that this pod should be\nco-located (affinity) or not co-located (anti-affinity) with,\nwhere co-located is defined as running on a node whose value of\nthe label with key \u003ctopologyKey\u003e matches that of any node on which\na pod of the set of pods is running"
@@ -4543,11 +4548,11 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Required."
+          "description": "Name is this DNS resolver option's name.\nRequired."
         },
         "value": {
           "type": "string",
-          "title": "+optional"
+          "title": "Value is this DNS resolver option's value.\n+optional"
         }
       },
       "description": "PodDNSConfigOption defines DNS resolver options of a pod."
@@ -4579,12 +4584,16 @@
           "type": "string",
           "description": "Name uniquely identifies this resource claim inside the pod.\nThis must be a DNS_LABEL."
         },
-        "source": {
-          "$ref": "#/definitions/k8s.io.api.core.v1.ClaimSource",
-          "description": "Source describes where to find the ResourceClaim."
+        "resourceClaimName": {
+          "type": "string",
+          "description": "ResourceClaimName is the name of a ResourceClaim object in the same\nnamespace as this pod.\n\nExactly one of ResourceClaimName and ResourceClaimTemplateName must\nbe set."
+        },
+        "resourceClaimTemplateName": {
+          "type": "string",
+          "description": "ResourceClaimTemplateName is the name of a ResourceClaimTemplate\nobject in the same namespace as this pod.\n\nThe template will be used to create a new ResourceClaim, which will\nbe bound to this pod. When this pod is deleted, the ResourceClaim\nwill also be deleted. The pod name and resource name, along with a\ngenerated component, will be used to form a unique name for the\nResourceClaim, which will be recorded in pod.status.resourceClaimStatuses.\n\nThis field is immutable and no changes will be made to the\ncorresponding ResourceClaim by the control plane after creating the\nResourceClaim.\n\nExactly one of ResourceClaimName and ResourceClaimTemplateName must\nbe set."
         }
       },
-      "description": "PodResourceClaim references exactly one ResourceClaim through a ClaimSource.\nIt adds a name to it that uniquely identifies the ResourceClaim inside the Pod.\nContainers that need access to the ResourceClaim reference it with this name."
+      "description": "PodResourceClaim references exactly one ResourceClaim, either directly\nor by naming a ResourceClaimTemplate which is then turned into a ResourceClaim\nfor the pod.\n\nIt adds a name to it that uniquely identifies the ResourceClaim inside the Pod.\nContainers that need access to the ResourceClaim reference it with this name."
     },
     "k8s.io.api.core.v1.PodSchedulingGate": {
       "type": "object",
@@ -4627,7 +4636,11 @@
             "type": "string",
             "format": "int64"
           },
-          "title": "A list of groups applied to the first process run in each container, in addition\nto the container's primary GID, the fsGroup (if specified), and group memberships\ndefined in the container image for the uid of the container process. If unspecified,\nno additional groups are added to any container. Note that group memberships\ndefined in the container image for the uid of the container process are still effective,\neven if they are not included in this list.\nNote that this field cannot be set when spec.os.name is windows.\n+optional\n+listType=atomic"
+          "title": "A list of groups applied to the first process run in each container, in\naddition to the container's primary GID and fsGroup (if specified).  If\nthe SupplementalGroupsPolicy feature is enabled, the\nsupplementalGroupsPolicy field determines whether these are in addition\nto or instead of any group memberships defined in the container image.\nIf unspecified, no additional groups are added, though group memberships\ndefined in the container image may still be used, depending on the\nsupplementalGroupsPolicy field.\nNote that this field cannot be set when spec.os.name is windows.\n+optional\n+listType=atomic"
+        },
+        "supplementalGroupsPolicy": {
+          "type": "string",
+          "title": "Defines how supplemental groups of the first container processes are calculated.\nValid values are \"Merge\" and \"Strict\". If not specified, \"Merge\" is used.\n(Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled\nand the container runtime must implement support for this feature.\nNote that this field cannot be set when spec.os.name is windows.\nTODO: update the default value to \"Merge\" when spec.os.name is not windows in v1.34\n+featureGate=SupplementalGroupsPolicy\n+optional"
         },
         "fsGroup": {
           "type": "string",
@@ -4653,6 +4666,10 @@
         "appArmorProfile": {
           "$ref": "#/definitions/k8s.io.api.core.v1.AppArmorProfile",
           "title": "appArmorProfile is the AppArmor options to use by the containers in this pod.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
+        },
+        "seLinuxChangePolicy": {
+          "type": "string",
+          "description": "seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod.\nIt has no effect on nodes that do not support SELinux or to volumes does not support SELinux.\nValid values are \"MountOption\" and \"Recursive\".\n\n\"Recursive\" means relabeling of all files on all Pod volumes by the container runtime.\nThis may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.\n\n\"MountOption\" mounts all eligible Pod volumes with `-o context` mount option.\nThis requires all Pods that share the same volume to use the same SELinux label.\nIt is not possible to share the same volume among privileged and unprivileged Pods.\nEligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes\nwhose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their\nCSIDriver instance. Other volumes are always re-labelled recursively.\n\"MountOption\" value is allowed only when SELinuxMount feature gate is enabled.\n\nIf not specified and SELinuxMount feature gate is enabled, \"MountOption\" is used.\nIf not specified and SELinuxMount feature gate is disabled, \"MountOption\" is used for ReadWriteOncePod volumes\nand \"Recursive\" for all other volumes.\n\nThis field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.\n\nAll Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state.\nNote that this field cannot be set when spec.os.name is windows.\n+featureGate=SELinuxChangePolicy\n+optional"
         }
       },
       "description": "PodSecurityContext holds pod-level security attributes and common container settings.\nSome fields are also present in container.securityContext.  Field values of\ncontainer.securityContext take precedence over field values of PodSecurityContext."
@@ -4672,7 +4689,7 @@
           "items": {
             "$ref": "#/definitions/k8s.io.api.core.v1.Container"
           },
-          "title": "List of initialization containers belonging to the pod.\nInit containers are executed in order prior to containers being started. If any\ninit container fails, the pod is considered to have failed and is handled according\nto its restartPolicy. The name for an init container or normal container must be\nunique among all containers.\nInit containers may not have Lifecycle actions, Readiness probes, Liveness probes, or Startup probes.\nThe resourceRequirements of an init container are taken into account during scheduling\nby finding the highest request/limit for each resource type, and then using the max of\nof that value or the sum of the normal containers. Limits are applied to init containers\nin a similar fashion.\nInit containers cannot currently be added or removed.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/\n+patchMergeKey=name\n+patchStrategy=merge\n+listType=map\n+listMapKey=name"
+          "title": "List of initialization containers belonging to the pod.\nInit containers are executed in order prior to containers being started. If any\ninit container fails, the pod is considered to have failed and is handled according\nto its restartPolicy. The name for an init container or normal container must be\nunique among all containers.\nInit containers may not have Lifecycle actions, Readiness probes, Liveness probes, or Startup probes.\nThe resourceRequirements of an init container are taken into account during scheduling\nby finding the highest request/limit for each resource type, and then using the max of\nthat value or the sum of the normal containers. Limits are applied to init containers\nin a similar fashion.\nInit containers cannot currently be added or removed.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/\n+patchMergeKey=name\n+patchStrategy=merge\n+listType=map\n+listMapKey=name"
         },
         "containers": {
           "type": "array",
@@ -4727,7 +4744,7 @@
         },
         "nodeName": {
           "type": "string",
-          "title": "NodeName is a request to schedule this pod onto a specific node. If it is non-empty,\nthe scheduler simply schedules this pod onto that node, assuming that it fits resource\nrequirements.\n+optional"
+          "title": "NodeName indicates in which node this pod is scheduled.\nIf empty, this pod is a candidate for scheduling by the scheduler defined in schedulerName.\nOnce this field is set, the kubelet for this node becomes responsible for the lifecycle of this pod.\nThis field should not be used to express a desire for the pod to be scheduled on a specific node.\nhttps://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodename\n+optional"
         },
         "hostNetwork": {
           "type": "boolean",
@@ -4838,7 +4855,7 @@
         },
         "os": {
           "$ref": "#/definitions/k8s.io.api.core.v1.PodOS",
-          "description": "Specifies the OS of the containers in the pod.\nSome pod and container fields are restricted if this is set.\n\nIf the OS field is set to linux, the following fields must be unset:\n-securityContext.windowsOptions\n\nIf the OS field is set to windows, following fields must be unset:\n- spec.hostPID\n- spec.hostIPC\n- spec.hostUsers\n- spec.securityContext.appArmorProfile\n- spec.securityContext.seLinuxOptions\n- spec.securityContext.seccompProfile\n- spec.securityContext.fsGroup\n- spec.securityContext.fsGroupChangePolicy\n- spec.securityContext.sysctls\n- spec.shareProcessNamespace\n- spec.securityContext.runAsUser\n- spec.securityContext.runAsGroup\n- spec.securityContext.supplementalGroups\n- spec.containers[*].securityContext.appArmorProfile\n- spec.containers[*].securityContext.seLinuxOptions\n- spec.containers[*].securityContext.seccompProfile\n- spec.containers[*].securityContext.capabilities\n- spec.containers[*].securityContext.readOnlyRootFilesystem\n- spec.containers[*].securityContext.privileged\n- spec.containers[*].securityContext.allowPrivilegeEscalation\n- spec.containers[*].securityContext.procMount\n- spec.containers[*].securityContext.runAsUser\n- spec.containers[*].securityContext.runAsGroup\n+optional"
+          "description": "Specifies the OS of the containers in the pod.\nSome pod and container fields are restricted if this is set.\n\nIf the OS field is set to linux, the following fields must be unset:\n-securityContext.windowsOptions\n\nIf the OS field is set to windows, following fields must be unset:\n- spec.hostPID\n- spec.hostIPC\n- spec.hostUsers\n- spec.securityContext.appArmorProfile\n- spec.securityContext.seLinuxOptions\n- spec.securityContext.seccompProfile\n- spec.securityContext.fsGroup\n- spec.securityContext.fsGroupChangePolicy\n- spec.securityContext.sysctls\n- spec.shareProcessNamespace\n- spec.securityContext.runAsUser\n- spec.securityContext.runAsGroup\n- spec.securityContext.supplementalGroups\n- spec.securityContext.supplementalGroupsPolicy\n- spec.containers[*].securityContext.appArmorProfile\n- spec.containers[*].securityContext.seLinuxOptions\n- spec.containers[*].securityContext.seccompProfile\n- spec.containers[*].securityContext.capabilities\n- spec.containers[*].securityContext.readOnlyRootFilesystem\n- spec.containers[*].securityContext.privileged\n- spec.containers[*].securityContext.allowPrivilegeEscalation\n- spec.containers[*].securityContext.procMount\n- spec.containers[*].securityContext.runAsUser\n- spec.containers[*].securityContext.runAsGroup\n+optional"
         },
         "hostUsers": {
           "type": "boolean",
@@ -4857,6 +4874,10 @@
             "$ref": "#/definitions/k8s.io.api.core.v1.PodResourceClaim"
           },
           "description": "ResourceClaims defines which ResourceClaims must be allocated\nand reserved before the Pod is allowed to start. The resources\nwill be made available to those containers which consume them\nby name.\n\nThis is an alpha field and requires enabling the\nDynamicResourceAllocation feature gate.\n\nThis field is immutable.\n\n+patchMergeKey=name\n+patchStrategy=merge,retainKeys\n+listType=map\n+listMapKey=name\n+featureGate=DynamicResourceAllocation\n+optional"
+        },
+        "resources": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.ResourceRequirements",
+          "description": "Resources is the total amount of CPU and Memory resources required by all\ncontainers in the pod. It supports specifying Requests and Limits for\n\"cpu\" and \"memory\" resource names only. ResourceClaims are not supported.\n\nThis field enables fine-grained control over resource allocation for the\nentire pod, allowing resource sharing among containers in a pod.\nTODO: For beta graduation, expand this comment with a detailed explanation.\n\nThis is an alpha field and requires enabling the PodLevelResources feature\ngate.\n\n+featureGate=PodLevelResources\n+optional"
         }
       },
       "description": "PodSpec is a description of a pod."
@@ -4953,19 +4974,19 @@
       "properties": {
         "exec": {
           "$ref": "#/definitions/k8s.io.api.core.v1.ExecAction",
-          "title": "Exec specifies the action to take.\n+optional"
+          "title": "Exec specifies a command to execute in the container.\n+optional"
         },
         "httpGet": {
           "$ref": "#/definitions/k8s.io.api.core.v1.HTTPGetAction",
-          "title": "HTTPGet specifies the http request to perform.\n+optional"
+          "title": "HTTPGet specifies an HTTP GET request to perform.\n+optional"
         },
         "tcpSocket": {
           "$ref": "#/definitions/k8s.io.api.core.v1.TCPSocketAction",
-          "title": "TCPSocket specifies an action involving a TCP port.\n+optional"
+          "title": "TCPSocket specifies a connection to a TCP port.\n+optional"
         },
         "grpc": {
           "$ref": "#/definitions/k8s.io.api.core.v1.GRPCAction",
-          "title": "GRPC specifies an action involving a GRPC port.\n+optional"
+          "title": "GRPC specifies a GRPC HealthCheckRequest.\n+optional"
         }
       },
       "description": "ProbeHandler defines a specific action that should be taken in a probe.\nOne and only one of the fields must be specified."
@@ -4978,7 +4999,7 @@
           "items": {
             "$ref": "#/definitions/k8s.io.api.core.v1.VolumeProjection"
           },
-          "title": "sources is the list of volume projections\n+optional\n+listType=atomic"
+          "title": "sources is the list of volume projections. Each entry in this list\nhandles one source.\n+optional\n+listType=atomic"
         },
         "defaultMode": {
           "type": "integer",
@@ -5038,15 +5059,15 @@
         },
         "pool": {
           "type": "string",
-          "title": "pool is the rados pool name.\nDefault is rbd.\nMore info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it\n+optional"
+          "title": "pool is the rados pool name.\nDefault is rbd.\nMore info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it\n+optional\n+default=\"rbd\""
         },
         "user": {
           "type": "string",
-          "title": "user is the rados user name.\nDefault is admin.\nMore info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it\n+optional"
+          "title": "user is the rados user name.\nDefault is admin.\nMore info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it\n+optional\n+default=\"admin\""
         },
         "keyring": {
           "type": "string",
-          "title": "keyring is the path to key ring for RBDUser.\nDefault is /etc/ceph/keyring.\nMore info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it\n+optional"
+          "title": "keyring is the path to key ring for RBDUser.\nDefault is /etc/ceph/keyring.\nMore info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it\n+optional\n+default=\"/etc/ceph/keyring\""
         },
         "secretRef": {
           "$ref": "#/definitions/k8s.io.api.core.v1.LocalObjectReference",
@@ -5065,6 +5086,10 @@
         "name": {
           "type": "string",
           "description": "Name must match the name of one entry in pod.spec.resourceClaims of\nthe Pod where this field is used. It makes that resource available\ninside a container."
+        },
+        "request": {
+          "type": "string",
+          "description": "Request is the name chosen for a request in the referenced claim.\nIf empty, everything from the claim is made available, otherwise\nonly the result of this request.\n\n+optional"
         }
       },
       "description": "ResourceClaim references one entry in PodSpec.ResourceClaims."
@@ -5165,7 +5190,7 @@
         },
         "storageMode": {
           "type": "string",
-          "title": "storageMode indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned.\nDefault is ThinProvisioned.\n+optional"
+          "title": "storageMode indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned.\nDefault is ThinProvisioned.\n+optional\n+default=\"ThinProvisioned\""
         },
         "volumeName": {
           "type": "string",
@@ -5173,7 +5198,7 @@
         },
         "fsType": {
           "type": "string",
-          "title": "fsType is the filesystem type to mount.\nMust be a filesystem type supported by the host operating system.\nEx. \"ext4\", \"xfs\", \"ntfs\".\nDefault is \"xfs\".\n+optional"
+          "title": "fsType is the filesystem type to mount.\nMust be a filesystem type supported by the host operating system.\nEx. \"ext4\", \"xfs\", \"ntfs\".\nDefault is \"xfs\".\n+optional\n+default=\"xfs\""
         },
         "readOnly": {
           "type": "boolean",
@@ -5318,7 +5343,7 @@
         },
         "procMount": {
           "type": "string",
-          "title": "procMount denotes the type of proc mount to use for the containers.\nThe default is DefaultProcMount which uses the container runtime defaults for\nreadonly paths and masked paths.\nThis requires the ProcMountType feature flag to be enabled.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
+          "title": "procMount denotes the type of proc mount to use for the containers.\nThe default value is Default which uses the container runtime defaults for\nreadonly paths and masked paths.\nThis requires the ProcMountType feature flag to be enabled.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "seccompProfile": {
           "$ref": "#/definitions/k8s.io.api.core.v1.SeccompProfile",
@@ -5469,11 +5494,11 @@
         },
         "nodeAffinityPolicy": {
           "type": "string",
-          "description": "NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector\nwhen calculating pod topology spread skew. Options are:\n- Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations.\n- Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.\n\nIf this value is nil, the behavior is equivalent to the Honor policy.\nThis is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.\n+optional"
+          "description": "NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector\nwhen calculating pod topology spread skew. Options are:\n- Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations.\n- Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.\n\nIf this value is nil, the behavior is equivalent to the Honor policy.\n+optional"
         },
         "nodeTaintsPolicy": {
           "type": "string",
-          "description": "NodeTaintsPolicy indicates how we will treat node taints when calculating\npod topology spread skew. Options are:\n- Honor: nodes without taints, along with tainted nodes for which the incoming pod\nhas a toleration, are included.\n- Ignore: node taints are ignored. All nodes are included.\n\nIf this value is nil, the behavior is equivalent to the Ignore policy.\nThis is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.\n+optional"
+          "description": "NodeTaintsPolicy indicates how we will treat node taints when calculating\npod topology spread skew. Options are:\n- Honor: nodes without taints, along with tainted nodes for which the incoming pod\nhas a toleration, are included.\n- Ignore: node taints are ignored. All nodes are included.\n\nIf this value is nil, the behavior is equivalent to the Ignore policy.\n+optional"
         },
         "matchLabelKeys": {
           "type": "array",
@@ -5501,7 +5526,7 @@
           "title": "Name is the name of resource being referenced"
         }
       },
-      "title": "TypedLocalObjectReference contains enough information to let you locate the\ntyped referenced object inside the same namespace.\n+structType=atomic"
+      "description": "TypedLocalObjectReference contains enough information to let you locate the\ntyped referenced object inside the same namespace.\n---\nNew uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.\n 1. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular\n    restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".\n    Those cannot be well described when embedded.\n 2. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.\n 3. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity\n    during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple\n    and the version of the actual struct is irrelevant.\n 4. We cannot easily change it.  Because this type is embedded in many locations, updates to this type\n    will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.\n\nInstead of using this type, create a locally provided and used type that is well-focused on your reference.\nFor example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .\n+structType=atomic"
     },
     "k8s.io.api.core.v1.TypedObjectReference": {
       "type": "object",
@@ -5522,7 +5547,8 @@
           "type": "string",
           "title": "Namespace is the namespace of resource being referenced\nNote that when a namespace is specified, a gateway.networking.k8s.io/ReferenceGrant object is required in the referent namespace to allow that namespace's owner to accept the reference. See the ReferenceGrant documentation for details.\n(Alpha) This field requires the CrossNamespaceVolumeDataSource feature gate to be enabled.\n+featureGate=CrossNamespaceVolumeDataSource\n+optional"
         }
-      }
+      },
+      "title": "TypedObjectReference contains enough information to let you locate the typed referenced object"
     },
     "k8s.io.api.core.v1.Volume": {
       "type": "object",
@@ -5610,7 +5636,7 @@
           "description": "ClusterTrustBundle allows a pod to access the `.spec.trustBundle` field\nof ClusterTrustBundle objects in an auto-updating file.\n\nAlpha, gated by the ClusterTrustBundleProjection feature gate.\n\nClusterTrustBundle objects can either be selected by name, or by the\ncombination of signer name and a label selector.\n\nKubelet performs aggressive normalization of the PEM contents written\ninto the pod filesystem.  Esoteric PEM features such as inter-block\ncomments and block headers are stripped.  Certificates are deduplicated.\nThe ordering of certificates within the file is arbitrary, and Kubelet\nmay change the order over time.\n\n+featureGate=ClusterTrustBundleProjection\n+optional"
         }
       },
-      "title": "Projection that may be projected along with other supported volume types"
+      "description": "Projection that may be projected along with other supported volume types.\nExactly one of these fields must be set."
     },
     "k8s.io.api.core.v1.VolumeResourceRequirements": {
       "type": "object",
@@ -5645,15 +5671,15 @@
         },
         "gcePersistentDisk": {
           "$ref": "#/definitions/k8s.io.api.core.v1.GCEPersistentDiskVolumeSource",
-          "title": "gcePersistentDisk represents a GCE Disk resource that is attached to a\nkubelet's host machine and then exposed to the pod.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk\n+optional"
+          "title": "gcePersistentDisk represents a GCE Disk resource that is attached to a\nkubelet's host machine and then exposed to the pod.\nDeprecated: GCEPersistentDisk is deprecated. All operations for the in-tree\ngcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk\n+optional"
         },
         "awsElasticBlockStore": {
           "$ref": "#/definitions/k8s.io.api.core.v1.AWSElasticBlockStoreVolumeSource",
-          "title": "awsElasticBlockStore represents an AWS Disk resource that is attached to a\nkubelet's host machine and then exposed to the pod.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore\n+optional"
+          "title": "awsElasticBlockStore represents an AWS Disk resource that is attached to a\nkubelet's host machine and then exposed to the pod.\nDeprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree\nawsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore\n+optional"
         },
         "gitRepo": {
           "$ref": "#/definitions/k8s.io.api.core.v1.GitRepoVolumeSource",
-          "title": "gitRepo represents a git repository at a particular revision.\nDEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an\nEmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir\ninto the Pod's container.\n+optional"
+          "title": "gitRepo represents a git repository at a particular revision.\nDeprecated: GitRepo is deprecated. To provision a container with a git repo, mount an\nEmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir\ninto the Pod's container.\n+optional"
         },
         "secret": {
           "$ref": "#/definitions/k8s.io.api.core.v1.SecretVolumeSource",
@@ -5669,7 +5695,7 @@
         },
         "glusterfs": {
           "$ref": "#/definitions/k8s.io.api.core.v1.GlusterfsVolumeSource",
-          "title": "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime.\nMore info: https://examples.k8s.io/volumes/glusterfs/README.md\n+optional"
+          "title": "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime.\nDeprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported.\nMore info: https://examples.k8s.io/volumes/glusterfs/README.md\n+optional"
         },
         "persistentVolumeClaim": {
           "$ref": "#/definitions/k8s.io.api.core.v1.PersistentVolumeClaimVolumeSource",
@@ -5677,23 +5703,23 @@
         },
         "rbd": {
           "$ref": "#/definitions/k8s.io.api.core.v1.RBDVolumeSource",
-          "title": "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime.\nMore info: https://examples.k8s.io/volumes/rbd/README.md\n+optional"
+          "title": "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime.\nDeprecated: RBD is deprecated and the in-tree rbd type is no longer supported.\nMore info: https://examples.k8s.io/volumes/rbd/README.md\n+optional"
         },
         "flexVolume": {
           "$ref": "#/definitions/k8s.io.api.core.v1.FlexVolumeSource",
-          "title": "flexVolume represents a generic volume resource that is\nprovisioned/attached using an exec based plugin.\n+optional"
+          "title": "flexVolume represents a generic volume resource that is\nprovisioned/attached using an exec based plugin.\nDeprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.\n+optional"
         },
         "cinder": {
           "$ref": "#/definitions/k8s.io.api.core.v1.CinderVolumeSource",
-          "title": "cinder represents a cinder volume attached and mounted on kubelets host machine.\nMore info: https://examples.k8s.io/mysql-cinder-pd/README.md\n+optional"
+          "title": "cinder represents a cinder volume attached and mounted on kubelets host machine.\nDeprecated: Cinder is deprecated. All operations for the in-tree cinder type\nare redirected to the cinder.csi.openstack.org CSI driver.\nMore info: https://examples.k8s.io/mysql-cinder-pd/README.md\n+optional"
         },
         "cephfs": {
           "$ref": "#/definitions/k8s.io.api.core.v1.CephFSVolumeSource",
-          "title": "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime\n+optional"
+          "title": "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime.\nDeprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.\n+optional"
         },
         "flocker": {
           "$ref": "#/definitions/k8s.io.api.core.v1.FlockerVolumeSource",
-          "title": "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running\n+optional"
+          "title": "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running.\nDeprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.\n+optional"
         },
         "downwardAPI": {
           "$ref": "#/definitions/k8s.io.api.core.v1.DownwardAPIVolumeSource",
@@ -5705,7 +5731,7 @@
         },
         "azureFile": {
           "$ref": "#/definitions/k8s.io.api.core.v1.AzureFileVolumeSource",
-          "title": "azureFile represents an Azure File Service mount on the host and bind mount to the pod.\n+optional"
+          "title": "azureFile represents an Azure File Service mount on the host and bind mount to the pod.\nDeprecated: AzureFile is deprecated. All operations for the in-tree azureFile type\nare redirected to the file.csi.azure.com CSI driver.\n+optional"
         },
         "configMap": {
           "$ref": "#/definitions/k8s.io.api.core.v1.ConfigMapVolumeSource",
@@ -5713,19 +5739,19 @@
         },
         "vsphereVolume": {
           "$ref": "#/definitions/k8s.io.api.core.v1.VsphereVirtualDiskVolumeSource",
-          "title": "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine\n+optional"
+          "title": "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine.\nDeprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type\nare redirected to the csi.vsphere.vmware.com CSI driver.\n+optional"
         },
         "quobyte": {
           "$ref": "#/definitions/k8s.io.api.core.v1.QuobyteVolumeSource",
-          "title": "quobyte represents a Quobyte mount on the host that shares a pod's lifetime\n+optional"
+          "title": "quobyte represents a Quobyte mount on the host that shares a pod's lifetime.\nDeprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.\n+optional"
         },
         "azureDisk": {
           "$ref": "#/definitions/k8s.io.api.core.v1.AzureDiskVolumeSource",
-          "title": "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.\n+optional"
+          "title": "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.\nDeprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type\nare redirected to the disk.csi.azure.com CSI driver.\n+optional"
         },
         "photonPersistentDisk": {
           "$ref": "#/definitions/k8s.io.api.core.v1.PhotonPersistentDiskVolumeSource",
-          "title": "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine"
+          "description": "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine.\nDeprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported."
         },
         "projected": {
           "$ref": "#/definitions/k8s.io.api.core.v1.ProjectedVolumeSource",
@@ -5733,23 +5759,28 @@
         },
         "portworxVolume": {
           "$ref": "#/definitions/k8s.io.api.core.v1.PortworxVolumeSource",
-          "title": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine\n+optional"
+          "title": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine.\nDeprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type\nare redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate\nis on.\n+optional"
         },
         "scaleIO": {
           "$ref": "#/definitions/k8s.io.api.core.v1.ScaleIOVolumeSource",
-          "title": "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.\n+optional"
+          "title": "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.\nDeprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.\n+optional"
         },
         "storageos": {
           "$ref": "#/definitions/k8s.io.api.core.v1.StorageOSVolumeSource",
-          "title": "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes.\n+optional"
+          "title": "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes.\nDeprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported.\n+optional"
         },
         "csi": {
           "$ref": "#/definitions/k8s.io.api.core.v1.CSIVolumeSource",
-          "title": "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers (Beta feature).\n+optional"
+          "title": "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers.\n+optional"
         },
         "ephemeral": {
           "$ref": "#/definitions/k8s.io.api.core.v1.EphemeralVolumeSource",
           "description": "ephemeral represents a volume that is handled by a cluster storage driver.\nThe volume's lifecycle is tied to the pod that defines it - it will be created before the pod starts,\nand deleted when the pod is removed.\n\nUse this if:\na) the volume is only needed while the pod runs,\nb) features of normal volumes like restoring from snapshot or capacity\n   tracking are needed,\nc) the storage driver is specified through a storage class, and\nd) the storage driver supports dynamic volume provisioning through\n   a PersistentVolumeClaim (see EphemeralVolumeSource for more\n   information on the connection between this volume type\n   and PersistentVolumeClaim).\n\nUse PersistentVolumeClaim or one of the vendor-specific\nAPIs for volumes that persist for longer than the lifecycle\nof an individual pod.\n\nUse CSI for light-weight local ephemeral volumes if the CSI driver is meant to\nbe used that way - see the documentation of the driver for\nmore information.\n\nA pod can use both types of ephemeral volumes and\npersistent volumes at the same time.\n\n+optional"
+        },
+        "image": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.ImageVolumeSource",
+          "description": "- Always: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails.\n- Never: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present.\n- IfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.\n\nThe volume gets re-resolved if the pod gets deleted and recreated, which means that new remote content will become available on pod recreation.\nA failure to resolve or pull the image during pod startup will block containers from starting and may add significant latency. Failures will be retried using normal volume backoff and will be reported on the pod reason and message.\nThe types of objects that may be mounted by this volume are defined by the container runtime implementation on a host machine and at minimum must include all valid types supported by the container image field.\nThe OCI object gets mounted in a single directory (spec.containers[*].volumeMounts.mountPath) by merging the manifest layers in the same way as for container images.\nThe volume will be mounted read-only (ro) and non-executable files (noexec).\nSub path mounts for containers are not supported (spec.containers[*].volumeMounts.subpath) before 1.33.\nThe field spec.securityContext.fsGroupChangePolicy has no effect on this volume type.\n+featureGate=ImageVolume\n+optional",
+          "title": "image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine.\nThe volume is resolved at pod startup depending on which PullPolicy value is provided:"
         }
       },
       "description": "Represents the source of a volume to mount.\nOnly one of its members may be specified."
