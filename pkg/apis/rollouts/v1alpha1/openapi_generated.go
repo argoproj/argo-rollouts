@@ -1254,20 +1254,6 @@ func schema_pkg_apis_rollouts_v1alpha1_BasicAuthConfig(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
-					"usernameFile": {
-						SchemaProps: spec.SchemaProps{
-							Description: "UsernameFile the file username",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"passwordFile": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PasswordFile the file password",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 				},
 			},
 		},
