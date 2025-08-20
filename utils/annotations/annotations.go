@@ -194,6 +194,12 @@ func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 		newRS.Annotations[RevisionAnnotation] = newRevision
 		annotationChanged = true
 		logCtx.Infof("Updating replica set '%s' revision from %d to %d", newRS.Name, oldRevisionInt, newRevisionInt)
+
+		// Also update the pod template annotation when revision changes for downward API access
+		if newRS.Spec.Template.Annotations == nil {
+			newRS.Spec.Template.Annotations = make(map[string]string)
+		}
+		newRS.Spec.Template.Annotations[RevisionAnnotation] = newRevision
 	}
 	// If a revision annotation already existed and this replica set was updated with a new revision
 	// then that means we are rolling back to this replica set. We need to preserve the old revisions
