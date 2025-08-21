@@ -321,17 +321,32 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 }
 
 func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
-	// We need to check if the replicasets are ready here as well if we didn't define any services in the rollout
-	// See: https://github.com/argoproj/argo-rollouts/issues/2507
-	if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" {
-
-		for _, rs := range r.replicaSets {
-			if *rs.Spec.Replicas > 0 {
-				rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-				// Only check availability for ReplicaSets that will receive traffic
-				if (rsHash == stableHash || rsHash == canaryHash) && rsHash != "" && !replicasetutil.IsReplicaSetAvailable(rs) {
+	// Check if ReplicaSets are ready before updating DestinationRule
+	// This applies to both scenarios: with and without defined services
+	// See: https://github.com/argoproj/argo-rollouts/issues/2507, #4299, and #4390
+	for _, rs := range r.replicaSets {
+		if *rs.Spec.Replicas > 0 {
+			rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			// Only check availability for ReplicaSets that will receive traffic
+			if (rsHash == stableHash || rsHash == canaryHash) && rsHash != "" && !replicasetutil.IsReplicaSetAvailable(rs) {
+				// Different behavior based on scenario:
+				// 1. No services defined (issue #2507): Always return error unless abort
+				// 2. Services defined (issue #4390): Return error for stable RS during normal transitions
+				if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" {
+					// For rollouts without defined services (original #2507 fix)
+					// Always return nil to delay the update when any RS that will receive traffic is not available
+					// This preserves the original behavior for issue #2507
 					r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
 					return nil
+				} else {
+					// For rollouts with defined services (issue #4390 fix)
+					// Only block on stable RS during normal transitions to prevent traffic routing issues
+					// Allow abort scenarios to proceed to avoid deadlock
+					if rsHash == stableHash && canaryHash != "" {
+						return fmt.Errorf("replicaSet %s not fully available, delaying destination rule switch", rs.Name)
+					}
+					// For abort scenarios (canaryHash == "") or canary RS issues, continue processing
+					// Don't return here - let the DestinationRule update proceed
 				}
 			}
 		}
