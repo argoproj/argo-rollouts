@@ -3740,7 +3740,7 @@
 </code></pre></div>
 </li>
 <li>
-<p>Add annotation in application yaml file to enable notifications for specific argocd app.  The following example uses the <a href="../catalog.md#triggers">on-sync-succeeded trigger</a>:</p>
+<p>Add annotation in application yaml file to enable notifications for specific argocd app.  The following example uses the <a href="../../../features/notifications/#custom-triggers">on-sync-succeeded trigger</a>:</p>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="w">  </span><span class="nt">metadata</span><span class="p">:</span>
@@ -3749,7 +3749,7 @@
 </code></pre></div>
 </li>
 <li>
-<p>Annotation with more than one <a href="../catalog.md#triggers">trigger</a>, with multiple destinations and recipients</p>
+<p>Annotation with more than one <a href="../../../features/notifications/#custom-triggers">trigger</a>, with multiple destinations and recipients</p>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="w">  </span><span class="nt">metadata</span><span class="p">:</span>
@@ -3769,7 +3769,7 @@
 </li>
 </ol>
 <h2 id="templates">Templates<a class="headerlink" href="#templates" title="Permanent link">&para;</a></h2>
-<p><a href="../templates.md">Notification templates</a> can be customized to leverage slack message blocks and attachments
+<p><a href="../../../features/notifications/#templates">Notification templates</a> can be customized to leverage slack message blocks and attachments
 <a href="https://api.slack.com/messaging/composing/layouts">feature</a>.</p>
 <p><img alt="" src="https://user-images.githubusercontent.com/426437/72776856-6dcef880-3bc8-11ea-8e3b-c72df16ee8e6.png" /></p>
 <p>The message blocks and attachments can be specified in <code>blocks</code> and <code>attachments</code> string fields under <code>slack</code> field:</p>
