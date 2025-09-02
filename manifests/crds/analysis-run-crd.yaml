@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: analysisruns.argoproj.io
 spec:
   group: argoproj.io
@@ -1055,6 +1055,8 @@ spec:
                                                         - port
                                                         type: object
                                                     type: object
+                                                  stopSignal:
+                                                    type: string
                                                 type: object
                                               livenessProbe:
                                                 properties:
@@ -1075,6 +1077,7 @@ spec:
                                                         format: int32
                                                         type: integer
                                                       service:
+                                                        default: ""
                                                         type: string
                                                     required:
                                                     - port
@@ -1181,6 +1184,7 @@ spec:
                                                         format: int32
                                                         type: integer
                                                       service:
+                                                        default: ""
                                                         type: string
                                                     required:
                                                     - port
@@ -1261,6 +1265,8 @@ spec:
                                                     items:
                                                       properties:
                                                         name:
+                                                          type: string
+                                                        request:
                                                           type: string
                                                       required:
                                                       - name
@@ -1367,6 +1373,7 @@ spec:
                                                         format: int32
                                                         type: integer
                                                       service:
+                                                        default: ""
                                                         type: string
                                                     required:
                                                     - port
@@ -1748,6 +1755,8 @@ spec:
                                                         - port
                                                         type: object
                                                     type: object
+                                                  stopSignal:
+                                                    type: string
                                                 type: object
                                               livenessProbe:
                                                 properties:
@@ -1768,6 +1777,7 @@ spec:
                                                         format: int32
                                                         type: integer
                                                       service:
+                                                        default: ""
                                                         type: string
                                                     required:
                                                     - port
@@ -1874,6 +1884,7 @@ spec:
                                                         format: int32
                                                         type: integer
                                                       service:
+                                                        default: ""
                                                         type: string
                                                     required:
                                                     - port
@@ -1954,6 +1965,8 @@ spec:
                                                     items:
                                                       properties:
                                                         name:
+                                                          type: string
+                                                        request:
                                                           type: string
                                                       required:
                                                       - name
@@ -2060,6 +2073,7 @@ spec:
                                                         format: int32
                                                         type: integer
                                                       service:
+                                                        default: ""
                                                         type: string
                                                     required:
                                                     - port
@@ -2455,6 +2469,8 @@ spec:
                                                         - port
                                                         type: object
                                                     type: object
+                                                  stopSignal:
+                                                    type: string
                                                 type: object
                                               livenessProbe:
                                                 properties:
@@ -2475,6 +2491,7 @@ spec:
                                                         format: int32
                                                         type: integer
                                                       service:
+                                                        default: ""
                                                         type: string
                                                     required:
                                                     - port
@@ -2581,6 +2598,7 @@ spec:
                                                         format: int32
                                                         type: integer
                                                       service:
+                                                        default: ""
                                                         type: string
                                                     required:
                                                     - port
@@ -2661,6 +2679,8 @@ spec:
                                                     items:
                                                       properties:
                                                         name:
+                                                          type: string
+                                                        request:
                                                           type: string
                                                       required:
                                                       - name
@@ -2767,6 +2787,7 @@ spec:
                                                         format: int32
                                                         type: integer
                                                       service:
+                                                        default: ""
                                                         type: string
                                                     required:
                                                     - port
@@ -2931,13 +2952,10 @@ spec:
                                             properties:
                                               name:
                                                 type: string
-                                              source:
-                                                properties:
-                                                  resourceClaimName:
-                                                    type: string
-                                                  resourceClaimTemplateName:
-                                                    type: string
-                                                type: object
+                                              resourceClaimName:
+                                                type: string
+                                              resourceClaimTemplateName:
+                                                type: string
                                             required:
                                             - name
                                             type: object
@@ -2945,6 +2963,39 @@ spec:
                                           x-kubernetes-list-map-keys:
                                           - name
                                           x-kubernetes-list-type: map
+                                        resources:
+                                          properties:
+                                            claims:
+                                              items:
+                                                properties:
+                                                  name:
+                                                    type: string
+                                                  request:
+                                                    type: string
+                                                required:
+                                                - name
+                                                type: object
+                                              type: array
+                                              x-kubernetes-list-map-keys:
+                                              - name
+                                              x-kubernetes-list-type: map
+                                            limits:
+                                              additionalProperties:
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                x-kubernetes-int-or-string: true
+                                              type: object
+                                            requests:
+                                              additionalProperties:
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                x-kubernetes-int-or-string: true
+                                              type: object
+                                          type: object
                                         restartPolicy:
                                           type: string
                                         runtimeClassName:
@@ -2987,6 +3038,8 @@ spec:
                                             runAsUser:
                                               format: int64
                                               type: integer
+                                            seLinuxChangePolicy:
+                                              type: string
                                             seLinuxOptions:
                                               properties:
                                                 level:
@@ -3013,6 +3066,8 @@ spec:
                                                 type: integer
                                               type: array
                                               x-kubernetes-list-type: atomic
+                                            supplementalGroupsPolicy:
+                                              type: string
                                             sysctls:
                                               items:
                                                 properties:

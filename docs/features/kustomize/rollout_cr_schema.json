@@ -1547,6 +1547,9 @@
                                                                                                         }
                                                                                                     },
                                                                                                     "type": "object"
+                                                                                                },
+                                                                                                "stopSignal": {
+                                                                                                    "type": "string"
                                                                                                 }
                                                                                             },
                                                                                             "type": "object"
@@ -1576,6 +1579,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -1738,6 +1742,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -1863,6 +1868,9 @@
                                                                                                     "items": {
                                                                                                         "properties": {
                                                                                                             "name": {
+                                                                                                                "type": "string"
+                                                                                                            },
+                                                                                                            "request": {
                                                                                                                 "type": "string"
                                                                                                             }
                                                                                                         },
@@ -2023,6 +2031,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -2616,6 +2625,9 @@
                                                                                                         }
                                                                                                     },
                                                                                                     "type": "object"
+                                                                                                },
+                                                                                                "stopSignal": {
+                                                                                                    "type": "string"
                                                                                                 }
                                                                                             },
                                                                                             "type": "object"
@@ -2645,6 +2657,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -2807,6 +2820,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -2932,6 +2946,9 @@
                                                                                                     "items": {
                                                                                                         "properties": {
                                                                                                             "name": {
+                                                                                                                "type": "string"
+                                                                                                            },
+                                                                                                            "request": {
                                                                                                                 "type": "string"
                                                                                                             }
                                                                                                         },
@@ -3092,6 +3109,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -3705,6 +3723,9 @@
                                                                                                         }
                                                                                                     },
                                                                                                     "type": "object"
+                                                                                                },
+                                                                                                "stopSignal": {
+                                                                                                    "type": "string"
                                                                                                 }
                                                                                             },
                                                                                             "type": "object"
@@ -3734,6 +3755,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -3896,6 +3918,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -4021,6 +4044,9 @@
                                                                                                     "items": {
                                                                                                         "properties": {
                                                                                                             "name": {
+                                                                                                                "type": "string"
+                                                                                                            },
+                                                                                                            "request": {
                                                                                                                 "type": "string"
                                                                                                             }
                                                                                                         },
@@ -4181,6 +4207,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -4437,16 +4464,11 @@
                                                                                         "name": {
                                                                                             "type": "string"
                                                                                         },
-                                                                                        "source": {
-                                                                                            "properties": {
-                                                                                                "resourceClaimName": {
-                                                                                                    "type": "string"
-                                                                                                },
-                                                                                                "resourceClaimTemplateName": {
-                                                                                                    "type": "string"
-                                                                                                }
-                                                                                            },
-                                                                                            "type": "object"
+                                                                                        "resourceClaimName": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "resourceClaimTemplateName": {
+                                                                                            "type": "string"
                                                                                         }
                                                                                     },
                                                                                     "required": [
@@ -4459,6 +4481,62 @@
                                                                                     "name"
                                                                                 ],
                                                                                 "x-kubernetes-list-type": "map"
+                                                                            },
+                                                                            "resources": {
+                                                                                "properties": {
+                                                                                    "claims": {
+                                                                                        "items": {
+                                                                                            "properties": {
+                                                                                                "name": {
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "request": {
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "name"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "type": "array",
+                                                                                        "x-kubernetes-list-map-keys": [
+                                                                                            "name"
+                                                                                        ],
+                                                                                        "x-kubernetes-list-type": "map"
+                                                                                    },
+                                                                                    "limits": {
+                                                                                        "additionalProperties": {
+                                                                                            "anyOf": [
+                                                                                                {
+                                                                                                    "type": "integer"
+                                                                                                },
+                                                                                                {
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            ],
+                                                                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                                                            "x-kubernetes-int-or-string": true
+                                                                                        },
+                                                                                        "type": "object"
+                                                                                    },
+                                                                                    "requests": {
+                                                                                        "additionalProperties": {
+                                                                                            "anyOf": [
+                                                                                                {
+                                                                                                    "type": "integer"
+                                                                                                },
+                                                                                                {
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            ],
+                                                                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                                                            "x-kubernetes-int-or-string": true
+                                                                                        },
+                                                                                        "type": "object"
+                                                                                    }
+                                                                                },
+                                                                                "type": "object"
                                                                             },
                                                                             "restartPolicy": {
                                                                                 "type": "string"
@@ -4521,6 +4599,9 @@
                                                                                         "format": "int64",
                                                                                         "type": "integer"
                                                                                     },
+                                                                                    "seLinuxChangePolicy": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "seLinuxOptions": {
                                                                                         "properties": {
                                                                                             "level": {
@@ -4559,6 +4640,9 @@
                                                                                         },
                                                                                         "type": "array",
                                                                                         "x-kubernetes-list-type": "atomic"
+                                                                                    },
+                                                                                    "supplementalGroupsPolicy": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "sysctls": {
                                                                                         "items": {
@@ -6679,6 +6763,9 @@
                                                                                                         }
                                                                                                     },
                                                                                                     "type": "object"
+                                                                                                },
+                                                                                                "stopSignal": {
+                                                                                                    "type": "string"
                                                                                                 }
                                                                                             },
                                                                                             "type": "object"
@@ -6708,6 +6795,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -6870,6 +6958,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -6995,6 +7084,9 @@
                                                                                                     "items": {
                                                                                                         "properties": {
                                                                                                             "name": {
+                                                                                                                "type": "string"
+                                                                                                            },
+                                                                                                            "request": {
                                                                                                                 "type": "string"
                                                                                                             }
                                                                                                         },
@@ -7155,6 +7247,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -7748,6 +7841,9 @@
                                                                                                         }
                                                                                                     },
                                                                                                     "type": "object"
+                                                                                                },
+                                                                                                "stopSignal": {
+                                                                                                    "type": "string"
                                                                                                 }
                                                                                             },
                                                                                             "type": "object"
@@ -7777,6 +7873,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -7939,6 +8036,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -8064,6 +8162,9 @@
                                                                                                     "items": {
                                                                                                         "properties": {
                                                                                                             "name": {
+                                                                                                                "type": "string"
+                                                                                                            },
+                                                                                                            "request": {
                                                                                                                 "type": "string"
                                                                                                             }
                                                                                                         },
@@ -8224,6 +8325,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -8837,6 +8939,9 @@
                                                                                                         }
                                                                                                     },
                                                                                                     "type": "object"
+                                                                                                },
+                                                                                                "stopSignal": {
+                                                                                                    "type": "string"
                                                                                                 }
                                                                                             },
                                                                                             "type": "object"
@@ -8866,6 +8971,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -9028,6 +9134,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -9153,6 +9260,9 @@
                                                                                                     "items": {
                                                                                                         "properties": {
                                                                                                             "name": {
+                                                                                                                "type": "string"
+                                                                                                            },
+                                                                                                            "request": {
                                                                                                                 "type": "string"
                                                                                                             }
                                                                                                         },
@@ -9313,6 +9423,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -9569,16 +9680,11 @@
                                                                                         "name": {
                                                                                             "type": "string"
                                                                                         },
-                                                                                        "source": {
-                                                                                            "properties": {
-                                                                                                "resourceClaimName": {
-                                                                                                    "type": "string"
-                                                                                                },
-                                                                                                "resourceClaimTemplateName": {
-                                                                                                    "type": "string"
-                                                                                                }
-                                                                                            },
-                                                                                            "type": "object"
+                                                                                        "resourceClaimName": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "resourceClaimTemplateName": {
+                                                                                            "type": "string"
                                                                                         }
                                                                                     },
                                                                                     "required": [
@@ -9591,6 +9697,62 @@
                                                                                     "name"
                                                                                 ],
                                                                                 "x-kubernetes-list-type": "map"
+                                                                            },
+                                                                            "resources": {
+                                                                                "properties": {
+                                                                                    "claims": {
+                                                                                        "items": {
+                                                                                            "properties": {
+                                                                                                "name": {
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "request": {
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "name"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "type": "array",
+                                                                                        "x-kubernetes-list-map-keys": [
+                                                                                            "name"
+                                                                                        ],
+                                                                                        "x-kubernetes-list-type": "map"
+                                                                                    },
+                                                                                    "limits": {
+                                                                                        "additionalProperties": {
+                                                                                            "anyOf": [
+                                                                                                {
+                                                                                                    "type": "integer"
+                                                                                                },
+                                                                                                {
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            ],
+                                                                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                                                            "x-kubernetes-int-or-string": true
+                                                                                        },
+                                                                                        "type": "object"
+                                                                                    },
+                                                                                    "requests": {
+                                                                                        "additionalProperties": {
+                                                                                            "anyOf": [
+                                                                                                {
+                                                                                                    "type": "integer"
+                                                                                                },
+                                                                                                {
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            ],
+                                                                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                                                            "x-kubernetes-int-or-string": true
+                                                                                        },
+                                                                                        "type": "object"
+                                                                                    }
+                                                                                },
+                                                                                "type": "object"
                                                                             },
                                                                             "restartPolicy": {
                                                                                 "type": "string"
@@ -9653,6 +9815,9 @@
                                                                                         "format": "int64",
                                                                                         "type": "integer"
                                                                                     },
+                                                                                    "seLinuxChangePolicy": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "seLinuxOptions": {
                                                                                         "properties": {
                                                                                             "level": {
@@ -9691,6 +9856,9 @@
                                                                                         },
                                                                                         "type": "array",
                                                                                         "x-kubernetes-list-type": "atomic"
+                                                                                    },
+                                                                                    "supplementalGroupsPolicy": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "sysctls": {
                                                                                         "items": {
@@ -11824,6 +11992,9 @@
                                                                                                         }
                                                                                                     },
                                                                                                     "type": "object"
+                                                                                                },
+                                                                                                "stopSignal": {
+                                                                                                    "type": "string"
                                                                                                 }
                                                                                             },
                                                                                             "type": "object"
@@ -11853,6 +12024,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -12015,6 +12187,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -12140,6 +12313,9 @@
                                                                                                     "items": {
                                                                                                         "properties": {
                                                                                                             "name": {
+                                                                                                                "type": "string"
+                                                                                                            },
+                                                                                                            "request": {
                                                                                                                 "type": "string"
                                                                                                             }
                                                                                                         },
@@ -12300,6 +12476,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -12893,6 +13070,9 @@
                                                                                                         }
                                                                                                     },
                                                                                                     "type": "object"
+                                                                                                },
+                                                                                                "stopSignal": {
+                                                                                                    "type": "string"
                                                                                                 }
                                                                                             },
                                                                                             "type": "object"
@@ -12922,6 +13102,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -13084,6 +13265,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -13209,6 +13391,9 @@
                                                                                                     "items": {
                                                                                                         "properties": {
                                                                                                             "name": {
+                                                                                                                "type": "string"
+                                                                                                            },
+                                                                                                            "request": {
                                                                                                                 "type": "string"
                                                                                                             }
                                                                                                         },
@@ -13369,6 +13554,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -13982,6 +14168,9 @@
                                                                                                         }
                                                                                                     },
                                                                                                     "type": "object"
+                                                                                                },
+                                                                                                "stopSignal": {
+                                                                                                    "type": "string"
                                                                                                 }
                                                                                             },
                                                                                             "type": "object"
@@ -14011,6 +14200,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -14173,6 +14363,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -14298,6 +14489,9 @@
                                                                                                     "items": {
                                                                                                         "properties": {
                                                                                                             "name": {
+                                                                                                                "type": "string"
+                                                                                                            },
+                                                                                                            "request": {
                                                                                                                 "type": "string"
                                                                                                             }
                                                                                                         },
@@ -14458,6 +14652,7 @@
                                                                                                             "type": "integer"
                                                                                                         },
                                                                                                         "service": {
+                                                                                                            "default": "",
                                                                                                             "type": "string"
                                                                                                         }
                                                                                                     },
@@ -14714,16 +14909,11 @@
                                                                                         "name": {
                                                                                             "type": "string"
                                                                                         },
-                                                                                        "source": {
-                                                                                            "properties": {
-                                                                                                "resourceClaimName": {
-                                                                                                    "type": "string"
-                                                                                                },
-                                                                                                "resourceClaimTemplateName": {
-                                                                                                    "type": "string"
-                                                                                                }
-                                                                                            },
-                                                                                            "type": "object"
+                                                                                        "resourceClaimName": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "resourceClaimTemplateName": {
+                                                                                            "type": "string"
                                                                                         }
                                                                                     },
                                                                                     "required": [
@@ -14736,6 +14926,62 @@
                                                                                     "name"
                                                                                 ],
                                                                                 "x-kubernetes-list-type": "map"
+                                                                            },
+                                                                            "resources": {
+                                                                                "properties": {
+                                                                                    "claims": {
+                                                                                        "items": {
+                                                                                            "properties": {
+                                                                                                "name": {
+                                                                                                    "type": "string"
+                                                                                                },
+                                                                                                "request": {
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            },
+                                                                                            "required": [
+                                                                                                "name"
+                                                                                            ],
+                                                                                            "type": "object"
+                                                                                        },
+                                                                                        "type": "array",
+                                                                                        "x-kubernetes-list-map-keys": [
+                                                                                            "name"
+                                                                                        ],
+                                                                                        "x-kubernetes-list-type": "map"
+                                                                                    },
+                                                                                    "limits": {
+                                                                                        "additionalProperties": {
+                                                                                            "anyOf": [
+                                                                                                {
+                                                                                                    "type": "integer"
+                                                                                                },
+                                                                                                {
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            ],
+                                                                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                                                            "x-kubernetes-int-or-string": true
+                                                                                        },
+                                                                                        "type": "object"
+                                                                                    },
+                                                                                    "requests": {
+                                                                                        "additionalProperties": {
+                                                                                            "anyOf": [
+                                                                                                {
+                                                                                                    "type": "integer"
+                                                                                                },
+                                                                                                {
+                                                                                                    "type": "string"
+                                                                                                }
+                                                                                            ],
+                                                                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                                                            "x-kubernetes-int-or-string": true
+                                                                                        },
+                                                                                        "type": "object"
+                                                                                    }
+                                                                                },
+                                                                                "type": "object"
                                                                             },
                                                                             "restartPolicy": {
                                                                                 "type": "string"
@@ -14798,6 +15044,9 @@
                                                                                         "format": "int64",
                                                                                         "type": "integer"
                                                                                     },
+                                                                                    "seLinuxChangePolicy": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "seLinuxOptions": {
                                                                                         "properties": {
                                                                                             "level": {
@@ -14836,6 +15085,9 @@
                                                                                         },
                                                                                         "type": "array",
                                                                                         "x-kubernetes-list-type": "atomic"
+                                                                                    },
+                                                                                    "supplementalGroupsPolicy": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "sysctls": {
                                                                                         "items": {
@@ -16629,6 +16881,9 @@
                                                                                 }
                                                                             },
                                                                             "type": "object"
+                                                                        },
+                                                                        "stopSignal": {
+                                                                            "type": "string"
                                                                         }
                                                                     },
                                                                     "type": "object"
@@ -16658,6 +16913,7 @@
                                                                                     "type": "integer"
                                                                                 },
                                                                                 "service": {
+                                                                                    "default": "",
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -16820,6 +17076,7 @@
                                                                                     "type": "integer"
                                                                                 },
                                                                                 "service": {
+                                                                                    "default": "",
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -16945,6 +17202,9 @@
                                                                             "items": {
                                                                                 "properties": {
                                                                                     "name": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "request": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
@@ -17105,6 +17365,7 @@
                                                                                     "type": "integer"
                                                                                 },
                                                                                 "service": {
+                                                                                    "default": "",
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -17698,6 +17959,9 @@
                                                                                 }
                                                                             },
                                                                             "type": "object"
+                                                                        },
+                                                                        "stopSignal": {
+                                                                            "type": "string"
                                                                         }
                                                                     },
                                                                     "type": "object"
@@ -17727,6 +17991,7 @@
                                                                                     "type": "integer"
                                                                                 },
                                                                                 "service": {
+                                                                                    "default": "",
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -17889,6 +18154,7 @@
                                                                                     "type": "integer"
                                                                                 },
                                                                                 "service": {
+                                                                                    "default": "",
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -18014,6 +18280,9 @@
                                                                             "items": {
                                                                                 "properties": {
                                                                                     "name": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "request": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
@@ -18174,6 +18443,7 @@
                                                                                     "type": "integer"
                                                                                 },
                                                                                 "service": {
+                                                                                    "default": "",
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -18787,6 +19057,9 @@
                                                                                 }
                                                                             },
                                                                             "type": "object"
+                                                                        },
+                                                                        "stopSignal": {
+                                                                            "type": "string"
                                                                         }
                                                                     },
                                                                     "type": "object"
@@ -18816,6 +19089,7 @@
                                                                                     "type": "integer"
                                                                                 },
                                                                                 "service": {
+                                                                                    "default": "",
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -18978,6 +19252,7 @@
                                                                                     "type": "integer"
                                                                                 },
                                                                                 "service": {
+                                                                                    "default": "",
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -19103,6 +19378,9 @@
                                                                             "items": {
                                                                                 "properties": {
                                                                                     "name": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "request": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
@@ -19263,6 +19541,7 @@
                                                                                     "type": "integer"
                                                                                 },
                                                                                 "service": {
+                                                                                    "default": "",
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -19519,16 +19798,11 @@
                                                                 "name": {
                                                                     "type": "string"
                                                                 },
-                                                                "source": {
-                                                                    "properties": {
-                                                                        "resourceClaimName": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "resourceClaimTemplateName": {
-                                                                            "type": "string"
-                                                                        }
-                                                                    },
-                                                                    "type": "object"
+                                                                "resourceClaimName": {
+                                                                    "type": "string"
+                                                                },
+                                                                "resourceClaimTemplateName": {
+                                                                    "type": "string"
                                                                 }
                                                             },
                                                             "required": [
@@ -19541,6 +19815,62 @@
                                                             "name"
                                                         ],
                                                         "x-kubernetes-list-type": "map"
+                                                    },
+                                                    "resources": {
+                                                        "properties": {
+                                                            "claims": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "name": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "request": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "name"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "type": "array",
+                                                                "x-kubernetes-list-map-keys": [
+                                                                    "name"
+                                                                ],
+                                                                "x-kubernetes-list-type": "map"
+                                                            },
+                                                            "limits": {
+                                                                "additionalProperties": {
+                                                                    "anyOf": [
+                                                                        {
+                                                                            "type": "integer"
+                                                                        },
+                                                                        {
+                                                                            "type": "string"
+                                                                        }
+                                                                    ],
+                                                                    "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                                    "x-kubernetes-int-or-string": true
+                                                                },
+                                                                "type": "object"
+                                                            },
+                                                            "requests": {
+                                                                "additionalProperties": {
+                                                                    "anyOf": [
+                                                                        {
+                                                                            "type": "integer"
+                                                                        },
+                                                                        {
+                                                                            "type": "string"
+                                                                        }
+                                                                    ],
+                                                                    "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                                    "x-kubernetes-int-or-string": true
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     },
                                                     "restartPolicy": {
                                                         "type": "string"
@@ -19603,6 +19933,9 @@
                                                                 "format": "int64",
                                                                 "type": "integer"
                                                             },
+                                                            "seLinuxChangePolicy": {
+                                                                "type": "string"
+                                                            },
                                                             "seLinuxOptions": {
                                                                 "properties": {
                                                                     "level": {
@@ -19641,6 +19974,9 @@
                                                                 },
                                                                 "type": "array",
                                                                 "x-kubernetes-list-type": "atomic"
+                                                            },
+                                                            "supplementalGroupsPolicy": {
+                                                                "type": "string"
                                                             },
                                                             "sysctls": {
                                                                 "items": {
@@ -21203,6 +21539,9 @@
                                                                     }
                                                                 },
                                                                 "type": "object"
+                                                            },
+                                                            "stopSignal": {
+                                                                "type": "string"
                                                             }
                                                         },
                                                         "type": "object"
@@ -21232,6 +21571,7 @@
                                                                         "type": "integer"
                                                                     },
                                                                     "service": {
+                                                                        "default": "",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -21394,6 +21734,7 @@
                                                                         "type": "integer"
                                                                     },
                                                                     "service": {
+                                                                        "default": "",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -21519,6 +21860,9 @@
                                                                 "items": {
                                                                     "properties": {
                                                                         "name": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "request": {
                                                                             "type": "string"
                                                                         }
                                                                     },
@@ -21679,6 +22023,7 @@
                                                                         "type": "integer"
                                                                     },
                                                                     "service": {
+                                                                        "default": "",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -22268,6 +22613,9 @@
                                                                     }
                                                                 },
                                                                 "type": "object"
+                                                            },
+                                                            "stopSignal": {
+                                                                "type": "string"
                                                             }
                                                         },
                                                         "type": "object"
@@ -22297,6 +22645,7 @@
                                                                         "type": "integer"
                                                                     },
                                                                     "service": {
+                                                                        "default": "",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -22459,6 +22808,7 @@
                                                                         "type": "integer"
                                                                     },
                                                                     "service": {
+                                                                        "default": "",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -22584,6 +22934,9 @@
                                                                 "items": {
                                                                     "properties": {
                                                                         "name": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "request": {
                                                                             "type": "string"
                                                                         }
                                                                     },
@@ -22744,6 +23097,7 @@
                                                                         "type": "integer"
                                                                     },
                                                                     "service": {
+                                                                        "default": "",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -23348,6 +23702,9 @@
                                                                     }
                                                                 },
                                                                 "type": "object"
+                                                            },
+                                                            "stopSignal": {
+                                                                "type": "string"
                                                             }
                                                         },
                                                         "type": "object"
@@ -23377,6 +23734,7 @@
                                                                         "type": "integer"
                                                                     },
                                                                     "service": {
+                                                                        "default": "",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -23539,6 +23897,7 @@
                                                                         "type": "integer"
                                                                     },
                                                                     "service": {
+                                                                        "default": "",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -23664,6 +24023,9 @@
                                                                 "items": {
                                                                     "properties": {
                                                                         "name": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "request": {
                                                                             "type": "string"
                                                                         }
                                                                     },
@@ -23824,6 +24186,7 @@
                                                                         "type": "integer"
                                                                     },
                                                                     "service": {
+                                                                        "default": "",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -24043,16 +24406,11 @@
                                                     "name": {
                                                         "type": "string"
                                                     },
-                                                    "source": {
-                                                        "properties": {
-                                                            "resourceClaimName": {
-                                                                "type": "string"
-                                                            },
-                                                            "resourceClaimTemplateName": {
-                                                                "type": "string"
-                                                            }
-                                                        },
-                                                        "type": "object"
+                                                    "resourceClaimName": {
+                                                        "type": "string"
+                                                    },
+                                                    "resourceClaimTemplateName": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
@@ -24067,6 +24425,32 @@
                                             "x-kubernetes-list-type": "map",
                                             "x-kubernetes-patch-merge-key": "name",
                                             "x-kubernetes-patch-strategy": "merge,retainKeys"
+                                        },
+                                        "resources": {
+                                            "properties": {
+                                                "claims": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "request": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-list-map-keys": [
+                                                        "name"
+                                                    ],
+                                                    "x-kubernetes-list-type": "map"
+                                                }
+                                            },
+                                            "type": "object"
                                         },
                                         "schedulingGates": {
                                             "items": {
