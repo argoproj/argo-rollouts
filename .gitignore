@@ -2,6 +2,8 @@
 .idea/
 .DS_Store
 dist/
+github.com/
+k8s.io/
 *.iml
 # delve debug binaries
 __debug_bin*
