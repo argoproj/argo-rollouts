@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -104,7 +105,15 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	}
 
 	var apiHandler http.Handler = gwmux
-	mux.Handle("/api/", apiHandler)
+
+	// Mount API at rootPath/api/ when rootPath is configured
+	apiPath := "/api/"
+	if s.Options.RootPath != "" {
+		apiPath = path.Join("/", s.Options.RootPath, "api") + "/"
+		stripPrefix := path.Join("/", s.Options.RootPath)
+		apiHandler = http.StripPrefix(stripPrefix, gwmux)
+	}
+	mux.Handle(apiPath, apiHandler)
 	mux.HandleFunc("/", s.staticFileHttpHandler)
 
 	return &httpS

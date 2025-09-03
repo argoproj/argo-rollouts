@@ -39,7 +39,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'RESTART',
                 icon: faSync,
-                action: api.rolloutServiceRestartRollout,
+                action: api.rolloutServiceRestartRollout.bind(api),
                 tooltip: restartedAt === 'Never' ? 'Never restarted' : `Last restarted ${restartedAt}`,
                 shouldConfirm: true,
             },
@@ -49,7 +49,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'RETRY',
                 icon: faRedoAlt,
-                action: api.rolloutServiceRetryRollout,
+                action: api.rolloutServiceRetryRollout.bind(api),
                 disabled: props.rollout.status !== RolloutStatus.Degraded,
                 shouldConfirm: true,
             },
@@ -59,7 +59,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'ABORT',
                 icon: faExclamationCircle,
-                action: api.rolloutServiceAbortRollout,
+                action: api.rolloutServiceAbortRollout.bind(api),
                 disabled: !isDeploying,
                 shouldConfirm: true,
             },
@@ -69,7 +69,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'PROMOTE',
                 icon: faChevronCircleUp,
-                action: api.rolloutServicePromoteRollout,
+                action: api.rolloutServicePromoteRollout.bind(api),
                 body: {full: false},
                 disabled: !isDeploying,
                 shouldConfirm: true,
@@ -80,7 +80,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'PROMOTE-FULL',
                 icon: faArrowCircleUp,
-                action: api.rolloutServicePromoteRollout,
+                action: api.rolloutServicePromoteRollout.bind(api),
                 body: {full: true},
                 disabled: !isDeploying,
                 shouldConfirm: true,

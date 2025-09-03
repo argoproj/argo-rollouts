@@ -10,11 +10,7 @@ on:
       - 'master'
       - 'release-*'
   workflow_dispatch:
-    inputs:
-      debug_enabled:
-        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
-        required: false
-        default: false
+
 env:
   # Golang version to use across CI steps
   GOLANG_VERSION: '1.23'
@@ -119,9 +115,6 @@ jobs:
           kubectl apply -f  test/e2e/crds
       - name: Start controller
         run: make start-e2e 2>&1 | sed -r "s/[[:cntrl:]]\[[0-9]{1,3}m//g" > /tmp/e2e-controller.log &
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'}}
       - name: Run e2e tests
         run: |
           make test-e2e

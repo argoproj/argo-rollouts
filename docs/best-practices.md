@@ -160,7 +160,7 @@ in memory usage for a cluster with 1290 rollouts by changing
 
 ## Rollout a ConfigMap change
 
-Argo Rollouts is meant to work on a Kubernetes Deployment. When a ConfigMap is mounted inside one the Deployment container and a change occurs inside the ConfigMap, it won't trigger a new Rollout by default.
+Argo Rollouts is meant to work on a Kubernetes Deployment. When a ConfigMap is mounted inside one of the Deployment container and a change occurs inside the ConfigMap, it won't trigger a new Rollout by default.
 
 One technique to trigger the Rollout it to name dynamically the ConfigMap.
 For example, adding a hash of its content at the end of the name:
