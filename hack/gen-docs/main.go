@@ -42,6 +42,12 @@ func generateNotificationsDocs() {
 		if e := strReplaceDocFiles("argocd-notifications-secret", "argo-rollouts-notification-secret", files); e != nil {
 			log.Fatal(e)
 		}
+		if e := strReplaceDocFiles("../templates.md", "../../features/notifications.md#templates", files); e != nil {
+			log.Fatal(e)
+		}
+		if e := strReplaceDocFiles("../catalog.md#triggers", "../../features/notifications.md#custom-triggers", files); e != nil {
+			log.Fatal(e)
+		}
 	}
 }
 
