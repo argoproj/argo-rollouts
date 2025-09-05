@@ -526,21 +526,19 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	if err != nil {
 		return nil, err
 	}
-	currentArs, otherArs := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, rollout)
 
 	logCtx := logutil.WithRollout(rollout)
 	roCtx := rolloutContext{
-		rollout:    rollout,
-		log:        logCtx,
-		newRS:      newRS,
-		stableRS:   stableRS,
-		olderRSs:   olderRSs,
-		otherRSs:   otherRSs,
-		allRSs:     rsList,
-		currentArs: currentArs,
-		otherArs:   otherArs,
-		currentEx:  currentEx,
-		otherExs:   otherExs,
+		rollout:         rollout,
+		log:             logCtx,
+		newRS:           newRS,
+		stableRS:        stableRS,
+		olderRSs:        olderRSs,
+		otherRSs:        otherRSs,
+		allRSs:          rsList,
+		analysisContext: NewAnalysisContext(arList, rollout, logCtx, c.reconcilerBase.argoprojclientset),
+		currentEx:       currentEx,
+		otherExs:        otherExs,
 		newStatus: v1alpha1.RolloutStatus{
 			RestartedAt: rollout.Status.RestartedAt,
 			ALB:         rollout.Status.ALB,

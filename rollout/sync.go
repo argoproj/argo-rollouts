@@ -443,7 +443,11 @@ func (c *rolloutContext) reconcileRevisionHistoryLimit(oldRSs []*appsv1.ReplicaS
 	c.log.Infof("Cleaning up %d old replicasets from revision history limit %d", len(cleanableRSes), revHistoryLimit)
 
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(cleanableRSes))
-	podHashToArList := analysisutil.SortAnalysisRunByPodHash(c.otherArs)
+	otherArs := []*v1alpha1.AnalysisRun{}
+	if c.analysisContext != nil {
+		otherArs = c.analysisContext.otherArs
+	}
+	podHashToArList := analysisutil.SortAnalysisRunByPodHash(otherArs)
 	podHashToExList := experimentutil.SortExperimentsByPodHash(c.otherExs)
 	c.log.Info("Looking to cleanup old replica sets")
 	for i := int32(0); i < diff; i++ {
@@ -461,7 +465,7 @@ func (c *rolloutContext) reconcileRevisionHistoryLimit(oldRSs []*appsv1.ReplicaS
 		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
 			if ars, ok := podHashToArList[podHash]; ok {
 				c.log.Infof("Cleaning up associated analysis runs with ReplicaSet '%s'", rs.Name)
-				err := c.deleteAnalysisRuns(ars)
+				err := c.analysisContext.deleteAnalysisRuns(ars)
 				if err != nil {
 					return err
 				}
@@ -561,7 +565,7 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 // isIndefiniteStep returns whether or not the rollout is at an Experiment or Analysis or Pause step which should
 // not affect the progressDeadlineSeconds
 func isIndefiniteStep(r *v1alpha1.Rollout) bool {
-	currentStep, _ := replicasetutil.GetCurrentCanaryStep(r)
+	currentStep, _ := replicasetutil.GetCanaryStep(r)
 	if currentStep != nil && (currentStep.Experiment != nil || currentStep.Analysis != nil || currentStep.Pause != nil) {
 		return true
 	}
@@ -953,7 +957,7 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.isRollbackWithinWindow() {
 			return "Rollback within window"
 		}
-		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
+		_, currentStepIndex := replicasetutil.GetCanaryStep(c.rollout)
 		stepCount := len(c.rollout.Spec.Strategy.Canary.Steps)
 		completedAllSteps := stepCount == 0 || (currentStepIndex != nil && *currentStepIndex == int32(stepCount))
 		if completedAllSteps {
@@ -989,7 +993,7 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 			if replicasetutil.HasScaleDownDeadline(c.newRS) {
 				return fmt.Sprintf("Rollback to '%s' within scaleDownDelay", c.newRS.Name)
 			}
-			currentPostPromotionAnalysisRun := c.currentArs.BlueGreenPostPromotion
+			currentPostPromotionAnalysisRun := c.analysisContext.BlueGreenPostPromotion.AnalysisRun()
 			if currentPostPromotionAnalysisRun == nil || currentPostPromotionAnalysisRun.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
 				// we have yet to start post-promotion analysis or post-promotion was not successful
 				return ""

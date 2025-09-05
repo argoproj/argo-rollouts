@@ -38,68 +38,6 @@ func TestGetCurrentAnalysisRunByKind(t *testing.T) {
 	assert.Nil(t, currAr)
 }
 
-func TestFilterCurrentRolloutAnalysisRuns(t *testing.T) {
-	ars := []*v1alpha1.AnalysisRun{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "foo",
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "bar",
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "baz",
-			},
-		},
-		nil,
-	}
-	t.Run("Canary", func(t *testing.T) {
-		r := &v1alpha1.Rollout{
-			Status: v1alpha1.RolloutStatus{
-				Canary: v1alpha1.CanaryStatus{
-					CurrentStepAnalysisRunStatus: &v1alpha1.RolloutAnalysisRunStatus{
-						Name: "foo",
-					},
-					CurrentBackgroundAnalysisRunStatus: &v1alpha1.RolloutAnalysisRunStatus{
-						Name: "bar",
-					},
-				},
-			},
-		}
-		currentArs, nonCurrentArs := FilterCurrentRolloutAnalysisRuns(ars, r)
-		assert.Len(t, nonCurrentArs, 1)
-		assert.Equal(t, currentArs.CanaryStep, ars[0])
-		assert.Equal(t, currentArs.CanaryBackground, ars[1])
-		assert.Nil(t, currentArs.BlueGreenPostPromotion)
-		assert.Nil(t, currentArs.BlueGreenPrePromotion)
-
-	})
-	t.Run("BlueGreen", func(t *testing.T) {
-		r := &v1alpha1.Rollout{
-			Status: v1alpha1.RolloutStatus{
-				BlueGreen: v1alpha1.BlueGreenStatus{
-					PrePromotionAnalysisRunStatus: &v1alpha1.RolloutAnalysisRunStatus{
-						Name: "foo",
-					},
-					PostPromotionAnalysisRunStatus: &v1alpha1.RolloutAnalysisRunStatus{
-						Name: "bar",
-					},
-				},
-			},
-		}
-		currentArs, nonCurrentArs := FilterCurrentRolloutAnalysisRuns(ars, r)
-		assert.Len(t, nonCurrentArs, 1)
-		assert.Equal(t, currentArs.BlueGreenPrePromotion, ars[0])
-		assert.Equal(t, currentArs.BlueGreenPostPromotion, ars[1])
-		assert.Nil(t, currentArs.CanaryBackground)
-		assert.Nil(t, currentArs.CanaryStep)
-	})
-}
-
 func TestFilterAnalysisRunsByName(t *testing.T) {
 	ars := []*v1alpha1.AnalysisRun{
 		{
