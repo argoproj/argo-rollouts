@@ -76,3 +76,4 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Yuno](https://y.uno/)
 1. [VGS](https://www.vgs.io)
 1. [X3M ads](https://x3mads.com)
+1. [Inter&Co](https://inter.co)

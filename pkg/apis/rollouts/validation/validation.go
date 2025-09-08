@@ -36,6 +36,8 @@ const (
 	InvalidSetCanaryScaleTrafficPolicy = "SetCanaryScale requires TrafficRouting to be set"
 	// InvalidSetHeaderRouteTrafficPolicy indicates that TrafficRouting required for SetHeaderRoute is missing
 	InvalidSetHeaderRouteTrafficPolicy = "SetHeaderRoute requires TrafficRouting, supports Istio and ALB and Apisix"
+	// InvalidSetHeaderRouteManagedRoutes indicates that managedRoutes are missing for SetHeaderRoute
+	InvalidSetHeaderRouteManagedRoutes = "Rollout has missing field 'spec.strategy.canary.trafficRouting.managedRoutes'"
 	// InvalidSetMirrorRouteTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetMirrorRouteTrafficPolicy = "SetMirrorRoute requires TrafficRouting, supports Istio only"
 	// InvalidStringMatchMultipleValuePolicy indicates that SetCanaryScale, has multiple values set
@@ -337,12 +339,23 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setHeaderRoute"), step.SetHeaderRoute, InvalidSetHeaderRouteTrafficPolicy))
 			} else if step.SetHeaderRoute.Match != nil && len(step.SetHeaderRoute.Match) > 0 {
 				for j, match := range step.SetHeaderRoute.Match {
+					matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
 					if trafficRouting.ALB != nil {
-						matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
 						allErrs = append(allErrs, hasALBInvalidValues(match.HeaderValue, matchFld)...)
 					} else {
-						matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
-						allErrs = append(allErrs, hasMultipleMatchValues(match.HeaderValue, matchFld)...)
+						// HeaderValue is required when HeaderName is present
+						if match.HeaderName != "" && match.HeaderValue == nil {
+							allErrs = append(allErrs, field.Invalid(matchFld.Child("headerValue"), match.HeaderValue, InvalidStringMatchMissedValuePolicy))
+						}
+						if match.HeaderValue != nil {
+							allErrs = append(allErrs, hasMultipleMatchValues(match.HeaderValue, matchFld.Child("headerValue"))...)
+						}
+						if match.Method != nil {
+							allErrs = append(allErrs, hasMultipleMatchValues(match.Method, matchFld.Child("method"))...)
+						}
+						if match.Path != nil {
+							allErrs = append(allErrs, hasMultipleMatchValues(match.Path, matchFld.Child("path"))...)
+						}
 					}
 				}
 			}
