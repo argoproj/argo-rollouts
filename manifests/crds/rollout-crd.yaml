@@ -475,8 +475,6 @@ spec:
                       stableService:
                         type: string
                       steps:
-                        type: array
-                        minItems: 1
                         items:
                           properties:
                             analysis:
@@ -775,6 +773,7 @@ spec:
                               type: integer
                           type: object
                         type: array
+                        minItems: 1
                       trafficRouting:
                         properties:
                           alb:
