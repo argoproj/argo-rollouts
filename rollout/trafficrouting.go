@@ -137,6 +137,8 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	return nil, nil
 }
 
+// checkReplicasAvailable checks if the given replicaset has enough available replicas
+// for the desiredWeight taking into consideration replicaProgressThreshold.
 func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWeight int32) bool {
 	if rs == nil {
 		return false
@@ -145,7 +147,8 @@ func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWe
 	totalReplicas := *c.rollout.Spec.Replicas
 
 	desiredReplicas := (desiredWeight * totalReplicas) / 100
-	if availableReplicas < desiredReplicas {
+	if availableReplicas < desiredReplicas &&
+		!replicasetutil.ReplicaProgressThresholdMet(c.rollout.Spec.Strategy.Canary.ReplicaProgressThreshold, rs, desiredReplicas) {
 		c.log.Infof("ReplicaSet '%s' has %d available replicas, waiting for %d", rs.Name, availableReplicas, desiredReplicas)
 		return false
 	}
@@ -265,6 +268,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			}
 		}
 
+		// check if the stable RS has enough pods before recalculating the new
+		// weight status.
 		if !c.checkReplicasAvailable(c.stableRS, weightutil.MaxTrafficWeight(c.rollout)-desiredWeight) {
 			return nil
 		}
