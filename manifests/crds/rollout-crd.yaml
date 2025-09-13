@@ -475,6 +475,8 @@ spec:
                       stableService:
                         type: string
                       steps:
+                        type: array
+                        minItems: 1
                         items:
                           properties:
                             analysis:
