@@ -342,15 +342,14 @@ type TargetGroupVerifyResult struct {
 	Verified            bool
 	EndpointsRegistered int
 	EndpointsTotal      int
+	EndpointsHealthy    int // New field to track healthy endpoints
 }
 
 // VerifyTargetGroupBinding verifies if the underlying AWS TargetGroup has all Pod IPs and ports
 // from the given service (the K8s Endpoints list) registered to the TargetGroup.
-// NOTE: a previous version of this method used to additionally verify that all registered targets
-// were "healthy" (in addition to registered), but the health of registered targets is actually
-// irrelevant for our purposes of verifying the service label change was reflected in the LB.
+// When checkHealth is true, it also verifies that all registered targets are healthy.
 // Returns nil if the verification is not applicable (e.g. target type is not IP)
-func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Client, tgb TargetGroupBinding, endpoints *corev1.Endpoints, svc *corev1.Service) (*TargetGroupVerifyResult, error) {
+func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Client, tgb TargetGroupBinding, endpoints *corev1.Endpoints, svc *corev1.Service, checkHealth bool) (*TargetGroupVerifyResult, error) {
 	if tgb.Spec.TargetType == nil || *tgb.Spec.TargetType != TargetTypeIP {
 		// We only need to verify target groups using AWS CNI (spec.targetType: ip)
 		return nil, nil
@@ -365,6 +364,7 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 		"targetgroupbinding": tgb.Name,
 		"tg":                 tgb.Spec.TargetGroupARN,
 		"port":               port,
+		"checkHealth":        checkHealth,
 	})
 	targets, err := awsClnt.GetTargetGroupHealth(ctx, tgb.Spec.TargetGroupARN)
 	if err != nil {
@@ -383,6 +383,8 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 	var ignored []string
 	var verified []string
 	var unverified []string
+	var unhealthy []string
+	healthyCount := 0
 
 	// Iterate all registered targets in AWS TargetGroup. Mark all endpoint IPs which we see registered
 	for _, target := range targets {
@@ -398,15 +400,24 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 			continue
 		}
 		// Verify we see the endpoint IP registered to the TargetGroup
-		// NOTE: we used to check health here, but health is not relevant for verifying service label change
 		endpointIPs[targetStr] = true
 		verified = append(verified, targetStr)
+
+		// Check health status if required
+		if checkHealth && target.TargetHealth != nil {
+			if target.TargetHealth.State == elbv2types.TargetHealthStateEnumHealthy {
+				healthyCount++
+			} else {
+				unhealthy = append(unhealthy, targetStr)
+			}
+		}
 	}
 
 	tgvr := TargetGroupVerifyResult{
 		Service:             svc.Name,
 		EndpointsTotal:      len(endpointIPs),
 		EndpointsRegistered: len(verified),
+		EndpointsHealthy:    healthyCount,
 	}
 
 	// Check if any of our desired endpoints are not yet registered
@@ -419,7 +430,16 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 	logCtx.Infof("Ignored targets: %s", strings.Join(ignored, ", "))
 	logCtx.Infof("Verified targets: %s", strings.Join(verified, ", "))
 	logCtx.Infof("Unregistered targets: %s", strings.Join(unverified, ", "))
+	if checkHealth {
+		logCtx.Infof("Unhealthy targets: %s", strings.Join(unhealthy, ", "))
+	}
 
-	tgvr.Verified = bool(tgvr.EndpointsRegistered == tgvr.EndpointsTotal)
+	// Consider verification successful based on registration and optionally health
+	if checkHealth {
+		tgvr.Verified = bool(tgvr.EndpointsRegistered == tgvr.EndpointsTotal && tgvr.EndpointsHealthy == tgvr.EndpointsTotal)
+	} else {
+		tgvr.Verified = bool(tgvr.EndpointsRegistered == tgvr.EndpointsTotal)
+	}
+
 	return &tgvr, nil
 }

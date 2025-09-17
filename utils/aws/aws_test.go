@@ -303,7 +303,7 @@ func TestVerifyTargetGroupBindingIgnoreInstanceMode(t *testing.T) {
 			TargetType: (*TargetType)(ptr.To[string]("instance")),
 		},
 	}
-	res, err := VerifyTargetGroupBinding(context.TODO(), logCtx, awsClnt, tgb, nil, nil)
+	res, err := VerifyTargetGroupBinding(context.TODO(), logCtx, awsClnt, tgb, nil, nil, false)
 	assert.Nil(t, res)
 	assert.NoError(t, err)
 }
@@ -395,7 +395,7 @@ func TestVerifyTargetGroupBinding(t *testing.T) {
 		},
 	}
 	fakeELB.On("DescribeTargetHealth", mock.Anything, mock.Anything).Return(&thOut, nil)
-	res, err := VerifyTargetGroupBinding(context.TODO(), logCtx, awsClnt, tgb, &ep, &svc)
+	res, err := VerifyTargetGroupBinding(context.TODO(), logCtx, awsClnt, tgb, &ep, &svc, false)
 	expectedRes := TargetGroupVerifyResult{
 		Service:             "active",
 		Verified:            false,

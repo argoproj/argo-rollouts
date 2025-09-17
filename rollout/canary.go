@@ -316,7 +316,7 @@ func (c *rolloutContext) canProceedWithScaleDownAnnotation(oldRSs []*appsv1.Repl
 	if err != nil {
 		return false, err
 	}
-	err = c.awsVerifyTargetGroups(stableSvc)
+	err = c.awsVerifyTargetGroups(stableSvc, false)
 	if err != nil {
 		return false, err
 	}

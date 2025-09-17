@@ -284,6 +284,30 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			}
 		}
 
+		// Verify ALB target group health before final weight patch to prevent a race condition where
+		// ALB serves 503s. This can occur when a service's selector is changed, causing new pods to be
+		// registered as targets, but those targets have not yet passed ALB's health checks. If we
+		// update the ALB listener rules to route 100% traffic before targets are healthy, ALB will
+		// return 503 errors since there are no healthy targets available in the target group.
+		if reconciler.Type() == alb.Type && desiredWeight == weightutil.MaxTrafficWeight(c.rollout) {
+			if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.StableService != "" {
+				stableService, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.StableService)
+				if err != nil {
+					return err
+				}
+
+				err = c.awsVerifyTargetGroups(stableService, true)
+				if err != nil {
+					return err
+				}
+
+				if !c.areTargetsVerified() {
+					c.log.Infof("Waiting for ALB target group health checks to pass before applying final weight")
+					return nil
+				}
+			}
+		}
+
 		err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
 		if err != nil {
 			return err
