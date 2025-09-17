@@ -3340,3 +3340,173 @@ spec:
 		assert.Equal(t, "update", actions[0].GetVerb())
 	})
 }
+
+// TestUpdateHashIssue4390 tests the specific scenario from issue #4390:
+// When stable ReplicaSet is not ready during a canary deployment transition,
+// UpdateHash should return an error to prevent traffic routing rules from getting
+// out of sync with scaling operations, which would cause 503/UH errors.
+// This test covers rollouts WITH defined services (unlike the existing tests above).
+func TestUpdateHashIssue4390(t *testing.T) {
+	// Create a rollout WITH defined services (this is the key difference from existing tests)
+	ro := rolloutWithDestinationRule()
+	ro.Spec.Strategy.Canary.CanaryService = "canary-service"
+	ro.Spec.Strategy.Canary.StableService = "stable-service"
+
+	createReplicaSet := func(hash string, available bool) *appsv1.ReplicaSet {
+		availableReplicas := int32(0)
+		if available {
+			availableReplicas = 1
+		}
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rs-" + hash,
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: func() *int32 { i := int32(1); return &i }(),
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{
+				Replicas:          1,
+				AvailableReplicas: availableReplicas,
+			},
+		}
+	}
+
+	t.Run("normal transition with stable RS not ready should return error", func(t *testing.T) {
+		// Create a fresh client for this test
+		client := testutil.NewFakeDynamicClient()
+		vsvcLister, druleLister := getIstioListers(client)
+
+		// Issue #4390 scenario: Mid-rollout transition where stable RS is not ready
+		// This should return an error to prevent traffic routing issues
+		stableRS := createReplicaSet("stable123", false) // NOT available
+		canaryRS := createReplicaSet("canary456", true)  // Available
+		oldCanaryRS := createReplicaSet("old789", true)  // Old canary being scaled down
+
+		replicaSets := []*appsv1.ReplicaSet{stableRS, canaryRS, oldCanaryRS}
+		r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, replicaSets)
+		client.ClearActions()
+
+		// This represents the transition: old-canary (70%) + stable (30%) → new-canary (5%) + stable (95%)
+		// But stable RS is not ready, so UpdateHash should fail to prevent traffic routing issues
+		err := r.UpdateHash("canary456", "stable123")
+
+		// Should return error because stable RS is not ready during normal transition
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "replicaSet rs-stable123 not fully available")
+
+		// Verify no DestinationRule update was attempted
+		actions := client.Actions()
+		assert.Len(t, actions, 0)
+	})
+
+	t.Run("normal transition with all RS ready should succeed", func(t *testing.T) {
+		// Create a fresh client and DestinationRule for this test
+		obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+  annotations:
+    argo-rollouts.argoproj.io/managed-by-rollouts: rollout
+spec:
+  host: ratings.prod.svc.cluster.local
+  subsets:
+  - name: stable
+    labels:
+      rollouts-pod-template-hash: old-stable-hash
+  - name: canary
+    labels:
+      rollouts-pod-template-hash: old-canary-hash
+`)
+		client := testutil.NewFakeDynamicClient(obj)
+		vsvcLister, druleLister := getIstioListers(client)
+
+		// Normal case: all ReplicaSets are ready
+		stableRS := createReplicaSet("stable123", true) // Available
+		canaryRS := createReplicaSet("canary456", true) // Available
+		oldCanaryRS := createReplicaSet("old789", true) // Old canary being scaled down
+
+		replicaSets := []*appsv1.ReplicaSet{stableRS, canaryRS, oldCanaryRS}
+		r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, replicaSets)
+		client.ClearActions()
+
+		// This should succeed because both stable and canary RS are ready
+		// The hashes are different from what's in the DestinationRule, so it should update
+		err := r.UpdateHash("canary456", "stable123")
+
+		// Should succeed
+		assert.NoError(t, err)
+
+		// Verify DestinationRule was updated (should have 1 get + 1 update action)
+		actions := client.Actions()
+		assert.True(t, len(actions) >= 1, "Expected at least 1 action, got %d", len(actions))
+		// Find the update action
+		foundUpdate := false
+		for _, action := range actions {
+			if action.GetVerb() == "update" {
+				foundUpdate = true
+				break
+			}
+		}
+		assert.True(t, foundUpdate, "Expected to find an update action")
+	})
+
+	t.Run("abort scenario with stable RS not ready should succeed", func(t *testing.T) {
+		// Create a fresh client and DestinationRule for this test
+		obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+  annotations:
+    argo-rollouts.argoproj.io/managed-by-rollouts: rollout
+spec:
+  host: ratings.prod.svc.cluster.local
+  subsets:
+  - name: stable
+    labels:
+      rollouts-pod-template-hash: old-stable-hash
+  - name: canary
+    labels:
+      rollouts-pod-template-hash: old-canary-hash
+`)
+		client := testutil.NewFakeDynamicClient(obj)
+		vsvcLister, druleLister := getIstioListers(client)
+
+		// Abort scenario: canaryHash is empty, stable RS not ready
+		// This should succeed to avoid abort deadlock (issue #4299)
+		stableRS := createReplicaSet("stable123", false) // NOT available
+		oldCanaryRS := createReplicaSet("old789", false) // Old canary being cleaned up
+
+		replicaSets := []*appsv1.ReplicaSet{stableRS, oldCanaryRS}
+		r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, replicaSets)
+		client.ClearActions()
+
+		// Empty canary hash indicates abort scenario
+		err := r.UpdateHash("", "stable123")
+
+		// Should succeed even though stable RS is not ready (abort scenario)
+		assert.NoError(t, err)
+
+		// Verify DestinationRule was updated (should have 1 get + 1 update action)
+		actions := client.Actions()
+		assert.True(t, len(actions) >= 1, "Expected at least 1 action, got %d", len(actions))
+		// Find the update action
+		foundUpdate := false
+		for _, action := range actions {
+			if action.GetVerb() == "update" {
+				foundUpdate = true
+				break
+			}
+		}
+		assert.True(t, foundUpdate, "Expected to find an update action")
+	})
+}
