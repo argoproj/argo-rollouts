@@ -206,7 +206,11 @@ func TestListWithWatch(t *testing.T) {
 	watcher.Add(bg)
 	watcher.Add(can1copy)
 	watcher.Add(can2)
-	watcher.Stop()
+	// Don't stop immediately to allow all events to be processed
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		watcher.Stop()
+	}()
 	callCount := 0
 	fakeClient.AddWatchReactor("*", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
 		if callCount > 0 {
