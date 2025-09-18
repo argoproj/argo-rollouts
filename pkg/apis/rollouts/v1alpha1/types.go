@@ -571,6 +571,10 @@ type RolloutExperimentStep struct {
 	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
 	// +optional
 	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
+
+	// ScaleDownDelaySeconds is the number of seconds to wait before scaling down the old ReplicaSet
+	// +optional
+	ScaleDownDelaySeconds *int32 `json:"scaleDownDelaySeconds,omitempty" protobuf:"varint,6,opt,name=scaleDownDelaySeconds"`
 }
 
 type RolloutExperimentStepAnalysisTemplateRef struct {
