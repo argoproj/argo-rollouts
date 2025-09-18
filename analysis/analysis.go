@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubernetes/pkg/fieldpath"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -55,6 +56,18 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 	if run.Status.MetricResults == nil {
 		run.Status.MetricResults = make([]v1alpha1.MetricResult, 0)
 	}
+
+	// Resolve valueFrom references in arguments
+	resolvedArgs, err := c.resolveAnalysisRunArgs(run)
+	if err != nil {
+	       message := fmt.Sprintf("Unable to resolve valueFrom arguments: %v", err)
+	       logger.Warn(message)
+	       run.Status.Phase = v1alpha1.AnalysisPhaseError
+	       run.Status.Message = message
+	       c.recordAnalysisRunCompletionEvent(run)
+	       return run
+	}
+	run.Spec.Args = resolvedArgs
 
 	resolvedMetrics, err := getResolvedMetricsWithoutSecrets(run.Spec.Metrics, run.Spec.Args)
 	if err != nil {
@@ -137,6 +150,37 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		c.enqueueAnalysisAfter(run, enqueueSeconds)
 	}
 	return run
+}
+
+// resolveAnalysisRunArgs resolves valueFrom references in AnalysisRun arguments
+func (c *Controller) resolveAnalysisRunArgs(run *v1alpha1.AnalysisRun) ([]v1alpha1.Argument, error) {
+       resolvedArgs := []v1alpha1.Argument{}
+
+       for _, arg := range run.Spec.Args {
+               if arg.Value != nil {
+                       // Argument already has a value
+                       resolvedArgs = append(resolvedArgs, arg)
+                       continue
+               }
+
+               if arg.ValueFrom != nil && arg.ValueFrom.FieldRef != nil {
+                       // Extract value from the AnalysisRun itself
+                       value, err := fieldpath.ExtractFieldPathAsString(run, arg.ValueFrom.FieldRef.FieldPath)
+                       if err != nil {
+                               return nil, fmt.Errorf("failed to extract field %s: %w", arg.ValueFrom.FieldRef.FieldPath, err)
+                       }
+
+                       resolvedArgs = append(resolvedArgs, v1alpha1.Argument{
+                               Name:  arg.Name,
+                               Value: &value,
+                       })
+               } else {
+                       // No value or valueFrom specified, keep the argument as is
+                       resolvedArgs = append(resolvedArgs, arg)
+               }
+       }
+
+       return resolvedArgs, nil
 }
 
 func getResolvedMetricsWithoutSecrets(metrics []v1alpha1.Metric, args []v1alpha1.Argument) ([]v1alpha1.Metric, error) {

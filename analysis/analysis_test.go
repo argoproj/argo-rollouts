@@ -1701,6 +1701,169 @@ func TestKeyNotInSecret(t *testing.T) {
 	assert.Equal(t, "key 'key-name' does not exist in secret 'secret-name'", err.Error())
 }
 
+// TestResolveAnalysisRunArgsWithValue tests resolving arguments that already have values
+func TestResolveAnalysisRunArgsWithValue(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	value := "test-value"
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name:  "test-arg",
+					Value: &value,
+				},
+			},
+		},
+	}
+
+	resolvedArgs, err := c.resolveAnalysisRunArgs(run)
+	assert.NoError(t, err)
+	assert.Len(t, resolvedArgs, 1)
+	assert.Equal(t, "test-arg", resolvedArgs[0].Name)
+	assert.Equal(t, "test-value", *resolvedArgs[0].Value)
+}
+
+// TestResolveAnalysisRunArgsWithFieldRef tests resolving arguments using fieldRef
+func TestResolveAnalysisRunArgsWithFieldRef(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-run",
+			Namespace: "test-namespace",
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name: "run-name",
+					ValueFrom: &v1alpha1.ValueFrom{
+						FieldRef: &v1alpha1.FieldRef{
+							FieldPath: "metadata.name",
+						},
+					},
+				},
+				{
+					Name: "run-namespace",
+					ValueFrom: &v1alpha1.ValueFrom{
+						FieldRef: &v1alpha1.FieldRef{
+							FieldPath: "metadata.namespace",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	resolvedArgs, err := c.resolveAnalysisRunArgs(run)
+	assert.NoError(t, err)
+	assert.Len(t, resolvedArgs, 2)
+	
+	assert.Equal(t, "run-name", resolvedArgs[0].Name)
+	assert.Equal(t, "test-run", *resolvedArgs[0].Value)
+	
+	assert.Equal(t, "run-namespace", resolvedArgs[1].Name)
+	assert.Equal(t, "test-namespace", *resolvedArgs[1].Value)
+}
+
+// TestResolveAnalysisRunArgsWithFieldRefError tests error handling when fieldRef fails
+func TestResolveAnalysisRunArgsWithFieldRefError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-run",
+			Namespace: "test-namespace",
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name: "invalid-field",
+					ValueFrom: &v1alpha1.ValueFrom{
+						FieldRef: &v1alpha1.FieldRef{
+							FieldPath: "metadata.invalid.field",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := c.resolveAnalysisRunArgs(run)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to extract field metadata.invalid.field")
+}
+
+// TestResolveAnalysisRunArgsMixed tests resolving mixed argument types
+func TestResolveAnalysisRunArgsMixed(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	value := "static-value"
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-run",
+			Namespace: "test-namespace",
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name:  "static-arg",
+					Value: &value,
+				},
+				{
+					Name: "field-arg",
+					ValueFrom: &v1alpha1.ValueFrom{
+						FieldRef: &v1alpha1.FieldRef{
+							FieldPath: "metadata.name",
+						},
+					},
+				},
+				{
+					Name: "no-value-arg",
+				},
+			},
+		},
+	}
+
+	resolvedArgs, err := c.resolveAnalysisRunArgs(run)
+	assert.NoError(t, err)
+	assert.Len(t, resolvedArgs, 3)
+	
+	assert.Equal(t, "static-arg", resolvedArgs[0].Name)
+	assert.Equal(t, "static-value", *resolvedArgs[0].Value)
+	
+	assert.Equal(t, "field-arg", resolvedArgs[1].Name)
+	assert.Equal(t, "test-run", *resolvedArgs[1].Value)
+	
+	assert.Equal(t, "no-value-arg", resolvedArgs[2].Name)
+	assert.Nil(t, resolvedArgs[2].Value)
+}
+
+// TestResolveAnalysisRunArgsEmptyArgs tests with no arguments
+func TestResolveAnalysisRunArgsEmptyArgs(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{},
+		},
+	}
+
+	resolvedArgs, err := c.resolveAnalysisRunArgs(run)
+	assert.NoError(t, err)
+	assert.Len(t, resolvedArgs, 0)
+}
+
 func TestSecretResolution(t *testing.T) {
 	f := newFixture(t)
 	secretName, secretKey, secretData := "web-metric-secret", "apikey", "12345"
@@ -2193,6 +2356,148 @@ func TestInvalidMeasurementsRetentionConfigThrowsError(t *testing.T) {
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
 	assert.Equal(t, "Analysis spec invalid: measurementRetention[0]: Rule didn't match any metric name(s)", newRun.Status.Message)
+}
+
+// TestReconcileAnalysisRunWithValueFromResolution tests that reconcileAnalysisRun resolves valueFrom arguments
+func TestReconcileAnalysisRunWithValueFromResolution(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-run",
+			Namespace: "test-namespace",
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name: "run-name",
+					ValueFrom: &v1alpha1.ValueFrom{
+						FieldRef: &v1alpha1.FieldRef{
+							FieldPath: "metadata.name",
+						},
+					},
+				},
+			},
+			Metrics: []v1alpha1.Metric{{
+				Name:             "success-rate",
+				SuccessCondition: "result[0] > 0.90",
+				Provider: v1alpha1.MetricProvider{
+					Prometheus: &v1alpha1.PrometheusMetric{
+						Query: "{{args.run-name}}",
+					},
+				},
+			}},
+		},
+	}
+
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
+
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	// Verify that the argument was resolved to the run name
+	assert.Len(t, newRun.Spec.Args, 1)
+	assert.Equal(t, "run-name", newRun.Spec.Args[0].Name)
+	assert.Equal(t, "test-run", *newRun.Spec.Args[0].Value)
+}
+
+// TestReconcileAnalysisRunWithValueFromResolutionError tests error handling during valueFrom resolution
+func TestReconcileAnalysisRunWithValueFromResolutionError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-run",
+			Namespace: "test-namespace",
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name: "invalid-field",
+					ValueFrom: &v1alpha1.ValueFrom{
+						FieldRef: &v1alpha1.FieldRef{
+							FieldPath: "metadata.invalid.field",
+						},
+					},
+				},
+			},
+			Metrics: []v1alpha1.Metric{{
+				Name:             "success-rate",
+				SuccessCondition: "result[0] > 0.90",
+				Provider: v1alpha1.MetricProvider{
+					Prometheus: &v1alpha1.PrometheusMetric{
+						Query: "{{args.invalid-field}}",
+					},
+				},
+			}},
+		},
+	}
+
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
+	assert.Contains(t, newRun.Status.Message, "Unable to resolve valueFrom arguments")
+	assert.Contains(t, newRun.Status.Message, "failed to extract field metadata.invalid.field")
+}
+
+// TestReconcileAnalysisRunWithMixedArgs tests reconcileAnalysisRun with a mix of regular and valueFrom arguments
+func TestReconcileAnalysisRunWithMixedArgs(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	staticValue := "static-value"
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-run",
+			Namespace: "test-namespace",
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name:  "static-arg",
+					Value: &staticValue,
+				},
+				{
+					Name: "field-arg",
+					ValueFrom: &v1alpha1.ValueFrom{
+						FieldRef: &v1alpha1.FieldRef{
+							FieldPath: "metadata.name",
+						},
+					},
+				},
+			},
+			Metrics: []v1alpha1.Metric{{
+				Name:             "success-rate",
+				SuccessCondition: "result[0] > 0.90",
+				Provider: v1alpha1.MetricProvider{
+					Prometheus: &v1alpha1.PrometheusMetric{
+						Query: "{{args.static-arg}}_{{args.field-arg}}",
+					},
+				},
+			}},
+		},
+	}
+
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
+
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	
+	// Verify both arguments were processed correctly
+	assert.Len(t, newRun.Spec.Args, 2)
+	
+	staticArg := newRun.Spec.Args[0]
+	assert.Equal(t, "static-arg", staticArg.Name)
+	assert.Equal(t, "static-value", *staticArg.Value)
+	
+	fieldArg := newRun.Spec.Args[1]
+	assert.Equal(t, "field-arg", fieldArg.Name)
+	assert.Equal(t, "test-run", *fieldArg.Value)
 }
 
 func TestExceededTtlChecked(t *testing.T) {
