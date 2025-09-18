@@ -1762,10 +1762,10 @@ func TestResolveAnalysisRunArgsWithFieldRef(t *testing.T) {
 	resolvedArgs, err := c.resolveAnalysisRunArgs(run)
 	assert.NoError(t, err)
 	assert.Len(t, resolvedArgs, 2)
-	
+
 	assert.Equal(t, "run-name", resolvedArgs[0].Name)
 	assert.Equal(t, "test-run", *resolvedArgs[0].Value)
-	
+
 	assert.Equal(t, "run-namespace", resolvedArgs[1].Name)
 	assert.Equal(t, "test-namespace", *resolvedArgs[1].Value)
 }
@@ -1836,13 +1836,13 @@ func TestResolveAnalysisRunArgsMixed(t *testing.T) {
 	resolvedArgs, err := c.resolveAnalysisRunArgs(run)
 	assert.NoError(t, err)
 	assert.Len(t, resolvedArgs, 3)
-	
+
 	assert.Equal(t, "static-arg", resolvedArgs[0].Name)
 	assert.Equal(t, "static-value", *resolvedArgs[0].Value)
-	
+
 	assert.Equal(t, "field-arg", resolvedArgs[1].Name)
 	assert.Equal(t, "test-run", *resolvedArgs[1].Value)
-	
+
 	assert.Equal(t, "no-value-arg", resolvedArgs[2].Name)
 	assert.Nil(t, resolvedArgs[2].Value)
 }
@@ -2487,14 +2487,14 @@ func TestReconcileAnalysisRunWithMixedArgs(t *testing.T) {
 
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
-	
+
 	// Verify both arguments were processed correctly
 	assert.Len(t, newRun.Spec.Args, 2)
-	
+
 	staticArg := newRun.Spec.Args[0]
 	assert.Equal(t, "static-arg", staticArg.Name)
 	assert.Equal(t, "static-value", *staticArg.Value)
-	
+
 	fieldArg := newRun.Spec.Args[1]
 	assert.Equal(t, "field-arg", fieldArg.Name)
 	assert.Equal(t, "test-run", *fieldArg.Value)

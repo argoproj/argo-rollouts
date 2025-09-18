@@ -60,12 +60,12 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 	// Resolve valueFrom references in arguments
 	resolvedArgs, err := c.resolveAnalysisRunArgs(run)
 	if err != nil {
-	       message := fmt.Sprintf("Unable to resolve valueFrom arguments: %v", err)
-	       logger.Warn(message)
-	       run.Status.Phase = v1alpha1.AnalysisPhaseError
-	       run.Status.Message = message
-	       c.recordAnalysisRunCompletionEvent(run)
-	       return run
+		message := fmt.Sprintf("Unable to resolve valueFrom arguments: %v", err)
+		logger.Warn(message)
+		run.Status.Phase = v1alpha1.AnalysisPhaseError
+		run.Status.Message = message
+		c.recordAnalysisRunCompletionEvent(run)
+		return run
 	}
 	run.Spec.Args = resolvedArgs
 
@@ -154,33 +154,33 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 
 // resolveAnalysisRunArgs resolves valueFrom references in AnalysisRun arguments
 func (c *Controller) resolveAnalysisRunArgs(run *v1alpha1.AnalysisRun) ([]v1alpha1.Argument, error) {
-       resolvedArgs := []v1alpha1.Argument{}
+	resolvedArgs := []v1alpha1.Argument{}
 
-       for _, arg := range run.Spec.Args {
-               if arg.Value != nil {
-                       // Argument already has a value
-                       resolvedArgs = append(resolvedArgs, arg)
-                       continue
-               }
+	for _, arg := range run.Spec.Args {
+		if arg.Value != nil {
+			// Argument already has a value
+			resolvedArgs = append(resolvedArgs, arg)
+			continue
+		}
 
-               if arg.ValueFrom != nil && arg.ValueFrom.FieldRef != nil {
-                       // Extract value from the AnalysisRun itself
-                       value, err := fieldpath.ExtractFieldPathAsString(run, arg.ValueFrom.FieldRef.FieldPath)
-                       if err != nil {
-                               return nil, fmt.Errorf("failed to extract field %s: %w", arg.ValueFrom.FieldRef.FieldPath, err)
-                       }
+		if arg.ValueFrom != nil && arg.ValueFrom.FieldRef != nil {
+			// Extract value from the AnalysisRun itself
+			value, err := fieldpath.ExtractFieldPathAsString(run, arg.ValueFrom.FieldRef.FieldPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to extract field %s: %w", arg.ValueFrom.FieldRef.FieldPath, err)
+			}
 
-                       resolvedArgs = append(resolvedArgs, v1alpha1.Argument{
-                               Name:  arg.Name,
-                               Value: &value,
-                       })
-               } else {
-                       // No value or valueFrom specified, keep the argument as is
-                       resolvedArgs = append(resolvedArgs, arg)
-               }
-       }
+			resolvedArgs = append(resolvedArgs, v1alpha1.Argument{
+				Name:  arg.Name,
+				Value: &value,
+			})
+		} else {
+			// No value or valueFrom specified, keep the argument as is
+			resolvedArgs = append(resolvedArgs, arg)
+		}
+	}
 
-       return resolvedArgs, nil
+	return resolvedArgs, nil
 }
 
 func getResolvedMetricsWithoutSecrets(metrics []v1alpha1.Metric, args []v1alpha1.Argument) ([]v1alpha1.Metric, error) {
