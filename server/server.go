@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	kubeinformers "k8s.io/client-go/informers"
@@ -396,6 +397,16 @@ func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.Set
 		return nil, err
 	}
 	return s.getRollout(q.GetNamespace(), q.GetRollout())
+}
+
+func (s *ArgoRolloutsServer) PauseRollout(ctx context.Context, q *rollout.PauseRolloutRequest) (*v1alpha1.Rollout, error) {
+	rolloutIf := s.Options.DynamicClientset.Resource(v1alpha1.RolloutGVR).Namespace(q.GetNamespace())
+	patch := []byte(fmt.Sprintf(`{"spec":{"paused":%t}}`, q.GetPaused()))
+	_, err := rolloutIf.Patch(ctx, q.GetName(), types.MergePatchType, patch, v1.PatchOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return s.getRollout(q.GetNamespace(), q.GetName())
 }
 
 func (s *ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoRolloutRequest) (*v1alpha1.Rollout, error) {
