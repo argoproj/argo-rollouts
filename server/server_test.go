@@ -85,6 +85,60 @@ func TestUndoRolloutReturnsRollout(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func TestPauseRollout(t *testing.T) {
+	objects := testdata.NewCanaryRollout()
+	expected := objects.Rollouts[0]
+	expected.Spec.Paused = false
+
+	s := newTestServer(t, objects.AllObjects()...)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := s.PauseRollout(ctx, &rolloutapi.PauseRolloutRequest{
+		Namespace: expected.Namespace,
+		Name:      expected.Name,
+		Paused:    true,
+	})
+
+	require.NoError(t, err)
+
+	updated, err := s.Options.DynamicClientset.
+		Resource(v1alpha1.RolloutGVR).
+		Namespace(expected.Namespace).
+		Get(ctx, expected.Name, metav1.GetOptions{})
+
+	require.NoError(t, err)
+	assert.Equal(t, true, updated.Object["spec"].(map[string]interface{})["paused"])
+}
+
+func TestPauseRolloutUnpauses(t *testing.T) {
+	objects := testdata.NewCanaryRollout()
+	expected := objects.Rollouts[0]
+	expected.Spec.Paused = true
+
+	s := newTestServer(t, objects.AllObjects()...)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := s.PauseRollout(ctx, &rolloutapi.PauseRolloutRequest{
+		Namespace: expected.Namespace,
+		Name:      expected.Name,
+		Paused:    false,
+	})
+
+	require.NoError(t, err)
+
+	updated, err := s.Options.DynamicClientset.
+		Resource(v1alpha1.RolloutGVR).
+		Namespace(expected.Namespace).
+		Get(ctx, expected.Name, metav1.GetOptions{})
+
+	require.NoError(t, err)
+
+	spec := updated.Object["spec"].(map[string]interface{})
+	assert.False(t, spec["paused"] == true)
+}
+
 func TestNewHTTPServer(t *testing.T) {
 	t.Run("server is created with correct address", func(t *testing.T) {
 		s := &ArgoRolloutsServer{
