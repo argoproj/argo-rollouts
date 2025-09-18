@@ -5,7 +5,7 @@ import {formatTimestamp} from '../../shared/utils/utils';
 import {RolloutStatus} from '../status-icon/status-icon';
 import {ConfirmButton} from '../confirm-button/confirm-button';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faArrowCircleUp, faChevronCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
+import {faArrowCircleUp, faChevronCircleUp, faExclamationCircle, faPause, faPlay, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
 import {IconProp} from '@fortawesome/fontawesome-svg-core';
 import {notification} from 'antd';
 
@@ -15,6 +15,8 @@ export enum RolloutAction {
     Abort = 'Abort',
     Promote = 'Promote',
     PromoteFull = 'PromoteFull',
+    Pause = 'Pause',
+    Resume = 'Resume',
 }
 
 interface ActionData {
@@ -30,8 +32,15 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
     const api = React.useContext(RolloutAPIContext);
     const namespaceCtx = React.useContext(NamespaceContext);
 
+    const isPaused = props.rollout.status === RolloutStatus.Paused;
+    const isProgressing = props.rollout.status === RolloutStatus.Progressing;
+    const isDeploying = isProgressing || isPaused;
+
+    const isProgrammaticallyPaused = isPaused && (props.rollout.message?.includes('Pause') || props.rollout.message?.includes('Inconclusive'));
+    const isManuallyPaused = isPaused && props.rollout.message === 'manually paused';
+    const canBePaused = isProgressing;
+
     const restartedAt = formatTimestamp(props.rollout.restartedAt || '');
-    const isDeploying = props.rollout.status === RolloutStatus.Progressing || props.rollout.status === RolloutStatus.Paused;
 
     const actionMap = new Map<RolloutAction, ActionData & {body?: any}>([
         [
@@ -71,7 +80,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                 icon: faChevronCircleUp,
                 action: api.rolloutServicePromoteRollout.bind(api),
                 body: {full: false},
-                disabled: !isDeploying,
+                disabled: !isProgrammaticallyPaused,
                 shouldConfirm: true,
             },
         ],
@@ -83,6 +92,28 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                 action: api.rolloutServicePromoteRollout.bind(api),
                 body: {full: true},
                 disabled: !isDeploying,
+                shouldConfirm: true,
+            },
+        ],
+        [
+            RolloutAction.Pause,
+            {
+                label: 'PAUSE',
+                icon: faPause,
+                action: api.rolloutServicePauseRollout.bind(api),
+                body: {paused: true},
+                disabled: !canBePaused,
+                shouldConfirm: true,
+            },
+        ],
+        [
+            RolloutAction.Resume,
+            {
+                label: 'RESUME',
+                icon: faPlay,
+                action: api.rolloutServicePauseRollout.bind(api),
+                body: {paused: false},
+                disabled: !isManuallyPaused,
                 shouldConfirm: true,
             },
         ],
@@ -140,17 +171,26 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             tooltip={ap.tooltip}
             icon={<FontAwesomeIcon icon={ap.icon} style={{marginRight: '5px'}} />}
         >
-            {props.action}
+            {ap.label}
         </ConfirmButton>
     );
 };
 
-export const RolloutActions = (props: {rollout: RolloutInfo}) => (
-    <div style={{display: 'flex'}}>
-        {Object.values(RolloutAction).map((action) => (
-            <RolloutActionButton key={action} action={action as RolloutAction} rollout={props.rollout} indicateLoading />
-        ))}
-    </div>
-);
+export const RolloutActions = (props: {rollout: RolloutInfo}) => {
+    const isPaused = props.rollout.status === RolloutStatus.Paused;
+    const isProgrammaticallyPaused = isPaused && (props.rollout.message?.includes('Pause') || props.rollout.message?.includes('Inconclusive'));
+
+    return (
+        <div style={{display: 'flex'}}>
+            <RolloutActionButton action={RolloutAction.Restart} rollout={props.rollout} indicateLoading />
+            <RolloutActionButton action={RolloutAction.Retry} rollout={props.rollout} indicateLoading />
+            <RolloutActionButton action={RolloutAction.Abort} rollout={props.rollout} indicateLoading />
+            <RolloutActionButton action={RolloutAction.Pause} rollout={props.rollout} indicateLoading />
+            <RolloutActionButton action={RolloutAction.Resume} rollout={props.rollout} indicateLoading />
+            {isProgrammaticallyPaused && <RolloutActionButton action={RolloutAction.Promote} rollout={props.rollout} indicateLoading />}
+            <RolloutActionButton action={RolloutAction.PromoteFull} rollout={props.rollout} indicateLoading />
+        </div>
+    );
+};
 
 export default RolloutActions;
