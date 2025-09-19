@@ -1441,14 +1441,93 @@ func TestGetCanaryReplicasOrWeight(t *testing.T) {
 		weight   int32
 	}{
 		{
-			name: "test full promote rollout",
+			name: "test initial rollout",
 			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{},
+			},
+			replicas: nil,
+			weight:   100,
+		},
+		{
+			name: "test fully promoted rollout",
+			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							Steps: []v1alpha1.CanaryStep{
+								{
+									SetWeight: ptr.To[int32](10),
+								},
+							},
+						},
+					},
+				},
 				Status: v1alpha1.RolloutStatus{
-					PromoteFull: true,
+					CurrentPodHash:   "stable-rs",
+					CurrentStepIndex: ptr.To[int32](1),
+					StableRS:         "stable-rs",
+					PromoteFull:      true,
 				},
 			},
 			replicas: nil,
 			weight:   100,
+		},
+		{
+			name: "test full promote requested rollout",
+			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							Steps: []v1alpha1.CanaryStep{
+								{
+									SetCanaryScale: &v1alpha1.SetCanaryScale{
+										Weight: ptr.To[int32](20),
+									},
+								},
+							},
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					CurrentPodHash:   "new-rs",
+					CurrentStepIndex: ptr.To[int32](1),
+					StableRS:         "stable-rs",
+					PromoteFull:      true,
+				},
+			},
+			replicas: nil,
+			weight:   100,
+		},
+		{
+			name: "test full promote requested rollout with abort",
+			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							Steps: []v1alpha1.CanaryStep{
+								{
+									SetWeight: ptr.To[int32](10),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					CurrentPodHash:   "new-rs",
+					CurrentStepIndex: ptr.To[int32](1),
+					StableRS:         "stable-rs",
+					PromoteFull:      true,
+					Abort:            true,
+				},
+			},
+			replicas: nil,
+			weight:   0,
 		},
 		{
 			name: "test canary step weight",
@@ -1514,9 +1593,7 @@ func TestGetCanaryReplicasOrWeight(t *testing.T) {
 						BlueGreen: &v1alpha1.BlueGreenStrategy{},
 					},
 				},
-				Status: v1alpha1.RolloutStatus{
-					Abort: true,
-				},
+				Status: v1alpha1.RolloutStatus{},
 			},
 			replicas: nil,
 			weight:   100,
