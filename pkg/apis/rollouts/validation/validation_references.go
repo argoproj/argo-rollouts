@@ -226,16 +226,16 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 
 	// Check NGINX ingresses first
 	if nginx := canary.TrafficRouting.Nginx; nginx != nil {
-		if nginx.StableIngress == ingressName || 
-		   (nginx.StableIngresses != nil && slices.Contains(nginx.StableIngresses, ingressName)) {
+		if nginx.StableIngress == ingressName ||
+			(nginx.StableIngresses != nil && slices.Contains(nginx.StableIngresses, ingressName)) {
 			return validateNginxIngress(canary, ingress, fldPath)
 		}
 	}
 
 	// Check ALB ingresses
 	if alb := canary.TrafficRouting.ALB; alb != nil {
-		if alb.Ingress == ingressName || 
-		   (alb.Ingresses != nil && slices.Contains(alb.Ingresses, ingressName)) {
+		if alb.Ingress == ingressName ||
+			(alb.Ingresses != nil && slices.Contains(alb.Ingresses, ingressName)) {
 			return validateAlbIngress(canary, ingress, fldPath)
 		}
 	}

@@ -859,7 +859,7 @@ func TestValidateIngressSimultaneousAlbNginx(t *testing.T) {
 	albIngress := ingressutil.NewLegacyIngress(albIngressObj)
 	assert.Empty(t, ValidateIngress(rollout, albIngress))
 
-	// Test NGINX ingress validation  
+	// Test NGINX ingress validation
 	nginxIngressObj := getIngress()
 	nginxIngressObj.Name = "nginx-ingress-1"
 	nginxIngress := ingressutil.NewLegacyIngress(nginxIngressObj)
