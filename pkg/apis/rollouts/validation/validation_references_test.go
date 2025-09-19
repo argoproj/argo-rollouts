@@ -854,13 +854,15 @@ func TestValidateIngressSimultaneousAlbNginx(t *testing.T) {
 	}
 
 	// Test ALB ingress validation
-	albIngress := ingressutil.NewLegacyIngress(getIngress())
-	albIngress.GetIngress().Name = "alb-ingress"
+	albIngressObj := getIngress()
+	albIngressObj.Name = "alb-ingress"
+	albIngress := ingressutil.NewLegacyIngress(albIngressObj)
 	assert.Empty(t, ValidateIngress(rollout, albIngress))
 
 	// Test NGINX ingress validation  
-	nginxIngress := ingressutil.NewLegacyIngress(getIngress())
-	nginxIngress.GetIngress().Name = "nginx-ingress-1"
+	nginxIngressObj := getIngress()
+	nginxIngressObj.Name = "nginx-ingress-1"
+	nginxIngress := ingressutil.NewLegacyIngress(nginxIngressObj)
 	assert.Empty(t, ValidateIngress(rollout, nginxIngress))
 }
 
