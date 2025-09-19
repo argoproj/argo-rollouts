@@ -407,9 +407,12 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	if c.rollout.Status.PromoteFull || c.isRollbackWithinWindow() {
+	isRollback := c.isRollbackWithinWindow()
+	if c.rollout.Status.PromoteFull || isRollback {
 		c.pauseContext.ClearPauseConditions()
-		c.pauseContext.RemoveAbort()
+		if isRollback {
+			c.pauseContext.RemoveAbort()
+		}
 		if stepCount > 0 {
 			currentStepIndex = &stepCount
 		}
