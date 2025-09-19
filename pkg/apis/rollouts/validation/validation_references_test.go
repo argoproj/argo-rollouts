@@ -847,42 +847,21 @@ func TestValidateAlbIngress(t *testing.T) {
 }
 
 func TestValidateIngressSimultaneousAlbNginx(t *testing.T) {
-	t.Run("validate simultaneous ALB and NGINX ingresses - success", func(t *testing.T) {
-		// Create a rollout with both ALB and NGINX traffic routing
-		rollout := getAlbRollout("alb-ingress")
-		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx = &v1alpha1.NginxTrafficRouting{
-			StableIngresses: []string{"nginx-ingress-1", "nginx-ingress-2"},
-		}
+	// Setup rollout with both ALB and NGINX traffic routing
+	rollout := getAlbRollout("alb-ingress")
+	rollout.Spec.Strategy.Canary.TrafficRouting.Nginx = &v1alpha1.NginxTrafficRouting{
+		StableIngresses: []string{"nginx-ingress-1"},
+	}
 
-		// Test ALB ingress validation
-		albIngressObj := getIngress()
-		albIngressObj.Name = "alb-ingress"
-		albIngress := ingressutil.NewLegacyIngress(albIngressObj)
-		allErrs := ValidateIngress(rollout, albIngress)
-		assert.Empty(t, allErrs)
+	// Test ALB ingress validation
+	albIngress := ingressutil.NewLegacyIngress(getIngress())
+	albIngress.GetIngress().Name = "alb-ingress"
+	assert.Empty(t, ValidateIngress(rollout, albIngress))
 
-		// Test NGINX ingress validation
-		nginxIngressObj := getIngress()
-		nginxIngressObj.Name = "nginx-ingress-1"
-		nginxIngress := ingressutil.NewLegacyIngress(nginxIngressObj)
-		allErrs = ValidateIngress(rollout, nginxIngress)
-		assert.Empty(t, allErrs)
-	})
-
-	t.Run("validate simultaneous ALB and NGINX ingresses - ALB ingress not validated against NGINX rules", func(t *testing.T) {
-		// Create a rollout with both ALB and NGINX traffic routing
-		rollout := getAlbRollout("alb-ingress")
-		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx = &v1alpha1.NginxTrafficRouting{
-			StableIngresses: []string{"nginx-ingress-1", "nginx-ingress-2"},
-		}
-
-		// Test that ALB ingress is not validated against NGINX rules
-		albIngressObj := getIngress()
-		albIngressObj.Name = "alb-ingress"
-		albIngress := ingressutil.NewLegacyIngress(albIngressObj)
-		allErrs := ValidateIngress(rollout, albIngress)
-		assert.Empty(t, allErrs, "ALB ingress should not be validated against NGINX rules")
-	})
+	// Test NGINX ingress validation  
+	nginxIngress := ingressutil.NewLegacyIngress(getIngress())
+	nginxIngress.GetIngress().Name = "nginx-ingress-1"
+	assert.Empty(t, ValidateIngress(rollout, nginxIngress))
 }
 
 func TestValidateRolloutNginxIngressesConfig(t *testing.T) {
