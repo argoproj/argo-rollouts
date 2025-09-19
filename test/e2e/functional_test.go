@@ -114,6 +114,95 @@ spec:
 		})
 }
 
+// TestCanaryAbortAfterPromoteFull verifies promotion of a canary under the following scenarios:
+// 1. at a pause step
+// 2. canary with pods not ready or unavailable (CrashLoopBackOff)
+// 3. abort after full promotion
+func (s *FunctionalSuite) TestCanaryAbortAfterPromoteFull() {
+	s.Given().
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: canary-abort-promote-full
+spec:
+  replicas: 4
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20
+        - pause: {}
+        - setWeight: 50
+        - pause: {}
+        - setWeight: 70
+        - pause: {}
+        - setWeight: 100
+        - pause: {}
+  selector:
+    matchLabels:
+      app: canary-abort-promote-full
+  template:
+    metadata:
+      labels:
+        app: canary-abort-promote-full
+    spec:
+      containers:
+      - name: canary-abort-promote-full
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+        livenessProbe:
+          failureThreshold: 1
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        readinessProbe:
+          failureThreshold: 1
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+`).
+		When().
+		UpdateSpec(`
+spec:
+  template:
+    spec:
+      containers:
+      - name: canary-promote-full
+        image: nginx:1.19-alpine
+        livenessProbe:
+          httpGet:
+            port: 81
+        readinessProbe:
+          httpGet:
+            port: 81`).
+		Sleep(3*time.Second).
+		WaitForRolloutStatus("Progressing"). // At step 1 (setWeight: 20)
+		PromoteRollout().
+		Sleep(3*time.Second).
+		WaitForRolloutStatus("Paused"). // At step 2 (pause: {})
+		PromoteRolloutFull().
+		Sleep(3*time.Second).
+		WaitForRolloutStatus("Progressing").
+		AbortRollout().
+		Sleep(3*time.Second).
+		WaitForRolloutStatus("Degraded").
+		Sleep(5*time.Second).
+		Then().
+		ExpectRevisionPodCount("1", 4).
+    	ExpectRevisionPodCount("2", 0)
+}
+
 // TestCanaryPromoteFull verifies promotion of a canary under the following scenarios:
 // 1. at a pause step with duration
 // 2. in the middle of analysis
@@ -178,7 +267,6 @@ spec:
 		PromoteRollout().
 		Sleep(2 * time.Second).
 		WaitForRolloutStatus("Paused"). // At step 3 (pause: {})
-		AbortRollout().
 		Then().
 		When().
 		Sleep(time.Second).
