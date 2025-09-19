@@ -222,60 +222,25 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
 	canary := rollout.Spec.Strategy.Canary
 
-	// Check if this ingress belongs to NGINX configuration
-	if canary.TrafficRouting.Nginx != nil {
-		if isNginxIngress(canary, ingress.GetName()) {
+	ingressName := ingress.GetName()
+
+	// Check NGINX ingresses first
+	if nginx := canary.TrafficRouting.Nginx; nginx != nil {
+		if nginx.StableIngress == ingressName || 
+		   (nginx.StableIngresses != nil && slices.Contains(nginx.StableIngresses, ingressName)) {
 			return validateNginxIngress(canary, ingress, fldPath)
 		}
 	}
 
-	// Check if this ingress belongs to ALB configuration
-	if canary.TrafficRouting.ALB != nil {
-		if isAlbIngress(canary, ingress.GetName()) {
+	// Check ALB ingresses
+	if alb := canary.TrafficRouting.ALB; alb != nil {
+		if alb.Ingress == ingressName || 
+		   (alb.Ingresses != nil && slices.Contains(alb.Ingresses, ingressName)) {
 			return validateAlbIngress(canary, ingress, fldPath)
 		}
 	}
 
 	return allErrs
-}
-
-func isNginxIngress(canary *v1alpha1.CanaryStrategy, ingressName string) bool {
-	nginx := canary.TrafficRouting.Nginx
-	if nginx == nil {
-		return false
-	}
-
-	// Check single stable ingress
-	if nginx.StableIngress == ingressName {
-		return true
-	}
-
-	// Check multiple stable ingresses
-	if nginx.StableIngresses != nil && slices.Contains(nginx.StableIngresses, ingressName) {
-		return true
-	}
-
-	return false
-}
-
-func isAlbIngress(canary *v1alpha1.CanaryStrategy, ingressName string) bool {
-	alb := canary.TrafficRouting.ALB
-	if alb == nil {
-		return false
-	}
-
-	// Check single ingress
-	if alb.Ingress == ingressName {
-		return true
-	}
-
-	// Check multiple ingresses
-	if alb.Ingresses != nil && slices.Contains(alb.Ingresses, ingressName) {
-		return true
-	}
-
-	return false
-}
 
 func validateNginxIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.Ingress, fldPath *field.Path) field.ErrorList {
 	stableIngresses := canary.TrafficRouting.Nginx.StableIngresses
