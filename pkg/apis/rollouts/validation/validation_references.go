@@ -241,6 +241,7 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 	}
 
 	return allErrs
+}
 
 func validateNginxIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.Ingress, fldPath *field.Path) field.ErrorList {
 	stableIngresses := canary.TrafficRouting.Nginx.StableIngresses
