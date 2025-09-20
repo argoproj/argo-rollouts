@@ -142,8 +142,8 @@ const expectedBody = `{
 		"default":{
 			"controlScope": {
 				"scope":"app=guestbook and rollouts-pod-template-hash=xxxx",
-				"region":"us-=west-2",
-				"step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}	
+				"location":"us-=west-2",
+				"step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","location":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}	
 	},	
 	"thresholds" : {	
 		"pass": 90,	
@@ -294,7 +294,7 @@ func TestRunBadLookupResponse(t *testing.T) {
 			assert.Equal(t, string(body), `
 							{
 								"scopes": {
-										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
+										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","location":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","location":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
 								},
                                 "thresholds" : {
                                     "pass": 90,
@@ -359,7 +359,7 @@ func TestRunInvalidLookupResponse(t *testing.T) {
 			assert.Equal(t, string(body), `
 							{
 								"scopes": {
-										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
+										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","location":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","location":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
 								},
                                 "thresholds" : {
                                     "pass": 90,
