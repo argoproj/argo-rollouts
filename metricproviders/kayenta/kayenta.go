@@ -56,6 +56,20 @@ type canaryConfig struct {
 	Applications        []string
 }
 
+type RequestScope struct {
+	Name            string             `json:"name"`
+	ControlScope    RequestScopeDetail `json:"controlScope"`
+	ExperimentScope RequestScopeDetail `json:"experimentScope"`
+}
+
+type RequestScopeDetail struct {
+	Scope    string `json:"scope"`
+	Location string `json:"location"`
+	Step     int64  `json:"step"`
+	Start    string `json:"start"`
+	End      string `json:"end"`
+}
+
 // Type indicates provider is a kayenta provider
 func (p *Provider) Type() string {
 	return ProviderType
@@ -108,14 +122,15 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	jobURL := fmt.Sprintf(jobURLFormat, metric.Provider.Kayenta.Address, canaryConfigId, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.MetricsAccountName, metric.Provider.Kayenta.ConfigurationAccountName, metric.Provider.Kayenta.StorageAccountName)
 
 	var scopes string
-	for i, s := range metric.Provider.Kayenta.Scopes {
-		name := s.Name
-		controlScope, err := json.Marshal(s.ControlScope)
+	for i, scope := range metric.Provider.Kayenta.Scopes {
+		requestScope, _ := scopeToRequestScope(scope)
+		name := requestScope.Name
+		controlScope, err := json.Marshal(requestScope.ControlScope)
 		if err != nil {
 			return metricutil.MarkMeasurementError(newMeasurement, err)
 		}
 
-		experimentScope, err := json.Marshal(s.ExperimentScope)
+		experimentScope, err := json.Marshal(requestScope.ExperimentScope)
 		if err != nil {
 			return metricutil.MarkMeasurementError(newMeasurement, err)
 		}
@@ -256,4 +271,24 @@ func NewHttpClient() http.Client {
 	}
 
 	return c
+}
+
+func scopeToRequestScope(scope v1alpha1.KayentaScope) (RequestScope, error) {
+	return RequestScope{
+		Name: scope.Name,
+		ControlScope: RequestScopeDetail{
+			Scope:    scope.ControlScope.Scope,
+			Location: scope.ControlScope.Region,
+			Step:     scope.ControlScope.Step,
+			Start:    scope.ControlScope.Start,
+			End:      scope.ControlScope.End,
+		},
+		ExperimentScope: RequestScopeDetail{
+			Scope:    scope.ExperimentScope.Scope,
+			Location: scope.ExperimentScope.Region,
+			Step:     scope.ExperimentScope.Step,
+			Start:    scope.ExperimentScope.Start,
+			End:      scope.ExperimentScope.End,
+		},
+	}, nil
 }
