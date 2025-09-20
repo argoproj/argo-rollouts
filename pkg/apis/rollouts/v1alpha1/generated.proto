@@ -947,6 +947,8 @@ message KayentaMetric {
   optional KayentaThreshold threshold = 7 [(gogoproto.customname) = "Threshold", (gogoproto.nullable) = false];
 
   repeated KayentaScope scopes = 8 [(gogoproto.customname) = "Scopes", (gogoproto.nullable) = false];
+
+  optional bool lookback = 9 [(gogoproto.customname) = "Lookback", (gogoproto.nullable) = false];
 }
 
 message KayentaScope {

@@ -3151,6 +3151,8 @@ spec:
                               type: string
                             configurationAccountName:
                               type: string
+                            lookback:
+                              type: boolean
                             metricsAccountName:
                               type: string
                             scopes:
@@ -3170,10 +3172,8 @@ spec:
                                         format: int64
                                         type: integer
                                     required:
-                                    - end
                                     - region
                                     - scope
-                                    - start
                                     - step
                                     type: object
                                   experimentScope:
@@ -3190,10 +3190,8 @@ spec:
                                         format: int64
                                         type: integer
                                     required:
-                                    - end
                                     - region
                                     - scope
-                                    - start
                                     - step
                                     type: object
                                   name:
