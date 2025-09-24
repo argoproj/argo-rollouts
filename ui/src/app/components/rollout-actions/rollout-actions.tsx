@@ -113,7 +113,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             message: errorTitle,
             description: errorContent,
             duration: 8,
-            placement: 'top',
+            placement: 'bottomRight',
         });
     };
 
