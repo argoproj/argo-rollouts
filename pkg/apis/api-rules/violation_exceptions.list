@@ -58,3 +58,8 @@ API rule violation: names_match,github.com/argoproj/argo-rollouts/pkg/apis/rollo
 API rule violation: names_match,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,RolloutStatus,ALBs
 API rule violation: names_match,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,RolloutStatus,HPAReplicas
 API rule violation: names_match,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,Sigv4Config,RoleARN
+API rule violation: streaming_list_type_json_tags,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,AnalysisRunList,ListMeta
+API rule violation: streaming_list_type_json_tags,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,AnalysisTemplateList,ListMeta
+API rule violation: streaming_list_type_json_tags,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,ClusterAnalysisTemplateList,ListMeta
+API rule violation: streaming_list_type_json_tags,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,ExperimentList,ListMeta
+API rule violation: streaming_list_type_json_tags,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,RolloutList,ListMeta

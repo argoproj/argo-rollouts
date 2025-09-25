@@ -2280,6 +2280,11 @@ func (in *RolloutExperimentStep) DeepCopyInto(out *RolloutExperimentStep) {
 		copy(*out, *in)
 	}
 	in.AnalysisRunMetadata.DeepCopyInto(&out.AnalysisRunMetadata)
+	if in.ScaleDownDelaySeconds != nil {
+		in, out := &in.ScaleDownDelaySeconds, &out.ScaleDownDelaySeconds
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
