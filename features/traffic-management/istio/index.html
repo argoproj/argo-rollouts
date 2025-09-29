@@ -1247,6 +1247,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Subset-level Traffic Splitting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#additional-subset-destinationrules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Subset DestinationRule's
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3706,6 +3721,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Subset-level Traffic Splitting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#additional-subset-destinationrules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Subset DestinationRule's
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3958,8 +3988,8 @@ Note that if the VirtualService and destination host resides in different namesp
 </div>
 <p>The second approach to traffic splitting using Argo Rollouts and Istio, is splitting between two
 Istio <a href="https://istio.io/latest/docs/reference/config/networking/destination-rule/#Subset">DestinationRule Subsets</a>:
-a canary subset and a stable subset. When splitting by DestinationRule subsets, the user is
-required to deploy the following resources:</p>
+a canary subset and a stable subset. User's can also specify <a href="#additional-subset-destinationrules">additional subset DestinationRule's</a> to direct traffic towards.
+When splitting by DestinationRule subsets, the user is required to deploy the following resources:</p>
 <ul>
 <li>Rollout</li>
 <li>Service</li>
@@ -4053,6 +4083,70 @@ weights can be 100% to stable, and 0% to canary.</p>
 <li>modify the DestinationRule <code>spec.subsets[].labels</code> to contain the <code>rollouts-pod-template-hash</code>
   label of the canary and stable ReplicaSets</li>
 </ul>
+<h3 id="additional-subset-destinationrules">Additional Subset DestinationRule's<a class="headerlink" href="#additional-subset-destinationrules" title="Permanent link">&para;</a></h3>
+<p>Argo Rollouts also allows users to add additional subset DestinationRule's.
+One use case could be to direct additional traffic served by an API's path (e.g. <code>/api/mypath</code>) to
+a service handled by Argo Rollouts (with a stable and canary DestinationRule) <em>and</em> a service using an experimental image.</p>
+<p>For example, you could have subsets for:
+- <code>canary</code> - the new version being tested
+- <code>stable</code> - the current production version<br />
+- <code>legacy</code> - an older version for backward compatibility
+- <code>experimental</code> - a version with experimental features</p>
+<p>To enable this feature, follow the steps above for a regular subset DestinationRule deployment.
+Aftewards, modify your VirtualService containing the canary and subset DestinationRule's
+to include the additional subset names and the desired traffic weight:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.istio.io/v1alpha3</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">VirtualService</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-vsvc</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">http</span><span class="p p-Indicator">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary</span>
+<span class="w">    </span><span class="nt">route</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-example</span><span class="w"> </span><span class="c1"># same as the steps above</span>
+<span class="w">        </span><span class="nt">subset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable</span>
+<span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span><span class="w"> </span><span class="c1"># you can leave this as 100, Argo Rollouts will handle the adjusted total weight so that the weights add up to 100%</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-example</span>
+<span class="w">        </span><span class="nt">subset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span>
+<span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experiment-host</span><span class="w"> </span><span class="c1"># this references the host of the additional Service (or whatever is configured by the additional Service)</span>
+<span class="w">        </span><span class="nt">subset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experiment</span><span class="w"> </span><span class="c1"># new and additional subset DestinationRule, referencing the spec.subsets.name of the DestinationRule</span>
+<span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
+</code></pre></div>
+<p>Also ensure that you deploy the additional DestinationRule (alongside whatever Services, Deployments, etc. that your additional DestinationRule depends on)
+as well, with the appropriate <code>spec.host</code>, <code>spec.subsets.name</code>, and <code>spec.subsets.labels.app</code> fields:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.istio.io/v1alpha3</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DestinationRule</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experimental-destrule</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experimental-host</span>
+<span class="w">  </span><span class="nt">exportTo</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress-system</span>
+<span class="w">  </span><span class="nt">subsets</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experiment</span>
+<span class="w">      </span><span class="nt">labels</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experimental-host</span>
+</code></pre></div>
+<p>Finally, add the names of the additional DestinationRule's to your Rollout spec as such:</p>
+<div class="highlight"><pre><span></span><code><span class="nn">...</span>
+<span class="nt">destinationRule</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-destrule</span><span class="w">    </span><span class="c1"># required</span>
+<span class="w">  </span><span class="nt">canarySubsetName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span><span class="w">  </span><span class="c1"># required</span>
+<span class="w">  </span><span class="nt">stableSubsetName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable</span><span class="w">  </span><span class="c1"># required</span>
+<span class="w">  </span><span class="nt">additionalSubsetNames</span><span class="p">:</span><span class="w">    </span><span class="c1"># not required, optional</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w">                     </span><span class="c1"># any other additional DestinationRule&#39;s</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;experiment&quot;</span>
+</code></pre></div>
+<p>The Argo Rollouts controller will manage the traffic weights between the canary and stable subsets,
+subtracting the weight directed to the additional subset DestinationRule's from the stable traffic.
+E.g.: Stable starts off at 100%, but with an additional DestinationRule taking up 20% of the traffic weight,
+it would then actually start off at 80%.</p>
 <h2 id="tcp-traffic-splitting">TCP Traffic Splitting<a class="headerlink" href="#tcp-traffic-splitting" title="Permanent link">&para;</a></h2>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
