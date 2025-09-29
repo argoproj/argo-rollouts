@@ -2725,7 +2725,7 @@ func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testin
 					TemplateName: at.Name,
 				},
 			},
-			AnalysisRunMetadata: v1alpha1.AnalysisRunMetadata{
+			AnalysisRunMetadata: &v1alpha1.AnalysisRunMetadata{
 				Annotations: map[string]string{"testAnnotationKey": "testAnnotationValue"},
 				Labels:      map[string]string{"testLabelKey": "testLabelValue"},
 			},

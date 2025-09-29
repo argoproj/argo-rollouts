@@ -2187,7 +2187,11 @@ func (in *RolloutAnalysis) DeepCopyInto(out *RolloutAnalysis) {
 		*out = make([]MeasurementRetention, len(*in))
 		copy(*out, *in)
 	}
-	in.AnalysisRunMetadata.DeepCopyInto(&out.AnalysisRunMetadata)
+	if in.AnalysisRunMetadata != nil {
+		in, out := &in.AnalysisRunMetadata, &out.AnalysisRunMetadata
+		*out = new(AnalysisRunMetadata)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

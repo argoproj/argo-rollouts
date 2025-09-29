@@ -443,10 +443,11 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 		return nil, err
 	}
 	runLabels := labels
-	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Labels {
-		runLabels[k] = v
+	if rolloutAnalysis.AnalysisRunMetadata != nil {
+		for k, v := range rolloutAnalysis.AnalysisRunMetadata.Labels {
+			runLabels[k] = v
+		}
 	}
-
 	for k, v := range c.rollout.Spec.Selector.MatchLabels {
 		runLabels[k] = v
 	}
@@ -454,8 +455,10 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 	runAnnotations := map[string]string{
 		annotations.RevisionAnnotation: revision,
 	}
-	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Annotations {
-		runAnnotations[k] = v
+	if rolloutAnalysis.AnalysisRunMetadata != nil {
+		for k, v := range rolloutAnalysis.AnalysisRunMetadata.Annotations {
+			runAnnotations[k] = v
+		}
 	}
 	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, rolloutAnalysis.DryRun, rolloutAnalysis.MeasurementRetention,
 		runLabels, runAnnotations, name, "", c.rollout.Namespace)
