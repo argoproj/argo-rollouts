@@ -176,7 +176,7 @@ Each time a change occurs in the ConfigMap, its name will change in the Deployme
 
 However, it's not enough to perform correctly progressive rollouts, as the old ConfigMap might get deleted as soon as the new one is created. This would prevent Experiments and rollbacks in case of rollout failure to work correctly.
 
-While no magical solution exist to work aroud that, you can tweak your deployment tool to remove the ConfigMap only when the Rollout is completed successfully.
+While no magical solution exist to work around that, you can tweak your deployment tool to remove the ConfigMap only when the Rollout is completed successfully.
 
 Example with Argo CD:
 
