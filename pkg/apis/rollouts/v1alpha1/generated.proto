@@ -891,6 +891,10 @@ message IstioDestinationRule {
 
   // StableSubsetName is the subset name to modify labels with stable ReplicaSet pod template hash value
   optional string stableSubsetName = 3 [(gogoproto.customname) = "StableSubsetName", (gogoproto.nullable) = false];
+
+  // AdditionalSubsetNames contains a list of additional names for subset DestinationRules that are not controlled by Argo Rollouts
+  // +optional
+  repeated string additionalSubsetNames = 4 [(gogoproto.customname) = "AdditionalSubsetNames"];
 }
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
