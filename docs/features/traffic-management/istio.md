@@ -296,7 +296,7 @@ as well, with the appropriate `spec.host`, `spec.subsets.name`, and `spec.subset
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
-  name: experiemental-destrule
+  name: experimental-destrule
 spec:
   host: experimental-host
   exportTo:
