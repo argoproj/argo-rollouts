@@ -491,6 +491,74 @@ func TestPromoteCmdAlreadyFullyPromoted(t *testing.T) {
 	assert.Empty(t, stderr)
 }
 
+func TestPromoteCmdFullWithSpecPaused(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Paused: true,
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					Steps: []v1alpha1.CanaryStep{
+						{
+							SetWeight: ptr.To[int32](50),
+						},
+						{
+							Pause: &v1alpha1.RolloutPause{},
+						},
+						{
+							SetWeight: ptr.To[int32](100),
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.RolloutStatus{
+			CurrentStepIndex: ptr.To[int32](1),
+			StableRS:         "abc123",
+			CurrentPodHash:   "def456",
+		},
+	}
+
+	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
+	defer tf.Cleanup()
+
+	patches := make([]string, 0)
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			patch := string(patchAction.GetPatch())
+			patches = append(patches, patch)
+
+			if patch == promoteFullPatch {
+				ro.Status.PromoteFull = true
+				ro.Status.CurrentStepIndex = ptr.To[int32](3)
+				ro.Status.PauseConditions = nil
+			}
+		}
+		return true, &ro, nil
+	})
+
+	cmd := NewCmdPromote(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"guestbook", "--full"})
+	err := cmd.Execute()
+	assert.Nil(t, err)
+
+	assert.Contains(t, patches, promoteFullPatch)
+
+	assert.True(t, ro.Status.PromoteFull)
+	assert.Equal(t, int32(3), *ro.Status.CurrentStepIndex)
+	assert.Empty(t, ro.Status.PauseConditions)
+
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, stdout, "rollout 'guestbook' fully promoted\n")
+	assert.Empty(t, stderr)
+}
+
 func TestPromoteInconclusiveStep(t *testing.T) {
 	ro := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
