@@ -2615,6 +2615,21 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioDestinationRule(ref common.Reference
 							Format:      "",
 						},
 					},
+					"additionalSubsetNames": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdditionalSubsetNames contains a list of additional names for subset DestinationRules that are not controlled by Argo Rollouts",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"name", "canarySubsetName", "stableSubsetName"},
 			},
