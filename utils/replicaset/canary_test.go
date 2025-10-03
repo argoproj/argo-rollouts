@@ -1629,6 +1629,32 @@ func TestAllDesiredAreAvailable(t *testing.T) {
 			desired: 10,
 			want:    false,
 		},
+		{
+			name: "test correct return (false) when rs.Spec.Replicas is nil and desired != 1 (GetReplicasOrDefault returns 1)",
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 10,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: nil, // nil replicas defaults to 1 by GetReplicasOrDefault
+				},
+			},
+			desired: 10,
+			want:    false,
+		},
+		{
+			name: "test correct return (true) when rs.Spec.Replicas is nil and desired is 1",
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 1,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: nil, // nil replicas defaults to 1
+				},
+			},
+			desired: 1,
+			want:    true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1755,6 +1781,20 @@ func TestAllReplicaProgressThresholdMet(t *testing.T) {
 				},
 			},
 			desired: 10,
+			want:    true,
+		},
+		{
+			name: "test that when desired is 0, threshold is always met (percentage type only)",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 0,
+				},
+			},
+			desired: 0,
 			want:    true,
 		},
 	}
