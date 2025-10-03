@@ -5,6 +5,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [7shifts](https://www.7shifts.com)
 1. [Ada](https://www.ada.cx)
 1. [ADP](https://www.adp.com)
+1. [Airbnb](https://airbnb.com)
 1. [Akuity](https://akuity.io/)
 1. [Alibaba Group](https://www.alibabagroup.com/)
 1. [Amadeus IT Group](https://amadeus.com/)
