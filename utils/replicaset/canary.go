@@ -21,7 +21,7 @@ const (
 )
 
 func allDesiredAreAvailable(rs *appsv1.ReplicaSet, desired int32) bool {
-	return rs != nil && desired == *rs.Spec.Replicas && desired == rs.Status.AvailableReplicas
+	return rs != nil && desired == defaults.GetReplicasOrDefault(rs.Spec.Replicas) && desired == rs.Status.AvailableReplicas
 }
 
 func allDesiredAreCreated(rs *appsv1.ReplicaSet, desired int32) bool {

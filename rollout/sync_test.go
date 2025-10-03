@@ -616,6 +616,108 @@ func Test_shouldFullPromote(t *testing.T) {
 	assert.Equal(t, result, "Rollback within window")
 }
 
+func TestShouldFullPromoteWithReplicaProgressThreshold(t *testing.T) {
+	tests := []struct {
+		name                     string
+		availableReplicas        int32
+		threshold                *v1alpha1.ReplicaProgressThreshold
+		expectedPromotionMessage string
+		description              string
+	}{
+		{
+			name:              "threshold met - 90% available with 90% threshold",
+			availableReplicas: 9,
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			expectedPromotionMessage: "Completed all 1 canary steps",
+			description:              "Should promote when threshold is met (9/10 = 90%)",
+		},
+		{
+			name:              "threshold not met - 80% available with 90% threshold",
+			availableReplicas: 8,
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			expectedPromotionMessage: "",
+			description:              "Should not promote when threshold is not met (8/10 = 80% < 90%)",
+		},
+		{
+			name:                     "nil threshold - requires 100% availability",
+			availableReplicas:        9,
+			threshold:                nil,
+			expectedPromotionMessage: "",
+			description:              "Should not promote with nil threshold, requiring 100% availability (9/10 = 90%)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create stable RS and new RS
+			stableRS := &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "stable",
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: int32Ptr(10),
+				},
+				Status: v1.ReplicaSetStatus{
+					AvailableReplicas: int32(10),
+				},
+			}
+
+			newRS := &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "new",
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: int32Ptr(10),
+				},
+				Status: v1.ReplicaSetStatus{
+					AvailableReplicas: tt.availableReplicas,
+				},
+			}
+
+			replicaSets := []*appsv1.ReplicaSet{stableRS, newRS}
+
+			ctx := &rolloutContext{
+				allRSs:   replicaSets,
+				stableRS: stableRS,
+				newRS:    newRS,
+				rollout: &v1alpha1.Rollout{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "foo",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.RolloutSpec{
+						Replicas: int32Ptr(10),
+						Strategy: v1alpha1.RolloutStrategy{
+							Canary: &v1alpha1.CanaryStrategy{
+								Steps: []v1alpha1.CanaryStep{
+									{SetWeight: int32Ptr(100)},
+								},
+								ReplicaProgressThreshold: tt.threshold,
+							},
+						},
+					},
+				},
+			}
+			ctx.pauseContext = &pauseContext{rollout: ctx.rollout}
+			ctx.log = logutil.WithRollout(ctx.rollout)
+
+			// Set to last step to trigger full promotion check
+			ctx.rollout.Status.CurrentStepIndex = int32Ptr(1)
+			newStatus := v1alpha1.RolloutStatus{}
+
+			result := ctx.shouldFullPromote(newStatus)
+
+			assert.Equal(t, tt.expectedPromotionMessage, result, tt.description)
+		})
+	}
+}
+
 func TestScaleDownDeploymentOnSuccess(t *testing.T) {
 	ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
 	newStatus := &v1alpha1.RolloutStatus{
