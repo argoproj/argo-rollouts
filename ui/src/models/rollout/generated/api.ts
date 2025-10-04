@@ -7835,6 +7835,12 @@ export interface RolloutReplicaSetInfo {
      * @memberof RolloutReplicaSetInfo
      */
     initContainerImages?: Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutReplicaSetInfo
+     */
+    description?: string;
 }
 /**
  * 
