@@ -4768,6 +4768,9 @@
                                                     "configurationAccountName": {
                                                         "type": "string"
                                                     },
+                                                    "lookback": {
+                                                        "type": "boolean"
+                                                    },
                                                     "metricsAccountName": {
                                                         "type": "string"
                                                     },
@@ -4794,10 +4797,8 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "end",
                                                                         "region",
                                                                         "scope",
-                                                                        "start",
                                                                         "step"
                                                                     ],
                                                                     "type": "object"
@@ -4822,10 +4823,8 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "end",
                                                                         "region",
                                                                         "scope",
-                                                                        "start",
                                                                         "step"
                                                                     ],
                                                                     "type": "object"
@@ -9900,6 +9899,9 @@
                                                     "configurationAccountName": {
                                                         "type": "string"
                                                     },
+                                                    "lookback": {
+                                                        "type": "boolean"
+                                                    },
                                                     "metricsAccountName": {
                                                         "type": "string"
                                                     },
@@ -9926,10 +9928,8 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "end",
                                                                         "region",
                                                                         "scope",
-                                                                        "start",
                                                                         "step"
                                                                     ],
                                                                     "type": "object"
@@ -9954,10 +9954,8 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "end",
                                                                         "region",
                                                                         "scope",
-                                                                        "start",
                                                                         "step"
                                                                     ],
                                                                     "type": "object"
@@ -15045,6 +15043,9 @@
                                                     "configurationAccountName": {
                                                         "type": "string"
                                                     },
+                                                    "lookback": {
+                                                        "type": "boolean"
+                                                    },
                                                     "metricsAccountName": {
                                                         "type": "string"
                                                     },
@@ -15071,10 +15072,8 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "end",
                                                                         "region",
                                                                         "scope",
-                                                                        "start",
                                                                         "step"
                                                                     ],
                                                                     "type": "object"
@@ -15099,10 +15098,8 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "end",
                                                                         "region",
                                                                         "scope",
-                                                                        "start",
                                                                         "step"
                                                                     ],
                                                                     "type": "object"

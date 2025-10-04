@@ -1311,6 +1311,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetr
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
      */
     scopes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    lookback?: boolean;
 }
 /**
  * 
