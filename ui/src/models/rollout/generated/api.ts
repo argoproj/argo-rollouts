@@ -3476,7 +3476,7 @@ export interface K8sIoApiBatchV1JobSpec {
      */
     podReplacementPolicy?: string;
     /**
-     * ManagedBy field indicates the controller that manages a Job. The k8s Job controller reconciles jobs which don't have this field at all or the field value is the reserved string `kubernetes.io/job-controller`, but skips reconciling Jobs with a custom value for this field. The value must be a valid domain-prefixed path (e.g. acme.io/foo) - all characters before the first \"/\" must be a valid subdomain as defined by RFC 1123. All characters trailing the first \"/\" must be valid HTTP Path characters as defined by RFC 3986. The value cannot exceed 64 characters.  This field is alpha-level. The job controller accepts setting the field when the feature gate JobManagedBy is enabled (disabled by default). +optional
+     * ManagedBy field indicates the controller that manages a Job. The k8s Job controller reconciles jobs which don't have this field at all or the field value is the reserved string `kubernetes.io/job-controller`, but skips reconciling Jobs with a custom value for this field. The value must be a valid domain-prefixed path (e.g. acme.io/foo) - all characters before the first \"/\" must be a valid subdomain as defined by RFC 1123. All characters trailing the first \"/\" must be valid HTTP Path characters as defined by RFC 3986. The value cannot exceed 63 characters. This field is immutable.  This field is beta-level. The job controller accepts setting the field when the feature gate JobManagedBy is enabled (enabled by default). +optional
      * @type {string}
      * @memberof K8sIoApiBatchV1JobSpec
      */
@@ -3546,7 +3546,7 @@ export interface K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern {
  */
 export interface K8sIoApiBatchV1PodFailurePolicyRule {
     /**
-     * - FailJob: indicates that the pod's job is marked as Failed and all   running pods are terminated. - FailIndex: indicates that the pod's index is marked as Failed and will   not be restarted.   This value is beta-level. It can be used when the   `JobBackoffLimitPerIndex` feature gate is enabled (enabled by default). - Ignore: indicates that the counter towards the .backoffLimit is not   incremented and a replacement pod is created. - Count: indicates that the pod is handled in the default way - the   counter towards the .backoffLimit is incremented. Additional values are considered to be added in the future. Clients should react to an unknown action by skipping the rule.
+     * - FailJob: indicates that the pod's job is marked as Failed and all   running pods are terminated. - FailIndex: indicates that the pod's index is marked as Failed and will   not be restarted. - Ignore: indicates that the counter towards the .backoffLimit is not   incremented and a replacement pod is created. - Count: indicates that the pod is handled in the default way - the   counter towards the .backoffLimit is incremented. Additional values are considered to be added in the future. Clients should react to an unknown action by skipping the rule.
      * @type {string}
      * @memberof K8sIoApiBatchV1PodFailurePolicyRule
      */
@@ -3868,25 +3868,6 @@ export interface K8sIoApiCoreV1CinderVolumeSource {
      * @memberof K8sIoApiCoreV1CinderVolumeSource
      */
     secretRef?: K8sIoApiCoreV1LocalObjectReference;
-}
-/**
- * ClaimSource describes a reference to a ResourceClaim.  Exactly one of these fields should be set.  Consumers of this type must treat an empty object as if it has an unknown value.
- * @export
- * @interface K8sIoApiCoreV1ClaimSource
- */
-export interface K8sIoApiCoreV1ClaimSource {
-    /**
-     * ResourceClaimName is the name of a ResourceClaim object in the same namespace as this pod.
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ClaimSource
-     */
-    resourceClaimName?: string;
-    /**
-     * ResourceClaimTemplateName is the name of a ResourceClaimTemplate object in the same namespace as this pod.  The template will be used to create a new ResourceClaim, which will be bound to this pod. When this pod is deleted, the ResourceClaim will also be deleted. The pod name and resource name, along with a generated component, will be used to form a unique name for the ResourceClaim, which will be recorded in pod.status.resourceClaimStatuses.  This field is immutable and no changes will be made to the corresponding ResourceClaim by the control plane after creating the ResourceClaim.
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ClaimSource
-     */
-    resourceClaimTemplateName?: string;
 }
 /**
  * ClusterTrustBundleProjection describes how to select a set of ClusterTrustBundle objects and project their contents into the pod filesystem.
@@ -4716,7 +4697,7 @@ export interface K8sIoApiCoreV1GCEPersistentDiskVolumeSource {
     readOnly?: boolean;
 }
 /**
- * 
+ * GRPCAction specifies an action involving a GRPC service.
  * @export
  * @interface K8sIoApiCoreV1GRPCAction
  */
@@ -4952,6 +4933,25 @@ export interface K8sIoApiCoreV1ISCSIVolumeSource {
     initiatorName?: string;
 }
 /**
+ * ImageVolumeSource represents a image volume resource.
+ * @export
+ * @interface K8sIoApiCoreV1ImageVolumeSource
+ */
+export interface K8sIoApiCoreV1ImageVolumeSource {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ImageVolumeSource
+     */
+    reference?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ImageVolumeSource
+     */
+    pullPolicy?: string;
+}
+/**
  * Maps a string key to a path within a volume.
  * @export
  * @interface K8sIoApiCoreV1KeyToPath
@@ -4994,6 +4994,12 @@ export interface K8sIoApiCoreV1Lifecycle {
      * @memberof K8sIoApiCoreV1Lifecycle
      */
     preStop?: K8sIoApiCoreV1LifecycleHandler;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1Lifecycle
+     */
+    stopSignal?: string;
 }
 /**
  * LifecycleHandler defines a specific action that should be taken in a lifecycle hook. One and only one of the fields, except TCPSocket must be specified.
@@ -5027,13 +5033,13 @@ export interface K8sIoApiCoreV1LifecycleHandler {
     sleep?: K8sIoApiCoreV1SleepAction;
 }
 /**
- * 
+ * LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace. --- New uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.  1. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular     restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".     Those cannot be well described when embedded.  2. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.  3. We cannot easily change it.  Because this type is embedded in many locations, updates to this type     will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.  Instead of using this type, create a locally provided and used type that is well-focused on your reference. For example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 . +structType=atomic
  * @export
  * @interface K8sIoApiCoreV1LocalObjectReference
  */
 export interface K8sIoApiCoreV1LocalObjectReference {
     /**
-     * Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. TODO: Add other useful fields. apiVersion, kind, uid? More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names +optional +default=\"\" +kubebuilder:default=\"\" TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
+     * Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names +optional +default=\"\" +kubebuilder:default=\"\" TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
      * @type {string}
      * @memberof K8sIoApiCoreV1LocalObjectReference
      */
@@ -5327,13 +5333,13 @@ export interface K8sIoApiCoreV1PodAffinityTerm {
      */
     namespaceSelector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
     /**
-     * 
+     * MatchLabelKeys is a set of pod label keys to select which pods will be taken into consideration. The keys are used to lookup values from the incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)` to select the group of existing pods which pods will be taken into consideration for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming pod labels will be ignored. The default value is empty. The same key is forbidden to exist in both matchLabelKeys and labelSelector. Also, matchLabelKeys cannot be set when labelSelector isn't set.  +listType=atomic +optional
      * @type {Array<string>}
      * @memberof K8sIoApiCoreV1PodAffinityTerm
      */
     matchLabelKeys?: Array<string>;
     /**
-     * 
+     * MismatchLabelKeys is a set of pod label keys to select which pods will be taken into consideration. The keys are used to lookup values from the incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)` to select the group of existing pods which pods will be taken into consideration for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming pod labels will be ignored. The default value is empty. The same key is forbidden to exist in both mismatchLabelKeys and labelSelector. Also, mismatchLabelKeys cannot be set when labelSelector isn't set.  +listType=atomic +optional
      * @type {Array<string>}
      * @memberof K8sIoApiCoreV1PodAffinityTerm
      */
@@ -5390,7 +5396,7 @@ export interface K8sIoApiCoreV1PodDNSConfig {
  */
 export interface K8sIoApiCoreV1PodDNSConfigOption {
     /**
-     * Required.
+     * Name is this DNS resolver option's name. Required.
      * @type {string}
      * @memberof K8sIoApiCoreV1PodDNSConfigOption
      */
@@ -5429,7 +5435,7 @@ export interface K8sIoApiCoreV1PodReadinessGate {
     conditionType?: string;
 }
 /**
- * PodResourceClaim references exactly one ResourceClaim through a ClaimSource. It adds a name to it that uniquely identifies the ResourceClaim inside the Pod. Containers that need access to the ResourceClaim reference it with this name.
+ * PodResourceClaim references exactly one ResourceClaim, either directly or by naming a ResourceClaimTemplate which is then turned into a ResourceClaim for the pod.  It adds a name to it that uniquely identifies the ResourceClaim inside the Pod. Containers that need access to the ResourceClaim reference it with this name.
  * @export
  * @interface K8sIoApiCoreV1PodResourceClaim
  */
@@ -5441,11 +5447,17 @@ export interface K8sIoApiCoreV1PodResourceClaim {
      */
     name?: string;
     /**
-     * 
-     * @type {K8sIoApiCoreV1ClaimSource}
+     * ResourceClaimName is the name of a ResourceClaim object in the same namespace as this pod.  Exactly one of ResourceClaimName and ResourceClaimTemplateName must be set.
+     * @type {string}
      * @memberof K8sIoApiCoreV1PodResourceClaim
      */
-    source?: K8sIoApiCoreV1ClaimSource;
+    resourceClaimName?: string;
+    /**
+     * ResourceClaimTemplateName is the name of a ResourceClaimTemplate object in the same namespace as this pod.  The template will be used to create a new ResourceClaim, which will be bound to this pod. When this pod is deleted, the ResourceClaim will also be deleted. The pod name and resource name, along with a generated component, will be used to form a unique name for the ResourceClaim, which will be recorded in pod.status.resourceClaimStatuses.  This field is immutable and no changes will be made to the corresponding ResourceClaim by the control plane after creating the ResourceClaim.  Exactly one of ResourceClaimName and ResourceClaimTemplateName must be set.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodResourceClaim
+     */
+    resourceClaimTemplateName?: string;
 }
 /**
  * PodSchedulingGate is associated to a Pod to guard its scheduling.
@@ -5503,6 +5515,12 @@ export interface K8sIoApiCoreV1PodSecurityContext {
      */
     supplementalGroups?: Array<string>;
     /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodSecurityContext
+     */
+    supplementalGroupsPolicy?: string;
+    /**
      * 1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw----  If unset, the Kubelet will not modify the ownership and permissions of any volume. Note that this field cannot be set when spec.os.name is windows. +optional
      * @type {string}
      * @memberof K8sIoApiCoreV1PodSecurityContext
@@ -5532,6 +5550,12 @@ export interface K8sIoApiCoreV1PodSecurityContext {
      * @memberof K8sIoApiCoreV1PodSecurityContext
      */
     appArmorProfile?: K8sIoApiCoreV1AppArmorProfile;
+    /**
+     * seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod. It has no effect on nodes that do not support SELinux or to volumes does not support SELinux. Valid values are \"MountOption\" and \"Recursive\".  \"Recursive\" means relabeling of all files on all Pod volumes by the container runtime. This may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.  \"MountOption\" mounts all eligible Pod volumes with `-o context` mount option. This requires all Pods that share the same volume to use the same SELinux label. It is not possible to share the same volume among privileged and unprivileged Pods. Eligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes whose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their CSIDriver instance. Other volumes are always re-labelled recursively. \"MountOption\" value is allowed only when SELinuxMount feature gate is enabled.  If not specified and SELinuxMount feature gate is enabled, \"MountOption\" is used. If not specified and SELinuxMount feature gate is disabled, \"MountOption\" is used for ReadWriteOncePod volumes and \"Recursive\" for all other volumes.  This field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.  All Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state. Note that this field cannot be set when spec.os.name is windows. +featureGate=SELinuxChangePolicy +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodSecurityContext
+     */
+    seLinuxChangePolicy?: string;
 }
 /**
  * PodSpec is a description of a pod.
@@ -5773,6 +5797,12 @@ export interface K8sIoApiCoreV1PodSpec {
      * @memberof K8sIoApiCoreV1PodSpec
      */
     resourceClaims?: Array<K8sIoApiCoreV1PodResourceClaim>;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ResourceRequirements}
+     * @memberof K8sIoApiCoreV1PodSpec
+     */
+    resources?: K8sIoApiCoreV1ResourceRequirements;
 }
 /**
  * 
@@ -6046,6 +6076,12 @@ export interface K8sIoApiCoreV1ResourceClaim {
      * @memberof K8sIoApiCoreV1ResourceClaim
      */
     name?: string;
+    /**
+     * Request is the name chosen for a request in the referenced claim. If empty, everything from the claim is made available, otherwise only the result of this request.  +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ResourceClaim
+     */
+    request?: string;
 }
 /**
  * 
@@ -6580,13 +6616,13 @@ export interface K8sIoApiCoreV1TopologySpreadConstraint {
      */
     minDomains?: number;
     /**
-     * NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector when calculating pod topology spread skew. Options are: - Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations. - Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.  If this value is nil, the behavior is equivalent to the Honor policy. This is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag. +optional
+     * NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector when calculating pod topology spread skew. Options are: - Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations. - Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.  If this value is nil, the behavior is equivalent to the Honor policy. +optional
      * @type {string}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
     nodeAffinityPolicy?: string;
     /**
-     * NodeTaintsPolicy indicates how we will treat node taints when calculating pod topology spread skew. Options are: - Honor: nodes without taints, along with tainted nodes for which the incoming pod has a toleration, are included. - Ignore: node taints are ignored. All nodes are included.  If this value is nil, the behavior is equivalent to the Ignore policy. This is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag. +optional
+     * NodeTaintsPolicy indicates how we will treat node taints when calculating pod topology spread skew. Options are: - Honor: nodes without taints, along with tainted nodes for which the incoming pod has a toleration, are included. - Ignore: node taints are ignored. All nodes are included.  If this value is nil, the behavior is equivalent to the Ignore policy. +optional
      * @type {string}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
@@ -6599,7 +6635,7 @@ export interface K8sIoApiCoreV1TopologySpreadConstraint {
     matchLabelKeys?: Array<string>;
 }
 /**
- * 
+ * TypedLocalObjectReference contains enough information to let you locate the typed referenced object inside the same namespace. --- New uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.  1. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular     restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".     Those cannot be well described when embedded.  2. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.  3. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity     during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple     and the version of the actual struct is irrelevant.  4. We cannot easily change it.  Because this type is embedded in many locations, updates to this type     will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.  Instead of using this type, create a locally provided and used type that is well-focused on your reference. For example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 . +structType=atomic
  * @export
  * @interface K8sIoApiCoreV1TypedLocalObjectReference
  */
@@ -6742,7 +6778,7 @@ export interface K8sIoApiCoreV1VolumeMount {
     subPathExpr?: string;
 }
 /**
- * 
+ * Projection that may be projected along with other supported volume types. Exactly one of these fields must be set.
  * @export
  * @interface K8sIoApiCoreV1VolumeProjection
  */
@@ -6977,6 +7013,12 @@ export interface K8sIoApiCoreV1VolumeSource {
      * @memberof K8sIoApiCoreV1VolumeSource
      */
     ephemeral?: K8sIoApiCoreV1EphemeralVolumeSource;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ImageVolumeSource}
+     * @memberof K8sIoApiCoreV1VolumeSource
+     */
+    image?: K8sIoApiCoreV1ImageVolumeSource;
 }
 /**
  * Represents a vSphere volume resource.

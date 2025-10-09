@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	apisrolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	versioned "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // Rollouts.
 type RolloutInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.RolloutLister
+	Lister() rolloutsv1alpha1.RolloutLister
 }
 
 type rolloutInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredRolloutInformer(client versioned.Interface, namespace string, re
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().Rollouts(namespace).List(context.TODO(), options)
+				return client.ArgoprojV1alpha1().Rollouts(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().Rollouts(namespace).Watch(context.TODO(), options)
+				return client.ArgoprojV1alpha1().Rollouts(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ArgoprojV1alpha1().Rollouts(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, options)
 			},
 		},
-		&rolloutsv1alpha1.Rollout{},
+		&apisrolloutsv1alpha1.Rollout{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *rolloutInformer) defaultInformer(client versioned.Interface, resyncPeri
 }
 
 func (f *rolloutInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&rolloutsv1alpha1.Rollout{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisrolloutsv1alpha1.Rollout{}, f.defaultInformer)
 }
 
-func (f *rolloutInformer) Lister() v1alpha1.RolloutLister {
-	return v1alpha1.NewRolloutLister(f.Informer().GetIndexer())
+func (f *rolloutInformer) Lister() rolloutsv1alpha1.RolloutLister {
+	return rolloutsv1alpha1.NewRolloutLister(f.Informer().GetIndexer())
 }
