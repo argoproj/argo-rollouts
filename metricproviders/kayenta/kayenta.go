@@ -50,13 +50,21 @@ type AnalysisRequest struct {
 }
 
 type ScopeRequest struct {
-	ControlScope    v1alpha1.ScopeDetail `json:"controlScope"`
-	ExperimentScope v1alpha1.ScopeDetail `json:"experimentScope"`
+	ControlScope    ScopeDetailRequest `json:"controlScope"`
+	ExperimentScope ScopeDetailRequest `json:"experimentScope"`
 }
 
 type ThresholdsRequest struct {
 	Pass     int64 `json:"pass"`
 	Marginal int64 `json:"marginal"`
+}
+
+type ScopeDetailRequest struct {
+	Scope    string `json:"scope"`
+	Location string `json:"location"`
+	Step     int64  `json:"step"`
+	Start    string `json:"start,omitempty"`
+	End      string `json:"end,omitempty"`
 }
 
 // Type indicates provider is a kayenta provider
@@ -282,8 +290,20 @@ func getEndTime(currentTime metav1.Time) string {
 
 func scopeToScopeRequest(scope v1alpha1.KayentaScope) (ScopeRequest, error) {
 	return ScopeRequest{
-		ControlScope:    scope.ControlScope,
-		ExperimentScope: scope.ExperimentScope,
+		ControlScope: ScopeDetailRequest{
+			Scope:    scope.ControlScope.Scope,
+			Location: scope.ControlScope.Region,
+			Step:     scope.ControlScope.Step,
+			Start:    scope.ControlScope.Start,
+			End:      scope.ControlScope.End,
+		},
+		ExperimentScope: ScopeDetailRequest{
+			Scope:    scope.ExperimentScope.Scope,
+			Location: scope.ExperimentScope.Region,
+			Step:     scope.ExperimentScope.Step,
+			Start:    scope.ExperimentScope.Start,
+			End:      scope.ExperimentScope.End,
+		},
 	}, nil
 }
 
