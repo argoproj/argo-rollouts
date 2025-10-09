@@ -120,6 +120,7 @@ gen-proto: k8s-proto api-proto ui-proto
 .PHONY: k8s-proto
 k8s-proto: go-mod-vendor install-protoc-local install-go-tools-local $(TYPES) ## generate kubernetes protobuf files
 	mkdir -p ${PKG}
+	rm -f pkg/apis/rollouts/v1alpha1/generated.proto
 	cp -f $(CURDIR)/pkg/apis/rollouts/v1alpha1/*.* ${PKG}/
 	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} go-to-protobuf \
 		--go-header-file=./hack/custom-boilerplate.go.txt \
