@@ -2840,6 +2840,12 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref common.ReferenceCallbac
 							},
 						},
 					},
+					"lookback": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"address", "application", "canaryConfigName", "metricsAccountName", "configurationAccountName", "storageAccountName", "threshold", "scopes"},
 			},
@@ -5094,20 +5100,18 @@ func schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref common.ReferenceCallback)
 					},
 					"start": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"end": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},
-				Required: []string{"scope", "region", "step", "start", "end"},
+				Required: []string{"scope", "region", "step"},
 			},
 		},
 	}
