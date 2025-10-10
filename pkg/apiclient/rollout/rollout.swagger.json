@@ -1406,6 +1406,9 @@
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.KayentaScope"
           }
+        },
+        "lookback": {
+          "type": "boolean"
         }
       }
     },
