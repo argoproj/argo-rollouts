@@ -157,15 +157,75 @@ func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWe
 // this currently only be used in the canary strategy
 func (c *rolloutContext) reconcileTrafficRouting() error {
 	reconcilers, err := c.newTrafficRoutingReconciler(c)
-	// a return here does ensure that all trafficReconcilers are healthy
-	// and same in syntax
 	if err != nil {
 		return err
 	}
-	// ensure that trafficReconcilers list is healthy
 	if len(reconcilers) == 0 {
 		c.log.Info("No TrafficRouting Reconcilers found")
-		c.newStatus.Canary.Weights = nil
+		// Only set weights for basic canary if traffic routing is enabled
+		if c.rollout.Spec.Strategy.Canary.TrafficRouting != nil {
+			_, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
+			desiredWeight := int32(0)
+			weightDestinations := make([]v1alpha1.WeightDestination, 0)
+
+			var canaryHash, stableHash string
+			if c.stableRS != nil {
+				stableHash = c.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			}
+			if c.newRS != nil {
+				canaryHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			}
+
+			if dynamicallyRollingBackToStable, prevDesiredHash := isDynamicallyRollingBackToStable(c.rollout, c.newRS); dynamicallyRollingBackToStable {
+				desiredWeight = c.calculateDesiredWeightOnAbortOrStableRollback()
+				canaryHash = prevDesiredHash
+			} else if rolloututil.IsFullyPromoted(c.rollout) {
+				desiredWeight = weightutil.MaxTrafficWeight(c.rollout)
+			} else if c.pauseContext.IsAborted() {
+				desiredWeight = c.calculateDesiredWeightOnAbortOrStableRollback()
+			} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
+				weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
+				desiredWeight = 0
+			} else if c.rollout.Status.PromoteFull {
+				if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+					desiredWeight = (weightutil.MaxTrafficWeight(c.rollout) * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+				} else if c.rollout.Status.Canary.Weights != nil {
+					desiredWeight = c.rollout.Status.Canary.Weights.Canary.Weight
+				}
+			} else if index != nil {
+				atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, nil)
+				if !atDesiredReplicaCount && !c.rollout.Status.PromoteFull {
+					for i := *index - 1; i >= 0; i-- {
+						step := c.rollout.Spec.Strategy.Canary.Steps[i]
+						if step.SetWeight != nil {
+							desiredWeight = *step.SetWeight
+							break
+						}
+					}
+					weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
+				} else if *index != int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
+					desiredWeight = replicasetutil.GetCurrentSetWeight(c.rollout)
+					weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
+				} else {
+					desiredWeight = weightutil.MaxTrafficWeight(c.rollout)
+				}
+			} else {
+				desiredWeight = weightutil.MaxTrafficWeight(c.rollout)
+			}
+
+			modified, newWeights := calculateWeightStatus(c.rollout, canaryHash, stableHash, desiredWeight, weightDestinations...)
+			if modified {
+				c.log.Infof("Previous weights: %v", c.rollout.Status.Canary.Weights)
+				c.log.Infof("New weights: %v", newWeights)
+				c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.TrafficWeightUpdatedReason}, trafficWeightUpdatedMessage(c.rollout.Status.Canary.Weights, newWeights))
+				c.newStatus.Canary.Weights = newWeights
+			} else if c.newStatus.Canary.Weights == nil {
+				// Ensure weights is always set
+				c.newStatus.Canary.Weights = newWeights
+			}
+			// No verification for basic canary
+			c.newStatus.Canary.Weights.Verified = nil
+		}
 		return nil
 	}
 
@@ -270,16 +330,18 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		}
 		// We need to check for revision > 1 because when we first install the rollout we run step 0 this prevents that.
 		// There is a bigger fix needed for the reasons on why we run step 0 on rollout install, that needs to be explored.
-		revision, revisionFound := annotations.GetRevisionAnnotation(c.rollout)
-		if currentStep != nil && (revisionFound && revision > 1) {
-			if currentStep.SetHeaderRoute != nil {
-				if err = reconciler.SetHeaderRoute(currentStep.SetHeaderRoute); err != nil {
-					return err
+		if currentStep != nil {
+			revision, revisionFound := annotations.GetRevisionAnnotation(c.rollout)
+			if revisionFound && revision > 1 {
+				if currentStep.SetHeaderRoute != nil {
+					if err = reconciler.SetHeaderRoute(currentStep.SetHeaderRoute); err != nil {
+						return err
+					}
 				}
-			}
-			if currentStep.SetMirrorRoute != nil {
-				if err = reconciler.SetMirrorRoute(currentStep.SetMirrorRoute); err != nil {
-					return err
+				if currentStep.SetMirrorRoute != nil {
+					if err = reconciler.SetMirrorRoute(currentStep.SetMirrorRoute); err != nil {
+						return err
+					}
 				}
 			}
 		}
