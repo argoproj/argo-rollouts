@@ -582,6 +582,10 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	if roCtx.newRS == nil {
 		roCtx.newRS, err = roCtx.createDesiredReplicaSet()
 		if err != nil {
+			if k8serrors.IsAlreadyExists(err) {
+				roCtx.log.Info("ReplicaSet already exists, waiting for cache to sync")
+				return nil, nil
+			}
 			return nil, err
 		}
 		roCtx.olderRSs = replicasetutil.FindOldReplicaSets(roCtx.rollout, rsList, roCtx.newRS)
