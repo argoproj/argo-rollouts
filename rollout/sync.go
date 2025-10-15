@@ -944,7 +944,10 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.pauseContext.IsAborted() {
 			return ""
 		}
-		if c.newRS == nil || c.newRS.Status.AvailableReplicas != defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
+		if c.newRS == nil ||
+			(c.newRS.Status.AvailableReplicas != defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) &&
+				// If the replica progress threshold is met, we can fully promote canary to stable.
+				!replicasetutil.ReplicaProgressThresholdMet(c.rollout.Spec.Strategy.Canary.ReplicaProgressThreshold, c.newRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas))) {
 			return ""
 		}
 		if c.rollout.Status.PromoteFull {
