@@ -14,6 +14,7 @@ import (
 
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/sigv4"
 	log "github.com/sirupsen/logrus"
@@ -221,8 +222,8 @@ func newHTTPTransport(insecureSkipVerify bool) *http.Transport {
 	}
 }
 
-var secureTransport *http.Transport = newHTTPTransport(false)
-var insecureTransport *http.Transport = newHTTPTransport(true)
+var secureTransport = newHTTPTransport(false)
+var insecureTransport = newHTTPTransport(true)
 
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
@@ -260,6 +261,16 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 			headers:      customHeaders,
 			roundTripper: roundTripper,
 		}
+	}
+
+	// Check if using basic auth to conect a prometheus instance (example: grafana cloud prometheus instance)
+	if metric.Provider.Prometheus.Authentication.BasicAuth.Username != "" && metric.Provider.Prometheus.Authentication.BasicAuth.Password != "" {
+		roundTripper = config.NewBasicAuthRoundTripper(
+			metric.Provider.Prometheus.Authentication.BasicAuth.Username,
+			config.Secret(metric.Provider.Prometheus.Authentication.BasicAuth.Password),
+			"",
+			"",
+			roundTripper)
 	}
 
 	//Check if using Amazon Managed Prometheus if true build sigv4 client
