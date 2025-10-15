@@ -55,7 +55,6 @@ stringData:
 
 --- 
 
-Let me know if there's anything else you'd like to adjust!
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
