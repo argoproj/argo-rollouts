@@ -778,7 +778,7 @@ type RolloutAnalysis struct {
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
 	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
 	// +optional
-	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
+	AnalysisRunMetadata *AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
 }
 
 type AnalysisTemplateRef struct {
