@@ -6367,6 +6367,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "description": {
+          "type": "string"
         }
       }
     },
