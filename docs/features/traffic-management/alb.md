@@ -51,7 +51,7 @@ spec:
           # the AWS Load Balancer Controller to split traffic between the canary and stable
           # Service, according to the desired traffic weight (required).
           ingress: ingress
-          # If you want to controll multiple ingress resources you can use the ingresses field, if ingresses is specified
+          # If you want to control multiple ingress resources you can use the ingresses field, if ingresses is specified
           # the ingress field will need to be omitted.
           ingresses:
            - ingress-1

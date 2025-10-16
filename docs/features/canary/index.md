@@ -132,7 +132,7 @@ spec:
         - pause: {}
 ```
 
-The above situation is caused by the changed behvaior of `setWeight` after `setCanaryScale`. To reset, set `matchTrafficWeight: true` and the `setWeight` behavior will be restored, i.e., subsequent `setWeight` will create canary replicas matching the traffic weight.
+The above situation is caused by the changed behavior of `setWeight` after `setCanaryScale`. To reset, set `matchTrafficWeight: true` and the `setWeight` behavior will be restored, i.e., subsequent `setWeight` will create canary replicas matching the traffic weight.
 
 ## Dynamic Stable Scale (with Traffic Routing)
 
