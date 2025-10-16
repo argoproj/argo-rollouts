@@ -184,6 +184,12 @@ func CanaryStepString(c v1alpha1.CanaryStep) string {
 	if c.Plugin != nil {
 		return fmt.Sprintf("plugin: %s", c.Plugin.Name)
 	}
+	if c.SetHeaderRoute != nil {
+		return fmt.Sprintf("setHeaderRoute: %s", c.SetHeaderRoute.Name)
+	}
+	if c.SetMirrorRoute != nil {
+		return fmt.Sprintf("setMirrorRoute: %s", c.SetMirrorRoute.Name)
+	}
 	return "invalid"
 }
 
