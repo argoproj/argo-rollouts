@@ -7,7 +7,7 @@ on:
 permissions: {}
 
 env:
-  GOLANG_VERSION: '1.23' # Note: go-version must also be set in job controller-image.with.go-version & plugin-image.with.go-version.
+  GOLANG_VERSION: '1.24' # Note: go-version must also be set in job controller-image.with.go-version & plugin-image.with.go-version.
 
 jobs:
   controller-image:
