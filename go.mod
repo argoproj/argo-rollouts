@@ -45,7 +45,7 @@ require (
 	google.golang.org/protobuf v1.36.5
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.34.1
-	k8s.io/apiextensions-apiserver v0.30.13
+	k8s.io/apiextensions-apiserver v0.34.1
 	k8s.io/apimachinery v0.34.1
 	k8s.io/apiserver v0.34.1
 	k8s.io/cli-runtime v0.34.1
@@ -54,7 +54,7 @@ require (
 	k8s.io/component-base v0.34.1
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912
-	k8s.io/kubectl v0.30.13
+	k8s.io/kubectl v0.34.1
 	k8s.io/kubernetes v1.34.1
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
 	sigs.k8s.io/yaml v1.6.0
