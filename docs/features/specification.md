@@ -27,7 +27,7 @@ spec:
     matchLabels:
       app: guestbook
 
-  # WorkloadRef holds a references to a workload that provides Pod template
+  # WorkloadRef holds a reference to a workload that provides Pod template
   # (e.g. Deployment). If used, then do not use Rollout template property.
   workloadRef:
     apiVersion: apps/v1
@@ -60,7 +60,7 @@ spec:
 
   # Pause allows a user to manually pause a rollout at any time. A rollout
   # will not advance through its steps while it is manually paused, but HPA
-  # auto-scaling will still occur. Typically not explicitly set the manifest,
+  # auto-scaling will still occur. Typically not explicitly set in the manifest,
   # but controlled via tools (e.g. kubectl argo rollouts pause). If true at
   # initial creation of Rollout, replicas are not scaled up automatically
   # from zero unless manually promoted.

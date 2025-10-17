@@ -77,8 +77,7 @@ By default, the rollout controller will scale the canary to match the current tr
 current step. For example, if the current weight is 25%, and there are four replicas, then the
 canary will be scaled to 1, to match the traffic weight.
 
-It is possible to control the canary replica's scale during the steps such that it does not necessary
-match the traffic weight. Some use cases for this:
+It is possible to control the canary replica's scale during the steps such that it does not necessarily match the traffic weight. Some use cases for this are:
 
 1. The new version should not yet be exposed to the public (setWeight: 0), but you would like to
    scale the canary up for testing purposes.
