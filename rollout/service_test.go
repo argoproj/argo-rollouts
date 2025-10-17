@@ -501,7 +501,8 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 		conditions.TargetGroupUnverifiedReason,
 	})
 	patch := f.getPatchedRollout(rolloutPatchIndex)
-	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=58c48fdff5"}}`
+	// NOTE: Similar to other tests, the hash must be updated for every k8s library upgrade
+	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
 	assert.JSONEq(t, expectedPatch, patch)
 }
 
@@ -607,7 +608,8 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 		conditions.TargetGroupVerifiedReason,
 	})
 	patch := f.getPatchedRollout(rolloutPatchIndex)
-	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=58c48fdff5"}}`
+	// NOTE: Similar to other tests, the hash must be updated for every k8s library upgrade
+	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
 	assert.JSONEq(t, expectedPatch, patch)
 }
 
@@ -671,7 +673,8 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f.assertEvents(nil)
 
 	patch := f.getPatchedRollout(patchIndex)
-	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=58c48fdff5"}}`
+	// NOTE: Similar to other tests, the hash must be updated for every k8s library upgrade
+	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
 	assert.Equal(t, expectedPatch, patch)
 }
 
