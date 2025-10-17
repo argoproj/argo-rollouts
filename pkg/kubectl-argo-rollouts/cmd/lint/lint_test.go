@@ -54,7 +54,7 @@ func TestLintInvalidRollout(t *testing.T) {
 	}{
 		{
 			"testdata/invalid.yml",
-			"Error: spec.strategy.maxSurge: Invalid value: intstr.IntOrString{Type:0, IntVal:0, StrVal:\"\"}: MaxSurge and MaxUnavailable both can not be zero\n",
+			"Error: spec.strategy.maxSurge: Invalid value: 0: MaxSurge and MaxUnavailable both can not be zero\n",
 		},
 		{
 			"testdata/invalid-empty-rollout-vsvc.yml",
@@ -62,11 +62,11 @@ func TestLintInvalidRollout(t *testing.T) {
 		},
 		{
 			"testdata/invalid.json",
-			"Error: spec.strategy.maxSurge: Invalid value: intstr.IntOrString{Type:0, IntVal:0, StrVal:\"\"}: MaxSurge and MaxUnavailable both can not be zero\n",
+			"Error: spec.strategy.maxSurge: Invalid value: 0: MaxSurge and MaxUnavailable both can not be zero\n",
 		},
 		{
 			"testdata/invalid-multiple-docs.yml",
-			"Error: spec.strategy.maxSurge: Invalid value: intstr.IntOrString{Type:0, IntVal:0, StrVal:\"\"}: MaxSurge and MaxUnavailable both can not be zero\n",
+			"Error: spec.strategy.maxSurge: Invalid value: 0: MaxSurge and MaxUnavailable both can not be zero\n",
 		},
 		{
 			"testdata/invalid-unknown-field.yml",
