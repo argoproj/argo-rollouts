@@ -3,18 +3,33 @@ name: Testing
 on:
   push:
     branches:
-      - 'master'
-      - 'release-*'
+      # We use skyscanner-internal/master as the base branch for integration
+      # This branch contains our CI changes and is not meant for direct contributions.
+      # Our internal development is to be merged into here.
+      # The changes that are ready for contribution should be cherry-picked to skyscanner-contrib/master.
+      - skyscanner-internal/master
+      # Branches to be used for development and testing. They should be based on skyscanner-internal/master.
+      - skyscanner-internal/develop/**
   pull_request:
     branches:
-      - 'master'
-      - 'release-*'
-  workflow_dispatch:
-    inputs:
-      debug_enabled:
-        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
-        required: false
-        default: false
+      - skyscanner-internal/master
+      # Cleaned up, ready for contribution PRs are to be cherry-picked here
+      - skyscanner-contrib/master
+    types: [ labeled, unlabeled, opened, synchronize, reopened ]
+#  push:
+#    branches:
+#      - 'master'
+#      - 'release-*'
+#  pull_request:
+#    branches:
+#      - 'master'
+#      - 'release-*'
+#  workflow_dispatch:
+#    inputs:
+#      debug_enabled:
+#        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+#        required: false
+#        default: false
 env:
   # Golang version to use across CI steps
   GOLANG_VERSION: '1.23'
@@ -38,10 +53,10 @@ jobs:
           path: ${{ github.event_path }}
   test-unit:
     name: Run unit tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-8cores-public
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.4.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
@@ -88,10 +103,10 @@ jobs:
           - version: '1.31'
             latest: true
     name: Run end-to-end tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-16cores-public
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.4.0
         with:
           go-version: '1.23'
       - uses: actions/checkout@v4
@@ -119,13 +134,16 @@ jobs:
           kubectl apply -f  test/e2e/crds
       - name: Start controller
         run: make start-e2e 2>&1 | sed -r "s/[[:cntrl:]]\[[0-9]{1,3}m//g" > /tmp/e2e-controller.log &
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'}}
+<<<<<<< HEAD
+=======
+      #      - name: Setup tmate session
+      #        uses: mxschmitt/action-tmate@v3
+      #        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'}}
+>>>>>>> 279400d88 (feat: Skyscanner customizations for argo-rollouts)
       - name: Run e2e tests
         run: |
           make test-e2e
-        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true') }}
+      #        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true') }}
       - name: Stop e2e tests controller
         run: |
           pgrep -f go-build -a
@@ -133,7 +151,7 @@ jobs:
           sleep 5
           echo "done stopping process"
           ls -lah coverage-output-e2e/
-        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' && matrix.kubernetes.latest)}}
+      #        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' && matrix.kubernetes.latest)}}
       - name: Output Rerun Overview
         run: |
           [[ -f rerunreport.txt ]] && cat rerunreport.txt || echo "No rerun report found"
@@ -165,31 +183,31 @@ jobs:
       - test-e2e
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.4.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
       - uses: actions/checkout@v4
       - name: Get e2e code coverage
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: coverage-output-e2e
           path: coverage-output-e2e
       - name: Get unit test code coverage
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: coverage-output-unit
           path: coverage-output-unit
       - name: combine-go-coverage
         run: |
           go tool covdata textfmt -i=coverage-output-unit/,coverage-output-e2e/ -o full-coverage.out
-      - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@7f8b4b4bde536c465e797be725718b88c5d95e0e # v5.1.1
-        with:
-          file: full-coverage.out
-          fail_ci_if_error: false
-          codecov_yml_path: .codecov.yml
-          disable_search: true
-          verbose: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+#      - name: Upload code coverage information to codecov.io
+#        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
+#        with:
+#          file: full-coverage.out
+#          fail_ci_if_error: false
+#          codecov_yml_path: .codecov.yml
+#          disable_search: true
+#          verbose: true
+#        env:
+#          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

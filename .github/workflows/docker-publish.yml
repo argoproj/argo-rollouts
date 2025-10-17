@@ -3,11 +3,28 @@ name: Docker
 on:
   push:
     branches:
-      - master
-      - release-*
-
-  # Run tests for any PRs.
+      # We use skyscanner-internal/master as the base branch for integration
+      # This branch contains our CI changes and is not meant for direct contributions.
+      # Our internal development is to be merged into here.
+      # The changes that are ready for contribution should be cherry-picked to skyscanner-contrib/master.
+      - skyscanner-internal/master
+      # Branches to be used for development and testing. They should be based on skyscanner-internal/master.
+      - skyscanner-internal/develop/**
   pull_request:
+    branches:
+      - skyscanner-internal/master
+      # Cleaned up, ready for contribution PRs are to be cherry-picked here
+      - skyscanner-contrib/master
+    types: [labeled, unlabeled, opened, synchronize, reopened]
+
+#on:
+#  push:
+#    branches:
+#      - master
+#      - release-*
+#
+#  # Run tests for any PRs.
+#  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,25 +43,37 @@ jobs:
       platforms: ${{ steps.platform-matrix.outputs.platform-matrix }}
 
     steps:
+      - name: configure tags
+        id: image-tag
+        run: |
+          # Get the branch name
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          # Sanitize branch name for container registry compliance
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed -e 's/\//-/g' | tr '[:upper:]' '[:lower:]')
+          # Set the image tag with sanitized branch name
+          echo "tag=${SANITIZED_BRANCH}-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
       - name: Docker meta (controller)
         id: controller-meta
         uses: docker/metadata-action@v5
         with:
           images: |
-            quay.io/argoproj/argo-rollouts
+            ghcr.io/skyscanner/argo-rollouts
           tags: |
-            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            type=raw,value=${{ steps.image-tag.outputs.tag }}
+#            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
+#            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
       - name: Docker meta (plugin)
         id: plugin-meta
         uses: docker/metadata-action@v5
         with:
           images: |
-            quay.io/argoproj/kubectl-argo-rollouts
+            ghcr.io/skyscanner/kubectl-argo-rollouts
           tags: |
-            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            type=raw,value=${{ steps.image-tag.outputs.tag }}
+#            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
+#            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
       # avoid building linux/arm64 for PRs since it takes so long
       - name: Set Platform Matrix
@@ -65,14 +94,17 @@ jobs:
       id-token: write # for creating OIDC tokens for signing.
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: ${{ needs.set-vars.outputs.controller-meta-tags }}
+      # quay_image_name: ${{ needs.set-vars.outputs.controller-meta-tags }}
+      ghcr_image_name: ${{ needs.set-vars.outputs.controller-meta-tags }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       go-version: '1.23'
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: ${{ github.event_name != 'pull_request' }}
     secrets:
-      quay_username: ${{ secrets.QUAY_USERNAME }}
-      quay_password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+      #quay_username: ${{ secrets.RELEASE_QUAY_USERNAME }}
+      #quay_password: ${{ secrets.RELEASE_QUAY_TOKEN }}
+      ghcr_username: ${{ github.actor }}
+      ghcr_password: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-push-plugin-image:
     needs: [set-vars]
@@ -82,12 +114,15 @@ jobs:
       id-token: write # for creating OIDC tokens for signing.
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: ${{ needs.set-vars.outputs.plugin-meta-tags }}
+      # quay_image_name: ${{ needs.set-vars.outputs.plugin-meta-tags }}
+      ghcr_image_name: ${{ needs.set-vars.outputs.plugin-meta-tags }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       go-version: '1.23'
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: ${{ github.event_name != 'pull_request' }}
       target: kubectl-argo-rollouts
     secrets:
-      quay_username: ${{ secrets.QUAY_USERNAME }}
-      quay_password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+      #quay_username: ${{ secrets.RELEASE_QUAY_USERNAME }}
+      #quay_password: ${{ secrets.RELEASE_QUAY_TOKEN }}
+      ghcr_username: ${{ github.actor }}
+      ghcr_password: ${{ secrets.GITHUB_TOKEN }}

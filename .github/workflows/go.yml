@@ -2,11 +2,29 @@ name: Go
 on:
   push:
     branches:
-      - 'master'
-      - 'release-*'
+      # We use skyscanner-internal/master as the base branch for integration
+      # This branch contains our CI changes and is not meant for direct contributions.
+      # Our internal development is to be merged into here.
+      # The changes that are ready for contribution should be cherry-picked to skyscanner-contrib/master.
+      - skyscanner-internal/master
+      # Branches to be used for development and testing. They should be based on skyscanner-internal/master.
+      - skyscanner-internal/develop/**
   pull_request:
     branches:
-      - 'master'
+      - skyscanner-internal/master
+      # Cleaned up, ready for contribution PRs are to be cherry-picked here
+      - skyscanner-contrib/master
+    types: [labeled, unlabeled, opened, synchronize, reopened]
+
+#on:
+#  push:
+#    branches:
+#      - 'master'
+#      - 'release-*'
+#  pull_request:
+#    branches:
+#      - 'master'
+
 env:
   # Golang version to use across CI steps
   GOLANG_VERSION: '1.23'
@@ -27,22 +45,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.4.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: v1.61.0
+          version: v2.1.6
           args: --timeout 6m
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-8cores-public
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.4.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
@@ -65,14 +83,14 @@ jobs:
 
   codegen:
     name: Verify Codegen
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-8cores-public
     env:
       GOPATH: /home/runner/go
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Setup Golang
-        uses: actions/setup-go@v5.1.0
+        uses: actions/setup-go@v5.4.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
