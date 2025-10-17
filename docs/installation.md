@@ -20,7 +20,7 @@ This will create a new namespace, `argo-rollouts`, where Argo Rollouts controlle
 
 
 !!! tip
-    On GKE, you will need grant your account the ability to create new cluster roles:
+    On GKE, you will need to grant your account the ability to create new cluster roles:
 
     ```shell
     kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com

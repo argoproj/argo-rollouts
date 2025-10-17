@@ -1,6 +1,6 @@
 # Migrating to Rollouts
 
-There are ways to migrate to Rollout:
+There are ways to migrate to a Rollout:
 
 * Convert an existing Deployment resource to a Rollout resource.
 * Reference an existing Deployment from a Rollout using `workloadRef` field.
@@ -113,9 +113,7 @@ Consider following if your Deployment runs in production:
 
 ### Running Rollout and Deployment side-by-side
 
-After creation Rollout will spinup required number of Pods side-by-side with the Deployment Pods.
-Rollout won't try to manage existing Deployment Pods. That means you can safely update add Rollout
-to the production environment without any interruption but you are going to run twice more Pods during migration.
+After creation, the Rollout will spin up the required number of Pods side-by-side with the Deployment Pods. The Rollout won't try to manage existing Deployment Pods. That means you can safely add the Rollout to the production environment without any interruption, but you are going to run twice as many Pods during migration.
 
 Argo-rollouts controller patches the spec of rollout object with an annotation of `rollout.argoproj.io/workload-generation`, which equals the generation of referenced deployment. Users can detect if the rollout matches desired generation of deployment by checking the `workloadObservedGeneration` in the rollout status.
 
@@ -143,7 +141,7 @@ When converting a Rollout to a Deployment, it involves changing three fields:
 
 1. Changing the apiVersion from  argoproj.io/v1alpha1 to apps/v1
 1. Changing the kind from Rollout to Deployment
-1. Remove the rollout strategy in `spec.strategy.canary` or ``spec.strategy.blueGreen``
+1. Remove the rollout strategy in `spec.strategy.canary` or `spec.strategy.blueGreen`
 
 
 !!! warning

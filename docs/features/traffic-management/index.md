@@ -6,7 +6,7 @@ There are various techniques to achieve traffic management:
 
 - Raw percentages (i.e., 5% of traffic should go to the new version while the rest goes to the stable version)
 - Header-based routing (i.e., send requests with a specific header to the new version)
-- Mirrored traffic where all the traffic is copied and send to the new version in parallel (but the response is ignored)
+- Mirrored traffic where all the traffic is copied and sent to the new version in parallel (but the response is ignored)
 
 ## Traffic Management tools in Kubernetes
 
@@ -49,7 +49,7 @@ The controller modifies these Services to route traffic to the appropriate canar
 
 Additionally, the Argo Rollouts controller needs to treat the Rollout object differently when using traffic management. In particular, the Stable ReplicaSet owned by the Rollout remains fully scaled up as the Rollout progresses through the Canary steps.
 
-Since the traffic is controlled independently by the Service Mesh resources, the controller needs to make a best effort to ensure that the Stable and New ReplicaSets are not overwhelmed by the traffic sent to them. By leaving the Stable ReplicaSet scaled up, the controller is ensuring that the Stable ReplicaSet can handle 100% of the traffic at any time[^1]. The New ReplicaSet follows the same behavior as without traffic management. The new ReplicaSet's replica count is equal to the latest SetWeight step percentage multiple by the total replica count of the Rollout. This calculation ensures that the canary version does not receive more traffic than it can handle.
+Since the traffic is controlled independently by the Service Mesh resources, the controller needs to make a best effort to ensure that the Stable and New ReplicaSets are not overwhelmed by the traffic sent to them. By leaving the Stable ReplicaSet scaled up, the controller is ensuring that the Stable ReplicaSet can handle 100% of the traffic at any time[^1]. The New ReplicaSet follows the same behavior as without traffic management. The new ReplicaSet's replica count is equal to the latest SetWeight step percentage multiplied by the total replica count of the Rollout. This calculation ensures that the canary version does not receive more traffic than it can handle.
 
 [^1]: The Rollout has to assume that the application can handle 100% of traffic if it is fully scaled up. It should outsource to the HPA to detect if the Rollout needs to more replicas if 100% isn't enough.
 
@@ -98,8 +98,7 @@ The step for the header based traffic routing is `setHeaderRoute` and has a list
 `headerName` - name of the header to match.
 
 `headerValue`-  contains exactly one of `exact` - specify the exact header value, 
-`regex` - value in a regex format, `prefix` - the prefix of the value could be provided. Not all traffic routers will support
-all match types.
+`regex` - value in a regex format, `prefix` - the prefix of the value could be provided. Not all traffic routers will support all match types.
 
 To disable header based traffic routing just need to specify empty `setHeaderRoute` with only the name of the route.
 
