@@ -36,7 +36,7 @@ A `RollingUpdate` slowly replaces the old version with the new version. As the n
 A Recreate deployment deletes the old version of the application before bringing up the new version. As a result, this ensures that two versions of the application never run at the same time, but there is downtime during the deployment.
 
 ### Blue-Green
-A Blue-Green deployment (sometimes referred to as a Red-Black) has both the new and old version of the application deployed at the same time.  During this time, only the old version of the application will receive production traffic. This allows the developers to run tests against the new version before switching the live traffic to the new version.
+A Blue-Green deployment (sometimes referred to as a Red-Black) has both the new and old version of the application deployed at the same time. During this time, only the old version of the application will receive production traffic. This allows the developers to run tests against the new version before switching the live traffic to the new version.
 
 [![How Blue Green deployments work](concepts-assets/blue-green-deployments.png)](concepts-assets/blue-green-deployments.png)
 
