@@ -3796,7 +3796,7 @@
 <p>Argo Rollouts plugins depend on hashicorp's <a href="https://github.com/hashicorp/go-plugin">go-plugin</a> library. This library
 provides a way for a plugin to be compiled as a standalone executable and then loaded by the rollouts controller at runtime.
 This works by having the plugin executable act as a rpc server and the rollouts controller act as a client. The plugin executable
-is started by the rollouts controller and is a long-lived process and that the rollouts controller connects to over a unix socket.</p>
+is started by the rollouts controller and is a long-lived process that the rollouts controller connects to over a unix socket.</p>
 <p>Here is an overview of how plugins are loaded:</p>
 <p><a href="../contributing-assets/plugin-loading.png"><img alt="Loading of plugins" src="../contributing-assets/plugin-loading.png" /></a></p>
 <p>The communication protocol uses golang built in net/rpc library so plugins have to be written in golang.</p>
@@ -3864,8 +3864,7 @@ look up that config in your plugin via the plugin name key. You will also want t
 </code></pre></div>
 <h4 id="traffic-router">Traffic Router<a class="headerlink" href="#traffic-router" title="Permanent link">&para;</a></h4>
 <p>You can see that we use the plugin name under <code>spec.strategy.canary.trafficRouting.plugins</code> for traffic routers.</p>
-<p>You, as a plugin author, can then put any configuration you need under <code>argoproj-labs/metrics</code> and you will be able to
-look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.</p>
+<p>You, as a plugin author, can then put any configuration you need under <code>argoproj-labs/nginx</code> and you will be able to look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>

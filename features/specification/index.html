@@ -3615,7 +3615,7 @@
 <span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span>
 
-<span class="w">  </span><span class="c1"># WorkloadRef holds a references to a workload that provides Pod template</span>
+<span class="w">  </span><span class="c1"># WorkloadRef holds a reference to a workload that provides Pod template</span>
 <span class="w">  </span><span class="c1"># (e.g. Deployment). If used, then do not use Rollout template property.</span>
 <span class="w">  </span><span class="nt">workloadRef</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
@@ -3648,7 +3648,7 @@
 
 <span class="w">  </span><span class="c1"># Pause allows a user to manually pause a rollout at any time. A rollout</span>
 <span class="w">  </span><span class="c1"># will not advance through its steps while it is manually paused, but HPA</span>
-<span class="w">  </span><span class="c1"># auto-scaling will still occur. Typically not explicitly set the manifest,</span>
+<span class="w">  </span><span class="c1"># auto-scaling will still occur. Typically not explicitly set in the manifest,</span>
 <span class="w">  </span><span class="c1"># but controlled via tools (e.g. kubectl argo rollouts pause). If true at</span>
 <span class="w">  </span><span class="c1"># initial creation of Rollout, replicas are not scaled up automatically</span>
 <span class="w">  </span><span class="c1"># from zero unless manually promoted.</span>

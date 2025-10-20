@@ -3618,7 +3618,7 @@ while skipping the regular BlueGreen or Canary update strategy.</p>
 <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/">restart command</a>:</p>
 <div class="highlight"><pre><span></span><code>kubectl-argo-rollouts<span class="w"> </span>restart<span class="w"> </span>ROLLOUT
 </code></pre></div>
-<p>Alternatively, if Rollouts is used with Argo CD, the there is a bundled "restart" action which can
+<p>Alternatively, if Rollouts is used with Argo CD, then there is a bundled "restart" action which can
 be performed via the Argo CD UI or CLI:</p>
 <div class="highlight"><pre><span></span><code>argocd<span class="w"> </span>app<span class="w"> </span>actions<span class="w"> </span>run<span class="w"> </span>my-app<span class="w"> </span>restart<span class="w"> </span>--kind<span class="w"> </span>Rollout<span class="w"> </span>--resource-name<span class="w"> </span>my-rollout
 </code></pre></div>
@@ -3647,10 +3647,9 @@ long-running blue-green/canary update (e.g. a paused canary). However, some cons
 <ul>
 <li>Restarting a Rollout which has a single replica will cause downtime since Argo Rollouts needs to
   terminate the pod in order to replace it.</li>
-<li>Restarting a rollout will be slower than a deployment's rolling update, since maxSurge is not
+<li>Restarting a rollout will be slower than a deployment's rolling update, since <code>maxSurge</code> is not
   used to bring up newer pods faster.</li>
-<li>maxUnavailable will be used to restart multiple pods at a time (starting in v0.10). But if
-  maxUnavailable pods is 0, the controller will still restart pods one at a time.</li>
+<li><code>maxUnavailable</code> will be used to restart multiple pods at a time (starting in v0.10). But if <code>maxUnavailable</code> pods is 0, the controller will still restart pods one at a time.</li>
 </ul>
 <h2 id="scheduled-restarts">Scheduled Restarts<a class="headerlink" href="#scheduled-restarts" title="Permanent link">&para;</a></h2>
 <p>Users can schedule a restart on their Rollout by setting the <code>.spec.restartAt</code> field to a time in

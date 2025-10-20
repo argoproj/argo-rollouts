@@ -3757,7 +3757,7 @@
 <ul>
 <li>Raw percentages (i.e., 5% of traffic should go to the new version while the rest goes to the stable version)</li>
 <li>Header-based routing (i.e., send requests with a specific header to the new version)</li>
-<li>Mirrored traffic where all the traffic is copied and send to the new version in parallel (but the response is ignored)</li>
+<li>Mirrored traffic where all the traffic is copied and sent to the new version in parallel (but the response is ignored)</li>
 </ul>
 <h2 id="traffic-management-tools-in-kubernetes">Traffic Management tools in Kubernetes<a class="headerlink" href="#traffic-management-tools-in-kubernetes" title="Permanent link">&para;</a></h2>
 <p>The core Kubernetes objects do not have fine-grained tools needed to fulfill all the requirements of traffic management. At most, Kubernetes offers native load balancing capabilities through the Service object by offering an endpoint that routes traffic to a grouping of pods based on that Service's selector. Functionality like traffic mirroring or routing by headers is not possible with the default core Service object, and the only way to control the percentage of traffic to different versions of an application is by manipulating replica counts of those versions. </p>
@@ -3792,7 +3792,7 @@
 </code></pre></div></p>
 <p>The controller modifies these Services to route traffic to the appropriate canary and stable ReplicaSets as the Rollout progresses. These Services are used by the Service Mesh to define what group of pods should receive the canary and stable traffic.</p>
 <p>Additionally, the Argo Rollouts controller needs to treat the Rollout object differently when using traffic management. In particular, the Stable ReplicaSet owned by the Rollout remains fully scaled up as the Rollout progresses through the Canary steps.</p>
-<p>Since the traffic is controlled independently by the Service Mesh resources, the controller needs to make a best effort to ensure that the Stable and New ReplicaSets are not overwhelmed by the traffic sent to them. By leaving the Stable ReplicaSet scaled up, the controller is ensuring that the Stable ReplicaSet can handle 100% of the traffic at any time<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup>. The New ReplicaSet follows the same behavior as without traffic management. The new ReplicaSet's replica count is equal to the latest SetWeight step percentage multiple by the total replica count of the Rollout. This calculation ensures that the canary version does not receive more traffic than it can handle.</p>
+<p>Since the traffic is controlled independently by the Service Mesh resources, the controller needs to make a best effort to ensure that the Stable and New ReplicaSets are not overwhelmed by the traffic sent to them. By leaving the Stable ReplicaSet scaled up, the controller is ensuring that the Stable ReplicaSet can handle 100% of the traffic at any time<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup>. The New ReplicaSet follows the same behavior as without traffic management. The new ReplicaSet's replica count is equal to the latest SetWeight step percentage multiplied by the total replica count of the Rollout. This calculation ensures that the canary version does not receive more traffic than it can handle.</p>
 <h2 id="traffic-routing-with-managed-routes-and-route-precedence">Traffic routing with managed routes and route precedence<a class="headerlink" href="#traffic-routing-with-managed-routes-and-route-precedence" title="Permanent link">&para;</a></h2>
 <h5 id="traffic-router-support-istio">Traffic router support: (Istio)<a class="headerlink" href="#traffic-router-support-istio" title="Permanent link">&para;</a></h5>
 <p>When traffic routing is enabled, you have the ability to also let argo rollouts add and manage other routes besides just
@@ -3826,8 +3826,7 @@ The step for the header based traffic routing is <code>setHeaderRoute</code> and
 <p><code>match</code> - header matching rules is an array of <code>headerName, headerValue</code> pairs.</p>
 <p><code>headerName</code> - name of the header to match.</p>
 <p><code>headerValue</code>-  contains exactly one of <code>exact</code> - specify the exact header value, 
-<code>regex</code> - value in a regex format, <code>prefix</code> - the prefix of the value could be provided. Not all traffic routers will support
-all match types.</p>
+<code>regex</code> - value in a regex format, <code>prefix</code> - the prefix of the value could be provided. Not all traffic routers will support all match types.</p>
 <p>To disable header based traffic routing just need to specify empty <code>setHeaderRoute</code> with only the name of the route.</p>
 <p>Example:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>

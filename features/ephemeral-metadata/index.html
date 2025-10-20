@@ -3592,13 +3592,13 @@
 <h1 id="ephemeral-metadata">Ephemeral Metadata<a class="headerlink" href="#ephemeral-metadata" title="Permanent link">&para;</a></h1>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p>This is an <strong>optional</strong> feature of Argo Rollouts that allows you to have more visibility while a rollout is in progress. You do <strong>NOT</strong> need to use emphemeral metadata in order to achieve the main functionality of Argo Rollouts.</p>
+<p>This is an <strong>optional</strong> feature of Argo Rollouts that allows you to have more visibility while a rollout is in progress. You do <strong>NOT</strong> need to use ephemeral metadata in order to achieve the main functionality of Argo Rollouts.</p>
 </div>
 <p>Normally during a deployment, Argo Rollouts automatically handles the pods of the new and old versions along with their labels and their association with your traffic provider (if you use one).</p>
 <p>In some scenarios however,</p>
 <ol>
 <li>You might want to annotate the pods of each version with your own custom labels</li>
-<li>You may want the application itself know when a deployment is happening </li>
+<li>You may want the application itself to know when a deployment is happening </li>
 </ol>
 <p>Argo Rollouts gives you the capability to label or annotate the desired/stable pods with user-defined
 labels/annotations, for <em>only</em> the duration which they are the desired or stable set, and for the

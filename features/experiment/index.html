@@ -3699,7 +3699,7 @@
 <h2 id="what-is-the-experiment-crd">What is the Experiment CRD?<a class="headerlink" href="#what-is-the-experiment-crd" title="Permanent link">&para;</a></h2>
 <p>The Experiment CRD allows users to have ephemeral runs of one or more ReplicaSets. In addition to
 running ephemeral ReplicaSets, the Experiment CRD can launch AnalysisRuns alongside the ReplicaSets.
-Generally, those AnalysisRun is used to confirm that new ReplicaSets are running as expected.</p>
+Generally, those AnalysisRuns are used to confirm that new ReplicaSets are running as expected.</p>
 <p>A Service routing traffic to the Experiment ReplicaSet is also generated if a weight (which requires traffic routing)
 OR the Service attribute for that experiment is set.</p>
 <h2 id="use-cases-of-experiments">Use cases of Experiments<a class="headerlink" href="#use-cases-of-experiments" title="Permanent link">&para;</a></h2>
@@ -3725,8 +3725,7 @@ the Rollout.</p>
 </ul>
 <h2 id="experiment-spec">Experiment Spec<a class="headerlink" href="#experiment-spec" title="Permanent link">&para;</a></h2>
 <p>Below is an example of an experiment that creates two ReplicaSets with 1 replica each and runs them
-for 20 minutes once they both become available. Additionally, several AnalysisRuns are run to
-perform analysis against the pods of the Experiment </p>
+for 20 minutes once they both become available. Additionally, several AnalysisRuns are run to perform analysis against the pods of the Experiment.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Experiment</span>
 <span class="nt">metadata</span><span class="p">:</span>

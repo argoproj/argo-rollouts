@@ -3756,7 +3756,7 @@
 <p>Not all applications can work with Argo Rollouts. Applications that use shared resources (e.g. writing to a shared file) will have issues, and "worker" type applications (that load data from queues) will rarely work ok without source code modifications.</p>
 <p>Note that using Argo Rollouts for "infrastructure" applications such as cert-manager, nginx, coredns, sealed-secrets etc is <strong>NOT</strong> recommended.</p>
 <h2 id="understand-the-scope-of-argo-rollouts">Understand the scope of Argo Rollouts<a class="headerlink" href="#understand-the-scope-of-argo-rollouts" title="Permanent link">&para;</a></h2>
-<p>Currently, Argo Rollouts works with a single Kubernetes deployment/application and within a single cluster only. You also need to have the controller deployed on <em>every</em> cluster where a Rollout is running if have more than one clusters using Rollout workloads.</p>
+<p>Currently, Argo Rollouts works with a single Kubernetes deployment/application and within a single cluster only. You also need to have the controller deployed on <em>every</em> cluster where a Rollout is running if you have more than one cluster using Rollout workloads.</p>
 <p>If you want to look at multiple-services on multiple clusters
 see discussion at issues <a href="https://github.com/argoproj/argo-rollouts/issues/2737">2737</a>, <a href="https://github.com/argoproj/argo-rollouts/issues/451">451</a> and <a href="https://github.com/argoproj/argo-rollouts/issues/2088">2088</a>.</p>
 <p>Note also that Argo Rollouts is a self-contained solution. It doesn't need Argo CD or any other Argo project to work.</p>
@@ -3859,7 +3859,7 @@ in memory usage for a cluster with 1290 rollouts by changing
 <code>RevisionHistoryLimit</code> from 10 to 0.</p>
 <h2 id="rollout-a-configmap-change">Rollout a ConfigMap change<a class="headerlink" href="#rollout-a-configmap-change" title="Permanent link">&para;</a></h2>
 <p>Argo Rollouts is meant to work on a Kubernetes Deployment. When a ConfigMap is mounted inside one of the Deployment container and a change occurs inside the ConfigMap, it won't trigger a new Rollout by default.</p>
-<p>One technique to trigger the Rollout it to name dynamically the ConfigMap.
+<p>One technique to trigger the Rollout is to dynamically name the ConfigMap.
 For example, adding a hash of its content at the end of the name:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>

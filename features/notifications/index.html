@@ -3737,7 +3737,7 @@ Controller administrators can leverage flexible systems of triggers and template
 by the end users. The end-users can subscribe to the configured triggers by adding an annotation to the Rollout objects.</p>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <p>The trigger defines the condition when the notification should be sent as well as the notification content template.
-Default Argo Rollouts comes with a list of built-in triggers that cover the most important events of Argo Rollout live-cycle.
+By default, Argo Rollouts comes with a list of built-in triggers that cover the most important events of Argo Rollout life-cycle.
 Both triggers and templates are configured in the <code>argo-rollouts-notification-configmap</code> ConfigMap. In order to get
 started quickly, you can use pre-configured notification templates defined in <a href="https://github.com/argoproj/argo-rollouts/blob/master/manifests/notifications-install.yaml">notifications-install.yaml</a>.</p>
 <p>If you are leveraging Kustomize it is recommended to include <a href="https://github.com/argoproj/argo-rollouts/blob/master/manifests/notifications-install.yaml">notifications-install.yaml</a> as a remote
@@ -3862,10 +3862,12 @@ when rollout pod spec uses <code>argoproj/rollouts-demo:purple</code> image:</p>
 </code></pre></div>
 <p>Each condition might use several templates. Typically each template is responsible for generating a service-specific notification part.</p>
 <h3 id="notification-metrics">Notification Metrics<a class="headerlink" href="#notification-metrics" title="Permanent link">&para;</a></h3>
-<p>The following prometheus metrics are emitted when notifications are enabled in argo-rollouts.
-- notification_send_success is a counter that measures how many times the notification is sent successfully.
-- notification_send_error is a counter that measures how many times the notification failed to send.
-- notification_send is a histogram that measures performance of sending notification.</p>
+<p>The following prometheus metrics are emitted when notifications are enabled in argo-rollouts.</p>
+<ul>
+<li><code>notification_send_success</code> is a counter that measures how many times the notification is sent successfully.</li>
+<li><code>notification_send_error</code> is a counter that measures how many times the notification failed to send.</li>
+<li><code>notification_send</code> is a histogram that measures performance of sending notification.</li>
+</ul>
 
 
 

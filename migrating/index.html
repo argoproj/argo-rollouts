@@ -3654,7 +3654,7 @@
 
 
 <h1 id="migrating-to-rollouts">Migrating to Rollouts<a class="headerlink" href="#migrating-to-rollouts" title="Permanent link">&para;</a></h1>
-<p>There are ways to migrate to Rollout:</p>
+<p>There are ways to migrate to a Rollout:</p>
 <ul>
 <li>Convert an existing Deployment resource to a Rollout resource.</li>
 <li>Reference an existing Deployment from a Rollout using <code>workloadRef</code> field.</li>
@@ -3756,9 +3756,7 @@ tested before deleting the original Deployment.</p>
 </code></pre></div>
 <p>Consider following if your Deployment runs in production:</p>
 <h3 id="running-rollout-and-deployment-side-by-side">Running Rollout and Deployment side-by-side<a class="headerlink" href="#running-rollout-and-deployment-side-by-side" title="Permanent link">&para;</a></h3>
-<p>After creation Rollout will spinup required number of Pods side-by-side with the Deployment Pods.
-Rollout won't try to manage existing Deployment Pods. That means you can safely update add Rollout
-to the production environment without any interruption but you are going to run twice more Pods during migration.</p>
+<p>After creation, the Rollout will spin up the required number of Pods side-by-side with the Deployment Pods. The Rollout won't try to manage existing Deployment Pods. That means you can safely add the Rollout to the production environment without any interruption, but you are going to run twice as many Pods during migration.</p>
 <p>Argo-rollouts controller patches the spec of rollout object with an annotation of <code>rollout.argoproj.io/workload-generation</code>, which equals the generation of referenced deployment. Users can detect if the rollout matches desired generation of deployment by checking the <code>workloadObservedGeneration</code> in the rollout status.</p>
 <h3 id="traffic-management-during-migration">Traffic Management During Migration<a class="headerlink" href="#traffic-management-during-migration" title="Permanent link">&para;</a></h3>
 <p>The Rollout offers traffic management functionality that manages routing rules and flows the traffic to different

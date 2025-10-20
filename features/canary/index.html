@@ -3899,8 +3899,7 @@ kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="
 <p>By default, the rollout controller will scale the canary to match the current trafficWeight of the
 current step. For example, if the current weight is 25%, and there are four replicas, then the
 canary will be scaled to 1, to match the traffic weight.</p>
-<p>It is possible to control the canary replica's scale during the steps such that it does not necessary
-match the traffic weight. Some use cases for this:</p>
+<p>It is possible to control the canary replica's scale during the steps such that it does not necessarily match the traffic weight. Some use cases for this are:</p>
 <ol>
 <li>The new version should not yet be exposed to the public (setWeight: 0), but you would like to
    scale the canary up for testing purposes.</li>
