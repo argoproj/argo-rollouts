@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	apisrolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	versioned "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // Experiments.
 type ExperimentInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ExperimentLister
+	Lister() rolloutsv1alpha1.ExperimentLister
 }
 
 type experimentInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredExperimentInformer(client versioned.Interface, namespace string,
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().Experiments(namespace).List(context.TODO(), options)
+				return client.ArgoprojV1alpha1().Experiments(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().Experiments(namespace).Watch(context.TODO(), options)
+				return client.ArgoprojV1alpha1().Experiments(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ArgoprojV1alpha1().Experiments(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ArgoprojV1alpha1().Experiments(namespace).Watch(ctx, options)
 			},
 		},
-		&rolloutsv1alpha1.Experiment{},
+		&apisrolloutsv1alpha1.Experiment{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *experimentInformer) defaultInformer(client versioned.Interface, resyncP
 }
 
 func (f *experimentInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&rolloutsv1alpha1.Experiment{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisrolloutsv1alpha1.Experiment{}, f.defaultInformer)
 }
 
-func (f *experimentInformer) Lister() v1alpha1.ExperimentLister {
-	return v1alpha1.NewExperimentLister(f.Informer().GetIndexer())
+func (f *experimentInformer) Lister() rolloutsv1alpha1.ExperimentLister {
+	return rolloutsv1alpha1.NewExperimentLister(f.Informer().GetIndexer())
 }
