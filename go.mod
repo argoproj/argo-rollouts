@@ -4,7 +4,7 @@ go 1.24.9
 
 require (
 	github.com/antonmedv/expr v1.15.5
-	github.com/argoproj/notifications-engine v0.4.1-0.20250908182349-da04400446ff
+	github.com/argoproj/notifications-engine v0.5.0
 	github.com/argoproj/pkg v0.13.6
 	github.com/aws/aws-sdk-go-v2 v1.36.6
 	github.com/aws/aws-sdk-go-v2/config v1.29.14
