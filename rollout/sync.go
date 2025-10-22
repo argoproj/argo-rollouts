@@ -140,14 +140,24 @@ func (c *rolloutContext) setRolloutRevision(revision string) error {
 			metav1.PatchOptions{},
 		)
 		if err != nil {
-			c.log.WithError(err).Error("Error: patching rollout revision")
-			return err
+			// Check if the error is due to unmarshaling the response (e.g., malformed rollout with invalid quantities).
+			// The patch may have succeeded on the server side, but the response contains invalid fields that can't be unmarshaled.
+			// In this case, we log a warning and continue without updating our local copy.
+			// The next reconciliation will pick up the changes from the informer (which uses tolerant conversion).
+			if isUnmarshalError(err) {
+				c.log.WithError(err).Warn("Patched rollout revision successfully, but failed to unmarshal response (likely due to malformed rollout)")
+				// Don't return error - the patch succeeded, we just can't read the response
+			} else {
+				c.log.WithError(err).Error("Error: patching rollout revision")
+				return err
+			}
+		} else {
+			c.rollout = updatedRollout.DeepCopy()
+			if err := c.refResolver.Resolve(c.rollout); err != nil {
+				return err
+			}
+			c.newRollout = updatedRollout
 		}
-		c.rollout = updatedRollout.DeepCopy()
-		if err := c.refResolver.Resolve(c.rollout); err != nil {
-			return err
-		}
-		c.newRollout = updatedRollout
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutUpdatedReason}, conditions.RolloutUpdatedMessage, revision)
 	}
 	return nil

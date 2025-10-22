@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -444,10 +445,19 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		// This prevents empty fields like container resources from being set to {} in the cluster.
 		patch := fmt.Sprintf(`{"spec":{"replicas":%d}}`, defaults.DefaultReplicas)
 		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, types.MergePatchType, []byte(patch), metav1.PatchOptions{})
-		if err == nil {
-			c.writeBackToInformer(newRollout)
+		if err != nil {
+			// Check if the error is due to unmarshaling the response (e.g., malformed rollout with invalid quantities).
+			// The patch may have succeeded on the server side, but the response contains invalid fields that can't be unmarshaled.
+			// In this case, we log a warning and continue without updating our local copy.
+			if isUnmarshalError(err) {
+				logCtx.WithError(err).Warn("Patched rollout replicas successfully, but failed to unmarshal response (likely due to malformed rollout)")
+				// Don't return error - the patch succeeded, we just can't read the response
+				return nil
+			}
+			return err
 		}
-		return err
+		c.writeBackToInformer(newRollout)
+		return nil
 	}
 
 	err = roCtx.reconcile()
@@ -1017,4 +1027,18 @@ func (c *rolloutContext) updateReplicaSet(ctx context.Context, rs *appsv1.Replic
 	updatedRS.DeepCopyInto(rs)
 
 	return rs, err
+}
+
+// isUnmarshalError checks if an error is related to unmarshaling/validation issues
+// (e.g., invalid resource quantities) that might occur when the API returns a malformed object.
+func isUnmarshalError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := err.Error()
+	// Check for common unmarshal/validation error patterns
+	return strings.Contains(errMsg, "quantities must match") ||
+		strings.Contains(errMsg, "failed to unmarshal") ||
+		strings.Contains(errMsg, "json: cannot unmarshal") ||
+		strings.Contains(errMsg, "invalid character")
 }
