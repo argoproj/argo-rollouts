@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -116,9 +117,30 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 
 func (c *rolloutContext) setRolloutRevision(revision string) error {
 	if annotations.SetRolloutRevision(c.rollout, revision) {
-		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
+		// Use Patch instead of Update to avoid writing back normalized spec fields.
+		// This prevents empty fields like container resources from being set to {} in the cluster.
+		patch := map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]interface{}{
+					annotations.RevisionAnnotation: revision,
+				},
+			},
+		}
+		patchData, err := json.Marshal(patch)
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout revision")
+			c.log.WithError(err).Error("Error: creating rollout revision patch")
+			return err
+		}
+
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(
+			context.TODO(),
+			c.rollout.Name,
+			patchtypes.MergePatchType,
+			patchData,
+			metav1.PatchOptions{},
+		)
+		if err != nil {
+			c.log.WithError(err).Error("Error: patching rollout revision")
 			return err
 		}
 		c.rollout = updatedRollout.DeepCopy()

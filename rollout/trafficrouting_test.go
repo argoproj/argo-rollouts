@@ -1240,10 +1240,10 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, unstructuredObj)
-	f.expectUpdateRolloutAction(r2)
-	f.expectUpdateRolloutStatusAction(r2)
-	f.expectPatchRolloutAction(r2)
 	f.expectCreateReplicaSetAction(rs2)
+	f.expectPatchRolloutAnnotationAction(r2) // patch to update revision annotation
+	f.expectUpdateRolloutStatusAction(r2)    // UpdateStatus after creating RS
+	f.expectPatchRolloutAction(r2)           // patch to update final status
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("SetHeaderRoute", &v1alpha1.SetHeaderRoute{
 		Name: "test-header",
@@ -1317,7 +1317,7 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	f.expectUpdateReplicaSetAction(rs1)                 // Updates the revision annotation from 1 to 3 from func isScalingEvent
-	f.expectUpdateRolloutAction(r2)                     // Update the rollout revision from 1 to 3
+	f.expectPatchRolloutAnnotationAction(r2)            // Patch the rollout revision from 1 to 3
 	scaleUpIndex := f.expectUpdateReplicaSetAction(rs1) // Scale The replicaset from 1 to 10 from func scaleReplicaSet
 	f.expectPatchRolloutAction(r2)                      // Updates the rollout status from the scaling to 10 action
 
@@ -1495,7 +1495,7 @@ func TestCheckReplicaSetAvailable(t *testing.T) {
 	fix.objects = append(fix.objects, rollout2)
 
 	fix.expectUpdateReplicaSetAction(replicaSet1)
-	fix.expectUpdateRolloutAction(rollout2)
+	fix.expectPatchRolloutAnnotationAction(rollout2)
 	fix.expectUpdateReplicaSetAction(replicaSet1)
 	fix.expectPatchRolloutAction(rollout2)
 	fix.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()

@@ -933,6 +933,17 @@ func (f *fixture) expectPatchRolloutAction(rollout *v1alpha1.Rollout) int {
 	return len
 }
 
+func (f *fixture) expectPatchRolloutAnnotationAction(rollout *v1alpha1.Rollout) int {
+	serviceSchema := schema.GroupVersionResource{
+		Resource: "rollouts",
+		Version:  "v1alpha1",
+	}
+	len := len(f.actions)
+	// No subresource - patches the main resource (e.g., for annotations)
+	f.actions = append(f.actions, core.NewPatchAction(serviceSchema, rollout.Namespace, rollout.Name, types.MergePatchType, nil))
+	return len
+}
+
 func (f *fixture) expectPatchRolloutActionWithPatch(rollout *v1alpha1.Rollout, patch string) int {
 	expectedPatch := calculatePatch(rollout, patch)
 	serviceSchema := schema.GroupVersionResource{
@@ -1152,6 +1163,32 @@ func (f *fixture) getPatchedRolloutAsObject(index int) *v1alpha1.Rollout {
 		panic(err)
 	}
 	return &ro
+}
+
+func (f *fixture) getPatchedRolloutAnnotations(index int) map[string]string {
+	action := filterInformerActions(f.client.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	// Parse the patch to extract annotations
+	var patchData map[string]interface{}
+	err := json.Unmarshal(patchAction.GetPatch(), &patchData)
+	if err != nil {
+		panic(err)
+	}
+	if metadata, ok := patchData["metadata"].(map[string]interface{}); ok {
+		if annotations, ok := metadata["annotations"].(map[string]interface{}); ok {
+			result := make(map[string]string)
+			for k, v := range annotations {
+				if strVal, ok := v.(string); ok {
+					result[k] = strVal
+				}
+			}
+			return result
+		}
+	}
+	return nil
 }
 
 func (f *fixture) expectDeleteAnalysisRunAction(ar *v1alpha1.AnalysisRun) int {
