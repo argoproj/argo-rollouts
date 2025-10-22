@@ -48,7 +48,6 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/hash"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
@@ -1407,13 +1406,18 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
-	//updateIndex := f.expectUpdateRolloutAction(r)
+	//patchIndex := f.expectPatchRolloutAnnotationAction(r)
 	f.expectUpdateRolloutStatusAction(r)
-	updateIndex := f.expectUpdateRolloutAction(r)
+	patchIndex := f.expectPatchRolloutAnnotationAction(r)
 	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
 	f.run(getKey(r, t))
-	updatedRollout := f.getUpdatedRollout(updateIndex)
-	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
+	// After the patch, we need to verify the replicas field was set to 1
+	// The patch sets replicas to 1, but we can't easily verify it from the patch action itself
+	// since it's a spec field patch. We can verify the patch was called correctly.
+	action := filterInformerActions(f.client.Actions())[patchIndex]
+	patchAction, ok := action.(core.PatchAction)
+	assert.True(t, ok)
+	assert.Contains(t, string(patchAction.GetPatch()), `"replicas":1`)
 }
 
 // TestSwitchInvalidSpecMessage verifies message is updated when reason for InvalidSpec changes

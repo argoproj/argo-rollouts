@@ -19,7 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -32,7 +32,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 
@@ -162,7 +161,7 @@ type reconcilerBase struct {
 type IngressWrapper interface {
 	GetCached(namespace, name string) (*ingressutil.Ingress, error)
 	Get(ctx context.Context, namespace, name string, opts metav1.GetOptions) (*ingressutil.Ingress, error)
-	Patch(ctx context.Context, namespace, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*ingressutil.Ingress, error)
+	Patch(ctx context.Context, namespace, name string, pt patchtypes.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*ingressutil.Ingress, error)
 	Create(ctx context.Context, namespace string, ingress *ingressutil.Ingress, opts metav1.CreateOptions) (*ingressutil.Ingress, error)
 }
 
@@ -441,8 +440,10 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
 	if rollout.Spec.Replicas == nil {
 		logCtx.Info("Defaulting .spec.replica to 1")
-		r.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
-		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
+		// Use Patch instead of Update to avoid writing back normalized spec fields.
+		// This prevents empty fields like container resources from being set to {} in the cluster.
+		patch := fmt.Sprintf(`{"spec":{"replicas":%d}}`, defaults.DefaultReplicas)
+		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, []byte(patch), metav1.PatchOptions{})
 		if err == nil {
 			c.writeBackToInformer(newRollout)
 		}
