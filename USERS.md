@@ -34,6 +34,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Hepsiburada](https://hepsiburada.com/)
 1. [Ibotta](https://home.ibotta.com/)
 1. [Intuit](https://www.intuit.com/)
+1. [Knoxville Utilities Board](https://www.kub.org/)
 1. [Microsoft](https://microsoft.com/)
 1. [New Relic](https://newrelic.com/)
 1. [Nextdoor](https://nextdoor.com)
