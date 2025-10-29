@@ -9,6 +9,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Alibaba Group](https://www.alibabagroup.com/)
 1. [Amadeus IT Group](https://amadeus.com/)
 1. [Ambassador Labs](https://www.getambassador.io)
+1. [Amdocs](https://www.amdocs.com/)
 1. [Ant Group](https://www.antgroup.com/)
 1. [AppsFlyer](https://www.appsflyer.com/)
 1. [Batumbu](https://batumbu.id/)
@@ -76,4 +77,4 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Yotpo](https://www.yotpo.com/)
 1. [Yuno](https://y.uno/)
 1. [VGS](https://www.vgs.io)
-1. [X3M ads](https://x3mads.com)
+1. [X3M ads](https://x3mads.com) 
