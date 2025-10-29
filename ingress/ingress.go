@@ -13,12 +13,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
+	errorsutil "github.com/argoproj/argo-rollouts/utils/errors"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
@@ -75,7 +75,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		nginxClasses:     cfg.NGINXClasses,
 	}
 
-	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
+	errorsutil.CheckError(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
 		ingressIndexName: func(obj any) ([]string, error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return ingressutil.GetRolloutIngressKeys(ro), nil

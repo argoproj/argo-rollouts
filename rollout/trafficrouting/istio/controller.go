@@ -17,7 +17,6 @@ import (
 	"k8s.io/client-go/dynamic/dynamiclister"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/slice"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -25,6 +24,7 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	errorsutil "github.com/argoproj/argo-rollouts/utils/errors"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/queue"
@@ -66,7 +66,7 @@ func NewIstioController(cfg IstioControllerConfig) *IstioController {
 	}
 
 	// Add a Rollout index against referenced VirtualServices and DestinationRules
-	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
+	errorsutil.CheckError(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
 		virtualServiceIndexName: func(obj any) (strings []string, e error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return istioutil.GetRolloutVirtualServiceKeys(ro), nil
@@ -74,7 +74,7 @@ func NewIstioController(cfg IstioControllerConfig) *IstioController {
 			return
 		},
 	}))
-	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
+	errorsutil.CheckError(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
 		destinationRuleIndexName: func(obj any) (strings []string, e error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return istioutil.GetRolloutDesinationRuleKeys(ro), nil
