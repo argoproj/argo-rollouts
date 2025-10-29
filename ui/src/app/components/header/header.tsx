@@ -5,7 +5,7 @@ import {Key, KeybindingContext} from 'react-keyhooks';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 
 import './header.scss';
-import {Link, useHistory} from 'react-router-dom';
+import {useHistory} from 'react-router-dom';
 import {AutoComplete, Button, Input, notification, Tooltip} from 'antd';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
@@ -61,7 +61,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
 
     return (
         <header className='rollouts-header'>
-            <Link to='/' className='rollouts-header__brand'>
+            <a href='/' className='rollouts-header__brand'>
                 <Logo />
                 <div>
                     <div className='rollouts-header__title'>
@@ -69,7 +69,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                     </div>
                     <div className='rollouts-header__label'>Rollouts {version}</div>
                 </div>
-            </Link>
+            </a>
             <div className='rollouts-header__info'>
                 {props.pageHasShortcuts && (
                     <Tooltip title='Keyboard Shortcuts'>

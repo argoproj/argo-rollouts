@@ -23,7 +23,8 @@
         "recharts": "^2.9.0",
         "rxjs": "^6.6.6",
         "typescript": "^5.0.4",
-        "web-vitals": "^1.0.1"
+        "web-vitals": "^1.0.1",
+        "node-fetch": "^2.6.7"
     },
     "scripts": {
         "start": "webpack serve --config ./src/app/webpack.dev.js",
@@ -56,6 +57,7 @@
         "@testing-library/user-event": "^12.1.10",
         "@types/classnames": "2.2.9",
         "@types/jest": "^29.5.10",
+        "@types/minimatch": "^5.1.2",
         "@types/node": "^12.0.0",
         "@types/react": "^16.9.3",
         "@types/react-dom": "^16.9.3",
@@ -79,6 +81,7 @@
     },
     "resolutions": {
         "@types/react": "16.9.3",
-        "moment": "2.29.4"
+        "moment": "2.29.4",
+        "node-fetch": "2.6.7"
     }
 }

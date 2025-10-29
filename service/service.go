@@ -18,13 +18,13 @@ import (
 	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
+	errorsutil "github.com/argoproj/argo-rollouts/utils/errors"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
@@ -102,7 +102,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		metricServer:     cfg.MetricsServer,
 	}
 
-	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
+	errorsutil.CheckError(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
 		serviceIndexName: func(obj any) (strings []string, e error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return serviceutil.GetRolloutServiceKeys(ro), nil

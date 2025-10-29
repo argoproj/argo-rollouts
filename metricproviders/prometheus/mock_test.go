@@ -22,7 +22,7 @@ func (m *mockAPI) WalReplay(ctx context.Context) (v1.WalReplayStatus, error) {
 }
 
 // Query performs a query for the given time.
-func (m *mockAPI) Query(ctx context.Context, query string, ts time.Time, opt ...v1.Option) (model.Value, v1.Warnings, error) {
+func (m *mockAPI) Query(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, error) {
 	if m.err != nil {
 		return nil, m.warnings, m.err
 	}
@@ -43,15 +43,15 @@ func (m *mockAPI) DeleteSeries(ctx context.Context, matches []string, startTime 
 	panic("Not used")
 }
 
-func (m *mockAPI) LabelNames(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) ([]string, v1.Warnings, error) {
+func (m *mockAPI) LabelNames(ctx context.Context, matches []string, startTime time.Time, endTime time.Time, opts ...v1.Option) ([]string, v1.Warnings, error) {
 	panic("Not used")
 }
 
-func (m *mockAPI) LabelValues(ctx context.Context, label string, matches []string, startTime time.Time, endTime time.Time) (model.LabelValues, v1.Warnings, error) {
+func (m *mockAPI) LabelValues(ctx context.Context, label string, matches []string, startTime time.Time, endTime time.Time, opts ...v1.Option) (model.LabelValues, v1.Warnings, error) {
 	panic("Not used")
 }
 
-func (m *mockAPI) QueryRange(ctx context.Context, query string, r v1.Range, opt ...v1.Option) (model.Value, v1.Warnings, error) {
+func (m *mockAPI) QueryRange(ctx context.Context, query string, r v1.Range, opts ...v1.Option) (model.Value, v1.Warnings, error) {
 	m.startTimeSent = r.Start
 	m.endTimeSent = r.End
 	m.stepSent = r.Step
@@ -61,7 +61,7 @@ func (m *mockAPI) QueryRange(ctx context.Context, query string, r v1.Range, opt 
 	return m.value, m.warnings, nil
 }
 
-func (m *mockAPI) Series(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) ([]model.LabelSet, v1.Warnings, error) {
+func (m *mockAPI) Series(ctx context.Context, matches []string, startTime time.Time, endTime time.Time, opts ...v1.Option) ([]model.LabelSet, v1.Warnings, error) {
 	panic("Not used")
 }
 
@@ -101,7 +101,7 @@ func (m *mockAPI) Runtimeinfo(ctx context.Context) (v1.RuntimeinfoResult, error)
 	panic("Not used")
 }
 
-func (m *mockAPI) TSDB(ctx context.Context) (v1.TSDBResult, error) {
+func (m *mockAPI) TSDB(ctx context.Context, opts ...v1.Option) (v1.TSDBResult, error) {
 	panic("Not used")
 }
 

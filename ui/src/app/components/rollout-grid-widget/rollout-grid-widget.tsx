@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {Link} from 'react-router-dom';
+import {useHistory} from 'react-router-dom';
 
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faCircleNotch, faRedoAlt} from '@fortawesome/free-solid-svg-icons';
@@ -38,6 +38,7 @@ export const RolloutGridWidget = (props: {
     onFavoriteChange: (rolloutName: string, isFavorite: boolean) => void;
 }) => {
     const [watching, subscribe] = React.useState(false);
+    const history = useHistory();
     let rollout = props.rollout;
     useWatchRollout(props.rollout?.objectMeta?.name, watching, null, (r: RolloutInfo) => (rollout = r));
     const ref = React.useRef(null);
@@ -55,8 +56,10 @@ export const RolloutGridWidget = (props: {
     }, [watching, rollout]);
 
     return (
-        <Link
-            to={`/rollout/${rollout.objectMeta?.namespace}/${rollout.objectMeta?.name}`}
+        <div
+            onClick={() => {
+                history.push(`/rollout/${rollout.objectMeta?.namespace}/${rollout.objectMeta?.name}`);
+            }}
             className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`}
             ref={ref}
         >
@@ -84,7 +87,7 @@ export const RolloutGridWidget = (props: {
                 <RolloutActionButton action={RolloutAction.Restart} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
                 <RolloutActionButton action={RolloutAction.Promote} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
             </div>
-        </Link>
+        </div>
     );
 };
 

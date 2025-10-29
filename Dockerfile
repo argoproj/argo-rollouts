@@ -3,7 +3,8 @@
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.23 AS builder
+ARG GO_VERSION=1.25
+FROM --platform=$BUILDPLATFORM golang:$GO_VERSION AS builder
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -12,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install golangci-lint
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.1.6 && \
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.5.0 && \
     golangci-lint linters
 
 COPY .golangci.yml ${GOPATH}/src/dummy/.golangci.yml
@@ -24,7 +25,7 @@ RUN cd ${GOPATH}/src/dummy && \
 ####################################################################################################
 # UI build stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:18 AS argo-rollouts-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:20 AS argo-rollouts-ui
 
 WORKDIR /src
 ADD ["ui/package.json", "ui/yarn.lock", "./"]
@@ -40,7 +41,7 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.23 AS argo-rollouts-build
+FROM --platform=$BUILDPLATFORM golang:$GO_VERSION AS argo-rollouts-build
 
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
 

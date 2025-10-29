@@ -30,7 +30,7 @@ const config = {
         rules: [
             {
                 test: /\.tsx?$/,
-                loaders: [`ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./tsconfig.json')}`],
+                loaders: [`ts-loader?transpileOnly=true&configFile=${path.resolve('./tsconfig.json')}`],
             },
             {
                 test: /\.scss$/,

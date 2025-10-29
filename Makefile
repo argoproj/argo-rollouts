@@ -334,8 +334,7 @@ release: release-precheck precheckin image plugin-image release-plugins
 
 .PHONY: trivy
 trivy: ## run trivy scan
-	@trivy fs --clear-cache
-	@trivy fs .
+	@trivy --scanners vuln fs .
 
 .PHONY: checksums
 checksums:
