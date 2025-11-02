@@ -1502,3 +1502,65 @@ func TestCheckReplicaSetAvailable(t *testing.T) {
 	fix.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	fix.run(getKey(rollout1, t))
 }
+
+func TestCheckReplicasAvailableWithReplicaProgressThreshold(t *testing.T) {
+	tests := []struct {
+		name              string
+		availableReplicas int
+		threshold         *v1alpha1.ReplicaProgressThreshold
+		expectedResult    bool
+		description       string
+	}{
+		{
+			name:              "threshold met - 80% available with 80% threshold",
+			availableReplicas: 4,
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 80,
+			},
+			expectedResult: true,
+			description:    "Should return true when threshold is met (4/5 = 80% >= 80%)",
+		},
+		{
+			name:              "threshold not met - 60% available with 80% threshold",
+			availableReplicas: 3,
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 80,
+			},
+			expectedResult: false,
+			description:    "Should return false when threshold is not met (3/5 = 60% < 80%)",
+		},
+		{
+			name:              "nil threshold - requires 100% availability",
+			availableReplicas: 4,
+			threshold:         nil,
+			expectedResult:    false,
+			description:       "Should return false with nil threshold, requiring 100% availability (4/5 = 80%)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newCanaryRollout("foo", 10, nil, nil, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+			r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+				SMI: &v1alpha1.SMITrafficRouting{},
+			}
+			r.Spec.Strategy.Canary.ReplicaProgressThreshold = tt.threshold
+
+			roCtx := &rolloutContext{
+				rollout: r,
+				log:     logutil.WithRollout(r),
+			}
+
+			// Create a ReplicaSet with specified available replicas out of 5
+			// For 50% weight on 10 total replicas = 5 desired replicas
+			rs := newReplicaSetWithStatus(r, 5, tt.availableReplicas)
+
+			// Check if replicas are available for 50% weight
+			result := roCtx.checkReplicasAvailable(rs, 50)
+
+			assert.Equal(t, tt.expectedResult, result, tt.description)
+		})
+	}
+}

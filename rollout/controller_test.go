@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -73,7 +75,22 @@ const (
 type FakeWorkloadRefResolver struct {
 }
 
-func (f *FakeWorkloadRefResolver) Resolve(_ *v1alpha1.Rollout) error {
+func (f *FakeWorkloadRefResolver) Resolve(r *v1alpha1.Rollout) error {
+	if r.Spec.WorkloadRef == nil {
+		return nil
+	}
+
+	if r.Spec.WorkloadRef.Kind == "Error" {
+		return &errors.StatusError{
+			ErrStatus: metav1.Status{
+				Status:  metav1.StatusFailure,
+				Code:    http.StatusNotFound,
+				Reason:  metav1.StatusReasonNotFound,
+				Message: "not found",
+			},
+		}
+	}
+
 	return nil
 }
 
@@ -1391,6 +1408,40 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 		}
 	}`
 	errmsg := "The Rollout \"foo\" is invalid: spec.selector: Required value: Rollout has missing field '.spec.selector'"
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))
+
+	patch := f.getPatchedRollout(patchIndex)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
+}
+
+func TestInvalidWorkloadRef(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Selector = nil
+	r.Spec.Template = corev1.PodTemplateSpec{}
+	r.Spec.WorkloadRef = &v1alpha1.ObjectRef{
+		Kind: "Error",
+	}
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s],
+			"message": "%s: %s",
+			"phase": "Degraded"
+		}
+	}`
+	errmsg := "The Rollout \"foo\" is invalid: not found"
 	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
 	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)

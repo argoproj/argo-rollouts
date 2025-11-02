@@ -574,6 +574,11 @@ message CanaryStrategy {
   // Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
   // MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
   optional int32 minPodsPerReplicaSet = 16;
+
+  // ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.
+  // Defaults to 100% of total replicas.
+  // +optional
+  optional ReplicaProgressThreshold replicaProgressThreshold = 17;
 }
 
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
@@ -876,6 +881,10 @@ message IstioDestinationRule {
 
   // StableSubsetName is the subset name to modify labels with stable ReplicaSet pod template hash value
   optional string stableSubsetName = 3;
+
+  // AdditionalSubsetNames contains a list of additional names for subset DestinationRules that are not controlled by Argo Rollouts
+  // +optional
+  repeated string additionalSubsetNames = 4;
 }
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
@@ -928,6 +937,8 @@ message KayentaMetric {
   optional KayentaThreshold threshold = 7;
 
   repeated KayentaScope scopes = 8;
+
+  optional bool lookback = 9;
 }
 
 message KayentaScope {
@@ -1273,6 +1284,16 @@ message PrometheusRangeQueryArgs {
   optional string step = 3;
 }
 
+message ReplicaProgressThreshold {
+  // Type is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.
+  optional string type = 1;
+
+  // Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step.
+  // If not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step.
+  // Value must also be greater than 0. Required.
+  optional int32 value = 2;
+}
+
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
 message RequiredDuringSchedulingIgnoredDuringExecution {
 }
@@ -1382,6 +1403,10 @@ message RolloutExperimentStep {
   // AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
   // +optional
   optional AnalysisRunMetadata analysisRunMetadata = 5;
+
+  // ScaleDownDelaySeconds is the number of seconds to wait before scaling down the old ReplicaSet
+  // +optional
+  optional int32 scaleDownDelaySeconds = 6;
 }
 
 message RolloutExperimentStepAnalysisTemplateRef {

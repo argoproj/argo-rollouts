@@ -839,9 +839,9 @@
 
 ### Fix
 
-* make new alb fullName field  optional for backward compatability ([#2806](https://github.com/argoproj/argo-rollouts/issues/2806))
+* make new alb fullName field  optional for backward compatibility ([#2806](https://github.com/argoproj/argo-rollouts/issues/2806))
 * cloudwatch metrics provider multiple dimensions ([#2932](https://github.com/argoproj/argo-rollouts/issues/2932))
-*  rollout not modify the VirtualService whit setHeaderRoute step with workloadRef ([#2797](https://github.com/argoproj/argo-rollouts/issues/2797))
+*  rollout not modify the VirtualService with setHeaderRoute step with workloadRef ([#2797](https://github.com/argoproj/argo-rollouts/issues/2797))
 * get new httpRoutesI after removeRoute() to avoid duplicates. Fixes [#2769](https://github.com/argoproj/argo-rollouts/issues/2769) ([#2887](https://github.com/argoproj/argo-rollouts/issues/2887))
 * change logic of analysis run to better handle errors ([#2695](https://github.com/argoproj/argo-rollouts/issues/2695))
 * istio dropping fields during removing of managed routes ([#2692](https://github.com/argoproj/argo-rollouts/issues/2692))
@@ -883,7 +883,7 @@ types.
 
 ### Fix
 
-* make new alb fullName field  optional for backward compatability ([#2806](https://github.com/argoproj/argo-rollouts/issues/2806))
+* make new alb fullName field  optional for backward compatibility ([#2806](https://github.com/argoproj/argo-rollouts/issues/2806))
 * properly wrap Datadog API v2 request body ([#2771](https://github.com/argoproj/argo-rollouts/issues/2771)) ([#2775](https://github.com/argoproj/argo-rollouts/issues/2775))
 
 
@@ -1083,7 +1083,7 @@ There was an unintentional change in behavior related to service creation with e
 
 ### Build
 
-* use fixed docker repository because we can't reach accross jobs ([#2474](https://github.com/argoproj/argo-rollouts/issues/2474))
+* use fixed docker repository because we can't reach across jobs ([#2474](https://github.com/argoproj/argo-rollouts/issues/2474))
 * copy proto files from GOPATH so we can clone outside of GOPATH ([#2360](https://github.com/argoproj/argo-rollouts/issues/2360))
 * add sha256 checksums for all released bins ([#2332](https://github.com/argoproj/argo-rollouts/issues/2332))
 

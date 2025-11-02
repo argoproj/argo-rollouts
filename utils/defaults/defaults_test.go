@@ -412,6 +412,11 @@ func TestSetDefaults(t *testing.T) {
 	SetTargetGroupBindingAPIVersion(DefaultTargetGroupBindingAPIVersion)
 	assert.Equal(t, DefaultTargetGroupBindingAPIVersion, GetTargetGroupBindingAPIVersion())
 
+	SetalbTagKeyResourceID("ingress.amazonaws.com/resource")
+	assert.Equal(t, "ingress.amazonaws.com/resource", GetalbTagKeyResourceID())
+	SetalbTagKeyResourceID(DefaultAlbTagKeyResourceID)
+	assert.Equal(t, DefaultAlbTagKeyResourceID, GetalbTagKeyResourceID())
+
 	assert.Equal(t, DefaultAppMeshCRDVersion, GetAppMeshCRDVersion())
 	SetAppMeshCRDVersion("v1beta3")
 	assert.Equal(t, "v1beta3", GetAppMeshCRDVersion())
