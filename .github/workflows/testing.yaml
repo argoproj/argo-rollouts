@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.4.0
+        uses: actions/setup-go@v6.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.4.0
+        uses: actions/setup-go@v6.0.0
         with:
           go-version: '1.23'
       - uses: actions/checkout@v5
@@ -158,7 +158,7 @@ jobs:
       - test-e2e
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.4.0
+        uses: actions/setup-go@v6.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
