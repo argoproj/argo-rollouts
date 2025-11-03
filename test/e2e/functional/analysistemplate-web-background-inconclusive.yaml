@@ -11,12 +11,12 @@ spec:
     - name: web
       interval: 7s
       inconclusiveLimit: 3
-      successCondition: result.status == "success"
-      failureCondition: result.status == "failure"
+      successCondition: result.json.status == "success"
+      failureCondition: result.json.status == "failure"
       provider:
         web:
           url: "{{args.url-val}}"
           method: POST
           jsonBody:
             status: "inconclusive"
-          jsonPath: "{$.json}"
+          jsonPath: "{$}"
