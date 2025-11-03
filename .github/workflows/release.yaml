@@ -84,13 +84,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4 # v3.5.2
+        uses: actions/checkout@v5 # v3.5.2
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@v5.4.0 # v4.0.1
+        uses: actions/setup-go@v6.0.0 # v4.0.1
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -157,13 +157,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # v3.3.0
+        uses: actions/checkout@v5 # v3.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@v5.4.0 # v4.0.0
+        uses: actions/setup-go@v6.0.0 # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -230,7 +230,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # v3.3.0
+        uses: actions/checkout@v5 # v3.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
