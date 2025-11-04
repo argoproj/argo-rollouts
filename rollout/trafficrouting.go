@@ -344,10 +344,10 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 // calculateDesiredWeightOnAbortOrStableRollback returns the desired weight to use when we are either
 // aborting, or rolling back to stable RS.
 func (c *rolloutContext) calculateDesiredWeightOnAbortOrStableRollback() int32 {
-	if !c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-		// When aborting or rolling back to stable RS and dynamicStableScaling is disabled,
-		// then desired canary weight should immediately be 0 (100% to stable) since we can trust
-		// that it is fully scaled up
+	// Safety checks and early returns for immediate rollback scenarios
+	if !c.rollout.Spec.Strategy.Canary.DynamicStableScale ||
+		c.stableRS == nil || c.newRS == nil ||
+		c.rollout.Spec.Replicas == nil || *c.rollout.Spec.Replicas == 0 {
 		return 0
 	}
 
