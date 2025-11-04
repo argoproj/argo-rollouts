@@ -3634,8 +3634,11 @@
 <li><code>appID</code> - the app id</li>
 <li><code>installationID</code> - the app installation id</li>
 <li><code>privateKey</code> - the app private key</li>
-<li><code>enterpriseBaseURL</code> - optional URL, e.g. https://git.example.com/</li>
+<li><code>enterpriseBaseURL</code> - optional URL, e.g. https://git.example.com/api/v3</li>
 </ul>
+<blockquote>
+<p>⚠️ <em>NOTE:</em> Specifying <code>/api/v3</code> in the <code>enterpriseBaseURL</code> is required until <a href="https://github.com/argoproj/notifications-engine/issues/205">argoproj/notifications-engine#205</a> is resolved.</p>
+</blockquote>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Create a GitHub Apps using https://github.com/settings/apps/new</li>
@@ -3701,6 +3704,20 @@
 <span class="w">      </span><span class="no">content: |</span>
 <span class="w">        </span><span class="no">Application {{.app.metadata.name}} is now running new version of deployments manifests.</span>
 <span class="w">        </span><span class="no">See more here: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true</span>
+<span class="w">      </span><span class="no">commentTag: &quot;continuous-delivery/{{.app.metadata.name}}&quot;</span>
+<span class="w">    </span><span class="no">checkRun:</span>
+<span class="w">      </span><span class="no">name: &quot;continuous-delivery/{{.app.metadata.name}}&quot;</span>
+<span class="w">      </span><span class="no">details_url: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true&quot;</span>
+<span class="w">      </span><span class="no">status: completed</span>
+<span class="w">      </span><span class="no">conclusion: success</span>
+<span class="w">      </span><span class="no">started_at: &quot;YYYY-MM-DDTHH:MM:SSZ&quot;</span>
+<span class="w">      </span><span class="no">completed_at: &quot;YYYY-MM-DDTHH:MM:SSZ&quot;</span>
+<span class="w">      </span><span class="no">output:</span>
+<span class="w">        </span><span class="no">title: &quot;Deployment of {{.app.metadata.name}} on ArgoCD&quot;</span>
+<span class="w">        </span><span class="no">summary: &quot;Application {{.app.metadata.name}} is now running new version of deployments manifests.&quot;</span>
+<span class="w">        </span><span class="no">text: |</span>
+<span class="w">          </span><span class="no">Application {{.app.metadata.name}} is now running new version of deployments manifests.</span>
+<span class="w">          </span><span class="no">See more here: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true</span>
 </code></pre></div>
 <p><strong>Notes</strong>:</p>
 <ul>
@@ -3710,6 +3727,7 @@
   Setting this option to <code>false</code> is required if you would like to deploy older refs in your default branch.
   For more information see the <a href="https://docs.github.com/en/rest/deployments/deployments?apiVersion=2022-11-28#create-a-deployment">GitHub Deployment API Docs</a>.</li>
 <li>If <code>github.pullRequestComment.content</code> is set to 65536 characters or more, it will be truncated.</li>
+<li>The <code>github.pullRequestComment.commentTag</code> parameter is used to identify the comment. If a comment with the specified tag is found, it will be updated (upserted). If no comment with the tag is found, a new comment will be created.</li>
 <li>Reference is optional. When set, it will be used as the ref to deploy. If not set, the revision will be used as the ref to deploy.</li>
 </ul>
 

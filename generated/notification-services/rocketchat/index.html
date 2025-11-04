@@ -3631,7 +3631,7 @@
 <h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
 <p>The Rocket.Chat notification service configuration includes following settings:</p>
 <ul>
-<li><code>email</code> - the Rocker.Chat user's email</li>
+<li><code>email</code> - the Rocker.Chat user's SAMAccountName</li>
 <li><code>password</code> - the Rocker.Chat user's password</li>
 <li><code>alias</code> - optional alias that should be used to post message</li>
 <li><code>icon</code> - optional message icon</li>
@@ -3652,7 +3652,7 @@
 <li>Copy username and password that you was created for bot user</li>
 <li>Create a public or private channel, or a team, for this example <code>my_channel</code></li>
 <li>Add your bot to this channel <strong>otherwise it won't work</strong></li>
-<li>Store email and password in argocd_notifications-secret Secret</li>
+<li>Store email and password in argo-rollouts-notification-secret Secret</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>

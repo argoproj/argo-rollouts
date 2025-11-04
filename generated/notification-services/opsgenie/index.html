@@ -3536,21 +3536,21 @@
 <h1 id="opsgenie">Opsgenie<a class="headerlink" href="#opsgenie" title="Permanent link">&para;</a></h1>
 <p>To be able to send notifications with argocd-notifications you have to create an <a href="https://docs.opsgenie.com/docs/integrations-overview">API Integration</a> inside your <a href="https://docs.opsgenie.com/docs/teams">Opsgenie Team</a>.</p>
 <ol>
-<li>Login to Opsgenie at https://app.opsgenie.com or https://app.eu.opsgenie.com (if you have an account in the european union)</li>
-<li>Make sure you already have a team, if not follow this guide https://docs.opsgenie.com/docs/teams</li>
-<li>Click "Teams" in the Menu on the left</li>
-<li>Select the team that you want to notify</li>
-<li>In the teams configuration menu select "Integrations"</li>
-<li>Click "Add Integration" in the top right corner</li>
-<li>Select "API" integration</li>
-<li>Give your integration a name, copy the "API key" and safe it somewhere for later</li>
-<li>Click "Edit" in the integration settings</li>
-<li>Make sure the checkbox for "Create and Update Access" is selected, disable the other checkboxes to remove unnecessary permissions</li>
-<li>Click "Save" at the bottom</li>
-<li>Click "Turn on integration" in the top right corner</li>
-<li>Check your browser for the correct server apiURL. If it is "app.opsgenie.com" then use the US/international api url <code>api.opsgenie.com</code> in the next step, otherwise use <code>api.eu.opsgenie.com</code> (European API). </li>
-<li>You are finished with configuring Opsgenie. Now you need to configure argocd-notifications. Use the apiUrl, the team name and the apiKey to configure the Opsgenie integration in the <code>argo-rollouts-notification-secret</code> secret.</li>
-<li>You can find the example <code>argo-rollouts-notification-configmap</code> configuration at the below.</li>
+<li>Login to Opsgenie at https://app.opsgenie.com or https://app.eu.opsgenie.com (if you have an account in the European Union).</li>
+<li>Make sure you already have a team; if not, follow this guide: https://docs.opsgenie.com/docs/teams.</li>
+<li>Click "Teams" in the Menu on the left.</li>
+<li>Select the team that you want to notify.</li>
+<li>In the team's configuration menu, select "Integrations".</li>
+<li>Click "Add Integration" in the top right corner.</li>
+<li>Select "API" integration.</li>
+<li>Give your integration a name, copy the "API key", and save it somewhere for later.</li>
+<li>Click "Edit" in the integration settings.</li>
+<li>Make sure the checkbox for "Create and Update Access" is selected; disable the other checkboxes to remove unnecessary permissions.</li>
+<li>Click "Save" at the bottom.</li>
+<li>Click "Turn on integration" in the top right corner.</li>
+<li>Check your browser for the correct server apiURL. If it is "app.opsgenie.com", then use the US/international API URL <code>api.opsgenie.com</code>; otherwise, use <code>api.eu.opsgenie.com</code> (European API).</li>
+<li>You are finished with configuring Opsgenie. Now you need to configure argocd-notifications. Use the apiUrl, the team name, and the apiKey to configure the Opsgenie integration in the <code>argo-rollouts-notification-secret</code> secret.</li>
+<li>You can find the example <code>argo-rollouts-notification-configmap</code> configuration below.</li>
 </ol>
 <table>
 <thead>
@@ -3567,14 +3567,14 @@
 <td><code>description</code></td>
 <td>True</td>
 <td><code>string</code></td>
-<td>Description field of the alert that is generally used to provide a detailed information about the alert.</td>
+<td>Description field of the alert that is generally used to provide detailed information about the alert.</td>
 <td><code>Hello from Argo CD!</code></td>
 </tr>
 <tr>
 <td><code>priority</code></td>
 <td>False</td>
 <td><code>string</code></td>
-<td>Priority level of the alert. Possible values are P1, P2, P3, P4 and P5. Default value is P3.</td>
+<td>Priority level of the alert. Possible values are P1, P2, P3, P4, and P5. Default value is P3.</td>
 <td><code>P1</code></td>
 </tr>
 <tr>
@@ -3590,6 +3590,48 @@
 <td><code>string</code></td>
 <td>Additional note that will be added while creating the alert.</td>
 <td><code>Error from Argo CD!</code></td>
+</tr>
+<tr>
+<td><code>actions</code></td>
+<td>False</td>
+<td><code>[]string</code></td>
+<td>Custom actions that will be available for the alert.</td>
+<td><code>["Resolve", "Escalate"]</code></td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>False</td>
+<td><code>[]string</code></td>
+<td>Tags of the alert.</td>
+<td><code>["critical", "deployment"]</code></td>
+</tr>
+<tr>
+<td><code>visibleTo</code></td>
+<td>False</td>
+<td><code>[]alert.Responder</code></td>
+<td>Teams and users that the alert will become visible to without sending any notification. The <code>type</code> field is mandatory for each item, where possible values are <code>team</code> and <code>user</code>. In addition to the <code>type</code> field, either <code>id</code> or <code>name</code> should be provided for teams, and either <code>id</code> or <code>username</code> should be given for users. Please note that alerts will be visible to the teams specified within the <code>responders</code> field by default, so there is no need to re-specify them in the <code>visibleTo</code> field.</td>
+<td><code>[{Type: "team", Id: "team_id"}, {Type: "user", Id: "user_id"}]</code></td>
+</tr>
+<tr>
+<td><code>details</code></td>
+<td>False</td>
+<td><code>map[string]string</code></td>
+<td>Map of key-value pairs to use as custom properties of the alert.</td>
+<td><code>{"environment": "production", "service": "web"}</code></td>
+</tr>
+<tr>
+<td><code>entity</code></td>
+<td>False</td>
+<td><code>string</code></td>
+<td>Entity field of the alert that is generally used to specify which domain the alert is related to.</td>
+<td><code>web-server</code></td>
+</tr>
+<tr>
+<td><code>user</code></td>
+<td>False</td>
+<td><code>string</code></td>
+<td>Display name of the request owner.</td>
+<td><code>admin_user</code></td>
 </tr>
 </tbody>
 </table>
@@ -3614,6 +3656,26 @@
 <span class="w">      </span><span class="no">priority: P1</span>
 <span class="w">      </span><span class="no">alias: {{.app.metadata.name}}</span>
 <span class="w">      </span><span class="no">note: Error from Argo CD!</span>
+<span class="w">      </span><span class="no">actions:</span>
+<span class="w">        </span><span class="no">- Restart</span>
+<span class="w">        </span><span class="no">- AnExampleAction</span>
+<span class="w">      </span><span class="no">tags:</span>
+<span class="w">        </span><span class="no">- OverwriteQuietHours</span>
+<span class="w">        </span><span class="no">- Critical</span>
+<span class="w">      </span><span class="no">visibleTo:</span>
+<span class="w">        </span><span class="no">- Id: &quot;{{.app.metadata.responderId}}&quot;</span>
+<span class="w">          </span><span class="no">Type: &quot;team&quot;</span>
+<span class="w">        </span><span class="no">- Name: &quot;rocket_team&quot;</span>
+<span class="w">          </span><span class="no">Type: &quot;team&quot;</span>
+<span class="w">        </span><span class="no">- Id: &quot;{{.app.metadata.responderUserId}}&quot;</span>
+<span class="w">          </span><span class="no">Type: &quot;user&quot;</span>
+<span class="w">        </span><span class="no">- Username: &quot;trinity@opsgenie.com&quot;</span>
+<span class="w">          </span><span class="no">Type: &quot;user&quot;</span>
+<span class="w">      </span><span class="no">details:</span>
+<span class="w">        </span><span class="no">environment: production</span>
+<span class="w">        </span><span class="no">service: web</span>
+<span class="w">      </span><span class="no">entity: Argo CD Application</span>
+<span class="w">      </span><span class="no">user: John Doe</span>
 <span class="w">  </span><span class="nt">trigger.on-a-problem</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <span class="w">    </span><span class="no">- description: Application has a problem.</span>
 <span class="w">      </span><span class="no">send:</span>
@@ -3621,12 +3683,12 @@
 <span class="w">      </span><span class="no">when: app.status.health.status == &#39;Degraded&#39; or app.status.operationState.phase in [&#39;Error&#39;, &#39;Failed&#39;] or app.status.sync.status == &#39;Unknown&#39;</span>
 </code></pre></div>
 <ol>
-<li>Add annotation in application yaml file to enable notifications for specific Argo CD app.
-<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
-<span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span>
-<span class="w">  </span><span class="nt">metadata</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">annotations</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">notifications.argoproj.io/subscribe.on-a-problem.opsgenie</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;your-team&gt;</span>
+<li>Add annotation in the application YAML file to enable notifications for a specific Argo CD app.
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">notifications.argoproj.io/subscribe.on-a-problem.opsgenie</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;your-team&gt;</span>
 </code></pre></div></li>
 </ol>
 

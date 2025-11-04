@@ -3569,6 +3569,20 @@
 <span class="w">  </span><span class="nt">grafana-api-key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api-key</span>
 </code></pre></div>
 <ol>
+<li>Create a template in <code>argo-notifications-cm</code> Configmap
+This will be used to pass the (required) text of the annocation to Grafana (or re-use an existing one)
+As there is no specific template for Grafana, you must use the generic <code>message</code>:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts-notification-configmap</span>
+<span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">templates</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">template.app-deployed</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">      </span><span class="no">messsage: Application {{.app.metadata.name}} is now running new version of deployments manifests.</span>
+</code></pre></div>
+<ol>
 <li>Create subscription for your Grafana integration</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
