@@ -39,7 +39,7 @@ require (
 	github.com/tj/assert v0.0.3
 	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/oauth2 v0.29.0
-	golang.org/x/sync v0.16.0
+	golang.org/x/sync v0.17.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb
 	google.golang.org/grpc v1.72.1
 	google.golang.org/protobuf v1.36.5
