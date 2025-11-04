@@ -84,13 +84,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4 # v3.5.2
+        uses: actions/checkout@v5 # v3.5.2
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@v5.4.0 # v4.0.1
+        uses: actions/setup-go@v6.0.0 # v4.0.1
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -157,18 +157,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # v3.3.0
+        uses: actions/checkout@v5 # v3.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@v5.4.0 # v4.0.0
+        uses: actions/setup-go@v6.0.0 # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
         with:
           cosign-release: 'v2.2.0'
 
@@ -230,7 +230,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # v3.3.0
+        uses: actions/checkout@v5 # v3.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
