@@ -646,7 +646,8 @@ spec:
 
 !!! important
     Available since v1.2
-Analysis arguments also support valueFrom for reading any field from Rollout status and passing them as arguments to AnalysisTemplate.
+Analysis arguments also support valueFrom for reading any field from Rollout status or Rollout pod template and passing them as arguments to AnalysisTemplate.
+
 Following example references Rollout status field like aws canaryTargetGroup name and passing them along to AnalysisTemplate
 
 from the Rollout status
@@ -674,6 +675,39 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.alb.canaryTargetGroup.name
+```
+
+Following example references Rollout pod template metadata field like version and passing them along to AnalysisTemplate
+
+from the Rollout pod template
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+  ...
+spec:
+...
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: args-example
+        args:
+        ...
+        - name: rollout-version
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.template.metadata.labels.version
+  ...
+  template:
+    metadata:
+      labels:
+        version: "1"
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
 ```
 
 ## BlueGreen Pre Promotion Analysis

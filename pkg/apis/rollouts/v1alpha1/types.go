@@ -240,6 +240,23 @@ type PreferredDuringSchedulingIgnoredDuringExecution struct {
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
 type RequiredDuringSchedulingIgnoredDuringExecution struct{}
 
+// ProgressType is the type which could be used when specifying the replica progress threshold. Percentage | Pods
+type ProgressType string
+
+const (
+	ProgressTypePercentage ProgressType = "Percent"
+	ProgressTypePods       ProgressType = "Pods"
+)
+
+type ReplicaProgressThreshold struct {
+	// Type is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.
+	Type ProgressType `json:"type" protobuf:"bytes,1,opt,name=type"`
+	// Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step.
+	// If not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step.
+	// Value must also be greater than 0. Required.
+	Value int32 `json:"value" protobuf:"varint,2,opt,name=value"`
+}
+
 // CanaryStrategy defines parameters for a Replica Based Canary
 type CanaryStrategy struct {
 	// CanaryService holds the name of a service which selects pods with canary version and don't select any pods with stable version.
@@ -317,6 +334,11 @@ type CanaryStrategy struct {
 	// Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
 	// MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
 	MinPodsPerReplicaSet *int32 `json:"minPodsPerReplicaSet,omitempty" protobuf:"varint,16,opt,name=minPodsPerReplicaSet"`
+
+	// ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.
+	// Defaults to 100% of total replicas.
+	// +optional
+	ReplicaProgressThreshold *ReplicaProgressThreshold `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,17,opt,name=replicaProgressThreshold"`
 }
 
 // PingPongSpec holds the ping and pong service name.
@@ -496,6 +518,9 @@ type IstioDestinationRule struct {
 	CanarySubsetName string `json:"canarySubsetName" protobuf:"bytes,2,opt,name=canarySubsetName"`
 	// StableSubsetName is the subset name to modify labels with stable ReplicaSet pod template hash value
 	StableSubsetName string `json:"stableSubsetName" protobuf:"bytes,3,opt,name=stableSubsetName"`
+	// AdditionalSubsetNames contains a list of additional names for subset DestinationRules that are not controlled by Argo Rollouts
+	// +optional
+	AdditionalSubsetNames []string `json:"additionalSubsetNames,omitempty" protobuf:"bytes,4,rep,name=additionalSubsetNames"`
 }
 
 // AppMeshTrafficRouting configuration for AWS AppMesh service mesh to enable fine grain configuration
@@ -549,6 +574,10 @@ type RolloutExperimentStep struct {
 	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
 	// +optional
 	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
+
+	// ScaleDownDelaySeconds is the number of seconds to wait before scaling down the old ReplicaSet
+	// +optional
+	ScaleDownDelaySeconds *int32 `json:"scaleDownDelaySeconds,omitempty" protobuf:"varint,6,opt,name=scaleDownDelaySeconds"`
 }
 
 type RolloutExperimentStepAnalysisTemplateRef struct {

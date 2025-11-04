@@ -422,8 +422,6 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	resolveErr := c.refResolver.Resolve(r)
-	// We could maybe lose setting the error condition from the below if resolveErr != nil {}, and just log the error to clean up the logic
 	roCtx, err := c.newRolloutContext(r)
 	if roCtx == nil {
 		logCtx.Error("newRolloutContext returned nil")
@@ -440,15 +438,6 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		}
 		logCtx.Errorf("newRolloutContext err %v", err)
 		return err
-	}
-	// We should probably delete this if block and just log the error to clean up the logic, a bigger change would be to add a new
-	// field to the status maybe (reconcileErrMsg) and store the errors there from the processNextWorkItem function in controller/controller.go
-	if resolveErr != nil {
-		err := roCtx.createInvalidRolloutCondition(resolveErr, r)
-		if err != nil {
-			return fmt.Errorf("failed to create invalid rollout condition during resolving the rollout: %w", err)
-		}
-		return fmt.Errorf("failed to resolve rollout: %w", resolveErr)
 	}
 
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
@@ -511,6 +500,14 @@ func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {
+	// This needs to be run before replicasets are found/resolved below.
+	// Additionally, for whatever reason, the tests also have assertions that
+	// fail if we delay finding the replicasets, analysisruns and experiments
+	// until after the roll context is created. Thus any eventual error in
+	// resolving the workload ref will be handled immediately after the
+	// rollcontext is created.
+	resolveErr := c.refResolver.Resolve(rollout)
+
 	rsList, err := c.getReplicaSetsForRollouts(rollout)
 	if err != nil {
 		return nil, err
@@ -561,6 +558,15 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			log:      logCtx,
 		},
 		reconcilerBase: c.reconcilerBase,
+	}
+
+	if resolveErr != nil {
+		err := roCtx.createInvalidRolloutCondition(resolveErr, rollout)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create invalid rollout condition when resolving the rollout: %w", err)
+		}
+
+		return &roCtx, validation.InvalidWorkloadRef(roCtx.rollout, resolveErr)
 	}
 
 	// Get Rollout Validation errors

@@ -57,6 +57,7 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			ProgressDeadlineSeconds: r.Spec.ProgressDeadlineSeconds,
 			DryRun:                  step.DryRun,
 			AnalysisRunMetadata:     step.AnalysisRunMetadata,
+			ScaleDownDelaySeconds:   step.ScaleDownDelaySeconds,
 		},
 	}
 
@@ -191,7 +192,11 @@ func (c *rolloutContext) reconcileExperiments() error {
 		case v1alpha1.AnalysisPhaseInconclusive:
 			c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveExperiment)
 		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-			c.pauseContext.AddAbort(currentEx.Status.Message)
+			message := "Experiment analysis phase is error/failed"
+			if currentEx.Status.Message != "" {
+				message += ": " + currentEx.Status.Message
+			}
+			c.pauseContext.AddAbort(message)
 		case v1alpha1.AnalysisPhaseSuccessful:
 			// Do not set current Experiment after successful experiment
 		default:

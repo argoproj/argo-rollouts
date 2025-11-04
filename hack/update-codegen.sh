@@ -19,15 +19,19 @@ cleanup() {
 }
 trap "cleanup" EXIT SIGINT
 
+TARGET_SCRIPT=kube_codegen.sh
 
-chmod +x ${CODEGEN_PKG}/*.sh
+chmod +x ${CODEGEN_PKG}/${TARGET_SCRIPT}
 
-${CODEGEN_PKG}/generate-groups.sh "deepcopy,client,informer,lister" \
-  github.com/argoproj/argo-rollouts/pkg/client github.com/argoproj/argo-rollouts/pkg/apis \
-  "rollouts:v1alpha1" \
-  --output-base "${TEMP_DIR}" \
-  --go-header-file ${SCRIPT_ROOT}/hack/boilerplate.go.txt
+source ${CODEGEN_PKG}/${TARGET_SCRIPT}
 
-cp -r "${TEMP_DIR}/github.com/argoproj/argo-rollouts/." "${SCRIPT_ROOT}/"
-# To use your own boilerplate text use:
-#   --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
+kube::codegen::gen_helpers pkg/apis/rollouts/v1alpha1 \
+  --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt"
+
+kube::codegen::gen_client pkg/apis \
+  --with-watch \
+  --output-pkg github.com/argoproj/argo-rollouts/pkg/client \
+  --output-dir "${TEMP_DIR}" \
+  --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt"
+
+cp -rf "${TEMP_DIR}/." "${SCRIPT_ROOT}/pkg/client/"

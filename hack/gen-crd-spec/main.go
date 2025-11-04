@@ -233,7 +233,7 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.ephemeralContainers[].resources.requests")
 		// Replace this with "spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
 		// when it's ok to only support k8s 1.17+
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.volumes[]")
+		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.volumes")
 	case "Experiment":
 		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.limits")
 		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.requests")
