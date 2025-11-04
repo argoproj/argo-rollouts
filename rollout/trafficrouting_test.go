@@ -845,7 +845,8 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
 	updatedRollout := f.getPatchedRollout(rolloutPatchIndex)
-	expectedRolloutPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=58c48fdff5"}}`
+	// NOTE: The hash must be updated for every k8s library upgrade
+	expectedRolloutPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
 	assert.JSONEq(t, expectedRolloutPatch, updatedRollout)
 }
 

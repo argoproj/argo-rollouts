@@ -21,5 +21,6 @@ for MOD in "${MODS[@]}"; do
 done
 go get "k8s.io/kubernetes@v${VERSION}"
 
-go mod vendor
 go mod tidy
+go mod vendor
+
