@@ -304,7 +304,6 @@ func (s *AWSSuite) TestALBExperimentStepMultiIngress() {
 }
 
 func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
-	//TODO: this test is flaky
 	s.Given().
 		RolloutObjects("@alb/rollout-alb-experiment-no-setweight.yaml").
 		When().
@@ -315,6 +314,7 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 		ExpectExperimentCount(0).
 		When().
 		UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).
 		Sleep(10 * time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
@@ -338,7 +338,6 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 }
 
 func (s *AWSSuite) TestALBExperimentStepNoSetWeightMultiIngress() {
-	//TODO: this test is flaky
 	s.Given().
 		RolloutObjects("@alb/rollout-alb-multi-ingress-experiment-no-setweight.yaml").
 		When().
@@ -349,15 +348,36 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeightMultiIngress() {
 		ExpectExperimentCount(0).
 		When().
 		UpdateSpec().
-		Sleep(10 * time.Second).
+		WaitForRolloutCanaryStepIndex(1).
+		Then().
+		ExpectExperimentCount(1).
+		When().
+		// Increase sleep to ensure experiment services are fully initialized
+		Sleep(15 * time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
+			experiments := t.GetRolloutExperiments()
+			if len(experiments.Items) == 0 {
+				s.T().Fatal("No experiments found")
+			}
+			experiment := experiments.Items[0]
+
+			// Verify template statuses are populated before continuing
+			if len(experiment.Status.TemplateStatuses) < 2 {
+				s.T().Fatalf("Expected 2 template statuses, got %d", len(experiment.Status.TemplateStatuses))
+			}
+			if experiment.Status.TemplateStatuses[0].ServiceName == "" {
+				s.T().Fatal("Experiment template 0 service name is empty")
+			}
+			if experiment.Status.TemplateStatuses[1].ServiceName == "" {
+				s.T().Fatal("Experiment template 1 service name is empty")
+			}
+
 			ingresses := t.GetALBIngresses()
 			for _, ingress := range ingresses {
 				action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
 				assert.True(s.T(), ok)
 
-				experiment := t.GetRolloutExperiments().Items[0]
 				exService1, exService2 := experiment.Status.TemplateStatuses[0].ServiceName, experiment.Status.TemplateStatuses[1].ServiceName
 
 				port := 80

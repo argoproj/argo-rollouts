@@ -9,8 +9,9 @@ spec:
       value: "https://httpbin.org/anything"
   metrics:
     - name: web
-      interval: 7s
+      interval: 5s
       inconclusiveLimit: 3
+      count: 5
       successCondition: result.json.status == "success"
       failureCondition: result.json.status == "failure"
       provider:
@@ -20,3 +21,4 @@ spec:
           jsonBody:
             status: "inconclusive"
           jsonPath: "{$}"
+          timeoutSeconds: 3

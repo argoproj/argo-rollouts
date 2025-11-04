@@ -8,7 +8,7 @@ spec:
     canary:
       steps:
       - setWeight: 10
-      - pause: { duration: 30s }
+      - pause: { duration: 60s }
       analysis:
         templates:
         - templateName: web-background-inconclusive
