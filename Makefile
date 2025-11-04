@@ -120,16 +120,21 @@ gen-proto: k8s-proto api-proto ui-proto
 .PHONY: k8s-proto
 k8s-proto: go-mod-vendor install-protoc-local install-go-tools-local $(TYPES) ## generate kubernetes protobuf files
 	mkdir -p ${PKG}
+	# Remove old generated files (including any symlinks)
 	rm -f pkg/apis/rollouts/v1alpha1/generated.proto
+	rm -f pkg/apis/rollouts/v1alpha1/generated.pb.go
 	cp -f $(CURDIR)/pkg/apis/rollouts/v1alpha1/*.* ${PKG}/
+	# Create symlink to work around go-to-protobuf path resolution issue in k8s.io/code-generator v0.34+
+	ln -sf $(CURDIR)/pkg/apis/rollouts/v1alpha1/generated.proto ${PKG}/generated.proto
 	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} go-to-protobuf \
 		--go-header-file=./hack/custom-boilerplate.go.txt \
 		--packages=${PKG} \
 		--apimachinery-packages=${APIMACHINERY_PKGS} \
 		--proto-import=${CURDIR}/vendor \
 		--proto-import=${GOPATH}/src \
-		--proto-import=${DIST_DIR}/protoc-include 
-	touch pkg/apis/rollouts/v1alpha1/generated.proto
+		--proto-import=${DIST_DIR}/protoc-include
+	# Remove the symlink before copying back
+	rm -f ${PKG}/generated.proto
 	cp -Rf $(CURDIR)/github.com/argoproj/argo-rollouts/pkg . | true
 	# cleaning up
 	rm -Rf $(CURDIR)/github.com/
