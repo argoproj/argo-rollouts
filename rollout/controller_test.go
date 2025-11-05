@@ -624,6 +624,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Recorder:                        record.NewFakeEventRecorder(),
 		RefResolver:                     &FakeWorkloadRefResolver{},
 		EphemeralMetadataThreads:        DefaultEphemeralMetadataThreads,
+		EphemeralMetadataPodRetries:     DefaultEphemeralMetadataPodRetries,
 	})
 
 	c.enqueueRollout = func(obj any) {
