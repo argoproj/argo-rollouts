@@ -2649,6 +2649,21 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioDestinationRule(ref common.Reference
 							Format:      "",
 						},
 					},
+					"additionalSubsetNames": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdditionalSubsetNames contains a list of additional names for subset DestinationRules that are not controlled by Argo Rollouts",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"name", "canarySubsetName", "stableSubsetName"},
 			},
@@ -2857,6 +2872,12 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref common.ReferenceCallbac
 									},
 								},
 							},
+						},
+					},
+					"lookback": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
 						},
 					},
 				},
@@ -4312,6 +4333,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.Referenc
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunMetadata"),
 						},
 					},
+					"scaleDownDelaySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScaleDownDelaySeconds is the number of seconds to wait before scaling down the old ReplicaSet",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 				Required: []string{"templates"},
 			},
@@ -5106,20 +5134,18 @@ func schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref common.ReferenceCallback)
 					},
 					"start": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"end": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},
-				Required: []string{"scope", "region", "step", "start", "end"},
+				Required: []string{"scope", "region", "step"},
 			},
 		},
 	}

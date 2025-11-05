@@ -394,6 +394,14 @@ func TestCanaryStepString(t *testing.T) {
 			step:           v1alpha1.CanaryStep{Plugin: &v1alpha1.PluginStep{Name: "foo"}},
 			expectedString: "plugin: foo",
 		},
+		{
+			step:           v1alpha1.CanaryStep{SetHeaderRoute: &v1alpha1.SetHeaderRoute{Name: "foo"}},
+			expectedString: "setHeaderRoute: foo",
+		},
+		{
+			step:           v1alpha1.CanaryStep{SetMirrorRoute: &v1alpha1.SetMirrorRoute{Name: "foo"}},
+			expectedString: "setMirrorRoute: foo",
+		},
 	}
 	for _, test := range tests {
 		assert.Equal(t, test.expectedString, CanaryStepString(test.step))

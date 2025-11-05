@@ -283,6 +283,7 @@ func NewManager(
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	jobInformerFactory kubeinformers.SharedInformerFactory,
 	ephemeralMetadataThreads int,
+	ephemeralMetadataPodRetries int,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -348,6 +349,7 @@ func NewManager(
 		MetricsServer:                   metricsServer,
 		Recorder:                        recorder,
 		EphemeralMetadataThreads:        ephemeralMetadataThreads,
+		EphemeralMetadataPodRetries:     ephemeralMetadataPodRetries,
 	})
 
 	experimentController := experiments.NewController(experiments.ControllerConfig{

@@ -115,6 +115,7 @@ type ControllerConfig struct {
 	MetricsServer                   *metrics.MetricsServer
 	Recorder                        record.EventRecorder
 	EphemeralMetadataThreads        int
+	EphemeralMetadataPodRetries     int
 }
 
 // reconcilerBase is a shared datastructure containing all clients and configuration necessary to
@@ -154,9 +155,10 @@ type reconcilerBase struct {
 	newTrafficRoutingReconciler func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
 
 	// recorder is an event recorder for recording Event resources to the Kubernetes API.
-	recorder                 record.EventRecorder
-	resyncPeriod             time.Duration
-	ephemeralMetadataThreads int
+	recorder                    record.EventRecorder
+	resyncPeriod                time.Duration
+	ephemeralMetadataThreads    int
+	ephemeralMetadataPodRetries int
 }
 
 type IngressWrapper interface {
@@ -208,6 +210,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		podRestarter:                  podRestarter,
 		refResolver:                   cfg.RefResolver,
 		ephemeralMetadataThreads:      cfg.EphemeralMetadataThreads,
+		ephemeralMetadataPodRetries:   cfg.EphemeralMetadataPodRetries,
 	}
 
 	controller := &Controller{

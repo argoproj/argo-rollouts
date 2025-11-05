@@ -557,6 +557,8 @@ type KayentaMetric struct {
 	Threshold KayentaThreshold `json:"threshold" protobuf:"bytes,7,opt,name=threshold"`
 
 	Scopes []KayentaScope `json:"scopes" protobuf:"bytes,8,rep,name=scopes"`
+
+	Lookback bool `json:"lookback,omitempty" protobuf:"varint,9,opt,name=lookback"`
 }
 
 type KayentaThreshold struct {
@@ -574,8 +576,8 @@ type ScopeDetail struct {
 	Scope  string `json:"scope" protobuf:"bytes,1,opt,name=scope"`
 	Region string `json:"region" protobuf:"bytes,2,opt,name=region"`
 	Step   int64  `json:"step" protobuf:"varint,3,opt,name=step"`
-	Start  string `json:"start" protobuf:"bytes,4,opt,name=start"`
-	End    string `json:"end" protobuf:"bytes,5,opt,name=end"`
+	Start  string `json:"start,omitempty" protobuf:"bytes,4,opt,name=start"`
+	End    string `json:"end,omitempty" protobuf:"bytes,5,opt,name=end"`
 }
 
 type WebMetric struct {

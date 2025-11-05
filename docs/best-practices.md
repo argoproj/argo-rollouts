@@ -13,7 +13,7 @@ Note that using Argo Rollouts for "infrastructure" applications such as cert-man
 
 ## Understand the scope of Argo Rollouts
 
-Currently, Argo Rollouts works with a single Kubernetes deployment/application and within a single cluster only. You also need to have the controller deployed on *every* cluster where a Rollout is running if have more than one clusters using Rollout workloads.
+Currently, Argo Rollouts works with a single Kubernetes deployment/application and within a single cluster only. You also need to have the controller deployed on *every* cluster where a Rollout is running if you have more than one cluster using Rollout workloads.
 
 If you want to look at multiple-services on multiple clusters
 see discussion at issues [2737](https://github.com/argoproj/argo-rollouts/issues/2737), [451](https://github.com/argoproj/argo-rollouts/issues/451) and [2088](https://github.com/argoproj/argo-rollouts/issues/2088).
@@ -162,7 +162,7 @@ in memory usage for a cluster with 1290 rollouts by changing
 
 Argo Rollouts is meant to work on a Kubernetes Deployment. When a ConfigMap is mounted inside one of the Deployment container and a change occurs inside the ConfigMap, it won't trigger a new Rollout by default.
 
-One technique to trigger the Rollout it to name dynamically the ConfigMap.
+One technique to trigger the Rollout is to dynamically name the ConfigMap.
 For example, adding a hash of its content at the end of the name:
 
 ```yaml
@@ -176,7 +176,7 @@ Each time a change occurs in the ConfigMap, its name will change in the Deployme
 
 However, it's not enough to perform correctly progressive rollouts, as the old ConfigMap might get deleted as soon as the new one is created. This would prevent Experiments and rollbacks in case of rollout failure to work correctly.
 
-While no magical solution exist to work aroud that, you can tweak your deployment tool to remove the ConfigMap only when the Rollout is completed successfully.
+While no magical solution exists to work around that, you can tweak your deployment tool to remove the ConfigMap only when the Rollout is completed successfully.
 
 Example with Argo CD:
 
