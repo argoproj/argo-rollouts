@@ -2,14 +2,14 @@
 
 !!! important
 
-    This is an **optional** feature of Argo Rollouts that allows you to have more visibility while a rollout is in progress. You do **NOT** need to use emphemeral metadata in order to achieve the main functionality of Argo Rollouts.
+    This is an **optional** feature of Argo Rollouts that allows you to have more visibility while a rollout is in progress. You do **NOT** need to use ephemeral metadata in order to achieve the main functionality of Argo Rollouts.
 
 Normally during a deployment, Argo Rollouts automatically handles the pods of the new and old versions along with their labels and their association with your traffic provider (if you use one).
 
 In some scenarios however,
 
 1. You might want to annotate the pods of each version with your own custom labels
-1. You may want the application itself know when a deployment is happening 
+1. You may want the application itself to know when a deployment is happening 
 
 
 Argo Rollouts gives you the capability to label or annotate the desired/stable pods with user-defined

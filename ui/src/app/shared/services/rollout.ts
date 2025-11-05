@@ -3,6 +3,7 @@ import {ListState, useLoading, useWatch, useWatchList} from '../utils/watch';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import * as React from 'react';
 import {NamespaceContext, RolloutAPIContext, getApiBasePath} from '../context/api';
+import { notification } from 'antd';
 
 export const useRollouts = (): RolloutInfo[] => {
     const api = React.useContext(RolloutAPIContext);
@@ -11,8 +12,18 @@ export const useRollouts = (): RolloutInfo[] => {
 
     React.useEffect(() => {
         const fetchList = async () => {
-            const list = await api.rolloutServiceListRolloutInfos(namespaceCtx.namespace);
-            setRollouts(list.rollouts || []);
+            try {
+                const list = await api.rolloutServiceListRolloutInfos(namespaceCtx.namespace);
+                setRollouts(list.rollouts || []);
+            } catch (error) {
+                console.error('Error fetching rollouts:', error);
+                notification.error({
+                    message: 'Error fetching rollouts',
+                    description: error.message || 'An unexpected error occurred while fetching rollouts.',
+                    duration: 8,
+                    placement: 'bottomRight',
+                });
+            }
         };
         fetchList();
     }, [api, namespaceCtx]);

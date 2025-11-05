@@ -518,6 +518,9 @@ type IstioDestinationRule struct {
 	CanarySubsetName string `json:"canarySubsetName" protobuf:"bytes,2,opt,name=canarySubsetName"`
 	// StableSubsetName is the subset name to modify labels with stable ReplicaSet pod template hash value
 	StableSubsetName string `json:"stableSubsetName" protobuf:"bytes,3,opt,name=stableSubsetName"`
+	// AdditionalSubsetNames contains a list of additional names for subset DestinationRules that are not controlled by Argo Rollouts
+	// +optional
+	AdditionalSubsetNames []string `json:"additionalSubsetNames,omitempty" protobuf:"bytes,4,rep,name=additionalSubsetNames"`
 }
 
 // AppMeshTrafficRouting configuration for AWS AppMesh service mesh to enable fine grain configuration
@@ -571,6 +574,10 @@ type RolloutExperimentStep struct {
 	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
 	// +optional
 	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
+
+	// ScaleDownDelaySeconds is the number of seconds to wait before scaling down the old ReplicaSet
+	// +optional
+	ScaleDownDelaySeconds *int32 `json:"scaleDownDelaySeconds,omitempty" protobuf:"varint,6,opt,name=scaleDownDelaySeconds"`
 }
 
 type RolloutExperimentStepAnalysisTemplateRef struct {
