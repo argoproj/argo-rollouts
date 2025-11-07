@@ -2097,7 +2097,7 @@ func TestGetReferencedIngressesALBServicePortsIngress(t *testing.T) {
 	}
 	for _, ingress := range ingresses {
 		ingress.Spec = extensionsv1beta1.IngressSpec{
-			IngressClassName: pointer.StringPtr("alb"),
+			IngressClassName: ptr.To[string]("alb"),
 			Backend: &extensionsv1beta1.IngressBackend{
 				ServiceName: "stable",
 				ServicePort: intstr.IntOrString{IntVal: 80},
