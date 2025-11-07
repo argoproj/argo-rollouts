@@ -278,7 +278,7 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []v1a
 				updateTargetGroupStatus(&r.cfg.Status.ALBs[i], &tg, canaryResourceID, stableResourceID, r.log)
 				updateTargetGroupStatus(r.cfg.Status.ALB, &tg, canaryResourceID, stableResourceID, r.log)
 				if tg.Weight != nil {
-					if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
+					if tg.Tags[defaults.GetalbTagKeyResourceID()] == canaryResourceID {
 						logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 						logCtx.Infof("canary weight of %s (desired: %d, current: %d)", canaryResourceID, desiredWeight, *tg.Weight)
 						verified := *tg.Weight == desiredWeight
@@ -288,9 +288,9 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []v1a
 						} else {
 							r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight, *tg.Weight)
 						}
-					} else if dest, ok := resourceIDToDest[tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID]]; ok {
+					} else if dest, ok := resourceIDToDest[tg.Tags[defaults.GetalbTagKeyResourceID()]]; ok {
 						logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
-						logCtx.Infof("%s weight of %s (desired: %d, current: %d)", dest.ServiceName, tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID], dest.Weight, *tg.Weight)
+						logCtx.Infof("%s weight of %s (desired: %d, current: %d)", dest.ServiceName, tg.Tags[defaults.GetalbTagKeyResourceID()], dest.Weight, *tg.Weight)
 						verified := *tg.Weight == dest.Weight
 						if verified {
 							numVerifiedWeights += 1
@@ -319,7 +319,7 @@ func updateLoadBalancerStatus(status *v1alpha1.ALBStatus, lb *elbv2types.LoadBal
 }
 
 func updateTargetGroupStatus(status *v1alpha1.ALBStatus, tg *aws.TargetGroupMeta, canaryResourceID string, stableResourceID string, log *logrus.Entry) {
-	if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
+	if tg.Tags[defaults.GetalbTagKeyResourceID()] == canaryResourceID {
 		status.CanaryTargetGroup.Name = *tg.TargetGroupName
 		status.CanaryTargetGroup.ARN = *tg.TargetGroupArn
 		if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
@@ -328,7 +328,7 @@ func updateTargetGroupStatus(status *v1alpha1.ALBStatus, tg *aws.TargetGroupMeta
 			status.CanaryTargetGroup.FullName = ""
 			log.Errorf("error parsing canary target group arn: '%s'", *tg.TargetGroupArn)
 		}
-	} else if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == stableResourceID {
+	} else if tg.Tags[defaults.GetalbTagKeyResourceID()] == stableResourceID {
 		status.StableTargetGroup.Name = *tg.TargetGroupName
 		status.StableTargetGroup.ARN = *tg.TargetGroupArn
 		if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {

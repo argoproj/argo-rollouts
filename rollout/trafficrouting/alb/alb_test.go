@@ -20,12 +20,12 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
 	"k8s.io/utils/ptr"
 	"k8s.io/utils/strings/slices"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/aws"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -128,7 +128,7 @@ func targetGroup(name string, port int32, weight int32) ingressutil.ALBTargetGro
 	return ingressutil.ALBTargetGroup{
 		ServiceName: name,
 		ServicePort: strconv.Itoa(int(port)),
-		Weight:      pointer.Int64Ptr(int64(weight)),
+		Weight:      ptr.To[int64](int64(weight)),
 	}
 }
 
@@ -955,7 +955,7 @@ func TestVerifyWeight(t *testing.T) {
 	// LoadBalancer found, at max weight, end of rollout
 	{
 		var status v1alpha1.RolloutStatus
-		status.CurrentStepIndex = pointer.Int32Ptr(2)
+		status.CurrentStepIndex = ptr.To[int32](2)
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			makeLoadBalancer("lb-abc123-name", "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
@@ -978,32 +978,32 @@ func TestVerifyWeight(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("lb-abc123-arn"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("lb-abc123-arn"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					LoadBalancerArns: []string{"lb-abc123-arn"},
-					TargetGroupName:  pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:   pointer.StringPtr("canary-tg-abc123-arn"),
+					TargetGroupName:  ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:   ptr.To[string]("canary-tg-abc123-arn"),
 				},
-				Weight: pointer.Int32(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					defaults.GetalbTagKeyResourceID(): "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					LoadBalancerArns: []string{"lb-abc123-arn"},
-					TargetGroupName:  pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:   pointer.StringPtr("stable-tg-abc123-arn"),
+					TargetGroupName:  ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:   ptr.To[string]("stable-tg-abc123-arn"),
 				},
-				Weight: pointer.Int32(11),
+				Weight: ptr.To[int32](11),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					defaults.GetalbTagKeyResourceID(): "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1580,7 +1580,7 @@ func makeTargetGroup(name string, port int32, weight int32, lbResourceId string)
 		},
 		Weight: ptr.To[int32](tgWeight),
 		Tags: map[string]string{
-			aws.AWSLoadBalancerV2TagKeyResourceID: lbResourceId,
+			defaults.GetalbTagKeyResourceID(): lbResourceId,
 		},
 	}
 }
