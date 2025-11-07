@@ -1605,9 +1605,9 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2) + ": " + ar.Status.Message
+	errmsg := "Step-based analysis phase error/failed: " + ar.Status.Message
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, errmsg, false)
-	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, errmsg)
+	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": "+errmsg)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -1680,8 +1680,8 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 			"message": "RolloutAborted: %s"
 		}
 	}`
-	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
-	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
+	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2) + ": Background analysis phase error/failed"
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "Background analysis phase error/failed", false)
 
 	now := timeutil.Now().UTC().Format(time.RFC3339)
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg)), patch)
@@ -2461,7 +2461,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
+	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "Blue/green pre-promotion analysis phase error/failed")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
 }
@@ -2700,7 +2700,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
+	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "Blue/green post-promotion analysis phase error/failed")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
 }
@@ -2725,7 +2725,7 @@ func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testin
 					TemplateName: at.Name,
 				},
 			},
-			AnalysisRunMetadata: v1alpha1.AnalysisRunMetadata{
+			AnalysisRunMetadata: &v1alpha1.AnalysisRunMetadata{
 				Annotations: map[string]string{"testAnnotationKey": "testAnnotationValue"},
 				Labels:      map[string]string{"testLabelKey": "testLabelValue"},
 			},

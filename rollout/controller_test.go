@@ -322,7 +322,11 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 	}
 
 	if optionalMessage != "" {
-		msg = optionalMessage
+		if msg != "" {
+			msg += ": " + optionalMessage
+		} else {
+			msg = optionalMessage
+		}
 	}
 
 	condition := v1alpha1.RolloutCondition{
@@ -620,6 +624,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Recorder:                        record.NewFakeEventRecorder(),
 		RefResolver:                     &FakeWorkloadRefResolver{},
 		EphemeralMetadataThreads:        DefaultEphemeralMetadataThreads,
+		EphemeralMetadataPodRetries:     DefaultEphemeralMetadataPodRetries,
 	})
 
 	c.enqueueRollout = func(obj any) {
@@ -1457,7 +1462,7 @@ func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedReplicaSetName to match the new hash.
-	expectedReplicaSetName := "guestbook-6c5667f666"
+	expectedReplicaSetName := "guestbook-6f496f9f78"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
