@@ -3866,31 +3866,27 @@
 </ul>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/kubernetes-sigs/aws-load-balancer-controller">AWS Load Balancer Controller</a>
-(also known as AWS ALB Ingress Controller) enables traffic management through an Ingress object,
-which configures an AWS Application Load Balancer (ALB) to route traffic to one or more Kubernetes
-services. ALBs provides advanced traffic splitting capability through the concept of
+(formerly known as AWS ALB Ingress Controller) enables traffic management through an Ingress object.
+It configures an AWS Application Load Balancer (ALB) to route traffic to one or more Kubernetes
+services. ALBs provide advanced traffic splitting capabilities through
 <a href="https://aws.amazon.com/blogs/aws/new-application-load-balancer-simplifies-deployment-with-weighted-target-groups/">weighted target groups</a>.
-This feature is supported by the AWS Load Balancer Controller through annotations made to the
-Ingress object to configure "actions."</p>
+The AWS Load Balancer Controller supports this feature through annotations on the Ingress object to configure "actions."</p>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>ALBs are configured via Listeners, and Rules which contain Actions. Listeners define how traffic
-from a client comes in, and Rules define how to handle those requests with various Actions. One
-type of Action allows users to forward traffic to multiple TargetGroups (with each being defined as
-a Kubernetes service). You can read more about ALB concepts
-<a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html">here</a>.</p>
-<p>An Ingress which is managed by the AWS Load Balancer Controller, controls an ALB's Listener and
-Rules through the Ingress' annotations and spec. In order to split traffic among multiple target
-groups (e.g. different Kubernetes services), the AWS Load Balancer controller looks to a specific
-"action" annotation on the Ingress,
+<p>ALBs are configured using Listeners and Rules that contain Actions. Listeners define how client traffic
+is received, while Rules define how to handle these requests using various Actions. One type of Action
+allows users to forward traffic to multiple TargetGroups (each defined as a Kubernetes service). You can
+learn more about ALB concepts <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html">here</a>.</p>
+<p>An Ingress managed by the AWS Load Balancer Controller controls an ALB's Listener and Rules through
+annotations and specifications. To split traffic among multiple target groups (e.g., different
+Kubernetes services), the AWS Load Balancer Controller uses a specific action annotation:
 <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#actions"><code>alb.ingress.kubernetes.io/actions.&lt;service-name&gt;</code></a>.
-This annotation is injected and updated automatically by a Rollout during an update according to
-the desired traffic weights.</p>
+During an update, a Rollout automatically injects and updates this annotation according to the desired
+traffic weights.</p>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
 <p>To configure a Rollout to use the ALB integration and split traffic between the canary and stable
 services during updates, the Rollout should be configured with the following fields:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
-<span class="nn">...</span>
 <span class="nt">spec</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
@@ -3907,8 +3903,8 @@ services during updates, the Rollout should be configured with the following fie
 <span class="w">          </span><span class="c1"># If you want to control multiple ingress resources you can use the ingresses field, if ingresses is specified</span>
 <span class="w">          </span><span class="c1"># the ingress field will need to be omitted.</span>
 <span class="w">          </span><span class="nt">ingresses</span><span class="p">:</span>
-<span class="w">           </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress-1</span>
-<span class="w">           </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress-2</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress-1</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress-2</span>
 <span class="w">          </span><span class="c1"># Reference to a Service that the Ingress must target in one of the rules (optional).</span>
 <span class="w">          </span><span class="c1"># If omitted, uses canary.stableService.</span>
 <span class="w">          </span><span class="nt">rootService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">root-service</span>
@@ -3924,19 +3920,19 @@ services during updates, the Rollout should be configured with the following fie
 <span class="w">    </span><span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alb</span>
 <span class="nt">spec</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">rules</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">http</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">paths</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/</span>
-<span class="w">        </span><span class="nt">pathType</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Prefix</span>
-<span class="w">        </span><span class="nt">backend</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">service</span><span class="p">:</span>
-<span class="w">            </span><span class="c1"># serviceName must match either: canary.trafficRouting.alb.rootService (if specified),</span>
-<span class="w">            </span><span class="c1"># or canary.stableService (if rootService is omitted)</span>
-<span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">root-service</span>
-<span class="w">            </span><span class="c1"># servicePort must be the value: use-annotation</span>
-<span class="w">            </span><span class="c1"># This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic</span>
-<span class="w">            </span><span class="nt">port</span><span class="p">:</span>
-<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">http</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">paths</span><span class="p">:</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/</span>
+<span class="w">            </span><span class="nt">pathType</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Prefix</span>
+<span class="w">            </span><span class="nt">backend</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">service</span><span class="p">:</span>
+<span class="w">                </span><span class="c1"># serviceName must match either: canary.trafficRouting.alb.rootService (if specified),</span>
+<span class="w">                </span><span class="c1"># or canary.stableService (if rootService is omitted)</span>
+<span class="w">                </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">root-service</span>
+<span class="w">                </span><span class="c1"># servicePort must be the value: use-annotation</span>
+<span class="w">                </span><span class="c1"># This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic</span>
+<span class="w">                </span><span class="nt">port</span><span class="p">:</span>
+<span class="w">                  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
 </code></pre></div>
 <p>During an update, the rollout controller injects the <code>alb.ingress.kubernetes.io/actions.&lt;SERVICE-NAME&gt;</code>
 annotation, containing a JSON payload understood by the AWS Load Balancer Controller, directing it
@@ -3970,15 +3966,16 @@ of 10 and 90 respectively:</p>
 <span class="w">      </span><span class="no">}</span>
 <span class="nt">spec</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">rules</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">http</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">paths</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/</span>
-<span class="w">        </span><span class="nt">pathType</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Prefix</span>
-<span class="w">        </span><span class="nt">backend</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">service</span><span class="p">:</span>
-<span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">root-service</span>
-<span class="w">            </span><span class="nt">port</span><span class="p">:</span>
-<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">http</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">paths</span><span class="p">:</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/</span>
+<span class="w">            </span><span class="nt">pathType</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Prefix</span>
+<span class="w">            </span><span class="nt">backend</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">service</span><span class="p">:</span>
+<span class="w">                </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">root-service</span>
+<span class="w">                </span><span class="nt">port</span><span class="p">:</span>
+<span class="w">                  </span><span class="c1"># Instructs AWS Load Balancer Controller to look to annotations on how to direct traffic</span>
+<span class="w">                  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -3992,7 +3989,7 @@ is no longer managed, and is reset to point only the stable service with 100 wei
 <p>By default, a rollout will inject the <code>alb.ingress.kubernetes.io/actions.&lt;SERVICE-NAME&gt;</code> annotation
 using the service/action name specified under <code>spec.strategy.canary.stableService</code>. However, it may
 be desirable to specify an explicit service/action name different from the <code>stableService</code>. For
-example, <a href="/best-practices/#ingress-desiredstable-host-routes">one pattern</a> is to use a single
+example, <a href="../../../best-practices/#ingress-desiredstable-host-routes">one pattern</a> is to use a single
 Ingress containing three different rules to reach the canary, stable, and root service separately
 (e.g. for testing purposes). In this case, you may want to specify a "root" service as the
 service/action name instead of stable. To do so, reference a service under <code>rootService</code> under the
@@ -4007,7 +4004,6 @@ alb specification:</p>
 <span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">alb</span><span class="p">:</span>
 <span class="w">          </span><span class="nt">rootService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook-root</span>
-<span class="nn">...</span>
 </code></pre></div>
 <h3 id="sticky-session">Sticky session<a class="headerlink" href="#sticky-session" title="Permanent link">&para;</a></h3>
 <p>Because at least two target groups (canary and stable) are used, target group stickiness requires additional configuration:
@@ -4017,13 +4013,11 @@ Sticky session must be activated on the target group via</p>
 <span class="nt">spec</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
-<span class="nn">...</span>
 <span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">alb</span><span class="p">:</span>
 <span class="w">          </span><span class="nt">stickinessConfig</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">            </span><span class="nt">durationSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3600</span>
-<span class="nn">...</span>
 </code></pre></div>
 <p>More information can be found in the <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html">AWS ALB API</a></p>
 <h3 id="zero-downtime-updates-with-aws-targetgroup-verification">Zero-Downtime Updates with AWS TargetGroup Verification<a class="headerlink" href="#zero-downtime-updates-with-aws-targetgroup-verification" title="Permanent link">&para;</a></h3>
@@ -4049,7 +4043,7 @@ can more easily become outdated from the <em><em>actual</em></em> availability a
 errors when the TargetGroup points to pods which have already been scaled down.</p>
 <p>To mitigate this risk, AWS recommends the use of
 <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/">pod readiness gate injection</a>
-when running the AWS LoadBalancer in IP mode. Readiness gates allow for the AWS LoadBalancer
+when running the AWS LoadBalancer in IP mode. Readiness gates allow the AWS LoadBalancer
 controller to verify that TargetGroups are accurate before marking newly created Pods as "ready",
 preventing premature scale down of the older ReplicaSet.</p>
 <p>Pod readiness gate injection uses a mutating webhook which decides to inject readiness gates when a
@@ -4059,7 +4053,7 @@ pod is created based on the following conditions:</p>
 <li>There exists at least one target group binding that refers to the matching service</li>
 </ul>
 <p>Another way to describe this is: the AWS LoadBalancer controller injects readiness gates onto Pods
-only if they are "reachable"  from an ALB Ingress at the time of pod creation. A pod is considered
+only if they are "reachable" from an ALB Ingress at the time of pod creation. A pod is considered
 reachable if an (ALB) Ingress references a Service which matches the pod labels. It ignores all other Pods.</p>
 <p>One challenge with this manner of pod readiness gate injection, is that modifications to the Service
 selector labels (<code>spec.selector</code>) do not allow for the AWS LoadBalancer controller to inject the
@@ -4122,9 +4116,9 @@ annotation.</p>
 <span class="w">  </span><span class="nt">template</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">spec</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">containers</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts</span>
-<span class="w">        </span><span class="nt">args</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">--aws-verify-target-group</span><span class="p p-Indicator">]</span>
-<span class="w">        </span><span class="c1"># NOTE: in v1.0, the --alb-verify-weight flag should be used instead</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts</span>
+<span class="w">          </span><span class="nt">args</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">--aws-verify-target-group</span><span class="p p-Indicator">]</span>
+<span class="w">          </span><span class="c1"># NOTE: in v1.0, the --alb-verify-weight flag should be used instead</span>
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -4133,21 +4127,21 @@ annotation.</p>
 <p>For this feature to work, the argo-rollouts deployment requires the following AWS API permissions
 under the <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/Welcome.html">Elastic Load Balancing API</a>:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;Statement&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">        </span><span class="p">{</span>
-<span class="w">            </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">                </span><span class="s2">&quot;elasticloadbalancing:DescribeTargetGroups&quot;</span><span class="p">,</span>
-<span class="w">                </span><span class="s2">&quot;elasticloadbalancing:DescribeLoadBalancers&quot;</span><span class="p">,</span>
-<span class="w">                </span><span class="s2">&quot;elasticloadbalancing:DescribeListeners&quot;</span><span class="p">,</span>
-<span class="w">                </span><span class="s2">&quot;elasticloadbalancing:DescribeRules&quot;</span><span class="p">,</span>
-<span class="w">                </span><span class="s2">&quot;elasticloadbalancing:DescribeTags&quot;</span><span class="p">,</span>
-<span class="w">                </span><span class="s2">&quot;elasticloadbalancing:DescribeTargetHealth&quot;</span>
-<span class="w">            </span><span class="p">],</span>
-<span class="w">            </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;*&quot;</span><span class="p">,</span>
-<span class="w">            </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span>
-<span class="w">        </span><span class="p">}</span>
-<span class="w">    </span><span class="p">]</span>
+<span class="w">  </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;Statement&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">&quot;elasticloadbalancing:DescribeTargetGroups&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;elasticloadbalancing:DescribeLoadBalancers&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;elasticloadbalancing:DescribeListeners&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;elasticloadbalancing:DescribeRules&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;elasticloadbalancing:DescribeTags&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;elasticloadbalancing:DescribeTargetHealth&quot;</span>
+<span class="w">      </span><span class="p">],</span>
+<span class="w">      </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;*&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>There are various ways of granting AWS privileges to the argo-rollouts pods, which is highly
@@ -4160,15 +4154,14 @@ include:</p>
 <li><a href="https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html">EKS ServiceAccount IAM Roles</a></li>
 </ul>
 <h3 id="zero-downtime-updates-with-ping-pong-feature">Zero-Downtime Updates with Ping-Pong feature<a class="headerlink" href="#zero-downtime-updates-with-ping-pong-feature" title="Permanent link">&para;</a></h3>
-<p>Above there was described the recommended way by AWS to solve zero-downtime issue. Is a use a <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/">pod readiness gate injection</a>
-when running the AWS LoadBalancer in IP mode. There is a challenge with that approach, modifications
-of the Service selector labels (<code>spec.selector</code>) not allowed the AWS LoadBalancer controller to mutate the readiness gates.
-And Ping-Pong feature helps to deal with that challenge. At some particular moment one of the services (e.g. ping) is "wearing a
-hat" of stable service another one (e.g. pong) is "wearing a hat" of canary. At the end of the promotion step all 100% of traffic sending
-to the "canary" (e.g. pong). And then the Rollout swapped the hats of ping and pong services so the pong became a stable one.
-The Rollout status object holds the value of who is currently the stable ping or pong (<code>status.canary.currentPingPong</code>).
-And this way allows the rollout to use pod readiness gate injection as the
-services are not changing their labels at the end of the rollout progress.</p>
+<p>As described above, AWS recommends using <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/">pod readiness gate injection</a>
+when running the AWS LoadBalancer in IP mode to achieve zero-downtime updates. However, this approach presents a challenge:
+modifications to the Service selector labels (<code>spec.selector</code>) prevent the AWS LoadBalancer controller from mutating the readiness gates.</p>
+<p>The Ping-Pong feature helps address this challenge. At any given moment, one service (e.g., ping) acts as the stable service
+while another (e.g., pong) acts as the canary. At the end of the promotion step, 100% of traffic is directed
+to the "canary" (e.g., pong). The Rollout then swaps the roles of the ping and pong services, making pong the new stable service.
+The Rollout status object tracks which service is currently stable through the <code>status.canary.currentPingPong</code> field.
+This approach enables the use of pod readiness gate injection since the services maintain their labels throughout the rollout process.</p>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
 <p>Ping-Pong feature available since Argo Rollouts v1.2</p>
@@ -4188,10 +4181,10 @@ services are not changing their labels at the end of the rollout progress.</p>
 <span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span>
 <span class="w">    </span><span class="nt">spec</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">containers</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span>
-<span class="w">        </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx:1.15.4</span>
-<span class="w">        </span><span class="nt">ports</span><span class="p">:</span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span>
+<span class="w">          </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx:1.15.4</span>
+<span class="w">          </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
 <span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">pingPong</span><span class="p">:</span><span class="w"> </span><span class="c1">#Indicates that the ping-pong services enabled</span>
@@ -4202,8 +4195,8 @@ services are not changing their labels at the end of the rollout progress.</p>
 <span class="w">          </span><span class="nt">ingress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alb-ingress</span>
 <span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
 <span class="w">      </span><span class="nt">steps</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
 </code></pre></div>
 <h3 id="custom-annotations-prefix">Custom annotations-prefix<a class="headerlink" href="#custom-annotations-prefix" title="Permanent link">&para;</a></h3>
 <p>The AWS Load Balancer Controller allows users to customize the
@@ -4229,12 +4222,12 @@ object will be annotated in a manner understood by the cluster's aws load balanc
 <span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alb</span>
 </code></pre></div>
-<p>Or with the <code>ingressClassName</code>:
+<p>Or with the <code>ingressClassName</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span>
 <span class="nt">spec</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">ingressClassName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alb</span>
-</code></pre></div></p>
+</code></pre></div>
 <p>To configure the controller to operate on Ingresses with a different class name,
 you can specify a different value through the <code>--alb-ingress-classes</code> flag in
 the controller command line arguments.</p>
