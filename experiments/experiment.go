@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -72,7 +72,6 @@ func newExperimentContext(
 	resyncPeriod time.Duration,
 	enqueueExperimentAfter func(obj any, duration time.Duration),
 ) *experimentContext {
-
 	exCtx := experimentContext{
 		ex:                            experiment,
 		templateRSs:                   templateRSs,
@@ -138,7 +137,14 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			// Create service for template if service field is set
 			if desiredReplicaCount != 0 {
 				ec.createTemplateService(&template, templateStatus, rs)
+			} else {
+				if rs.Status.AvailableReplicas == 0 {
+					// Check if service should be deleted when ReplicaSet has scaled down to 0 available replicas
+					svc := ec.templateServices[template.Name]
+					ec.deleteTemplateService(svc, templateStatus, template.Name)
+				}
 			}
+
 		} else {
 			// If service field nil but service exists, then delete it
 			// Code should not enter this path
@@ -158,6 +164,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			ec.scaleTemplateRS(rs, template, templateStatus, desiredReplicaCount, experimentReplicas)
 			templateStatus.LastTransitionTime = &now
 		}
+
 	}
 
 	if rs == nil {
@@ -273,11 +280,6 @@ func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, template v1a
 	if err != nil {
 		templateStatus.Status = v1alpha1.TemplateStatusError
 		templateStatus.Message = fmt.Sprintf("Unable to scale ReplicaSet for template '%s' to desired replica count '%v': %v", templateStatus.Name, desiredReplicaCount, err)
-	} else {
-		if desiredReplicaCount == 0 && template.Service != nil {
-			svc := ec.templateServices[template.Name]
-			ec.deleteTemplateService(svc, templateStatus, template.Name)
-		}
 	}
 }
 
@@ -319,7 +321,7 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 
 // createReplicaSetForTemplate initializes ReplicaSet with zero replicas for given experiment template
 func (ec *experimentContext) createReplicaSetForTemplate(template v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, logCtx *log.Entry, now metav1.Time) {
-	template.Replicas = pointer.Int32Ptr(0)
+	template.Replicas = ptr.To[int32](0)
 	rs, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
 	if err != nil {
 		logCtx.Warnf("Failed to create ReplicaSet: %v", err)
@@ -416,6 +418,19 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 				eventType = corev1.EventTypeWarning
 			}
 			ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(newStatus.Phase)}, msg)
+
+			// Handle the case where the Analysis Run belongs to an Experiment, and the Experiment is a Step in the Rollout
+			// This makes sure the rollout gets the Analysis Run events, which will then trigger any subscribed notifications
+			// #4009
+			roRef := experimentutil.GetRolloutOwnerRef(ec.ex)
+			if roRef != nil {
+				rollout, err := ec.argoProjClientset.ArgoprojV1alpha1().Rollouts(ec.ex.Namespace).Get(context.TODO(), roRef.Name, metav1.GetOptions{})
+				if err != nil {
+					ec.log.Warnf("Failed to get parent Rollout of the Experiment '%s': %v", roRef.Name, err)
+				} else {
+					ec.recorder.Eventf(rollout, record.EventOptions{EventType: corev1.EventTypeWarning, EventReason: "AnalysisRun" + string(newStatus.Phase)}, msg)
+				}
+			}
 		}
 		experimentutil.SetAnalysisRunStatus(ec.newStatus, *newStatus)
 	}()
@@ -627,7 +642,6 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 
 // newAnalysisRun generates an AnalysisRun from the experiment and template
 func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, analysisRunMetadata *v1alpha1.AnalysisRunMetadata) (*v1alpha1.AnalysisRun, error) {
-
 	if analysis.ClusterScope {
 		analysisTemplates, clusterAnalysisTemplates, err := ec.getAnalysisTemplatesFromClusterAnalysis(analysis)
 		if err != nil {
@@ -772,7 +786,6 @@ func (ec *experimentContext) getAnalysisTemplatesFromRefs(templateRefs *[]v1alph
 				templates = append(templates, innerTemplates...)
 			}
 		}
-
 	}
 	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
 	return uniqueTemplates, uniqueClusterTemplates, nil

@@ -4,6 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -15,11 +21,6 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututils "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 )
 
 const (
@@ -147,7 +148,7 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 		return nil
 	}
 
-	c.targetsVerified = pointer.Bool(false)
+	c.targetsVerified = ptr.To[bool](false)
 
 	// get endpoints of service
 	endpoints, err := c.kubeclientset.CoreV1().Endpoints(svc.Namespace).Get(ctx, svc.Name, metav1.GetOptions{})
@@ -172,12 +173,14 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 		}
 		if !verifyRes.Verified {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered, verifyRes.EndpointsTotal)
+			logCtx := logutil.WithRollout(c.rollout)
+			logCtx.Info("rollout enqueue due to awsVerifyTargetGroups")
 			c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 			return nil
 		}
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered)
 	}
-	c.targetsVerified = pointer.Bool(true)
+	c.targetsVerified = ptr.To[bool](true)
 	return nil
 }
 

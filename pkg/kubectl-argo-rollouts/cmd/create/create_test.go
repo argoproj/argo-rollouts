@@ -11,9 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	core "k8s.io/client-go/testing"
 
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
 
 func TestCreateRollout(t *testing.T) {

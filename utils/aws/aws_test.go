@@ -12,7 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	testutil "github.com/argoproj/argo-rollouts/test/util"
 	"github.com/argoproj/argo-rollouts/utils/aws/mocks"
@@ -24,6 +24,16 @@ func newFakeClient() (*mocks.ELBv2APIClient, Client) {
 	fakeELB := mocks.ELBv2APIClient{}
 	awsClient, _ := FakeNewClientFunc(&fakeELB)()
 	return &fakeELB, awsClient
+}
+
+func TestGetTargetGroupBindingsGVR(t *testing.T) {
+	defaults.SetTargetGroupBindingAPIVersion("eks.amazonaws.com/v1")
+	gvr, err := GetTargetGroupBindingsGVR()
+	assert.NoError(t, err)
+	assert.Equal(t, "eks.amazonaws.com", gvr.Group)
+	assert.Equal(t, "v1", gvr.Version)
+	assert.Equal(t, "targetgroupbindings", gvr.Resource)
+	defaults.SetTargetGroupBindingAPIVersion("elbv2.k8s.aws/v1beta1")
 }
 
 func TestFindLoadBalancerByDNSName(t *testing.T) {
@@ -41,8 +51,8 @@ func TestFindLoadBalancerByDNSName(t *testing.T) {
 		fakeELB, c := newFakeClient()
 		// Mock output
 		expectedLB := elbv2types.LoadBalancer{
-			LoadBalancerArn: pointer.StringPtr("lb-abc123"),
-			DNSName:         pointer.StringPtr("find-loadbalancer-test-abc-123.us-west-2.elb.amazonaws.com"),
+			LoadBalancerArn: ptr.To[string]("lb-abc123"),
+			DNSName:         ptr.To[string]("find-loadbalancer-test-abc-123.us-west-2.elb.amazonaws.com"),
 		}
 		lbOut := elbv2.DescribeLoadBalancersOutput{
 			LoadBalancers: []elbv2types.LoadBalancer{
@@ -103,13 +113,13 @@ func TestGetTargetGroupMetadata(t *testing.T) {
 	tgOut := elbv2.DescribeTargetGroupsOutput{
 		TargetGroups: []elbv2types.TargetGroup{
 			{
-				TargetGroupArn: pointer.StringPtr("tg-abc123"),
+				TargetGroupArn: ptr.To[string]("tg-abc123"),
 			},
 			{
-				TargetGroupArn: pointer.StringPtr("tg-def456"),
+				TargetGroupArn: ptr.To[string]("tg-def456"),
 			},
 			{
-				TargetGroupArn: pointer.StringPtr("tg-ghi789"),
+				TargetGroupArn: ptr.To[string]("tg-ghi789"),
 			},
 		},
 	}
@@ -125,11 +135,11 @@ func TestGetTargetGroupMetadata(t *testing.T) {
 		}
 		for _, arn := range tagsIn.ResourceArns {
 			tagsOut.TagDescriptions = append(tagsOut.TagDescriptions, elbv2types.TagDescription{
-				ResourceArn: pointer.StringPtr(arn),
+				ResourceArn: ptr.To[string](arn),
 				Tags: []elbv2types.Tag{
 					{
-						Key:   pointer.StringPtr("foo"),
-						Value: pointer.StringPtr("bar"),
+						Key:   ptr.To[string]("foo"),
+						Value: ptr.To[string]("bar"),
 					},
 				},
 			})
@@ -141,8 +151,8 @@ func TestGetTargetGroupMetadata(t *testing.T) {
 	listenersOut := elbv2.DescribeListenersOutput{
 		Listeners: []elbv2types.Listener{
 			{
-				ListenerArn:     pointer.StringPtr("lst-abc123"),
-				LoadBalancerArn: pointer.StringPtr("lb-abc123"),
+				ListenerArn:     ptr.To[string]("lst-abc123"),
+				LoadBalancerArn: ptr.To[string]("lb-abc123"),
 			},
 		},
 	}
@@ -156,8 +166,8 @@ func TestGetTargetGroupMetadata(t *testing.T) {
 						ForwardConfig: &elbv2types.ForwardActionConfig{
 							TargetGroups: []elbv2types.TargetGroupTuple{
 								{
-									TargetGroupArn: pointer.StringPtr("tg-abc123"),
-									Weight:         pointer.Int32Ptr(10),
+									TargetGroupArn: ptr.To[string]("tg-abc123"),
+									Weight:         ptr.To[int32](10),
 								},
 							},
 						},
@@ -194,7 +204,7 @@ func TestGetTargetGroupHealth(t *testing.T) {
 	expectedHealth := elbv2.DescribeTargetHealthOutput{
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
-				HealthCheckPort: pointer.StringPtr("80"),
+				HealthCheckPort: ptr.To[string]("80"),
 				Target:          &elbv2types.TargetDescription{},
 				TargetHealth: &elbv2types.TargetHealth{
 					State: elbv2types.TargetHealthStateEnumHealthy,
@@ -290,7 +300,7 @@ func TestVerifyTargetGroupBindingIgnoreInstanceMode(t *testing.T) {
 	_, awsClnt := newFakeClient()
 	tgb := TargetGroupBinding{
 		Spec: TargetGroupBindingSpec{
-			TargetType: (*TargetType)(pointer.StringPtr("instance")),
+			TargetType: (*TargetType)(ptr.To[string]("instance")),
 		},
 	}
 	res, err := VerifyTargetGroupBinding(context.TODO(), logCtx, awsClnt, tgb, nil, nil)
@@ -306,7 +316,7 @@ func TestVerifyTargetGroupBinding(t *testing.T) {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: TargetGroupBindingSpec{
-			TargetType:     (*TargetType)(pointer.StringPtr("ip")),
+			TargetType:     (*TargetType)(ptr.To[string]("ip")),
 			TargetGroupARN: "arn::1234",
 			ServiceRef: ServiceReference{
 				Name: "active",
@@ -360,26 +370,26 @@ func TestVerifyTargetGroupBinding(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(8080),
+					Id:   ptr.To[string]("1.2.3.4"),
+					Port: ptr.To[int32](8080),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(8080),
+					Id:   ptr.To[string]("5.6.7.8"),
+					Port: ptr.To[int32](8080),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(8081),       // wrong port
+					Id:   ptr.To[string]("2.4.6.8"), // irrelevant
+					Port: ptr.To[int32](8081),       // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(8080),
+					Id:   ptr.To[string]("9.8.7.6"), // irrelevant ip
+					Port: ptr.To[int32](8080),
 				},
 			},
 		},

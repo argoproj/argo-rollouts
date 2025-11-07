@@ -3,10 +3,11 @@ package main
 import (
 	"strings"
 
-	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc"
-	"github.com/argoproj/argo-rollouts/test/cmd/step-plugin-e2e/internal/plugin"
 	goPlugin "github.com/hashicorp/go-plugin"
 	log "github.com/sirupsen/logrus"
+
+	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc"
+	"github.com/argoproj/argo-rollouts/test/cmd/step-plugin-e2e/internal/plugin"
 )
 
 var handshakeConfig = goPlugin.HandshakeConfig{

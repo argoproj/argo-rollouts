@@ -1,4 +1,62 @@
 
+<a name="v1.8.3"></a>
+## [v1.8.3](https://github.com/argoproj/argo-rollouts/compare/v1.8.2...v1.8.3) (2025-05-31)
+
+### Chore
+
+* **deps:** bump github.com/golang-jwt/jwt to 4.5.2 ([#4235](https://github.com/argoproj/argo-rollouts/issues/4235)) ([#4236](https://github.com/argoproj/argo-rollouts/issues/4236))
+* **deps:** bump golang.org/x/oauth2 from 0.24.0 to 0.29.0 to fix CVE-2025-22868 ([#4225](https://github.com/argoproj/argo-rollouts/issues/4225))
+
+### Docs
+
+* explain skew policy between the kubectl plugin and the controller ([#4300](https://github.com/argoproj/argo-rollouts/issues/4300))
+* blue green w/ ALB not supported without downtime ([#4259](https://github.com/argoproj/argo-rollouts/issues/4259))
+
+### Fix
+
+* abort scenario where canary/stable service is not provided ([#4299](https://github.com/argoproj/argo-rollouts/issues/4299))
+* restarts during updates could cause downtime ([#4221](https://github.com/argoproj/argo-rollouts/issues/4221))
+* **experiments:** fire rollout event on experiment step ([#4124](https://github.com/argoproj/argo-rollouts/issues/4124))
+* **trafficrouting:** patch VirtualService when there is only one named route ([#4055](https://github.com/argoproj/argo-rollouts/issues/4055))
+
+
+<a name="v1.8.2"></a>
+## [v1.8.2](https://github.com/argoproj/argo-rollouts/compare/v1.8.1...v1.8.2) (2025-03-21)
+
+### Fix
+
+* Revert "fix(controller):  rollout stuck in `Progressing`. fixes [#3988](https://github.com/argoproj/argo-rollouts/issues/3988)" ([#4201](https://github.com/argoproj/argo-rollouts/issues/4201))
+* **analysis:** prevent promotion on inconclusive background run. Fixes: [#3850](https://github.com/argoproj/argo-rollouts/issues/3850) ([#3873](https://github.com/argoproj/argo-rollouts/issues/3873))
+
+<a name="v1.8.1"></a>
+## [v1.8.1](https://github.com/argoproj/argo-rollouts/compare/v1.8.0...v1.8.1) (2025-03-15)
+
+### Chore
+
+* **deps:** Updated go version in go.mod file ([#4182](https://github.com/argoproj/argo-rollouts/issues/4182))
+
+### Docs
+
+* new syntax for docs conf ([#4012](https://github.com/argoproj/argo-rollouts/issues/4012))
+
+### Fix
+
+* guardrail to not overload stable replicaset ([#3878](https://github.com/argoproj/argo-rollouts/issues/3878))
+* redo PR 3639 ([#4114](https://github.com/argoproj/argo-rollouts/issues/4114))
+* check ephemeral metadata is set before delete ([#4089](https://github.com/argoproj/argo-rollouts/issues/4089))
+* correct typo in linter settings key name ([#4094](https://github.com/argoproj/argo-rollouts/issues/4094))
+* loop when paused and completed ([#4134](https://github.com/argoproj/argo-rollouts/issues/4134))
+* nil pointer on logging ([#4127](https://github.com/argoproj/argo-rollouts/issues/4127))
+* Upgrade go-retryablehttp to v0.7.7 ([#3743](https://github.com/argoproj/argo-rollouts/issues/3743))
+* **controller:**  rollout stuck in `Progressing`. fixes [#3988](https://github.com/argoproj/argo-rollouts/issues/3988) ([#4072](https://github.com/argoproj/argo-rollouts/issues/4072))
+* **dashboard:** Revert react-scripts upgrade due to performance regression. Fixes [#4122](https://github.com/argoproj/argo-rollouts/issues/4122) ([#4166](https://github.com/argoproj/argo-rollouts/issues/4166))
+* **metricprovider:** not require address in kubernetes secret for Datadog. Fixes [#4103](https://github.com/argoproj/argo-rollouts/issues/4103) ([#4145](https://github.com/argoproj/argo-rollouts/issues/4145))
+
+
+<a name="v1.8.0"></a>
+## [v1.8.0](https://github.com/argoproj/argo-rollouts/compare/v1.8.0-rc2...v1.8.0) (2024-12-17)
+
+
 <a name="v1.8.0-rc2"></a>
 ## [v1.8.0-rc2](https://github.com/argoproj/argo-rollouts/compare/v1.8.0-rc1...v1.8.0-rc2) (2024-12-17)
 
@@ -16,6 +74,7 @@
 * remove ReplicaSet write-back ([#4044](https://github.com/argoproj/argo-rollouts/issues/4044))
 * **controller:** Fixed broken pprof links [#4037](https://github.com/argoproj/argo-rollouts/issues/4037) ([#4038](https://github.com/argoproj/argo-rollouts/issues/4038))
 * **experiments:** move recorder event to after experiment reconciliation, fixes [#4021](https://github.com/argoproj/argo-rollouts/issues/4021) ([#4022](https://github.com/argoproj/argo-rollouts/issues/4022))
+
 
 <a name="v1.8.0-rc1"></a>
 ## [v1.8.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.7.2...v1.8.0-rc1) (2024-12-06)
@@ -780,9 +839,9 @@
 
 ### Fix
 
-* make new alb fullName field  optional for backward compatability ([#2806](https://github.com/argoproj/argo-rollouts/issues/2806))
+* make new alb fullName field  optional for backward compatibility ([#2806](https://github.com/argoproj/argo-rollouts/issues/2806))
 * cloudwatch metrics provider multiple dimensions ([#2932](https://github.com/argoproj/argo-rollouts/issues/2932))
-*  rollout not modify the VirtualService whit setHeaderRoute step with workloadRef ([#2797](https://github.com/argoproj/argo-rollouts/issues/2797))
+*  rollout not modify the VirtualService with setHeaderRoute step with workloadRef ([#2797](https://github.com/argoproj/argo-rollouts/issues/2797))
 * get new httpRoutesI after removeRoute() to avoid duplicates. Fixes [#2769](https://github.com/argoproj/argo-rollouts/issues/2769) ([#2887](https://github.com/argoproj/argo-rollouts/issues/2887))
 * change logic of analysis run to better handle errors ([#2695](https://github.com/argoproj/argo-rollouts/issues/2695))
 * istio dropping fields during removing of managed routes ([#2692](https://github.com/argoproj/argo-rollouts/issues/2692))
@@ -824,7 +883,7 @@ types.
 
 ### Fix
 
-* make new alb fullName field  optional for backward compatability ([#2806](https://github.com/argoproj/argo-rollouts/issues/2806))
+* make new alb fullName field  optional for backward compatibility ([#2806](https://github.com/argoproj/argo-rollouts/issues/2806))
 * properly wrap Datadog API v2 request body ([#2771](https://github.com/argoproj/argo-rollouts/issues/2771)) ([#2775](https://github.com/argoproj/argo-rollouts/issues/2775))
 
 
@@ -1024,7 +1083,7 @@ There was an unintentional change in behavior related to service creation with e
 
 ### Build
 
-* use fixed docker repository because we can't reach accross jobs ([#2474](https://github.com/argoproj/argo-rollouts/issues/2474))
+* use fixed docker repository because we can't reach across jobs ([#2474](https://github.com/argoproj/argo-rollouts/issues/2474))
 * copy proto files from GOPATH so we can clone outside of GOPATH ([#2360](https://github.com/argoproj/argo-rollouts/issues/2360))
 * add sha256 checksums for all released bins ([#2332](https://github.com/argoproj/argo-rollouts/issues/2332))
 

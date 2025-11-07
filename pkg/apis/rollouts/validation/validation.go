@@ -166,7 +166,7 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 
 		// Skip validating empty template for rollout resolved from ref
 		if rollout.Spec.TemplateResolvedFromRef || spec.WorkloadRef == nil {
-			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, nil, selector, replicas, fldPath.Child("template"), allowAllPodValidationOptions)...)
+			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), allowAllPodValidationOptions)...)
 		}
 	}
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(spec.MinReadySeconds), fldPath.Child("minReadySeconds"))...)
@@ -231,6 +231,11 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 	}
 	allErrs = append(allErrs, ValidateRolloutStrategyAntiAffinity(blueGreen.AntiAffinity, fldPath.Child("antiAffinity"))...)
 	return allErrs
+}
+
+func InvalidWorkloadRef(rollout *v1alpha1.Rollout, err error) error {
+	fldPath := field.NewPath("spec")
+	return field.Invalid(fldPath.Child("workloadRef"), rollout.Spec.WorkloadRef, err.Error())
 }
 
 // requireCanaryStableServices returns true if the rollout requires canary.stableService and

@@ -9,7 +9,7 @@ This guide covers how Argo Rollouts integrates with multiple TrafficRoutings, us
 should be able to produce any other combination between the existing trafficRouting options.
 
 This guide builds upon the concepts of the [basic getting started guide](../../getting-started.md),
-[NGINX Guide](getting-started/nginx/index.md), and [SMI Guide](getting-started/smi/index.md).
+[NGINX Guide](../nginx/index.md), and [SMI Guide](../smi/index.md).
 
 ## Requirements
 - Kubernetes cluster with Linkerd installed
@@ -62,7 +62,7 @@ spec:
 ...
 ```
 
-A combination of both should have comply with each TrafficRouting requirements, in this case:
+A combination of both should have to comply with each TrafficRouting requirements, in this case:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -176,7 +176,7 @@ discussed in the following section.
 
 ## 2. Perform an update
 
-Now perform an update the rollout by changing the image, and wait for it to reached the paused state.
+Now perform an update the rollout by changing the image, and wait for it to reach the paused state.
 
 ```shell
 kubectl argo rollouts set image rollouts-demo rollouts-demo=argoproj/rollouts-demo:yellow
@@ -210,7 +210,7 @@ changes over the original ingress:
 1. Two additional
 [NGINX specific canary annotations](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#canary)
 are added to the annotations.
-2. The Ingress rules will have an rule which points the backend to the *canary* service.
+2. The Ingress rules will have a rule which points the backend to the *canary* service.
 
 
 ```yaml

@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -223,7 +223,7 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []v1a
 		rollout := r.cfg.Rollout
 		ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressNameWithPorts.Ingress)
 		if err != nil {
-			return pointer.Bool(false), err
+			return ptr.To[bool](false), err
 		}
 
 		hostnames := ingress.GetLoadBalancerHostnames()
@@ -239,11 +239,11 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []v1a
 			lb, err := r.aws.FindLoadBalancerByDNSName(ctx, hostname)
 			if err != nil {
 				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-				return pointer.Bool(false), err
+				return ptr.To[bool](false), err
 			}
 			if lb == nil || lb.LoadBalancerArn == nil {
 				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.LoadBalancerNotFoundReason}, conditions.LoadBalancerNotFoundMessage, hostname)
-				return pointer.Bool(false), nil
+				return ptr.To[bool](false), nil
 			}
 
 			r.cfg.Status.ALBs[i].Ingress = ingressNameWithPorts.Ingress
@@ -254,7 +254,7 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []v1a
 			lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 			if err != nil {
 				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-				return pointer.Bool(false), err
+				return ptr.To[bool](false), err
 			}
 			targetGroups = append(targetGroups, lbTargetGroups...)
 		}
@@ -304,7 +304,7 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []v1a
 		}
 	}
 
-	return pointer.Bool(numVerifiedWeights == expectedNumVerifiedWeights), nil
+	return ptr.To[bool](numVerifiedWeights == expectedNumVerifiedWeights), nil
 }
 
 func updateLoadBalancerStatus(status *v1alpha1.ALBStatus, lb *elbv2types.LoadBalancer, log *logrus.Entry) {
@@ -349,7 +349,7 @@ func getForwardActionString(r *v1alpha1.Rollout, ports []int32, desiredWeight in
 		targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
 			ServiceName: canaryService,
 			ServicePort: strconv.Itoa(int(port)),
-			Weight:      pointer.Int64Ptr(int64(desiredWeight)),
+			Weight:      ptr.To[int64](int64(desiredWeight)),
 		})
 	}
 	// update stableWeight
@@ -361,7 +361,7 @@ func getForwardActionString(r *v1alpha1.Rollout, ports []int32, desiredWeight in
 			targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
 				ServiceName: dest.ServiceName,
 				ServicePort: strconv.Itoa(int(port)),
-				Weight:      pointer.Int64Ptr(int64(dest.Weight)),
+				Weight:      ptr.To[int64](int64(dest.Weight)),
 			})
 		}
 		stableWeight -= dest.Weight
@@ -372,7 +372,7 @@ func getForwardActionString(r *v1alpha1.Rollout, ports []int32, desiredWeight in
 		targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
 			ServiceName: stableService,
 			ServicePort: strconv.Itoa(int(port)),
-			Weight:      pointer.Int64Ptr(int64(stableWeight)),
+			Weight:      ptr.To[int64](int64(stableWeight)),
 		})
 	}
 
@@ -489,7 +489,7 @@ func getTrafficForwardActionString(r *v1alpha1.Rollout, ports []int32) (string, 
 		targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
 			ServiceName: canaryService,
 			ServicePort: strconv.Itoa(int(port)),
-			Weight:      pointer.Int64Ptr(weight),
+			Weight:      ptr.To[int64](weight),
 		})
 	}
 

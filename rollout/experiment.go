@@ -35,14 +35,19 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	if r.Annotations != nil {
 		revision = r.Annotations[annotations.RevisionAnnotation]
 	}
+	newExperimentLabels := map[string]string{}
+	// enrich with template labels
+	for k, v := range r.Labels {
+		newExperimentLabels[k] = v
+	}
+	newExperimentLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = podHash
+
 	experiment := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            fmt.Sprintf("%s-%s-%s-%d", r.Name, podHash, revision, currentStep),
 			Namespace:       r.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
-			Labels: map[string]string{
-				v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
-			},
+			Labels:          newExperimentLabels,
 			Annotations: map[string]string{
 				annotations.RevisionAnnotation: revision,
 			},
@@ -52,6 +57,7 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			ProgressDeadlineSeconds: r.Spec.ProgressDeadlineSeconds,
 			DryRun:                  step.DryRun,
 			AnalysisRunMetadata:     step.AnalysisRunMetadata,
+			ScaleDownDelaySeconds:   step.ScaleDownDelaySeconds,
 		},
 	}
 
@@ -186,7 +192,11 @@ func (c *rolloutContext) reconcileExperiments() error {
 		case v1alpha1.AnalysisPhaseInconclusive:
 			c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveExperiment)
 		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-			c.pauseContext.AddAbort(currentEx.Status.Message)
+			message := "Experiment analysis phase is error/failed"
+			if currentEx.Status.Message != "" {
+				message += ": " + currentEx.Status.Message
+			}
+			c.pauseContext.AddAbort(message)
 		case v1alpha1.AnalysisPhaseSuccessful:
 			// Do not set current Experiment after successful experiment
 		default:

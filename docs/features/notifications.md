@@ -10,7 +10,7 @@ by the end users. The end-users can subscribe to the configured triggers by addi
 ## Configuration
 
 The trigger defines the condition when the notification should be sent as well as the notification content template.
-Default Argo Rollouts comes with a list of built-in triggers that cover the most important events of Argo Rollout live-cycle.
+By default, Argo Rollouts comes with a list of built-in triggers that cover the most important events of Argo Rollout life-cycle.
 Both triggers and templates are configured in the `argo-rollouts-notification-configmap` ConfigMap. In order to get
 started quickly, you can use pre-configured notification templates defined in [notifications-install.yaml](https://github.com/argoproj/argo-rollouts/blob/master/manifests/notifications-install.yaml).
 
@@ -68,7 +68,7 @@ To enable you need to add a flag to the controller `--self-service-notification-
 
 ## Default Trigger templates
 
-Currently the following triggers have [built-in templates](https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications).
+Currently, the following triggers have [built-in templates](https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications).
 
 * `on-analysis-run-error` when an error occurs during the execution of an analysis run
 * `on-analysis-run-failed` when an analysis run fails
@@ -168,6 +168,7 @@ Each condition might use several templates. Typically each template is responsib
 ### Notification Metrics
 
 The following prometheus metrics are emitted when notifications are enabled in argo-rollouts.
-- notification_send_success is a counter that measures how many times the notification is sent successfully.
-- notification_send_error is a counter that measures how many times the notification failed to send.
-- notification_send is a histogram that measures performance of sending notification.
+
+- `notification_send_success` is a counter that measures how many times the notification is sent successfully.
+- `notification_send_error` is a counter that measures how many times the notification failed to send.
+- `notification_send` is a histogram that measures performance of sending notification.

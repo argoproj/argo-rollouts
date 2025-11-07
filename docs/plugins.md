@@ -5,7 +5,7 @@
 Argo Rollouts plugins depend on hashicorp's [go-plugin](https://github.com/hashicorp/go-plugin) library. This library
 provides a way for a plugin to be compiled as a standalone executable and then loaded by the rollouts controller at runtime.
 This works by having the plugin executable act as a rpc server and the rollouts controller act as a client. The plugin executable
-is started by the rollouts controller and is a long-lived process and that the rollouts controller connects to over a unix socket.
+is started by the rollouts controller and is a long-lived process that the rollouts controller connects to over a unix socket.
 
 Here is an overview of how plugins are loaded:
 
@@ -95,8 +95,7 @@ spec:
 
 You can see that we use the plugin name under `spec.strategy.canary.trafficRouting.plugins` for traffic routers.
 
-You, as a plugin author, can then put any configuration you need under `argoproj-labs/metrics` and you will be able to
-look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.
+You, as a plugin author, can then put any configuration you need under `argoproj-labs/nginx` and you will be able to look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -184,7 +183,7 @@ type TrafficRouterPlugin interface {
 type StepPlugin interface {
   // InitPlugin initializes the canary step plugin. This gets called once when the plugin is loaded.
   InitPlugin() RpcError
-	// Run executes a step plugin for the RpcStepContext and returns the result to the controller or an RpcError for unexpeted failures
+	// Run executes a step plugin for the RpcStepContext and returns the result to the controller or an RpcError for unexpected failures
 	Run(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)
 	// Terminate stops an uncompleted operation started by the Run operation
 	Terminate(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)

@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
@@ -123,13 +124,13 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 
 	args, err := BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, stableRS, newRS, ro)
 	assert.NoError(t, err)
-	assert.Contains(t, args, v1alpha1.Argument{Name: "hard-coded-value-key", Value: pointer.StringPtr("hard-coded-value")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "stable-key", Value: pointer.StringPtr("abcdef")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "new-key", Value: pointer.StringPtr("123456")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['app']", Value: pointer.StringPtr("app")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['env']", Value: pointer.StringPtr("test")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: annotationPath, Value: pointer.StringPtr("1")})
-	assert.Contains(t, args, v1alpha1.Argument{Name: "status.pauseConditions[0].reason", Value: pointer.StringPtr("test-reason")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "hard-coded-value-key", Value: ptr.To[string]("hard-coded-value")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "stable-key", Value: ptr.To[string]("abcdef")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "new-key", Value: ptr.To[string]("123456")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['app']", Value: ptr.To[string]("app")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['env']", Value: ptr.To[string]("test")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: annotationPath, Value: ptr.To[string]("1")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "status.pauseConditions[0].reason", Value: ptr.To[string]("test-reason")})
 }
 
 func TestPrePromotionLabels(t *testing.T) {
@@ -496,6 +497,15 @@ func Test_extractValueFromRollout(t *testing.T) {
 				},
 			},
 		},
+		Spec: v1alpha1.RolloutSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"version": "v1",
+					},
+				},
+			},
+		},
 	}
 	tests := map[string]struct {
 		path    string
@@ -537,6 +547,10 @@ func Test_extractValueFromRollout(t *testing.T) {
 		"should fail when path references a non-primitive value": {
 			path:    "status.pauseConditions[0]",
 			wantErr: "path status.pauseConditions[0] in rollout must terminate in a primitive value",
+		},
+		"should return a pod template label using dot notation": {
+			path: "spec.template.metadata.labels.version",
+			want: "v1",
 		},
 	}
 	for name, tt := range tests {

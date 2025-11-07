@@ -7,7 +7,7 @@ PATH="${DIST_PATH}:${PATH}"
 
 mkdir -p ${DIST_PATH}
 
-gotestsum_version=1.11.0
+gotestsum_version=1.13.0
 
 OS=$(go env GOOS)
 ARCH=$(go env GOARCH)

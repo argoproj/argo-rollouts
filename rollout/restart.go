@@ -58,19 +58,21 @@ func (p RolloutPodRestarter) checkEnqueueRollout(roCtx *rolloutContext) {
 // Reconcile gets all pods of a Rollout and confirms that have creationTimestamps newer than
 // spec.restartAt. If not, iterates pods and deletes pods which do not have a deletion timestamp,
 // and were created before spec.restartedAt. If the rollout is a canary rollout, it can restart
-// multiple pods, up to maxUnavailable or 1, whichever is greater.
-func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
+// multiple pods, up to maxUnavailable or 1, whichever is greater. Returns the number of pods
+// restarted.
+func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) (int, error) {
 	ctx := context.TODO()
 	logCtx := roCtx.log.WithField("Reconciler", "PodRestarter")
 	p.checkEnqueueRollout(roCtx)
+	restarted := 0
 	if !replicaset.NeedsRestart(roCtx.rollout) {
-		return nil
+		return restarted, nil
 	}
 	s := NewSortReplicaSetsByPriority(roCtx)
 	sort.Sort(s)
 	rolloutPods, err := p.getRolloutPods(ctx, roCtx.rollout, s.allRSs)
 	if err != nil {
-		return err
+		return restarted, err
 	}
 	// total replicas can be higher than spec.replicas (e.g. when we are a canary weight that is not
 	// evenly divisible by the spec.replicas)
@@ -91,7 +93,6 @@ func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
 
 	restartedAt := roCtx.rollout.Spec.RestartAt
 	needsRestart := 0
-	restarted := 0
 	for _, pod := range rolloutPods {
 		if pod.CreationTimestamp.After(restartedAt.Time) || pod.CreationTimestamp.Equal(restartedAt) {
 			continue
@@ -119,7 +120,7 @@ func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
 				newLogCtx.Warn(err)
 				continue
 			}
-			return err
+			return restarted, err
 		}
 		canRestart -= 1
 		restarted += 1
@@ -133,7 +134,7 @@ func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
 		logCtx.Infof("all %d pods are current. setting restartedAt", len(rolloutPods))
 		roCtx.SetRestartedAt()
 	}
-	return nil
+	return restarted, err
 }
 
 func maxInt(left, right int32) int32 {

@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"github.com/tj/assert"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 	ingress2 "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -472,7 +472,7 @@ func assertAlbActionServiceWeight(t *fixtures.Then, s *AWSSuite, actionName, ser
 	found := false
 	for _, group := range albAction.ForwardConfig.TargetGroups {
 		if group.ServiceName == serviceName {
-			assert.Equal(s.T(), pointer.Int64(expectedWeight), group.Weight)
+			assert.Equal(s.T(), ptr.To[int64](expectedWeight), group.Weight)
 			found = true
 		}
 	}
@@ -495,7 +495,7 @@ func assertAlbActionServiceWeightMultiIngress(t *fixtures.Then, s *AWSSuite, act
 		found := false
 		for _, group := range albAction.ForwardConfig.TargetGroups {
 			if group.ServiceName == serviceName {
-				assert.Equal(s.T(), pointer.Int64(expectedWeight), group.Weight)
+				assert.Equal(s.T(), ptr.To[int64](expectedWeight), group.Weight)
 				found = true
 			}
 		}

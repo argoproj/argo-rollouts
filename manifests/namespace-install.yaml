@@ -192,6 +192,7 @@ rules:
   - get
 - apiGroups:
   - elbv2.k8s.aws
+  - eks.amazonaws.com
   resources:
   - targetgroupbindings
   verbs:

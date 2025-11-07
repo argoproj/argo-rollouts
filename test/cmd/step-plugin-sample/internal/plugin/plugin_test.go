@@ -5,13 +5,16 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
+
+// "k8s.io/utils/ptr"
 
 func new(logCtx *log.Entry, seed int64) *rpcPlugin {
 	return &rpcPlugin{
@@ -222,7 +225,7 @@ func Test_rpcPlugin_Run(t *testing.T) {
 				},
 			},
 		}
-		rollout.Status.CurrentStepIndex = ptr.To(int32(0))
+		rollout.Status.CurrentStepIndex = ptr.To[int32](0)
 		rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
 				Index: 0,
@@ -273,7 +276,7 @@ func Test_rpcPlugin_Run(t *testing.T) {
 				},
 			},
 		}
-		rollout.Status.CurrentStepIndex = ptr.To(int32(1))
+		rollout.Status.CurrentStepIndex = ptr.To[int32](1)
 		rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
 				Index: 0,
@@ -329,7 +332,7 @@ func Test_rpcPlugin_Run(t *testing.T) {
 				},
 			},
 		}
-		rollout.Status.CurrentStepIndex = ptr.To(int32(2))
+		rollout.Status.CurrentStepIndex = ptr.To[int32](2)
 		rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
 				Index: 0,

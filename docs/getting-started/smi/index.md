@@ -100,7 +100,7 @@ spec:
 
 ## 2. Perform an update
 
-Now perform an update the rollout by changing the image, and wait for it to reached the paused state.
+Now perform an update the rollout by changing the image, and wait for it to reach the paused state.
 
 ```shell
 kubectl argo rollouts set image rollouts-demo rollouts-demo=argoproj/rollouts-demo:yellow

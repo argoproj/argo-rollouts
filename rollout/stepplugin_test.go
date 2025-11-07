@@ -6,16 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/mocks"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
-	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/mocks"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 func newStepPluginRollout() *v1alpha1.Rollout {
@@ -26,7 +27,7 @@ func newStepPluginRollout() *v1alpha1.Rollout {
 			},
 		},
 	}
-	return newCanaryRollout("foo", 3, nil, steps, ptr.To(int32(0)), intstr.FromInt(1), intstr.FromInt(0))
+	return newCanaryRollout("foo", 3, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
 }
 
 func newStepPluginStatus(operation v1alpha1.StepPluginOperation, phase v1alpha1.StepPluginPhase) *v1alpha1.StepPluginStatus {
@@ -412,7 +413,7 @@ func Test_stepPluginContext_reconcile_FullyPromoted(t *testing.T) {
 		roCtx.rollout.Status.PromoteFull = false
 		roCtx.rollout.Status.StableRS = "stable-value"
 		roCtx.rollout.Status.CurrentPodHash = "stable-value"
-		roCtx.rollout.Status.CurrentStepIndex = ptr.To(int32(1))
+		roCtx.rollout.Status.CurrentStepIndex = ptr.To[int32](1)
 
 		runStatus := newStepPluginStatus(v1alpha1.StepPluginOperationTerminate, v1alpha1.StepPluginPhaseSuccessful)
 		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{

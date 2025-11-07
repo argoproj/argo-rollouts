@@ -7,7 +7,7 @@ on:
 permissions: {}
 
 env:
-  GOLANG_VERSION: '1.23' # Note: go-version must also be set in job controller-image.with.go-version & plugin-image.with.go-version.
+  GOLANG_VERSION: '1.24' # Note: go-version must also be set in job controller-image.with.go-version & plugin-image.with.go-version.
 
 jobs:
   controller-image:
@@ -19,7 +19,7 @@ jobs:
     with:
       quay_image_name: quay.io/argoproj/argo-rollouts:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.23'
+      go-version: '1.24'
       platforms: linux/amd64,linux/arm64
       push: true
     secrets:
@@ -35,7 +35,7 @@ jobs:
     with:
       quay_image_name: quay.io/argoproj/kubectl-argo-rollouts:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.23'
+      go-version: '1.24'
       platforms: linux/amd64,linux/arm64
       push: true
       target: kubectl-argo-rollouts
@@ -51,7 +51,7 @@ jobs:
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
       image: quay.io/argoproj/argo-rollouts
       digest: ${{ needs.controller-image.outputs.image-digest }}
@@ -67,7 +67,7 @@ jobs:
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
       image: quay.io/argoproj/kubectl-argo-rollouts
       digest: ${{ needs.plugin-image.outputs.image-digest }}
@@ -84,21 +84,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4 # v3.5.2
+        uses: actions/checkout@v5 # v3.5.2
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@v5.3.0 # v4.0.1
+        uses: actions/setup-go@v6.0.0 # v4.0.1
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@53851d14592bedcffcf25ea515637cff71ef929a # v3.3.0
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3.8.0
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
       - name: Generate release artifacts
         run: |
@@ -107,7 +107,7 @@ jobs:
           make manifests IMAGE_TAG=${{ github.ref_name }}
 
       - name: Draft release
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v0.1.15
+        uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v0.1.15
         with:
           tag_name: ${{ github.event.inputs.tag }}
           draft: true
@@ -139,7 +139,7 @@ jobs:
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       base64-subjects: '${{ needs.release-artifacts.outputs.hashes }}'
       provenance-name: 'argo-rollouts.intoto.jsonl'
@@ -157,18 +157,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # v3.3.0
+        uses: actions/checkout@v5 # v3.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@v5.3.0 # v4.0.0
+        uses: actions/setup-go@v6.0.0 # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
         with:
           cosign-release: 'v2.2.0'
 
@@ -212,7 +212,7 @@ jobs:
             /tmp/sbom.tar.gz
 
       - name: Upload SBOM and signature assets
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v0.1.15
+        uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v0.1.15
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -230,7 +230,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # v3.3.0
+        uses: actions/checkout@v5 # v3.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}

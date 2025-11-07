@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/signals"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -21,7 +22,7 @@ the rollout is healthy upon completion and an error otherwise.`
 	%[1]s status guestbook
 
 	# Show the rollout status
-    %[1]s status guestbook --watch false
+    %[1]s status guestbook --watch=false
 
 	# Watch the rollout until it succeeds, fail if it takes more than 60 seconds
 	%[1]s status --timeout 60s guestbook

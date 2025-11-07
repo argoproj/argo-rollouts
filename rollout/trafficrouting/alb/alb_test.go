@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"k8s.io/utils/strings/slices"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -843,7 +844,7 @@ func TestVerifyWeight(t *testing.T) {
 		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetWeight: pointer.Int32(10),
+			SetWeight: ptr.To[int32](10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, []int32{443}, 5, ro.Name, false)
 		i.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
@@ -867,7 +868,7 @@ func TestVerifyWeight(t *testing.T) {
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressWrapper: ingressWrapper,
-			VerifyWeight:   pointer.BoolPtr(true),
+			VerifyWeight:   ptr.To[bool](true),
 			Status:         status,
 		})
 		assert.NoError(t, err)
@@ -1026,7 +1027,7 @@ func TestVerifyWeightSingleIngressMultiplePorts(t *testing.T) {
 		}
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetWeight: pointer.Int32(10),
+			SetWeight: ptr.To[int32](10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, []int32{80, 443}, 5, ro.Name, false)
 		i.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
@@ -1050,7 +1051,7 @@ func TestVerifyWeightSingleIngressMultiplePorts(t *testing.T) {
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressWrapper: ingressWrapper,
-			VerifyWeight:   pointer.BoolPtr(true),
+			VerifyWeight:   ptr.To[bool](true),
 			Status:         status,
 		})
 		assert.NoError(t, err)
@@ -1143,7 +1144,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 		ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetWeight: pointer.Int32(10),
+			SetWeight: ptr.To[int32](10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, []int32{443}, 5, ro.Name, false)
 		mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, []int32{443}, 5, ro.Name, false)
@@ -1176,7 +1177,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressWrapper: ingressWrapper,
-			VerifyWeight:   pointer.BoolPtr(true),
+			VerifyWeight:   ptr.To[bool](true),
 			Status:         status,
 		})
 		assert.NoError(t, err)
@@ -1344,7 +1345,7 @@ func TestVerifyWeightServicePorts(t *testing.T) {
 		ro := fakeRolloutWithServicePorts(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"})
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetWeight: pointer.Int32(10),
+			SetWeight: ptr.To[int32](10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, []int32{80, 443}, 5, ro.Name, false)
 		mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, []int32{80, 443}, 5, ro.Name, false)
@@ -1377,7 +1378,7 @@ func TestVerifyWeightServicePorts(t *testing.T) {
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressWrapper: ingressWrapper,
-			VerifyWeight:   pointer.BoolPtr(true),
+			VerifyWeight:   ptr.To[bool](true),
 			Status:         status,
 		})
 		assert.NoError(t, err)
@@ -1561,9 +1562,9 @@ func makeLoadBalancer(name string, dnsName string) *elbv2types.LoadBalancer {
 	lbName := strings.Clone(name)
 	lbDNS := strings.Clone(dnsName)
 	return &elbv2types.LoadBalancer{
-		LoadBalancerName: pointer.StringPtr(lbName),
-		LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/" + name + "/1234567890123456"),
-		DNSName:          pointer.StringPtr(lbDNS),
+		LoadBalancerName: ptr.To[string](lbName),
+		LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/" + name + "/1234567890123456"),
+		DNSName:          ptr.To[string](lbDNS),
 	}
 }
 func makeTargetGroup(name string, port int32, weight int32, lbResourceId string) aws.TargetGroupMeta {
@@ -1573,11 +1574,11 @@ func makeTargetGroup(name string, port int32, weight int32, lbResourceId string)
 	return aws.TargetGroupMeta{
 		TargetGroup: elbv2types.TargetGroup{
 			LoadBalancerArns: []string{},
-			Port:             pointer.Int32(tgPort),
-			TargetGroupName:  pointer.StringPtr(tgName),
-			TargetGroupArn:   pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/" + tgName + "/1234567890123456"),
+			Port:             ptr.To[int32](tgPort),
+			TargetGroupName:  ptr.To[string](tgName),
+			TargetGroupArn:   ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/" + tgName + "/1234567890123456"),
 		},
-		Weight: pointer.Int32(tgWeight),
+		Weight: ptr.To[int32](tgWeight),
 		Tags: map[string]string{
 			aws.AWSLoadBalancerV2TagKeyResourceID: lbResourceId,
 		},
@@ -1610,7 +1611,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetWeight: pointer.Int32(10),
+			SetWeight: ptr.To[int32](10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, []int32{443}, 0, ro.Name, false)
 		i.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, []int32{443}, 85)
@@ -1636,7 +1637,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressWrapper: ingressWrapper,
-			VerifyWeight:   pointer.BoolPtr(true),
+			VerifyWeight:   ptr.To[bool](true),
 			Status:         status,
 		})
 		assert.NoError(t, err)
@@ -1723,7 +1724,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 		ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetWeight: pointer.Int32(10),
+			SetWeight: ptr.To[int32](10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, []int32{443}, 0, ro.Name, false)
 		mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, []int32{443}, 5, ro.Name, false)
@@ -1759,7 +1760,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressWrapper: ingressWrapper,
-			VerifyWeight:   pointer.BoolPtr(true),
+			VerifyWeight:   ptr.To[bool](true),
 			Status:         status,
 		})
 		assert.NoError(t, err)
@@ -1857,7 +1858,7 @@ func TestVerifyWeightWithAdditionalDestinationsServicePorts(t *testing.T) {
 		ro := fakeRolloutWithServicePorts(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"})
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetWeight: pointer.Int32(10),
+			SetWeight: ptr.To[int32](10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, []int32{443}, 0, ro.Name, false)
 		mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, []int32{80, 443}, 5, ro.Name, false)
@@ -1893,7 +1894,7 @@ func TestVerifyWeightWithAdditionalDestinationsServicePorts(t *testing.T) {
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressWrapper: ingressWrapper,
-			VerifyWeight:   pointer.BoolPtr(true),
+			VerifyWeight:   ptr.To[bool](true),
 			Status:         status,
 		})
 		assert.NoError(t, err)
