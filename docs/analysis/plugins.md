@@ -1,7 +1,7 @@
 # Metric Plugins
 
 !!! important
-    Available since v1.5 - Status: Alpha
+Available since v1.5 - Status: Alpha
 
 Argo Rollouts supports getting analysis metrics via 3rd party plugin system. This allows users to extend the capabilities of Rollouts
 to support metric providers that are not natively supported. Rollout's uses a plugin library called
@@ -18,9 +18,9 @@ into the rollouts controller container. The second method is to use a HTTP(S) se
 There are a few ways to mount the plugin executable into the rollouts controller container. Some of these will depend on your
 particular infrastructure. Here are a few methods:
 
-* Using an init container to download the plugin executable
-* Using a Kubernetes volume mount with a shared volume such as NFS, EBS, etc.
-* Building the plugin into the rollouts controller container
+- Using an init container to download the plugin executable
+- Using a Kubernetes volume mount with a shared volume such as NFS, EBS, etc.
+- Building the plugin into the rollouts controller container
 
 Then you can use the configmap to point to the plugin executable file location. Example:
 
@@ -68,7 +68,14 @@ responsibility of the Argo Rollouts administrator to define the plugin installat
 ## List of Available Plugins (alphabetical order)
 
 #### Add Your Plugin Here
-  * If you have created a plugin, please submit a PR to add it to this list.
+
+- If you have created a plugin, please submit a PR to add it to this list.
+
+#### [rollouts-plugin-metric-opensearch](https://github.com/selcukusta/rollouts-plugin-metric-opensearch)
+
+- The application is an OpenSearch plugin designed for use with the Argo Rollouts plugin system. This plugin enables the integration of OpenSearch metrics into Argo Rollouts, allowing for advanced metric analysis and monitoring during application rollouts.
+
 #### [rollouts-plugin-metric-sample-prometheus](https://github.com/argoproj-labs/rollouts-plugin-metric-sample-prometheus)
-  * This is just a sample plugin that can be used as a starting point for creating your own plugin.
-It is not meant to be used in production. It is based on the built-in prometheus provider.
+
+- This is just a sample plugin that can be used as a starting point for creating your own plugin.
+  It is not meant to be used in production. It is based on the built-in prometheus provider.

@@ -1,4 +1,5 @@
 ## Who uses Argo Rollouts?
+
 Organizations below are **officially** using Argo Rollouts. Please send a PR with your organization name if you are using Argo Rollouts.
 
 1. [Ada](https://www.ada.cx)
@@ -25,6 +26,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Gllue](https://gllue.com)
 1. [Groww](https://groww.in/)
 1. [HashiCorp](https://www.hashicorp.com/)
+1. [Hepsiburada](https://hepsiburada.com/)
 1. [Ibotta](https://home.ibotta.com/)
 1. [Intuit](https://www.intuit.com/)
 1. [New Relic](https://newrelic.com/)
@@ -49,7 +51,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Spotify](https://www.spotify.com/)
 1. [Synamedia](https://www.synamedia.com)
 1. [TBC Bank](https://tbcbank.ge/)
-2. [Trustly](https://www.trustly.com/)
+1. [Trustly](https://www.trustly.com/)
 1. [Tuhu](https://www.tuhu.cn/)
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [Ubie](https://ubie.life/)
