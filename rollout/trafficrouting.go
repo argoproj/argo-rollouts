@@ -6,9 +6,13 @@ import (
 	"strconv"
 	"strings"
 
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
+
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin"
+
+	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -133,6 +137,26 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	return nil, nil
 }
 
+// checkReplicasAvailable checks if the given replicaset has enough available replicas
+// for the desiredWeight taking into consideration replicaProgressThreshold.
+func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWeight int32) bool {
+	if rs == nil {
+		return false
+	}
+	availableReplicas := rs.Status.AvailableReplicas
+	totalReplicas := *c.rollout.Spec.Replicas
+
+	desiredReplicas := (desiredWeight * totalReplicas) / 100
+	if availableReplicas < desiredReplicas &&
+		!replicasetutil.ReplicaProgressThresholdMet(c.rollout.Spec.Strategy.Canary.ReplicaProgressThreshold, rs, desiredReplicas) {
+		c.log.Infof("ReplicaSet '%s' has %d available replicas, waiting for %d", rs.Name, availableReplicas, desiredReplicas)
+		return false
+	}
+
+	return true
+
+}
+
 // this currently only be used in the canary strategy
 func (c *rolloutContext) reconcileTrafficRouting() error {
 	reconcilers, err := c.newTrafficRoutingReconciler(c)
@@ -198,6 +222,15 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
 			// when newRS is not available or replicas num is 0. never weight to canary
 			weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
+			// If a user changes their mind in the middle of an V1 -> V2 update, and then applies a V3
+			// there might have been a V2 ReplicaSet that was scaled up, but is now defunct.
+			// During the V2 rollout, managed routes could have been setup and would continue
+			// to direct traffic to the canary service which is now in front of 0 available replicas.
+			// We want to remove these managed routes alongside the safety here of never weighting to the canary.
+			err := reconciler.RemoveManagedRoutes()
+			if err != nil {
+				return err
+			}
 		} else if c.rollout.Status.PromoteFull {
 			// on a promote full, desired stable weight should be 0 (100% to canary),
 			// But we can only increase canary weight according to available replica counts of the canary.
@@ -233,6 +266,12 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			} else {
 				desiredWeight = weightutil.MaxTrafficWeight(c.rollout)
 			}
+		}
+
+		// check if the stable RS has enough pods before recalculating the new
+		// weight status.
+		if !c.checkReplicasAvailable(c.stableRS, weightutil.MaxTrafficWeight(c.rollout)-desiredWeight) {
+			return nil
 		}
 		// We need to check for revision > 1 because when we first install the rollout we run step 0 this prevents that.
 		// There is a bigger fix needed for the reasons on why we run step 0 on rollout install, that needs to be explored.
@@ -287,6 +326,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				c.log.Infof("Desired weight (stepIdx: %s) %d verified", indexString, desiredWeight)
 			} else {
 				c.log.Infof("Desired weight (stepIdx: %s) %d not yet verified", indexString, desiredWeight)
+				logCtx := logutil.WithRollout(c.rollout)
+				logCtx.Info("rollout enqueue due to trafficrouting")
 				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 				// At the end of the rollout we need to verify the weight is correct, and return an error if not because we don't want the rest of the
 				// reconcile process to continue. We don't need to do this if we are in the middle of the rollout because the rest of the reconcile

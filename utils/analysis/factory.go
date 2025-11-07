@@ -157,15 +157,48 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		failureLimit = metric.FailureLimit.IntValue()
 	}
 
+	consecutiveSuccessLimit := 0
+	if metric.ConsecutiveSuccessLimit != nil {
+		consecutiveSuccessLimit = metric.ConsecutiveSuccessLimit.IntValue()
+	}
+
 	inconclusiveLimit := 0
 	if metric.InconclusiveLimit != nil {
 		inconclusiveLimit = metric.InconclusiveLimit.IntValue()
 	}
 
+	// Negative value checks
+	if consecutiveSuccessLimit < 0 {
+		return fmt.Errorf("consecutiveSuccessLimit must be >= 0")
+	}
+	if failureLimit < -1 {
+		return fmt.Errorf("failureLimit must be >= 0, or -1 to be disabled")
+	}
+	// if consecutiveSuccessLimit is disabled (set to 0), AND
+	// failureLimit is disabled (set to -1), then this is invalid
+	if consecutiveSuccessLimit == 0 && failureLimit == -1 {
+		return fmt.Errorf("failureLimit and consecutiveSuccessLimit cannot both be disabled")
+	}
+
+	if inconclusiveLimit < 0 {
+		return fmt.Errorf("inconclusiveLimit must be >= 0")
+	}
+
+	if metric.ConsecutiveErrorLimit != nil && metric.ConsecutiveErrorLimit.IntValue() < 0 {
+		return fmt.Errorf("consecutiveErrorLimit must be >= 0")
+	}
+
 	if count > 0 {
-		if count < failureLimit {
-			return fmt.Errorf("count must be >= failureLimit")
+		if consecutiveSuccessLimit >= 0 && failureLimit >= 0 {
+			if count < failureLimit+consecutiveSuccessLimit {
+				return fmt.Errorf("count (%d) must be >= failureLimit + consecutiveSuccessLimit (%d + %d) if both >= 0", count, failureLimit, consecutiveSuccessLimit)
+			}
+		} else if consecutiveSuccessLimit >= 0 && failureLimit < 0 {
+			if count < consecutiveSuccessLimit {
+				return fmt.Errorf("count must be >= consecutiveSuccessLimit")
+			}
 		}
+
 		if count < inconclusiveLimit {
 			return fmt.Errorf("count must be >= inconclusiveLimit")
 		}
@@ -184,16 +217,6 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		}
 	}
 
-	if failureLimit < 0 {
-		return fmt.Errorf("failureLimit must be >= 0")
-	}
-	if inconclusiveLimit < 0 {
-		return fmt.Errorf("inconclusiveLimit must be >= 0")
-	}
-
-	if metric.ConsecutiveErrorLimit != nil && metric.ConsecutiveErrorLimit.IntValue() < 0 {
-		return fmt.Errorf("consecutiveErrorLimit must be >= 0")
-	}
 	numProviders := 0
 	if metric.Provider.Prometheus != nil {
 		numProviders++

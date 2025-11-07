@@ -55,31 +55,30 @@ stringData:
 
 --- 
 
-Let me know if there's anything else you'd like to adjust!
 
-    ```yaml
-    apiVersion: argoproj.io/v1alpha1
-    kind: AnalysisTemplate
-    metadata:
-      name: loq-error-rate
-    spec:
-      args:
-      - name: service-name
-      metrics:
-      - name: error-rate
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: loq-error-rate
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: error-rate
+    interval: 5m
+    successCondition: result <= 0.01
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
         interval: 5m
-        successCondition: result <= 0.01
-        failureLimit: 3
-        provider:
-          datadog:
-            apiVersion: v2
-            interval: 5m
-            secretRef:
-              name: "mysecret"
-              namespaced: true
-            query: |
-              sum:requests.error.rate{service:{{args.service-name}}}
-    ```
+        secretRef:
+          name: "mysecret"
+          namespaced: true
+        query: |
+          sum:requests.error.rate{service:{{args.service-name}}}
+  ```
 
 
 
@@ -194,7 +193,7 @@ successCondition: default(result, 0) < 0.05
 
 #### Metric aggregation (v2 only)
 
-By default, Datadog analysis run is configured to use `last` metric aggregator when querying Datadog v2 API. This value can be overriden by specifying a new `aggregator` value from a list of supported aggregators (`avg,min,max,sum,last,percentile,mean,l2norm,area`) for the V2 API ([docs](https://docs.datadoghq.com/api/latest/metrics/#query-scalar-data-across-multiple-products)).
+By default, Datadog analysis run is configured to use `last` metric aggregator when querying Datadog v2 API. This value can be overridden by specifying a new `aggregator` value from a list of supported aggregators (`avg,min,max,sum,last,percentile,mean,l2norm,area`) for the V2 API ([docs](https://docs.datadoghq.com/api/latest/metrics/#query-scalar-data-across-multiple-products)).
 
 For example, using count-based distribution metric (`count:metric{*}.as_count()`) with values `1,9,3,7,5` in a given `interval` will make `last` aggregator return `5`. To return a sum of all values (`25`), set `aggregator: sum` in Datadog provider block and use `moving_rollup()` function to aggregate values in the specified rollup interval. These functions can be combined in a `formula` to perform additional calculations:
 

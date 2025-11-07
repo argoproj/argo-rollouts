@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,7 +36,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -73,7 +75,22 @@ const (
 type FakeWorkloadRefResolver struct {
 }
 
-func (f *FakeWorkloadRefResolver) Resolve(_ *v1alpha1.Rollout) error {
+func (f *FakeWorkloadRefResolver) Resolve(r *v1alpha1.Rollout) error {
+	if r.Spec.WorkloadRef == nil {
+		return nil
+	}
+
+	if r.Spec.WorkloadRef.Kind == "Error" {
+		return &errors.StatusError{
+			ErrStatus: metav1.Status{
+				Status:  metav1.StatusFailure,
+				Code:    http.StatusNotFound,
+				Reason:  metav1.StatusReasonNotFound,
+				Message: "not found",
+			},
+		}
+	}
+
 	return nil
 }
 
@@ -305,7 +322,11 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 	}
 
 	if optionalMessage != "" {
-		msg = optionalMessage
+		if msg != "" {
+			msg += ": " + optionalMessage
+		} else {
+			msg = optionalMessage
+		}
 	}
 
 	condition := v1alpha1.RolloutCondition{
@@ -602,6 +623,8 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		MetricsServer:                   metricsServer,
 		Recorder:                        record.NewFakeEventRecorder(),
 		RefResolver:                     &FakeWorkloadRefResolver{},
+		EphemeralMetadataThreads:        DefaultEphemeralMetadataThreads,
+		EphemeralMetadataPodRetries:     DefaultEphemeralMetadataPodRetries,
 	})
 
 	c.enqueueRollout = func(obj any) {
@@ -960,7 +983,7 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet {
+func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
@@ -1310,12 +1333,12 @@ func TestRequeueStuckRollout(t *testing.T) {
 		},
 		{
 			name:               "Less than a second",
-			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(10)),
+			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](10)),
 			requeueImmediately: true,
 		},
 		{
 			name:    "More than a second",
-			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(20)),
+			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](20)),
 		},
 	}
 	for i := range tests {
@@ -1399,13 +1422,47 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
+func TestInvalidWorkloadRef(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Selector = nil
+	r.Spec.Template = corev1.PodTemplateSpec{}
+	r.Spec.WorkloadRef = &v1alpha1.ObjectRef{
+		Kind: "Error",
+	}
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s],
+			"message": "%s: %s",
+			"phase": "Degraded"
+		}
+	}`
+	errmsg := "The Rollout \"foo\" is invalid: not found"
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))
+
+	patch := f.getPatchedRollout(patchIndex)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
+}
+
 // TestPodTemplateHashEquivalence verifies the hash is computed consistently when there are slight
 // variations made to the pod template in equivalent ways.
 func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedReplicaSetName to match the new hash.
-	expectedReplicaSetName := "guestbook-6c5667f666"
+	expectedReplicaSetName := "guestbook-6f496f9f78"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
@@ -1835,7 +1892,7 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -1946,7 +2003,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -1977,7 +2034,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -2056,7 +2113,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -2175,7 +2232,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -2206,7 +2263,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},

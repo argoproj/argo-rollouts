@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -27,7 +27,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			}},
 			Analyses: []v1alpha1.RolloutExperimentStepAnalysisTemplateRef{{
 				Name:         "test",
@@ -36,7 +36,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -57,6 +57,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 	f.run(getKey(r2, t))
 	createdEx := f.getCreatedExperiment(createExIndex)
 	assert.Equal(t, createdEx.Name, ex.Name)
+	assert.Equal(t, createdEx.ObjectMeta.Labels, ex.ObjectMeta.Labels)
 	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, at.Name)
 	assert.Equal(t, createdEx.Spec.Analyses[0].Name, "test")
 	patch := f.getPatchedRollout(patchIndex)
@@ -82,7 +83,7 @@ func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			}},
 			Analyses: []v1alpha1.RolloutExperimentStepAnalysisTemplateRef{{
 				Name:         "test",
@@ -92,7 +93,7 @@ func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -138,12 +139,12 @@ func TestCreateExperimentWithCollision(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			}},
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -190,12 +191,12 @@ func TestCreateExperimentWithCollisionAndSemanticEquality(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			}},
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -240,7 +241,7 @@ func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
 		Experiment: &v1alpha1.RolloutExperimentStep{},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -279,7 +280,7 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 		Experiment: &v1alpha1.RolloutExperimentStep{},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -313,8 +314,8 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 		}
 	}`
 	now := timeutil.Now().UTC().Format(time.RFC3339)
-	generatedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))), patch)
+	generatedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "Experiment analysis phase is error/failed", false)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": Experiment analysis phase is error/failed")), patch)
 }
 
 func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
@@ -325,7 +326,7 @@ func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
 		Experiment: &v1alpha1.RolloutExperimentStep{},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -361,10 +362,10 @@ func TestRolloutExperimentScaleDownExperimentFromPreviousStep(t *testing.T) {
 
 	steps := []v1alpha1.CanaryStep{
 		{Experiment: &v1alpha1.RolloutExperimentStep{}},
-		{SetWeight: pointer.Int32Ptr(1)},
+		{SetWeight: ptr.To[int32](1)},
 	}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -396,7 +397,7 @@ func TestRolloutExperimentScaleDownExtraExperiment(t *testing.T) {
 		Experiment: &v1alpha1.RolloutExperimentStep{},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -441,12 +442,12 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			}},
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -493,12 +494,12 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			}},
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -522,19 +523,19 @@ func TestGetExperimentFromTemplate(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			}},
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.CurrentStepIndex = ptr.To[int32](0)
 	r2.Status.StableRS = rs1PodHash
 
 	stable, err := GetExperimentFromTemplate(r2, rs1, rs2)
@@ -582,12 +583,12 @@ func TestGetExperimentFromTemplateModifiedLabelsDoesntChangeRefReplicatSet(t *te
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			}},
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Steps[0].Experiment.Templates[0].Metadata.Annotations = map[string]string{"abc": "def"}
 	r2.Spec.Strategy.Canary.Steps[0].Experiment.Templates[0].Metadata.Labels = map[string]string{"123": "456"}
@@ -598,7 +599,7 @@ func TestGetExperimentFromTemplateModifiedLabelsDoesntChangeRefReplicatSet(t *te
 	canaryRsTemplate := rs2.Spec.Template.DeepCopy()
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.CurrentStepIndex = ptr.To[int32](0)
 	r2.Status.StableRS = rs1PodHash
 
 	_, err := GetExperimentFromTemplate(r2, rs1, rs2)
@@ -619,7 +620,7 @@ func TestDeleteExperimentWithNoMatchingRS(t *testing.T) {
 		Experiment: &v1alpha1.RolloutExperimentStep{},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -664,10 +665,10 @@ func TestDeleteExperimentsAfterRSDelete(t *testing.T) {
 		Experiment: &v1alpha1.RolloutExperimentStep{},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	r3 := bumpVersion(r2)
-	r3.Spec.RevisionHistoryLimit = pointer.Int32Ptr(0)
+	r3.Spec.RevisionHistoryLimit = ptr.To[int32](0)
 
 	rs1 := newReplicaSetWithStatus(r1, 0, 0)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -709,7 +710,7 @@ func TestCancelExperimentWhenAborted(t *testing.T) {
 		Experiment: &v1alpha1.RolloutExperimentStep{},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -744,7 +745,7 @@ func TestRolloutCreateExperimentWithInstanceID(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			}},
 			Analyses: []v1alpha1.RolloutExperimentStepAnalysisTemplateRef{{
 				Name:         "test",
@@ -753,7 +754,7 @@ func TestRolloutCreateExperimentWithInstanceID(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	r2.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: "instance-id-test"}
 
@@ -788,27 +789,27 @@ func TestRolloutCreateExperimentWithService(t *testing.T) {
 				{
 					Name:     "stable-template",
 					SpecRef:  v1alpha1.StableSpecRef,
-					Replicas: pointer.Int32Ptr(1),
-					Weight:   pointer.Int32Ptr(5),
+					Replicas: ptr.To[int32](1),
+					Weight:   ptr.To[int32](5),
 				},
 				// Service should NOT be created for "canary-template"
 				{
 					Name:     "canary-template",
 					SpecRef:  v1alpha1.CanarySpecRef,
-					Replicas: pointer.Int32Ptr(1),
+					Replicas: ptr.To[int32](1),
 				},
 			},
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.CurrentStepIndex = ptr.To[int32](0)
 	r2.Status.StableRS = rs1PodHash
 
 	ex, err := GetExperimentFromTemplate(r2, rs1, rs2)
@@ -831,7 +832,7 @@ func TestRolloutCreateWeightlessExperimentWithServiceAndName(t *testing.T) {
 				{
 					Name:     "stable-weightless-named-template",
 					SpecRef:  v1alpha1.StableSpecRef,
-					Replicas: pointer.Int32Ptr(1),
+					Replicas: ptr.To[int32](1),
 					Service: &v1alpha1.TemplateService{
 						Name: "test-service",
 					},
@@ -840,20 +841,20 @@ func TestRolloutCreateWeightlessExperimentWithServiceAndName(t *testing.T) {
 				{
 					Name:     "canary-weightless-named-template",
 					SpecRef:  v1alpha1.CanarySpecRef,
-					Replicas: pointer.Int32Ptr(1),
+					Replicas: ptr.To[int32](1),
 				},
 			},
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.CurrentStepIndex = ptr.To[int32](0)
 	r2.Status.StableRS = rs1PodHash
 
 	ex, err := GetExperimentFromTemplate(r2, rs1, rs2)
@@ -875,27 +876,27 @@ func TestRolloutCreateWeightlessExperimentWithService(t *testing.T) {
 				{
 					Name:     "stable-weightless-template",
 					SpecRef:  v1alpha1.StableSpecRef,
-					Replicas: pointer.Int32Ptr(1),
+					Replicas: ptr.To[int32](1),
 					Service:  &v1alpha1.TemplateService{},
 				},
 				// Service should NOT be created for "canary-weightless-template"
 				{
 					Name:     "canary-weightless-template",
 					SpecRef:  v1alpha1.CanarySpecRef,
-					Replicas: pointer.Int32Ptr(1),
+					Replicas: ptr.To[int32](1),
 				},
 			},
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.CurrentStepIndex = ptr.To[int32](0)
 	r2.Status.StableRS = rs1PodHash
 
 	ex, err := GetExperimentFromTemplate(r2, rs1, rs2)
@@ -919,7 +920,7 @@ func TestRolloutCreateExperimentWithDryRunAndMetadata(t *testing.T) {
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
 				Name:     "stable-template",
 				SpecRef:  v1alpha1.StableSpecRef,
-				Replicas: pointer.Int32(1),
+				Replicas: ptr.To[int32](1),
 			}},
 			Analyses: []v1alpha1.RolloutExperimentStepAnalysisTemplateRef{{
 				Name:         "test",
@@ -946,7 +947,7 @@ func TestRolloutCreateExperimentWithDryRunAndMetadata(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)

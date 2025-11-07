@@ -33,10 +33,10 @@ While the industry has used a consistent terminology to describe various deploym
 A `RollingUpdate` slowly replaces the old version with the new version. As the new version comes up, the old version is scaled down in order to maintain the overall count of the application. This is the default strategy of the Deployment object.
 
 ### Recreate
-A Recreate deployment deletes the old version of the application before bring up the new version. As a result, this ensures that two versions of the application never run at the same time, but there is downtime during the deployment.
+A Recreate deployment deletes the old version of the application before bringing up the new version. As a result, this ensures that two versions of the application never run at the same time, but there is downtime during the deployment.
 
 ### Blue-Green
-A Blue-Green deployment (sometimes referred to as a Red-Black) has both the new and old version of the application deployed at the same time.  During this time, only the old version of the application will receive production traffic. This allows the developers to run tests against the new version before switching the live traffic to the new version.
+A Blue-Green deployment (sometimes referred to as a Red-Black) has both the new and old version of the application deployed at the same time. During this time, only the old version of the application will receive production traffic. This allows the developers to run tests against the new version before switching the live traffic to the new version.
 
 [![How Blue Green deployments work](concepts-assets/blue-green-deployments.png)](concepts-assets/blue-green-deployments.png)
 
@@ -75,4 +75,4 @@ Here is a summary table for the possible approaches.
 | Advanced routing scenarios |         No               |       No                   |         Yes                    |
 |      Failure Blast Radius | Massive impact            |  Low impact                       | Low impact              |
 
-Note that that traffic manager can be any compatible Service Mesh or Ingress Controller or Gateway API implementation (via a plugin).
+Note that the traffic manager can be any compatible Service Mesh or Ingress Controller or Gateway API implementation (via a plugin).

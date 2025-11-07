@@ -48,7 +48,7 @@ spec:
           # the AWS Load Balancer Controller to split traffic between the canary and stable
           # Service, according to the desired traffic weight (required).
           ingress: ingress
-          # If you want to controll multiple ingress resources you can use the ingresses field, if ingresses is specified
+          # If you want to control multiple ingress resources you can use the ingresses field, if ingresses is specified
           # the ingress field will need to be omitted.
           ingresses:
             - ingress-1
@@ -302,6 +302,10 @@ spec:
           args: [--aws-verify-target-group]
           # NOTE: in v1.0, the --alb-verify-weight flag should be used instead
 ```
+
+!!! note
+
+    The `--aws-region` flag is mandatory for enabling AWS integrations, including TargetGroup verification. If the Argo Rollouts controller does not have the correct AWS region specified, or lacks access to validate the AWS ALB, the promotion process will fail. Ensure that the necessary AWS API permissions are granted to the controller and that the region is correctly configured.
 
 For this feature to work, the argo-rollouts deployment requires the following AWS API permissions
 under the [Elastic Load Balancing API](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/Welcome.html):

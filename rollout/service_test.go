@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/aws"
@@ -100,10 +100,8 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 		noActiveSvcRollout := rollout.DeepCopy()
 		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = ""
 		roCtx, err := c.newRolloutContext(noActiveSvcRollout)
-		assert.NoError(t, err)
-		_, _, err = roCtx.getPreviewAndActiveServices()
-		assert.NotNil(t, err)
-		assert.EqualError(t, err, "service \"\" not found")
+		assert.Error(t, err)
+		assert.Nil(t, roCtx)
 	})
 }
 
@@ -254,26 +252,26 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("1.2.3.4"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("5.6.7.8"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(81),         // wrong port
+					Id:   ptr.To[string]("2.4.6.8"), // irrelevant
+					Port: ptr.To[int32](81),         // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("9.8.7.6"), // irrelevant ip
+					Port: ptr.To[int32](80),
 				},
 			},
 		},
@@ -339,26 +337,26 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("1.2.3.4"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("5.6.7.8"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("2.4.6.8"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("9.8.7.6"), // irrelevant ip
+					Port: ptr.To[int32](80),
 				},
 			},
 		},
@@ -425,26 +423,26 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.String("1.2.3.4"),
-					Port: pointer.Int32(80),
+					Id:   ptr.To[string]("1.2.3.4"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.String("5.6.7.8"),
-					Port: pointer.Int32(80),
+					Id:   ptr.To[string]("5.6.7.8"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.String("2.4.6.8"), // irrelevant
-					Port: pointer.Int32(81),         // wrong port
+					Id:   ptr.To[string]("2.4.6.8"), // irrelevant
+					Port: ptr.To[int32](81),         // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.String("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32(80),
+					Id:   ptr.To[string]("9.8.7.6"), // irrelevant ip
+					Port: ptr.To[int32](80),
 				},
 			},
 		},
@@ -452,8 +450,8 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	fakeELB.On("DescribeTargetHealth", mock.Anything, mock.Anything).Return(&thOut, nil)
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32(10),
-	}}, pointer.Int32(0), intstr.FromString("25%"), intstr.FromString("25%"))
+		SetWeight: ptr.To[int32](10),
+	}}, ptr.To[int32](0), intstr.FromString("25%"), intstr.FromString("25%"))
 
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
@@ -479,7 +477,7 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	r2.Status.StableRS = rs2PodHash
-	r2.Status.CurrentStepIndex = pointer.Int32(1)
+	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	healthyCondition, _ := newHealthyCondition(false)
@@ -497,10 +495,15 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
 	f.expectGetEndpointsAction(ep)
+	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	f.assertEvents([]string{
 		conditions.TargetGroupUnverifiedReason,
 	})
+	patch := f.getPatchedRollout(rolloutPatchIndex)
+	// NOTE: Similar to other tests, the hash must be updated for every k8s library upgrade
+	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
+	assert.JSONEq(t, expectedPatch, patch)
 }
 
 // TestCanaryAWSVerifyTargetGroupsReady verifies we proceed with scale down of old
@@ -525,26 +528,26 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.String("1.2.3.4"),
-					Port: pointer.Int32(80),
+					Id:   ptr.To[string]("1.2.3.4"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.String("5.6.7.8"),
-					Port: pointer.Int32(80),
+					Id:   ptr.To[string]("5.6.7.8"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.String("2.4.6.8"), // irrelevant
-					Port: pointer.Int32(80),         // wrong port
+					Id:   ptr.To[string]("2.4.6.8"), // irrelevant
+					Port: ptr.To[int32](80),         // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.String("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32(80),
+					Id:   ptr.To[string]("9.8.7.6"), // irrelevant ip
+					Port: ptr.To[int32](80),
 				},
 			},
 		},
@@ -552,8 +555,8 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	fakeELB.On("DescribeTargetHealth", mock.Anything, mock.Anything).Return(&thOut, nil)
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32(10),
-	}}, pointer.Int32(0), intstr.FromString("25%"), intstr.FromString("25%"))
+		SetWeight: ptr.To[int32](10),
+	}}, ptr.To[int32](0), intstr.FromString("25%"), intstr.FromString("25%"))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
@@ -578,7 +581,7 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	r2.Status.StableRS = rs2PodHash
-	r2.Status.CurrentStepIndex = pointer.Int32(1)
+	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	healthyCondition, _ := newHealthyCondition(false)
@@ -597,11 +600,17 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 
 	f.expectGetEndpointsAction(ep)
 	scaleDownRSIndex := f.expectPatchReplicaSetAction(rs1)
+
+	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	f.verifyPatchedReplicaSet(scaleDownRSIndex, 30)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
 	})
+	patch := f.getPatchedRollout(rolloutPatchIndex)
+	// NOTE: Similar to other tests, the hash must be updated for every k8s library upgrade
+	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
+	assert.JSONEq(t, expectedPatch, patch)
 }
 
 // TestCanaryAWSVerifyTargetGroupsSkip verifies we skip unnecessary verification if scaledown
@@ -614,8 +623,8 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	defer f.Close()
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32(10),
-	}}, pointer.Int32(0), intstr.FromString("25%"), intstr.FromString("25%"))
+		SetWeight: ptr.To[int32](10),
+	}}, ptr.To[int32](0), intstr.FromString("25%"), intstr.FromString("25%"))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
@@ -642,7 +651,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	r2.Status.StableRS = rs2PodHash
-	r2.Status.CurrentStepIndex = pointer.Int32(1)
+	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	healthyCondition, _ := newHealthyCondition(false)
@@ -659,8 +668,14 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
+	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t)) // there should be no api calls
 	f.assertEvents(nil)
+
+	patch := f.getPatchedRollout(patchIndex)
+	// NOTE: Similar to other tests, the hash must be updated for every k8s library upgrade
+	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
+	assert.Equal(t, expectedPatch, patch)
 }
 
 // TestShouldVerifyTargetGroups returns whether or not we should verify the target group

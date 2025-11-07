@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"errors"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -221,13 +222,25 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
 	canary := rollout.Spec.Strategy.Canary
 
-	if canary.TrafficRouting.Nginx != nil {
-		return validateNginxIngress(canary, ingress, fldPath)
-	} else if canary.TrafficRouting.ALB != nil {
-		return validateAlbIngress(canary, ingress, fldPath)
-	} else {
-		return allErrs
+	ingressName := ingress.GetName()
+
+	// Check NGINX ingresses first
+	if nginx := canary.TrafficRouting.Nginx; nginx != nil {
+		if nginx.StableIngress == ingressName ||
+			(nginx.StableIngresses != nil && slices.Contains(nginx.StableIngresses, ingressName)) {
+			return validateNginxIngress(canary, ingress, fldPath)
+		}
 	}
+
+	// Check ALB ingresses
+	if alb := canary.TrafficRouting.ALB; alb != nil {
+		if alb.Ingress == ingressName ||
+			(alb.Ingresses != nil && slices.Contains(alb.Ingresses, ingressName)) {
+			return validateAlbIngress(canary, ingress, fldPath)
+		}
+	}
+
+	return allErrs
 }
 
 func validateNginxIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.Ingress, fldPath *field.Path) field.ErrorList {
@@ -342,11 +355,11 @@ func ValidateRolloutVirtualServicesConfig(r *v1alpha1.Rollout) error {
 		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
 			if istioutil.MultipleVirtualServiceConfigured(r) {
 				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService != nil {
-					return field.InternalError(fldPath, fmt.Errorf(errorString))
+					return field.InternalError(fldPath, errors.New(errorString))
 				}
 			} else {
 				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService == nil {
-					return field.InternalError(fldPath, fmt.Errorf(errorString))
+					return field.InternalError(fldPath, errors.New(errorString))
 				}
 			}
 		}

@@ -6,23 +6,23 @@
 
 ***
 ## Release Assets
-| Asset                               | Description                                      |
-|-------------------------------------|--------------------------------------------------|
-| argo-rollouts-checksums.txt         | Checksums of binaries                            |
-| argo-rollouts-cli.intoto.jsonl      | Attestation of CLI binaries & manifiest          |
-| dashboard-install.yaml              | Dashboard install                                |
-| install.yaml                        | Standard installation method                     |
-| kubectl-argo-rollouts-darwin-amd64  | CLI Binary                                       |
-| kubectl-argo-rollouts-darwin-arm64  | CLI Binary                                       |
-| kubectl-argo-rollouts-linux-amd64   | CLI Binary                                       |
-| kubectl-argo-rollouts-linux-arm64   | CLI Binary                                       |
-| kubectl-argo-rollouts-windows-amd64 | CLI Binary                                       |
-| namespace-install.yaml              | Namespace installation                           |
-| notifications-install.yaml          | Notification installation                        |
-| rollout_cr_schema.json              | Schema                                           |
-| sbom.tar.gz                         | Sbom                                             |
-| sbom.tar.gz.pem                     | Certificate used to sign sbom                    |
-| sbom.tar.gz.sig                     | Signature of sbom                                |
+| Asset                               | Description                                 |
+|-------------------------------------|---------------------------------------------|
+| argo-rollouts-checksums.txt         | Checksums of binaries                       |
+| argo-rollouts-cli.intoto.jsonl      | Attestation of CLI binaries & manifest      |
+| dashboard-install.yaml              | Dashboard install                           |
+| install.yaml                        | Standard installation method                |
+| kubectl-argo-rollouts-darwin-amd64  | CLI Binary                                  |
+| kubectl-argo-rollouts-darwin-arm64  | CLI Binary                                  |
+| kubectl-argo-rollouts-linux-amd64   | CLI Binary                                  |
+| kubectl-argo-rollouts-linux-arm64   | CLI Binary                                  |
+| kubectl-argo-rollouts-windows-amd64 | CLI Binary                                  |
+| namespace-install.yaml              | Namespace installation                      |
+| notifications-install.yaml          | Notification installation                   |
+| rollout_cr_schema.json              | Schema                                      |
+| sbom.tar.gz                         | Sbom                                        |
+| sbom.tar.gz.pem                     | Certificate used to sign sbom               |
+| sbom.tar.gz.sig                     | Signature of sbom                           |
 
 ***
 ## Verification of container images

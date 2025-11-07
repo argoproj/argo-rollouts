@@ -102,14 +102,14 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 		if err != nil {
 			return err
 		}
-		c.setPauseOrAbort(prePromotionAr)
+		c.setPauseOrAbortForBlueGreen(prePromotionAr, false)
 		newCurrentAnalysisRuns.BlueGreenPrePromotion = prePromotionAr
 
 		postPromotionAr, err := c.reconcilePostPromotionAnalysisRun()
 		if err != nil {
 			return err
 		}
-		c.setPauseOrAbort(postPromotionAr)
+		c.setPauseOrAbortForBlueGreen(postPromotionAr, true)
 		newCurrentAnalysisRuns.BlueGreenPostPromotion = postPromotionAr
 	}
 	c.SetCurrentAnalysisRuns(newCurrentAnalysisRuns)
@@ -146,7 +146,7 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 	return nil
 }
 
-func (c *rolloutContext) setPauseOrAbort(ar *v1alpha1.AnalysisRun) {
+func (c *rolloutContext) setPauseOrAbortForBlueGreen(ar *v1alpha1.AnalysisRun, isPostPromotion bool) {
 	if ar == nil {
 		return
 	}
@@ -154,7 +154,16 @@ func (c *rolloutContext) setPauseOrAbort(ar *v1alpha1.AnalysisRun) {
 	case v1alpha1.AnalysisPhaseInconclusive:
 		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		c.pauseContext.AddAbort(ar.Status.Message)
+		message := ""
+		if isPostPromotion {
+			message = "Blue/green post-promotion analysis phase error/failed"
+		} else {
+			message = "Blue/green pre-promotion analysis phase error/failed"
+		}
+		if ar.Status.Message != "" {
+			message += ": " + ar.Status.Message
+		}
+		c.pauseContext.AddAbort(message)
 	}
 }
 
@@ -169,8 +178,14 @@ func needsNewAnalysisRun(currentAr *v1alpha1.AnalysisRun, rollout *v1alpha1.Roll
 	// is set and then seeing if the last status was inconclusive.
 	// There is an additional check for the BlueGreen Pause because the prepromotion analysis always has the BlueGreen
 	// Pause and that causes controllerPause to be set. The extra check for the BlueGreen Pause ensures that a new Analysis
-	// Run is created only when the previous AnalysisRun is inconclusive
-	if rollout.Status.ControllerPause && getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause) == nil {
+	// Run is created only when the previous AnalysisRun is inconclusive.
+	// Additional check for the Canary Pause prevents Canary promotion when AnalysisRun is inconclusive and reached
+	// inconclusiveLimit. Otherwise, another AnalysisRun will be spawned and can cause Success status,
+	// because of termination when the AnalysisRun is still in-flight.
+	if rollout.Status.ControllerPause &&
+		getPauseCondition(rollout, v1alpha1.PauseReasonCanaryPauseStep) == nil &&
+		getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause) == nil {
+
 		return currentAr.Status.Phase == v1alpha1.AnalysisPhaseInconclusive
 	}
 	return rollout.Status.AbortedAt != nil
@@ -342,7 +357,11 @@ func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun
 	case v1alpha1.AnalysisPhaseInconclusive:
 		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		c.pauseContext.AddAbort(currentAr.Status.Message)
+		message := "Background analysis phase error/failed"
+		if currentAr.Status.Message != "" {
+			message += ": " + currentAr.Status.Message
+		}
+		c.pauseContext.AddAbort(message)
 	}
 	return currentAr, nil
 }
@@ -396,7 +415,11 @@ func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun,
 	case v1alpha1.AnalysisPhaseInconclusive:
 		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		c.pauseContext.AddAbort(currentAr.Status.Message)
+		message := "Step-based analysis phase error/failed"
+		if currentAr.Status.Message != "" {
+			message += ": " + currentAr.Status.Message
+		}
+		c.pauseContext.AddAbort(message)
 	}
 
 	return currentAr, nil
@@ -437,10 +460,11 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 		return nil, err
 	}
 	runLabels := labels
-	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Labels {
-		runLabels[k] = v
+	if rolloutAnalysis.AnalysisRunMetadata != nil {
+		for k, v := range rolloutAnalysis.AnalysisRunMetadata.Labels {
+			runLabels[k] = v
+		}
 	}
-
 	for k, v := range c.rollout.Spec.Selector.MatchLabels {
 		runLabels[k] = v
 	}
@@ -448,8 +472,10 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 	runAnnotations := map[string]string{
 		annotations.RevisionAnnotation: revision,
 	}
-	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Annotations {
-		runAnnotations[k] = v
+	if rolloutAnalysis.AnalysisRunMetadata != nil {
+		for k, v := range rolloutAnalysis.AnalysisRunMetadata.Annotations {
+			runAnnotations[k] = v
+		}
 	}
 	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, rolloutAnalysis.DryRun, rolloutAnalysis.MeasurementRetention,
 		runLabels, runAnnotations, name, "", c.rollout.Namespace)

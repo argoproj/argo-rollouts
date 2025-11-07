@@ -3,6 +3,7 @@ package alb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -19,7 +20,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/aws"
@@ -32,6 +33,7 @@ const STABLE_SVC = "stable-svc"
 const CANARY_SVC = "canary-svc"
 const PING_SVC = "ping-service"
 const PONG_SVC = "pong-service"
+const ALB_TAG_KEY_RESOURCE_ID = "ingress.k8s.aws/resource"
 
 func fakeRollout(stableSvc, canarySvc string, pingPong *v1alpha1.PingPongSpec, stableIng string, port int32) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
@@ -668,7 +670,7 @@ func TestErrorPatching(t *testing.T) {
 
 	errMessage := "some error occurred"
 	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("patch", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf(errMessage)
+		return true, nil, errors.New(errMessage)
 	})
 
 	err = r.SetWeight(10)
@@ -700,7 +702,7 @@ func TestErrorPatchingMultiIngress(t *testing.T) {
 
 	errMessage := "some error occurred"
 	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("patch", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf(errMessage)
+		return true, nil, errors.New(errMessage)
 	})
 
 	err = r.SetWeight(10)
@@ -803,7 +805,7 @@ func TestVerifyWeight(t *testing.T) {
 		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetWeight: pointer.Int32Ptr(10),
+			SetWeight: ptr.To[int32](10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 
@@ -828,7 +830,7 @@ func TestVerifyWeight(t *testing.T) {
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressWrapper: ingressWrapper,
-			VerifyWeight:   pointer.BoolPtr(true),
+			VerifyWeight:   ptr.To[bool](true),
 			Status:         status,
 		})
 		assert.NoError(t, err)
@@ -879,30 +881,30 @@ func TestVerifyWeight(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(11),
+				Weight: ptr.To[int32](11),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(89),
+				Weight: ptr.To[int32](89),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -921,30 +923,30 @@ func TestVerifyWeight(t *testing.T) {
 
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(11),
+				Weight: ptr.To[int32](11),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -959,34 +961,34 @@ func TestVerifyWeight(t *testing.T) {
 	// LoadBalancer found, at max weight, end of rollout
 	{
 		var status v1alpha1.RolloutStatus
-		status.CurrentStepIndex = pointer.Int32Ptr(2)
+		status.CurrentStepIndex = ptr.To[int32](2)
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(100),
+				Weight: ptr.To[int32](100),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(0),
+				Weight: ptr.To[int32](0),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1004,30 +1006,30 @@ func TestVerifyWeight(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("lb-abc123-arn"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("lb-abc123-arn"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("canary-tg-abc123-arn"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("canary-tg-abc123-arn"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("stable-tg-abc123-arn"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("stable-tg-abc123-arn"),
 				},
-				Weight: pointer.Int32Ptr(11),
+				Weight: ptr.To[int32](11),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1047,7 +1049,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 		ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetWeight: pointer.Int32Ptr(10),
+			SetWeight: ptr.To[int32](10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 		mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
@@ -1080,7 +1082,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressWrapper: ingressWrapper,
-			VerifyWeight:   pointer.BoolPtr(true),
+			VerifyWeight:   ptr.To[bool](true),
 			Status:         status,
 		})
 		assert.NoError(t, err)
@@ -1142,55 +1144,55 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 			{
-				LoadBalancerName: pointer.StringPtr("lb-multi-ingress-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-multi-ingress-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-multi-ingress-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-multi-ingress-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(11),
+				Weight: ptr.To[int32](11),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(89),
+				Weight: ptr.To[int32](89),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("multi-ingress-canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("multi-ingress-canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(11),
+				Weight: ptr.To[int32](11),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("multi-ingress-stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("multi-ingress-stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(89),
+				Weight: ptr.To[int32](89),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1208,55 +1210,55 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 			{
-				LoadBalancerName: pointer.StringPtr("lb-multi-ingress-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-multi-ingress-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-multi-ingress-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-multi-ingress-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(90),
+				Weight: ptr.To[int32](90),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("multi-ingress-canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("multi-ingress-canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("multi-ingress-stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("multi-ingress-stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(90),
+				Weight: ptr.To[int32](90),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1382,7 +1384,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetWeight: pointer.Int32Ptr(10),
+			SetWeight: ptr.To[int32](10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 		i.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, 443, 85)
@@ -1408,7 +1410,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressWrapper: ingressWrapper,
-			VerifyWeight:   pointer.BoolPtr(true),
+			VerifyWeight:   ptr.To[bool](true),
 			Status:         status,
 		})
 		assert.NoError(t, err)
@@ -1423,30 +1425,30 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(90),
+				Weight: ptr.To[int32](90),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1463,50 +1465,50 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("ex-svc-1-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("ex-svc-1-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(100),
+				Weight: ptr.To[int32](100),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-1:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-1:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("ex-svc-2-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("ex-svc-2-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(100),
+				Weight: ptr.To[int32](100),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-2:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-2:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(85),
+				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1523,50 +1525,50 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("ex-svc-1-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("ex-svc-1-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
 				},
 				Weight: &weightDestinations[0].Weight,
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-1:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-1:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("ex-svc-2-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("ex-svc-2-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/1234567890123456"),
 				},
 				Weight: &weightDestinations[1].Weight,
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-2:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-2:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(85),
+				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1595,7 +1597,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 		ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetWeight: pointer.Int32Ptr(10),
+			SetWeight: ptr.To[int32](10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 		mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
@@ -1631,7 +1633,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 			IngressWrapper: ingressWrapper,
-			VerifyWeight:   pointer.BoolPtr(true),
+			VerifyWeight:   ptr.To[bool](true),
 			Status:         status,
 		})
 		assert.NoError(t, err)
@@ -1646,55 +1648,55 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 			{
-				LoadBalancerName: pointer.StringPtr("lb-multi-ingress-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-multi-ingress-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-multi-ingress-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-multi-ingress-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(90),
+				Weight: ptr.To[int32](90),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("multi-ingress-canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("multi-ingress-canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("multi-ingress-stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("multi-ingress-stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(90),
+				Weight: ptr.To[int32](90),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-stable-svc:443",
 				},
 			},
 		}
@@ -1711,75 +1713,75 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 			{
-				LoadBalancerName: pointer.StringPtr("lb-multi-ingress-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-multi-ingress-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-multi-ingress-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-multi-ingress-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(85),
+				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("multi-ingress-canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("multi-ingress-canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("multi-ingress-stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-stable-tg-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("multi-ingress-stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-stable-tg-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(85),
+				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-stable-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("ex-svc-1-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("ex-svc-1-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(100),
+				Weight: ptr.To[int32](100),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-1:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-1:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("ex-svc-2-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/123456789012345"),
+					TargetGroupName: ptr.To[string]("ex-svc-2-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/123456789012345"),
 				},
-				Weight: pointer.Int32Ptr(100),
+				Weight: ptr.To[int32](100),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-2:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-2:443",
 				},
 			},
 		}
@@ -1797,75 +1799,75 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
-				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 			{
-				LoadBalancerName: pointer.StringPtr("lb-multi-ingress-name"),
-				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-multi-ingress-name/1234567890123456"),
-				DNSName:          pointer.StringPtr("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
+				LoadBalancerName: ptr.To[string]("lb-multi-ingress-name"),
+				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-multi-ingress-name/1234567890123456"),
+				DNSName:          ptr.To[string]("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
 			},
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(85),
+				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("multi-ingress-canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-canary-tg-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("multi-ingress-canary-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-canary-tg-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(10),
+				Weight: ptr.To[int32](10),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-canary-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("multi-ingress-stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-stable-tg-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("multi-ingress-stable-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-stable-tg-name/1234567890123456"),
 				},
-				Weight: pointer.Int32Ptr(85),
+				Weight: ptr.To[int32](85),
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-stable-svc:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("ex-svc-1-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string]("ex-svc-1-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
 				},
 				Weight: &weightDestinations[0].Weight,
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-1:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-1:443",
 				},
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("ex-svc-2-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/123456789012345"),
+					TargetGroupName: ptr.To[string]("ex-svc-2-tg-abc123-name"),
+					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/123456789012345"),
 				},
 				Weight: &weightDestinations[1].Weight,
 				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-2:443",
+					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-2:443",
 				},
 			},
 		}

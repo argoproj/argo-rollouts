@@ -20,7 +20,7 @@ This will create a new namespace, `argo-rollouts`, where Argo Rollouts controlle
 
 
 !!! tip
-    On GKE, you will need grant your account the ability to create new cluster roles:
+    On GKE, you will need to grant your account the ability to create new cluster roles:
 
     ```shell
     kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
@@ -104,7 +104,7 @@ The completion command supports bash, zsh, fish and powershell.
 See the [completion command documentation](./generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion.md) for more details.
 
 
-## Using the CLI  with Docker
+## Using the CLI with Docker
 
 The CLI is also available as a container image at [https://quay.io/repository/argoproj/kubectl-argo-rollouts](https://quay.io/repository/argoproj/kubectl-argo-rollouts)
 
