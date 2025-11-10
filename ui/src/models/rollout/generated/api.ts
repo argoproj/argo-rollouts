@@ -521,6 +521,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authenticat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
      */
     oauth2?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
+     */
+    basicAuth?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig;
 }
 /**
  * 
@@ -546,6 +552,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResource
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef
      */
     fullName?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+     */
+    username?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+     */
+    password?: string;
 }
 /**
  * 

@@ -263,13 +263,11 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		}
 	}
 
-	// Check if using basic auth to conect a prometheus instance (example: grafana cloud prometheus instance)
+	// Check if using basic auth to connect a prometheus instance (example: grafana cloud prometheus instance)
 	if metric.Provider.Prometheus.Authentication.BasicAuth.Username != "" && metric.Provider.Prometheus.Authentication.BasicAuth.Password != "" {
 		roundTripper = config.NewBasicAuthRoundTripper(
-			metric.Provider.Prometheus.Authentication.BasicAuth.Username,
-			config.Secret(metric.Provider.Prometheus.Authentication.BasicAuth.Password),
-			"",
-			"",
+			config.NewInlineSecret(metric.Provider.Prometheus.Authentication.BasicAuth.Username),
+			config.NewInlineSecret(metric.Provider.Prometheus.Authentication.BasicAuth.Password),
 			roundTripper)
 	}
 

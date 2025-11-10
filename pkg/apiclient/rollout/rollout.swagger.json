@@ -844,6 +844,10 @@
         "oauth2": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.OAuth2Config",
           "title": "OAuth2 config\n+optional"
+        },
+        "basicAuth": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.BasicAuthConfig",
+          "title": "BasicAuth config\n+optional"
         }
       },
       "title": "Authentication method"
@@ -860,6 +864,19 @@
         "fullName": {
           "type": "string",
           "title": "FullName is the full name of the resource\n+optional"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.BasicAuthConfig": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "title": "Username is the username in grafana cloud"
+        },
+        "password": {
+          "type": "string",
+          "title": "Password is the access policy token"
         }
       }
     },
