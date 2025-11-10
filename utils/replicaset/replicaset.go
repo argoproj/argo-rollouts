@@ -284,7 +284,7 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 			otherRSs := GetOtherRSs(rollout, newRS, stableRS, allRSs)
 			newRSReplicaCount, _ = CalculateReplicaCountsForBasicCanary(rollout, newRS, stableRS, otherRSs)
 		} else {
-			newRSReplicaCount, _ = CalculateReplicaCountsForTrafficRoutedCanary(rollout, weights)
+			newRSReplicaCount, _ = CalculateReplicaCountsForTrafficRoutedCanary(rollout, newRS, stableRS, weights)
 		}
 		return newRSReplicaCount, nil
 	}

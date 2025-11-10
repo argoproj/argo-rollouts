@@ -1,33 +1,31 @@
 # AWS Load Balancer Controller (ALB)
 
 ## Requirements
-* AWS Load Balancer Controller v1.1.5 or greater
+
+- AWS Load Balancer Controller v1.1.5 or greater
 
 ## Overview
 
 [AWS Load Balancer Controller](https://github.com/kubernetes-sigs/aws-load-balancer-controller)
-(also known as AWS ALB Ingress Controller) enables traffic management through an Ingress object,
-which configures an AWS Application Load Balancer (ALB) to route traffic to one or more Kubernetes
-services. ALBs provides advanced traffic splitting capability through the concept of
+(formerly known as AWS ALB Ingress Controller) enables traffic management through an Ingress object.
+It configures an AWS Application Load Balancer (ALB) to route traffic to one or more Kubernetes
+services. ALBs provide advanced traffic splitting capabilities through
 [weighted target groups](https://aws.amazon.com/blogs/aws/new-application-load-balancer-simplifies-deployment-with-weighted-target-groups/).
-This feature is supported by the AWS Load Balancer Controller through annotations made to the
-Ingress object to configure "actions."
+The AWS Load Balancer Controller supports this feature through annotations on the Ingress object to configure "actions."
 
 ## How it works
 
-ALBs are configured via Listeners, and Rules which contain Actions. Listeners define how traffic
-from a client comes in, and Rules define how to handle those requests with various Actions. One
-type of Action allows users to forward traffic to multiple TargetGroups (with each being defined as
-a Kubernetes service). You can read more about ALB concepts
-[here](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
+ALBs are configured using Listeners and Rules that contain Actions. Listeners define how client traffic
+is received, while Rules define how to handle these requests using various Actions. One type of Action
+allows users to forward traffic to multiple TargetGroups (each defined as a Kubernetes service). You can
+learn more about ALB concepts [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
 
-An Ingress which is managed by the AWS Load Balancer Controller, controls an ALB's Listener and
-Rules through the Ingress' annotations and spec. In order to split traffic among multiple target
-groups (e.g. different Kubernetes services), the AWS Load Balancer controller looks to a specific
-"action" annotation on the Ingress,
+An Ingress managed by the AWS Load Balancer Controller controls an ALB's Listener and Rules through
+annotations and specifications. To split traffic among multiple target groups (e.g., different
+Kubernetes services), the AWS Load Balancer Controller uses a specific action annotation:
 [`alb.ingress.kubernetes.io/actions.<service-name>`](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#actions).
-This annotation is injected and updated automatically by a Rollout during an update according to
-the desired traffic weights.
+During an update, a Rollout automatically injects and updates this annotation according to the desired
+traffic weights.
 
 ## Usage
 
@@ -37,7 +35,6 @@ services during updates, the Rollout should be configured with the following fie
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
-...
 spec:
   strategy:
     canary:
@@ -54,8 +51,8 @@ spec:
           # If you want to control multiple ingress resources you can use the ingresses field, if ingresses is specified
           # the ingress field will need to be omitted.
           ingresses:
-           - ingress-1
-           - ingress-2
+            - ingress-1
+            - ingress-2
           # Reference to a Service that the Ingress must target in one of the rules (optional).
           # If omitted, uses canary.stableService.
           rootService: root-service
@@ -74,19 +71,19 @@ metadata:
     kubernetes.io/ingress.class: alb
 spec:
   rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            # serviceName must match either: canary.trafficRouting.alb.rootService (if specified),
-            # or canary.stableService (if rootService is omitted)
-            name: root-service
-            # servicePort must be the value: use-annotation
-            # This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic
-            port:
-              name: use-annotation
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                # serviceName must match either: canary.trafficRouting.alb.rootService (if specified),
+                # or canary.stableService (if rootService is omitted)
+                name: root-service
+                # servicePort must be the value: use-annotation
+                # This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic
+                port:
+                  name: use-annotation
 ```
 
 During an update, the rollout controller injects the `alb.ingress.kubernetes.io/actions.<SERVICE-NAME>`
@@ -124,15 +121,16 @@ metadata:
       }
 spec:
   rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: root-service
-            port:
-              name: use-annotation
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: root-service
+                port:
+                  # Instructs AWS Load Balancer Controller to look to annotations on how to direct traffic
+                  name: use-annotation
 ```
 
 !!! note
@@ -143,13 +141,12 @@ spec:
     rollout deletion, the rollout controller looks to this annotation to understand that this action
     is no longer managed, and is reset to point only the stable service with 100 weight.
 
-
 ### rootService
 
 By default, a rollout will inject the `alb.ingress.kubernetes.io/actions.<SERVICE-NAME>` annotation
 using the service/action name specified under `spec.strategy.canary.stableService`. However, it may
 be desirable to specify an explicit service/action name different from the `stableService`. For
-example, [one pattern](/best-practices/#ingress-desiredstable-host-routes) is to use a single
+example, [one pattern](../../best-practices.md#ingress-desiredstable-host-routes) is to use a single
 Ingress containing three different rules to reach the canary, stable, and root service separately
 (e.g. for testing purposes). In this case, you may want to specify a "root" service as the
 service/action name instead of stable. To do so, reference a service under `rootService` under the
@@ -166,7 +163,6 @@ spec:
       trafficRouting:
         alb:
           rootService: guestbook-root
-...
 ```
 
 ### Sticky session
@@ -180,13 +176,11 @@ kind: Rollout
 spec:
   strategy:
     canary:
-...
       trafficRouting:
         alb:
           stickinessConfig:
             enabled: true
             durationSeconds: 3600
-...
 ```
 
 More information can be found in the [AWS ALB API](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html)
@@ -206,36 +200,36 @@ the changes made to the Ingress object are reflected in the underlying AWS Targe
 
 The AWS LoadBalancer controller can run in one of two modes:
 
-* [Instance mode](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#instance-mode)
-* [IP mode](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#ip-mode)
+- [Instance mode](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#instance-mode)
+- [IP mode](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#ip-mode)
 
 TargetGroup IP Verification is only applicable when the AWS LoadBalancer controller in IP mode.
 When using the AWS LoadBalancer controller in IP mode (e.g. using the AWS CNI), the ALB LoadBalancer
 targets individual Pod IPs, as opposed to K8s node instances. Targeting Pod IPs comes with an
 increased risk of downtime during an update, because the Pod IPs behind the underlying AWS TargetGroup
-can more easily become outdated from the *_actual_* availability and status of pods, causing HTTP 502
+can more easily become outdated from the _*actual*_ availability and status of pods, causing HTTP 502
 errors when the TargetGroup points to pods which have already been scaled down.
 
 To mitigate this risk, AWS recommends the use of
 [pod readiness gate injection](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/)
-when running the AWS LoadBalancer in IP mode. Readiness gates allow for the AWS LoadBalancer
+when running the AWS LoadBalancer in IP mode. Readiness gates allow the AWS LoadBalancer
 controller to verify that TargetGroups are accurate before marking newly created Pods as "ready",
 preventing premature scale down of the older ReplicaSet.
 
 Pod readiness gate injection uses a mutating webhook which decides to inject readiness gates when a
 pod is created based on the following conditions:
 
-* There exists a service matching the pod labels in the same namespace
-* There exists at least one target group binding that refers to the matching service
+- There exists a service matching the pod labels in the same namespace
+- There exists at least one target group binding that refers to the matching service
 
 Another way to describe this is: the AWS LoadBalancer controller injects readiness gates onto Pods
-only if they are "reachable"  from an ALB Ingress at the time of pod creation. A pod is considered
+only if they are "reachable" from an ALB Ingress at the time of pod creation. A pod is considered
 reachable if an (ALB) Ingress references a Service which matches the pod labels. It ignores all other Pods.
 
 One challenge with this manner of pod readiness gate injection, is that modifications to the Service
 selector labels (`spec.selector`) do not allow for the AWS LoadBalancer controller to inject the
 readiness gates, because by that time the Pod was already created (and readiness gates are immutable).
-Note that this is an issue when you change Service selectors of *_any_* ALB Service, not just ones
+Note that this is an issue when you change Service selectors of _*any*_ ALB Service, not just ones
 involved in Argo Rollouts.
 
 Because Argo Rollout's blue-green strategy works by modifying the activeService selector to the new
@@ -275,7 +269,7 @@ TargetGroup are accurate.
 
 TargetGroup weight verification addresses a similar problem to TargetGroup IP verification, but
 instead of verifying that the Pod IPs of a service are reflected accurately in the TargetGroup, the
-controller verifies that the traffic *_weights_* are accurate from what was set in the ingress
+controller verifies that the traffic _*weights*_ are accurate from what was set in the ingress
 annotations. Weight verification is applicable to AWS LoadBalancer controllers which are running
 either in IP mode or Instance mode.
 
@@ -286,7 +280,7 @@ the underlying TargetGroup. This is potentially dangerous as the controller will
 to scale down the old stable stack when in reality, the outdated TargetGroup may still be pointing
 to it.
 
-Using the TargetGroup weight verification feature, the rollout controller will additionally *verify*
+Using the TargetGroup weight verification feature, the rollout controller will additionally _verify_
 the canary weight after a `setWeight` canary step. It accomplishes this by querying AWS LoadBalancer
 APIs directly, to confirm that the Rules, Actions, and TargetGroups reflect the desire of Ingress
 annotation.
@@ -304,10 +298,11 @@ spec:
   template:
     spec:
       containers:
-      - name: argo-rollouts
-        args: [--aws-verify-target-group]
-        # NOTE: in v1.0, the --alb-verify-weight flag should be used instead
+        - name: argo-rollouts
+          args: [--aws-verify-target-group]
+          # NOTE: in v1.0, the --alb-verify-weight flag should be used instead
 ```
+
 !!! note
 
     The `--aws-region` flag is mandatory for enabling AWS integrations, including TargetGroup verification. If the Argo Rollouts controller does not have the correct AWS region specified, or lacks access to validate the AWS ALB, the promotion process will fail. Ensure that the necessary AWS API permissions are granted to the controller and that the region is correctly configured.
@@ -315,24 +310,23 @@ spec:
 For this feature to work, the argo-rollouts deployment requires the following AWS API permissions
 under the [Elastic Load Balancing API](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/Welcome.html):
 
-
 ```json
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Action": [
-                "elasticloadbalancing:DescribeTargetGroups",
-                "elasticloadbalancing:DescribeLoadBalancers",
-                "elasticloadbalancing:DescribeListeners",
-                "elasticloadbalancing:DescribeRules",
-                "elasticloadbalancing:DescribeTags",
-                "elasticloadbalancing:DescribeTargetHealth"
-            ],
-            "Resource": "*",
-            "Effect": "Allow"
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "elasticloadbalancing:DescribeTargetGroups",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeRules",
+        "elasticloadbalancing:DescribeTags",
+        "elasticloadbalancing:DescribeTargetHealth"
+      ],
+      "Resource": "*",
+      "Effect": "Allow"
+    }
+  ]
 }
 ```
 
@@ -340,28 +334,29 @@ There are various ways of granting AWS privileges to the argo-rollouts pods, whi
 dependent to your cluster's AWS environment, and out-of-scope of this documentation. Some solutions
 include:
 
-* AWS access and secret keys
-* [kiam](https://github.com/uswitch/kiam)
-* [kube2iam](https://github.com/jtblin/kube2iam)
-* [EKS ServiceAccount IAM Roles](https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html)
+- AWS access and secret keys
+- [kiam](https://github.com/uswitch/kiam)
+- [kube2iam](https://github.com/jtblin/kube2iam)
+- [EKS ServiceAccount IAM Roles](https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html)
 
 ### Zero-Downtime Updates with Ping-Pong feature
 
-Above there was described the recommended way by AWS to solve zero-downtime issue. Is a use a [pod readiness gate injection](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/)
-when running the AWS LoadBalancer in IP mode. There is a challenge with that approach, modifications
-of the Service selector labels (`spec.selector`) not allowed the AWS LoadBalancer controller to mutate the readiness gates.
-And Ping-Pong feature helps to deal with that challenge. At some particular moment one of the services (e.g. ping) is "wearing a
-hat" of stable service another one (e.g. pong) is "wearing a hat" of canary. At the end of the promotion step all 100% of traffic sending
-to the "canary" (e.g. pong). And then the Rollout swapped the hats of ping and pong services so the pong became a stable one.
-The Rollout status object holds the value of who is currently the stable ping or pong (`status.canary.currentPingPong`).
-And this way allows the rollout to use pod readiness gate injection as the
-services are not changing their labels at the end of the rollout progress.
+As described above, AWS recommends using [pod readiness gate injection](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/)
+when running the AWS LoadBalancer in IP mode to achieve zero-downtime updates. However, this approach presents a challenge:
+modifications to the Service selector labels (`spec.selector`) prevent the AWS LoadBalancer controller from mutating the readiness gates.
+
+The Ping-Pong feature helps address this challenge. At any given moment, one service (e.g., ping) acts as the stable service
+while another (e.g., pong) acts as the canary. At the end of the promotion step, 100% of traffic is directed
+to the "canary" (e.g., pong). The Rollout then swaps the roles of the ping and pong services, making pong the new stable service.
+The Rollout status object tracks which service is currently stable through the `status.canary.currentPingPong` field.
+This approach enables the use of pod readiness gate injection since the services maintain their labels throughout the rollout process.
 
 !!! important
 
     Ping-Pong feature available since Argo Rollouts v1.2
 
 ## Example
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -377,10 +372,10 @@ spec:
         app: nginx
     spec:
       containers:
-      - name: nginx
-        image: nginx:1.15.4
-        ports:
-        - containerPort: 80
+        - name: nginx
+          image: nginx:1.15.4
+          ports:
+            - containerPort: 80
   strategy:
     canary:
       pingPong: #Indicates that the ping-pong services enabled
@@ -391,8 +386,8 @@ spec:
           ingress: alb-ingress
           servicePort: 80
       steps:
-      - setWeight: 20
-      - pause: {}
+        - setWeight: 20
+        - pause: {}
 ```
 
 ### Custom annotations-prefix
@@ -428,6 +423,7 @@ metadata:
 ```
 
 Or with the `ingressClassName`:
+
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -438,7 +434,6 @@ spec:
 To configure the controller to operate on Ingresses with a different class name,
 you can specify a different value through the `--alb-ingress-classes` flag in
 the controller command line arguments.
-
 
 Note that the `--alb-ingress-classes` flag can be specified multiple times if the Argo Rollouts
 controller should operate on multiple values. This may be desired when a cluster has multiple

@@ -4038,7 +4038,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref common.ReferenceCallb
 					"analysisRunMetadata": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunMetadata"),
 						},
 					},
@@ -4140,7 +4139,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 					"analysisRunMetadata": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunMetadata"),
 						},
 					},
