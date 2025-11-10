@@ -1,0 +1,46 @@
+# Prometheus server configurations
+server:
+  persistentVolume:
+    enabled: false  # Disable persistence for local testing
+  service:
+    type: NodePort  # Makes Prometheus accessible outside cluster
+    nodePort: 30090 # Fixed NodePort for easier access
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
+# Disable components we don't need for testing
+alertmanager:
+  enabled: false
+
+pushgateway:
+  enabled: false
+
+# Enable and configure kube-state-metrics
+kubeStateMetrics:
+  enabled: true
+
+# Configure scrape settings
+serverFiles:
+  prometheus.yml:
+    scrape_configs:
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__

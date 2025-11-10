@@ -1,0 +1,130 @@
+Starting rollback speed measurement with scale down
+Timestamp format: seconds.nanoseconds
+Scenario: Testing rollback while scaling down from 12 to 5 replicas
+=== Test iteration 1 ===
+Scaling up to 12 replicas...
+Current replicas: 5, Ready: 5, Available: 6, Pending: 0
+Current replicas: 5, Ready: 5, Available: 6, Pending: 0
+Current replicas: 5, Ready: 5, Available: 6, Pending: 0
+Current replicas: 5, Ready: 5, Available: 6, Pending: 0
+Current replicas: 5, Ready: 5, Available: 6, Pending: 0
+Current replicas: 12, Ready: 12, Available: 12, Pending: 0
+Scale up complete with 12 available replicas
+Initial replica count: 12 (Available: 12)
+Triggering scale down to 5 replicas...
+Rollback start time: 1762808925.754710000
+T+.669751000s - Status: Healthy, Replicas: 5, Ready: 5, Available: 5
+Rollback end time: 1762808926.450152000
+Rollback duration: .695442000 seconds
+Final replica count: 5 (Ready: 5)
+Replicas scaled down: 7
+Waiting for cooldown...
+=== Test iteration 2 ===
+Scaling up to 12 replicas...
+Current replicas: 5, Ready: 5, Available: 5, Pending: 7
+Current replicas: 5, Ready: 5, Available: 5, Pending: 7
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 12, Ready: 12, Available: 12, Pending: 0
+Scale up complete with 12 available replicas
+Initial replica count: 12 (Available: 12)
+Triggering scale down to 5 replicas...
+Rollback start time: 1762809019.668441000
+T+3.493325000s - Status: Progressing - waiting for rollout spec update to be observed
+Progressing - more replicas need to be updated
+Healthy, Replicas: 15, Ready: 12, Available: 12
+T+5.947659000s - Status: Healthy, Replicas: 15, Ready: 12, Available: 12
+Rollback end time: 1762809025.622167000
+Rollback duration: 5.953726000 seconds
+Final replica count: 15 (Ready: 12)
+Replicas scaled down: -3
+Waiting for cooldown...
+=== Test iteration 3 ===
+Scaling up to 12 replicas...
+Current replicas: 5, Ready: 5, Available: 5, Pending: 7
+Current replicas: 5, Ready: 5, Available: 5, Pending: 7
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 12, Ready: 12, Available: 12, Pending: 0
+Scale up complete with 12 available replicas
+Initial replica count: 12 (Available: 12)
+Triggering scale down to 5 replicas...
+Rollback start time: 1762809109.787950000
+T+3.502691000s - Status: Progressing - waiting for rollout spec update to be observed
+Progressing - more replicas need to be updated
+Healthy, Replicas: 15, Ready: 12, Available: 12
+T+5.975406000s - Status: Healthy, Replicas: 15, Ready: 12, Available: 12
+Rollback end time: 1762809115.769935000
+Rollback duration: 5.981985000 seconds
+Final replica count: 15 (Ready: 12)
+Replicas scaled down: -3
+Waiting for cooldown...
+=== Test iteration 4 ===
+Scaling up to 12 replicas...
+Current replicas: 5, Ready: 5, Available: 5, Pending: 7
+Current replicas: 5, Ready: 5, Available: 5, Pending: 7
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 12, Ready: 12, Available: 12, Pending: 0
+Scale up complete with 12 available replicas
+Initial replica count: 12 (Available: 12)
+Triggering scale down to 5 replicas...
+Rollback start time: 1762809199.878131000
+T+27.977069000s - Status: Progressing - waiting for rollout spec update to be observed
+Progressing - more replicas need to be updated
+Healthy, Replicas: 5, Ready: 5, Available: 5
+T+30.400560000s - Status: Healthy, Replicas: 5, Ready: 5, Available: 5
+Rollback end time: 1762809230.285405000
+Rollback duration: 30.407274000 seconds
+Final replica count: 5 (Ready: 5)
+Replicas scaled down: 7
+Waiting for cooldown...
+=== Test iteration 5 ===
+Scaling up to 12 replicas...
+Current replicas: 5, Ready: 5, Available: 5, Pending: 7
+Current replicas: 5, Ready: 5, Available: 5, Pending: 7
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 5, Ready: 5, Available: 5, Pending: 0
+Current replicas: 12, Ready: 12, Available: 12, Pending: 0
+Scale up complete with 12 available replicas
+Initial replica count: 12 (Available: 12)
+Triggering scale down to 5 replicas...
+Rollback start time: 1762809323.456848000
+T+3.481677000s - Status: Progressing - waiting for rollout spec update to be observed
+Progressing - more replicas need to be updated
+Healthy, Replicas: 15, Ready: 12, Available: 12
+T+5.907843000s - Status: Healthy, Replicas: 15, Ready: 12, Available: 12
+Rollback end time: 1762809329.371503000
+Rollback duration: 5.914655000 seconds
+Final replica count: 15 (Ready: 12)
+Replicas scaled down: -3
+Waiting for cooldown...
+=== Summary ===
+Average rollback duration: 9.79062 seconds
+Min duration: .695442000 seconds
+Max duration: 30.407274000 seconds
+Average replicas scaled down during rollback: 1

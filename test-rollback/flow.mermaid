@@ -1,0 +1,98 @@
+flowchart TD
+
+%% SECTION: CREATION & SPEC CHANGE
+A[Rollout Created / Updated\n(spec.template or steps change)] --> B{PodTemplateOrStepsChanged?}
+B -- Yes --> B1[Sync ReplicaSets & Revision\nreset step index if needed\n(rollout/canary.go:21-41,\nstatus reset logic 377-444)]
+B1 --> B2[Persist Status & Exit Loop]
+B -- No --> C[Fetch & Sync All ReplicaSets\n(getAllReplicaSetsAndSyncRevision)]
+
+%% POD RESTART SAFETY
+C --> D[Pod Restarter Reconcile\nIf pods restarted return early\n(cause availability recalibration)\n(canary.go:42-68)]
+D -->|Restarted > 0| B2
+D -->|No restarts| E[Ephemeral Metadata / History Limit / Services\n(reconcileEphemeralMetadata,\nreconcileRevisionHistoryLimit,\nreconcilePingAndPongService,\nreconcileStableAndCanaryService)]
+
+%% TRAFFIC ROUTING + EXPERIMENTS
+E --> F[Traffic Routing Reconcile\n(canary.go:42-68)]
+F --> G[Experiments Reconcile]
+
+%% ANALYSIS (INLINE + BACKGROUND)
+G --> H[Analysis Reconcile\n(step-based + background)\n(analysis.go:74-86, 331-347, 388-404)]
+H --> H1{Pause due to Inconclusive?\n(analysis phase INCONCLUSIVE)}
+H1 -- Yes --> H2[Add Pause Condition\n(status.pauseConditions)\nReturn Early]
+H1 -- No --> I[Proceed to Scaling Phase]
+
+%% SCALING PHASE
+I --> J{Halt Progress?\n(pause, abort, promoteFull)\n(canary.go:453-489)}
+J -- Yes --> K[Skip Scaling\n(ReplicaSets unchanged)]
+J -- No --> L[Remove ScaleDown Deadlines]
+L --> M[Scale Stable RS (if distinct)\n(reconcileCanaryStableReplicaSet)\nWeights vs Replica math]
+M --> N{Scaled Stable RS?}
+N -- Yes --> B2
+N -- No --> O[Scale New RS\n(reconcileNewReplicaSet)]
+O --> P{Scaled New RS?}
+P -- Yes --> B2
+P -- No --> Q[Scale Down Old RSs\n(scaleDownOldReplicaSetsForCanary)\nBasic: must reach 0\nTraffic-routed: can remain]
+Q --> R{Further ScaleDown Pending?}
+R -- Yes --> B2
+R -- No --> S[All Desired Replica Counts Met?]
+
+%% PAUSE STEP RECONCILIATION
+S --> T[Reconcile Pause Step\n(canary.go:136-174)]
+T --> U{Current Step is Pause?}
+U -- No --> V[Skip Pause Handling]
+U -- Yes --> W{PauseCondition Exists?}
+W -- No --> W1[Add PauseCondition & ControllerPause\n(wait duration or manual promote)]
+W1 --> B2
+W -- Yes --> W2{Duration Specified?}
+W2 -- No --> B2
+W2 -- Yes --> W3[Enqueue for future (duration wait)]
+W3 --> B2
+
+%% STEP PLUGIN (EXTENSIBILITY)
+V --> X[Step Plugin Reconcile\n(stepPluginContext.reconcile)]
+X --> Y[Compute New Status\n(syncRolloutStatusCanary)\nEvaluate Promotion / Step Advancements]
+
+%% STATUS UPDATE LOGIC
+Y --> Z{PodTemplate/Steps Changed?\n(re-evaluate fast rollback)}
+Z -- Yes --> Z1[Reset Status Fields\n(currentStepIndex=0 unless skipping)\nIf moved back to Stable or Active within window → Skip Steps]
+Z1 --> Z2[Calculate Conditions & Persist]
+Z -- No --> AA{PromoteFull Flag OR Rollback Window?}
+AA -- Yes --> AB[Clear Pause/Abort\nSet currentStepIndex=stepCount\nMark for Full Promotion]
+AB --> AC[shouldFullPromote()? → Reason]
+AA -- No --> AC{shouldFullPromote()?}
+AC -- Reason Found --> AD[Promote Stable RS\n(StableRS = CurrentPodHash)\nClear analysis state]
+AD --> Z2
+AC -- No Reason --> AE{Aborted? (pauseContext.IsAborted)}
+AE -- Yes --> AF{CurrentPodHash == StableRS?}
+AF -- Yes --> AG[Set currentStepIndex=stepCount]
+AF -- No --> AH[Reset currentStepIndex=0]
+AG --> Z2
+AH --> Z2
+AE -- No --> AI{Completed Current Canary Step?\n(replica thresholds, pause elapsed, analysis success)}
+AI -- Yes --> AJ[Increment currentStepIndex\nClear CurrentStepAnalysisRun\nRemove PauseCondition\nEmit StepCompleted Event]
+AJ --> Z2
+AI -- No --> AK[Maintain currentStepIndex]
+AK --> Z2
+
+%% FINAL PERSIST
+Z2[Persist Updated Status\n(conditions, phase, message,\nselector adjustments)\nExit Loop]
+
+%% PROMOTION & END STATE
+Z2 --> AL{All Steps Completed?}
+AL -- Yes --> AM[StableRS = CurrentPodHash\nPhase Healthy]
+AL -- No --> AN[Phase Progressing / Paused / Degraded Depending On Conditions]
+
+%% ROLLBACK PATHS
+AN --> RO{Rollback Triggered?\n(Older spec re-applied)}
+RO -- Within Window --> ROW[Fast Track Skip Steps\n(currentStepIndex=stepCount)]
+ROW --> AD
+RO -- To Stable RS Before Completion --> ROS[SkipSteps: "Rollback to stable"]
+ROS --> AD
+RO -- Outside Window --> RON[Normal Update Flow (restart steps)]
+RON --> B2
+
+%% ABORT PATH (FAILED ANALYSIS)
+AN --> ABRT{Analysis Failed/Error?}
+ABRT -- Yes --> ABRT1[Add Abort Condition\nTraffic weight reverts\nPhase Degraded\nAwait Retry/Undo]
+ABRT1 --> B2
+ABRT -- No --> B2

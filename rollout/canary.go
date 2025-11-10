@@ -163,7 +163,8 @@ func (c *rolloutContext) reconcileCanaryPause() bool {
 	c.checkEnqueueRolloutDuringWait(cond.StartTime, currentStep.Pause.DurationSeconds())
 	return true
 }
-
+// TODO: cumulative max unavailable Rollback spacing also respects maxUnavailable constraints. 
+// Before scaling down any non-needed RS (including an intermediate canary or previous versions), the controller computes:
 // scaleDownOldReplicaSetsForCanary scales down old replica sets when rollout strategy is "canary".
 func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.ReplicaSet) (int32, error) {
 	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block rollout
@@ -355,6 +356,8 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	return false
 }
 
+
+// TODO: Also handles rollback
 func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus := c.calculateBaseStatus()
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
@@ -369,6 +372,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(c.rollout)
 	stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
 
+	// TODO: Dynamic rollback to stable handling
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
 		c.resetRolloutStatus(&newStatus)
 		if c.newRS != nil && stepCount > 0 {
@@ -403,7 +407,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
-
+	// Handle explicit abort
 	if c.pauseContext.IsAborted() {
 		if stepCount > int32(0) {
 			if newStatus.StableRS == newStatus.CurrentPodHash {
@@ -429,7 +433,12 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus = c.calculateRolloutConditions(newStatus)
 	return c.persistRolloutStatus(&newStatus)
 }
-
+// // reconcileCanaryReplicaSets executes in this order:
+// scaledStableRS, err := c.reconcileCanaryStableReplicaSet()
+// ...
+// scaledNewRS, err := c.reconcileNewReplicaSet()
+// ...
+// scaledDown, err := c.reconcileOtherReplicaSets()
 func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 	if haltReason := c.haltProgress(); haltReason != "" {
 		c.log.Infof("Skipping canary/stable ReplicaSet reconciliation: %s", haltReason)

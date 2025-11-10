@@ -1,0 +1,344 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: example-rollout
+  namespace: default
+  annotations:
+    rollouts.argoproj.io/revision: "1"
+    rollouts.argoproj.io/rollback-monitoring: "true"
+    rollouts.argoproj.io/rollback-timing: "enabled"  # Add this line
+spec:
+  replicas: 10
+  strategy:
+    canary:
+      # Add Istio traffic routing configuration
+      trafficRouting:
+        istio:
+          virtualService:
+            name: example-vsvc   # References the VirtualService
+            routes:
+            - primary           # Name of the HTTP route in VirtualService
+          destinationRule:
+            name: example-dr    # References the DestinationRule
+            canarySubsetName: canary
+            stableSubsetName: stable
+      # Keep existing canary settings
+      dynamicStableScale: true
+      maxSurge: 50%
+      maxUnavailable: 10
+      steps:
+      - setWeight: 20
+      # - pause: {duration: 3s}
+      - analysis:
+          templates:
+          - templateName: success-rate
+          args:
+          - name: service-name
+            value: example-rollout
+      - setWeight: 40
+      # - pause: {duration: 3s}
+      - analysis:
+          templates:
+          - templateName: success-rate
+          args:
+          - name: service-name
+            value: example-rollout
+      - setWeight: 60
+      # - pause: {duration: 3s}
+      - analysis:
+          templates:
+          - templateName: success-rate
+          args:
+          - name: service-name
+            value: example-rollout
+      - setWeight: 80
+      # - pause: {duration: 3s}
+      - analysis:
+          templates:
+          - templateName: success-rate
+          args:
+          - name: service-name
+            value: example-rollout
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: example-app
+  template:
+    metadata:
+      labels:
+        app: example-app
+        prometheus.io/scrape: "true"    # Add these as labels too
+        prometheus.io/port: "9113"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9113"   # Changed from 8080 to 9113
+        prometheus.io/path: "/metrics"
+        prometheus.io/path: "/metrics"
+    spec:
+      volumes:                    # Add volume section
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+      - name: nginx-main-config    # Add new volume
+        configMap:
+          name: nginx-main-config
+      containers:
+      - name: example-app
+        image: nginx:1.21.0
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/custom-server.conf
+          subPath: custom-server.conf
+        - name: nginx-main-config  # Add new mount
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        ports:
+        - name: http
+          containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /health    # Changed from / to /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health    # Changed from / to /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        resources:
+          requests:
+            cpu: 100m    # Increased for HPA
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      - name: nginx-exporter    # Add this container
+        image: nginx/nginx-prometheus-exporter:0.11.0
+        args:
+          - -nginx.scrape-uri=http://localhost:8080/metrics
+        ports:
+          - name: metrics
+            containerPort: 9113
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-main-config
+data:
+  nginx.conf: |
+    events {
+        worker_connections  1024;
+    }
+    
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+        
+        include /etc/nginx/conf.d/*.conf;
+    }
+---
+# Update existing nginx-config ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  custom-server.conf: |
+    server {
+        listen 8080 default_server;
+        listen [::]:8080 default_server;
+        server_name _;
+
+        # Metrics endpoint
+        location /metrics {
+            stub_status on;
+            access_log off;
+            allow all;
+        }
+
+        # Health check endpoint
+        location = /health {
+            access_log off;
+            add_header Content-Type text/plain;
+            return 200 'OK';
+        }
+
+        # Main application
+        location / {
+            default_type text/html;
+            return 200 'Hello from Argo Rollouts';
+        }
+    }
+---
+# Add VirtualService for Istio traffic routing
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: example-vsvc
+spec:
+  hosts:
+  - example-rollout
+  gateways:
+  - mesh  # enable mesh-internal routing
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: example-rollout
+        subset: stable
+      weight: 100
+    - destination:
+        host: example-rollout
+        subset: canary
+      weight: 0
+---
+# Add DestinationRule for defining subsets
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: example-dr
+spec:
+  host: example-rollout
+  subsets:
+  - name: stable
+    labels:
+      app: example-app
+      rollouts-pod-template-hash: stable
+  - name: canary
+    labels:
+      app: example-app
+      rollouts-pod-template-hash: canary
+---
+# Update the main Service - only one needed with Istio
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-rollout
+  labels:
+    app: example-app
+    metrics: nginx
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 9113
+    targetPort: 9113
+    protocol: TCP
+    name: metrics
+  selector:
+    app: example-app
+---
+# Required AnalysisTemplate for the rollout
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  metrics:
+  - name: success-rate
+    interval: 5s
+    count: 5              # Increased from 2 to 5
+    failureLimit: 2       # Reduced from 3 to 2
+    successCondition: result[0] >= 0.95
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus-operated.monitoring.svc.cluster.local:9090
+        query: |
+          sum(rate(
+            nginx_server_requests{kubernetes_pod_name=~"example-rollout-.*",status!~"5.*"}[1m]
+          )) / 
+          sum(rate(
+            nginx_server_requests{kubernetes_pod_name=~"example-rollout-.*"}[1m]
+          ))
+---
+# apiVersion: autoscaling/v2
+# kind: HorizontalPodAutoscaler
+# metadata:
+#   name: example-rollout-hpa
+# spec:
+#   scaleTargetRef:
+#     apiVersion: argoproj.io/v1alpha1
+#     kind: Rollout
+#     name: example-rollout
+#   minReplicas: 5
+#   maxReplicas: 20
+#   metrics:
+#   - type: Resource
+#     resource:
+#       name: cpu
+#       target:
+#         type: Utilization
+#         averageUtilization: 50
+#   behavior:
+#     scaleUp:
+#       stabilizationWindowSeconds: 60
+#     scaleDown:
+#       stabilizationWindowSeconds: 120
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-load-test
+spec:
+  template:
+    spec:
+      containers:
+      - name: k6
+        image: grafana/k6:latest
+        command: ["k6", "run", "/scripts/load-test.js"]
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+      volumes:
+      - name: scripts
+        configMap:
+          name: k6-test-script
+      restartPolicy: Never
+  backoffLimit: 1
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: example-rollout
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: example-app
+  namespaceSelector:
+    matchNames:
+    - default
+  endpoints:
+  - port: metrics
+    targetPort: 9113
+    path: /metrics
+    interval: 15s
+    relabelings:             # Changed from relabelConfigs to relabelings
+    - sourceLabels: [__meta_kubernetes_pod_container_port_number]
+      action: keep
+      regex: "9113"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: example-rollout
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: example-app
+  podMetricsEndpoints:
+  - port: metrics
+    targetPort: 9113    # Changed to nginx-exporter port
+    path: /metrics
+    interval: 15s

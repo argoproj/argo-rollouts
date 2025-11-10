@@ -248,16 +248,19 @@ func (c *rolloutContext) reconcilePingAndPongService() error {
 	}
 	return nil
 }
-
+// TODO: 1st step of reconciliation of stable and canary services for canary rollouts.
 func (c *rolloutContext) reconcileStableAndCanaryService() error {
 	if c.rollout.Spec.Strategy.Canary == nil {
 		return nil
 	}
+
+	// First ensure stable service points to stable RS
 	err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS, true)
 	if err != nil {
 		return err
 	}
-
+	
+	// Handle abort case
 	if c.pauseContext != nil && c.pauseContext.IsAborted() && c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
 		if err != nil {
@@ -265,7 +268,8 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		}
 		return nil
 	}
-
+	
+	// TODO: Handle rolling back to stable case
 	if dynamicallyRollingBackToStable, currSelector := isDynamicallyRollingBackToStable(c.rollout, c.newRS); dynamicallyRollingBackToStable {
 		// User may have interrupted an update in order go back to stableRS, and is using dynamic
 		// stable scaling. If that is the case, the stableRS might be undersized and if we blindly
@@ -277,6 +281,7 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		return nil
 	}
 
+	// Normal case - point canary service to new RS
 	err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS, true)
 	if err != nil {
 		return err
@@ -309,6 +314,7 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet,
 			// See PR: https://github.com/argoproj/argo-rollouts/pull/1777
 
 			// ensure ReplicaSet is fully available, otherwise we will point the service to nothing or an underprovisioned ReplicaSet
+			// 
 			if checkRsAvailability && !replicasetutil.IsReplicaSetAvailable(rs) {
 				logCtx.Infof("delaying service switch from %s to %s: ReplicaSet not fully available", currSelector, desiredSelector)
 				return nil
@@ -323,7 +329,7 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet,
 			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet has zero availability", currSelector, desiredSelector)
 			return nil
 		}
-
+		// TODO: Switch if the RS is fully available.
 		err = c.switchServiceSelector(svc, desiredSelector, c.rollout)
 		if err != nil {
 			return err

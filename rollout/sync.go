@@ -905,6 +905,7 @@ func (c *rolloutContext) isRollbackWithinWindow() bool {
 		return false
 	}
 	// first check if this is a rollback
+	// read new as target?
 	if c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) {
 		// then check if we are within window
 		if c.rollout.Spec.RollbackWindow != nil {
@@ -931,6 +932,10 @@ func (c *rolloutContext) isRollbackWithinWindow() bool {
 	}
 	return false
 }
+
+// shouldFullPromote() checks that:
+// New RS available replicas match desired spec.replicas, or
+// Replica progress threshold condition (ReplicaProgressThresholdMet) passes.
 
 // shouldFullPromote returns a reason string explaining why a rollout should fully promote, marking
 // the desired ReplicaSet as stable. Returns empty string if the rollout is in middle of update
