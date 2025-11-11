@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"os"
 	"path"
 	"regexp"
 	"strconv"
@@ -24,6 +25,7 @@ var (
 const (
 	ContentType   = "Content-Type"
 	ContentLength = "Content-Length"
+	CacheControl  = "Cache-Control"
 )
 
 func (s *ArgoRolloutsServer) staticFileHttpHandler(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +77,12 @@ func (s *ArgoRolloutsServer) staticFileHttpHandler(w http.ResponseWriter, r *htt
 
 	w.Header().Set(ContentType, determineMimeType(embedPath))
 	w.Header().Set(ContentLength, strconv.Itoa(len(fileBytes)))
+	// Set the Cache-Control header if specified in the environment variable
+	// This can be used to enable in-browser cache of static files
+	cacheControl := os.Getenv("CACHE_CONTROL_HEADER")
+	if cacheControl != "" {
+		w.Header().Set("Cache-Control", cacheControl)
+	}
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(fileBytes)
 	if err != nil {
