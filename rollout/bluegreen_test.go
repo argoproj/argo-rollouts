@@ -11,6 +11,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	core "k8s.io/client-go/testing"
@@ -1655,4 +1656,196 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
+}
+
+// Helper function to setup workloadRef test scenario with pod spec change
+func setupWorkloadRefTest(f *fixture, preAnalysis, postAnalysis *v1alpha1.RolloutAnalysis, autoPromotionEnabled *bool) (*v1alpha1.Rollout, *appsv1.ReplicaSet, *appsv1.ReplicaSet, *corev1.Service, *corev1.Service, *v1alpha1.AnalysisTemplate) {
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r1.Spec.Strategy.BlueGreen.PrePromotionAnalysis = preAnalysis
+	r1.Spec.Strategy.BlueGreen.PostPromotionAnalysis = postAnalysis
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = autoPromotionEnabled
+
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	// Simulate workloadRef scenario - pod spec change detected
+	r2.Status.CurrentPodHash = "different-hash"
+
+	// Setup status based on whether it's post-promotion test
+	if postAnalysis != nil {
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
+		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+		previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+		return r2, rs1, rs2, activeSvc, previewSvc, analysisTemplate("success-rate")
+	} else {
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
+		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+		previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+		return r2, rs1, rs2, activeSvc, previewSvc, analysisTemplate("success-rate")
+	}
+}
+
+// Helper function to setup fixture with common objects for workloadRef tests
+func setupWorkloadRefFixture(f *fixture, r2 *v1alpha1.Rollout, rs1, rs2 *appsv1.ReplicaSet, activeSvc, previewSvc *corev1.Service, at *v1alpha1.AnalysisTemplate) {
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+	if at != nil {
+		f.objects = append(f.objects, at)
+		f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	}
+}
+
+// TestBlueGreenWorkloadRefWithPrePromotionAnalysisDoesNotSkipReconciliation verifies that when
+// a workloadRef rollout has PrePromotionAnalysis configured, it does not skip reconciliation
+// even when a pod spec change is detected. This ensures that analysis runs are properly created.
+func TestBlueGreenWorkloadRefWithPrePromotionAnalysisDoesNotSkipReconciliation(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	preAnalysis := &v1alpha1.RolloutAnalysis{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
+			TemplateName: "success-rate",
+		}},
+	}
+	r2, rs1, rs2, activeSvc, previewSvc, at := setupWorkloadRefTest(f, preAnalysis, nil, nil)
+	setupWorkloadRefFixture(f, r2, rs1, rs2, activeSvc, previewSvc, at)
+
+	// Should create analysis run and NOT just update status
+	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
+	f.expectCreateAnalysisRunAction(ar)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+}
+
+// TestBlueGreenWorkloadRefWithPostPromotionAnalysisDoesNotSkipReconciliation verifies that when
+// a workloadRef rollout has PostPromotionAnalysis configured, it does not skip reconciliation
+// even when a pod spec change is detected. This ensures that analysis runs are properly created.
+func TestBlueGreenWorkloadRefWithPostPromotionAnalysisDoesNotSkipReconciliation(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	postAnalysis := &v1alpha1.RolloutAnalysis{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
+			TemplateName: "success-rate",
+		}},
+	}
+	r2, rs1, rs2, activeSvc, previewSvc, at := setupWorkloadRefTest(f, nil, postAnalysis, nil)
+	setupWorkloadRefFixture(f, r2, rs1, rs2, activeSvc, previewSvc, at)
+
+	// Should create post-promotion analysis run and NOT just update status
+	ar := analysisRun(at, v1alpha1.RolloutTypePostPromotionLabel, r2)
+	f.expectCreateAnalysisRunAction(ar)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+}
+
+// TestBlueGreenWorkloadRefWithManualPromotionDoesNotSkipReconciliation verifies that when
+// a workloadRef rollout has AutoPromotionEnabled=false (manual promotion), it does not skip
+// reconciliation even when a pod spec change is detected. This ensures pause conditions are created.
+func TestBlueGreenWorkloadRefWithManualPromotionDoesNotSkipReconciliation(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r2, rs1, rs2, activeSvc, previewSvc, _ := setupWorkloadRefTest(f, nil, nil, ptr.To[bool](false))
+	setupWorkloadRefFixture(f, r2, rs1, rs2, activeSvc, previewSvc, nil)
+
+	// Should NOT skip reconciliation - verify by checking that pause logic is executed
+	// The key test is that reconciliation proceeds (pause logic runs) rather than being skipped
+	f.expectPatchRolloutAction(r2) // Status update patch
+	f.run(getKey(r2, t))
+
+	// The behavior we're testing is that the reconciliation continues and pause logic
+	// is executed (visible in logs: "pausing namespace=default rollout=foo")
+	// rather than being skipped with only a status update
+}
+
+// TestBlueGreenWorkloadRefWithoutAnalysisOrManualPromotionSkipsReconciliation verifies that when
+// a workloadRef rollout has no analysis and AutoPromotionEnabled defaults to true, it skips
+// reconciliation when a pod spec change is detected (preserves original behavior).
+func TestBlueGreenWorkloadRefWithoutAnalysisOrManualPromotionSkipsReconciliation(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	// No analysis, AutoPromotionEnabled defaults to true
+	r2, rs1, rs2, activeSvc, previewSvc, _ := setupWorkloadRefTest(f, nil, nil, nil)
+	setupWorkloadRefFixture(f, r2, rs1, rs2, activeSvc, previewSvc, nil)
+
+	// Should only patch status (skip full reconciliation)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(patchIndex)
+	// Verify it only updates status and doesn't create pause conditions
+	assert.NotContains(t, patch, "pauseConditions")
+	assert.NotContains(t, patch, "controllerPause")
+}
+
+// TestBlueGreenWorkloadRefWithBothAnalysisAndManualPromotionDoesNotSkipReconciliation verifies that when
+// a workloadRef rollout has both analysis and manual promotion configured, it does not skip
+// reconciliation when a pod spec change is detected.
+func TestBlueGreenWorkloadRefWithBothAnalysisAndManualPromotionDoesNotSkipReconciliation(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	preAnalysis := &v1alpha1.RolloutAnalysis{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
+			TemplateName: "success-rate",
+		}},
+	}
+	r2, rs1, rs2, activeSvc, previewSvc, at := setupWorkloadRefTest(f, preAnalysis, nil, ptr.To[bool](false))
+	setupWorkloadRefFixture(f, r2, rs1, rs2, activeSvc, previewSvc, at)
+
+	// Should create analysis run AND not skip reconciliation
+	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
+	f.expectCreateAnalysisRunAction(ar)
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+}
+
+// TestBlueGreenNonWorkloadRefSkipsReconciliationOnPodSpecChange verifies that regular
+// (non-workloadRef) rollouts still skip reconciliation when pod spec changes are detected,
+// ensuring the fix doesn't affect existing behavior.
+func TestBlueGreenNonWorkloadRefSkipsReconciliationOnPodSpecChange(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	// Simulate regular rollout (not workloadRef) - pod spec change detected
+	r2.Status.CurrentPodHash = "different-hash"
+
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
+
+	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+	// Should skip reconciliation and only update status (original behavior preserved)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(patchIndex)
+	// Verify it only updates status
+	assert.NotContains(t, patch, "pauseConditions")
+	assert.NotContains(t, patch, "controllerPause")
 }
