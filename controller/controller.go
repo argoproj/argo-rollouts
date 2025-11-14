@@ -97,13 +97,15 @@ const (
 	// DefaultLeaderElectionRetryPeriod is the default time in seconds that the leader election clients should wait between tries of actions
 	DefaultLeaderElectionRetryPeriod = 2 * time.Second
 
-	defaultLeaderElectionLeaseLockName = "argo-rollouts-controller-lock"
+	// DefaultLeaderElectionLeaseLockName is the default name of the lease lock used for leader election
+	DefaultLeaderElectionLeaseLockName = "argo-rollouts-controller-lock"
 	listenAddr                         = "0.0.0.0:%d"
 )
 
 type LeaderElectionOptions struct {
 	LeaderElect                 bool
 	LeaderElectionNamespace     string
+	LeaderElectionLeaseLockName string
 	LeaderElectionLeaseDuration time.Duration
 	LeaderElectionRenewDeadline time.Duration
 	LeaderElectionRetryPeriod   time.Duration
@@ -113,6 +115,7 @@ func NewLeaderElectionOptions() *LeaderElectionOptions {
 	return &LeaderElectionOptions{
 		LeaderElect:                 DefaultLeaderElect,
 		LeaderElectionNamespace:     defaults.Namespace(),
+		LeaderElectionLeaseLockName: DefaultLeaderElectionLeaseLockName,
 		LeaderElectionLeaseDuration: DefaultLeaderElectionLeaseDuration,
 		LeaderElectionRenewDeadline: DefaultLeaderElectionRenewDeadline,
 		LeaderElectionRetryPeriod:   DefaultLeaderElectionRetryPeriod,
@@ -493,6 +496,10 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 			log.Fatalf("Error getting hostname for leader election %v", err)
 		}
 
+		if electOpts.LeaderElectionLeaseLockName == "" {
+			log.Fatalf("Error LeaderElectionLeaseLockName is empty")
+		}
+
 		if electOpts.LeaderElectionNamespace == "" {
 			log.Fatalf("Error LeaderElectionNamespace is empty")
 		}
@@ -502,7 +509,7 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 		log.Infof("Leaderelection get id %s", id)
 		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 			Lock: &resourcelock.LeaseLock{
-				LeaseMeta: metav1.ObjectMeta{Name: defaultLeaderElectionLeaseLockName, Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
+				LeaseMeta: metav1.ObjectMeta{Name: electOpts.LeaderElectionLeaseLockName, Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
 				LockConfig: resourcelock.ResourceLockConfig{Identity: id},
 			},
 			ReleaseOnCancel: false, // We can not set this to true because our context is sent on sig which means our code
