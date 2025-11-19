@@ -26,6 +26,7 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBIngressWithPorts":                             schema_pkg_apis_rollouts_v1alpha1_ALBIngressWithPorts(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBStatus":                                       schema_pkg_apis_rollouts_v1alpha1_ALBStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting":                               schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting":                        schema_pkg_apis_rollouts_v1alpha1_AmbassadorTrafficRouting(ref),
@@ -147,6 +148,42 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_ALBIngressWithPorts(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ingress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ingress specifies name of the ingress ServicePorts refer to",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"servicePorts": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServicePorts define list of ports to be set for the ingress",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: 0,
+										Type:    []string{"integer"},
+										Format:  "int32",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"ingress", "servicePorts"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_ALBStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -201,8 +238,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCal
 					},
 					"servicePort": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ServicePort refers to the port that the Ingress action should route traffic to",
-							Default:     0,
+							Description: "ServicePort refers to the port that the Ingress action should route traffic to. Can be omitted if ports for each Ingress from .Ingresses list specified via ServicePorts",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -242,12 +278,25 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCal
 							},
 						},
 					},
+					"servicePorts": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServicePorts define ports for ingresses in a multi ingress scenario, in cases when when ingress has multiple ports or has port different from specified servicePort",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBIngressWithPorts"),
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"servicePort"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StickinessConfig"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBIngressWithPorts", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StickinessConfig"},
 	}
 }
 

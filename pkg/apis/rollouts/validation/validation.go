@@ -17,6 +17,7 @@ import (
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	apivalidation "k8s.io/kubernetes/pkg/apis/core/validation"
 	"k8s.io/kubernetes/pkg/fieldpath"
+	"k8s.io/utils/strings/slices"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -86,6 +87,10 @@ const (
 	// InvalideStepRouteNameNotFoundInManagedRoutes A step has been configured that requires managedRoutes and the route name
 	// is missing from managedRoutes
 	InvalideStepRouteNameNotFoundInManagedRoutes = "Steps define a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
+
+	// ALB traffic routing errors
+	ALBServicePortsReferToUnknownIngress = "ServicePorts reference ingress which is not listed in .Ingress/.Ingresses field"
+	ALBNoServicePortsForIngress          = "Given Ingress has no associated ServicePort. Either specify default .ServicePort value or define specific ports for the Ingress under .ServicePorts"
 )
 
 // allowAllPodValidationOptions allows all pod options to be true for the purposes of rollout pod
@@ -307,6 +312,10 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 				allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("maxTrafficWeight"), canary.TrafficRouting.MaxTrafficWeight, InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins))
 			}
 		}
+
+		if canary.TrafficRouting.ALB != nil {
+			allErrs = append(allErrs, ValidateALBTrafficRouting(canary.TrafficRouting.ALB, fldPath.Child("trafficRouting", "alb"))...)
+		}
 	}
 
 	for i, step := range canary.Steps {
@@ -422,6 +431,44 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 	}
 	allErrs = append(allErrs, ValidateRolloutStrategyAntiAffinity(canary.AntiAffinity, fldPath.Child("antiAffinity"))...)
+	return allErrs
+}
+
+// ValidateALBTrafficRouting checks that all specified ingresses have proper port configured
+func ValidateALBTrafficRouting(albRouting *v1alpha1.ALBTrafficRouting, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	ingresses := albRouting.Ingresses
+	// ALB should either specify .Ingresses or .Ingress, but not both
+	if albRouting.Ingresses == nil {
+		ingresses = []string{albRouting.Ingress}
+	}
+
+	ingressPorts := make(map[string][]int32)
+	// check all ingresses in .servicePorts are also specified in .ingresses
+	if albRouting.ServicePorts != nil {
+		for i, ingressWithPorts := range albRouting.ServicePorts {
+			ingressPorts[ingressWithPorts.Ingress] = ingressWithPorts.ServicePorts
+			if !slices.Contains(ingresses, ingressWithPorts.Ingress) {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("ServicePorts").Index(i), ingressWithPorts, ALBServicePortsReferToUnknownIngress))
+			}
+		}
+	}
+	// check all ingresses have at least one port specified
+	if albRouting.Ingresses != nil {
+		for _, ingress := range ingresses {
+			if _, ok := ingressPorts[ingress]; !ok && albRouting.ServicePort == 0 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("Ingresses"), ingress, ALBNoServicePortsForIngress))
+			}
+		}
+	}
+
+	if albRouting.Ingresses == nil && albRouting.Ingress != "" {
+		if _, ok := ingressPorts[albRouting.Ingress]; !ok && albRouting.ServicePort == 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("Ingress"), albRouting.Ingress, ALBNoServicePortsForIngress))
+		}
+	}
+
 	return allErrs
 }
 
