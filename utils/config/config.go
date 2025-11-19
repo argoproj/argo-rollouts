@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,10 +21,16 @@ import (
 
 // Config is the in memory representation of the configmap with some additional fields/functions for ease of use.
 type Config struct {
-	configMap *v1.ConfigMap
-	plugins   []types.PluginItem
-	lock      *sync.RWMutex
+	configMap                   *v1.ConfigMap
+	plugins                     []types.PluginItem
+	additionalAnnotationsToSkip map[string]bool
+	lock                        *sync.RWMutex
 }
+
+const (
+	// AnnotationsToSkipConfigKey is the ConfigMap key for configuring additional annotations to skip
+	AnnotationsToSkipConfigKey = "annotationsToSkip"
+)
 
 var configMemoryCache *Config
 var mutex = &sync.RWMutex{}
@@ -70,11 +77,14 @@ func InitializeConfig(k8sClientset kubernetes.Interface, configMapName string) (
 		stepPlugins[i].Type = types.PluginTypeStep
 	}
 
+	additionalAnnotationsToSkip := parseAnnotationsToSkip(configMapCluster.Data)
+
 	mutex.Lock()
 	configMemoryCache = &Config{
-		configMap: configMapCluster,
-		plugins:   slices.Concat(trafficRouterPlugins, metricProviderPlugins, stepPlugins),
-		lock:      &sync.RWMutex{},
+		configMap:                   configMapCluster,
+		plugins:                     slices.Concat(trafficRouterPlugins, metricProviderPlugins, stepPlugins),
+		additionalAnnotationsToSkip: additionalAnnotationsToSkip,
+		lock:                        &sync.RWMutex{},
 	}
 	mutex.Unlock()
 
@@ -84,6 +94,28 @@ func InitializeConfig(k8sClientset kubernetes.Interface, configMapName string) (
 	}
 
 	return configMemoryCache, nil
+}
+
+// parseAnnotationsToSkip parses the annotationsToSkip configuration from ConfigMap data
+func parseAnnotationsToSkip(data map[string]string) map[string]bool {
+	additionalAnnotationsToSkip := make(map[string]bool)
+	annotationsData, exists := data[AnnotationsToSkipConfigKey]
+	if !exists || annotationsData == "" {
+		return additionalAnnotationsToSkip
+	}
+
+	var annotations []string
+	if err := yaml.Unmarshal([]byte(annotationsData), &annotations); err != nil {
+		// If YAML parsing fails, try comma-separated format
+		annotations = strings.Split(annotationsData, ",")
+	}
+	for _, annotation := range annotations {
+		annotation = strings.TrimSpace(annotation)
+		if annotation != "" {
+			additionalAnnotationsToSkip[annotation] = true
+		}
+	}
+	return additionalAnnotationsToSkip
 }
 
 // GetConfig returns the initialized in memory config object if it exists otherwise errors if InitializeConfig has not been called.
@@ -143,4 +175,17 @@ func GetPluginDirectoryAndFilename(pluginName string) (directory string, filenam
 	plugin := matches[0][2]
 
 	return namespace, plugin, nil
+}
+
+// GetAdditionalAnnotationsToSkip returns the map of additional annotations that should be skipped
+// when copying annotations from rollouts to replica sets
+func (c *Config) GetAdditionalAnnotationsToSkip() map[string]bool {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	// Return a copy of the map to prevent external modifications
+	result := make(map[string]bool)
+	for k, v := range c.additionalAnnotationsToSkip {
+		result[k] = v
+	}
+	return result
 }

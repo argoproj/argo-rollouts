@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/config"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -224,9 +225,33 @@ var annotationsToSkip = map[string]bool{
 	NotificationEngineAnnotation:       true,
 }
 
+var additionalAnnotationsToSkip = make(map[string]bool)
+
+// InitializeAnnotationsToSkip loads additional annotations to skip from config
+func InitializeAnnotationsToSkip() error {
+	cfg, err := config.GetConfig()
+	if err != nil || cfg == nil {
+		return err
+	}
+
+	// Clear to load current set of annotations
+	additionalAnnotationsToSkip = make(map[string]bool)
+
+	configuredAnnotations := cfg.GetAdditionalAnnotationsToSkip()
+	for k := range configuredAnnotations {
+		additionalAnnotationsToSkip[k] = true
+	}
+
+	return nil
+}
+
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key
 func skipCopyAnnotation(key string) bool {
-	return annotationsToSkip[key]
+	if annotationsToSkip[key] {
+		return true
+	}
+	// Check configured additional annotations
+	return additionalAnnotationsToSkip[key]
 }
 
 // copyRolloutAnnotationsToReplicaSet copies rollout's annotations to replica set's annotations,

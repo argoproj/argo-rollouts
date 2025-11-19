@@ -15,6 +15,7 @@ import (
 
 	goPlugin "github.com/hashicorp/go-plugin"
 
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -239,6 +240,11 @@ func NewAnalysisManager(
 		log.Fatalf("Failed to init config: %v", err)
 	}
 
+	err = annotations.InitializeAnnotationsToSkip()
+	if err != nil {
+		log.Fatalf("Failed to initialize annotations to skip: %v", err)
+	}
+
 	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{}, kubeclientset)
 	if err != nil {
 		log.Fatalf("Failed to download plugins: %v", err)
@@ -447,6 +453,11 @@ func NewManager(
 	_, err := rolloutsConfig.InitializeConfig(kubeclientset, defaults.DefaultRolloutsConfigMapName)
 	if err != nil {
 		log.Fatalf("Failed to init config: %v", err)
+	}
+
+	err = annotations.InitializeAnnotationsToSkip()
+	if err != nil {
+		log.Fatalf("Failed to initialize annotations to skip: %v", err)
 	}
 
 	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{}, kubeclientset)
