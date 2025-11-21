@@ -240,7 +240,7 @@ func (c *rolloutContext) reconcileAnalysisRunStatusChanges(currARs analysisutil.
 
 func (c *rolloutContext) reconcilePrePromotionAnalysisRun() (*v1alpha1.AnalysisRun, error) {
 	currentAr := c.currentArs.BlueGreenPrePromotion
-	if c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil {
+	if c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil || len(c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis.Templates) == 0 {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
@@ -298,7 +298,7 @@ func skipPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.Repli
 
 func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.AnalysisRun, error) {
 	currentAr := c.currentArs.BlueGreenPostPromotion
-	if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis == nil {
+	if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis == nil || len(c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis.Templates) == 0 {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
@@ -395,7 +395,7 @@ func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun,
 	// for promotion cases
 	analysisRunFromPreviousStep := step != nil && step.Analysis != nil && currentAr != nil && currentAr.GetLabels()[v1alpha1.RolloutCanaryStepIndexLabel] != strconv.Itoa(int(*index))
 
-	if step == nil || step.Analysis == nil || index == nil || analysisRunFromPreviousStep {
+	if step == nil || step.Analysis == nil || len(step.Analysis.Templates) == 0 || index == nil || analysisRunFromPreviousStep {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
@@ -527,7 +527,6 @@ func (c *rolloutContext) getAnalysisTemplatesFromRefs(templateRefs *[]v1alpha1.A
 				templates = append(templates, innerTemplates...)
 			}
 		}
-
 	}
 	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
 	return uniqueTemplates, uniqueClusterTemplates, nil
