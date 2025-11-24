@@ -47,7 +47,8 @@ func TestSyncCanaryEphemeralMetadataInitialRevision(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r1)
 	idx := f.expectCreateReplicaSetAction(rs1)
 	f.expectUpdateReplicaSetAction(rs1)
-	_ = f.expectPatchRolloutAction(r1)
+	f.expectPatchReplicaSetAction(rs1) // set final status to success
+	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r1, t))
 	createdRS1 := f.getCreatedReplicaSet(idx)
 	expectedLabels := map[string]string{
@@ -88,7 +89,11 @@ func TestSyncBlueGreenEphemeralMetadataInitialRevision(t *testing.T) {
 	f.expectPatchRolloutAction(r1)
 	f.expectPatchServiceAction(previewSvc, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 	f.expectUpdateReplicaSetAction(rs1) // scale replicaset
+	patchStateRs1Index := f.expectPatchReplicaSetAction(rs1)
 	f.run(getKey(r1, t))
+
+	f.verifyPatchedReplicaSetState(patchStateRs1Index, RSStateSuccess)
+
 	createdRS1 := f.getCreatedReplicaSet(idx)
 	expectedLabels := map[string]string{
 		"foo":                        "bar",
@@ -224,17 +229,21 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
-	f.expectUpdateRolloutStatusAction(r2)              // Update Rollout conditions
-	rs2idx := f.expectCreateReplicaSetAction(rs2)      // Create revision 2 ReplicaSet
-	f.expectPatchServiceAction(previewSvc, rs2PodHash) // Update preview service to point at revision 2 replicaset
-	f.expectUpdateReplicaSetAction(rs2)                // scale revision 2 ReplicaSet up
-	rs1idx := f.expectUpdateReplicaSetAction(rs1)      // update stable replicaset with stable metadata
-	f.expectListPodAction(r1.Namespace)                // list pods to patch ephemeral data on revision 1 ReplicaSets pods`
-	pod1Idx := f.expectUpdatePodAction(&pod1)          // Update pod1 with ephemeral data
-	pod2Idx := f.expectUpdatePodAction(pod2)           // Update pod2 with ephemeral data
-	f.expectPatchRolloutAction(r2)                     // Patch Rollout status
+	f.expectUpdateRolloutStatusAction(r2)                    // Update Rollout conditions
+	rs2idx := f.expectCreateReplicaSetAction(rs2)            // Create revision 2 ReplicaSet
+	f.expectPatchServiceAction(previewSvc, rs2PodHash)       // Update preview service to point at revision 2 replicaset
+	f.expectUpdateReplicaSetAction(rs2)                      // scale revision 2 ReplicaSet up
+	rs1idx := f.expectUpdateReplicaSetAction(rs1)            // update stable replicaset with stable metadata
+	f.expectListPodAction(r1.Namespace)                      // list pods to patch ephemeral data on revision 1 ReplicaSets pods`
+	pod1Idx := f.expectUpdatePodAction(&pod1)                // Update pod1 with ephemeral data
+	pod2Idx := f.expectUpdatePodAction(pod2)                 // Update pod2 with ephemeral data
+	f.expectPatchRolloutAction(r2)                           // Patch Rollout status
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status of new RS to success
 
 	f.run(getKey(r2, t))
+
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
+
 	// revision 2 replicaset should been updated to use canary metadata
 	createdRS2 := f.getCreatedReplicaSet(rs2idx)
 	expectedCanaryLabels := map[string]string{

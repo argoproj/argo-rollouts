@@ -285,7 +285,14 @@ func TestRolloutUseDesiredWeight100(t *testing.T) {
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status to success
+
 	f.run(getKey(r2, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
+
 }
 
 func TestRolloutWithExperimentStep(t *testing.T) {
@@ -559,7 +566,11 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+	patchStateRs1Index := f.expectPatchReplicaSetAction(rs1)
 	f.run(getKey(r1, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetState(patchStateRs1Index, RSStateSuccess)
 }
 
 func TestNewTrafficRoutingReconciler(t *testing.T) {
@@ -840,11 +851,15 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	rs1Patch := f.expectPatchReplicaSetAction(rs1)      // set scale-down-deadline annotation
-	rolloutPatchIndex := f.expectPatchRolloutAction(r2) // patch to update rollout status, hpa selector
+	rs1Patch := f.expectPatchReplicaSetAction(rs1)           // set scale-down-deadline annotation
+	rolloutPatchIndex := f.expectPatchRolloutAction(r2)      // patch to update rollout status, hpa selector
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2) // set final status to success
 	f.run(getKey(r2, t))
 
-	f.verifyPatchedReplicaSet(rs1Patch, 30)
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateSuccess)
+
+	f.verifyPatchedReplicaSetScaleDownDelaySeconds(rs1Patch, 30)
 	updatedRollout := f.getPatchedRollout(rolloutPatchIndex)
 	// NOTE: The hash must be updated for every k8s library upgrade
 	expectedRolloutPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
@@ -893,7 +908,12 @@ func TestCanaryWithTrafficRoutingScaleDownLimit(t *testing.T) {
 
 	rs1ScaleDownIndex := f.expectUpdateReplicaSetAction(rs1) // scale down ReplicaSet
 	_ = f.expectPatchRolloutAction(r3)                       // updates the rollout status
+
+	patchStateRs3Index := f.expectPatchReplicaSetAction(rs3)
 	f.run(getKey(r3, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetState(patchStateRs3Index, RSStateSuccess)
 
 	rs1Updated := f.getUpdatedReplicaSet(rs1ScaleDownIndex)
 	assert.Equal(t, int32(0), *rs1Updated.Spec.Replicas)
@@ -970,7 +990,10 @@ func TestDynamicScalingDontIncreaseWeightWhenAborted(t *testing.T) {
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 	f.run(getKey(r1, t))
+
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateAbort)
 }
 
 // TestDynamicScalingDecreaseWeightAccordingToStepWeightsAvailabilityWhenAborted verifies we decrease the weight
@@ -1110,7 +1133,10 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAborted(t 
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 	f.run(getKey(r1, t))
+
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateAbort)
 }
 
 // TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAbortedAndResetService verifies we decrease the weight
@@ -1183,7 +1209,10 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAbortedAnd
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+	patchStateRs2Index := f.expectPatchReplicaSetAction(rs2)
 	f.run(getKey(r1, t))
+
+	f.verifyPatchedReplicaSetState(patchStateRs2Index, RSStateAbort)
 }
 
 func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualServiceSHeaderRoute(t *testing.T) {
@@ -1414,7 +1443,11 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+	patchStateRs1Index := f.expectPatchReplicaSetAction(rs1)
 	f.run(getKey(r1, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetState(patchStateRs1Index, RSStateSuccess)
 
 	// Make sure we scale up stable ReplicaSet to 10
 	rs1Updated := f.getUpdatedReplicaSet(scaleUpIndex)
@@ -1568,6 +1601,7 @@ func TestCheckReplicaSetAvailable(t *testing.T) {
 	fix.expectUpdateReplicaSetAction(replicaSet1)
 	fix.expectUpdateRolloutAction(rollout2)
 	fix.expectUpdateReplicaSetAction(replicaSet1)
+	fix.expectPatchReplicaSetAction(replicaSet2) // set final status of new RS to success
 	fix.expectPatchRolloutAction(rollout2)
 	fix.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	fix.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything, mock.Anything).Return(nil)

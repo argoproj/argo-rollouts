@@ -983,30 +983,35 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
+func (f *fixture) getPatchedReplicaSet(index int) string { //nolint
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
 	}
 
-	rs := appsv1.ReplicaSet{}
-	err := json.Unmarshal(patchAction.GetPatch(), &rs)
-	if err != nil {
-		panic(err)
-	}
-	return &rs
+	return string(patchAction.GetPatch())
 }
 
-func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {
+func (f *fixture) verifyPatchedReplicaSetScaleDownDelaySeconds(index int, scaleDownDelaySeconds int32) {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
 	}
 	now := timeutil.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
-	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
+	patch := fmt.Sprintf(addAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
 	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
+}
+
+func (f *fixture) verifyPatchedReplicaSetState(index int, status string) {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+	}
+	patch := fmt.Sprintf(addAnnotationsPatch, v1alpha1.ReplicaSetStateKey, status)
+	assert.Equal(f.t, patch, string(patchAction.GetPatch()))
 }
 
 func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy string) {
@@ -1226,6 +1231,7 @@ func (f *fixture) assertEvents(events []string) {
 	assert.Equal(f.t, events, f.events)
 }
 
+// TODO: is this the right update to the test?
 func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1241,6 +1247,7 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.expectPatchRolloutAction(r)
 	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
 	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.expectPatchReplicaSetAction(&appsv1.ReplicaSet{}) // set final status of new RS to success
 	f.run(getKey(r, t))
 }
 
@@ -1263,7 +1270,11 @@ func TestAdoptReplicaSet(t *testing.T) {
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r) // update rollout progressing condition
 	f.expectPatchServiceAction(previewSvc, "")
 	f.expectPatchRolloutAction(r)
+	patchStateRsIndex := f.expectPatchReplicaSetAction(rs) // set final status of new RS to success
 	f.run(getKey(r, t))
+
+	// validate expected RS final-status annotation is set
+	f.verifyPatchedReplicaSetState(patchStateRsIndex, RSStateSuccess)
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
 	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
@@ -1500,6 +1511,7 @@ requests:
 		f.expectPatchRolloutAction(r)
 		rs := newReplicaSet(r, 1)
 		rsIdx := f.expectCreateReplicaSetAction(rs)
+		f.expectPatchReplicaSetAction(rs) // set final status of new RS to success
 		f.run(getKey(r, t))
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
@@ -1569,6 +1581,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectPatchReplicaSetAction(rs) // set final status of RS to success
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 	expectedPatch := `{"status":{"observedGeneration":"123"}}`
@@ -1613,6 +1626,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
 	patchIndex := f.expectPatchRolloutAction(r)
+	f.expectPatchReplicaSetAction(rs) // set final status to success
 	f.run(getKey(r, t))
 	expectedPatch := `{"status":{"observedGeneration":"123"}}`
 	patch := f.getPatchedRollout(patchIndex)
@@ -1640,6 +1654,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
 	i := f.expectPatchRolloutAction(r)
+	f.expectPatchReplicaSetAction(rs) // set final status of RS to success
 	f.objects = append(f.objects, r)
 	f.run(getKey(r, t))
 	patch := f.getPatchedRollout(i)
@@ -2509,6 +2524,8 @@ func TestWriteBackToInformer(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	f.expectPatchRolloutAction(r1)
+
+	f.expectPatchReplicaSetAction(rs1) // set final status to success
 
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	roKey := getKey(r1, t)
