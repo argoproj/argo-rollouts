@@ -27,6 +27,20 @@ $POD_SIZE: 30px;
             margin: 3px;
         }
     }
+
+    &__description {
+        margin-top: 10px;
+        font-size: 14px;
+        color: $argo-color-gray-6;
+
+        p {
+            margin-bottom: 0px;
+        }
+
+        a {
+            text-decoration: underline;
+        }
+    }
 }
 
 /*This is used as an icon in pod, analysis job and analysis nonjob */

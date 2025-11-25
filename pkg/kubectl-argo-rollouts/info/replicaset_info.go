@@ -31,9 +31,10 @@ func GetReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 				CreationTimestamp: rs.CreationTimestamp,
 				UID:               rs.UID,
 			},
-			Status:    getReplicaSetHealth(rs),
-			Replicas:  rs.Status.Replicas,
-			Available: rs.Status.AvailableReplicas,
+			Status:      getReplicaSetHealth(rs),
+			Replicas:    rs.Status.Replicas,
+			Available:   rs.Status.AvailableReplicas,
+			Description: rs.Annotations["rollouts.argoproj.io/revision-description"],
 		}
 		rsInfo.Icon = replicaSetIcon(rsInfo.Status)
 		rsInfo.Revision = int64(parseRevision(rs.ObjectMeta.Annotations))
