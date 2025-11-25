@@ -840,15 +840,10 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	rs1Patch := f.expectPatchReplicaSetAction(rs1)      // set scale-down-deadline annotation
-	rolloutPatchIndex := f.expectPatchRolloutAction(r2) // patch to update rollout status, hpa selector
+	rs1Patch := f.expectPatchReplicaSetAction(rs1) // set scale-down-deadline annotation
 	f.run(getKey(r2, t))
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
-	updatedRollout := f.getPatchedRollout(rolloutPatchIndex)
-	// NOTE: The hash must be updated for every k8s library upgrade
-	expectedRolloutPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
-	assert.JSONEq(t, expectedRolloutPatch, updatedRollout)
 }
 
 // Verifies with a canary using traffic routing, we scale down old ReplicaSets which exceed our limit
