@@ -225,7 +225,7 @@ type ExperimentAnalysisTemplateRef struct {
 	TemplateName string `json:"templateName" protobuf:"bytes,2,opt,name=templateName"`
 	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
-	ClusterScope bool `json:"clusterScope,omitempty" protobuf:"varint,3,opt,name=clusterScope"`
+	ClusterScope *bool `json:"clusterScope,omitempty" protobuf:"varint,3,opt,name=clusterScope"`
 	// Args are the arguments that will be added to the AnalysisRuns
 	// +optional
 	// +patchMergeKey=name

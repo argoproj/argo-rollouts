@@ -882,7 +882,7 @@ func (c *rolloutContext) getReferencedAnalysisTemplatesFromRef(templateRefs *[]v
 	templates := make([]*v1alpha1.AnalysisTemplate, 0)
 	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
 	for _, templateRef := range *templateRefs {
-		if templateRef.ClusterScope {
+		if templateRef.ClusterScope != nil && *templateRef.ClusterScope {
 			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
