@@ -11,7 +11,7 @@ spec:
   metrics:
     - name: web
       interval: 5s
-      inconclusiveLimit: 1
+      inconclusiveLimit: 3
       # These conditions will never match the /version response, causing inconclusive results
       successCondition: result.major == 'never-match-success'
       failureCondition: result.major == 'never-match-failure'
