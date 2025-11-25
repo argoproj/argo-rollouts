@@ -22,7 +22,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/hash"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
