@@ -5,6 +5,9 @@ kind: AnalysisTemplate
 metadata:
   name: web-background-inconclusive
 spec:
+  args:
+    - name: url-val
+      value: "https://kubernetes.default.svc/version"
   metrics:
     - name: web
       interval: 5s
@@ -14,5 +17,5 @@ spec:
       failureCondition: result.major == 'never-match-failure'
       provider:
         web:
-          url: "https://kubernetes.default.svc/version"
+          url: "{{args.url-val}}"
           insecure: true
