@@ -22,7 +22,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/hash"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -667,12 +666,12 @@ func TestMaxUnavailable(t *testing.T) {
 }
 
 func TestCheckPodSpecChange(t *testing.T) {
-	ro := v1alpha1.Rollout{}
-	rs := appsv1.ReplicaSet{}
+	ro := generateRollout("nginx")
+	rs := generateRS(ro)
 	assert.False(t, CheckPodSpecChange(&ro, &rs))
-	ro.Status.CurrentPodHash = "abc123"
+	ro.Status.CurrentPodHash = hash.ComputePodTemplateHash(&ro.Spec.Template, ro.Status.CollisionCount)
 	assert.False(t, CheckPodSpecChange(&ro, &rs))
-	rs.Labels = map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"}
+	ro.Status.CurrentPodHash = "different-hash"
 	assert.True(t, CheckPodSpecChange(&ro, &rs))
 }
 
