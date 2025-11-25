@@ -10,8 +10,8 @@ spec:
       value: "https://kubernetes.default.svc/version"
   metrics:
     - name: web
-      interval: 5s
-      inconclusiveLimit: 3
+      interval: 3s
+      inconclusiveLimit: 2
       # These conditions will never match the /version response, causing inconclusive results
       successCondition: result.major == 'never-match-success'
       failureCondition: result.major == 'never-match-failure'
