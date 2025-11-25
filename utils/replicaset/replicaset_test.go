@@ -1133,7 +1133,7 @@ func TestIfInjectedAntiAffinityRuleNeedsUpdate(t *testing.T) {
 	assert.True(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinity, ro))
 }
 
-func TestNeedsRestart(t *testing.t) {
+func TestNeedsRestart(t *testing.T) {
 	t.Run("No RestartAt set", func(t *testing.T) {
 		ro := &v1alpha1.Rollout{}
 		assert.False(t, NeedsRestart(ro))
