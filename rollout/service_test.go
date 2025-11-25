@@ -495,15 +495,10 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
 	f.expectGetEndpointsAction(ep)
-	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	f.assertEvents([]string{
 		conditions.TargetGroupUnverifiedReason,
 	})
-	patch := f.getPatchedRollout(rolloutPatchIndex)
-	// NOTE: Similar to other tests, the hash must be updated for every k8s library upgrade
-	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
-	assert.JSONEq(t, expectedPatch, patch)
 }
 
 // TestCanaryAWSVerifyTargetGroupsReady verifies we proceed with scale down of old
@@ -601,16 +596,11 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.expectGetEndpointsAction(ep)
 	scaleDownRSIndex := f.expectPatchReplicaSetAction(rs1)
 
-	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	f.verifyPatchedReplicaSet(scaleDownRSIndex, 30)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
 	})
-	patch := f.getPatchedRollout(rolloutPatchIndex)
-	// NOTE: Similar to other tests, the hash must be updated for every k8s library upgrade
-	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
-	assert.JSONEq(t, expectedPatch, patch)
 }
 
 // TestCanaryAWSVerifyTargetGroupsSkip verifies we skip unnecessary verification if scaledown
@@ -668,14 +658,8 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
-	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t)) // there should be no api calls
 	f.assertEvents(nil)
-
-	patch := f.getPatchedRollout(patchIndex)
-	// NOTE: Similar to other tests, the hash must be updated for every k8s library upgrade
-	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
-	assert.Equal(t, expectedPatch, patch)
 }
 
 // TestShouldVerifyTargetGroups returns whether or not we should verify the target group
