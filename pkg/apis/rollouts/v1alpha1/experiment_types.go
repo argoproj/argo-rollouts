@@ -235,6 +235,12 @@ type ExperimentAnalysisTemplateRef struct {
 	RequiredForCompletion bool `json:"requiredForCompletion,omitempty" protobuf:"varint,5,opt,name=requiredForCompletion"`
 }
 
+// IsClusterScope returns true if the template should be looked up at cluster scope.
+// Defaults to false (namespace scope) if ClusterScope is nil.
+func (ref *ExperimentAnalysisTemplateRef) IsClusterScope() bool {
+	return ref.ClusterScope != nil && *ref.ClusterScope
+}
+
 type ExperimentAnalysisRunStatus struct {
 	// Name is the name of the analysis
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`

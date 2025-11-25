@@ -596,6 +596,12 @@ type RolloutExperimentStepAnalysisTemplateRef struct {
 	RequiredForCompletion bool `json:"requiredForCompletion,omitempty" protobuf:"varint,5,opt,name=requiredForCompletion"`
 }
 
+// IsClusterScope returns true if the template should be looked up at cluster scope.
+// Defaults to false (namespace scope) if ClusterScope is nil.
+func (ref *RolloutExperimentStepAnalysisTemplateRef) IsClusterScope() bool {
+	return ref.ClusterScope != nil && *ref.ClusterScope
+}
+
 // RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step
 type RolloutExperimentTemplate struct {
 	// Name description of template that passed to the template
@@ -788,6 +794,12 @@ type AnalysisTemplateRef struct {
 	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
 	ClusterScope *bool `json:"clusterScope,omitempty" protobuf:"varint,2,opt,name=clusterScope"`
+}
+
+// IsClusterScope returns true if the template should be looked up at cluster scope.
+// Defaults to false (namespace scope) if ClusterScope is nil.
+func (ref *AnalysisTemplateRef) IsClusterScope() bool {
+	return ref.ClusterScope != nil && *ref.ClusterScope
 }
 
 // AnalysisRunArgument argument to add to analysisRun

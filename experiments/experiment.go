@@ -437,7 +437,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 
 	if ec.ex.Status.AvailableAt == nil {
 		// If we are not not available yet, don't start any runs
-		if analysis.ClusterScope != nil && *analysis.ClusterScope {
+		if analysis.IsClusterScope() {
 			if err := ec.verifyClusterAnalysisTemplate(analysis); err != nil {
 				msg := fmt.Sprintf("ClusterAnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
 				newStatus.Phase = v1alpha1.AnalysisPhaseError
@@ -642,7 +642,7 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 
 // newAnalysisRun generates an AnalysisRun from the experiment and template
 func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, analysisRunMetadata *v1alpha1.AnalysisRunMetadata) (*v1alpha1.AnalysisRun, error) {
-	if analysis.ClusterScope != nil && *analysis.ClusterScope {
+	if analysis.IsClusterScope() {
 		analysisTemplates, clusterAnalysisTemplates, err := ec.getAnalysisTemplatesFromClusterAnalysis(analysis)
 		if err != nil {
 			return nil, err
@@ -749,7 +749,7 @@ func (ec *experimentContext) getAnalysisTemplatesFromRefs(templateRefs *[]v1alph
 	templates := make([]*v1alpha1.AnalysisTemplate, 0)
 	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
 	for _, templateRef := range *templateRefs {
-		if templateRef.ClusterScope != nil && *templateRef.ClusterScope {
+		if templateRef.IsClusterScope() {
 			template, err := ec.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
