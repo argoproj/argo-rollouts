@@ -32,7 +32,8 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return err
 	}
 
-	if replicasetutil.CheckPodSpecChange(c.rollout, c.newRS) {
+	// Check if we should skip reconciliation due to pod spec change
+	if replicasetutil.CheckPodSpecChange(c.rollout, c.newRS) && replicasetutil.ShouldSkipBlueGreenReconciliation(c.rollout) {
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 	}
 

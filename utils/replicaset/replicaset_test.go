@@ -673,48 +673,43 @@ func TestCheckPodSpecChange(t *testing.T) {
 	assert.False(t, CheckPodSpecChange(&ro, &rs))
 	ro.Status.CurrentPodHash = "different-hash"
 	assert.True(t, CheckPodSpecChange(&ro, &rs))
+}
 
-	// Test Blue-Green strategy with analysis and manual promotion
-	t.Run("BlueGreen with PrePromotionAnalysis", func(t *testing.T) {
+func TestShouldSkipBlueGreenReconciliation(t *testing.T) {
+	t.Run("Blue-Green with PrePromotionAnalysis should not skip", func(t *testing.T) {
 		ro := generateRollout("nginx")
 		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
 			PrePromotionAnalysis: &v1alpha1.RolloutAnalysis{},
 		}
-		ro.Status.CurrentPodHash = "abc123"
-		rs := generateRS(ro)
-		rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "def456"
-		assert.False(t, CheckPodSpecChange(&ro, &rs))
+		assert.False(t, ShouldSkipBlueGreenReconciliation(&ro))
 	})
 
-	t.Run("BlueGreen with PostPromotionAnalysis", func(t *testing.T) {
+	t.Run("Blue-Green with PostPromotionAnalysis should not skip", func(t *testing.T) {
 		ro := generateRollout("nginx")
 		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
 			PostPromotionAnalysis: &v1alpha1.RolloutAnalysis{},
 		}
-		ro.Status.CurrentPodHash = "abc123"
-		rs := generateRS(ro)
-		rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "def456"
-		assert.False(t, CheckPodSpecChange(&ro, &rs))
+		assert.False(t, ShouldSkipBlueGreenReconciliation(&ro))
 	})
 
-	t.Run("BlueGreen with manual promotion", func(t *testing.T) {
+	t.Run("Blue-Green with manual promotion should not skip", func(t *testing.T) {
 		ro := generateRollout("nginx")
 		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
 			AutoPromotionEnabled: ptr.To[bool](false),
 		}
-		ro.Status.CurrentPodHash = "abc123"
-		rs := generateRS(ro)
-		rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "def456"
-		assert.False(t, CheckPodSpecChange(&ro, &rs))
+		assert.False(t, ShouldSkipBlueGreenReconciliation(&ro))
 	})
 
-	t.Run("BlueGreen without analysis or manual promotion", func(t *testing.T) {
+	t.Run("Blue-Green without analysis or manual promotion should skip", func(t *testing.T) {
 		ro := generateRollout("nginx")
 		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
-		ro.Status.CurrentPodHash = "abc123"
-		rs := generateRS(ro)
-		rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "def456"
-		assert.True(t, CheckPodSpecChange(&ro, &rs))
+		assert.True(t, ShouldSkipBlueGreenReconciliation(&ro))
+	})
+
+	t.Run("Non-Blue-Green rollout should skip", func(t *testing.T) {
+		ro := generateRollout("nginx")
+		ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
+		assert.True(t, ShouldSkipBlueGreenReconciliation(&ro))
 	})
 }
 
