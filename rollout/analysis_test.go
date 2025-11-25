@@ -56,7 +56,7 @@ func analysisTemplateWithAnalysisRefs(name string, clusterScope bool, innerRefsN
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: clusterScope,
+			ClusterScope: &clusterScope,
 		})
 	}
 	return &v1alpha1.AnalysisTemplate{
@@ -88,7 +88,7 @@ func analysisTemplateWithOnlyRefs(name string, clusterScope bool, innerRefsName 
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: clusterScope,
+			ClusterScope: &clusterScope,
 		})
 	}
 	return &v1alpha1.AnalysisTemplate{
@@ -123,7 +123,7 @@ func clusterAnalysisTemplateWithAnalysisRefs(name string, innerRefsName ...strin
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		})
 	}
 	return &v1alpha1.ClusterAnalysisTemplate{
@@ -342,7 +342,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}},
 		},
 	}
@@ -398,7 +398,7 @@ func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: "missing",
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}},
 		},
 	}
@@ -452,7 +452,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}, {
 				TemplateName: at.Name,
 			}},
@@ -533,7 +533,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplateAndInnerTempl
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}, {
 				TemplateName: at.Name,
 			}},
@@ -615,7 +615,7 @@ func TestCreateBackgroundAnalysisRunWithTemplatesAndNoMetrics(t *testing.T) {
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}, {
 				TemplateName: at.Name,
 			}},
