@@ -479,32 +479,32 @@ func checkStepHashChange(rollout *v1alpha1.Rollout) bool {
 // For Blue-Green rollouts with analysis or manual promotion, it returns false even when pod spec changes
 // are detected to ensure proper pause and analysis handling.
 func CheckPodSpecChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
-    if rollout.Status.CurrentPodHash == "" {
-        return false
-    }
-    podHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
-    if newRS != nil {
-        podHash = GetPodTemplateHash(newRS)
-    }
-    if rollout.Status.CurrentPodHash != podHash {
-        logCtx := logutil.WithRollout(rollout)
-        logCtx.Infof("Pod template change detected (new: %s, old: %s)", podHash, rollout.Status.CurrentPodHash)
-        
-        // For BlueGreen strategy, check if we should continue reconciliation despite pod spec change
-        if rollout.Spec.Strategy.BlueGreen != nil {
-            hasPrePromotionAnalysis := rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis != nil
-            hasPostPromotionAnalysis := rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil
-            needsManualPromotion := rollout.Spec.Strategy.BlueGreen.AutoPromotionEnabled != nil && !*rollout.Spec.Strategy.BlueGreen.AutoPromotionEnabled
+	if rollout.Status.CurrentPodHash == "" {
+		return false
+	}
+	podHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	if newRS != nil {
+		podHash = GetPodTemplateHash(newRS)
+	}
+	if rollout.Status.CurrentPodHash != podHash {
+		logCtx := logutil.WithRollout(rollout)
+		logCtx.Infof("Pod template change detected (new: %s, old: %s)", podHash, rollout.Status.CurrentPodHash)
 
-            // If the rollout has analysis or needs manual promotion, don't skip reconciliation
-            if hasPrePromotionAnalysis || hasPostPromotionAnalysis || needsManualPromotion {
-                return false
-            }
-        }
-        
-        return true
-    }
-    return false
+		// For BlueGreen strategy, check if we should continue reconciliation despite pod spec change
+		if rollout.Spec.Strategy.BlueGreen != nil {
+			hasPrePromotionAnalysis := rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis != nil
+			hasPostPromotionAnalysis := rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil
+			needsManualPromotion := rollout.Spec.Strategy.BlueGreen.AutoPromotionEnabled != nil && !*rollout.Spec.Strategy.BlueGreen.AutoPromotionEnabled
+
+			// If the rollout has analysis or needs manual promotion, don't skip reconciliation
+			if hasPrePromotionAnalysis || hasPostPromotionAnalysis || needsManualPromotion {
+				return false
+			}
+		}
+
+		return true
+	}
+	return false
 }
 
 // PodTemplateOrStepsChanged detects if there is a change in either the pod template, or canary steps
