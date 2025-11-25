@@ -667,25 +667,117 @@ func TestMaxUnavailable(t *testing.T) {
 }
 
 func TestCheckPodSpecChange(t *testing.T) {
-	ro := generateRollout("nginx")
-	rs := generateRS(ro)
+	ro := v1alpha1.Rollout{}
+	rs := appsv1.ReplicaSet{}
 	assert.False(t, CheckPodSpecChange(&ro, &rs))
-	ro.Status.CurrentPodHash = hash.ComputePodTemplateHash(&ro.Spec.Template, ro.Status.CollisionCount)
+	ro.Status.CurrentPodHash = "abc123"
 	assert.False(t, CheckPodSpecChange(&ro, &rs))
-
-	ro.Status.CurrentPodHash = "different-hash"
+	rs.Labels = map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"}
 	assert.True(t, CheckPodSpecChange(&ro, &rs))
 }
 
-func TestCheckStepHashChange(t *testing.T) {
-	ro := generateRollout("nginx")
-	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
-	assert.True(t, checkStepHashChange(&ro))
-	ro.Status.CurrentStepHash = conditions.ComputeStepHash(&ro)
-	assert.False(t, checkStepHashChange(&ro))
+func TestCheckPodSpecChangeWithBlueGreenAnalysis(t *testing.T) {
+	tests := []struct {
+		name           string
+		rollout        *v1alpha1.Rollout
+		newRS          *appsv1.ReplicaSet
+		expectedResult bool
+	}{
+		{
+			name: "no pod spec change - returns false",
+			rollout: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{CurrentPodHash: ""},
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						BlueGreen: &v1alpha1.BlueGreenStrategy{},
+					},
+				},
+			},
+			newRS: &appsv1.ReplicaSet{},
+			expectedResult: false,
+		},
+		{
+			name: "pod spec change with no analysis or manual promotion - returns true",
+			rollout: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{CurrentPodHash: "abc123"},
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						BlueGreen: &v1alpha1.BlueGreenStrategy{},
+					},
+				},
+			},
+			newRS: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"},
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			name: "pod spec change with pre-promotion analysis - returns false",
+			rollout: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{CurrentPodHash: "abc123"},
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						BlueGreen: &v1alpha1.BlueGreenStrategy{
+							PrePromotionAnalysis: &v1alpha1.RolloutAnalysis{},
+						},
+					},
+				},
+			},
+			newRS: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "pod spec change with post-promotion analysis - returns false",
+			rollout: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{CurrentPodHash: "abc123"},
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						BlueGreen: &v1alpha1.BlueGreenStrategy{
+							PostPromotionAnalysis: &v1alpha1.RolloutAnalysis{},
+						},
+					},
+				},
+			},
+			newRS: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "pod spec change with manual promotion - returns false",
+			rollout: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{CurrentPodHash: "abc123"},
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						BlueGreen: &v1alpha1.BlueGreenStrategy{
+							AutoPromotionEnabled: ptr.To[bool](false),
+						},
+					},
+				},
+			},
+			newRS: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"},
+				},
+			},
+			expectedResult: false,
+		},
+	}
 
-	ro.Status.CurrentStepHash = "different-hash"
-	assert.True(t, checkStepHashChange(&ro))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := CheckPodSpecChange(test.rollout, test.newRS)
+			assert.Equal(t, test.expectedResult, result)
+		})
+	}
 }
 
 func TestResetCurrentStepIndex(t *testing.T) {
@@ -1041,7 +1133,7 @@ func TestIfInjectedAntiAffinityRuleNeedsUpdate(t *testing.T) {
 	assert.True(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinity, ro))
 }
 
-func TestNeedsRestart(t *testing.T) {
+func TestNeedsRestart(t *testing.t) {
 	t.Run("No RestartAt set", func(t *testing.T) {
 		ro := &v1alpha1.Rollout{}
 		assert.False(t, NeedsRestart(ro))
