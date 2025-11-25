@@ -674,110 +674,49 @@ func TestCheckPodSpecChange(t *testing.T) {
 	assert.False(t, CheckPodSpecChange(&ro, &rs))
 	ro.Status.CurrentPodHash = "different-hash"
 	assert.True(t, CheckPodSpecChange(&ro, &rs))
-}
 
-func TestCheckPodSpecChangeWithBlueGreenAnalysis(t *testing.T) {
-	tests := []struct {
-		name           string
-		rollout        *v1alpha1.Rollout
-		newRS          *appsv1.ReplicaSet
-		expectedResult bool
-	}{
-		{
-			name: "no pod spec change - returns false",
-			rollout: &v1alpha1.Rollout{
-				Status: v1alpha1.RolloutStatus{CurrentPodHash: ""},
-				Spec: v1alpha1.RolloutSpec{
-					Strategy: v1alpha1.RolloutStrategy{
-						BlueGreen: &v1alpha1.BlueGreenStrategy{},
-					},
-				},
-			},
-			newRS: &appsv1.ReplicaSet{},
-			expectedResult: false,
-		},
-		{
-			name: "pod spec change with no analysis or manual promotion - returns true",
-			rollout: &v1alpha1.Rollout{
-				Status: v1alpha1.RolloutStatus{CurrentPodHash: "abc123"},
-				Spec: v1alpha1.RolloutSpec{
-					Strategy: v1alpha1.RolloutStrategy{
-						BlueGreen: &v1alpha1.BlueGreenStrategy{},
-					},
-				},
-			},
-			newRS: &appsv1.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"},
-				},
-			},
-			expectedResult: true,
-		},
-		{
-			name: "pod spec change with pre-promotion analysis - returns false",
-			rollout: &v1alpha1.Rollout{
-				Status: v1alpha1.RolloutStatus{CurrentPodHash: "abc123"},
-				Spec: v1alpha1.RolloutSpec{
-					Strategy: v1alpha1.RolloutStrategy{
-						BlueGreen: &v1alpha1.BlueGreenStrategy{
-							PrePromotionAnalysis: &v1alpha1.RolloutAnalysis{},
-						},
-					},
-				},
-			},
-			newRS: &appsv1.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"},
-				},
-			},
-			expectedResult: false,
-		},
-		{
-			name: "pod spec change with post-promotion analysis - returns false",
-			rollout: &v1alpha1.Rollout{
-				Status: v1alpha1.RolloutStatus{CurrentPodHash: "abc123"},
-				Spec: v1alpha1.RolloutSpec{
-					Strategy: v1alpha1.RolloutStrategy{
-						BlueGreen: &v1alpha1.BlueGreenStrategy{
-							PostPromotionAnalysis: &v1alpha1.RolloutAnalysis{},
-						},
-					},
-				},
-			},
-			newRS: &appsv1.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"},
-				},
-			},
-			expectedResult: false,
-		},
-		{
-			name: "pod spec change with manual promotion - returns false",
-			rollout: &v1alpha1.Rollout{
-				Status: v1alpha1.RolloutStatus{CurrentPodHash: "abc123"},
-				Spec: v1alpha1.RolloutSpec{
-					Strategy: v1alpha1.RolloutStrategy{
-						BlueGreen: &v1alpha1.BlueGreenStrategy{
-							AutoPromotionEnabled: ptr.To[bool](false),
-						},
-					},
-				},
-			},
-			newRS: &appsv1.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"},
-				},
-			},
-			expectedResult: false,
-		},
-	}
+	// Test Blue-Green strategy with analysis and manual promotion
+	t.Run("BlueGreen with PrePromotionAnalysis", func(t *testing.T) {
+		ro := generateRollout("nginx")
+		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+			PrePromotionAnalysis: &v1alpha1.RolloutAnalysis{},
+		}
+		ro.Status.CurrentPodHash = "abc123"
+		rs := generateRS(ro)
+		rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "def456"
+		assert.False(t, CheckPodSpecChange(&ro, &rs))
+	})
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result := CheckPodSpecChange(test.rollout, test.newRS)
-			assert.Equal(t, test.expectedResult, result)
-		})
-	}
+	t.Run("BlueGreen with PostPromotionAnalysis", func(t *testing.T) {
+		ro := generateRollout("nginx")
+		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+			PostPromotionAnalysis: &v1alpha1.RolloutAnalysis{},
+		}
+		ro.Status.CurrentPodHash = "abc123"
+		rs := generateRS(ro)
+		rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "def456"
+		assert.False(t, CheckPodSpecChange(&ro, &rs))
+	})
+
+	t.Run("BlueGreen with manual promotion", func(t *testing.T) {
+		ro := generateRollout("nginx")
+		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+			AutoPromotionEnabled: ptr.To[bool](false),
+		}
+		ro.Status.CurrentPodHash = "abc123"
+		rs := generateRS(ro)
+		rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "def456"
+		assert.False(t, CheckPodSpecChange(&ro, &rs))
+	})
+
+	t.Run("BlueGreen without analysis or manual promotion", func(t *testing.T) {
+		ro := generateRollout("nginx")
+		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
+		ro.Status.CurrentPodHash = "abc123"
+		rs := generateRS(ro)
+		rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "def456"
+		assert.True(t, CheckPodSpecChange(&ro, &rs))
+	})
 }
 
 func TestResetCurrentStepIndex(t *testing.T) {
