@@ -1,22 +1,18 @@
-# A web metric which uses the httpbin service as a metric provider
+# A web metric which uses the kubernetes API server as a metric provider
+# The conditions are designed to always be inconclusive (neither success nor failure)
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
   name: web-background-inconclusive
 spec:
-  args:
-    - name: url-val
-      value: "https://httpbin.org/anything"
   metrics:
     - name: web
-      interval: 7s
-      inconclusiveLimit: 3
-      successCondition: result.json.status == "success"
-      failureCondition: result.json.status == "failure"
+      interval: 5s
+      inconclusiveLimit: 1
+      # These conditions will never match the /version response, causing inconclusive results
+      successCondition: result.major == 'never-match-success'
+      failureCondition: result.major == 'never-match-failure'
       provider:
         web:
-          url: "{{args.url-val}}"
-          method: POST
-          jsonBody:
-            status: "inconclusive"
-          jsonPath: "{$}"
+          url: "https://kubernetes.default.svc/version"
+          insecure: true
