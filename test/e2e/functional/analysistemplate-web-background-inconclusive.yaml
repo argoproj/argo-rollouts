@@ -1,4 +1,6 @@
-# A web metric which uses the httpbin service as a metric provider
+# A web metric which uses google.com as a metric provider
+# The conditions are designed to always be inconclusive (neither success nor failure)
+# Google returns HTML, which won't match either string condition
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -6,17 +8,13 @@ metadata:
 spec:
   args:
     - name: url-val
-      value: "https://httpbin.io/anything"
+      value: "https://www.google.com"
   metrics:
     - name: web
-      interval: 7s
+      interval: 5s
       inconclusiveLimit: 3
-      successCondition: result.json.status == "success"
-      failureCondition: result.json.status == "failure"
+      successCondition: result == "success"
+      failureCondition: result == "failure"
       provider:
         web:
           url: "{{args.url-val}}"
-          method: POST
-          jsonBody:
-            status: "inconclusive"
-          jsonPath: "{$}"
