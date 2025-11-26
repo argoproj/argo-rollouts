@@ -1,4 +1,4 @@
-# A web metric which uses Google Books API (returns JSON)
+# A web metric which uses Google Public DNS-over-HTTPS API (returns JSON)
 # The conditions check for values that won't match the actual response,
 # causing measurements to be inconclusive (neither success nor failure)
 apiVersion: argoproj.io/v1alpha1
@@ -8,13 +8,13 @@ metadata:
 spec:
   args:
     - name: url-val
-      value: "https://www.googleapis.com/books/v1/volumes?q=isbn:0747532699"
+      value: "https://dns.google/resolve?name=google.com"
   metrics:
     - name: web
       interval: 5s
       inconclusiveLimit: 3
-      successCondition: result.kind == "will-never-match"
-      failureCondition: result.kind == "also-will-never-match"
+      successCondition: result.Status == 999
+      failureCondition: result.Status == -1
       provider:
         web:
           url: "{{args.url-val}}"
