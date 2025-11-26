@@ -47,7 +47,21 @@ StatefulSets present a compelling initial use case due to their prevalence in st
 
 ## Proposed Implementation: RolloutPlugin Controller
 
-This approach involves creating a dedicated controller that manages a new Custom Resource Definition (CRD) called `RolloutPlugin`. This controller is completely separate from the existing Argo Rollouts controller, providing clean separation and resource-specific optimizations.
+This approach involves creating a dedicated controller that manages a new Custom Resource Definition (CRD) called `RolloutPlugin`. This controller is completely separate from the existing Argo Rollouts controller, providing clean separation and resource-specific optimizations. The implementation of the new controller would be done using the [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime) library instead of native informers as the library abstracts away a lot of boilerplate code that would be needed otherwise.
+
+### Traffic Routing and Scaling Strategy
+
+The RolloutPlugin CRD and controller focus on progressive delivery through native resource capabilities (e.g., StatefulSet partition field) rather than traffic management.
+
+**Key Decisions:**
+
+1. **No `setCanaryScale` field**: To avoid coupling pod count with traffic routing, the CRD will not implement the `setCanaryScale` field used in the existing Rollout CRD. This decouples the notion of replica/pod counts from traffic distribution.
+
+2. **Weight-only approach**: The CRD will only use `setWeight` steps to control the progression of rollouts. For StatefulSets, this translates to partition field manipulation (percentage of pods updated), not traffic percentages.
+
+3. **Future plugin extensibility**: While traffic routing is not in the initial scope, the CRD and plugin interface are designed to allow individual plugins to implement traffic routing capabilities in the future if needed for specific resource types. This keeps the core controller simple while maintaining flexibility for future enhancements.
+
+**Example**: For a StatefulSet with 10 replicas, `setWeight: 40` means update 4 pods (40% of replicas) by setting `partition: 6`, not that 40% of traffic goes to those pods.
 
 ### RolloutPlugin CRD
 
@@ -184,14 +198,8 @@ spec:
       customField1: "value1"
       customField2: "value2"
   
-  # Optional selector to identify the target resource if not using workloadRef
-  selector:
-    matchLabels:
-      app: myapp
-  
   # Rollout strategy definition
   strategy:
-    type: Canary  # or BlueGreen
     # Strategy configuration depends on the type
     canary:
       steps:
@@ -203,7 +211,7 @@ spec:
         - pause: {duration: 1h}
         - setWeight: 80
         - pause: {duration: 1h}
-    # BlueGreen configuration would be here if type: BlueGreen
+    # BlueGreen configuration would be here
     # blueGreen:
     #   ...
 ```
@@ -224,7 +232,6 @@ status:
   conditions:
     - type: Progressing
       status: "True"
-      reason: NewReplicaSetAvailable
       message: StatefulSet successfully updated to partition 8 (20% weight)
   paused: false
   aborted: false
@@ -311,10 +318,6 @@ type RolloutPlugin interface {
   // For blue-green: percentage of traffic to preview
   SetWeight(ctx RolloutPluginContext, desiredWeight int32) OperationResult
   
-  // SwitchTrafficRoute changes the routing of traffic between resources
-  // Particularly useful for blue-green to route traffic to preview
-  SwitchTrafficRoute(ctx RolloutPluginContext, options map[string]string) OperationResult
-  
   // PromoteResource promotes a resource to become the new stable version
   // For canary: promotes canary to stable
   // For blue-green: promotes preview to active
@@ -355,6 +358,8 @@ The `RolloutPlugin` controller would follow this reconciliation flow:
    - For `analysis` steps, create and monitor analysis runs
 5. Update the `RolloutPlugin` status with the current progress
 6. Requeue for the next reconciliation
+
+#### 
 
 ## StatefulSet Implementation for Both Approaches
 
@@ -515,7 +520,6 @@ spec:
     url: "https://example.com/plugins/statefulset"
   
   strategy:
-    type: BlueGreen
     blueGreen:
       activeService: kafka-active
       previewService: kafka-preview
@@ -545,11 +549,11 @@ metadata:
 spec:
   workloadRef:
     apiVersion: apps/v1
-    kind: ReplicaSet
+    kind: Deployment
     name: canary-app
   
   plugin:
-    name: replicaset
+    name: Deployment
     verify: true
     sha256: "abc123..."
     url: "https://example.com/plugins/replicaset"
@@ -588,11 +592,11 @@ metadata:
 spec:
   workloadRef:
     apiVersion: apps/v1
-    kind: ReplicaSet
+    kind: Deployment
     name: bluegreen-app
   
   plugin:
-    name: replicaset
+    name: Deployment
     verify: true
     sha256: "abc123..."
     url: "https://example.com/plugins/replicaset"
@@ -638,9 +642,9 @@ These use cases demonstrate how the RolloutPlugin approach can directly manage R
 
 ## Conclusion
 
-This proposal defines two alternative plugin architectures for extending Argo Rollouts to support multiple resource types, with an initial focus on StatefulSets. Both approaches provide a way to manage advanced deployment strategies for various Kubernetes resources, allowing users to apply consistent rollout patterns across their entire infrastructure.
+This proposal defines plugin architectures for extending Argo Rollouts to support multiple resource types, with an initial focus on StatefulSets. This approach provides a way to manage advanced deployment strategies for various Kubernetes resources, allowing users to apply consistent rollout patterns across their entire infrastructure.
 
-The StatefulSet implementation demonstrates how existing Kubernetes capabilities (the partition field) can be leveraged to provide advanced deployment strategies, while both architectures ensure that future resource types can be supported with minimal changes to existing code.
+The StatefulSet implementation demonstrates how existing Kubernetes capabilities (the partition field) can be leveraged to provide advanced deployment strategies, while this architecture also ensures that future resource types can be supported with minimal changes to existing code.
 
 ## References
 
