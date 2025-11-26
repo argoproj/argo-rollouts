@@ -67,6 +67,7 @@ rules:
   - get
   - list
   - watch
+  - update
 # services patch needed to update selector of canary/stable/active/preview services
 # services create needed to create and delete services for experiments
 - apiGroups:
@@ -196,6 +197,7 @@ rules:
   - get
 - apiGroups:
   - elbv2.k8s.aws
+  - eks.amazonaws.com
   resources:
   - targetgroupbindings
   verbs:

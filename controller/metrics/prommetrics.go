@@ -1,8 +1,9 @@
 package metrics
 
 import (
-	"github.com/argoproj/argo-rollouts/utils/version"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/argoproj/argo-rollouts/utils/version"
 )
 
 // Follow Prometheus naming practices
@@ -135,7 +136,7 @@ var (
 	MetricAnalysisTemplateInfo = prometheus.NewDesc(
 		"analysis_template_info",
 		"Information about analysis templates.",
-		append(namespaceNameLabels),
+		namespaceNameLabels,
 		nil,
 	)
 

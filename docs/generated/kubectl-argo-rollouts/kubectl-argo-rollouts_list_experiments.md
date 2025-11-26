@@ -26,7 +26,7 @@ kubectl argo rollouts list experiments --watch
 ## Options
 
 ```
-      --all-namespaces   Include all namespaces
+  -A, --all-namespaces   Include all namespaces
   -h, --help             help for experiments
 ```
 

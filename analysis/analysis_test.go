@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -594,6 +594,208 @@ func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
 }
 
+func TestAssessMetricStatusConsecutiveSuccessLimit(t *testing.T) {
+	failureLimit := intstr.FromInt(-1)
+	consecutiveSuccessLimit := intstr.FromInt(3)
+	metric := v1alpha1.Metric{
+		Name:                    "success-rate",
+		ConsecutiveSuccessLimit: &consecutiveSuccessLimit,
+		FailureLimit:            &failureLimit,
+		Interval:                "60s",
+	}
+	result := v1alpha1.MetricResult{
+		Failed:             3,
+		Successful:         4,
+		ConsecutiveSuccess: 3,
+		Count:              7,
+		Measurements: []v1alpha1.Measurement{{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseFailed,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+		}},
+	}
+
+	/////////////////////////////////////////////////////////////////////////
+	// For indefinite analysis (count is not set)
+
+	// When ConsecutiveSuccess == ConsecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	// When ConsecutiveSuccess < ConsecutiveSuccessLimit
+	consecutiveSuccessLimit = intstr.FromInt(5)
+	metric.ConsecutiveSuccessLimit = &consecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	/////////////////////////////////////////////////////////////////////////
+	// For limited analysis (count is >= 1)
+
+	/// When metric.Count is reached
+	metricCount := intstr.FromInt(7)
+	metric.Count = &metricCount
+
+	//// ConsecutiveSuccess=3 < ConsecutiveSuccessLimit=5
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	//// ConsecutiveSuccess = ConsecutiveSuccessLimit = 3
+	consecutiveSuccessLimit = intstr.FromInt(3)
+	metric.ConsecutiveSuccessLimit = &consecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	/// When metric.Count is not reached
+	metricCount = intstr.FromInt(9)
+	metric.Count = &metricCount
+
+	//// ConsecutiveSuccess = ConsecutiveSuccessLimit = 3
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// ConsecutiveSuccess=3 < ConsecutiveSuccessLimit=5
+	consecutiveSuccessLimit = intstr.FromInt(5)
+	metric.ConsecutiveSuccessLimit = &consecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+}
+
+func TestAssessMetricStatusFailureLimitAndConsecutiveSuccessLimit(t *testing.T) {
+	failureLimit := intstr.FromInt(4)
+	consecutiveSuccessLimit := intstr.FromInt(4)
+	metric := v1alpha1.Metric{
+		Name:                    "success-rate",
+		ConsecutiveSuccessLimit: &consecutiveSuccessLimit,
+		FailureLimit:            &failureLimit,
+		Interval:                "60s",
+	}
+	result := v1alpha1.MetricResult{
+		Failed:             3,
+		Successful:         4,
+		ConsecutiveSuccess: 3,
+		Count:              7,
+		Measurements: []v1alpha1.Measurement{{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseFailed,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+		}},
+	}
+
+	/////////////////////////////////////////////////////////////////////////
+	// For indefinite analysis (count is not set)
+
+	// FailureLimit is not violated and consecutiveSuccessLimit not yet satisfied.
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	// FailureLimit is violated and consecutiveSuccessLimit is not yet satisfied.
+	result.Failed = 5
+	result.Successful = 9
+	result.Count = 9
+	result.ConsecutiveSuccess = 0
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	// FailureLimit is not violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 3
+	result.Successful = 5
+	result.Count = 8
+	result.ConsecutiveSuccess = 4
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	// FailureLimit is violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 5
+	result.Successful = 5
+	result.Count = 10
+	result.ConsecutiveSuccess = 4
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	/////////////////////////////////////////////////////////////////////////
+	// For limited analysis (count is >= 1)
+	metricCount := intstr.FromInt(10)
+	metric.Count = &metricCount
+
+	/// When metric.Count is reached
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit not yet satisfied.
+	result.Failed = 4
+	result.Successful = 6
+	result.Count = 10
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is not yet satisfied.
+	result.Failed = 5
+	result.Successful = 5
+	result.Count = 10
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 4
+	result.Successful = 6
+	result.Count = 10
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 5
+	result.Successful = 5
+	result.Count = 10
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	/// When metric.Count is not yet reached
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit not yet satisfied.
+	result.Failed = 3
+	result.Successful = 5
+	result.Count = 8
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is not yet satisfied.
+	result.Failed = 5
+	result.Successful = 3
+	result.Count = 8
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 3
+	result.Successful = 5
+	result.Count = 8
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 5
+	result.Successful = 4
+	result.Count = 9
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+}
+
 func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
 	inconclusiveLimit := intstr.FromInt(2)
 	metric := v1alpha1.Metric{
@@ -1113,7 +1315,7 @@ func TestGarbageCollectArgResolution(t *testing.T) {
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
-	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error) {
+	c.newProvider = func(logCtx log.Entry, namespace string, metric v1alpha1.Metric) (metric.Provider, error) {
 		assert.Equal(t, "https://prometheus.kubeaddons:8080", metric.Provider.Prometheus.Address)
 		return f.provider, nil
 	}
@@ -1191,7 +1393,7 @@ func TestGarbageCollectArgResolution(t *testing.T) {
 	}
 	run.Spec.Args = append(run.Spec.Args, v1alpha1.Argument{
 		Name:  "port",
-		Value: pointer.String("8080"),
+		Value: ptr.To[string]("8080"),
 	})
 	var measurementRetentionMetricsMap = map[string]*v1alpha1.MeasurementRetention{}
 	measurementRetentionMetricsMap["metric2"] = &v1alpha1.MeasurementRetention{MetricName: "metric2", Limit: 2}
@@ -1869,7 +2071,7 @@ func StartTerminatingAnalysisRun(t *testing.T, isDryRun bool) *v1alpha1.Analysis
 			Args: []v1alpha1.Argument{
 				{
 					Name:  "service",
-					Value: pointer.StringPtr("rollouts-demo-canary.default.svc.cluster.local"),
+					Value: ptr.To[string]("rollouts-demo-canary.default.svc.cluster.local"),
 				},
 			},
 			Metrics: []v1alpha1.Metric{{
@@ -1928,7 +2130,7 @@ func TestInvalidDryRunConfigThrowsError(t *testing.T) {
 			Args: []v1alpha1.Argument{
 				{
 					Name:  "service",
-					Value: pointer.StringPtr("rollouts-demo-canary.default.svc.cluster.local"),
+					Value: ptr.To[string]("rollouts-demo-canary.default.svc.cluster.local"),
 				},
 			},
 			Metrics: []v1alpha1.Metric{{
@@ -1969,7 +2171,7 @@ func TestInvalidMeasurementsRetentionConfigThrowsError(t *testing.T) {
 			Args: []v1alpha1.Argument{
 				{
 					Name:  "service",
-					Value: pointer.StringPtr("rollouts-demo-canary.default.svc.cluster.local"),
+					Value: ptr.To[string]("rollouts-demo-canary.default.svc.cluster.local"),
 				},
 			},
 			Metrics: []v1alpha1.Metric{{
@@ -2113,7 +2315,7 @@ func TestExceededTtlChecked(t *testing.T) {
 	})
 	// Test success TTL overrides completed TTL.
 	testTTLStrategy(t, &v1alpha1.TTLStrategy{
-		SecondsAfterCompletion: pointer.Int32Ptr(100000),
+		SecondsAfterCompletion: ptr.To[int32](100000),
 		SecondsAfterSuccess:    &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
@@ -2124,7 +2326,7 @@ func TestExceededTtlChecked(t *testing.T) {
 	})
 	// Test failed TTL overrides completed TTL.
 	testTTLStrategy(t, &v1alpha1.TTLStrategy{
-		SecondsAfterCompletion: pointer.Int32Ptr(100000),
+		SecondsAfterCompletion: ptr.To[int32](100000),
 		SecondsAfterFailure:    &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
@@ -2136,7 +2338,7 @@ func TestExceededTtlChecked(t *testing.T) {
 	// Test completed TTL still evaluated when non-matching overrides exist.
 	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterCompletion: &secondsOfOneDay,
-		SecondsAfterFailure:    pointer.Int32Ptr(86401),
+		SecondsAfterFailure:    ptr.To[int32](86401),
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
 		Phase:       v1alpha1.AnalysisPhaseSuccessful,
@@ -2252,7 +2454,7 @@ func TestReconcileAnalysisRunOnRunNotFound(t *testing.T) {
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			TTLStrategy: &v1alpha1.TTLStrategy{
-				SecondsAfterCompletion: pointer.Int32Ptr(1),
+				SecondsAfterCompletion: ptr.To[int32](1),
 			},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
@@ -2289,7 +2491,7 @@ func TestReconcileAnalysisRunOnOtherRunErrors(t *testing.T) {
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			TTLStrategy: &v1alpha1.TTLStrategy{
-				SecondsAfterCompletion: pointer.Int32Ptr(1),
+				SecondsAfterCompletion: ptr.To[int32](1),
 			},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
@@ -2361,7 +2563,7 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfWithDeletionTimestamp(t *testing.T)
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			TTLStrategy: &v1alpha1.TTLStrategy{
-				SecondsAfterCompletion: pointer.Int32Ptr(1),
+				SecondsAfterCompletion: ptr.To[int32](1),
 			},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
@@ -2388,7 +2590,7 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfNoCompletedAt(t *testing.T) {
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			TTLStrategy: &v1alpha1.TTLStrategy{
-				SecondsAfterCompletion: pointer.Int32Ptr(1),
+				SecondsAfterCompletion: ptr.To[int32](1),
 			},
 		},
 		Status: v1alpha1.AnalysisRunStatus{

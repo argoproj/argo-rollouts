@@ -43,7 +43,7 @@ You should turn off "send_resolved" or you will receive unnecessary recovery not
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.alertmanager: |
     targets:
@@ -58,7 +58,7 @@ If your alertmanager has changed the default api, you can customize "apiPath".
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.alertmanager: |
     targets:
@@ -70,7 +70,7 @@ data:
 
 ### Send high availability alertmanager with auth
 
-Store auth token in `argocd-notifications-secret` Secret and use configure in `argocd-notifications-cm` ConfigMap.
+Store auth token in `argo-rollouts-notification-secret` Secret and use configure in `argo-rollouts-notification-configmap` ConfigMap.
 
 ```yaml
 apiVersion: v1
@@ -89,7 +89,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.alertmanager: |
     targets:
@@ -110,7 +110,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.alertmanager: |
     targets:

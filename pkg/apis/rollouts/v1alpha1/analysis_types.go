@@ -56,7 +56,7 @@ type AnalysisTemplateSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
 	// +patchMergeKey=name
 	// +patchStrategy=merge
-	Metrics []Metric `json:"metrics" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,1,rep,name=metrics"`
+	Metrics []Metric `json:"metrics,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,1,rep,name=metrics"`
 	// Args are the list of arguments to the template
 	// +patchMergeKey=name
 	// +patchStrategy=merge
@@ -72,6 +72,10 @@ type AnalysisTemplateSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
+	// Templates reference to a list of analysis templates to combine with the rest of the metrics for an AnalysisRun
+	// +patchMergeKey=templateName
+	// +patchStrategy=merge
+	Templates []AnalysisTemplateRef `json:"templates,omitempty" patchStrategy:"merge" patchMergeKey:"templateName" protobuf:"bytes,5,rep,name=templates"`
 }
 
 // DurationString is a string representing a duration (e.g. 30s, 5m, 1h)
@@ -108,6 +112,7 @@ type Metric struct {
 	FailureCondition string `json:"failureCondition,omitempty" protobuf:"bytes,6,opt,name=failureCondition"`
 	// FailureLimit is the maximum number of times the measurement is allowed to fail, before the
 	// entire metric is considered Failed (default: 0)
+	// -1 for making it disabled (when opting to use ConsecutiveSuccessLimit solely)
 	FailureLimit *intstrutil.IntOrString `json:"failureLimit,omitempty" protobuf:"bytes,7,opt,name=failureLimit"`
 	// InconclusiveLimit is the maximum number of times the measurement is allowed to measure
 	// Inconclusive, before the entire metric is considered Inconclusive (default: 0)
@@ -117,6 +122,9 @@ type Metric struct {
 	ConsecutiveErrorLimit *intstrutil.IntOrString `json:"consecutiveErrorLimit,omitempty" protobuf:"bytes,9,opt,name=consecutiveErrorLimit"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider" protobuf:"bytes,10,opt,name=provider"`
+	// ConsecutiveSuccessLimit is the number of consecutive times the measurement must succeed for the
+	// entire metric to be considered Successful (default: 0, which means it's disabled)
+	ConsecutiveSuccessLimit *intstrutil.IntOrString `json:"consecutiveSuccessLimit,omitempty" protobuf:"bytes,11,opt,name=consecutiveSuccessLimit"`
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.
@@ -214,6 +222,16 @@ func (as AnalysisPhase) Completed() bool {
 	return false
 }
 
+// Arguments to perform a prometheus range query
+type PrometheusRangeQueryArgs struct {
+	// The start time to query in expr format e.g. now(), now() - duration("1h"), now() - duration("{{args.lookback_duration}}")
+	Start string `json:"start,omitempty" protobuf:"bytes,1,opt,name=start"`
+	// The end time to query in expr format e.g. now(), now() - duration("1h"), now() - duration("{{args.lookback_duration}}")
+	End string `json:"end,omitempty" protobuf:"bytes,2,opt,name=end"`
+	// The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).
+	Step DurationString `json:"step,omitempty" protobuf:"bytes,3,opt,name=step,casttype=DurationString"`
+}
+
 // PrometheusMetric defines the prometheus query to perform canary analysis
 type PrometheusMetric struct {
 	// Address is the HTTP address and port of the prometheus server
@@ -233,6 +251,9 @@ type PrometheusMetric struct {
 	// +patchMergeKey=key
 	// +patchStrategy=merge
 	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,6,opt,name=headers"`
+	// Arguments for prometheus
+	// +optional
+	RangeQuery *PrometheusRangeQueryArgs `json:"rangeQuery,omitempty" protobuf:"bytes,7,opt,name=rangeQuery"`
 }
 
 // Authentication method
@@ -280,6 +301,9 @@ type NewRelicMetric struct {
 	Profile string `json:"profile,omitempty" protobuf:"bytes,1,opt,name=profile"`
 	// Query is a raw newrelic NRQL query to perform
 	Query string `json:"query" protobuf:"bytes,2,opt,name=query"`
+	// Timeout represents the duration limit in seconds that will apply to the NRQL query
+	// +optional
+	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,3,opt,name=timeout"`
 }
 
 // JobMetric defines a job to run which acts as a metric
@@ -485,6 +509,9 @@ type MetricResult struct {
 	// the final state which gets used while taking measurements. For example, Prometheus uses this field
 	// to store the final resolved query after substituting the template arguments.
 	Metadata map[string]string `json:"metadata,omitempty" protobuf:"bytes,12,rep,name=metadata"`
+	// ConsecutiveSuccess is the number of times a measurement was successful in succession
+	// Resets to zero when failures, inconclusive measurements, or errors are encountered
+	ConsecutiveSuccess int32 `json:"consecutiveSuccess,omitempty" protobuf:"varint,13,opt,name=consecutiveSuccess"`
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured
@@ -520,6 +547,8 @@ type KayentaMetric struct {
 	Threshold KayentaThreshold `json:"threshold" protobuf:"bytes,7,opt,name=threshold"`
 
 	Scopes []KayentaScope `json:"scopes" protobuf:"bytes,8,rep,name=scopes"`
+
+	Lookback bool `json:"lookback,omitempty" protobuf:"varint,9,opt,name=lookback"`
 }
 
 type KayentaThreshold struct {
@@ -537,8 +566,8 @@ type ScopeDetail struct {
 	Scope  string `json:"scope" protobuf:"bytes,1,opt,name=scope"`
 	Region string `json:"region" protobuf:"bytes,2,opt,name=region"`
 	Step   int64  `json:"step" protobuf:"varint,3,opt,name=step"`
-	Start  string `json:"start" protobuf:"bytes,4,opt,name=start"`
-	End    string `json:"end" protobuf:"bytes,5,opt,name=end"`
+	Start  string `json:"start,omitempty" protobuf:"bytes,4,opt,name=start"`
+	End    string `json:"end,omitempty" protobuf:"bytes,5,opt,name=end"`
 }
 
 type WebMetric struct {
@@ -597,8 +626,17 @@ type DatadogMetric struct {
 	// +kubebuilder:validation:Enum=v1;v2
 	// +kubebuilder:default=v1
 	ApiVersion string `json:"apiVersion,omitempty" protobuf:"bytes,5,opt,name=apiVersion"`
-	// +kubebuilder:default="last"
 	// +kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area
-	// Aggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2
+	// Aggregator is a type of aggregator to use for metrics-based queries (default: ""). Used for v2
 	Aggregator string `json:"aggregator,omitempty" protobuf:"bytes,6,opt,name=aggregator"`
+	// Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
+	// +optional
+	SecretRef SecretRef `json:"secretRef,omitempty" protobuf:"bytes,7,opt,name=secretRef"`
+}
+
+type SecretRef struct {
+	// Name refers to the name of the secret that should be used to integrate with Datadog.
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// Namespaced indicates whether the secret is in the namespace where rollouts it installed or in the namespace where the metric was found
+	Namespaced bool `json:"namespaced,omitempty" protobuf:"varint,2,opt,namespaced=dryRun"`
 }

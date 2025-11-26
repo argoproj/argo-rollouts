@@ -5,10 +5,12 @@ import (
 	"os/exec"
 	"sync"
 
+	goPlugin "github.com/hashicorp/go-plugin"
+
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/plugin"
-	goPlugin "github.com/hashicorp/go-plugin"
+	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
 
 type metricPlugin struct {
@@ -54,7 +56,7 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricProv
 	// There should only ever be one plugin defined in metric.Provider.Plugin per analysis template this gets checked
 	// during validation
 	for pluginName := range metric.Provider.Plugin {
-		pluginPath, args, err := plugin.GetPluginInfo(pluginName)
+		pluginPath, args, err := plugin.GetPluginInfo(pluginName, types.PluginTypeMetricProvider)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}

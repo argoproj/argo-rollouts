@@ -15,13 +15,13 @@ Available parameters :
 3. Click "Add API Key" 
 4. Fill the Key with name `ArgoCD Notification`, role `Editor` and Time to Live `10y` (for example)
 5. Click on Add button
-6. Store apiKey in `argocd-notifications-secret` Secret and Copy your API Key and define it in `argocd-notifications-cm` ConfigMap
+6. Store apiKey in `argo-rollouts-notification-secret` Secret and Copy your API Key and define it in `argo-rollouts-notification-configmap` ConfigMap
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.grafana: |
     apiUrl: https://grafana.example.com/api
@@ -37,7 +37,22 @@ stringData:
   grafana-api-key: api-key
 ```
 
-7. Create subscription for your Grafana integration
+7. Create a template in `argo-notifications-cm` Configmap
+This will be used to pass the (required) text of the annocation to Grafana (or re-use an existing one)
+As there is no specific template for Grafana, you must use the generic `message`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-notification-configmap
+data:
+  templates:
+    template.app-deployed: |
+      messsage: Application {{.app.metadata.name}} is now running new version of deployments manifests.
+```
+
+8. Create subscription for your Grafana integration
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -47,5 +62,5 @@ metadata:
     notifications.argoproj.io/subscribe.<trigger-name>.grafana: tag1|tag2 # list of tags separated with |
 ```
 
-8. Change the annotations settings
+9. Change the annotations settings
 ![8](https://user-images.githubusercontent.com/18019529/112022083-47fb0600-8b75-11eb-849b-d25d41925909.png)

@@ -6,7 +6,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -20,21 +20,31 @@ import (
 func (c *rolloutContext) rolloutCanary() error {
 	var err error
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
-		c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
+		c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 		if err != nil {
 			return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary with PodTemplateOrStepsChanged: %w", err)
 		}
 		return c.syncRolloutStatusCanary()
 	}
 
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(true)
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err)
 	}
 
-	err = c.podRestarter.Reconcile(c)
+	restarted, err := c.podRestarter.Reconcile(c)
 	if err != nil {
 		return err
+	}
+	if restarted > 0 {
+		// If we restarted any pods, we can no longer trust the current availability counts of our
+		// ReplicaSets, since those counts do not factor in the unavailability of pods we just
+		// restarted. We would cause downtime if we continue the reconciliation and *also* scale
+		// down a ReplicaSet (e.g. because of a canary update scaling). Therefore, we return early,
+		// so that the *next* reconciliation will have an accurate availability count to calculate
+		// the safe number of pods to scale down for the update.
+		c.log.Infof("Finished reconciliation due to %d restarted pods", restarted)
+		return nil
 	}
 
 	err = c.reconcileEphemeralMetadata()
@@ -87,6 +97,11 @@ func (c *rolloutContext) rolloutCanary() error {
 		return c.syncRolloutStatusCanary()
 	}
 
+	err = c.stepPluginContext.reconcile(c)
+	if err != nil {
+		return err
+	}
+
 	return c.syncRolloutStatusCanary()
 }
 
@@ -108,11 +123,11 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// causing us to flap and scale up the stable 100 temporarily (before scaling down to 0 later).
 		// Therefore, we send c.rollout.Status.Canary.Weights so that the stable scaling happens in
 		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
-		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.rollout.Status.Canary.Weights)
+		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.newRS, c.stableRS, c.rollout.Status.Canary.Weights)
 	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
-		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileCanaryStableReplicaSet:L %w", err)
+		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileCanaryStableReplicaSet: %w", err)
 	}
 	return scaled, err
 }
@@ -296,7 +311,7 @@ func (c *rolloutContext) canProceedWithScaleDownAnnotation(oldRSs []*appsv1.Repl
 		// AWS API calls.
 		return true, nil
 	}
-	stableSvcName, _ := trafficrouting.GetStableAndCanaryServices(c.rollout)
+	stableSvcName, _ := trafficrouting.GetStableAndCanaryServices(c.rollout, true)
 	stableSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(stableSvcName)
 	if err != nil {
 		return false, err
@@ -315,7 +330,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	if c.rollout.Spec.Paused {
 		return false
 	}
-	currentStep, _ := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	if currentStep == nil {
 		return false
 	}
@@ -344,6 +359,8 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 		return true
 	case currentStep.SetMirrorRoute != nil:
 		return true
+	case currentStep.Plugin != nil:
+		return c.stepPluginContext.isStepPluginCompleted(*currentStepIndex, currentStep.Plugin)
 	}
 	return false
 }
@@ -353,7 +370,19 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
+
+	if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && !c.rollout.Spec.Strategy.Canary.DynamicStableScale && c.stableRS != nil {
+		// When using traffic routed canary without scaling down the stable replicaset, the number of pods
+		// selected by the rollout selector will be up to twice the amount of desired spec.replicas.
+		// We update the selector to select the stable pods since the Scale subresource expects a
+		// label that queries over pods that should match the replicas count, because that is the number
+		// of pods that will be receiving traffic.
+		newStatus.Selector = metav1.FormatLabelSelector(c.stableRS.Spec.Selector)
+	}
+
 	newStatus.Canary.StablePingPong = c.rollout.Status.Canary.StablePingPong
+	newStatus.Canary.StepPluginStatuses = c.rollout.Status.Canary.StepPluginStatuses
+	c.stepPluginContext.updateStatus(&newStatus)
 
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS
@@ -400,7 +429,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 			if newStatus.StableRS == newStatus.CurrentPodHash {
 				newStatus.CurrentStepIndex = &stepCount
 			} else {
-				newStatus.CurrentStepIndex = pointer.Int32Ptr(0)
+				newStatus.CurrentStepIndex = ptr.To[int32](0)
 			}
 		}
 		newStatus = c.calculateRolloutConditions(newStatus)
@@ -437,13 +466,6 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 	if scaledStableRS {
 		c.log.Infof("Not finished reconciling stableRS")
 		return true, nil
-	}
-
-	// If we have updated both the replica count and the pod template hash c.newRS will be nil we want to reconcile the newRS so we look at the
-	// rollout status to get the newRS to reconcile it.
-	if c.newRS == nil && c.rollout.Status.CurrentPodHash != c.rollout.Status.StableRS {
-		rs, _ := replicasetutil.GetReplicaSetByTemplateHash(c.allRSs, c.rollout.Status.CurrentPodHash)
-		c.newRS = rs
 	}
 
 	scaledNewRS, err := c.reconcileNewReplicaSet()

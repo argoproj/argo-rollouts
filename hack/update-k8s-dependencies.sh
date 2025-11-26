@@ -1,5 +1,6 @@
 #!/bin/sh
 set -euo pipefail
+set -x
 
 # Grabbed from https://github.com/kubernetes/kubernetes/issues/79384
 VERSION=${1#"v"}
@@ -20,5 +21,6 @@ for MOD in "${MODS[@]}"; do
 done
 go get "k8s.io/kubernetes@v${VERSION}"
 
-go mod vendor
 go mod tidy
+go mod vendor
+

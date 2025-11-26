@@ -2,7 +2,7 @@ package rollout
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/log"
@@ -162,9 +162,10 @@ func TestRestartReconcile(t *testing.T) {
 			rollout: noRestartRo,
 			log:     log.WithRollout(noRestartRo),
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
 		assert.Len(t, client.Actions(), 0)
+		assert.Equal(t, 0, restarted)
 	})
 
 	t.Run("Not all ReplicaSets are fully available", func(t *testing.T) {
@@ -184,10 +185,11 @@ func TestRestartReconcile(t *testing.T) {
 			resyncPeriod: 2 * time.Minute,
 			enqueueAfter: func(obj any, duration time.Duration) {},
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
 		assert.Len(t, client.Actions(), 1) // list pods
 		assert.Contains(t, buf.String(), "all 0 pods are current. setting restartedAt")
+		assert.Equal(t, 0, restarted)
 	})
 	t.Run("Fails to delete Pod", func(t *testing.T) {
 		expectedErrMsg := "big bad error"
@@ -199,14 +201,15 @@ func TestRestartReconcile(t *testing.T) {
 		}
 		client.PrependReactor("create", "pods", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 			// this is the pod eviction
-			return true, nil, fmt.Errorf(expectedErrMsg)
+			return true, nil, errors.New(expectedErrMsg)
 		})
 		r := RolloutPodRestarter{
 			client:       client,
 			enqueueAfter: func(obj any, duration time.Duration) {},
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Errorf(t, err, expectedErrMsg)
+		assert.Equal(t, 0, restarted)
 	})
 	t.Run("Deletes Pod", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, olderPod)
@@ -219,8 +222,9 @@ func TestRestartReconcile(t *testing.T) {
 			client:       client,
 			enqueueAfter: func(obj any, duration time.Duration) {},
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
+		assert.Equal(t, 1, restarted)
 		actions := client.Actions()
 		assert.Len(t, actions, 2)
 		_, ok := actions[1].(k8stesting.CreateAction) // eviction
@@ -237,8 +241,9 @@ func TestRestartReconcile(t *testing.T) {
 			client:       client,
 			enqueueAfter: func(obj any, duration time.Duration) {},
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
+		assert.Equal(t, 0, restarted)
 		assert.Len(t, client.Actions(), 1)
 		assert.Equal(t, now, *roCtx.newStatus.RestartedAt)
 	})
@@ -254,8 +259,9 @@ func TestRestartReconcile(t *testing.T) {
 			client:       client,
 			enqueueAfter: func(obj any, duration time.Duration) {},
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
+		assert.Equal(t, 0, restarted)
 		assert.Len(t, client.Actions(), 1)
 		assert.Equal(t, now, *roCtx.newStatus.RestartedAt)
 	})
@@ -277,9 +283,10 @@ func TestRestartReplicaSetPod(t *testing.T) {
 	t.Run("Finds no pods to delete to due to different label selector", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, differentSelector)
 		r := RolloutPodRestarter{client: client}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
 		assert.Equal(t, now, *roCtx.newStatus.RestartedAt)
+		assert.Equal(t, 0, restarted)
 
 		// Client uses list API but not the delete API
 		assert.Len(t, client.Actions(), 1)
@@ -287,9 +294,10 @@ func TestRestartReplicaSetPod(t *testing.T) {
 	t.Run("Delete Pod successfully", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, olderPod)
 		r := RolloutPodRestarter{client: client}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.NotNil(t, roCtx.newStatus.RestartedAt)
 		assert.Nil(t, err)
+		assert.Equal(t, 1, restarted)
 		actions := client.Actions()
 		// Client uses list and evict API
 		assert.Len(t, actions, 2)
@@ -299,9 +307,10 @@ func TestRestartReplicaSetPod(t *testing.T) {
 	t.Run("No Pod Deletion required", func(t *testing.T) {
 		client := fake.NewSimpleClientset(rs, newerPod)
 		r := RolloutPodRestarter{client: client}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Equal(t, now, *roCtx.newStatus.RestartedAt)
 		assert.Nil(t, err)
+		assert.Equal(t, 0, restarted)
 		// Client uses list API but not the evict API
 		assert.Len(t, client.Actions(), 1)
 	})
@@ -309,14 +318,15 @@ func TestRestartReplicaSetPod(t *testing.T) {
 		client := fake.NewSimpleClientset()
 		expectedErrMsg := "big bad error"
 		client.PrependReactor("list", "pods", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-			return true, nil, fmt.Errorf(expectedErrMsg)
+			return true, nil, errors.New(expectedErrMsg)
 		})
 		r := RolloutPodRestarter{client: client}
 		roCtx := &rolloutContext{
 			rollout: ro,
 			log:     log.WithRollout(ro),
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
+		assert.Equal(t, 0, restarted)
 		assert.Nil(t, roCtx.newStatus.RestartedAt)
 		assert.Error(t, err, expectedErrMsg)
 	})
@@ -343,7 +353,8 @@ func TestRestartDoNotDeleteOtherPods(t *testing.T) {
 	}
 	client := fake.NewSimpleClientset(rolloutRS, otherRS, newerPod, otherPod)
 	r := RolloutPodRestarter{client: client}
-	err := r.Reconcile(roCtx)
+	restarted, err := r.Reconcile(roCtx)
+	assert.Equal(t, 0, restarted)
 	assert.Equal(t, now, *roCtx.newStatus.RestartedAt)
 	assert.Nil(t, err)
 	// Client uses list API but not the delete API
@@ -426,7 +437,7 @@ func TestRestartSortReplicaSetsByPriority(t *testing.T) {
 func TestRestartMaxUnavailable(t *testing.T) {
 	now := metav1.Now()
 	ro := rollout("test", now, nil)
-	ro.Spec.Replicas = pointer.Int32Ptr(3)
+	ro.Spec.Replicas = ptr.To[int32](3)
 	twoUnavailable := intstr.FromInt(2)
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		MaxUnavailable: &twoUnavailable,
@@ -445,8 +456,9 @@ func TestRestartMaxUnavailable(t *testing.T) {
 		}
 		client := fake.NewSimpleClientset(rs, olderPod1, olderPod2, newerPod)
 		r := RolloutPodRestarter{client: client}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.NotNil(t, roCtx.newStatus.RestartedAt)
+		assert.Equal(t, 2, restarted)
 		assert.Nil(t, err)
 		actions := client.Actions()
 		// Client uses list and two evict API
@@ -473,9 +485,10 @@ func TestRestartMaxUnavailable(t *testing.T) {
 				enqueued = true
 			},
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Nil(t, roCtx.newStatus.RestartedAt)
 		assert.Nil(t, err)
+		assert.Equal(t, 1, restarted)
 		actions := client.Actions()
 		// Client uses list and one evict API
 		assert.Len(t, actions, 2)
@@ -501,9 +514,10 @@ func TestRestartMaxUnavailable(t *testing.T) {
 				enqueued = true
 			},
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Nil(t, roCtx.newStatus.RestartedAt)
 		assert.Nil(t, err)
+		assert.Equal(t, 1, restarted)
 		actions := client.Actions()
 		// Client uses list and one evict API
 		assert.Len(t, actions, 2)
@@ -529,9 +543,10 @@ func TestRestartMaxUnavailable(t *testing.T) {
 				enqueued = true
 			},
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.NotNil(t, roCtx.newStatus.RestartedAt)
 		assert.Nil(t, err)
+		assert.Equal(t, 2, restarted)
 		actions := client.Actions()
 		// Client uses list and two evict API
 		assert.Len(t, actions, 3)
@@ -543,7 +558,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 	})
 	t.Run("replicas:1 weight:50", func(t *testing.T) {
 		ro := ro.DeepCopy()
-		ro.Spec.Replicas = pointer.Int32Ptr(1)
+		ro.Spec.Replicas = ptr.To[int32](1)
 		ro.Spec.Strategy.Canary.MaxUnavailable = nil
 		rs2 := replicaSet("rollout-restart-def456", "test", 1, 1)
 		olderPod2 := pod("older2", "test", metav1.NewTime(now.Add(-10*time.Second)), rs2)
@@ -562,11 +577,12 @@ func TestRestartMaxUnavailable(t *testing.T) {
 				enqueued = true
 			},
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Nil(t, roCtx.newStatus.RestartedAt)
 		assert.Nil(t, err)
+		assert.Equal(t, 1, restarted)
 		actions := client.Actions()
-		// Client uses list and two evict API
+		// Client uses list and on evict API
 		assert.Len(t, actions, 2)
 		_, ok := actions[1].(k8stesting.CreateAction)
 		assert.True(t, ok)
@@ -574,7 +590,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 	})
 	t.Run("replicas:1 weight:50, already at minAvailable", func(t *testing.T) {
 		ro := ro.DeepCopy()
-		ro.Spec.Replicas = pointer.Int32Ptr(1)
+		ro.Spec.Replicas = ptr.To[int32](1)
 		ro.Spec.Strategy.Canary.MaxUnavailable = nil
 		rs := replicaSet("rollout-restart-abc123", "test", 1, 1)
 		rs2 := replicaSet("rollout-restart-def456", "test", 1, 1)
@@ -596,9 +612,10 @@ func TestRestartMaxUnavailable(t *testing.T) {
 				enqueued = true
 			},
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.Nil(t, roCtx.newStatus.RestartedAt)
 		assert.Nil(t, err)
+		assert.Equal(t, 0, restarted)
 		actions := client.Actions()
 		// Client uses list
 		assert.Len(t, actions, 1)
@@ -606,7 +623,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 	})
 	t.Run("replicas:0", func(t *testing.T) {
 		ro := ro.DeepCopy()
-		ro.Spec.Replicas = pointer.Int32Ptr(0)
+		ro.Spec.Replicas = ptr.To[int32](0)
 		rs := replicaSet("rollout-restart-abc123", "test", 0, 0)
 		roCtx := &rolloutContext{
 			rollout:  ro,
@@ -622,9 +639,10 @@ func TestRestartMaxUnavailable(t *testing.T) {
 				enqueued = true
 			},
 		}
-		err := r.Reconcile(roCtx)
+		restarted, err := r.Reconcile(roCtx)
 		assert.NotNil(t, roCtx.newStatus.RestartedAt)
 		assert.Nil(t, err)
+		assert.Equal(t, 0, restarted)
 		actions := client.Actions()
 		// Client uses list
 		assert.Len(t, actions, 1)
@@ -654,7 +672,8 @@ func TestRestartRespectPodDisruptionBudget(t *testing.T) {
 			enqueueCalled = true
 		},
 	}
-	err := r.Reconcile(roCtx)
+	restarted, err := r.Reconcile(roCtx)
 	assert.NoError(t, err)
+	assert.Equal(t, 0, restarted)
 	assert.True(t, enqueueCalled)
 }

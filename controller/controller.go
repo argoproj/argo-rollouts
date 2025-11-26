@@ -13,8 +13,9 @@ import (
 
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 
-	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 	goPlugin "github.com/hashicorp/go-plugin"
+
+	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -238,7 +239,7 @@ func NewAnalysisManager(
 		log.Fatalf("Failed to init config: %v", err)
 	}
 
-	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{})
+	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{}, kubeclientset)
 	if err != nil {
 		log.Fatalf("Failed to download plugins: %v", err)
 	}
@@ -281,6 +282,8 @@ func NewManager(
 	namespaced bool,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	jobInformerFactory kubeinformers.SharedInformerFactory,
+	ephemeralMetadataThreads int,
+	ephemeralMetadataPodRetries int,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -304,7 +307,7 @@ func NewManager(
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
 
 	refResolver := rollout.NewInformerBasedWorkloadRefResolver(namespace, dynamicclientset, discoveryClient, argoprojclientset, rolloutsInformer.Informer())
-	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(), defaults.Namespace(), notificationSecretInformerFactory.Core().V1().Secrets().Informer(), notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer())
+	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(analysisRunInformer), defaults.Namespace(), notificationSecretInformerFactory.Core().V1().Secrets().Informer(), notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer())
 	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, apiFactory)
 	notificationsController := notificationcontroller.NewControllerWithNamespaceSupport(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory,
 		notificationcontroller.WithToUnstructured(func(obj metav1.Object) (*unstructured.Unstructured, error) {
@@ -345,6 +348,8 @@ func NewManager(
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   metricsServer,
 		Recorder:                        recorder,
+		EphemeralMetadataThreads:        ephemeralMetadataThreads,
+		EphemeralMetadataPodRetries:     ephemeralMetadataPodRetries,
 	})
 
 	experimentController := experiments.NewController(experiments.ControllerConfig{
@@ -444,7 +449,7 @@ func NewManager(
 		log.Fatalf("Failed to init config: %v", err)
 	}
 
-	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{})
+	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{}, kubeclientset)
 	if err != nil {
 		log.Fatalf("Failed to download plugins: %v", err)
 	}

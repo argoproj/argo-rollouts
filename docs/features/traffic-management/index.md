@@ -1,18 +1,18 @@
-# Traffic management
+# Traffic Management
 
-Traffic management is controlling the data plane to have intelligent routing rules for an application. These routing rules can manipulate the flow of traffic to different versions of an application enabling Progressive Delivery. These controls limit the blast radius of a new release by ensuring a small percentage of users receive a new version while it is verified.
+Traffic management refers to controlling the data plane through intelligent routing rules for an application. These routing rules manipulate traffic flow between different versions of an application, enabling Progressive Delivery. By ensuring that only a small percentage of users receive a new version while it's being verified, these controls help limit the potential impact (blast radius) of a new release.
 
 There are various techniques to achieve traffic management:
 
 - Raw percentages (i.e., 5% of traffic should go to the new version while the rest goes to the stable version)
 - Header-based routing (i.e., send requests with a specific header to the new version)
-- Mirrored traffic where all the traffic is copied and send to the new version in parallel (but the response is ignored)
+- Mirrored traffic where all the traffic is copied and sent to the new version in parallel (but the response is ignored)
 
-## Traffic Management tools in Kubernetes
+## Traffic Management Tools in Kubernetes
 
-The core Kubernetes objects do not have fine-grained tools needed to fulfill all the requirements of traffic management. At most, Kubernetes offers native load balancing capabilities through the Service object by offering an endpoint that routes traffic to a grouping of pods based on that Service's selector. Functionality like traffic mirroring or routing by headers is not possible with the default core Service object, and the only way to control the percentage of traffic to different versions of an application is by manipulating replica counts of those versions. 
+Core Kubernetes objects lack the fine-grained tools necessary for comprehensive traffic management. Kubernetes primarily offers native load balancing through the Service object, which provides an endpoint that routes traffic to pods based on the Service's selector. However, advanced features such as traffic mirroring or header-based routing are not possible with the default Service object. The only way to control traffic distribution between different versions of an application is by adjusting their replica counts.
 
-Service Meshes fill this missing functionality in Kubernetes. They introduce new concepts and functionality to control the data plane through the use of CRDs and other core Kubernetes resources. 
+Service Meshes fill this missing functionality in Kubernetes. They introduce new concepts and functionality to control the data plane through the use of CRDs and other core Kubernetes resources.
 
 ## How does Argo Rollouts enable traffic management?
 
@@ -32,40 +32,39 @@ Argo Rollouts enables traffic management by manipulating the Service Mesh resour
 - File a ticket [here](https://github.com/argoproj/argo-rollouts/issues) if you would like another implementation (or thumbs up it if that issue already exists)
 
 Regardless of the Service Mesh used, the Rollout object has to set a canary Service and a stable Service in its spec. Here is an example with those fields set:
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 spec:
-  ...
   strategy:
     canary:
       canaryService: canary-service
       stableService: stable-service
-      trafficRouting:
-       ...
+      trafficRouting: {}
 ```
 
 The controller modifies these Services to route traffic to the appropriate canary and stable ReplicaSets as the Rollout progresses. These Services are used by the Service Mesh to define what group of pods should receive the canary and stable traffic.
 
 Additionally, the Argo Rollouts controller needs to treat the Rollout object differently when using traffic management. In particular, the Stable ReplicaSet owned by the Rollout remains fully scaled up as the Rollout progresses through the Canary steps.
 
-Since the traffic is controlled independently by the Service Mesh resources, the controller needs to make a best effort to ensure that the Stable and New ReplicaSets are not overwhelmed by the traffic sent to them. By leaving the Stable ReplicaSet scaled up, the controller is ensuring that the Stable ReplicaSet can handle 100% of the traffic at any time[^1]. The New ReplicaSet follows the same behavior as without traffic management. The new ReplicaSet's replica count is equal to the latest SetWeight step percentage multiple by the total replica count of the Rollout. This calculation ensures that the canary version does not receive more traffic than it can handle.
+Since the traffic is controlled independently by the Service Mesh resources, the controller needs to make a best effort to ensure that the Stable and New ReplicaSets are not overwhelmed by the traffic sent to them. By leaving the Stable ReplicaSet scaled up, the controller is ensuring that the Stable ReplicaSet can handle 100% of the traffic at any time[^1]. The New ReplicaSet follows the same behavior as without traffic management. The new ReplicaSet's replica count is equal to the latest SetWeight step percentage multiplied by the total replica count of the Rollout. This calculation ensures that the canary version does not receive more traffic than it can handle.
 
 [^1]: The Rollout has to assume that the application can handle 100% of traffic if it is fully scaled up. It should outsource to the HPA to detect if the Rollout needs to more replicas if 100% isn't enough.
 
-## Traffic routing with managed routes and route precedence
-##### Traffic router support: (Istio)
+## Traffic Routing with Managed Routes and Route Precedence
 
-When traffic routing is enabled, you have the ability to also let argo rollouts add and manage other routes besides just
-controlling the traffic weight to the canary. Two such routing rules are header and mirror based routes. When using these
-routes we also have to set a route precedence with the upstream traffic router. We do this using the `spec.strategy.canary.trafficRouting.managedRoutes`
-field which is an array the order of the items in the array determine the precedence. This set of routes will also be placed
-in the order specified on top of any other routes defined manually. 
+**Traffic Router Support: Istio**
+
+When traffic routing is enabled, Argo Rollouts can add and manage additional routes beyond just controlling the traffic weight
+to the canary. These include header-based and mirror-based routes. When using these routes, you must set route precedence
+with the upstream traffic router using the `spec.strategy.canary.trafficRouting.managedRoutes` field. This field accepts an
+array where the order of items determines their precedence. These managed routes will be placed in the specified order above
+any manually defined routes.
 
 !!! warning
 
     All routes listed in managed routes will be removed at the end of a rollout or on an abort. Do not put any manually created routes in the list.
-
 
 Here is an example:
 
@@ -73,10 +72,8 @@ Here is an example:
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 spec:
-  ...
   strategy:
     canary:
-      ...
       trafficRouting:
         managedRoutes:
           - name: priority-route-1
@@ -84,22 +81,26 @@ spec:
           - name: priority-route-3
 ```
 
+## Traffic Routing Based on Header Values for Canary
 
-## Traffic routing based on a header values for Canary
-##### Traffic router support: (Istio)
+**Traffic Router Support: Istio**
 
-Argo Rollouts has ability to send all traffic to the canary-service based on a http request header value.
-The step for the header based traffic routing is `setHeaderRoute` and has a list of matchers for the header. 
+Argo Rollouts can route all traffic to the canary service based on HTTP request header values.
+Header-based traffic routing is configured using the `setHeaderRoute` step, which contains a list of header matchers.
 
-`name` - name of the header route.
+`name` - The name of the header route.
 
-`match` - header matching rules is an array of `headerName, headerValue` pairs.
+`match` - An array of `headerName, headerValue` pairs defining the header matching rules.
 
-`headerName` - name of the header to match.
+`headerName` - The name of the header to match.
 
-`headerValue`-  contains exactly one of `exact` - specify the exact header value, 
-`regex` - value in a regex format, `prefix` - the prefix of the value could be provided. Not all traffic routers will support
-all match types.
+`headerValue` - Must contain exactly one of the following:
+
+- `exact`: Specifies an exact header value to match
+- `regex`: Specifies a regular expression pattern to match
+- `prefix`: Specifies a prefix value to match
+
+**Note:** Not all traffic routers support all match types.
 
 To disable header based traffic routing just need to specify empty `setHeaderRoute` with only the name of the route.
 
@@ -109,7 +110,6 @@ Example:
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 spec:
-  ...
   strategy:
     canary:
       canaryService: canary-service
@@ -121,47 +121,51 @@ spec:
           virtualService:
             name: rollouts-demo-vsvc
       steps:
-      - setWeight: 20
-      - setHeaderRoute: # enable header based traffic routing where
-          name: "set-header-1"
-          match:
-          - headerName: Custom-Header1 # Custom-Header1=Mozilla
-            headerValue:
-              exact: Mozilla
-          - headerName: Custom-Header2 # or Custom-Header2 has a prefix Mozilla
-            headerValue:
-              prefix: Mozilla
-          - headerName: Custom-Header3 # or Custom-Header3 value match regex: Mozilla(.*)
-            headerValue:
-              regex: Mozilla(.*)
-      - pause: {}
-      - setHeaderRoute:
-          name: "set-header-1" # disable header based traffic routing
+        - setWeight: 20
+        - setHeaderRoute: # enable header based traffic routing where
+            name: 'set-header-1'
+            match:
+              - headerName: Custom-Header1 # Custom-Header1=Mozilla
+                headerValue:
+                  exact: Mozilla
+              - headerName: Custom-Header2 # or Custom-Header2 has a prefix Mozilla
+                headerValue:
+                  prefix: Mozilla
+              - headerName: Custom-Header3 # or Custom-Header3 value match regex: Mozilla(.*)
+                headerValue:
+                  regex: Mozilla(.*)
+        - pause: {}
+        - setHeaderRoute:
+            name: 'set-header-1' # disable header based traffic routing
 ```
 
-## Traffic routing mirroring traffic to canary
-##### Traffic router support: (Istio)
+## Traffic Mirroring to Canary
 
-Argo Rollouts has ability to mirror traffic to the canary-service based on a various matching rules.
-The step for the mirror based traffic routing is `setMirrorRoute` and has a list of matchers for the header.
+**Traffic Router Support: Istio**
 
-`name` - name of the mirror route.
+Argo Rollouts can mirror traffic to the canary service based on various matching rules.
+Traffic mirroring is configured using the `setMirrorRoute` step, which includes header matchers.
 
-`percentage` - what percentage of the matched traffic to mirror
+`name` - The name of the mirror route.
 
-`match` - The matching rules for the header route, if this is missing it acts as a removal of the route.
-All conditions inside a single match block have AND semantics, while the list of match blocks have OR semantics.
-Each type within a match (method, path, headers) must have one and only one match type (exact, regex, prefix)
-Not all match types (exact, regex, prefix) will be supported by all traffic routers.
+`percentage` - The percentage of matched traffic to mirror.
+
+`match` - Defines the matching rules for the header route. If omitted, the route will be removed.
+
+- Multiple conditions within a single match block use AND logic
+- Multiple match blocks use OR logic
+- Each match type (method, path, headers) must specify exactly one match style (exact, regex, or prefix)
+
+**Note: Not all traffic routers support all match types (exact, regex, prefix).**
 
 To disable mirror based traffic route you just need to specify a `setMirrorRoute` with only the name of the route.
 
 This example will mirror 35% of HTTP traffic that matches a `GET` requests and with the url prefix of `/`
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 spec:
-  ...
   strategy:
     canary:
       canaryService: canary-service
@@ -175,16 +179,16 @@ spec:
       steps:
         - setCanaryScale:
             weight: 25
-      - setMirrorRoute:
-          name: mirror-route
-          percentage: 35
-          match:
-            - method:
-                exact: GET
-              path:
-                prefix: /
-      - pause:
-          duration: 10m
-      - setMirrorRoute:
-          name: "mirror-route" # removes mirror based traffic route
+        - setMirrorRoute:
+            name: mirror-route
+            percentage: 35
+            match:
+              - method:
+                  exact: GET
+                path:
+                  prefix: /
+        - pause:
+            duration: 10m
+        - setMirrorRoute:
+            name: 'mirror-route' # removes mirror based traffic route
 ```

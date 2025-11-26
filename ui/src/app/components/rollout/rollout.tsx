@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as YAML from 'yaml';
 import {Helmet} from 'react-helmet';
 import {useParams} from 'react-router-dom';
 import {
@@ -6,6 +7,7 @@ import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep,
     RolloutReplicaSetInfo,
     RolloutRolloutInfo,
     RolloutServiceApi,
@@ -22,6 +24,7 @@ import {Fragment} from 'react';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faChevronCircleDown, faChevronCircleUp, faCircleNotch} from '@fortawesome/free-solid-svg-icons';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
+import { notification } from 'antd';
 
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 export interface ImageInfo {
@@ -48,35 +51,7 @@ export const parseImages = (replicaSets: RolloutReplicaSetInfo[]): ImageInfo[] =
     const unknownImages: {[key: string]: boolean} = {};
     (replicaSets || []).forEach((rs) => {
         (rs.images || []).forEach((img) => {
-            const tags: ImageTag[] = [];
-
-            if (rs.canary) {
-                tags.push(ImageTag.Canary);
-            }
-            if (rs.stable) {
-                tags.push(ImageTag.Stable);
-            }
-            if (rs.active) {
-                tags.push(ImageTag.Active);
-            }
-            if (rs.preview) {
-                tags.push(ImageTag.Preview);
-            }
-
-            if (images[img]) {
-                images[img].tags = [...tags, ...images[img].tags];
-            } else {
-                images[img] = {
-                    image: img,
-                    tags: tags,
-                };
-            }
-
-            if (images[img].tags.length === 0) {
-                unknownImages[img] = true;
-            } else {
-                unknownImages[img] = false;
-            }
+            updateImageInfo(rs,img,images,unknownImages);
         });
     });
 
@@ -87,6 +62,54 @@ export const parseImages = (replicaSets: RolloutReplicaSetInfo[]): ImageInfo[] =
     return imgArray;
 };
 
+export const parseInitContainerImages = (replicaSets: RolloutReplicaSetInfo[]): ImageInfo[] => {
+    const images: {[key: string]: ImageInfo} = {};
+    const unknownImages: {[key: string]: boolean} = {};
+    (replicaSets || []).forEach((rs) => {
+        (rs.initContainerImages || []).forEach((img) => {
+            updateImageInfo(rs,img,images,unknownImages);
+        });
+    });
+
+    const imgArray = Object.values(images);
+    imgArray.sort((a, b) => {
+        return unknownImages[a.image] ? 1 : -1;
+    });
+    return imgArray;
+};
+
+const updateImageInfo = (rs: RolloutReplicaSetInfo,img: string ,images: {[key: string]: ImageInfo},unknownImages:{[key: string]: boolean}) => {
+    const tags: ImageTag[] = [];
+
+    if (rs.canary) {
+        tags.push(ImageTag.Canary);
+    }
+    if (rs.stable) {
+        tags.push(ImageTag.Stable);
+    }
+    if (rs.active) {
+        tags.push(ImageTag.Active);
+    }
+    if (rs.preview) {
+        tags.push(ImageTag.Preview);
+    }
+
+    if (images[img]) {
+        images[img].tags = [...tags, ...images[img].tags];
+    } else {
+        images[img] = {
+            image: img,
+            tags: tags,
+        };
+    }
+
+    if (images[img].tags.length === 0) {
+        unknownImages[img] = true;
+    } else {
+        unknownImages[img] = false;
+    }
+};
+
 export type ReactStatePair = [boolean, React.Dispatch<React.SetStateAction<boolean>>];
 
 export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?: {editState: ReactStatePair; api: RolloutServiceApi; namespace: string}}) => {
@@ -94,8 +117,10 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
     const curStep = parseInt(rollout.step, 10) || (rollout.steps || []).length;
     const revisions = ProcessRevisions(rollout);
 
-    const images = parseImages(rollout?.replicaSets || []);
+    const initContainerEditState =  React.useState(false);
+    const initContainerImages = parseInitContainerImages(rollout?.replicaSets || []);
 
+    const images = parseImages(rollout?.replicaSets || []);
     for (const img of images) {
         for (const container of rollout.containers || []) {
             if (img.image === container.image) {
@@ -132,19 +157,55 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                     <div className='info rollout__info'>
                         <ContainersWidget
                             images={images}
+                            name='Containers'
                             containers={rollout.containers || []}
                             interactive={
                                 interactive
                                     ? {
                                           editState: interactive.editState,
                                           setImage: (container, image, tag) => {
-                                              interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag);
+                                            void interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag)
+                                                .catch((e) => {
+                                                    console.error('Error setting image:', e);
+                                                    notification.error({
+                                                        message: 'Error setting image',
+                                                        description: e.message || 'An unexpected error occurred while setting the image.',
+                                                        duration: 8,
+                                                        placement: 'bottomRight',
+                                                    });
+                                                });
                                           },
                                       }
                                     : null
                             }
                         />
                     </div>
+                    {rollout.initContainers && <div className='info rollout__info'>
+                        <ContainersWidget
+                            images={initContainerImages}
+                            name='Init Containers'
+                            containers={rollout.initContainers || []}
+                            interactive={
+                                interactive
+                                    ? {
+                                          editState: initContainerEditState,
+                                          setImage: (container, image, tag) => {
+                                            void interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag)
+                                                .catch((e) => {
+                                                    console.error('Error setting image:', e);
+                                                    notification.error({
+                                                        message: 'Error setting image',
+                                                        description: e.message || 'An unexpected error occurred while setting the image.',
+                                                        duration: 8,
+                                                        placement: 'bottomRight',
+                                                    });
+                                                });
+                                          },
+                                      }
+                                    : null
+                            }
+                        />
+                    </div>}
                 </div>
 
                 <div className='rollout__row rollout__row--bottom'>
@@ -157,7 +218,19 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                                         key={i}
                                         revision={r}
                                         initCollapsed={false}
-                                        rollback={interactive ? (r) => interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`) : null}
+                                        rollback={interactive ? async (r) => {
+                                            try {
+                                                await interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`);
+                                            } catch (e) {
+                                                console.error('Error rolling back:', e);
+                                                notification.error({
+                                                    message: 'Error rolling back',
+                                                    description: e.message || 'An unexpected error occurred while rolling back the rollout.',
+                                                    duration: 8,
+                                                    placement: 'bottomRight',
+                                                });
+                                            }
+                                        } : null}
                                         current={i === 0}
                                     />
                                 ))}
@@ -276,11 +349,12 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     const [openAnalysis, setOpenAnalysis] = React.useState(false);
     const [openHeader, setOpenHeader] = React.useState(false);
     const [openMirror, setOpenMirror] = React.useState(false);
+    const [openPlugin, setOpenPlugin] = React.useState(false);
 
     let icon: string;
     let content = '';
     let unit = '';
-    if (props.step.setWeight) {
+    if (props.step.setWeight || props.step.setWeight === 0) {
         icon = 'fa-weight';
         content = `Set Weight: ${props.step.setWeight}`;
         unit = '%';
@@ -319,6 +393,11 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
         }
     }
 
+    if (props.step.plugin) {
+        content = `${props.step.plugin.name}`;
+        icon = 'fa-puzzle-piece';
+    }
+
     return (
         <React.Fragment>
             <div style={{zIndex: 1}} className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
@@ -328,7 +407,8 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                         (props.step.setCanaryScale && openCanary) ||
                         (props.step.analysis && openAnalysis) ||
                         (props.step.setHeaderRoute && openHeader) ||
-                        (props.step.setMirrorRoute && openMirror)
+                        (props.step.setMirrorRoute && openMirror) ||
+                        (props.step.plugin && openPlugin)
                             ? 'steps__step-title--experiment'
                             : ''
                     }`}
@@ -355,6 +435,11 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                             <i className={`fa ${openCanary ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
                         </div>
                     )}
+                    {props.step.plugin && props.step.plugin.config && (
+                        <div style={{marginLeft: 'auto'}} onClick={() => setOpenPlugin(!openPlugin)}>
+                            <i className={`fa ${openPlugin ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </div>
+                    )}
                 </div>
                 {props.step.experiment?.templates && (
                     <div className='steps__step__content'>
@@ -379,6 +464,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                     </div>
                 )}
                 {props.step?.setCanaryScale && openCanary && <WidgetItem values={props.step.setCanaryScale} />}
+                {props.step?.plugin && openPlugin && <WidgetItemPlugin values={props.step.plugin} />}
                 {props.step?.setHeaderRoute && openHeader && <WidgetItemSetHeader values={props.step.setHeaderRoute.match} />}
                 {props.step?.setMirrorRoute && openMirror && <WidgetItemSetMirror value={props.step.setMirrorRoute} />}
             </div>
@@ -520,6 +606,16 @@ const WidgetItemSetHeader = ({values}: {values: GithubComArgoprojArgoRolloutsPkg
                     </Fragment>
                 );
             })}
+        </div>
+    );
+};
+
+const WidgetItemPlugin = ({values}: {values: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep}) => {
+    if (!values.config) return null;
+    return (
+        <div>
+            <div className='steps__step__content-title'>CONFIG</div>
+            <div className='steps__step__content-value'>{YAML.stringify(values.config)}</div>
         </div>
     );
 };

@@ -19,6 +19,10 @@ are available as options in Argo Rollouts:
 1. [Host-level traffic splitting](#host-level-traffic-splitting)
 2. [Subset-level traffic splitting](#subset-level-traffic-splitting)
 
+!!! note
+
+    When using Istio only traffic that is within the service mesh will follow the rollout strategy. Pods excluded from the service mesh (e.g., because of a `sidecar.istio.io/inject="false"` label) will follow default Kubernetes traffic routing.
+
 ## Host-level Traffic Splitting
 
 The first approach to traffic splitting using Argo Rollouts and Istio, is splitting between two
@@ -138,8 +142,8 @@ During the lifecycle of a Rollout update, Argo Rollouts will continuously:
 
 The second approach to traffic splitting using Argo Rollouts and Istio, is splitting between two
 Istio [DestinationRule Subsets](https://istio.io/latest/docs/reference/config/networking/destination-rule/#Subset):
-a canary subset and a stable subset. When splitting by DestinationRule subsets, the user is
-required to deploy the following resources:
+a canary subset and a stable subset. User's can also specify [additional subset DestinationRule's](#additional-subset-destinationrules) to direct traffic towards.
+When splitting by DestinationRule subsets, the user is required to deploy the following resources:
 
 * Rollout
 * Service
@@ -245,6 +249,83 @@ During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts wil
 * modify the DestinationRule `spec.subsets[].labels` to contain the `rollouts-pod-template-hash`
   label of the canary and stable ReplicaSets
 
+### Additional Subset DestinationRule's
+
+Argo Rollouts also allows users to add additional subset DestinationRule's.
+One use case could be to direct additional traffic served by an API's path (e.g. `/api/mypath`) to
+a service handled by Argo Rollouts (with a stable and canary DestinationRule) *and* a service using an experimental image.
+
+For example, you could have subsets for:
+- `canary` - the new version being tested
+- `stable` - the current production version  
+- `legacy` - an older version for backward compatibility
+- `experimental` - a version with experimental features
+
+To enable this feature, follow the steps above for a regular subset DestinationRule deployment.
+Aftewards, modify your VirtualService containing the canary and subset DestinationRule's
+to include the additional subset names and the desired traffic weight:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: rollout-vsvc
+spec:
+  ...
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: rollout-example # same as the steps above
+        subset: stable
+      weight: 100 # you can leave this as 100, Argo Rollouts will handle the adjusted total weight so that the weights add up to 100%
+    - destination:
+        host: rollout-example
+        subset: canary
+      weight: 0
+    - destination:
+        host: experiment-host # this references the host of the additional Service (or whatever is configured by the additional Service)
+        subset: experiment # new and additional subset DestinationRule, referencing the spec.subsets.name of the DestinationRule
+      weight: 20
+```
+
+Also ensure that you deploy the additional DestinationRule (alongside whatever Services, Deployments, etc. that your additional DestinationRule depends on)
+as well, with the appropriate `spec.host`, `spec.subsets.name`, and `spec.subsets.labels.app` fields:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: experimental-destrule
+spec:
+  host: experimental-host
+  exportTo:
+    - .
+    - ingress-system
+  subsets:
+    - name: experiment
+      labels:
+        app: experimental-host
+```
+
+Finally, add the names of the additional DestinationRule's to your Rollout spec as such:
+
+```yaml
+...
+destinationRule:
+  name: rollout-destrule    # required
+  canarySubsetName: canary  # required
+  stableSubsetName: stable  # required
+  additionalSubsetNames:    # not required, optional
+    ...                     # any other additional DestinationRule's
+    - "experiment"
+```
+
+The Argo Rollouts controller will manage the traffic weights between the canary and stable subsets,
+subtracting the weight directed to the additional subset DestinationRule's from the stable traffic.
+E.g.: Stable starts off at 100%, but with an additional DestinationRule taking up 20% of the traffic weight,
+it would then actually start off at 80%.
+
 ## TCP Traffic Splitting
 
 !!! important
@@ -303,7 +384,7 @@ spec:
 
 ## Multicluster Setup
 If you have [Istio multicluster setup](https://istio.io/latest/docs/setup/install/multicluster/)
-where the primary Istio cluster is different than the cluster where the Argo Rollout controller
+where the primary Istio cluster is different from the cluster where the Argo Rollout controller
 is running, then you need to do the following setup:
 
 1. Create a `ServiceAccount` in the Istio primary cluster.
@@ -439,12 +520,12 @@ leverage the following Argo CD features:
       ignoreDifferences:
       - group: networking.istio.io
         kind: VirtualService
-        jsonPointers:
-        - /spec/http/0
+        jqPathExpressions:
+        - .spec.http[].route[].weight
     ```
 
-    Ignoring the differences in the VirtualServices HTTP route, prevents gitops differences
-    in the VirtualService HTTP routes to contribute to the overall sync status of the Argo CD
+    Ignoring the differences in the VirtualServices HTTP route weights, prevents GitOps differences
+    in the VirtualService HTTP route weights to contribute to the overall sync status of the Argo CD
     application. This adds the additional benefit of prevent auto-sync operations from being
     triggered.
 
@@ -459,6 +540,7 @@ leverage the following Argo CD features:
       syncPolicy:
         syncOptions:
         - ApplyOutOfSyncOnly=true
+        - RespectIgnoreDifferences=true
     ```
 
     By default, when Argo CD  syncs an application, it runs `kubectl apply` against all resources in
@@ -468,10 +550,17 @@ leverage the following Argo CD features:
     feature, provides a way to manage the conflict in the desired state of a VirtualService between
     Argo CD and Argo Rollouts.
 
-Argo CD also has an [open issue here](https://github.com/argoproj/argo-cd/issues/2913) which would
-help address this problem. The proposed solution is to introduce an annotation to resources, which
-indicates to Argo CD to respect and preserve the differences at a specified path, in order to allow
-other controllers (e.g. Argo Rollouts) controller manage them instead.
+## Ping Pong
+
+!!! important
+
+    Available since v1.7
+
+Argo Rollouts also supports ping pong when using Istio this was added to support configuring both ALB and
+Istio traffic routers at the same time. When using an ALB, ping-pong is generally a best practice especially with ALB readiness 
+gates enabled. However, when we change the service selectors when a rollout is aborted back to stable pod hash it causes a blip 
+of traffic outage because the ALB controller will set the pod readiness gates to false for a short while due to the label changes.
+If we configure both ALB and Istio with ping-pong this selector change does not happen and hence we do not see any outages.
 
 ## Alternatives Considered
 

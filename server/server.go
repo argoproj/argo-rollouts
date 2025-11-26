@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/errors"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
@@ -39,6 +39,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	"github.com/argoproj/argo-rollouts/utils/errors"
 	"github.com/argoproj/argo-rollouts/utils/json"
 	versionutils "github.com/argoproj/argo-rollouts/utils/version"
 )
@@ -104,7 +105,15 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	}
 
 	var apiHandler http.Handler = gwmux
-	mux.Handle("/api/", apiHandler)
+
+	// Mount API at rootPath/api/ when rootPath is configured
+	apiPath := "/api/"
+	if s.Options.RootPath != "" {
+		apiPath = path.Join("/", s.Options.RootPath, "api") + "/"
+		stripPrefix := path.Join("/", s.Options.RootPath)
+		apiHandler = http.StripPrefix(stripPrefix, gwmux)
+	}
+	mux.Handle(apiPath, apiHandler)
 	mux.HandleFunc("/", s.staticFileHttpHandler)
 
 	return &httpS
@@ -179,7 +188,10 @@ func (s *ArgoRolloutsServer) initRolloutViewController(namespace string, name st
 }
 
 func (s *ArgoRolloutsServer) getRolloutInfo(namespace string, name string) (*rollout.RolloutInfo, error) {
-	controller := s.initRolloutViewController(namespace, name, context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	controller := s.initRolloutViewController(namespace, name, ctx)
 	ri, err := controller.GetRolloutInfo()
 	if err != nil {
 		return nil, err

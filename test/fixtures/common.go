@@ -12,6 +12,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	k8errors "k8s.io/apimachinery/pkg/api/errors"
+
 	a6util "github.com/argoproj/argo-rollouts/utils/apisix"
 
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
@@ -679,6 +681,17 @@ func (c *Common) GetRolloutEventReasons() []string {
 		}
 	}
 	return reasons
+}
+
+func (c *Common) GetControllerConfig() *corev1.ConfigMap {
+	configMap, err := c.kubeClient.CoreV1().ConfigMaps(c.namespace).Get(c.Context, "argo-rollouts-config", metav1.GetOptions{})
+	if err != nil {
+		if k8errors.IsNotFound(err) {
+			return nil
+		}
+		c.CheckError(err)
+	}
+	return configMap
 }
 
 // PrintRolloutEvents prints all Kubernetes events associated with the given rollout.

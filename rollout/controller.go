@@ -11,7 +11,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -33,7 +32,9 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
@@ -42,6 +43,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/steps/plugin"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
@@ -112,6 +114,8 @@ type ControllerConfig struct {
 	IngressWorkQueue                workqueue.RateLimitingInterface
 	MetricsServer                   *metrics.MetricsServer
 	Recorder                        record.EventRecorder
+	EphemeralMetadataThreads        int
+	EphemeralMetadataPodRetries     int
 }
 
 // reconcilerBase is a shared datastructure containing all clients and configuration necessary to
@@ -151,8 +155,10 @@ type reconcilerBase struct {
 	newTrafficRoutingReconciler func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
 
 	// recorder is an event recorder for recording Event resources to the Kubernetes API.
-	recorder     record.EventRecorder
-	resyncPeriod time.Duration
+	recorder                    record.EventRecorder
+	resyncPeriod                time.Duration
+	ephemeralMetadataThreads    int
+	ephemeralMetadataPodRetries int
 }
 
 type IngressWrapper interface {
@@ -164,7 +170,6 @@ type IngressWrapper interface {
 
 // NewController returns a new rollout controller
 func NewController(cfg ControllerConfig) *Controller {
-
 	replicaSetControl := controller.RealRSControl{
 		KubeClient: cfg.KubeClientSet,
 		Recorder:   cfg.Recorder.K8sRecorder(),
@@ -174,6 +179,11 @@ func NewController(cfg ControllerConfig) *Controller {
 		client:       cfg.KubeClientSet,
 		resyncPeriod: cfg.ResyncPeriod,
 		enqueueAfter: func(obj any, duration time.Duration) {
+			ro := unstructuredutil.ObjectToRollout(obj)
+			if ro != nil {
+				logCtx := logutil.WithRollout(ro)
+				logCtx.Info("rollout enqueue due to pod restart")
+			}
 			controllerutil.EnqueueAfter(obj, duration, cfg.RolloutWorkQueue)
 		},
 	}
@@ -199,6 +209,8 @@ func NewController(cfg ControllerConfig) *Controller {
 		resyncPeriod:                  cfg.ResyncPeriod,
 		podRestarter:                  podRestarter,
 		refResolver:                   cfg.RefResolver,
+		ephemeralMetadataThreads:      cfg.EphemeralMetadataThreads,
+		ephemeralMetadataPodRetries:   cfg.EphemeralMetadataPodRetries,
 	}
 
 	controller := &Controller{
@@ -234,6 +246,8 @@ func NewController(cfg ControllerConfig) *Controller {
 			controller.enqueueRollout(obj)
 			ro := unstructuredutil.ObjectToRollout(obj)
 			if ro != nil {
+				logCtx := logutil.WithRollout(ro)
+				logCtx.Info("rollout enqueue due to add event")
 				if cfg.Recorder != nil {
 					cfg.Recorder.Eventf(ro, record.EventOptions{
 						EventType:   corev1.EventTypeNormal,
@@ -258,12 +272,16 @@ func NewController(cfg ControllerConfig) *Controller {
 					controller.IstioController.EnqueueDestinationRule(key)
 				}
 			}
+			if newRollout != nil {
+				logCtx := logutil.WithRollout(newRollout)
+				logCtx.Info("rollout enqueue due to update event")
+			}
 			controller.enqueueRollout(new)
 		},
 		DeleteFunc: func(obj any) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				logCtx := logutil.WithRollout(ro)
-				logCtx.Info("rollout deleted")
+				logCtx.Info("rollout enqueue due to delete event")
 				controller.metricsServer.Remove(ro.Namespace, ro.Name, logutil.RolloutKey)
 				// Rollout is deleted, queue up the referenced Service and/or DestinationRules so
 				// that the rollouts-pod-template-hash can be cleared from each
@@ -404,22 +422,29 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	resolveErr := c.refResolver.Resolve(r)
 	roCtx, err := c.newRolloutContext(r)
-	if err != nil {
-		logCtx.Errorf("newRolloutContext err %v", err)
+	if roCtx == nil {
+		logCtx.Error("newRolloutContext returned nil")
 		return err
 	}
-	if resolveErr != nil {
-		roCtx.createInvalidRolloutCondition(resolveErr, r)
-		return resolveErr
+	if err != nil {
+		if _, ok := err.(*field.Error); ok {
+			logCtx := logutil.WithRollout(roCtx.rollout)
+			logCtx.Info("rollout enqueue due to validation error")
+			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
+			// condition might be timing related (e.g. the Rollout was applied before the Service).
+			c.enqueueRolloutAfter(roCtx.rollout, 20*time.Second)
+			return nil // do not requeue from error because we already re-queued above
+		}
+		logCtx.Errorf("newRolloutContext err %v", err)
+		return err
 	}
 
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
 	if rollout.Spec.Replicas == nil {
 		logCtx.Info("Defaulting .spec.replica to 1")
-		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
+		r.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
 		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
 		if err == nil {
 			c.writeBackToInformer(newRollout)
@@ -475,6 +500,14 @@ func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {
+	// This needs to be run before replicasets are found/resolved below.
+	// Additionally, for whatever reason, the tests also have assertions that
+	// fail if we delay finding the replicasets, analysisruns and experiments
+	// until after the roll context is created. Thus any eventual error in
+	// resolving the workload ref will be handled immediately after the
+	// rollcontext is created.
+	resolveErr := c.refResolver.Resolve(rollout)
+
 	rsList, err := c.getReplicaSetsForRollouts(rollout)
 	if err != nil {
 		return nil, err
@@ -520,8 +553,46 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			rollout: rollout,
 			log:     logCtx,
 		},
+		stepPluginContext: &stepPluginContext{
+			resolver: plugin.NewResolver(),
+			log:      logCtx,
+		},
 		reconcilerBase: c.reconcilerBase,
 	}
+
+	if resolveErr != nil {
+		err := roCtx.createInvalidRolloutCondition(resolveErr, rollout)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create invalid rollout condition when resolving the rollout: %w", err)
+		}
+
+		return &roCtx, validation.InvalidWorkloadRef(roCtx.rollout, resolveErr)
+	}
+
+	// Get Rollout Validation errors
+	err = roCtx.getRolloutValidationErrors()
+	if err != nil {
+		if vErr, ok := err.(*field.Error); ok {
+			err := roCtx.createInvalidRolloutCondition(vErr, roCtx.rollout)
+			if err != nil {
+				return nil, err
+			}
+			return nil, vErr
+		}
+		return nil, err
+	}
+
+	if roCtx.newRS == nil {
+		roCtx.newRS, err = roCtx.createDesiredReplicaSet()
+		if err != nil {
+			return nil, err
+		}
+		roCtx.olderRSs = replicasetutil.FindOldReplicaSets(roCtx.rollout, rsList, roCtx.newRS)
+		roCtx.stableRS = replicasetutil.GetStableRS(roCtx.rollout, roCtx.newRS, roCtx.olderRSs)
+		roCtx.otherRSs = replicasetutil.GetOtherRSs(roCtx.rollout, roCtx.newRS, roCtx.stableRS, rsList)
+		roCtx.allRSs = append(rsList, roCtx.newRS)
+	}
+
 	if rolloututil.IsFullyPromoted(rollout) && roCtx.pauseContext.IsAborted() {
 		logCtx.Warnf("Removing abort condition from fully promoted rollout")
 		roCtx.pauseContext.RemoveAbort()
@@ -795,38 +866,64 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 }
 
 func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, rolloutAnalysis *v1alpha1.RolloutAnalysis, templateType validation.AnalysisTemplateType, canaryStepIndex int) (*validation.AnalysisTemplatesWithType, error) {
-	templates := make([]*v1alpha1.AnalysisTemplate, 0)
-	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
 	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, canaryStepIndex)
 
-	for _, templateRef := range rolloutAnalysis.Templates {
-		if templateRef.ClusterScope {
-			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
-			if err != nil {
-				if k8serrors.IsNotFound(err) {
-					return nil, field.Invalid(fldPath, templateRef.TemplateName, fmt.Sprintf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName))
-				}
-				return nil, err
-			}
-			clusterTemplates = append(clusterTemplates, template)
-		} else {
-			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
-			if err != nil {
-				if k8serrors.IsNotFound(err) {
-					return nil, field.Invalid(fldPath, templateRef.TemplateName, fmt.Sprintf("AnalysisTemplate '%s' not found", templateRef.TemplateName))
-				}
-				return nil, err
-			}
-			templates = append(templates, template)
-		}
-	}
+	templates, clusterTemplates, err := c.getReferencedAnalysisTemplatesFromRef(&rolloutAnalysis.Templates, fldPath)
 
 	return &validation.AnalysisTemplatesWithType{
 		AnalysisTemplates:        templates,
 		ClusterAnalysisTemplates: clusterTemplates,
 		TemplateType:             templateType,
 		CanaryStepIndex:          canaryStepIndex,
-	}, nil
+	}, err
+}
+
+func (c *rolloutContext) getReferencedAnalysisTemplatesFromRef(templateRefs *[]v1alpha1.AnalysisTemplateRef, fieldPath *field.Path) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate, error) {
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	for _, templateRef := range *templateRefs {
+		if templateRef.ClusterScope {
+			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, nil, field.Invalid(fieldPath, templateRef.TemplateName, fmt.Sprintf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName))
+				}
+				return nil, nil, err
+			}
+			clusterTemplates = append(clusterTemplates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerFldPath := field.NewPath("spec", "templates")
+				innerTemplates, innerClusterTemplates, innerErr := c.getReferencedAnalysisTemplatesFromRef(&template.Spec.Templates, innerFldPath)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
+		} else {
+			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, nil, field.Invalid(fieldPath, templateRef.TemplateName, fmt.Sprintf("AnalysisTemplate '%s' not found", templateRef.TemplateName))
+				}
+				return nil, nil, err
+			}
+			templates = append(templates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerFldPath := field.NewPath("spec", "templates")
+				innerTemplates, innerClusterTemplates, innerErr := c.getReferencedAnalysisTemplatesFromRef(&template.Spec.Templates, innerFldPath)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
+		}
+	}
+	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
+	return uniqueTemplates, uniqueClusterTemplates, nil
 }
 
 func (c *rolloutContext) getReferencedIngresses() (*[]ingressutil.Ingress, error) {
@@ -910,4 +1007,16 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 		panic(err)
 	}
 	return &remarshalled
+}
+
+// updateReplicaSet updates the replicaset using kubeclient update. It returns the updated replicaset and copies the updated replicaset
+// into the passed in pointer as well.
+func (c *rolloutContext) updateReplicaSet(ctx context.Context, rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
+	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error updating replicaset in updateReplicaSet %s: %w", rs.Name, err)
+	}
+	updatedRS.DeepCopyInto(rs)
+
+	return rs, err
 }

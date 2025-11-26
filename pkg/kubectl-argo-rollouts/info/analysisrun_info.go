@@ -70,9 +70,14 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			for _, measurement := range analysisutil.ArrayMeasurement(run, mr.Name) {
 				if measurement.Metadata != nil {
 					if jobName, ok := measurement.Metadata[job.JobNameKey]; ok {
+						ns := run.Namespace
+						if jobNamespace, ok := measurement.Metadata[job.JobNamespaceKey]; ok {
+							ns = jobNamespace
+						}
 						jobInfo := rollout.JobInfo{
 							ObjectMeta: &v1.ObjectMeta{
-								Name: jobName,
+								Name:      jobName,
+								Namespace: ns,
 							},
 							Icon:       analysisIcon(measurement.Phase),
 							Status:     string(measurement.Phase),

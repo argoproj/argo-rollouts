@@ -16,6 +16,9 @@ kubectl argo rollouts list rollouts [flags]
 # List rollouts
 kubectl argo rollouts list rollouts
 
+# List rollouts with a specific name
+kubectl argo rollouts list rollouts --name my-rollout
+
 # List rollouts from all namespaces
 kubectl argo rollouts list rollouts --all-namespaces
 

@@ -20,7 +20,7 @@ This will create a new namespace, `argo-rollouts`, where Argo Rollouts controlle
 
 
 !!! tip
-    On GKE, you will need grant your account the ability to create new cluster roles:
+    On GKE, you will need to grant your account the ability to create new cluster roles:
 
     ```shell
     kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
@@ -81,7 +81,21 @@ kubectl argo rollouts version
 
 ## Shell auto completion
 
-The CLI can export shell completion code for several shells.
+To enable auto completion for the plugin when used with `kubectl` (version 1.26 or newer), you need to create a shell script on your PATH called `kubectl_complete-argo-rollouts` which will provide the completions.
+
+```shell
+cat <<EOF >kubectl_complete-argo-rollouts
+#!/usr/bin/env sh
+
+# Call the __complete command passing it all arguments
+kubectl argo rollouts __complete "\$@"
+EOF
+
+chmod +x kubectl_complete-argo-rollouts
+sudo mv ./kubectl_complete-argo-rollouts /usr/local/bin/
+```
+
+To enable auto completion for the CLI run as a standalone binary, the CLI can export shell completion code for several shells.
 
 For bash, ensure you have bash completions installed and enabled. To access completions in your current shell, run $ `source <(kubectl-argo-rollouts completion bash)`. Alternatively, write it to a file and source in `.bash_profile`.
 
@@ -90,7 +104,7 @@ The completion command supports bash, zsh, fish and powershell.
 See the [completion command documentation](./generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion.md) for more details.
 
 
-## Using the CLI  with Docker
+## Using the CLI with Docker
 
 The CLI is also available as a container image at [https://quay.io/repository/argoproj/kubectl-argo-rollouts](https://quay.io/repository/argoproj/kubectl-argo-rollouts)
 
@@ -102,7 +116,7 @@ docker run quay.io/argoproj/kubectl-argo-rollouts:master version
 
 ## Supported versions
 
-Check [e2e testing file]( https://github.com/argoproj/argo-rollouts/blob/master/.github/workflows/e2e.yaml#L40-L44) to see what the Kubernetes version is being fully tested.
+Check [e2e testing file](https://github.com/argoproj/argo-rollouts/blob/master/.github/workflows/testing.yaml#L82-L89) to see what the Kubernetes version is being fully tested.
 
 You can switch to different tags to see what relevant Kubernetes versions were being tested for the respective version.
 
@@ -120,4 +134,3 @@ To upgrade Argo Rollouts:
 If deployments are happening while you upgrade the controller, then you shouldn't
 have any downtime. Current Rollouts will be paused and as soon as the new controller becomes
 active it will resume all in-flight deployments.
-

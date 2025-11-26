@@ -16,7 +16,7 @@ kubectl argo rollouts undo ROLLOUT_NAME [flags]
 # Undo a rollout
 kubectl argo rollouts undo guestbook
 
-# Undo a rollout revision 3
+# Undo a rollout to revision 3
 kubectl argo rollouts undo guestbook --to-revision=3
 ```
 

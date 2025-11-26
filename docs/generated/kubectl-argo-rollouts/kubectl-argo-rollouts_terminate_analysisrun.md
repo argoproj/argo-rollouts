@@ -14,7 +14,7 @@ kubectl argo rollouts terminate analysisrun ANALYSISRUN_NAME [flags]
 
 ```shell
 # Terminate an AnalysisRun
-kubectl argo rollouts terminate analysis guestbook-877894d5b-4-success-rate.1
+kubectl argo rollouts terminate analysisrun guestbook-877894d5b-4-success-rate.1
 ```
 
 ## Options

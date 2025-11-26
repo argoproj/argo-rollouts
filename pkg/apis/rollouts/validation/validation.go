@@ -20,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
 const (
@@ -27,8 +28,8 @@ const (
 
 	// MissingFieldMessage the message to indicate rollout is missing a field
 	MissingFieldMessage = "Rollout has missing field '%s'"
-	// InvalidSetWeightMessage indicates the setweight value needs to be between 0 and 100
-	InvalidSetWeightMessage = "SetWeight needs to be between 0 and 100"
+	// InvalidSetWeightMessage indicates the setweight value needs to be between 0 and max weight
+	InvalidSetWeightMessage = "SetWeight needs to be between 0 and %d"
 	// InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting indicates experiment weight cannot be set without trafficRouting
 	InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting = "Experiment template weight cannot be set unless TrafficRouting is enabled"
 	// InvalidSetCanaryScaleTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
@@ -47,8 +48,8 @@ const (
 	InvalidDurationMessage = "Duration needs to be greater than 0"
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
 	InvalidMaxSurgeMaxUnavailable = "MaxSurge and MaxUnavailable both can not be zero"
-	// InvalidStepMessage indicates that a step must have either setWeight or pause set
-	InvalidStepMessage = "Step must have one of the following set: experiment, setWeight, setCanaryScale or pause"
+	// InvalidStepMessage indicates that a step must have either experiment, setWeight, setCanaryScale, plugin or pause
+	InvalidStepMessage = "Step must have one of the following set: experiment, setWeight, setCanaryScale, plugin or pause"
 	// InvalidStrategyMessage indicates that multiple strategies can not be listed
 	InvalidStrategyMessage = "Multiple Strategies can not be listed"
 	// DuplicatedServicesBlueGreenMessage the message to indicate that the rollout uses the same service for the active and preview services
@@ -72,14 +73,16 @@ const (
 	InvalidCanaryDynamicStableScale = "Canary dynamicStableScale can only be used with traffic routing"
 	// InvalidCanaryDynamicStableScaleWithScaleDownDelay indicates that canary.dynamicStableScale cannot be used with scaleDownDelaySeconds
 	InvalidCanaryDynamicStableScaleWithScaleDownDelay = "Canary dynamicStableScale cannot be used with scaleDownDelaySeconds"
+	// InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins indicates that canary.maxTrafficWeight cannot be used
+	InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins = "Canary maxTrafficWeight in traffic routing only supported in Nginx and Plugins"
 	// InvalidPingPongProvidedMessage indicates that both ping and pong service must be set to use Ping-Pong feature
 	InvalidPingPongProvidedMessage = "Ping service and Pong service must to be set to use Ping-Pong feature"
 	// DuplicatedPingPongServicesMessage indicates that the rollout uses the same service for the ping and pong services
 	DuplicatedPingPongServicesMessage = "This rollout uses the same service for the ping and pong services, but two different services are required."
 	// MissedAlbRootServiceMessage indicates that the rollout with ALB TrafficRouting and ping pong feature enabled must have root service provided
 	MissedAlbRootServiceMessage = "Root service field is required for the configuration with ALB and ping-pong feature enabled"
-	// PingPongWithAlbOnlyMessage At this moment ping-pong feature works with the ALB traffic routing only
-	PingPongWithAlbOnlyMessage = "Ping-pong feature works with the ALB traffic routing only"
+	// PingPongWithRouterOnlyMessage At this moment ping-pong feature works with the ALB traffic routing only
+	PingPongWithRouterOnlyMessage = "Ping-pong feature works with the ALB and Istio traffic routers only"
 	// InvalideStepRouteNameNotFoundInManagedRoutes A step has been configured that requires managedRoutes and the route name
 	// is missing from managedRoutes
 	InvalideStepRouteNameNotFoundInManagedRoutes = "Steps define a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
@@ -91,10 +94,8 @@ const (
 // NOTE: this variable may need to be updated whenever we update our k8s libraries as new options
 // are introduced or removed.
 var allowAllPodValidationOptions = apivalidation.PodValidationOptions{
-	AllowDownwardAPIHugePages:       true,
 	AllowInvalidPodDeletionCost:     true,
 	AllowIndivisibleHugePagesValues: true,
-	AllowExpandedDNSConfig:          true,
 }
 
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
@@ -227,6 +228,11 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 	return allErrs
 }
 
+func InvalidWorkloadRef(rollout *v1alpha1.Rollout, err error) error {
+	fldPath := field.NewPath("spec")
+	return field.Invalid(fldPath.Child("workloadRef"), rollout.Spec.WorkloadRef, err.Error())
+}
+
 // requireCanaryStableServices returns true if the rollout requires canary.stableService and
 // canary.canaryService to be defined
 func requireCanaryStableServices(rollout *v1alpha1.Rollout) bool {
@@ -238,7 +244,7 @@ func requireCanaryStableServices(rollout *v1alpha1.Rollout) bool {
 
 	switch {
 	case canary.TrafficRouting.ALB != nil && canary.PingPong == nil,
-		canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule == nil,
+		canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule == nil && canary.PingPong == nil,
 		canary.TrafficRouting.SMI != nil,
 		canary.TrafficRouting.Apisix != nil,
 		canary.TrafficRouting.Ambassador != nil,
@@ -259,8 +265,8 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, DuplicatedServicesCanaryMessage))
 	}
 	if canary.PingPong != nil {
-		if canary.TrafficRouting != nil && canary.TrafficRouting.ALB == nil {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("alb"), canary.TrafficRouting.ALB, PingPongWithAlbOnlyMessage))
+		if canary.TrafficRouting != nil && canary.TrafficRouting.ALB == nil && canary.TrafficRouting.Istio == nil {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("alb"), canary.TrafficRouting.ALB, PingPongWithRouterOnlyMessage))
 		}
 		if canary.PingPong.PingService == "" {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("pingPong").Child("pingService"), canary.PingPong.PingService, InvalidPingPongProvidedMessage))
@@ -295,19 +301,28 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if canary.ScaleDownDelaySeconds != nil && canary.DynamicStableScale {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("dynamicStableScale"), canary.DynamicStableScale, InvalidCanaryDynamicStableScaleWithScaleDownDelay))
 		}
+		// only the nginx and plugin have this support for now
+		if canary.TrafficRouting.MaxTrafficWeight != nil {
+			if canary.TrafficRouting.Nginx == nil && len(canary.TrafficRouting.Plugins) == 0 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("maxTrafficWeight"), canary.TrafficRouting.MaxTrafficWeight, InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins))
+			}
+		}
 	}
 
 	for i, step := range canary.Steps {
 		stepFldPath := fldPath.Child("steps").Index(i)
 		allErrs = append(allErrs, hasMultipleStepsType(step, stepFldPath)...)
 		if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil && step.SetCanaryScale == nil &&
-			step.SetHeaderRoute == nil && step.SetMirrorRoute == nil {
-			errVal := fmt.Sprintf("step.Experiment: %t step.Pause: %t step.SetWeight: %t step.Analysis: %t step.SetCanaryScale: %t step.SetHeaderRoute: %t step.SetMirrorRoutes: %t",
-				step.Experiment == nil, step.Pause == nil, step.SetWeight == nil, step.Analysis == nil, step.SetCanaryScale == nil, step.SetHeaderRoute == nil, step.SetMirrorRoute == nil)
+			step.SetHeaderRoute == nil && step.SetMirrorRoute == nil && step.Plugin == nil {
+			errVal := fmt.Sprintf("step.Experiment: %t step.Pause: %t step.SetWeight: %t step.Analysis: %t step.SetCanaryScale: %t step.SetHeaderRoute: %t step.SetMirrorRoute: %t step.Plugin: %t",
+				step.Experiment == nil, step.Pause == nil, step.SetWeight == nil, step.Analysis == nil, step.SetCanaryScale == nil, step.SetHeaderRoute == nil, step.SetMirrorRoute == nil, step.Plugin == nil)
 			allErrs = append(allErrs, field.Invalid(stepFldPath, errVal, InvalidStepMessage))
 		}
-		if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
-			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setWeight"), *canary.Steps[i].SetWeight, InvalidSetWeightMessage))
+
+		maxTrafficWeight := weightutil.MaxTrafficWeight(rollout)
+
+		if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > maxTrafficWeight) {
+			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setWeight"), *canary.Steps[i].SetWeight, fmt.Sprintf(InvalidSetWeightMessage, maxTrafficWeight)))
 		}
 		if step.Pause != nil && step.Pause.DurationSeconds() < 0 {
 			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("pause").Child("duration"), step.Pause.DurationSeconds(), InvalidDurationMessage))
@@ -377,8 +392,8 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 				if template.Weight != nil {
 					if canary.TrafficRouting == nil {
 						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting))
-					} else if canary.TrafficRouting.ALB == nil && canary.TrafficRouting.SMI == nil && canary.TrafficRouting.Istio == nil {
-						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time"))
+					} else if canary.TrafficRouting.ALB == nil && canary.TrafficRouting.SMI == nil && canary.TrafficRouting.Istio == nil && len(canary.TrafficRouting.Plugins) == 0 {
+						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, "Experiment template weight is only available for TrafficRouting with SMI, ALB, Istio and Plugins at this time"))
 					}
 				}
 			}

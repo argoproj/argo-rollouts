@@ -1,13 +1,13 @@
 # Pushover
 
 1. Create an app at [pushover.net](https://pushover.net/apps/build).
-2. Store the API key in `<secret-name>` Secret and define the secret name in `<config-map-name>` ConfigMap:
+2. Store the API key in `<secret-name>` Secret and define the secret name in `argo-rollouts-notification-configmap` ConfigMap:
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.pushover: |
     token: $pushover-token

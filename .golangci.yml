@@ -1,20 +1,41 @@
+version: "2"
 run:
-  deadline: 1m
-  skip-files:
-    - ".*\\.pb\\.go"
-  skip-dirs:
-    - pkg/client
   modules-download-mode: readonly
-linter-settings:
-  goimports:
-    local-prefixes: github.com/argoproj/argo-rollouts
+  timeout: 10m
 linters:
+  default: none
   enable:
-    - vet
+    - govet
+    - ineffassign
+    - misspell
+    - unconvert
+    - unused
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - .*\.pb\.go
+      - pkg/client
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
     - gofmt
     - goimports
-    - unused
-    - ineffassign
-    - unconvert
-    - misspell
-  disable-all: true
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/argoproj/argo-rollouts
+  exclusions:
+    generated: lax
+    paths:
+      - .*\.pb\.go
+      - pkg/client
+      - third_party$
+      - builtin$
+      - examples$

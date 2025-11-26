@@ -5,7 +5,7 @@ PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/../..; pwd)
 DIST_PATH="${PROJECT_ROOT}/dist"
 PATH="${DIST_PATH}:${PATH}"
 
-protoc_version=3.17.3
+protoc_version=26.1
 
 OS=$(go env GOOS)
 ARCH=$(go env GOARCH)
@@ -37,7 +37,7 @@ url=https://github.com/protocolbuffers/protobuf/releases/download/v${protoc_vers
 mkdir -p /tmp/protoc-${protoc_version}
 unzip -o ${temp_path} -d /tmp/protoc-${protoc_version}
 mkdir -p ${DIST_PATH}/protoc-include
-cp /tmp/protoc-${protoc_version}/bin/protoc ${DIST_PATH}/protoc
+cp -f /tmp/protoc-${protoc_version}/bin/protoc ${DIST_PATH}/protoc
 chmod +x ${DIST_PATH}/protoc
 cp -a /tmp/protoc-${protoc_version}/include/* ${DIST_PATH}/protoc-include
 chmod -R +rx ${DIST_PATH}/protoc-include

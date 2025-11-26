@@ -15,7 +15,7 @@ A rollout can be restarted via the kubectl plugin, using the
 kubectl-argo-rollouts restart ROLLOUT
 ```
 
-Alternatively, if Rollouts is used with Argo CD, the there is a bundled "restart" action which can
+Alternatively, if Rollouts is used with Argo CD, then there is a bundled "restart" action which can
 be performed via the Argo CD UI or CLI:
 
 ```shell
@@ -23,7 +23,7 @@ argocd app actions run my-app restart --kind Rollout --resource-name my-rollout
 ```
 
 Both of these mechanisms updates the Rollout's `.spec.restartAt` to the current time in the
-form of a [RFC 3339 formatted](https://tools.ietf.org/html/rfc3339) UTC string
+form of an [RFC 3339 formatted](https://tools.ietf.org/html/rfc3339) UTC string
 (e.g. 2020-03-30T21:19:35Z), which indicates to the Rollout controller that all of a Rollout's
 Pods should have been created after this timestamp.
 
@@ -51,10 +51,9 @@ long-running blue-green/canary update (e.g. a paused canary). However, some cons
 
 * Restarting a Rollout which has a single replica will cause downtime since Argo Rollouts needs to
   terminate the pod in order to replace it.
-* Restarting a rollout will be slower than a deployment's rolling update, since maxSurge is not
+* Restarting a rollout will be slower than a deployment's rolling update, since `maxSurge` is not
   used to bring up newer pods faster.
-* maxUnavailable will be used to restart multiple pods at a time (starting in v0.10). But if
-  maxUnavailable pods is 0, the controller will still restart pods one at a time.
+* `maxUnavailable` will be used to restart multiple pods at a time (starting in v0.10). But if `maxUnavailable` pods is 0, the controller will still restart pods one at a time.
 
 ## Scheduled Restarts
 

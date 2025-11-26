@@ -103,6 +103,9 @@ func (s *ExperimentSuite) TestExperimentWithServiceAndScaleDownDelay() {
 		WaitForExperimentCondition("experiment-with-service", func(ex *rov1.Experiment) bool {
 			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 0
 		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		WaitForExperimentCondition("experiment-with-service", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.AvailableReplicas == 0
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
 		Then().
 		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service", "test", 0).
 		ExpectExperimentServiceCount("experiment-with-service", 0)
@@ -124,6 +127,9 @@ func (s *ExperimentSuite) TestExperimentWithServiceNameAndScaleDownDelay() {
 		WaitForExperimentCondition("experiment-with-service-name", func(ex *rov1.Experiment) bool {
 			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 0
 		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		WaitForExperimentCondition("experiment-with-service-name", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.AvailableReplicas == 0
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
 		Then().
 		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service-name", "test", 0).
 		ExpectExperimentServiceCount("experiment-with-service-name", 0)
@@ -144,6 +150,9 @@ func (s *ExperimentSuite) TestExperimentWithMultiportServiceAndScaleDownDelay() 
 		WaitForExperimentPhase("experiment-with-multiport-service", "Successful").
 		WaitForExperimentCondition("experiment-with-multiport-service", func(ex *rov1.Experiment) bool {
 			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 0
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		WaitForExperimentCondition("experiment-with-multiport-service", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.AvailableReplicas == 0
 		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
 		Then().
 		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-multiport-service", "test", 0).

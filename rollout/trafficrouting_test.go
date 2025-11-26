@@ -7,6 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix"
 
 	"github.com/stretchr/testify/assert"
@@ -16,6 +20,7 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/dynamiclister"
 	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
@@ -29,8 +34,10 @@ import (
 	traefikMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik/mocks"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
@@ -41,7 +48,7 @@ func newFakeSingleTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
 	trafficRoutingReconciler.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 	trafficRoutingReconciler.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	trafficRoutingReconciler.On("SetMirrorRoute", mock.Anything, mock.Anything).Return(nil)
-	trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 	trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	trafficRoutingReconciler.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 	return &trafficRoutingReconciler
@@ -61,10 +68,10 @@ func newTrafficWeightFixture(t *testing.T) (*fixture, *v1alpha1.Rollout) {
 
 	steps := []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(10),
+			SetWeight: ptr.To[int32](10),
 		},
 	}
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	r2.Spec.Strategy.Canary.CanaryService = "canary"
@@ -106,7 +113,7 @@ func TestReconcileTrafficRoutingVerifyWeightErr(t *testing.T) {
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), errors.New("Error message"))
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), errors.New("Error message"))
 	f.expectPatchRolloutAction(ro)
 	f.run(getKey(ro, t))
 }
@@ -119,7 +126,7 @@ func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), nil)
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	enqueued := false
 	c.enqueueRolloutAfter = func(obj any, duration time.Duration) {
@@ -130,19 +137,66 @@ func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
 	assert.True(t, enqueued)
 }
 
+func TestReconcileTrafficRoutingVerifyWeightEndOfRollout(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To[int32](10),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 10, 10)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+		// make sure SetWeight was called with correct value
+		assert.Equal(t, int32(100), desiredWeight)
+		return nil
+	})
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), nil)
+	f.runExpectError(getKey(r2, t), true)
+}
+
 func TestRolloutUseDesiredWeight(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(10),
+			SetWeight: ptr.To[int32](10),
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{},
 		},
 	}
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	r2.Spec.Strategy.Canary.CanaryService = "canary"
@@ -181,7 +235,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 		return nil
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 	f.run(getKey(r2, t))
 }
 
@@ -191,13 +245,13 @@ func TestRolloutUseDesiredWeight100(t *testing.T) {
 
 	steps := []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(10),
+			SetWeight: ptr.To[int32](10),
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{},
 		},
 	}
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(2), intstr.FromInt(1), intstr.FromInt(0))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	r2.Spec.Strategy.Canary.CanaryService = "canary"
@@ -230,7 +284,7 @@ func TestRolloutUseDesiredWeight100(t *testing.T) {
 		return nil
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 	f.run(getKey(r2, t))
 }
 
@@ -240,25 +294,25 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 
 	steps := []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(10),
+			SetWeight: ptr.To[int32](10),
 		},
 		{
 			Experiment: &v1alpha1.RolloutExperimentStep{
 				Templates: []v1alpha1.RolloutExperimentTemplate{{
 					Name:     "experiment-template",
 					SpecRef:  "canary",
-					Replicas: pointer.Int32Ptr(1),
-					Weight:   pointer.Int32Ptr(5),
+					Replicas: ptr.To[int32](1),
+					Weight:   ptr.To[int32](5),
 				},
 					{
 						Name:     "experiment-template-without-weight",
 						SpecRef:  "stable",
-						Replicas: pointer.Int32Ptr(1),
+						Replicas: ptr.To[int32](1),
 					}},
 			},
 		},
 	}
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		SMI: &v1alpha1.SMITrafficRouting{},
@@ -312,7 +366,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 			return nil
 		})
 		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(pointer.BoolPtr(true), nil)
+		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
 		f.run(getKey(r2, t))
 	})
 
@@ -327,7 +381,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 			return nil
 		})
 		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(pointer.BoolPtr(true), nil)
+		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
 		f.run(getKey(r2, t))
 	})
 }
@@ -338,13 +392,13 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 
 	steps := []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(10),
+			SetWeight: ptr.To[int32](10),
 		},
 		{
-			SetWeight: pointer.Int32Ptr(20),
+			SetWeight: ptr.To[int32](20),
 		},
 	}
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	r2.Spec.Strategy.Canary.CanaryService = "canary"
@@ -378,7 +432,7 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 		return nil
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
 	f.fakeTrafficRouting.On("error patching alb ingress", mock.Anything, mock.Anything).Return(true, nil)
 	f.run(getKey(r2, t))
 }
@@ -389,13 +443,13 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 
 	steps := []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(5),
+			SetWeight: ptr.To[int32](5),
 		},
 		{
-			SetWeight: pointer.Int32Ptr(25),
+			SetWeight: ptr.To[int32](25),
 		},
 	}
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	r2.Spec.Strategy.Canary.CanaryService = "canary"
@@ -445,7 +499,7 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 		})
 		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 		f.run(getKey(r2, t))
 	})
 
@@ -459,7 +513,7 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 		})
 		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 		f.run(getKey(r2, t))
 	})
 }
@@ -470,10 +524,10 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 
 	steps := []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(10),
+			SetWeight: ptr.To[int32](10),
 		},
 	}
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	r1.Spec.Strategy.Canary.CanaryService = "canary"
 	r1.Spec.Strategy.Canary.StableService = "stable"
@@ -504,7 +558,7 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 	f.run(getKey(r1, t))
 }
 
@@ -519,12 +573,12 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 
 	steps := []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(10),
+			SetWeight: ptr.To[int32](10),
 		},
 	}
 
 	{
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		roCtx := &rolloutContext{
 			rollout: r,
 			log:     logutil.WithRollout(r),
@@ -534,7 +588,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		assert.Nil(t, networkReconciler)
 	}
 	{
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 		roCtx := &rolloutContext{
 			rollout: r,
@@ -546,7 +600,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 	}
 	{
 		// Without istioVirtualServiceLister
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Istio: &v1alpha1.IstioTrafficRouting{},
 		}
@@ -568,7 +622,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		dynamicInformerFactory.WaitForCacheSync(stopCh)
 		close(stopCh)
 		rc.IstioController.VirtualServiceLister = dynamiclister.New(rc.IstioController.VirtualServiceInformer.GetIndexer(), vsvcGVR)
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Istio: &v1alpha1.IstioTrafficRouting{},
 		}
@@ -584,7 +638,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		}
 	}
 	{
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Nginx: &v1alpha1.NginxTrafficRouting{},
 		}
@@ -600,7 +654,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		}
 	}
 	{
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			ALB: &v1alpha1.ALBTrafficRouting{},
 		}
@@ -617,7 +671,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 	}
 	{
 		tsController := Controller{}
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			SMI: &v1alpha1.SMITrafficRouting{},
 		}
@@ -634,7 +688,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 	}
 	{
 		tsController := Controller{}
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			AppMesh: &v1alpha1.AppMeshTrafficRouting{},
 		}
@@ -655,7 +709,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 				dynamicclientset: &traefikMocks.FakeDynamicClient{},
 			},
 		}
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Traefik: &v1alpha1.TraefikTrafficRouting{
 				WeightedTraefikServiceName: "traefik-service",
@@ -678,7 +732,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 				dynamicclientset: &apisixMocks.FakeDynamicClient{},
 			},
 		}
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Apisix: &v1alpha1.ApisixTrafficRouting{
 				Route: &v1alpha1.ApisixRoute{
@@ -700,7 +754,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 	{
 		// (2) Multiple Reconcilers (Nginx + SMI)
 		tsController := Controller{}
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Nginx: &v1alpha1.NginxTrafficRouting{},
 			SMI:   &v1alpha1.SMITrafficRouting{},
@@ -723,7 +777,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 	{
 		// (3) Multiple Reconcilers (ALB + Nginx + SMI)
 		tsController := Controller{}
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			ALB:   &v1alpha1.ALBTrafficRouting{},
 			Nginx: &v1alpha1.NginxTrafficRouting{},
@@ -757,8 +811,8 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	defer f.Close()
 
 	r1 := newCanaryRollout("foo", 1, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32(10),
-	}}, pointer.Int32(0), intstr.FromInt(1), intstr.FromInt(1))
+		SetWeight: ptr.To[int32](10),
+	}}, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.CanaryService = "canary"
 	r1.Spec.Strategy.Canary.StableService = "stable"
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
@@ -770,7 +824,7 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 2, 1, 2, false)
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
-	r2.Status.CurrentStepIndex = pointer.Int32(1)
+	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	completedCondition, _ := newCompletedCondition(true)
@@ -786,10 +840,15 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	rs1Patch := f.expectPatchReplicaSetAction(rs1) // set scale-down-deadline annotation
+	rs1Patch := f.expectPatchReplicaSetAction(rs1)      // set scale-down-deadline annotation
+	rolloutPatchIndex := f.expectPatchRolloutAction(r2) // patch to update rollout status, hpa selector
 	f.run(getKey(r2, t))
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
+	updatedRollout := f.getPatchedRollout(rolloutPatchIndex)
+	// NOTE: The hash must be updated for every k8s library upgrade
+	expectedRolloutPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=5cb4fd98cf"}}`
+	assert.JSONEq(t, expectedRolloutPatch, updatedRollout)
 }
 
 // Verifies with a canary using traffic routing, we scale down old ReplicaSets which exceed our limit
@@ -801,11 +860,11 @@ func TestCanaryWithTrafficRoutingScaleDownLimit(t *testing.T) {
 	inTheFuture := timeutil.MetaNow().Add(10 * time.Second).UTC().Format(time.RFC3339)
 
 	r1 := newCanaryRollout("foo", 1, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
-	}}, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+		SetWeight: ptr.To[int32](10),
+	}}, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
-	r1.Spec.Strategy.Canary.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(1)
+	r1.Spec.Strategy.Canary.ScaleDownDelayRevisionLimit = ptr.To[int32](1)
 	r1.Spec.Strategy.Canary.CanaryService = "canary"
 	r1.Spec.Strategy.Canary.StableService = "stable"
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
@@ -850,13 +909,13 @@ func TestDynamicScalingDontIncreaseWeightWhenAborted(t *testing.T) {
 
 	steps := []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(50),
+			SetWeight: ptr.To[int32](50),
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{},
 		},
 	}
-	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.DynamicStableScale = true
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		SMI: &v1alpha1.SMITrafficRouting{},
@@ -910,6 +969,78 @@ func TestDynamicScalingDontIncreaseWeightWhenAborted(t *testing.T) {
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+	f.run(getKey(r1, t))
+}
+
+// TestDynamicScalingDecreaseWeightAccordingToStepWeightsAvailabilityWhenAborted verifies we decrease the weight
+// to the canary depending on the weight in previous Step when aborting
+func TestDynamicScalingDecreaseWeightAccordingToStepWeightsAvailabilityWhenAborted(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To[int32](50),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.DynamicStableScale = true
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Status.ReadyReplicas = 5
+	r1.Status.AvailableReplicas = 5
+	r1.Status.Abort = true
+	r1.Status.AbortedAt = &metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 3)
+	rs2 := newReplicaSetWithStatus(r2, 4, 4)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r1)
+	stableSvc := newService("stable", 80, stableSelector, r1)
+	r2.Status.StableRS = rs1PodHash
+	r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			Weight:          100,
+			ServiceName:     "canary",
+			PodTemplateHash: rs2PodHash,
+		},
+		Stable: v1alpha1.WeightDestination{
+			Weight:          0,
+			ServiceName:     "stable",
+			PodTemplateHash: rs1PodHash,
+		},
+	}
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.expectPatchRolloutAction(r2)
+	f.expectUpdateReplicaSetAction(rs1)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+		// make sure SetWeight was called with correct value
+		assert.Equal(t, int32(50), desiredWeight)
+		return nil
+	})
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.run(getKey(r1, t))
 }
@@ -921,9 +1052,6 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAborted(t 
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
-		{
-			SetWeight: pointer.Int32Ptr(50),
-		},
 		{
 			Pause: &v1alpha1.RolloutPause{},
 		},
@@ -981,7 +1109,7 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAborted(t 
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 	f.run(getKey(r1, t))
 }
 
@@ -994,13 +1122,13 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAbortedAnd
 
 	steps := []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(50),
+			SetWeight: ptr.To[int32](50),
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{},
 		},
 	}
-	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.DynamicStableScale = true
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		SMI: &v1alpha1.SMITrafficRouting{},
@@ -1054,7 +1182,7 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAbortedAnd
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 	f.run(getKey(r1, t))
 }
 
@@ -1064,7 +1192,7 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 	steps := []v1alpha1.CanaryStep{
 		{
 			SetCanaryScale: &v1alpha1.SetCanaryScale{
-				Replicas: pointer.Int32(1),
+				Replicas: ptr.To[int32](1),
 			},
 		},
 		{
@@ -1084,7 +1212,35 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 			Pause: &v1alpha1.RolloutPause{},
 		},
 	}
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
+	vs := istio.VirtualService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: r1.Namespace,
+		},
+		Spec: istio.VirtualServiceSpec{
+			HTTP: []istio.VirtualServiceHTTPRoute{{
+				Name: "primary",
+				Route: []istio.VirtualServiceRouteDestination{{
+					Destination: istio.VirtualServiceDestination{
+						Host: "stable",
+						//Port: &istio.Port{
+						//	Number: 80,
+						//},
+					},
+					Weight: 100,
+				}, {
+					Destination: istio.VirtualServiceDestination{
+						Host: "canary",
+						//Port: &istio.Port{
+						//	Number: 80,
+						//},
+					},
+					Weight: 0,
+				}},
+			}},
+		},
+	}
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Istio: &v1alpha1.IstioTrafficRouting{
 			VirtualService: &v1alpha1.IstioVirtualService{
@@ -1092,11 +1248,6 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 				Routes: []string{
 					"primary",
 				},
-			},
-			DestinationRule: &v1alpha1.IstioDestinationRule{
-				Name:             "test",
-				StableSubsetName: "stable",
-				CanarySubsetName: "canary",
 			},
 		},
 		ManagedRoutes: []v1alpha1.MangedRoutes{
@@ -1110,8 +1261,14 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 		APIVersion: "apps/v1",
 		Kind:       "Deployment",
 	}
-	r1.Spec.SelectorResolvedFromRef = true
+	r1.Spec.SelectorResolvedFromRef = false
 	r1.Spec.TemplateResolvedFromRef = true
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Spec.Selector = &metav1.LabelSelector{
+		MatchLabels: map[string]string{"app": "test"},
+	}
+	r1.Labels = map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "testsha"}
 	r2 := bumpVersion(r1)
 
 	// if set WorkloadRef it does not change the generation
@@ -1138,13 +1295,26 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 			PodTemplateHash: rs1PodHash,
 		},
 	}
+
+	mapObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&vs)
+	assert.Nil(t, err)
+
+	unstructuredObj := &unstructured.Unstructured{Object: mapObj}
+	unstructuredObj.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   istioutil.GetIstioVirtualServiceGVR().Group,
+		Version: istioutil.GetIstioVirtualServiceGVR().Version,
+		Kind:    "VirtualService",
+	})
+
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
+	f.objects = append(f.objects, r2, unstructuredObj)
+	f.expectUpdateRolloutAction(r2)
+	f.expectUpdateRolloutStatusAction(r2)
 	f.expectPatchRolloutAction(r2)
-	f.expectPatchReplicaSetAction(rs1)
-	f.expectPatchReplicaSetAction(rs2)
+	f.expectCreateReplicaSetAction(rs2)
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("SetHeaderRoute", &v1alpha1.SetHeaderRoute{
 		Name: "test-header",
@@ -1167,13 +1337,13 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 
 	steps := []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32(90),
+			SetWeight: ptr.To[int32](90),
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{},
 		},
 	}
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.DynamicStableScale = true
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		SMI: &v1alpha1.SMITrafficRouting{},
@@ -1243,10 +1413,283 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 	f.run(getKey(r1, t))
 
 	// Make sure we scale up stable ReplicaSet to 10
 	rs1Updated := f.getUpdatedReplicaSet(scaleUpIndex)
 	assert.Equal(t, int32(10), *rs1Updated.Spec.Replicas)
+}
+
+// TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate builds off of TestCanaryDontScaleDownOldRsDuringInterruptedUpdate
+// in canary_test when we scale down an intermediate V2 ReplicaSet when applying a V3 spec in the middle of updating.
+// We want to make sure that traffic routing is cleared in both weight AND managed routes when the V2 rs is
+// nil or has 0 available replicas.
+func TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: "test-header",
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "test",
+						HeaderValue: &v1alpha1.StringMatch{
+							Exact: "test",
+						},
+					},
+				},
+			},
+		},
+		{
+			SetWeight: ptr.To[int32](90),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		ALB: &v1alpha1.ALBTrafficRouting{
+			Ingress: "test-ingress",
+		},
+		ManagedRoutes: []v1alpha1.MangedRoutes{
+			{Name: "test-header"},
+		},
+	}
+
+	r1.Spec.Strategy.Canary.StableService = "stable-svc"
+	r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+
+	stableSvc := newService("stable-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r1.Status.CurrentPodHash}, r1)
+	canarySvc := newService("canary-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r3.Status.CurrentPodHash}, r3)
+	r3.Status.StableRS = r1.Status.CurrentPodHash
+
+	ingress := newIngress("test-ingress", canarySvc, stableSvc)
+	ingress.Spec.Rules[0].HTTP.Paths[0].Backend.ServiceName = stableSvc.Name
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 5, 5)
+	rs3 := newReplicaSetWithStatus(r3, 5, 0)
+	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			PodTemplateHash: replicasetutil.GetPodTemplateHash(rs2),
+		},
+	}
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc, ingress)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
+
+	f.expectPatchRolloutAction(r3)
+	f.run(getKey(r3, t))
+
+	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			PodTemplateHash: replicasetutil.GetPodTemplateHash(rs3),
+		},
+	}
+
+	f.expectUpdateReplicaSetAction(rs3)
+	f.run(getKey(r3, t))
+
+	// Make sure that our weight is zero
+	assert.Equal(t, int32(0), r3.Status.Canary.Weights.Canary.Weight)
+	assert.Equal(t, replicasetutil.GetPodTemplateHash(rs3), r3.Status.Canary.Weights.Canary.PodTemplateHash)
+	// Make sure that RemoveManagedRoutes was called
+	f.fakeTrafficRouting.AssertCalled(t, "RemoveManagedRoutes", mock.Anything, mock.Anything)
+
+}
+
+// This test verifies that if we are shifting traffic to stable replicaset without the stable replicaset being available proportional to the weight, the traffic shouldn't be switched immediately to the stable replicaset.
+func TestCheckReplicaSetAvailable(t *testing.T) {
+	fix := newFixture(t)
+	defer fix.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To[int32](60),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+
+	rollout1 := newCanaryRollout("test-rollout", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
+	rollout1.Spec.Strategy.Canary.DynamicStableScale = true
+	rollout1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	rollout1.Spec.Strategy.Canary.CanaryService = "canary-service"
+	rollout1.Spec.Strategy.Canary.StableService = "stable-service"
+	rollout1.Status.ReadyReplicas = 10
+	rollout1.Status.AvailableReplicas = 10
+
+	rollout2 := bumpVersion(rollout1)
+
+	replicaSet1 := newReplicaSetWithStatus(rollout1, 1, 1)
+	replicaSet2 := newReplicaSetWithStatus(rollout2, 9, 9)
+
+	replicaSet1Hash := replicaSet1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	replicaSet2Hash := replicaSet2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: replicaSet2Hash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: replicaSet1Hash}
+	canarySvc := newService("canary-service", 80, canarySelector, rollout1)
+	stableSvc := newService("stable-service", 80, stableSelector, rollout1)
+
+	rollout2.Spec = rollout1.Spec
+	rollout2.Status.StableRS = replicaSet1Hash
+	rollout2.Status.CurrentPodHash = replicaSet1Hash
+	rollout2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			Weight:          10,
+			ServiceName:     "canary-service",
+			PodTemplateHash: replicaSet2Hash,
+		},
+		Stable: v1alpha1.WeightDestination{
+			Weight:          90,
+			ServiceName:     "stable-service",
+			PodTemplateHash: replicaSet1Hash,
+		},
+	}
+
+	fix.kubeobjects = append(fix.kubeobjects, replicaSet1, replicaSet2, canarySvc, stableSvc)
+	fix.replicaSetLister = append(fix.replicaSetLister, replicaSet1, replicaSet2)
+
+	fix.rolloutLister = append(fix.rolloutLister, rollout2)
+	fix.objects = append(fix.objects, rollout2)
+
+	fix.expectUpdateReplicaSetAction(replicaSet1)
+	fix.expectUpdateRolloutAction(rollout2)
+	fix.expectUpdateReplicaSetAction(replicaSet1)
+	fix.expectPatchRolloutAction(rollout2)
+	fix.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	fix.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	fix.run(getKey(rollout1, t))
+}
+
+func TestCheckReplicasAvailableWithReplicaProgressThreshold(t *testing.T) {
+	tests := []struct {
+		name              string
+		availableReplicas int
+		threshold         *v1alpha1.ReplicaProgressThreshold
+		expectedResult    bool
+		description       string
+	}{
+		{
+			name:              "threshold met - 80% available with 80% threshold",
+			availableReplicas: 4,
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 80,
+			},
+			expectedResult: true,
+			description:    "Should return true when threshold is met (4/5 = 80% >= 80%)",
+		},
+		{
+			name:              "threshold not met - 60% available with 80% threshold",
+			availableReplicas: 3,
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 80,
+			},
+			expectedResult: false,
+			description:    "Should return false when threshold is not met (3/5 = 60% < 80%)",
+		},
+		{
+			name:              "nil threshold - requires 100% availability",
+			availableReplicas: 4,
+			threshold:         nil,
+			expectedResult:    false,
+			description:       "Should return false with nil threshold, requiring 100% availability (4/5 = 80%)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newCanaryRollout("foo", 10, nil, nil, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+			r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+				SMI: &v1alpha1.SMITrafficRouting{},
+			}
+			r.Spec.Strategy.Canary.ReplicaProgressThreshold = tt.threshold
+
+			roCtx := &rolloutContext{
+				rollout: r,
+				log:     logutil.WithRollout(r),
+			}
+
+			// Create a ReplicaSet with specified available replicas out of 5
+			// For 50% weight on 10 total replicas = 5 desired replicas
+			rs := newReplicaSetWithStatus(r, 5, tt.availableReplicas)
+
+			// Check if replicas are available for 50% weight
+			result := roCtx.checkReplicasAvailable(rs, 50)
+
+			assert.Equal(t, tt.expectedResult, result, tt.description)
+		})
+	}
+}
+
+// TestDynamicScalingAbortWithZeroReplicas verifies we handle zero replicas gracefully during abort
+func TestDynamicScalingAbortWithZeroReplicas(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To[int32](50),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 0, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.DynamicStableScale = true
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Status.Abort = true
+	r1.Status.AbortedAt = &metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 0, 0)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r1)
+	stableSvc := newService("stable", 80, stableSelector, r1)
+	r2.Status.StableRS = rs1PodHash
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.expectPatchRolloutAction(r2)
+	f.expectPatchServiceAction(canarySvc, rs1PodHash) // Expect canary service to switch to stable RS
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+		// With zero replicas, we should fall back to immediate rollback (weight = 0)
+		assert.Equal(t, int32(0), desiredWeight, "Should set weight to 0 when replicas is zero")
+		return nil
+	})
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+
+	// This should not panic or cause division by zero
+	f.run(getKey(r1, t))
 }

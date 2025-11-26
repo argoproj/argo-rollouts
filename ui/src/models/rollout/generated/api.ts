@@ -13,7 +13,7 @@
  */
 
 import * as url from "url";
-import * as portableFetch from "portable-fetch";
+import * as isomorphicFetch from "isomorphic-fetch";
 import { Configuration } from "./configuration";
 
 const BASE_PATH = "/".replace(/\/+$/, "");
@@ -56,13 +56,13 @@ export interface FetchArgs {
 export class BaseAPI {
     protected configuration: Configuration;
 
-    constructor(configuration?: Configuration, protected basePath: string = BASE_PATH, protected fetch: FetchAPI = portableFetch) {
+    constructor(configuration?: Configuration, protected basePath: string = BASE_PATH, protected fetch: FetchAPI = isomorphicFetch) {
         if (configuration) {
             this.configuration = configuration;
             this.basePath = configuration.basePath || this.basePath;
         }
     }
-};
+}
 
 /**
  *
@@ -71,7 +71,7 @@ export class BaseAPI {
  * @extends {Error}
  */
 export class RequiredError extends Error {
-    name: "RequiredError"
+    name = "RequiredError"
     constructor(public field: string, msg?: string) {
         super(msg);
     }
@@ -318,6 +318,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRun
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStrategy
      */
     unsuccessfulRunHistoryLimit?: number;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef
+     */
+    templateName?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef
+     */
+    clusterScope?: boolean;
 }
 /**
  * 
@@ -692,6 +711,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStatu
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStatus
      */
     stablePingPong?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStatus
+     */
+    stepPluginStatuses?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus>;
 }
 /**
  * CanaryStep defines a step of a canary deployment.
@@ -741,6 +766,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep 
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
      */
     setMirrorRoute?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
+     */
+    plugin?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep;
 }
 /**
  * 
@@ -844,6 +875,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
      */
     minPodsPerReplicaSet?: number;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    replicaProgressThreshold?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold;
 }
 /**
  * 
@@ -1024,6 +1061,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetr
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
      */
     aggregator?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    secretRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef;
 }
 /**
  * DryRun defines the settings for running the analysis in Dry-Run mode.
@@ -1132,6 +1175,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestin
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestinationRule
      */
     stableSubsetName?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestinationRule
+     */
+    additionalSubsetNames?: Array<string>;
 }
 /**
  * 
@@ -1262,6 +1311,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetr
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
      */
     scopes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    lookback?: boolean;
 }
 /**
  * 
@@ -1454,6 +1509,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
      */
     provider?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    consecutiveSuccessLimit?: K8sIoApimachineryPkgUtilIntstrIntOrString;
 }
 /**
  * 
@@ -1612,6 +1673,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResul
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
      */
     metadata?: { [key: string]: string; };
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    consecutiveSuccess?: number;
 }
 /**
  * 
@@ -1631,6 +1698,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMet
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
      */
     query?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
+     */
+    timeout?: string;
 }
 /**
  * 
@@ -1662,6 +1735,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTraffi
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
      */
     stableIngresses?: Array<string>;
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
+     */
+    canaryIngressAnnotations?: { [key: string]: string; };
 }
 /**
  * 
@@ -1766,6 +1845,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PingPongSpe
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep
+     */
+    config?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PodTemplateMetadata
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PodTemplateMetadata {
@@ -1837,6 +1935,56 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusM
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
      */
     headers?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    rangeQuery?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    start?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    end?: string;
+    /**
+     * The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    step?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold {
+    /**
+     * Type is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold
+     */
+    type?: string;
+    /**
+     * Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step. If not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step. Value must also be greater than 0. Required.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold
+     */
+    value?: number;
 }
 /**
  * 
@@ -1891,10 +2039,10 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout {
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis {
     /**
      * 
-     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate>}
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef>}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis
      */
-    templates?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate>;
+    templates?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef>;
     /**
      * 
      * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunArgument>}
@@ -1965,25 +2113,6 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnal
     message?: string;
 }
 /**
- * 
- * @export
- * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate
- */
-export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate {
-    /**
-     * 
-     * @type {string}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate
-     */
-    templateName?: string;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate
-     */
-    clusterScope?: boolean;
-}
-/**
  * RolloutCondition describes the state of a rollout at a certain point.
  * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutCondition
@@ -2050,6 +2179,24 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExpe
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
      */
     analyses?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStepAnalysisTemplateRef>;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
+     */
+    dryRun?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
+     */
+    analysisRunMetadata?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
+     */
+    scaleDownDelaySeconds?: number;
 }
 /**
  * 
@@ -2483,6 +2630,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
     plugins?: { [key: string]: string; };
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    maxTrafficWeight?: number;
 }
 /**
  * 
@@ -2624,6 +2777,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRe
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef {
+    /**
+     * Name refers to the name of the secret that should be used to integrate with Datadog.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+     */
+    name?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+     */
+    namespaced?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanaryScale
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanaryScale {
@@ -2739,6 +2911,85 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingM
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric
      */
     interval?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus {
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    index?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    operation?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    phase?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    message?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    startedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    updatedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    finishedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    backoff?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    executions?: number;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    disabled?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    status?: string;
 }
 /**
  * 
@@ -3160,10 +3411,28 @@ export interface K8sIoApiBatchV1JobSpec {
     podFailurePolicy?: K8sIoApiBatchV1PodFailurePolicy;
     /**
      * 
+     * @type {K8sIoApiBatchV1SuccessPolicy}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    successPolicy?: K8sIoApiBatchV1SuccessPolicy;
+    /**
+     * 
      * @type {number}
      * @memberof K8sIoApiBatchV1JobSpec
      */
     backoffLimit?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    backoffLimitPerIndex?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    maxFailedIndexes?: number;
     /**
      * 
      * @type {K8sIoApimachineryPkgApisMetaV1LabelSelector}
@@ -3189,17 +3458,29 @@ export interface K8sIoApiBatchV1JobSpec {
      */
     ttlSecondsAfterFinished?: number;
     /**
-     * CompletionMode specifies how Pod completions are tracked. It can be `NonIndexed` (default) or `Indexed`.  `NonIndexed` means that the Job is considered complete when there have been .spec.completions successfully completed Pods. Each Pod completion is homologous to each other.  `Indexed` means that the Pods of a Job get an associated completion index from 0 to (.spec.completions - 1), available in the annotation batch.kubernetes.io/job-completion-index. The Job is considered complete when there is one successfully completed Pod for each index. When value is `Indexed`, .spec.completions must be specified and `.spec.parallelism` must be less than or equal to 10^5. In addition, The Pod name takes the form `$(job-name)-$(index)-$(random-string)`, the Pod hostname takes the form `$(job-name)-$(index)`.  More completion modes can be added in the future. If the Job controller observes a mode that it doesn't recognize, which is possible during upgrades due to version skew, the controller skips updates for the Job. +optional
+     * completionMode specifies how Pod completions are tracked. It can be `NonIndexed` (default) or `Indexed`.  `NonIndexed` means that the Job is considered complete when there have been .spec.completions successfully completed Pods. Each Pod completion is homologous to each other.  `Indexed` means that the Pods of a Job get an associated completion index from 0 to (.spec.completions - 1), available in the annotation batch.kubernetes.io/job-completion-index. The Job is considered complete when there is one successfully completed Pod for each index. When value is `Indexed`, .spec.completions must be specified and `.spec.parallelism` must be less than or equal to 10^5. In addition, The Pod name takes the form `$(job-name)-$(index)-$(random-string)`, the Pod hostname takes the form `$(job-name)-$(index)`.  More completion modes can be added in the future. If the Job controller observes a mode that it doesn't recognize, which is possible during upgrades due to version skew, the controller skips updates for the Job. +optional
      * @type {string}
      * @memberof K8sIoApiBatchV1JobSpec
      */
     completionMode?: string;
     /**
-     * Suspend specifies whether the Job controller should create Pods or not. If a Job is created with suspend set to true, no Pods are created by the Job controller. If a Job is suspended after creation (i.e. the flag goes from false to true), the Job controller will delete all active Pods associated with this Job. Users must design their workload to gracefully handle this. Suspending a Job will reset the StartTime field of the Job, effectively resetting the ActiveDeadlineSeconds timer too. Defaults to false.  +optional
+     * suspend specifies whether the Job controller should create Pods or not. If a Job is created with suspend set to true, no Pods are created by the Job controller. If a Job is suspended after creation (i.e. the flag goes from false to true), the Job controller will delete all active Pods associated with this Job. Users must design their workload to gracefully handle this. Suspending a Job will reset the StartTime field of the Job, effectively resetting the ActiveDeadlineSeconds timer too. Defaults to false.  +optional
      * @type {boolean}
      * @memberof K8sIoApiBatchV1JobSpec
      */
     suspend?: boolean;
+    /**
+     * podReplacementPolicy specifies when to create replacement Pods. Possible values are: - TerminatingOrFailed means that we recreate pods   when they are terminating (has a metadata.deletionTimestamp) or failed. - Failed means to wait until a previously created Pod is fully terminated (has phase   Failed or Succeeded) before creating a replacement Pod.  When using podFailurePolicy, Failed is the the only allowed value. TerminatingOrFailed and Failed are allowed values when podFailurePolicy is not in use. +optional
+     * @type {string}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    podReplacementPolicy?: string;
+    /**
+     * ManagedBy field indicates the controller that manages a Job. The k8s Job controller reconciles jobs which don't have this field at all or the field value is the reserved string `kubernetes.io/job-controller`, but skips reconciling Jobs with a custom value for this field. The value must be a valid domain-prefixed path (e.g. acme.io/foo) - all characters before the first \"/\" must be a valid subdomain as defined by RFC 1123. All characters trailing the first \"/\" must be valid HTTP Path characters as defined by RFC 3986. The value cannot exceed 63 characters. This field is immutable.  This field is beta-level. The job controller accepts setting the field when the feature gate JobManagedBy is enabled (enabled by default). +optional
+     * @type {string}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    managedBy?: string;
 }
 /**
  * PodFailurePolicy describes how failed pods influence the backoffLimit.
@@ -3227,7 +3508,7 @@ export interface K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement {
      */
     containerName?: string;
     /**
-     * Represents the relationship between the container exit code(s) and the specified values. Containers completed with success (exit code 0) are excluded from the requirement check. Possible values are: - In: the requirement is satisfied if at least one container exit code   (might be multiple if there are multiple containers not restricted   by the 'containerName' field) is in the set of specified values. - NotIn: the requirement is satisfied if at least one container exit code   (might be multiple if there are multiple containers not restricted   by the 'containerName' field) is not in the set of specified values. Additional values are considered to be added in the future. Clients should react to an unknown operator by assuming the requirement is not satisfied.
+     * - In: the requirement is satisfied if at least one container exit code   (might be multiple if there are multiple containers not restricted   by the 'containerName' field) is in the set of specified values. - NotIn: the requirement is satisfied if at least one container exit code   (might be multiple if there are multiple containers not restricted   by the 'containerName' field) is not in the set of specified values. Additional values are considered to be added in the future. Clients should react to an unknown operator by assuming the requirement is not satisfied.
      * @type {string}
      * @memberof K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement
      */
@@ -3259,13 +3540,13 @@ export interface K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern {
     status?: string;
 }
 /**
- * PodFailurePolicyRule describes how a pod failure is handled when the requirements are met. One of OnExitCodes and onPodConditions, but not both, can be used in each rule.
+ * PodFailurePolicyRule describes how a pod failure is handled when the requirements are met. One of onExitCodes and onPodConditions, but not both, can be used in each rule.
  * @export
  * @interface K8sIoApiBatchV1PodFailurePolicyRule
  */
 export interface K8sIoApiBatchV1PodFailurePolicyRule {
     /**
-     * Specifies the action taken on a pod failure when the requirements are satisfied. Possible values are: - FailJob: indicates that the pod's job is marked as Failed and all   running pods are terminated. - Ignore: indicates that the counter towards the .backoffLimit is not   incremented and a replacement pod is created. - Count: indicates that the pod is handled in the default way - the   counter towards the .backoffLimit is incremented. Additional values are considered to be added in the future. Clients should react to an unknown action by skipping the rule.
+     * - FailJob: indicates that the pod's job is marked as Failed and all   running pods are terminated. - FailIndex: indicates that the pod's index is marked as Failed and will   not be restarted. - Ignore: indicates that the counter towards the .backoffLimit is not   incremented and a replacement pod is created. - Count: indicates that the pod is handled in the default way - the   counter towards the .backoffLimit is incremented. Additional values are considered to be added in the future. Clients should react to an unknown action by skipping the rule.
      * @type {string}
      * @memberof K8sIoApiBatchV1PodFailurePolicyRule
      */
@@ -3282,6 +3563,38 @@ export interface K8sIoApiBatchV1PodFailurePolicyRule {
      * @memberof K8sIoApiBatchV1PodFailurePolicyRule
      */
     onPodConditions?: Array<K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern>;
+}
+/**
+ * SuccessPolicy describes when a Job can be declared as succeeded based on the success of some indexes.
+ * @export
+ * @interface K8sIoApiBatchV1SuccessPolicy
+ */
+export interface K8sIoApiBatchV1SuccessPolicy {
+    /**
+     * 
+     * @type {Array<K8sIoApiBatchV1SuccessPolicyRule>}
+     * @memberof K8sIoApiBatchV1SuccessPolicy
+     */
+    rules?: Array<K8sIoApiBatchV1SuccessPolicyRule>;
+}
+/**
+ * SuccessPolicyRule describes rule for declaring a Job as succeeded. Each rule must have at least one of the \"succeededIndexes\" or \"succeededCount\" specified.
+ * @export
+ * @interface K8sIoApiBatchV1SuccessPolicyRule
+ */
+export interface K8sIoApiBatchV1SuccessPolicyRule {
+    /**
+     * succeededIndexes specifies the set of indexes which need to be contained in the actual set of the succeeded indexes for the Job. The list of indexes must be within 0 to \".spec.completions-1\" and must not contain duplicates. At least one element is required. The indexes are represented as intervals separated by commas. The intervals can be a decimal integer or a pair of decimal integers separated by a hyphen. The number are listed in represented by the first and last element of the series, separated by a hyphen. For example, if the completed indexes are 1, 3, 4, 5 and 7, they are represented as \"1,3-5,7\". When this field is null, this field doesn't default to any value and is never evaluated at any time.  +optional
+     * @type {string}
+     * @memberof K8sIoApiBatchV1SuccessPolicyRule
+     */
+    succeededIndexes?: string;
+    /**
+     * succeededCount specifies the minimal required size of the actual set of the succeeded indexes for the Job. When succeededCount is used along with succeededIndexes, the check is constrained only to the set of indexes specified by succeededIndexes. For example, given that succeededIndexes is \"1-4\", succeededCount is \"3\", and completed indexes are \"1\", \"3\", and \"5\", the Job isn't declared as succeeded because only \"1\" and \"3\" indexes are considered in that rules. When this field is null, this doesn't default to any value and is never evaluated at any time. When specified it needs to be a positive integer.  +optional
+     * @type {number}
+     * @memberof K8sIoApiBatchV1SuccessPolicyRule
+     */
+    succeededCount?: number;
 }
 /**
  * Represents a Persistent Disk resource in AWS.  An AWS EBS disk must exist before mounting to a container. The disk must also be in the same AWS zone as the kubelet. An AWS EBS disk can only be mounted as read/write once. AWS EBS volumes support ownership management and SELinux relabeling.
@@ -3338,6 +3651,25 @@ export interface K8sIoApiCoreV1Affinity {
      * @memberof K8sIoApiCoreV1Affinity
      */
     podAntiAffinity?: K8sIoApiCoreV1PodAntiAffinity;
+}
+/**
+ * 
+ * @export
+ * @interface K8sIoApiCoreV1AppArmorProfile
+ */
+export interface K8sIoApiCoreV1AppArmorProfile {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1AppArmorProfile
+     */
+    type?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1AppArmorProfile
+     */
+    localhostProfile?: string;
 }
 /**
  * AzureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.
@@ -3538,23 +3870,41 @@ export interface K8sIoApiCoreV1CinderVolumeSource {
     secretRef?: K8sIoApiCoreV1LocalObjectReference;
 }
 /**
- * ClaimSource describes a reference to a ResourceClaim.  Exactly one of these fields should be set.  Consumers of this type must treat an empty object as if it has an unknown value.
+ * ClusterTrustBundleProjection describes how to select a set of ClusterTrustBundle objects and project their contents into the pod filesystem.
  * @export
- * @interface K8sIoApiCoreV1ClaimSource
+ * @interface K8sIoApiCoreV1ClusterTrustBundleProjection
  */
-export interface K8sIoApiCoreV1ClaimSource {
+export interface K8sIoApiCoreV1ClusterTrustBundleProjection {
     /**
-     * ResourceClaimName is the name of a ResourceClaim object in the same namespace as this pod.
+     * 
      * @type {string}
-     * @memberof K8sIoApiCoreV1ClaimSource
+     * @memberof K8sIoApiCoreV1ClusterTrustBundleProjection
      */
-    resourceClaimName?: string;
+    name?: string;
     /**
-     * ResourceClaimTemplateName is the name of a ResourceClaimTemplate object in the same namespace as this pod.  The template will be used to create a new ResourceClaim, which will be bound to this pod. When this pod is deleted, the ResourceClaim will also be deleted. The name of the ResourceClaim will be <pod name>-<resource name>, where <resource name> is the PodResourceClaim.Name. Pod validation will reject the pod if the concatenated name is not valid for a ResourceClaim (e.g. too long).  An existing ResourceClaim with that name that is not owned by the pod will not be used for the pod to avoid using an unrelated resource by mistake. Scheduling and pod startup are then blocked until the unrelated ResourceClaim is removed.  This field is immutable and no changes will be made to the corresponding ResourceClaim by the control plane after creating the ResourceClaim.
+     * 
      * @type {string}
-     * @memberof K8sIoApiCoreV1ClaimSource
+     * @memberof K8sIoApiCoreV1ClusterTrustBundleProjection
      */
-    resourceClaimTemplateName?: string;
+    signerName?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1LabelSelector}
+     * @memberof K8sIoApiCoreV1ClusterTrustBundleProjection
+     */
+    labelSelector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof K8sIoApiCoreV1ClusterTrustBundleProjection
+     */
+    optional?: boolean;
+    /**
+     * Relative path from the volume root to write the bundle.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ClusterTrustBundleProjection
+     */
+    path?: string;
 }
 /**
  * ConfigMapEnvSource selects a ConfigMap to populate the environment variables with.  The contents of the target ConfigMap's Data field will represent the key-value pairs as environment variables.
@@ -3718,6 +4068,24 @@ export interface K8sIoApiCoreV1Container {
     resources?: K8sIoApiCoreV1ResourceRequirements;
     /**
      * 
+     * @type {Array<K8sIoApiCoreV1ContainerResizePolicy>}
+     * @memberof K8sIoApiCoreV1Container
+     */
+    resizePolicy?: Array<K8sIoApiCoreV1ContainerResizePolicy>;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1Container
+     */
+    restartPolicy?: string;
+    /**
+     * 
+     * @type {Array<K8sIoApiCoreV1ContainerRestartRule>}
+     * @memberof K8sIoApiCoreV1Container
+     */
+    restartPolicyRules?: Array<K8sIoApiCoreV1ContainerRestartRule>;
+    /**
+     * 
      * @type {Array<K8sIoApiCoreV1VolumeMount>}
      * @memberof K8sIoApiCoreV1Container
      */
@@ -3833,6 +4201,63 @@ export interface K8sIoApiCoreV1ContainerPort {
     hostIP?: string;
 }
 /**
+ * ContainerResizePolicy represents resource resize policy for the container.
+ * @export
+ * @interface K8sIoApiCoreV1ContainerResizePolicy
+ */
+export interface K8sIoApiCoreV1ContainerResizePolicy {
+    /**
+     * Name of the resource to which this resource resize policy applies. Supported values: cpu, memory.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ContainerResizePolicy
+     */
+    resourceName?: string;
+    /**
+     * Restart policy to apply when specified resource is resized. If not specified, it defaults to NotRequired.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ContainerResizePolicy
+     */
+    restartPolicy?: string;
+}
+/**
+ * ContainerRestartRule describes how a container exit is handled.
+ * @export
+ * @interface K8sIoApiCoreV1ContainerRestartRule
+ */
+export interface K8sIoApiCoreV1ContainerRestartRule {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ContainerRestartRule
+     */
+    action?: string;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ContainerRestartRuleOnExitCodes}
+     * @memberof K8sIoApiCoreV1ContainerRestartRule
+     */
+    exitCodes?: K8sIoApiCoreV1ContainerRestartRuleOnExitCodes;
+}
+/**
+ * ContainerRestartRuleOnExitCodes describes the condition for handling an exited container based on its exit codes.
+ * @export
+ * @interface K8sIoApiCoreV1ContainerRestartRuleOnExitCodes
+ */
+export interface K8sIoApiCoreV1ContainerRestartRuleOnExitCodes {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ContainerRestartRuleOnExitCodes
+     */
+    operator?: string;
+    /**
+     * 
+     * @type {Array<number>}
+     * @memberof K8sIoApiCoreV1ContainerRestartRuleOnExitCodes
+     */
+    values?: Array<number>;
+}
+/**
  * Represents downward API info for projecting into a projected volume. Note that this is identical to a downwardAPI volume source without the default mode.
  * @export
  * @interface K8sIoApiCoreV1DownwardAPIProjection
@@ -3946,7 +4371,7 @@ export interface K8sIoApiCoreV1EnvFromSource {
  */
 export interface K8sIoApiCoreV1EnvVar {
     /**
-     * Name of the environment variable. Must be a C_IDENTIFIER.
+     * Name of the environment variable. May consist of any printable ASCII characters except '='.
      * @type {string}
      * @memberof K8sIoApiCoreV1EnvVar
      */
@@ -3994,6 +4419,12 @@ export interface K8sIoApiCoreV1EnvVarSource {
      * @memberof K8sIoApiCoreV1EnvVarSource
      */
     secretKeyRef?: K8sIoApiCoreV1SecretKeySelector;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1FileKeySelector}
+     * @memberof K8sIoApiCoreV1EnvVarSource
+     */
+    fileKeyRef?: K8sIoApiCoreV1FileKeySelector;
 }
 /**
  * An EphemeralContainer is a temporary container that you may add to an existing Pod for user-initiated activities such as debugging. Ephemeral containers have no resource or scheduling guarantees, and they will not be restarted when they exit or when a Pod is removed or restarted. The kubelet may evict a Pod if an ephemeral container causes the Pod to exceed its resource allocation.  To add an ephemeral container, use the ephemeralcontainers subresource of an existing Pod. Ephemeral containers may not be removed or restarted.
@@ -4074,6 +4505,24 @@ export interface K8sIoApiCoreV1EphemeralContainerCommon {
      * @memberof K8sIoApiCoreV1EphemeralContainerCommon
      */
     resources?: K8sIoApiCoreV1ResourceRequirements;
+    /**
+     * 
+     * @type {Array<K8sIoApiCoreV1ContainerResizePolicy>}
+     * @memberof K8sIoApiCoreV1EphemeralContainerCommon
+     */
+    resizePolicy?: Array<K8sIoApiCoreV1ContainerResizePolicy>;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1EphemeralContainerCommon
+     */
+    restartPolicy?: string;
+    /**
+     * 
+     * @type {Array<K8sIoApiCoreV1ContainerRestartRule>}
+     * @memberof K8sIoApiCoreV1EphemeralContainerCommon
+     */
+    restartPolicyRules?: Array<K8sIoApiCoreV1ContainerRestartRule>;
     /**
      * 
      * @type {Array<K8sIoApiCoreV1VolumeMount>}
@@ -4217,6 +4666,37 @@ export interface K8sIoApiCoreV1FCVolumeSource {
     wwids?: Array<string>;
 }
 /**
+ * 
+ * @export
+ * @interface K8sIoApiCoreV1FileKeySelector
+ */
+export interface K8sIoApiCoreV1FileKeySelector {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1FileKeySelector
+     */
+    volumeName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1FileKeySelector
+     */
+    path?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1FileKeySelector
+     */
+    key?: string;
+    /**
+     * Specify whether the file or its key must be defined. If the file or key does not exist, then the env var is not published. If optional is set to true and the specified key does not exist, the environment variable will not be set in the Pod's containers.  If optional is set to false and the specified key does not exist, an error will be returned during Pod creation. +optional +default=false
+     * @type {boolean}
+     * @memberof K8sIoApiCoreV1FileKeySelector
+     */
+    optional?: boolean;
+}
+/**
  * FlexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin.
  * @export
  * @interface K8sIoApiCoreV1FlexVolumeSource
@@ -4304,7 +4784,7 @@ export interface K8sIoApiCoreV1GCEPersistentDiskVolumeSource {
     readOnly?: boolean;
 }
 /**
- * 
+ * GRPCAction specifies an action involving a GRPC service.
  * @export
  * @interface K8sIoApiCoreV1GRPCAction
  */
@@ -4354,7 +4834,7 @@ export interface K8sIoApiCoreV1GitRepoVolumeSource {
  */
 export interface K8sIoApiCoreV1GlusterfsVolumeSource {
     /**
-     * 
+     * endpoints is the endpoint name that details Glusterfs topology.
      * @type {string}
      * @memberof K8sIoApiCoreV1GlusterfsVolumeSource
      */
@@ -4435,13 +4915,13 @@ export interface K8sIoApiCoreV1HTTPHeader {
  */
 export interface K8sIoApiCoreV1HostAlias {
     /**
-     * IP address of the host file entry.
+     * 
      * @type {string}
      * @memberof K8sIoApiCoreV1HostAlias
      */
     ip?: string;
     /**
-     * Hostnames for the above IP address.
+     * 
      * @type {Array<string>}
      * @memberof K8sIoApiCoreV1HostAlias
      */
@@ -4540,6 +5020,25 @@ export interface K8sIoApiCoreV1ISCSIVolumeSource {
     initiatorName?: string;
 }
 /**
+ * ImageVolumeSource represents a image volume resource.
+ * @export
+ * @interface K8sIoApiCoreV1ImageVolumeSource
+ */
+export interface K8sIoApiCoreV1ImageVolumeSource {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ImageVolumeSource
+     */
+    reference?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ImageVolumeSource
+     */
+    pullPolicy?: string;
+}
+/**
  * Maps a string key to a path within a volume.
  * @export
  * @interface K8sIoApiCoreV1KeyToPath
@@ -4582,6 +5081,12 @@ export interface K8sIoApiCoreV1Lifecycle {
      * @memberof K8sIoApiCoreV1Lifecycle
      */
     preStop?: K8sIoApiCoreV1LifecycleHandler;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1Lifecycle
+     */
+    stopSignal?: string;
 }
 /**
  * LifecycleHandler defines a specific action that should be taken in a lifecycle hook. One and only one of the fields, except TCPSocket must be specified.
@@ -4607,15 +5112,21 @@ export interface K8sIoApiCoreV1LifecycleHandler {
      * @memberof K8sIoApiCoreV1LifecycleHandler
      */
     tcpSocket?: K8sIoApiCoreV1TCPSocketAction;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1SleepAction}
+     * @memberof K8sIoApiCoreV1LifecycleHandler
+     */
+    sleep?: K8sIoApiCoreV1SleepAction;
 }
 /**
- * 
+ * LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace. --- New uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.  1. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular     restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".     Those cannot be well described when embedded.  2. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.  3. We cannot easily change it.  Because this type is embedded in many locations, updates to this type     will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.  Instead of using this type, create a locally provided and used type that is well-focused on your reference. For example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 . +structType=atomic
  * @export
  * @interface K8sIoApiCoreV1LocalObjectReference
  */
 export interface K8sIoApiCoreV1LocalObjectReference {
     /**
-     * 
+     * Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names +optional +default=\"\" +kubebuilder:default=\"\" TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
      * @type {string}
      * @memberof K8sIoApiCoreV1LocalObjectReference
      */
@@ -4672,7 +5183,7 @@ export interface K8sIoApiCoreV1NodeAffinity {
  */
 export interface K8sIoApiCoreV1NodeSelector {
     /**
-     * Required. A list of node selector terms. The terms are ORed.
+     * 
      * @type {Array<K8sIoApiCoreV1NodeSelectorTerm>}
      * @memberof K8sIoApiCoreV1NodeSelector
      */
@@ -4761,10 +5272,10 @@ export interface K8sIoApiCoreV1PersistentVolumeClaimSpec {
     selector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
     /**
      * 
-     * @type {K8sIoApiCoreV1ResourceRequirements}
+     * @type {K8sIoApiCoreV1VolumeResourceRequirements}
      * @memberof K8sIoApiCoreV1PersistentVolumeClaimSpec
      */
-    resources?: K8sIoApiCoreV1ResourceRequirements;
+    resources?: K8sIoApiCoreV1VolumeResourceRequirements;
     /**
      * 
      * @type {string}
@@ -4795,6 +5306,12 @@ export interface K8sIoApiCoreV1PersistentVolumeClaimSpec {
      * @memberof K8sIoApiCoreV1PersistentVolumeClaimSpec
      */
     dataSourceRef?: K8sIoApiCoreV1TypedObjectReference;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PersistentVolumeClaimSpec
+     */
+    volumeAttributesClassName?: string;
 }
 /**
  * PersistentVolumeClaimTemplate is used to produce PersistentVolumeClaim objects as part of an EphemeralVolumeSource.
@@ -4902,6 +5419,18 @@ export interface K8sIoApiCoreV1PodAffinityTerm {
      * @memberof K8sIoApiCoreV1PodAffinityTerm
      */
     namespaceSelector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
+    /**
+     * MatchLabelKeys is a set of pod label keys to select which pods will be taken into consideration. The keys are used to lookup values from the incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)` to select the group of existing pods which pods will be taken into consideration for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming pod labels will be ignored. The default value is empty. The same key is forbidden to exist in both matchLabelKeys and labelSelector. Also, matchLabelKeys cannot be set when labelSelector isn't set.  +listType=atomic +optional
+     * @type {Array<string>}
+     * @memberof K8sIoApiCoreV1PodAffinityTerm
+     */
+    matchLabelKeys?: Array<string>;
+    /**
+     * MismatchLabelKeys is a set of pod label keys to select which pods will be taken into consideration. The keys are used to lookup values from the incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)` to select the group of existing pods which pods will be taken into consideration for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming pod labels will be ignored. The default value is empty. The same key is forbidden to exist in both mismatchLabelKeys and labelSelector. Also, mismatchLabelKeys cannot be set when labelSelector isn't set.  +listType=atomic +optional
+     * @type {Array<string>}
+     * @memberof K8sIoApiCoreV1PodAffinityTerm
+     */
+    mismatchLabelKeys?: Array<string>;
 }
 /**
  * Pod anti affinity is a group of inter pod anti affinity scheduling rules.
@@ -4921,6 +5450,49 @@ export interface K8sIoApiCoreV1PodAntiAffinity {
      * @memberof K8sIoApiCoreV1PodAntiAffinity
      */
     preferredDuringSchedulingIgnoredDuringExecution?: Array<K8sIoApiCoreV1WeightedPodAffinityTerm>;
+}
+/**
+ * PodCertificateProjection provides a private key and X.509 certificate in the pod filesystem.
+ * @export
+ * @interface K8sIoApiCoreV1PodCertificateProjection
+ */
+export interface K8sIoApiCoreV1PodCertificateProjection {
+    /**
+     * Kubelet's generated CSRs will be addressed to this signer.  +required
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    signerName?: string;
+    /**
+     * The type of keypair Kubelet will generate for the pod.  Valid values are \"RSA3072\", \"RSA4096\", \"ECDSAP256\", \"ECDSAP384\", \"ECDSAP521\", and \"ED25519\".  +required
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    keyType?: string;
+    /**
+     * maxExpirationSeconds is the maximum lifetime permitted for the certificate.  Kubelet copies this value verbatim into the PodCertificateRequests it generates for this projection.  If omitted, kube-apiserver will set it to 86400(24 hours). kube-apiserver will reject values shorter than 3600 (1 hour).  The maximum allowable value is 7862400 (91 days).  The signer implementation is then free to issue a certificate with any lifetime *shorter* than MaxExpirationSeconds, but no shorter than 3600 seconds (1 hour).  This constraint is enforced by kube-apiserver. `kubernetes.io` signers will never issue certificates with a lifetime longer than 24 hours.  +optional
+     * @type {number}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    maxExpirationSeconds?: number;
+    /**
+     * Write the credential bundle at this path in the projected volume.  The credential bundle is a single file that contains multiple PEM blocks. The first PEM block is a PRIVATE KEY block, containing a PKCS#8 private key.  The remaining blocks are CERTIFICATE blocks, containing the issued certificate chain from the signer (leaf and any intermediates).  Using credentialBundlePath lets your Pod's application code make a single atomic read that retrieves a consistent key and certificate chain.  If you project them to separate files, your application code will need to additionally check that the leaf certificate was issued to the key.  +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    credentialBundlePath?: string;
+    /**
+     * Write the key at this path in the projected volume.  Most applications should use credentialBundlePath.  When using keyPath and certificateChainPath, your application needs to check that the key and leaf certificate are consistent, because it is possible to read the files mid-rotation.  +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    keyPath?: string;
+    /**
+     * Write the certificate chain at this path in the projected volume.  Most applications should use credentialBundlePath.  When using keyPath and certificateChainPath, your application needs to check that the key and leaf certificate are consistent, because it is possible to read the files mid-rotation.  +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    certificateChainPath?: string;
 }
 /**
  * PodDNSConfig defines the DNS parameters of a pod in addition to those generated from DNSPolicy.
@@ -4954,7 +5526,7 @@ export interface K8sIoApiCoreV1PodDNSConfig {
  */
 export interface K8sIoApiCoreV1PodDNSConfigOption {
     /**
-     * Required.
+     * Name is this DNS resolver option's name. Required.
      * @type {string}
      * @memberof K8sIoApiCoreV1PodDNSConfigOption
      */
@@ -4993,7 +5565,7 @@ export interface K8sIoApiCoreV1PodReadinessGate {
     conditionType?: string;
 }
 /**
- * PodResourceClaim references exactly one ResourceClaim through a ClaimSource. It adds a name to it that uniquely identifies the ResourceClaim inside the Pod. Containers that need access to the ResourceClaim reference it with this name.
+ * PodResourceClaim references exactly one ResourceClaim, either directly or by naming a ResourceClaimTemplate which is then turned into a ResourceClaim for the pod.  It adds a name to it that uniquely identifies the ResourceClaim inside the Pod. Containers that need access to the ResourceClaim reference it with this name.
  * @export
  * @interface K8sIoApiCoreV1PodResourceClaim
  */
@@ -5005,11 +5577,17 @@ export interface K8sIoApiCoreV1PodResourceClaim {
      */
     name?: string;
     /**
-     * 
-     * @type {K8sIoApiCoreV1ClaimSource}
+     * ResourceClaimName is the name of a ResourceClaim object in the same namespace as this pod.  Exactly one of ResourceClaimName and ResourceClaimTemplateName must be set.
+     * @type {string}
      * @memberof K8sIoApiCoreV1PodResourceClaim
      */
-    source?: K8sIoApiCoreV1ClaimSource;
+    resourceClaimName?: string;
+    /**
+     * ResourceClaimTemplateName is the name of a ResourceClaimTemplate object in the same namespace as this pod.  The template will be used to create a new ResourceClaim, which will be bound to this pod. When this pod is deleted, the ResourceClaim will also be deleted. The pod name and resource name, along with a generated component, will be used to form a unique name for the ResourceClaim, which will be recorded in pod.status.resourceClaimStatuses.  This field is immutable and no changes will be made to the corresponding ResourceClaim by the control plane after creating the ResourceClaim.  Exactly one of ResourceClaimName and ResourceClaimTemplateName must be set.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodResourceClaim
+     */
+    resourceClaimTemplateName?: string;
 }
 /**
  * PodSchedulingGate is associated to a Pod to guard its scheduling.
@@ -5067,6 +5645,12 @@ export interface K8sIoApiCoreV1PodSecurityContext {
      */
     supplementalGroups?: Array<string>;
     /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodSecurityContext
+     */
+    supplementalGroupsPolicy?: string;
+    /**
      * 1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw----  If unset, the Kubelet will not modify the ownership and permissions of any volume. Note that this field cannot be set when spec.os.name is windows. +optional
      * @type {string}
      * @memberof K8sIoApiCoreV1PodSecurityContext
@@ -5090,6 +5674,18 @@ export interface K8sIoApiCoreV1PodSecurityContext {
      * @memberof K8sIoApiCoreV1PodSecurityContext
      */
     seccompProfile?: K8sIoApiCoreV1SeccompProfile;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1AppArmorProfile}
+     * @memberof K8sIoApiCoreV1PodSecurityContext
+     */
+    appArmorProfile?: K8sIoApiCoreV1AppArmorProfile;
+    /**
+     * seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod. It has no effect on nodes that do not support SELinux or to volumes does not support SELinux. Valid values are \"MountOption\" and \"Recursive\".  \"Recursive\" means relabeling of all files on all Pod volumes by the container runtime. This may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.  \"MountOption\" mounts all eligible Pod volumes with `-o context` mount option. This requires all Pods that share the same volume to use the same SELinux label. It is not possible to share the same volume among privileged and unprivileged Pods. Eligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes whose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their CSIDriver instance. Other volumes are always re-labelled recursively. \"MountOption\" value is allowed only when SELinuxMount feature gate is enabled.  If not specified and SELinuxMount feature gate is enabled, \"MountOption\" is used. If not specified and SELinuxMount feature gate is disabled, \"MountOption\" is used for ReadWriteOncePod volumes and \"Recursive\" for all other volumes.  This field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.  All Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state. Note that this field cannot be set when spec.os.name is windows. +featureGate=SELinuxChangePolicy +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodSecurityContext
+     */
+    seLinuxChangePolicy?: string;
 }
 /**
  * PodSpec is a description of a pod.
@@ -5320,7 +5916,7 @@ export interface K8sIoApiCoreV1PodSpec {
      */
     hostUsers?: boolean;
     /**
-     * SchedulingGates is an opaque list of values that if specified will block scheduling the pod. More info:  https://git.k8s.io/enhancements/keps/sig-scheduling/3521-pod-scheduling-readiness.  This is an alpha-level feature enabled by PodSchedulingReadiness feature gate. +optional +patchMergeKey=name +patchStrategy=merge +listType=map +listMapKey=name
+     * SchedulingGates is an opaque list of values that if specified will block scheduling the pod. If schedulingGates is not empty, the pod will stay in the SchedulingGated state and the scheduler will not attempt to schedule the pod.  SchedulingGates can only be set at pod creation time, and be removed only afterwards.  +patchMergeKey=name +patchStrategy=merge +listType=map +listMapKey=name +optional
      * @type {Array<K8sIoApiCoreV1PodSchedulingGate>}
      * @memberof K8sIoApiCoreV1PodSpec
      */
@@ -5331,6 +5927,18 @@ export interface K8sIoApiCoreV1PodSpec {
      * @memberof K8sIoApiCoreV1PodSpec
      */
     resourceClaims?: Array<K8sIoApiCoreV1PodResourceClaim>;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ResourceRequirements}
+     * @memberof K8sIoApiCoreV1PodSpec
+     */
+    resources?: K8sIoApiCoreV1ResourceRequirements;
+    /**
+     * HostnameOverride specifies an explicit override for the pod's hostname as perceived by the pod. This field only specifies the pod's hostname and does not affect its DNS records. When this field is set to a non-empty string: - It takes precedence over the values set in `hostname` and `subdomain`. - The Pod's hostname will be set to this value. - `setHostnameAsFQDN` must be nil or set to false. - `hostNetwork` must be set to false.  This field must be a valid DNS subdomain as defined in RFC 1123 and contain at most 64 characters. Requires the HostnameOverride feature gate to be enabled.  +featureGate=HostnameOverride +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodSpec
+     */
+    hostnameOverride?: string;
 }
 /**
  * 
@@ -5604,6 +6212,12 @@ export interface K8sIoApiCoreV1ResourceClaim {
      * @memberof K8sIoApiCoreV1ResourceClaim
      */
     name?: string;
+    /**
+     * Request is the name chosen for a request in the referenced claim. If empty, everything from the claim is made available, otherwise only the result of this request.  +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ResourceClaim
+     */
+    request?: string;
 }
 /**
  * 
@@ -5649,7 +6263,7 @@ export interface K8sIoApiCoreV1ResourceRequirements {
      */
     requests?: { [key: string]: K8sIoApimachineryPkgApiResourceQuantity; };
     /**
-     * Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers.  +listType=map +listMapKey=name +featureGate=DynamicResourceAllocation +optional
+     * Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This field depends on the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers.  +listType=map +listMapKey=name +featureGate=DynamicResourceAllocation +optional
      * @type {Array<K8sIoApiCoreV1ResourceClaim>}
      * @memberof K8sIoApiCoreV1ResourceRequirements
      */
@@ -5944,6 +6558,12 @@ export interface K8sIoApiCoreV1SecurityContext {
      * @memberof K8sIoApiCoreV1SecurityContext
      */
     seccompProfile?: K8sIoApiCoreV1SeccompProfile;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1AppArmorProfile}
+     * @memberof K8sIoApiCoreV1SecurityContext
+     */
+    appArmorProfile?: K8sIoApiCoreV1AppArmorProfile;
 }
 /**
  * ServiceAccountTokenProjection represents a projected service account token volume. This projection can be used to insert a service account token into the pods runtime filesystem for use against APIs (Kubernetes API Server or otherwise).
@@ -5969,6 +6589,19 @@ export interface K8sIoApiCoreV1ServiceAccountTokenProjection {
      * @memberof K8sIoApiCoreV1ServiceAccountTokenProjection
      */
     path?: string;
+}
+/**
+ * SleepAction describes a \"sleep\" action.
+ * @export
+ * @interface K8sIoApiCoreV1SleepAction
+ */
+export interface K8sIoApiCoreV1SleepAction {
+    /**
+     * Seconds is the number of seconds to sleep.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1SleepAction
+     */
+    seconds?: string;
 }
 /**
  * Represents a StorageOS persistent volume resource.
@@ -6113,32 +6746,32 @@ export interface K8sIoApiCoreV1TopologySpreadConstraint {
      */
     labelSelector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
     /**
-     * MinDomains indicates a minimum number of eligible domains. When the number of eligible domains with matching topology keys is less than minDomains, Pod Topology Spread treats \"global minimum\" as 0, and then the calculation of Skew is performed. And when the number of eligible domains with matching topology keys equals or greater than minDomains, this value has no effect on scheduling. As a result, when the number of eligible domains is less than minDomains, scheduler won't schedule more than maxSkew Pods to those domains. If value is nil, the constraint behaves as if MinDomains is equal to 1. Valid values are integers greater than 0. When value is not nil, WhenUnsatisfiable must be DoNotSchedule.  For example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same labelSelector spread as 2/2/2: +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ |  P P  |  P P  |  P P  | +-------+-------+-------+ The number of domains is less than 5(MinDomains), so \"global minimum\" is treated as 0. In this situation, new pod with the same labelSelector cannot be scheduled, because computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones, it will violate MaxSkew.  This is a beta field and requires the MinDomainsInPodTopologySpread feature gate to be enabled (enabled by default). +optional
+     * MinDomains indicates a minimum number of eligible domains. When the number of eligible domains with matching topology keys is less than minDomains, Pod Topology Spread treats \"global minimum\" as 0, and then the calculation of Skew is performed. And when the number of eligible domains with matching topology keys equals or greater than minDomains, this value has no effect on scheduling. As a result, when the number of eligible domains is less than minDomains, scheduler won't schedule more than maxSkew Pods to those domains. If value is nil, the constraint behaves as if MinDomains is equal to 1. Valid values are integers greater than 0. When value is not nil, WhenUnsatisfiable must be DoNotSchedule.  For example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same labelSelector spread as 2/2/2: +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ |  P P  |  P P  |  P P  | +-------+-------+-------+ The number of domains is less than 5(MinDomains), so \"global minimum\" is treated as 0. In this situation, new pod with the same labelSelector cannot be scheduled, because computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones, it will violate MaxSkew. +optional
      * @type {number}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
     minDomains?: number;
     /**
-     * NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector when calculating pod topology spread skew. Options are: - Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations. - Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.  If this value is nil, the behavior is equivalent to the Honor policy. This is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag. +optional
+     * NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector when calculating pod topology spread skew. Options are: - Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations. - Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.  If this value is nil, the behavior is equivalent to the Honor policy. +optional
      * @type {string}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
     nodeAffinityPolicy?: string;
     /**
-     * NodeTaintsPolicy indicates how we will treat node taints when calculating pod topology spread skew. Options are: - Honor: nodes without taints, along with tainted nodes for which the incoming pod has a toleration, are included. - Ignore: node taints are ignored. All nodes are included.  If this value is nil, the behavior is equivalent to the Ignore policy. This is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag. +optional
+     * NodeTaintsPolicy indicates how we will treat node taints when calculating pod topology spread skew. Options are: - Honor: nodes without taints, along with tainted nodes for which the incoming pod has a toleration, are included. - Ignore: node taints are ignored. All nodes are included.  If this value is nil, the behavior is equivalent to the Ignore policy. +optional
      * @type {string}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
     nodeTaintsPolicy?: string;
     /**
-     * 
+     * MatchLabelKeys is a set of pod label keys to select the pods over which spreading will be calculated. The keys are used to lookup values from the incoming pod labels, those key-value labels are ANDed with labelSelector to select the group of existing pods over which spreading will be calculated for the incoming pod. The same key is forbidden to exist in both MatchLabelKeys and LabelSelector. MatchLabelKeys cannot be set when LabelSelector isn't set. Keys that don't exist in the incoming pod labels will be ignored. A null or empty list means only match against labelSelector.  This is a beta field and requires the MatchLabelKeysInPodTopologySpread feature gate to be enabled (enabled by default). +listType=atomic +optional
      * @type {Array<string>}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
     matchLabelKeys?: Array<string>;
 }
 /**
- * 
+ * TypedLocalObjectReference contains enough information to let you locate the typed referenced object inside the same namespace. --- New uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.  1. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular     restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".     Those cannot be well described when embedded.  2. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.  3. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity     during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple     and the version of the actual struct is irrelevant.  4. We cannot easily change it.  Because this type is embedded in many locations, updates to this type     will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.  Instead of using this type, create a locally provided and used type that is well-focused on your reference. For example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 . +structType=atomic
  * @export
  * @interface K8sIoApiCoreV1TypedLocalObjectReference
  */
@@ -6250,6 +6883,12 @@ export interface K8sIoApiCoreV1VolumeMount {
      */
     readOnly?: boolean;
     /**
+     * RecursiveReadOnly specifies whether read-only mounts should be handled recursively.  If ReadOnly is false, this field has no meaning and must be unspecified.  If ReadOnly is true, and this field is set to Disabled, the mount is not made recursively read-only.  If this field is set to IfPossible, the mount is made recursively read-only, if it is supported by the container runtime.  If this field is set to Enabled, the mount is made recursively read-only if it is supported by the container runtime, otherwise the pod will not be started and an error will be generated to indicate the reason.  If this field is set to IfPossible or Enabled, MountPropagation must be set to None (or be unspecified, which defaults to None).  If this field is not specified, it is treated as an equivalent of Disabled.  +featureGate=RecursiveReadOnlyMounts +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1VolumeMount
+     */
+    recursiveReadOnly?: string;
+    /**
      * Path within the container at which the volume should be mounted.  Must not contain ':'.
      * @type {string}
      * @memberof K8sIoApiCoreV1VolumeMount
@@ -6275,7 +6914,7 @@ export interface K8sIoApiCoreV1VolumeMount {
     subPathExpr?: string;
 }
 /**
- * 
+ * Projection that may be projected along with other supported volume types. Exactly one of these fields must be set.
  * @export
  * @interface K8sIoApiCoreV1VolumeProjection
  */
@@ -6304,6 +6943,37 @@ export interface K8sIoApiCoreV1VolumeProjection {
      * @memberof K8sIoApiCoreV1VolumeProjection
      */
     serviceAccountToken?: K8sIoApiCoreV1ServiceAccountTokenProjection;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ClusterTrustBundleProjection}
+     * @memberof K8sIoApiCoreV1VolumeProjection
+     */
+    clusterTrustBundle?: K8sIoApiCoreV1ClusterTrustBundleProjection;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1PodCertificateProjection}
+     * @memberof K8sIoApiCoreV1VolumeProjection
+     */
+    podCertificate?: K8sIoApiCoreV1PodCertificateProjection;
+}
+/**
+ * VolumeResourceRequirements describes the storage resource requirements for a volume.
+ * @export
+ * @interface K8sIoApiCoreV1VolumeResourceRequirements
+ */
+export interface K8sIoApiCoreV1VolumeResourceRequirements {
+    /**
+     * 
+     * @type {{ [key: string]: K8sIoApimachineryPkgApiResourceQuantity; }}
+     * @memberof K8sIoApiCoreV1VolumeResourceRequirements
+     */
+    limits?: { [key: string]: K8sIoApimachineryPkgApiResourceQuantity; };
+    /**
+     * 
+     * @type {{ [key: string]: K8sIoApimachineryPkgApiResourceQuantity; }}
+     * @memberof K8sIoApiCoreV1VolumeResourceRequirements
+     */
+    requests?: { [key: string]: K8sIoApimachineryPkgApiResourceQuantity; };
 }
 /**
  * Represents the source of a volume to mount. Only one of its members may be specified.
@@ -6485,6 +7155,12 @@ export interface K8sIoApiCoreV1VolumeSource {
      * @memberof K8sIoApiCoreV1VolumeSource
      */
     ephemeral?: K8sIoApiCoreV1EphemeralVolumeSource;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ImageVolumeSource}
+     * @memberof K8sIoApiCoreV1VolumeSource
+     */
+    image?: K8sIoApiCoreV1ImageVolumeSource;
 }
 /**
  * Represents a vSphere volume resource.
@@ -6619,7 +7295,7 @@ export interface K8sIoApimachineryPkgApisMetaV1LabelSelector {
  */
 export interface K8sIoApimachineryPkgApisMetaV1LabelSelectorRequirement {
     /**
-     * 
+     * key is the label key that the selector applies to.
      * @type {string}
      * @memberof K8sIoApimachineryPkgApisMetaV1LabelSelectorRequirement
      */
@@ -6705,7 +7381,7 @@ export interface K8sIoApimachineryPkgApisMetaV1ObjectMeta {
      */
     generateName?: string;
     /**
-     * Namespace defines the space within which each name must be unique. An empty namespace is equivalent to the \"default\" namespace, but \"default\" is the canonical representation. Not all objects are required to be scoped to a namespace - the value of this field for those objects will be empty.  Must be a DNS_LABEL. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/namespaces +optional
+     * Namespace defines the space within which each name must be unique. An empty namespace is equivalent to the \"default\" namespace, but \"default\" is the canonical representation. Not all objects are required to be scoped to a namespace - the value of this field for those objects will be empty.  Must be a DNS_LABEL. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces +optional
      * @type {string}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
@@ -6717,7 +7393,7 @@ export interface K8sIoApimachineryPkgApisMetaV1ObjectMeta {
      */
     selfLink?: string;
     /**
-     * UID is the unique in time and space value for this object. It is typically generated by the server on successful creation of a resource and is not allowed to change on PUT operations.  Populated by the system. Read-only. More info: http://kubernetes.io/docs/user-guide/identifiers#uids +optional
+     * UID is the unique in time and space value for this object. It is typically generated by the server on successful creation of a resource and is not allowed to change on PUT operations.  Populated by the system. Read-only. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids +optional
      * @type {string}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
@@ -6777,7 +7453,7 @@ export interface K8sIoApimachineryPkgApisMetaV1ObjectMeta {
      */
     finalizers?: Array<string>;
     /**
-     * ManagedFields maps workflow-id and version to the set of fields that are managed by that workflow. This is mostly for internal housekeeping, and users typically shouldn't need to set or understand this field. A workflow can be the user's name, a controller's name, or the name of a specific apply path like \"ci-cd\". The set of fields is always in the version that the workflow used when modifying the object.  +optional
+     * ManagedFields maps workflow-id and version to the set of fields that are managed by that workflow. This is mostly for internal housekeeping, and users typically shouldn't need to set or understand this field. A workflow can be the user's name, a controller's name, or the name of a specific apply path like \"ci-cd\". The set of fields is always in the version that the workflow used when modifying the object.  +optional +listType=atomic
      * @type {Array<K8sIoApimachineryPkgApisMetaV1ManagedFieldsEntry>}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
@@ -7343,6 +8019,12 @@ export interface RolloutReplicaSetInfo {
      * @memberof RolloutReplicaSetInfo
      */
     pong?: boolean;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof RolloutReplicaSetInfo
+     */
+    initContainerImages?: Array<string>;
 }
 /**
  * 
@@ -7508,6 +8190,12 @@ export interface RolloutRolloutInfo {
      * @memberof RolloutRolloutInfo
      */
     steps?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep>;
+    /**
+     * 
+     * @type {Array<RolloutContainerInfo>}
+     * @memberof RolloutRolloutInfo
+     */
+    initContainers?: Array<RolloutContainerInfo>;
 }
 /**
  * 
@@ -7693,7 +8381,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutAbortRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -7717,7 +8405,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -7751,7 +8439,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -7779,7 +8467,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -7820,7 +8508,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutPromoteRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -7863,7 +8551,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutRestartRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -7906,7 +8594,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutRetryRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -7967,7 +8655,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutSetImageRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -8016,7 +8704,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutUndoRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -8040,7 +8728,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -8074,7 +8762,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -8102,7 +8790,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -8129,7 +8817,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceAbortRollout(body: RolloutAbortRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceAbortRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8146,7 +8834,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceGetNamespace(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutNamespaceInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceGetNamespace(options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8165,7 +8853,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceGetRolloutInfo(namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutRolloutInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceGetRolloutInfo(namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8183,7 +8871,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceListRolloutInfos(namespace: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutRolloutInfoList> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceListRolloutInfos(namespace, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8203,7 +8891,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServicePromoteRollout(body: RolloutPromoteRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServicePromoteRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8223,7 +8911,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceRestartRollout(body: RolloutRestartRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceRestartRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8243,7 +8931,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceRetryRollout(body: RolloutRetryRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceRetryRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8266,7 +8954,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceSetRolloutImage(body: RolloutSetImageRequest, namespace: string, rollout: string, container: string, image: string, tag: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceSetRolloutImage(body, namespace, rollout, container, image, tag, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8287,7 +8975,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceUndoRollout(body: RolloutUndoRolloutRequest, namespace: string, rollout: string, revision: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceUndoRollout(body, namespace, rollout, revision, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8304,7 +8992,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceVersion(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutVersionInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceVersion(options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8323,7 +9011,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceWatchRolloutInfo(namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<StreamResultOfRolloutRolloutInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceWatchRolloutInfo(namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8341,7 +9029,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceWatchRolloutInfos(namespace: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<StreamResultOfRolloutRolloutWatchEvent> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceWatchRolloutInfos(namespace, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();

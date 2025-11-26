@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"github.com/tj/assert"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 	ingress2 "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -92,6 +92,71 @@ func (s *AWSSuite) TestALBPingPongUpdate() {
 		Sleep(1 * time.Second).
 		Then().
 		Assert(assertWeights(s, "ping-service", "pong-service", 100, 0))
+}
+
+// Rollout uses both alb and mesh for trafficRouting.
+// also uses both pingpong service and stable/canary services
+// Expecting: * alb is using pingpong
+//   - mesh is using stable/canary
+func (s *AWSSuite) TestALBMesh_PingPong_StableCanary_Update() {
+	s.Given().
+		RolloutObjects("@functional/albmesh-pingpong-stablecanary-rollout.yaml").
+		When().ApplyManifests().WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 100, 0)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+			assert.Equal(s.T(), "stable-service", vsvc.Spec.HTTP[0].Route[0].Destination.Host)
+			assert.Equal(s.T(), "canary-service", vsvc.Spec.HTTP[0].Route[1].Destination.Host)
+		}).
+		// Update 1. Test the weight switch from ping => pong
+		When().UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).Sleep(1 * time.Second).Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 75, 25)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(75), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(25), vsvc.Spec.HTTP[0].Route[1].Weight)
+			assert.Equal(s.T(), "stable-service", vsvc.Spec.HTTP[0].Route[0].Destination.Host)
+			assert.Equal(s.T(), "canary-service", vsvc.Spec.HTTP[0].Route[1].Destination.Host)
+		}).
+		When().PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
+		Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 0, 100)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+			assert.Equal(s.T(), "stable-service", vsvc.Spec.HTTP[0].Route[0].Destination.Host)
+			assert.Equal(s.T(), "canary-service", vsvc.Spec.HTTP[0].Route[1].Destination.Host)
+		}).
+		// Update 2. Test the weight switch from pong => ping
+		When().UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).Sleep(1 * time.Second).Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 25, 75)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(75), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(25), vsvc.Spec.HTTP[0].Route[1].Weight)
+			assert.Equal(s.T(), "stable-service", vsvc.Spec.HTTP[0].Route[0].Destination.Host)
+			assert.Equal(s.T(), "canary-service", vsvc.Spec.HTTP[0].Route[1].Destination.Host)
+		}).
+		When().PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
+		Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 100, 0)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+			assert.Equal(s.T(), "stable-service", vsvc.Spec.HTTP[0].Route[0].Destination.Host)
+			assert.Equal(s.T(), "canary-service", vsvc.Spec.HTTP[0].Route[1].Destination.Host)
+		})
 }
 
 func (s *AWSSuite) TestALBPingPongUpdateMultiIngress() {
@@ -239,6 +304,7 @@ func (s *AWSSuite) TestALBExperimentStepMultiIngress() {
 }
 
 func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
+	//TODO: this test is flaky
 	s.Given().
 		RolloutObjects("@alb/rollout-alb-experiment-no-setweight.yaml").
 		When().
@@ -272,6 +338,7 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 }
 
 func (s *AWSSuite) TestALBExperimentStepNoSetWeightMultiIngress() {
+	//TODO: this test is flaky
 	s.Given().
 		RolloutObjects("@alb/rollout-alb-multi-ingress-experiment-no-setweight.yaml").
 		When().
@@ -405,7 +472,7 @@ func assertAlbActionServiceWeight(t *fixtures.Then, s *AWSSuite, actionName, ser
 	found := false
 	for _, group := range albAction.ForwardConfig.TargetGroups {
 		if group.ServiceName == serviceName {
-			assert.Equal(s.T(), pointer.Int64(expectedWeight), group.Weight)
+			assert.Equal(s.T(), ptr.To[int64](expectedWeight), group.Weight)
 			found = true
 		}
 	}
@@ -428,7 +495,7 @@ func assertAlbActionServiceWeightMultiIngress(t *fixtures.Then, s *AWSSuite, act
 		found := false
 		for _, group := range albAction.ForwardConfig.TargetGroups {
 			if group.ServiceName == serviceName {
-				assert.Equal(s.T(), pointer.Int64(expectedWeight), group.Weight)
+				assert.Equal(s.T(), ptr.To[int64](expectedWeight), group.Weight)
 				found = true
 			}
 		}

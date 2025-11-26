@@ -73,6 +73,11 @@ func GetReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 		for _, ctr := range rs.Spec.Template.Spec.Containers {
 			rsInfo.Images = append(rsInfo.Images, ctr.Image)
 		}
+
+		for _, ctr := range rs.Spec.Template.Spec.InitContainers {
+			rsInfo.InitContainerImages = append(rsInfo.InitContainerImages, ctr.Image)
+		}
+
 		rsInfos = append(rsInfos, rsInfo)
 	}
 	sort.Slice(rsInfos[:], func(i, j int) bool {

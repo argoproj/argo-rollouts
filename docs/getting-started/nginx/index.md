@@ -109,7 +109,7 @@ kubectl argo rollouts get rollout rollouts-demo
 
 ## 2. Perform an update
 
-Update the rollout by changing the image, and wait for it to reached the paused state.
+Update the rollout by changing the image, and wait for it to reach the paused state.
 
 ```shell
 kubectl argo rollouts set image rollouts-demo rollouts-demo=argoproj/rollouts-demo:yellow
@@ -130,7 +130,7 @@ changes over the original ingress:
 1. Two additional
 [NGINX specific canary annotations](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#canary)
 are added to the annotations.
-2. The Ingress rules will have an rule which points the backend to the *canary* service.
+2. The Ingress rules will have a rule which points the backend to the *canary* service.
 
 
 ```yaml

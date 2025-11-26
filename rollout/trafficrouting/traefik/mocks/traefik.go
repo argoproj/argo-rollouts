@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	argoRecord "github.com/argoproj/argo-rollouts/utils/record"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -14,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
+
+	argoRecord "github.com/argoproj/argo-rollouts/utils/record"
 )
 
 type FakeDynamicClient struct{}

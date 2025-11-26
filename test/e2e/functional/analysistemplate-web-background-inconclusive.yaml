@@ -1,0 +1,22 @@
+# A web metric which uses the httpbin service as a metric provider
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: web-background-inconclusive
+spec:
+  args:
+    - name: url-val
+      value: "https://httpbin.org/anything"
+  metrics:
+    - name: web
+      interval: 7s
+      inconclusiveLimit: 3
+      successCondition: result.json.status == "success"
+      failureCondition: result.json.status == "failure"
+      provider:
+        web:
+          url: "{{args.url-val}}"
+          method: POST
+          jsonBody:
+            status: "inconclusive"
+          jsonPath: "{$}"

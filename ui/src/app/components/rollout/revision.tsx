@@ -3,7 +3,7 @@ import * as moment from 'moment';
 import {RolloutAnalysisRunInfo, RolloutExperimentInfo, RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {IconForTag} from '../../shared/utils/utils';
 import {ReplicaSets} from '../pods/pods';
-import {ImageInfo, parseImages} from './rollout';
+import {ImageInfo, parseImages, parseInitContainerImages} from './rollout';
 import './rollout.scss';
 import '../pods/pods.scss';
 import {ConfirmButton} from '../confirm-button/confirm-button';
@@ -61,6 +61,8 @@ export const RevisionWidget = ({current, initCollapsed, revision, rollback}: Rev
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
     const icon = collapsed ? faChevronCircleDown : faChevronCircleUp;
     const images = parseImages(revision.replicaSets ?? []);
+    const initContainerImages = parseInitContainerImages(revision.replicaSets ?? []);
+    const combinedImages = images.concat(initContainerImages);
     const hasPods = (revision.replicaSets || []).some((rs) => rs.pods?.length > 0);
 
     return (
@@ -81,7 +83,7 @@ export const RevisionWidget = ({current, initCollapsed, revision, rollback}: Rev
                 </div>
             </div>
             <div className='revision__images'>
-                <ImageItems images={images} />
+                <ImageItems images={combinedImages} />
             </div>
 
             {!collapsed && (

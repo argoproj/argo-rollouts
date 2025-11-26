@@ -12,14 +12,14 @@
 ![1](https://user-images.githubusercontent.com/18019529/111499520-62ed0500-8786-11eb-88b0-d0aade61fed4.png)
 2. Invite team
 ![2](https://user-images.githubusercontent.com/18019529/111500197-1229dc00-8787-11eb-98e5-587ee36c94a9.png)
-3. Store token in `argocd-notifications-secret` Secret and configure Mattermost integration
-in `argocd-notifications-cm` ConfigMap
+3. Store token in `argo-rollouts-notification-secret` Secret and configure Mattermost integration
+in `argo-rollouts-notification-configmap` ConfigMap
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.mattermost: |
     apiURL: <api-url>

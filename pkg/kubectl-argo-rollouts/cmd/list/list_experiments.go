@@ -62,7 +62,7 @@ func NewCmdListExperiments(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&listOptions.allNamespaces, "all-namespaces", false, "Include all namespaces")
+	cmd.Flags().BoolVarP(&listOptions.allNamespaces, "all-namespaces", "A", false, "Include all namespaces")
 	return cmd
 }
 
@@ -84,7 +84,7 @@ func (o *ListOptions) PrintExperimentTable(expList *v1alpha1.ExperimentList) err
 		headerStr = "NAMESPACE\t" + headerStr
 		fmtStr = "%-9s\t" + fmtStr
 	}
-	fmt.Fprintf(w, headerStr)
+	fmt.Fprint(w, headerStr)
 	for _, exp := range expList.Items {
 		age := duration.HumanDuration(timeutil.MetaNow().Sub(exp.CreationTimestamp.Time))
 		dur := "-"

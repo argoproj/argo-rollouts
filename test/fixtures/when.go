@@ -147,6 +147,42 @@ func (w *When) UpdateSpec(texts ...string) *When {
 	return w
 }
 
+// UpdateWorkloadRef updates the workload referenced by the rollout (e.g., deployment)
+func (w *When) UpdateWorkloadRef(deploymentName string, texts ...string) *When {
+	if w.rollout == nil {
+		w.t.Fatal("Rollout not set")
+	}
+
+	currentRo, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	if currentRo.Spec.WorkloadRef == nil {
+		w.t.Fatal("Rollout does not have workloadRef")
+	}
+
+	var patchBytes []byte
+	if len(texts) == 0 {
+		nowStr := time.Now().Format(time.RFC3339Nano)
+		patchBytes = []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, nowStr))
+		w.log.Infof("Updating workload ref deployment with timestamp: %s", nowStr)
+	} else {
+		var err error
+		patchBytes, err = yaml.YAMLToJSON([]byte(texts[0]))
+		w.CheckError(err)
+		w.log.Infof("Updating workload ref deployment: %s", string(patchBytes))
+	}
+
+	_, err = w.kubeClient.AppsV1().Deployments(w.namespace).Patch(
+		w.Context,
+		deploymentName,
+		types.MergePatchType,
+		patchBytes,
+		metav1.PatchOptions{},
+	)
+	w.CheckError(err)
+	w.log.Infof("Updated workload ref deployment: %s", deploymentName)
+	return w
+}
+
 func (w *When) PromoteRollout() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
@@ -218,6 +254,46 @@ func (w *When) ScaleRollout(scale int) *When {
 	return w
 }
 
+// ScaleRolloutWithWorkloadRef scales a rollout with workload reference using JSON patch
+// to ensure only the replicas field is modified and template remains untouched
+func (w *When) ScaleRolloutWithWorkloadRef(scale int) *When {
+	if w.rollout == nil {
+		w.t.Fatal("Rollout not set")
+	}
+
+	currentRo, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	w.log.Infof("Current rollout replicas: %d, workloadRef: %v", *currentRo.Spec.Replicas, currentRo.Spec.WorkloadRef != nil)
+
+	// Create JSON patch that only modifies replicas
+	patch := []map[string]interface{}{
+		{
+			"op":    "replace",
+			"path":  "/spec/replicas",
+			"value": scale,
+		},
+	}
+
+	patchBytes, err := json.Marshal(patch)
+	w.CheckError(err)
+
+	_, err = w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(
+		w.Context,
+		w.rollout.GetName(),
+		types.JSONPatchType,
+		patchBytes,
+		metav1.PatchOptions{},
+	)
+	w.CheckError(err)
+
+	// Verify the patch was successful
+	updatedRo, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	w.log.Infof("Scaled rollout with workload ref to %d (actual: %d)", scale, *updatedRo.Spec.Replicas)
+
+	return w
+}
+
 func (w *When) Sleep(d time.Duration) *When {
 	w.log.Infof("Sleeping %s", d)
 	time.Sleep(d)
@@ -276,6 +352,14 @@ func (w *When) WaitForRolloutStatus(status string, timeout ...time.Duration) *Wh
 		return string(s) == status
 	}
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), timeout...)
+}
+
+func (w *When) WaitForRolloutMessage(message string, timeout ...time.Duration) *When {
+	checkStatus := func(ro *rov1.Rollout) bool {
+		_, m := rolloututil.GetRolloutPhase(ro)
+		return m == message
+	}
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("message=%s", message), timeout...)
 }
 
 func (w *When) MarkPodsReady(revision string, count int, timeouts ...time.Duration) *When {
@@ -415,6 +499,18 @@ func (w *When) WaitForActiveRevision(revision string, timeout ...time.Duration) 
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("active revision=%s", revision), timeout...)
 }
 
+func (w *When) WaitForRolloutStepPluginRunning(timeout ...time.Duration) *When {
+	checkStatus := func(ro *rov1.Rollout) bool {
+		for _, s := range ro.Status.Canary.StepPluginStatuses {
+			if s.Index == *ro.Status.CurrentStepIndex && s.Operation == rov1.StepPluginOperationRun && s.Phase == v1alpha1.StepPluginPhaseRunning {
+				return true
+			}
+		}
+		return false
+	}
+	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("stepPluginStatus[currentIndex].phase=Running"), timeout...)
+}
+
 func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeouts ...time.Duration) *When {
 	start := time.Now()
 	w.log.Infof("Waiting for condition: %s", condition)
@@ -453,6 +549,45 @@ func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, conditi
 			}
 		case <-timeoutCh:
 			w.t.Fatalf("timeout after %v waiting for condition %s", timeout, condition)
+		}
+	}
+}
+
+// WaitForRolloutConditionToNotExist this function will check for the condition to exist for the given duration, if it is found
+// the test fails.
+func (w *When) WaitForRolloutConditionToNotExist(test func(ro *rov1.Rollout) bool, condition string, timeout time.Duration) *When {
+	start := time.Now()
+	w.log.Infof("Waiting for condition to not exist: %s", condition)
+	rolloutIf := w.dynamicClient.Resource(rov1.RolloutGVR).Namespace(w.namespace)
+	ro, err := rolloutIf.Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	retryWatcher, err := watchutil.NewRetryWatcher(ro.GetResourceVersion(), &cache.ListWatch{
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", w.rollout.GetName())).String()}
+			return w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Watch(w.Context, opts)
+		},
+	})
+	w.CheckError(err)
+	defer retryWatcher.Stop()
+	timeoutCh := make(chan bool, 1)
+	go func() {
+		time.Sleep(timeout)
+		timeoutCh <- true
+	}()
+	for {
+		select {
+		case event := <-retryWatcher.ResultChan():
+			ro, ok := event.Object.(*rov1.Rollout)
+			if ok {
+				if test(ro) {
+					//w.PrintRollout(ro)
+					w.log.Infof("Condition '%s' met after %v", condition, time.Since(start).Truncate(time.Second))
+					w.t.Fatal("not ok")
+				}
+			}
+		case <-timeoutCh:
+			w.t.Logf("Condition %s not found after %v", condition, timeout)
+			return w
 		}
 	}
 }

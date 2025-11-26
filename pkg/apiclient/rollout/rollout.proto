@@ -96,6 +96,8 @@ message RolloutInfo {
   repeated ContainerInfo containers = 19;
 
   repeated github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep steps = 20;
+
+  repeated ContainerInfo initContainers = 21;
 }
 
 message ExperimentInfo {
@@ -125,6 +127,7 @@ message ReplicaSetInfo {
   repeated PodInfo pods = 14;
   bool ping = 15;
   bool pong = 16;
+  repeated string initContainerImages = 17;
 }
 
 message PodInfo {

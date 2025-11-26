@@ -205,7 +205,7 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 		Recorder:                        record.NewFakeEventRecorder(),
 	})
 
-	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(), "default", k8sI.Core().V1().Secrets().Informer(), k8sI.Core().V1().ConfigMaps().Informer())
+	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(i.Argoproj().V1alpha1().AnalysisRuns()), "default", k8sI.Core().V1().Secrets().Informer(), k8sI.Core().V1().ConfigMaps().Informer())
 	// rolloutsInformer := rolloutinformers.NewRolloutInformer(f.client, "", time.Minute, cache.Indexers{})
 	cm.notificationsController = notificationcontroller.NewController(dynamicClient.Resource(v1alpha1.RolloutGVR), i.Argoproj().V1alpha1().Rollouts().Informer(), apiFactory,
 		notificationcontroller.WithToUnstructured(func(obj metav1.Object) (*unstructured.Unstructured, error) {
@@ -266,6 +266,42 @@ func TestNewManager(t *testing.T) {
 		dynamicInformerFactory,
 		nil,
 		nil,
+		false,
+		nil,
+		nil,
+		rolloutController.DefaultEphemeralMetadataThreads,
+		rolloutController.DefaultEphemeralMetadataPodRetries,
+	)
+
+	assert.NotNil(t, cm)
+}
+
+func TestNewAnalysisManager(t *testing.T) {
+	f := newFixture(t)
+
+	i := informers.NewSharedInformerFactory(f.client, noResyncPeriodFunc())
+	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, noResyncPeriodFunc())
+
+	scheme := runtime.NewScheme()
+	listMapping := map[schema.GroupVersionResource]string{}
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping)
+	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
+
+	k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
+	cm := NewAnalysisManager(
+		"default",
+		f.kubeclient,
+		f.client,
+		k8sI.Batch().V1().Jobs(),
+		i.Argoproj().V1alpha1().AnalysisRuns(),
+		i.Argoproj().V1alpha1().AnalysisTemplates(),
+		i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
+		noResyncPeriodFunc(),
+		8090,
+		8080,
+		k8sRequestProvider,
+		nil,
+		dynamicInformerFactory,
 		false,
 		nil,
 		nil,

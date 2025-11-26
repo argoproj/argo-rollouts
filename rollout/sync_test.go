@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"encoding/json"
 	"strconv"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	testclient "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 
@@ -313,7 +314,7 @@ func TestCanaryPromoteFull(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(10), intstr.FromInt(0))
 	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -357,16 +358,16 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	r1 := newBlueGreenRollout("foo", 10, nil, "active", "preview")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 	r1.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{
+		Templates: []v1alpha1.AnalysisTemplateRef{
 			{
 				TemplateName: at.Name,
 			},
 		},
 	}
 	r1.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{
+		Templates: []v1alpha1.AnalysisTemplateRef{
 			{
 				TemplateName: at.Name,
 			},
@@ -455,7 +456,7 @@ func TestSendStateChangeEvents(t *testing.T) {
 		recorder := record.NewFakeEventRecorder()
 		roCtx.recorder = recorder
 		roCtx.sendStateChangeEvents(&test.prevStatus, &test.newStatus)
-		assert.Equal(t, test.expectedEventReasons, recorder.Events)
+		assert.Equal(t, test.expectedEventReasons, recorder.Events())
 	}
 }
 
@@ -615,6 +616,108 @@ func Test_shouldFullPromote(t *testing.T) {
 	assert.Equal(t, result, "Rollback within window")
 }
 
+func TestShouldFullPromoteWithReplicaProgressThreshold(t *testing.T) {
+	tests := []struct {
+		name                     string
+		availableReplicas        int32
+		threshold                *v1alpha1.ReplicaProgressThreshold
+		expectedPromotionMessage string
+		description              string
+	}{
+		{
+			name:              "threshold met - 90% available with 90% threshold",
+			availableReplicas: 9,
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			expectedPromotionMessage: "Completed all 1 canary steps",
+			description:              "Should promote when threshold is met (9/10 = 90%)",
+		},
+		{
+			name:              "threshold not met - 80% available with 90% threshold",
+			availableReplicas: 8,
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			expectedPromotionMessage: "",
+			description:              "Should not promote when threshold is not met (8/10 = 80% < 90%)",
+		},
+		{
+			name:                     "nil threshold - requires 100% availability",
+			availableReplicas:        9,
+			threshold:                nil,
+			expectedPromotionMessage: "",
+			description:              "Should not promote with nil threshold, requiring 100% availability (9/10 = 90%)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create stable RS and new RS
+			stableRS := &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "stable",
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: int32Ptr(10),
+				},
+				Status: v1.ReplicaSetStatus{
+					AvailableReplicas: int32(10),
+				},
+			}
+
+			newRS := &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "new",
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: int32Ptr(10),
+				},
+				Status: v1.ReplicaSetStatus{
+					AvailableReplicas: tt.availableReplicas,
+				},
+			}
+
+			replicaSets := []*appsv1.ReplicaSet{stableRS, newRS}
+
+			ctx := &rolloutContext{
+				allRSs:   replicaSets,
+				stableRS: stableRS,
+				newRS:    newRS,
+				rollout: &v1alpha1.Rollout{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "foo",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.RolloutSpec{
+						Replicas: int32Ptr(10),
+						Strategy: v1alpha1.RolloutStrategy{
+							Canary: &v1alpha1.CanaryStrategy{
+								Steps: []v1alpha1.CanaryStep{
+									{SetWeight: int32Ptr(100)},
+								},
+								ReplicaProgressThreshold: tt.threshold,
+							},
+						},
+					},
+				},
+			}
+			ctx.pauseContext = &pauseContext{rollout: ctx.rollout}
+			ctx.log = logutil.WithRollout(ctx.rollout)
+
+			// Set to last step to trigger full promotion check
+			ctx.rollout.Status.CurrentStepIndex = int32Ptr(1)
+			newStatus := v1alpha1.RolloutStatus{}
+
+			result := ctx.shouldFullPromote(newStatus)
+
+			assert.Equal(t, tt.expectedPromotionMessage, result, tt.description)
+		})
+	}
+}
+
 func TestScaleDownDeploymentOnSuccess(t *testing.T) {
 	ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
 	newStatus := &v1alpha1.RolloutStatus{
@@ -638,4 +741,67 @@ func TestScaleDownDeploymentOnSuccess(t *testing.T) {
 	err = ctx.promoteStable(newStatus, "reason")
 
 	assert.NotNil(t, err)
+}
+
+// This tests validates that when there are old replicasets that have miss matched desired-count annotations aka they do
+// not match the spec.replicas field. When this happens we get stuck in a reconcile loop of only trying to scale replicasets
+// only because of a supposed scaling event. This test validates that we do not get stuck in this loop by checking that status.replicas
+// and status.readyreplicas are updated because those will not be updated in that loop.
+func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	// these steps should be ignored
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: int32Ptr(10),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{
+				Duration: v1alpha1.DurationFromInt(60),
+			},
+		},
+	}
+
+	r0 := newCanaryRollout("foo", 10, int32Ptr(4), steps, int32Ptr(0), intstr.FromInt(10), intstr.FromInt(0))
+	r0.Annotations[annotations.RevisionAnnotation] = "1"
+	oldRs := newReplicaSetWithStatus(r0, 3, 3)
+	oldRs.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+
+	r1 := bumpVersion(r0)
+
+	// Desired rs will be created during reconcile
+	stableRs := newReplicaSetWithStatus(r1, 10, 10)
+	r1.Status.StableRS = stableRs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r2 := bumpVersion(r1)
+	r2.Annotations[annotations.RevisionAnnotation] = "2"
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, oldRs, stableRs)
+	f.replicaSetLister = append(f.replicaSetLister, oldRs, stableRs)
+
+	f.expectUpdateRolloutAction(r2) // update rollout revision
+	f.expectUpdateRolloutStatusAction(r2)
+	updatedROIndex := f.expectPatchRolloutAction(r2)
+	createdRS2Index := f.expectCreateReplicaSetAction(stableRs)
+	updatedRS2Index := f.expectUpdateReplicaSetAction(stableRs)
+	f.run(getKey(r2, t))
+
+	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
+	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
+	updatedRS2 := f.getUpdatedReplicaSet(updatedRS2Index)
+	assert.Equal(t, int32(1), *updatedRS2.Spec.Replicas)
+
+	updateRO := f.getPatchedRollout(updatedROIndex)
+
+	//Will only contain status
+	roStatus := v1alpha1.Rollout{}
+	err := json.Unmarshal([]byte(updateRO), &roStatus)
+	assert.Nil(t, err)
+
+	// We have two ReplicaSets, one with 3 pods and one with 10
+	assert.Equal(t, int32(13), roStatus.Status.Replicas)
+	assert.Equal(t, int32(13), roStatus.Status.ReadyReplicas)
+	assert.Equal(t, int32(0), roStatus.Status.UpdatedReplicas)
 }

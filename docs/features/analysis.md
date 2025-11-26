@@ -154,8 +154,7 @@ spec:
           ))
 ```
 
-Multiple measurements can be performed over a longer duration period, by specifying the `count` and
-`interval` fields:
+Multiple measurements can be performed over a longer duration period, by specifying the `count` and `interval` fields:
 
 ```yaml hl_lines="4 5"
   metrics:
@@ -168,6 +167,13 @@ Multiple measurements can be performed over a longer duration period, by specify
         address: http://prometheus.example.com:9090
         query: ...
 ```
+
+!!! note
+    The `count` can have 0 as value which means that it will run until
+    the end of the Rollout execution for background analysis (outside
+    of steps). However if the `count` has value 0 and the analysis is
+    defined in the steps, the analysis won't be executed.
+
 
 ## ClusterAnalysisTemplates
 
@@ -358,6 +364,184 @@ templates together. The controller combines the `metrics` and `args` fields of a
     * Multiple metrics in the templates have the same name
     * Two arguments with the same name have different default values no matter the argument value in Rollout
 
+## Analysis Template referencing other Analysis Templates
+
+AnalysisTemplates and ClusterAnalysisTemplates may reference other templates.
+
+They can be combined with other metrics:
+
+=== "AnalysisTemplate"
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: error-rate
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: error-rate
+        interval: 5m
+        successCondition: result[0] <= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ---
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: rates
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: success-rate
+        interval: 5m
+        successCondition: result[0] >= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+      templates:
+      - templateName: error-rate
+        clusterScope: false
+    ```
+
+Or without additional metrics:
+
+=== "AnalysisTemplate"
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: success-rate
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: success-rate
+        interval: 5m
+        successCondition: result[0] >= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ---
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: error-rate
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: error-rate
+        interval: 5m
+        successCondition: result[0] <= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ---
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: rates
+    spec:
+      args:
+      - name: service-name
+      templates:
+      - templateName: success-rate
+        clusterScope: false
+      - templateName: error-rate
+        clusterScope: false
+    ```
+
+The result in the AnalysisRun will have the aggregation of metrics of each template:
+
+=== "AnalysisRun"
+
+    ```yaml
+    # NOTE: Generated AnalysisRun from a single template referencing several templates
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisRun
+    metadata:
+      name: guestbook-CurrentPodHash-templates-in-template
+    spec:
+      args:
+      - name: service-name
+        value: guestbook-svc.default.svc.cluster.local
+      metrics:
+      - name: success-rate
+        interval: 5m
+        successCondition: result[0] >= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+      - name: error-rate
+        interval: 5m
+        successCondition: result[0] <= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ```
+
+!!! note
+    The same limitations as for the multiple templates feature apply.
+    The controller will error when merging the templates if:
+
+    * Multiple metrics in the templates have the same name
+    * Two arguments with the same name have different default values no matter the argument value in Rollout
+
+    However, if the same AnalysisTemplate is referenced several times along the chain of references, the controller will only keep it once and discard the other references.
+
 ## Analysis Template Arguments
 
 AnalysisTemplates may declare a set of arguments that can be passed by Rollouts. The args can then be used as in metrics configuration and are resolved at the time the AnalysisRun is created. Argument placeholders are defined as
@@ -462,7 +646,8 @@ spec:
 
 !!! important
     Available since v1.2
-Analysis arguments also support valueFrom for reading any field from Rollout status and passing them as arguments to AnalysisTemplate.
+Analysis arguments also support valueFrom for reading any field from Rollout status or Rollout pod template and passing them as arguments to AnalysisTemplate.
+
 Following example references Rollout status field like aws canaryTargetGroup name and passing them along to AnalysisTemplate
 
 from the Rollout status
@@ -490,6 +675,39 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.alb.canaryTargetGroup.name
+```
+
+Following example references Rollout pod template metadata field like version and passing them along to AnalysisTemplate
+
+from the Rollout pod template
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+  ...
+spec:
+...
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: args-example
+        args:
+        ...
+        - name: rollout-version
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.template.metadata.labels.version
+  ...
+  template:
+    metadata:
+      labels:
+        version: "1"
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
 ```
 
 ## BlueGreen Pre Promotion Analysis
@@ -574,6 +792,67 @@ The entire analysis run is considered as Failed after three failed measurements.
             istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
           ))
 ```
+
+## ConsecutiveSuccessLimit and FailureLimit
+
+!!! important
+    `consecutiveSuccessLimit` available since v1.8
+
+You can use either `failureLimit` to define a limit for the number of failures before the analysis is considered failed, `consecutiveSuccessLimit` to define the required consecutive number of successes for the analysis to succeed, or both together. One of them has to be applicable (i.e. not disabled, see below for more), otherwise a validation error is thrown.
+
+To disable:
+
+  * `failureLimit`, set the field to `-1`.
+  * `consecutiveSuccessLimit`, set the field to `0` (the default value).
+
+The default value for both is `0`, the meaning of which differs for each one of them. A value of `0` for `failureLimit` means its logic _is_ applicable and no failures are tolerated. However, a value of `0` for `consecutiveSuccessLimit` means it's inapplicable or disabled.
+
+Let's go through each case and show what the behavior would look like.
+
+### Only FailureLimit applicable
+
+The behavior is shown above in the [Failure Conditions and Failure Limit](#failure-conditions-and-failure-limit) section. This is the default behavior if you set nothing of the two fields (with `failureLimit` having a default value of `0`, so no failures are tolerated).
+
+
+### Only ConsecutiveSuccessLimit applicable
+
+To have this behavior, you need to have something like
+```yaml
+failureLimit: -1
+consecutiveSuccessLimit: 4 # Any value > 0
+```
+
+This behavior is essentially waiting for a condition to hold, or an event to happen. That is, keep measuring a metric and keep failing until you measure `N` consecutive successful measurements, at which point the analysis concludes successfully. This can be useful as an event-driven way of promoting a rollout when used in an inline analysis.
+
+
+### Both FailureLimit and ConsecutiveSuccessLimit applicable
+
+To have this behavior, you need to have something like
+```yaml
+failureLimit: 3 # Any value >= 0
+consecutiveSuccessLimit: 4 # Any value > 0 
+``` 
+
+The behavior is simply waiting to measure `N` consecutive successful measurements, _while_ being limited by the number of overall failures specified by `failureLimit`. Above, we need to have at most 3 failures before we get 4 consecutive successful measurements for the analysis to be considered successful.
+
+
+In case of an analysis that has `count` specified (that is, runs for a specific amount of time) and that `count` is reached, the evaluation of success is as follows:
+
+  * `failureLimit` is violated and `consecutiveSuccessLimit` is satisfied: Failure.
+  * `failureLimit` is violated and `consecutiveSuccessLimit` is not satisfied: Failure.
+  * `failureLimit` is not violated and `consecutiveSuccessLimit` is satisfied: Success.
+  * `failureLimit` is not violated and `consecutiveSuccessLimit` is not satisfied: Inconclusive State.
+
+As illustrated, `failureLimit` takes priority if violated. However, if neither is violated/satisfied, the analysis reaches an inconclusive state.
+
+
+!!! note
+    When terminating analyses prematurely, they are always terminated successfully, unless it happens that `failureLimit` is enabled and violated, then they terminate in failure. `consecutiveSuccessLimit`, if enabled, doesn't affect the termination status.
+
+    For more clarity, examples of analyses terminated "prematurely":
+
+    * A background analysis with `count` not specified when terminated at the end of the rollout.
+    * Any analysis with `count` specified and not yet reached when the rollout is aborted.
 
 ## Dry-Run Mode
 
@@ -906,7 +1185,7 @@ A use case for having `Inconclusive` analysis runs are to enable Argo Rollouts t
 whether or not measurement value is acceptable and decide to proceed or abort.
 
 ## Delay Analysis Runs
-If the analysis run does not need to start immediately (i.e give the metric provider time to collect
+If the analysis run does not need to start immediately (i.e. give the metric provider time to collect
 metrics on the canary version), Analysis Runs can delay the specific metric analysis. Each metric
 can be configured to have a different delay. In additional to the metric specific delays, the rollouts
 with background analysis can delay creating an analysis run until a certain step is reached

@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -25,12 +25,12 @@ func newCanaryRollout() *v1alpha1.Rollout {
 			Namespace: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(5),
+			Replicas: ptr.To[int32](5),
 			Strategy: v1alpha1.RolloutStrategy{
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(10),
+							SetWeight: ptr.To[int32](10),
 						},
 						{
 							Pause: &v1alpha1.RolloutPause{
@@ -38,14 +38,14 @@ func newCanaryRollout() *v1alpha1.Rollout {
 							},
 						},
 						{
-							SetWeight: pointer.Int32Ptr(20),
+							SetWeight: ptr.To[int32](20),
 						},
 					},
 				},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex:  pointer.Int32Ptr(1),
+			CurrentStepIndex:  ptr.To[int32](1),
 			Replicas:          4,
 			ReadyReplicas:     1,
 			UpdatedReplicas:   3,
@@ -61,13 +61,13 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 			Namespace: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(5),
+			Replicas: ptr.To[int32](5),
 			Strategy: v1alpha1.RolloutStrategy{
 				BlueGreen: &v1alpha1.BlueGreenStrategy{},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex:  pointer.Int32Ptr(1),
+			CurrentStepIndex:  ptr.To[int32](1),
 			Replicas:          4,
 			ReadyReplicas:     1,
 			UpdatedReplicas:   3,

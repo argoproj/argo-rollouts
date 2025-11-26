@@ -5,9 +5,11 @@ import (
 	"os/exec"
 	"sync"
 
+	goPlugin "github.com/hashicorp/go-plugin"
+
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/utils/plugin"
-	goPlugin "github.com/hashicorp/go-plugin"
+	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
 
 type trafficPlugin struct {
@@ -52,7 +54,7 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 
 	if t.pluginClient[pluginName] == nil || t.pluginClient[pluginName].Exited() {
 
-		pluginPath, args, err := plugin.GetPluginInfo(pluginName)
+		pluginPath, args, err := plugin.GetPluginInfo(pluginName, types.PluginTypeTrafficRouter)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
@@ -83,7 +85,7 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 
 		resp := t.plugin[pluginName].InitPlugin()
 		if resp.HasError() {
-			return nil, fmt.Errorf("unable to initialize plugin via rpc (%s): %w", pluginName, err)
+			return nil, fmt.Errorf("unable to initialize plugin via rpc (%s): %w", pluginName, resp)
 		}
 	}
 

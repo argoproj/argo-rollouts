@@ -13,7 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+
+	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -24,7 +26,6 @@ import (
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
-	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 )
 
 const (
@@ -202,7 +203,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		return nil, nil
 	}
 
-	if !rolloututil.ShouldVerifyWeight(r.cfg.Rollout) {
+	if !rolloututil.ShouldVerifyWeight(r.cfg.Rollout, desiredWeight) {
 		// If we should not verify weight but the ALB status has not been set yet due to a Rollout resource just being
 		// installed in the cluster we want to actually run the rest of the function, so we do not return if
 		// r.cfg.Rollout.Status.ALB is nil. However, if we should not verify, and we have already updated the status once
@@ -238,11 +239,11 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 		ingressName := ingress
 		ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
 		if err != nil {
-			return pointer.Bool(false), err
+			return ptr.To[bool](false), err
 		}
 		resourceIDToDest := map[string]v1alpha1.WeightDestination{}
 
-		stableService, canaryService := trafficrouting.GetStableAndCanaryServices(rollout)
+		stableService, canaryService := trafficrouting.GetStableAndCanaryServices(rollout, true)
 		canaryResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 		stableResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), stableService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 
@@ -263,11 +264,11 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 			lb, err := r.aws.FindLoadBalancerByDNSName(ctx, hostname)
 			if err != nil {
 				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-				return pointer.Bool(false), err
+				return ptr.To[bool](false), err
 			}
 			if lb == nil || lb.LoadBalancerArn == nil {
 				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.LoadBalancerNotFoundReason}, conditions.LoadBalancerNotFoundMessage, hostname)
-				return pointer.Bool(false), nil
+				return ptr.To[bool](false), nil
 			}
 
 			r.cfg.Status.ALBs[i].Ingress = ingressName
@@ -278,14 +279,14 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 			lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 			if err != nil {
 				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-				return pointer.Bool(false), err
+				return ptr.To[bool](false), err
 			}
 			logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
 			for _, tg := range lbTargetGroups {
 				updateTargetGroupStatus(&r.cfg.Status.ALBs[i], &tg, canaryResourceID, stableResourceID, r.log)
 				updateTargetGroupStatus(r.cfg.Status.ALB, &tg, canaryResourceID, stableResourceID, r.log)
 				if tg.Weight != nil {
-					if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
+					if tg.Tags[defaults.GetalbTagKeyResourceID()] == canaryResourceID {
 						logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 						logCtx.Infof("canary weight of %s (desired: %d, current: %d)", canaryResourceID, desiredWeight, *tg.Weight)
 						verified := *tg.Weight == desiredWeight
@@ -295,9 +296,9 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 						} else {
 							r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight, *tg.Weight)
 						}
-					} else if dest, ok := resourceIDToDest[tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID]]; ok {
+					} else if dest, ok := resourceIDToDest[tg.Tags[defaults.GetalbTagKeyResourceID()]]; ok {
 						logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
-						logCtx.Infof("%s weight of %s (desired: %d, current: %d)", dest.ServiceName, tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID], dest.Weight, *tg.Weight)
+						logCtx.Infof("%s weight of %s (desired: %d, current: %d)", dest.ServiceName, tg.Tags[defaults.GetalbTagKeyResourceID()], dest.Weight, *tg.Weight)
 						verified := *tg.Weight == dest.Weight
 						if verified {
 							numVerifiedWeights += 1
@@ -310,7 +311,7 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 			}
 		}
 	}
-	return pointer.Bool(numVerifiedWeights == len(ingresses)+len(additionalDestinations)), nil
+	return ptr.To[bool](numVerifiedWeights == len(ingresses)+len(additionalDestinations)), nil
 }
 
 func updateLoadBalancerStatus(status *v1alpha1.ALBStatus, lb *elbv2types.LoadBalancer, log *logrus.Entry) {
@@ -325,7 +326,7 @@ func updateLoadBalancerStatus(status *v1alpha1.ALBStatus, lb *elbv2types.LoadBal
 }
 
 func updateTargetGroupStatus(status *v1alpha1.ALBStatus, tg *aws.TargetGroupMeta, canaryResourceID string, stableResourceID string, log *logrus.Entry) {
-	if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
+	if tg.Tags[defaults.GetalbTagKeyResourceID()] == canaryResourceID {
 		status.CanaryTargetGroup.Name = *tg.TargetGroupName
 		status.CanaryTargetGroup.ARN = *tg.TargetGroupArn
 		if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
@@ -334,7 +335,7 @@ func updateTargetGroupStatus(status *v1alpha1.ALBStatus, tg *aws.TargetGroupMeta
 			status.CanaryTargetGroup.FullName = ""
 			log.Errorf("error parsing canary target group arn: '%s'", *tg.TargetGroupArn)
 		}
-	} else if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == stableResourceID {
+	} else if tg.Tags[defaults.GetalbTagKeyResourceID()] == stableResourceID {
 		status.StableTargetGroup.Name = *tg.TargetGroupName
 		status.StableTargetGroup.ARN = *tg.TargetGroupArn
 		if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
@@ -347,7 +348,7 @@ func updateTargetGroupStatus(status *v1alpha1.ALBStatus, tg *aws.TargetGroupMeta
 }
 
 func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (string, error) {
-	stableService, canaryService := trafficrouting.GetStableAndCanaryServices(r)
+	stableService, canaryService := trafficrouting.GetStableAndCanaryServices(r, true)
 	portStr := strconv.Itoa(int(port))
 	stableWeight := int32(100)
 	targetGroups := make([]ingressutil.ALBTargetGroup, 0)
@@ -355,7 +356,7 @@ func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32
 	targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
 		ServiceName: canaryService,
 		ServicePort: portStr,
-		Weight:      pointer.Int64Ptr(int64(desiredWeight)),
+		Weight:      ptr.To[int64](int64(desiredWeight)),
 	})
 	// update stableWeight
 	stableWeight -= desiredWeight
@@ -365,7 +366,7 @@ func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32
 		targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
 			ServiceName: dest.ServiceName,
 			ServicePort: portStr,
-			Weight:      pointer.Int64Ptr(int64(dest.Weight)),
+			Weight:      ptr.To[int64](int64(dest.Weight)),
 		})
 		stableWeight -= dest.Weight
 	}
@@ -374,7 +375,7 @@ func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32
 	targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
 		ServiceName: stableService,
 		ServicePort: portStr,
-		Weight:      pointer.Int64Ptr(int64(stableWeight)),
+		Weight:      ptr.To[int64](int64(stableWeight)),
 	})
 
 	action := ingressutil.ALBAction{
@@ -408,6 +409,9 @@ func getDesiredAnnotations(current *ingressutil.Ingress, r *v1alpha1.Rollout, po
 	value, err := getForwardActionString(r, port, desiredWeight, additionalDestinations...)
 	if err != nil {
 		return nil, err
+	}
+	if desired == nil {
+		desired = make(map[string]string)
 	}
 	desired[key] = value
 	return modifyManagedAnnotation(desired, r.Name, true, key)
@@ -479,7 +483,7 @@ func removeValue(array []string, key string) []string {
 }
 
 func getTrafficForwardActionString(r *v1alpha1.Rollout, port int32) (string, error) {
-	_, canaryService := trafficrouting.GetStableAndCanaryServices(r)
+	_, canaryService := trafficrouting.GetStableAndCanaryServices(r, true)
 	portStr := strconv.Itoa(int(port))
 	weight := int64(100)
 	targetGroups := make([]ingressutil.ALBTargetGroup, 0)
@@ -487,7 +491,7 @@ func getTrafficForwardActionString(r *v1alpha1.Rollout, port int32) (string, err
 	targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
 		ServiceName: canaryService,
 		ServicePort: portStr,
-		Weight:      pointer.Int64Ptr(weight),
+		Weight:      ptr.To[int64](weight),
 	})
 
 	action := ingressutil.ALBAction{

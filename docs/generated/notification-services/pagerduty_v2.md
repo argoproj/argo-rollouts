@@ -28,7 +28,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.pagerdutyv2: |
     serviceKeys:
@@ -37,13 +37,13 @@ data:
 
 ## Template
 
-[Notification templates](../templates.md) support specifying subject for PagerDuty notifications:
+[Notification templates](../../features/notifications.md#templates) support specifying subject for PagerDuty notifications:
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   template.rollout-aborted: |
     message: Rollout {{.rollout.metadata.name}} is aborted.

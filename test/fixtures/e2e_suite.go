@@ -54,7 +54,7 @@ const (
 )
 
 var (
-	E2EWaitTimeout time.Duration = time.Second * 120
+	E2EWaitTimeout time.Duration = time.Second * 90
 	E2EPodDelay                  = 0
 
 	E2EALBIngressAnnotations map[string]string
@@ -143,8 +143,8 @@ func (s *E2ESuite) SetupSuite() {
 	restConfig, err := config.ClientConfig()
 	s.CheckError(err)
 	s.Common.kubernetesHost = restConfig.Host
-	restConfig.Burst = defaults.DefaultBurst * 2
-	restConfig.QPS = defaults.DefaultQPS * 2
+	restConfig.Burst = defaults.DefaultBurst * 10
+	restConfig.QPS = defaults.DefaultQPS * 10
 	s.namespace, _, err = config.Namespace()
 	s.CheckError(err)
 	s.kubeClient, err = kubernetes.NewForConfig(restConfig)

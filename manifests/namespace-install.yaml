@@ -75,6 +75,7 @@ rules:
   - get
   - list
   - watch
+  - update
 - apiGroups:
   - ""
   resources:
@@ -191,6 +192,7 @@ rules:
   - get
 - apiGroups:
   - elbv2.k8s.aws
+  - eks.amazonaws.com
   resources:
   - targetgroupbindings
   verbs:
@@ -413,6 +415,27 @@ spec:
           periodSeconds: 5
           successThreshold: 1
           timeoutSeconds: 4
+        resources:
+          limits:
+            ephemeral-storage: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /home/argo-rollouts/plugin-bin
+          name: plugin-bin
+        - mountPath: /tmp
+          name: tmp
       securityContext:
         runAsNonRoot: true
       serviceAccountName: argo-rollouts
+      volumes:
+      - emptyDir: {}
+        name: plugin-bin
+      - emptyDir: {}
+        name: tmp

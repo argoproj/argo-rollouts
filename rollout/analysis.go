@@ -74,8 +74,9 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 	isAborted := c.pauseContext.IsAborted()
 	rollbackToScaleDownDelay := replicasetutil.HasScaleDownDeadline(c.newRS)
 	initialDeploy := c.rollout.Status.StableRS == ""
-	if isAborted || c.rollout.Status.PromoteFull || rollbackToScaleDownDelay || initialDeploy {
-		c.log.Infof("Skipping analysis: isAborted: %v, promoteFull: %v, rollbackToScaleDownDelay: %v, initialDeploy: %v", isAborted, c.rollout.Status.PromoteFull, rollbackToScaleDownDelay, initialDeploy)
+	isRollbackWithinWindow := c.isRollbackWithinWindow()
+	if isAborted || c.rollout.Status.PromoteFull || rollbackToScaleDownDelay || initialDeploy || isRollbackWithinWindow {
+		c.log.Infof("Skipping analysis: isAborted: %v, promoteFull: %v, rollbackToScaleDownDelay: %v, initialDeploy: %v, isRollbackWithinWindow: %v", isAborted, c.rollout.Status.PromoteFull, rollbackToScaleDownDelay, initialDeploy, isRollbackWithinWindow)
 		allArs := append(c.currentArs.ToArray(), c.otherArs...)
 		c.SetCurrentAnalysisRuns(c.currentArs)
 		return c.cancelAnalysisRuns(allArs)
@@ -101,14 +102,14 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 		if err != nil {
 			return err
 		}
-		c.setPauseOrAbort(prePromotionAr)
+		c.setPauseOrAbortForBlueGreen(prePromotionAr, false)
 		newCurrentAnalysisRuns.BlueGreenPrePromotion = prePromotionAr
 
 		postPromotionAr, err := c.reconcilePostPromotionAnalysisRun()
 		if err != nil {
 			return err
 		}
-		c.setPauseOrAbort(postPromotionAr)
+		c.setPauseOrAbortForBlueGreen(postPromotionAr, true)
 		newCurrentAnalysisRuns.BlueGreenPostPromotion = postPromotionAr
 	}
 	c.SetCurrentAnalysisRuns(newCurrentAnalysisRuns)
@@ -145,7 +146,7 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 	return nil
 }
 
-func (c *rolloutContext) setPauseOrAbort(ar *v1alpha1.AnalysisRun) {
+func (c *rolloutContext) setPauseOrAbortForBlueGreen(ar *v1alpha1.AnalysisRun, isPostPromotion bool) {
 	if ar == nil {
 		return
 	}
@@ -153,7 +154,16 @@ func (c *rolloutContext) setPauseOrAbort(ar *v1alpha1.AnalysisRun) {
 	case v1alpha1.AnalysisPhaseInconclusive:
 		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		c.pauseContext.AddAbort(ar.Status.Message)
+		message := ""
+		if isPostPromotion {
+			message = "Blue/green post-promotion analysis phase error/failed"
+		} else {
+			message = "Blue/green pre-promotion analysis phase error/failed"
+		}
+		if ar.Status.Message != "" {
+			message += ": " + ar.Status.Message
+		}
+		c.pauseContext.AddAbort(message)
 	}
 }
 
@@ -168,8 +178,14 @@ func needsNewAnalysisRun(currentAr *v1alpha1.AnalysisRun, rollout *v1alpha1.Roll
 	// is set and then seeing if the last status was inconclusive.
 	// There is an additional check for the BlueGreen Pause because the prepromotion analysis always has the BlueGreen
 	// Pause and that causes controllerPause to be set. The extra check for the BlueGreen Pause ensures that a new Analysis
-	// Run is created only when the previous AnalysisRun is inconclusive
-	if rollout.Status.ControllerPause && getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause) == nil {
+	// Run is created only when the previous AnalysisRun is inconclusive.
+	// Additional check for the Canary Pause prevents Canary promotion when AnalysisRun is inconclusive and reached
+	// inconclusiveLimit. Otherwise, another AnalysisRun will be spawned and can cause Success status,
+	// because of termination when the AnalysisRun is still in-flight.
+	if rollout.Status.ControllerPause &&
+		getPauseCondition(rollout, v1alpha1.PauseReasonCanaryPauseStep) == nil &&
+		getPauseCondition(rollout, v1alpha1.PauseReasonBlueGreenPause) == nil {
+
 		return currentAr.Status.Phase == v1alpha1.AnalysisPhaseInconclusive
 	}
 	return rollout.Status.AbortedAt != nil
@@ -313,7 +329,7 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 
 func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun, error) {
 	currentAr := c.currentArs.CanaryBackground
-	if c.rollout.Spec.Strategy.Canary.Analysis == nil {
+	if c.rollout.Spec.Strategy.Canary.Analysis == nil || len(c.rollout.Spec.Strategy.Canary.Analysis.Templates) == 0 {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
@@ -341,7 +357,11 @@ func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun
 	case v1alpha1.AnalysisPhaseInconclusive:
 		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		c.pauseContext.AddAbort(currentAr.Status.Message)
+		message := "Background analysis phase error/failed"
+		if currentAr.Status.Message != "" {
+			message += ": " + currentAr.Status.Message
+		}
+		c.pauseContext.AddAbort(message)
 	}
 	return currentAr, nil
 }
@@ -395,7 +415,11 @@ func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun,
 	case v1alpha1.AnalysisPhaseInconclusive:
 		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		c.pauseContext.AddAbort(currentAr.Status.Message)
+		message := "Step-based analysis phase error/failed"
+		if currentAr.Status.Message != "" {
+			message += ": " + currentAr.Status.Message
+		}
+		c.pauseContext.AddAbort(message)
 	}
 
 	return currentAr, nil
@@ -431,51 +455,82 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 	name := strings.Join(nameParts, "-")
 	var run *v1alpha1.AnalysisRun
 	var err error
+	templates, clusterTemplates, err := c.getAnalysisTemplatesFromRefs(&rolloutAnalysis.Templates)
+	if err != nil {
+		return nil, err
+	}
+	runLabels := labels
+	if rolloutAnalysis.AnalysisRunMetadata != nil {
+		for k, v := range rolloutAnalysis.AnalysisRunMetadata.Labels {
+			runLabels[k] = v
+		}
+	}
+	for k, v := range c.rollout.Spec.Selector.MatchLabels {
+		runLabels[k] = v
+	}
+
+	runAnnotations := map[string]string{
+		annotations.RevisionAnnotation: revision,
+	}
+	if rolloutAnalysis.AnalysisRunMetadata != nil {
+		for k, v := range rolloutAnalysis.AnalysisRunMetadata.Annotations {
+			runAnnotations[k] = v
+		}
+	}
+	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, rolloutAnalysis.DryRun, rolloutAnalysis.MeasurementRetention,
+		runLabels, runAnnotations, name, "", c.rollout.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(c.rollout, controllerKind)}
+	return run, nil
+}
+
+func (c *rolloutContext) getAnalysisTemplatesFromRefs(templateRefs *[]v1alpha1.AnalysisTemplateRef) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate, error) {
 	templates := make([]*v1alpha1.AnalysisTemplate, 0)
 	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
-	for _, templateRef := range rolloutAnalysis.Templates {
+	for _, templateRef := range *templateRefs {
 		if templateRef.ClusterScope {
 			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
 					c.log.Warnf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName)
 				}
-				return nil, err
+				return nil, nil, err
 			}
 			clusterTemplates = append(clusterTemplates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerTemplates, innerClusterTemplates, innerErr := c.getAnalysisTemplatesFromRefs(&template.Spec.Templates)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
 		} else {
 			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
 					c.log.Warnf("AnalysisTemplate '%s' not found", templateRef.TemplateName)
 				}
-				return nil, err
+				return nil, nil, err
 			}
 			templates = append(templates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerTemplates, innerClusterTemplates, innerErr := c.getAnalysisTemplatesFromRefs(&template.Spec.Templates)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
 		}
 
 	}
-	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, rolloutAnalysis.DryRun, rolloutAnalysis.MeasurementRetention, name, "", c.rollout.Namespace)
-	if err != nil {
-		return nil, err
-	}
-	run.Labels = labels
-	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Labels {
-		run.Labels[k] = v
-	}
-
-	for k, v := range c.rollout.Spec.Selector.MatchLabels {
-		run.Labels[k] = v
-	}
-
-	run.Annotations = map[string]string{
-		annotations.RevisionAnnotation: revision,
-	}
-	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Annotations {
-		run.Annotations[k] = v
-	}
-	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(c.rollout, controllerKind)}
-	return run, nil
+	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
+	return uniqueTemplates, uniqueClusterTemplates, nil
 }
 
 func (c *rolloutContext) deleteAnalysisRuns(ars []*v1alpha1.AnalysisRun) error {

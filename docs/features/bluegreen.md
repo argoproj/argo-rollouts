@@ -1,15 +1,21 @@
 # BlueGreen Deployment Strategy
 
-A Blue Green Deployment allows users to reduce the amount of time multiple versions running at the same time.
+A Blue Green Deployment allows users to reduce the amount of time multiple versions are running at the same time.
 
 ## Overview
 
-In addition to managing ReplicaSets, the rollout controller will modify a Service resource during the `BlueGreenUpdate` strategy.  The Rollout spec has users specify a reference to active service and optionally a preview service in the same namespace. The active Service is used to send regular application traffic to the old version, while the preview Service is used as funnel traffic to the new version. The rollout controller ensures proper traffic routing by injecting a unique hash of the ReplicaSet to these services' selectors.  This allows the rollout to define an active and preview stack and a process to migrate replica sets from the preview to the active. 
+In addition to managing ReplicaSets, the rollout controller will modify a Service resource during the `BlueGreenUpdate` strategy. The Rollout spec has users specify a reference to active service and optionally a preview service in the same namespace. The active Service is used to send regular application traffic to the old version, while the preview Service is used to funnel traffic to the new version. The rollout controller ensures proper traffic routing by injecting a unique hash of the ReplicaSet to these services' selectors.  This allows the rollout to define an active and preview stack and a process to migrate replica sets from the preview to the active. 
 
 When there is a change to the `.spec.template` field of a rollout, the controller will create the new ReplicaSet.  If the active service is not sending traffic to a ReplicaSet, the controller will immediately start sending traffic to the ReplicaSet. Otherwise, the active service will point at the old ReplicaSet while the ReplicaSet becomes available. Once the new ReplicaSet becomes available, the controller will modify the active service to point at the new ReplicaSet. After waiting some time configured by the `.spec.strategy.blueGreen.scaleDownDelaySeconds`, the controller will scale down the old ReplicaSet.
 
 !!! important
     When the rollout changes the selector on a service, there is a propagation delay before all the nodes update their IP tables to send traffic to the new pods instead of the old. During this delay, traffic will be directed to the old pods if the nodes have not been updated yet. In order to prevent the packets from being sent to a node that killed the old pod, the rollout uses the scaleDownDelaySeconds field to give nodes enough time to broadcast the IP table changes.
+
+!!! important
+    ALB Ingress with Rollouts blue-green strategy is not supported without a chance of downtime.
+
+    When using an AWS ALB to route traffic to a service, the ALB Ingress Controller does not update the target groups in an atomic or safe manner. This can result in a situation where, during a deployment, the stable target group temporarily has no pods registered. This occurs because the ALB Controller removes all current pods from the target group before registering pods from the desired ReplicaSet.
+    The desired pods must pass their initial configured health check on the stable target group to be considered healthy by the ALB. This creates a risk where the ALB may temporarily have no healthy pods registered to the target group, depending on the timing of deregistration and registration of new pods. This can lead to application downtime that the rollouts controller cannot prevent.
 
 ## Example
 
@@ -75,7 +81,7 @@ The following describes the sequence of events that happen during a blue-green u
 1. Beginning at a fully promoted, steady-state, a revision 1 ReplicaSet is pointed to by both the `activeService` and `previewService`.
 1. A user initiates an update by modifying the pod template (`spec.template.spec`).
 1. The revision 2 ReplicaSet is created with size 0.
-1. The preview service is modified to point to the revision 2 ReplicaSet. The `activeService` remains pointing to revision 1.
+1. The `previewService` is modified to point to the revision 2 ReplicaSet. The `activeService` remains pointing to revision 1.
 1. The revision 2 ReplicaSet is scaled to either `spec.replicas` or `previewReplicaCount` if set.
 1. Once revision 2 ReplicaSet Pods are fully available, `prePromotionAnalysis` begins.
 1. Upon success of `prePromotionAnalysis`, the blue/green pauses if `autoPromotionEnabled` is false, or `autoPromotionSeconds` is non-zero.
@@ -93,12 +99,12 @@ The AutoPromotionEnabled will make the rollout automatically promote the new Rep
 Defaults to true
 
 ### autoPromotionSeconds
-The AutoPromotionSeconds will make the rollout automatically promote the new ReplicaSet to active Service after the AutoPromotionSeconds time has passed since the rollout has entered a paused state. If the `AutoPromotionEnabled` field is set to false, this field will be ignored
+Setting a positive non-zero value here would make the rollout automatically promote the new `ReplicaSet` to active Service after this much time has been elapsed since the rollout has entered a paused state. If the `AutoPromotionEnabled` field is set to **false**, this field would be ignored.
 
 Defaults to nil
 
 ### antiAffinity
-Check out the [Anti Affinity document](anti-affinity/anti-affinity.md) document for more information.
+Check out the [Anti Affinity document](anti-affinity/anti-affinity.md) for more information.
 
 Defaults to nil
 
@@ -115,8 +121,8 @@ failure of the analysis run decides if the Rollout will switch traffic, or abort
 Defaults to nil
 
 ### postPromotionAnalysis
-Configures the [Analysis](analysis.md#bluegreen-pre-promotion-analysis) after the traffic switch to new version. If the analysis
-run fails or errors out, the Rollout enters an aborted state and switch traffic back to the previous stable Replicaset.
+Configures the [Analysis](analysis.md#bluegreen-pre-promotion-analysis) after the traffic switch to the new version. If the analysis
+run fails or errors out, the Rollout enters an aborted state and switches traffic back to the previous stable Replicaset.
 If `scaleDownDelaySeconds` is specified, the controller will cancel any AnalysisRuns at time of `scaleDownDelay` to 
 scale down the ReplicaSet. If it is omitted, and post analysis is specified, it will scale down the ReplicaSet only 
 after the AnalysisRun completes (with a minimum of 30 seconds).

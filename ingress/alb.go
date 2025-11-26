@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -103,7 +103,7 @@ func getResetALBActionStr(ingress *ingressutil.Ingress, action string) (string, 
 				{
 					ServiceName: service,
 					ServicePort: port,
-					Weight:      pointer.Int64Ptr(int64(100)),
+					Weight:      ptr.To[int64](int64(100)),
 				},
 			},
 		},

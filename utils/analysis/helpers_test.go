@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -299,7 +299,7 @@ func TestCreateWithCollisionCounterError(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					UID:        types.UID("fake-uid"),
-					Controller: pointer.BoolPtr(true),
+					Controller: ptr.To[bool](true),
 				},
 			},
 		},
@@ -322,7 +322,7 @@ func TestCreateWithCollisionCounterStillRunning(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					UID:        types.UID("fake-uid"),
-					Controller: pointer.BoolPtr(true),
+					Controller: ptr.To[bool](true),
 				},
 			},
 		},
@@ -343,7 +343,7 @@ func TestCreateWithCollisionCounter(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					UID:        types.UID("fake-uid"),
-					Controller: pointer.BoolPtr(true),
+					Controller: ptr.To[bool](true),
 				},
 			},
 		},
@@ -383,7 +383,7 @@ func TestFlattenTemplates(t *testing.T) {
 		orig := &v1alpha1.AnalysisTemplate{
 			Spec: v1alpha1.AnalysisTemplateSpec{
 				Metrics: []v1alpha1.Metric{metric("foo", "{{args.test}}")},
-				Args:    []v1alpha1.Argument{arg("test", pointer.StringPtr("true"))},
+				Args:    []v1alpha1.Argument{arg("test", ptr.To[string]("true"))},
 			},
 		}
 		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{orig}, []*v1alpha1.ClusterAnalysisTemplate{})
@@ -545,8 +545,8 @@ func TestFlattenTemplates(t *testing.T) {
 		assert.Equal(t, err, fmt.Errorf("two Measurement Retention metric rules have the same name 'foo'"))
 	})
 	t.Run("Merge multiple args successfully", func(t *testing.T) {
-		fooArgs := arg("foo", pointer.StringPtr("true"))
-		barArgs := arg("bar", pointer.StringPtr("true"))
+		fooArgs := arg("foo", ptr.To[string]("true"))
+		barArgs := arg("bar", ptr.To[string]("true"))
 		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
 			{
 				Spec: v1alpha1.AnalysisTemplateSpec{
@@ -566,7 +566,7 @@ func TestFlattenTemplates(t *testing.T) {
 		assert.Equal(t, barArgs, template.Spec.Args[1])
 	})
 	t.Run(" Merge args with same name but only one has value", func(t *testing.T) {
-		fooArgsValue := arg("foo", pointer.StringPtr("true"))
+		fooArgsValue := arg("foo", ptr.To[string]("true"))
 		fooArgsNoValue := arg("foo", nil)
 		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
 			{
@@ -586,8 +586,8 @@ func TestFlattenTemplates(t *testing.T) {
 		assert.Contains(t, template.Spec.Args, fooArgsValue)
 	})
 	t.Run("Error: merge args with same name and both have values", func(t *testing.T) {
-		fooArgs := arg("foo", pointer.StringPtr("true"))
-		fooArgsWithDiffValue := arg("foo", pointer.StringPtr("false"))
+		fooArgs := arg("foo", ptr.To[string]("true"))
+		fooArgsWithDiffValue := arg("foo", ptr.To[string]("false"))
 		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
 			{
 				Spec: v1alpha1.AnalysisTemplateSpec{
@@ -633,7 +633,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 
 	arg := v1alpha1.Argument{
 		Name:  "my-arg",
-		Value: pointer.StringPtr("my-val"),
+		Value: ptr.To[string]("my-val"),
 	}
 	secretArg := v1alpha1.Argument{
 		Name: "my-secret",
@@ -646,7 +646,10 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	}
 
 	args := []v1alpha1.Argument{arg, secretArg}
-	run, err := NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, "foo-run", "foo-run-generate-", "my-ns")
+	labels := make(map[string]string)
+	annotations := make(map[string]string)
+
+	run, err := NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
@@ -656,10 +659,36 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	assert.Contains(t, run.Spec.Args, arg)
 	assert.Contains(t, run.Spec.Args, secretArg)
 
+	assert.Len(t, run.Labels, 0)
+	assert.Len(t, run.Labels, 0)
+
+	// With additionnal labels and annotations
+	labels["foo"] = "bar"
+	labels["foo2"] = "bar2"
+	annotations["bar"] = "foo"
+	annotations["bar2"] = "foo2"
+
+	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
+	assert.NoError(t, err)
+	assert.Equal(t, "foo-run", run.Name)
+	assert.Equal(t, "foo-run-generate-", run.GenerateName)
+	assert.Equal(t, "my-ns", run.Namespace)
+
+	assert.Len(t, run.Spec.Args, 2)
+	assert.Contains(t, run.Spec.Args, arg)
+	assert.Contains(t, run.Spec.Args, secretArg)
+
+	assert.Len(t, run.Labels, 2)
+	assert.Equal(t, run.Labels["foo"], "bar")
+	assert.Equal(t, run.Labels["foo2"], "bar2")
+	assert.Len(t, run.Annotations, 2)
+	assert.Equal(t, run.Annotations["bar"], "foo")
+	assert.Equal(t, run.Annotations["bar2"], "foo2")
+
 	// Fail Merge Args
 	unresolvedArg := v1alpha1.Argument{Name: "unresolved"}
 	templates[0].Spec.Args = append(templates[0].Spec.Args, unresolvedArg)
-	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, "foo-run", "foo-run-generate-", "my-ns")
+	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
 	assert.Equal(t, fmt.Errorf("args.unresolved was not resolved"), err)
 	// Fail flatten metric
@@ -672,7 +701,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	}
 	// Fail Flatten Templates
 	templates = append(templates, matchingMetric)
-	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, "foo-run", "foo-run-generate-", "my-ns")
+	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
 	assert.Equal(t, fmt.Errorf("two metrics have the same name 'success-rate'"), err)
 }
@@ -696,7 +725,7 @@ func TestMergeArgs(t *testing.T) {
 			nil, []v1alpha1.Argument{
 				{
 					Name:  "foo",
-					Value: pointer.StringPtr("bar"),
+					Value: ptr.To[string]("bar"),
 				},
 				{
 					Name: "my-secret",
@@ -721,12 +750,12 @@ func TestMergeArgs(t *testing.T) {
 			[]v1alpha1.Argument{
 				{
 					Name:  "foo",
-					Value: pointer.StringPtr("overwrite"),
+					Value: ptr.To[string]("overwrite"),
 				},
 			}, []v1alpha1.Argument{
 				{
 					Name:  "foo",
-					Value: pointer.StringPtr("bar"),
+					Value: ptr.To[string]("bar"),
 				},
 			})
 		assert.NoError(t, err)
@@ -755,11 +784,11 @@ func TestMergeArgs(t *testing.T) {
 			[]v1alpha1.Argument{
 				{
 					Name:  "foo",
-					Value: pointer.StringPtr("my-value"),
+					Value: ptr.To[string]("my-value"),
 				},
 				{
 					Name:  "extra-arg",
-					Value: pointer.StringPtr("extra-value"),
+					Value: ptr.To[string]("extra-value"),
 				},
 			}, []v1alpha1.Argument{
 				{
@@ -799,11 +828,11 @@ func TestNewAnalysisRunFromUnstructured(t *testing.T) {
 	args := []v1alpha1.Argument{
 		{
 			Name:  "my-arg-1",
-			Value: pointer.StringPtr("my-val-1"),
+			Value: ptr.To[string]("my-val-1"),
 		},
 		{
 			Name:  "my-arg-2",
-			Value: pointer.StringPtr("my-val-2"),
+			Value: ptr.To[string]("my-val-2"),
 		},
 	}
 
@@ -849,11 +878,13 @@ func TestCompatibilityNewAnalysisRunFromTemplate(t *testing.T) {
 	args := []v1alpha1.Argument{
 		{
 			Name:  "my-arg",
-			Value: pointer.StringPtr("my-val"),
+			Value: ptr.To[string]("my-val"),
 		},
 	}
+	labels := make(map[string]string)
+	annotations := make(map[string]string)
 	analysisTemplates := []*v1alpha1.AnalysisTemplate{&template}
-	run, err := NewAnalysisRunFromTemplates(analysisTemplates, nil, args, nil, nil, "foo-run", "foo-run-generate-", "my-ns")
+	run, err := NewAnalysisRunFromTemplates(analysisTemplates, nil, args, nil, nil, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
@@ -884,11 +915,13 @@ func TestCompatibilityNewAnalysisRunFromClusterTemplate(t *testing.T) {
 	args := []v1alpha1.Argument{
 		{
 			Name:  "my-arg",
-			Value: pointer.StringPtr("my-val"),
+			Value: ptr.To[string]("my-val"),
 		},
 	}
+	labels := make(map[string]string)
+	annotations := make(map[string]string)
 	clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{&clusterTemplate}
-	run, err := NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, nil, nil, "foo-run", "foo-run-generate-", "my-ns")
+	run, err := NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, nil, nil, labels, annotations, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
@@ -1081,4 +1114,84 @@ func TestGetMeasurementRetentionMetrics(t *testing.T) {
 		assert.EqualError(t, err, "measurementRetention[0]: Rule didn't match any metric name(s)")
 		assert.Equal(t, len(measurementRetentionMetricNamesMap), 0)
 	})
+}
+
+func TestAnalysisTemplateFiltering(t *testing.T) {
+	t.Run("FilterAnalysisTemplates is returning empty arrays when empty arrays are provided in parameters", func(t *testing.T) {
+
+		analysisTemplates := []*v1alpha1.AnalysisTemplate{}
+		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{}
+
+		filteredAnalysisTemplates, filteredClusterAnalysisTemplates := FilterUniqueTemplates(analysisTemplates, clusterAnalysisTemplates)
+
+		assert.Equal(t, len(filteredAnalysisTemplates), 0)
+		assert.Equal(t, len(filteredClusterAnalysisTemplates), 0)
+
+	})
+
+	t.Run("FilterAnalysisTemplates is not filtering analysisTemplates duplications if there are none in the reference tree", func(t *testing.T) {
+
+		analysisTemplates := []*v1alpha1.AnalysisTemplate{
+			analysisTemplate("foo"),
+			analysisTemplate("bar"),
+			analysisTemplate("foo-2"),
+			analysisTemplate("foo-3"),
+		}
+		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{
+			clusterAnalysisTemplate("cluster-foo"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-3"),
+		}
+
+		filteredAnalysisTemplates, filteredClusterAnalysisTemplates := FilterUniqueTemplates(analysisTemplates, clusterAnalysisTemplates)
+
+		assert.Equal(t, len(filteredAnalysisTemplates), 4)
+		assert.Equal(t, len(filteredClusterAnalysisTemplates), 4)
+
+	})
+	t.Run("FilterAnalysisTemplates is filtering analysisTemplates duplications in the reference tree", func(t *testing.T) {
+
+		analysisTemplates := []*v1alpha1.AnalysisTemplate{
+			analysisTemplate("foo"),
+			analysisTemplate("foo"),
+			analysisTemplate("foo-2"),
+			analysisTemplate("foo-3"),
+			analysisTemplate("foo-3"),
+		}
+		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{
+			clusterAnalysisTemplate("cluster-foo"),
+			clusterAnalysisTemplate("cluster-foo"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-3"),
+		}
+
+		filteredAnalysisTemplates, filteredClusterAnalysisTemplates := FilterUniqueTemplates(analysisTemplates, clusterAnalysisTemplates)
+
+		assert.Equal(t, len(filteredAnalysisTemplates), 3)
+		assert.Equal(t, len(filteredClusterAnalysisTemplates), 4)
+
+	})
+}
+
+func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
+	return &v1alpha1.AnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+}
+
+func clusterAnalysisTemplate(name string) *v1alpha1.ClusterAnalysisTemplate {
+	return &v1alpha1.ClusterAnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
 }

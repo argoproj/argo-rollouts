@@ -3,10 +3,11 @@ package main
 import (
 	"strings"
 
-	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
-	"github.com/argoproj/argo-rollouts/test/cmd/trafficrouter-plugin-sample/internal/plugin"
 	goPlugin "github.com/hashicorp/go-plugin"
 	log "github.com/sirupsen/logrus"
+
+	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
+	"github.com/argoproj/argo-rollouts/test/cmd/trafficrouter-plugin-sample/internal/plugin"
 )
 
 // handshakeConfigs are used to just do a basic handshake between

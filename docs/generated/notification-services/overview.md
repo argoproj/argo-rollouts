@@ -1,5 +1,5 @@
-The notification services represent integration with services such as slack, email or custom webhook. Services are configured in `argocd-notifications-cm` ConfigMap
-using `service.<type>.(<custom-name>)` keys and might reference sensitive data from `argocd-notifications-secret` Secret. Following example demonstrates slack
+The notification services represent integration with services such as slack, email or custom webhook. Services are configured in `argo-rollouts-notification-configmap` ConfigMap
+using `service.<type>.(<custom-name>)` keys and might reference sensitive data from `argo-rollouts-notification-secret` Secret. Following example demonstrates slack
 service configuration:
 
 ```yaml

@@ -6,6 +6,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -157,6 +159,11 @@ func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingIn
 		if err := runSyncHandler(); err != nil {
 			logCtx.Errorf("%s syncHandler error: %v", objType, err)
 			metricsServer.IncError(namespace, name, objType)
+
+			if errors.IsNotFound(err) {
+				workqueue.Forget(obj)
+				return nil
+			}
 			// Put the item back on
 			// the workqueue to handle any transient errors.
 			workqueue.AddRateLimited(key)
@@ -222,7 +229,7 @@ func EnqueueRateLimited(obj any, q workqueue.RateLimitingInterface) {
 // It then enqueues that ownerType resource to be processed. If the object does not
 // have an appropriate OwnerReference, it will simply be skipped.
 // This function assumes parent object is in the same namespace as the child
-func EnqueueParentObject(obj any, ownerType string, enqueue func(obj any)) {
+func EnqueueParentObject(obj any, ownerType string, enqueue func(obj any), parentGetter ...func(any) (*metav1.OwnerReference, string)) {
 	var object metav1.Object
 	var ok bool
 	if object, ok = obj.(metav1.Object); !ok {
@@ -239,12 +246,26 @@ func EnqueueParentObject(obj any, ownerType string, enqueue func(obj any)) {
 		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
 	}
 
-	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
+	var (
+		ownerRef  *metav1.OwnerReference
+		namespace string
+	)
+
+	if len(parentGetter) > 0 {
+		ownerRef, namespace = parentGetter[0](obj)
+	} else {
+		ownerRef = metav1.GetControllerOf(object)
+	}
+
+	if ownerRef != nil {
 		// If this object is not owned by the ownerType, we should not do anything more with it.
 		if ownerRef.Kind != ownerType {
 			return
 		}
-		namespace := object.GetNamespace()
+		// if namespace not set by parentGetter use object namespace
+		if namespace == "" {
+			namespace = object.GetNamespace()
+		}
 		parent := cache.ExplicitKey(namespace + "/" + ownerRef.Name)
 		log.Infof("Enqueueing parent of %s/%s: %s %s", namespace, object.GetName(), ownerRef.Kind, parent)
 		enqueue(parent)
