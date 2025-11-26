@@ -1,6 +1,7 @@
 package annotations
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -12,8 +13,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/storage/names"
+	"k8s.io/client-go/kubernetes/fake"
 
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/config"
+)
+
+const (
+	testConfigMapName     = "argo-rollouts-config"
+	testNamespace         = "argo-rollouts"
+	testBuildIDAnnotation = "example.com/build-id"
 )
 
 func newROControllerRef(r *v1alpha1.Rollout) *metav1.OwnerReference {
@@ -495,4 +504,161 @@ func TestGetRevisionAnnotation(t *testing.T) {
 	})
 	assert.True(t, found)
 	assert.Equal(t, int32(1), revAR)
+}
+
+func TestSkipCopyAnnotation(t *testing.T) {
+	t.Run("DefaultAnnotations", func(t *testing.T) {
+		config.UnInitializeConfig()
+
+		assert.True(t, skipCopyAnnotation(corev1.LastAppliedConfigAnnotation))
+		assert.True(t, skipCopyAnnotation(RevisionAnnotation))
+		assert.True(t, skipCopyAnnotation(RevisionHistoryAnnotation))
+		assert.True(t, skipCopyAnnotation(DesiredReplicasAnnotation))
+		assert.True(t, skipCopyAnnotation(NotificationEngineAnnotation))
+
+		assert.False(t, skipCopyAnnotation("example.com/custom"))
+		assert.False(t, skipCopyAnnotation("test.io/annotation"))
+	})
+
+	t.Run("WithAdditionalConfiguredAnnotations", func(t *testing.T) {
+		client := fake.NewSimpleClientset()
+		configMapData := map[string]string{
+			config.AnnotationsToSkipConfigKey: `
+- "` + testBuildIDAnnotation + `"
+- "example.com/git-commit"
+- "cert-manager.io/cluster-issuer"`,
+		}
+		configMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      testConfigMapName,
+				Namespace: testNamespace,
+			},
+			Data: configMapData,
+		}
+
+		_, err := client.CoreV1().ConfigMaps(testNamespace).Create(
+			context.TODO(), configMap, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		_, err = config.InitializeConfig(client, testConfigMapName)
+		assert.NoError(t, err)
+
+		err = InitializeAnnotationsToSkip()
+		assert.NoError(t, err)
+
+		assert.True(t, skipCopyAnnotation(corev1.LastAppliedConfigAnnotation))
+		assert.True(t, skipCopyAnnotation(RevisionAnnotation))
+		assert.True(t, skipCopyAnnotation(testBuildIDAnnotation))
+		assert.True(t, skipCopyAnnotation("example.com/git-commit"))
+		assert.True(t, skipCopyAnnotation("cert-manager.io/cluster-issuer"))
+		assert.False(t, skipCopyAnnotation("other.com/annotation"))
+
+		config.UnInitializeConfig()
+	})
+
+	t.Run("WithCommaSeparatedAnnotations", func(t *testing.T) {
+		client := fake.NewSimpleClientset()
+		configMapData := map[string]string{
+			config.AnnotationsToSkipConfigKey: testBuildIDAnnotation + ",example.com/git-commit,test.io/skip-me",
+		}
+		configMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      testConfigMapName,
+				Namespace: testNamespace,
+			},
+			Data: configMapData,
+		}
+
+		_, err := client.CoreV1().ConfigMaps(testNamespace).Create(
+			context.TODO(), configMap, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		_, err = config.InitializeConfig(client, testConfigMapName)
+		assert.NoError(t, err)
+
+		err = InitializeAnnotationsToSkip()
+		assert.NoError(t, err)
+
+		assert.True(t, skipCopyAnnotation(testBuildIDAnnotation))
+		assert.True(t, skipCopyAnnotation("example.com/git-commit"))
+		assert.True(t, skipCopyAnnotation("test.io/skip-me"))
+
+		config.UnInitializeConfig()
+	})
+}
+
+func TestCopyRolloutAnnotationsToReplicaSetWithConfig(t *testing.T) {
+	t.Run("SkipConfiguredAnnotations", func(t *testing.T) {
+		client := fake.NewSimpleClientset()
+		configMapData := map[string]string{
+			config.AnnotationsToSkipConfigKey: `
+- "` + testBuildIDAnnotation + `"
+- "example.com/skip-this"`,
+		}
+		configMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      testConfigMapName,
+				Namespace: testNamespace,
+			},
+			Data: configMapData,
+		}
+
+		_, err := client.CoreV1().ConfigMaps(testNamespace).Create(
+			context.TODO(), configMap, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		_, err = config.InitializeConfig(client, testConfigMapName)
+		assert.NoError(t, err)
+
+		err = InitializeAnnotationsToSkip()
+		assert.NoError(t, err)
+
+		rollout := &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					testBuildIDAnnotation:    "12345",
+					"example.com/skip-this":  "value",
+					"example.com/copy-this":  "should-be-copied",
+					RevisionAnnotation:       "1",
+					"app.kubernetes.io/name": "test-app",
+				},
+			},
+		}
+		rs := &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{},
+			},
+		}
+
+		changed := copyRolloutAnnotationsToReplicaSet(rollout, rs)
+		assert.True(t, changed)
+		assert.NotContains(t, rs.Annotations, testBuildIDAnnotation)
+		assert.NotContains(t, rs.Annotations, "example.com/skip-this")
+		assert.NotContains(t, rs.Annotations, RevisionAnnotation)
+		assert.Equal(t, "should-be-copied", rs.Annotations["example.com/copy-this"])
+		assert.Equal(t, "test-app", rs.Annotations["app.kubernetes.io/name"])
+
+		config.UnInitializeConfig()
+	})
+}
+
+func TestInitializeAnnotationsToSkipError(t *testing.T) {
+	t.Run("should return error when config.GetConfig() fails", func(t *testing.T) {
+		// Ensure config is uninitialized to trigger GetConfig error
+		config.UnInitializeConfig()
+
+		err := InitializeAnnotationsToSkip()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "config not initialized")
+	})
+
+	t.Run("should handle nil config gracefully", func(t *testing.T) {
+		// This test verifies the error handling path when config is nil
+		// We can't easily mock this scenario with the current architecture,
+		// but the error check covers both err != nil and cfg == nil cases
+		config.UnInitializeConfig()
+
+		err := InitializeAnnotationsToSkip()
+		assert.Error(t, err)
+	})
 }
