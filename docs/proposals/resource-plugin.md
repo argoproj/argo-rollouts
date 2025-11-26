@@ -549,11 +549,11 @@ metadata:
 spec:
   workloadRef:
     apiVersion: apps/v1
-    kind: ReplicaSet
+    kind: Deployment
     name: canary-app
   
   plugin:
-    name: replicaset
+    name: Deployment
     verify: true
     sha256: "abc123..."
     url: "https://example.com/plugins/replicaset"
@@ -592,11 +592,11 @@ metadata:
 spec:
   workloadRef:
     apiVersion: apps/v1
-    kind: ReplicaSet
+    kind: Deployment
     name: bluegreen-app
   
   plugin:
-    name: replicaset
+    name: Deployment
     verify: true
     sha256: "abc123..."
     url: "https://example.com/plugins/replicaset"
