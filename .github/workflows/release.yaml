@@ -78,7 +78,7 @@ jobs:
   release-artifacts:
     permissions:
       contents: write # for softprops/action-gh-release to create GitHub release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-4-cores
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
 
@@ -154,7 +154,7 @@ jobs:
     permissions:
       contents: write # Needed for release uploads
       id-token: write # Needed for signing Sbom
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-4-cores
     steps:
       - name: Checkout code
         uses: actions/checkout@v5 # v3.3.0
@@ -227,7 +227,7 @@ jobs:
       - generate-sbom
     permissions:
       contents: write # Needed to push commit to update stable tag
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-4-cores
     steps:
       - name: Checkout code
         uses: actions/checkout@v5 # v3.3.0
