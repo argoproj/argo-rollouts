@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: nginx-rollout
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: nginx-test
+  plugin:
+    name: statefulset-plugin
+    config:
+      resourceType: StatefulSet
+  strategy:
+    canary:
+      steps:
+      - setWeight: 33
+      - pause: {}
+      - setWeight: 66
+      - pause: {}

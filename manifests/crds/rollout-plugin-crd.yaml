@@ -1,0 +1,1046 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: rolloutplugins.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: RolloutPlugin
+    listKind: RolloutPluginList
+    plural: rolloutplugins
+    shortNames:
+    - rp
+    singular: rolloutplugin
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: RolloutPlugin status
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    - description: Rollout strategy type
+      jsonPath: .spec.strategy.type
+      name: Strategy
+      type: string
+    - description: Current step index
+      jsonPath: .status.currentStepIndex
+      name: Step
+      type: integer
+    - description: Time since resource was created
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              plugin:
+                properties:
+                  config:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  name:
+                    type: string
+                  sha256:
+                    type: string
+                  url:
+                    type: string
+                  verify:
+                    type: boolean
+                required:
+                - name
+                type: object
+              strategy:
+                properties:
+                  blueGreen:
+                    properties:
+                      abortScaleDownDelaySeconds:
+                        format: int32
+                        type: integer
+                      activeMetadata:
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          labels:
+                            additionalProperties:
+                              type: string
+                            type: object
+                        type: object
+                      activeService:
+                        type: string
+                      antiAffinity:
+                        properties:
+                          preferredDuringSchedulingIgnoredDuringExecution:
+                            properties:
+                              weight:
+                                format: int32
+                                type: integer
+                            required:
+                            - weight
+                            type: object
+                          requiredDuringSchedulingIgnoredDuringExecution:
+                            type: object
+                        type: object
+                      autoPromotionEnabled:
+                        type: boolean
+                      autoPromotionSeconds:
+                        format: int32
+                        type: integer
+                      maxUnavailable:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        x-kubernetes-int-or-string: true
+                      postPromotionAnalysis:
+                        properties:
+                          analysisRunMetadata:
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                            type: object
+                          args:
+                            items:
+                              properties:
+                                name:
+                                  type: string
+                                value:
+                                  type: string
+                                valueFrom:
+                                  properties:
+                                    fieldRef:
+                                      properties:
+                                        fieldPath:
+                                          type: string
+                                      required:
+                                      - fieldPath
+                                      type: object
+                                    podTemplateHashValue:
+                                      type: string
+                                  type: object
+                              required:
+                              - name
+                              type: object
+                            type: array
+                          dryRun:
+                            items:
+                              properties:
+                                metricName:
+                                  type: string
+                              required:
+                              - metricName
+                              type: object
+                            type: array
+                          measurementRetention:
+                            items:
+                              properties:
+                                limit:
+                                  format: int32
+                                  type: integer
+                                metricName:
+                                  type: string
+                              required:
+                              - limit
+                              - metricName
+                              type: object
+                            type: array
+                          templates:
+                            items:
+                              properties:
+                                clusterScope:
+                                  type: boolean
+                                templateName:
+                                  type: string
+                              type: object
+                            type: array
+                        type: object
+                      prePromotionAnalysis:
+                        properties:
+                          analysisRunMetadata:
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                            type: object
+                          args:
+                            items:
+                              properties:
+                                name:
+                                  type: string
+                                value:
+                                  type: string
+                                valueFrom:
+                                  properties:
+                                    fieldRef:
+                                      properties:
+                                        fieldPath:
+                                          type: string
+                                      required:
+                                      - fieldPath
+                                      type: object
+                                    podTemplateHashValue:
+                                      type: string
+                                  type: object
+                              required:
+                              - name
+                              type: object
+                            type: array
+                          dryRun:
+                            items:
+                              properties:
+                                metricName:
+                                  type: string
+                              required:
+                              - metricName
+                              type: object
+                            type: array
+                          measurementRetention:
+                            items:
+                              properties:
+                                limit:
+                                  format: int32
+                                  type: integer
+                                metricName:
+                                  type: string
+                              required:
+                              - limit
+                              - metricName
+                              type: object
+                            type: array
+                          templates:
+                            items:
+                              properties:
+                                clusterScope:
+                                  type: boolean
+                                templateName:
+                                  type: string
+                              type: object
+                            type: array
+                        type: object
+                      previewMetadata:
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          labels:
+                            additionalProperties:
+                              type: string
+                            type: object
+                        type: object
+                      previewReplicaCount:
+                        format: int32
+                        type: integer
+                      previewService:
+                        type: string
+                      scaleDownDelayRevisionLimit:
+                        format: int32
+                        type: integer
+                      scaleDownDelaySeconds:
+                        format: int32
+                        type: integer
+                    required:
+                    - activeService
+                    type: object
+                  canary:
+                    properties:
+                      abortScaleDownDelaySeconds:
+                        format: int32
+                        type: integer
+                      analysis:
+                        properties:
+                          analysisRunMetadata:
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                            type: object
+                          args:
+                            items:
+                              properties:
+                                name:
+                                  type: string
+                                value:
+                                  type: string
+                                valueFrom:
+                                  properties:
+                                    fieldRef:
+                                      properties:
+                                        fieldPath:
+                                          type: string
+                                      required:
+                                      - fieldPath
+                                      type: object
+                                    podTemplateHashValue:
+                                      type: string
+                                  type: object
+                              required:
+                              - name
+                              type: object
+                            type: array
+                          dryRun:
+                            items:
+                              properties:
+                                metricName:
+                                  type: string
+                              required:
+                              - metricName
+                              type: object
+                            type: array
+                          measurementRetention:
+                            items:
+                              properties:
+                                limit:
+                                  format: int32
+                                  type: integer
+                                metricName:
+                                  type: string
+                              required:
+                              - limit
+                              - metricName
+                              type: object
+                            type: array
+                          startingStep:
+                            format: int32
+                            type: integer
+                          templates:
+                            items:
+                              properties:
+                                clusterScope:
+                                  type: boolean
+                                templateName:
+                                  type: string
+                              type: object
+                            type: array
+                        type: object
+                      antiAffinity:
+                        properties:
+                          preferredDuringSchedulingIgnoredDuringExecution:
+                            properties:
+                              weight:
+                                format: int32
+                                type: integer
+                            required:
+                            - weight
+                            type: object
+                          requiredDuringSchedulingIgnoredDuringExecution:
+                            type: object
+                        type: object
+                      canaryMetadata:
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          labels:
+                            additionalProperties:
+                              type: string
+                            type: object
+                        type: object
+                      canaryService:
+                        type: string
+                      dynamicStableScale:
+                        type: boolean
+                      maxSurge:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        x-kubernetes-int-or-string: true
+                      maxUnavailable:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        x-kubernetes-int-or-string: true
+                      minPodsPerReplicaSet:
+                        format: int32
+                        type: integer
+                      pingPong:
+                        properties:
+                          pingService:
+                            type: string
+                          pongService:
+                            type: string
+                        required:
+                        - pingService
+                        - pongService
+                        type: object
+                      replicaProgressThreshold:
+                        properties:
+                          type:
+                            type: string
+                          value:
+                            format: int32
+                            type: integer
+                        required:
+                        - type
+                        - value
+                        type: object
+                      scaleDownDelayRevisionLimit:
+                        format: int32
+                        type: integer
+                      scaleDownDelaySeconds:
+                        format: int32
+                        type: integer
+                      stableMetadata:
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          labels:
+                            additionalProperties:
+                              type: string
+                            type: object
+                        type: object
+                      stableService:
+                        type: string
+                      steps:
+                        items:
+                          properties:
+                            analysis:
+                              properties:
+                                analysisRunMetadata:
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
+                                args:
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      value:
+                                        type: string
+                                      valueFrom:
+                                        properties:
+                                          fieldRef:
+                                            properties:
+                                              fieldPath:
+                                                type: string
+                                            required:
+                                            - fieldPath
+                                            type: object
+                                          podTemplateHashValue:
+                                            type: string
+                                        type: object
+                                    required:
+                                    - name
+                                    type: object
+                                  type: array
+                                dryRun:
+                                  items:
+                                    properties:
+                                      metricName:
+                                        type: string
+                                    required:
+                                    - metricName
+                                    type: object
+                                  type: array
+                                measurementRetention:
+                                  items:
+                                    properties:
+                                      limit:
+                                        format: int32
+                                        type: integer
+                                      metricName:
+                                        type: string
+                                    required:
+                                    - limit
+                                    - metricName
+                                    type: object
+                                  type: array
+                                templates:
+                                  items:
+                                    properties:
+                                      clusterScope:
+                                        type: boolean
+                                      templateName:
+                                        type: string
+                                    type: object
+                                  type: array
+                              type: object
+                            experiment:
+                              properties:
+                                analyses:
+                                  items:
+                                    properties:
+                                      args:
+                                        items:
+                                          properties:
+                                            name:
+                                              type: string
+                                            value:
+                                              type: string
+                                            valueFrom:
+                                              properties:
+                                                fieldRef:
+                                                  properties:
+                                                    fieldPath:
+                                                      type: string
+                                                  required:
+                                                  - fieldPath
+                                                  type: object
+                                                podTemplateHashValue:
+                                                  type: string
+                                              type: object
+                                          required:
+                                          - name
+                                          type: object
+                                        type: array
+                                      clusterScope:
+                                        type: boolean
+                                      name:
+                                        type: string
+                                      requiredForCompletion:
+                                        type: boolean
+                                      templateName:
+                                        type: string
+                                    required:
+                                    - name
+                                    - templateName
+                                    type: object
+                                  type: array
+                                analysisRunMetadata:
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
+                                dryRun:
+                                  items:
+                                    properties:
+                                      metricName:
+                                        type: string
+                                    required:
+                                    - metricName
+                                    type: object
+                                  type: array
+                                duration:
+                                  type: string
+                                scaleDownDelaySeconds:
+                                  format: int32
+                                  type: integer
+                                templates:
+                                  items:
+                                    properties:
+                                      metadata:
+                                        properties:
+                                          annotations:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          labels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                      name:
+                                        type: string
+                                      replicas:
+                                        format: int32
+                                        type: integer
+                                      selector:
+                                        properties:
+                                          matchExpressions:
+                                            items:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                operator:
+                                                  type: string
+                                                values:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                      service:
+                                        properties:
+                                          name:
+                                            type: string
+                                        type: object
+                                      specRef:
+                                        type: string
+                                      weight:
+                                        format: int32
+                                        type: integer
+                                    required:
+                                    - name
+                                    - specRef
+                                    type: object
+                                  type: array
+                              required:
+                              - templates
+                              type: object
+                            pause:
+                              properties:
+                                duration:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  x-kubernetes-int-or-string: true
+                              type: object
+                            plugin:
+                              properties:
+                                config:
+                                  type: object
+                                  x-kubernetes-preserve-unknown-fields: true
+                                name:
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            setCanaryScale:
+                              properties:
+                                matchTrafficWeight:
+                                  type: boolean
+                                replicas:
+                                  format: int32
+                                  type: integer
+                                weight:
+                                  format: int32
+                                  type: integer
+                              type: object
+                            setHeaderRoute:
+                              properties:
+                                match:
+                                  items:
+                                    properties:
+                                      headerName:
+                                        type: string
+                                      headerValue:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                    required:
+                                    - headerName
+                                    - headerValue
+                                    type: object
+                                  type: array
+                                name:
+                                  type: string
+                              type: object
+                            setMirrorRoute:
+                              properties:
+                                match:
+                                  items:
+                                    properties:
+                                      headers:
+                                        additionalProperties:
+                                          properties:
+                                            exact:
+                                              type: string
+                                            prefix:
+                                              type: string
+                                            regex:
+                                              type: string
+                                          type: object
+                                        type: object
+                                      method:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                      path:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                    type: object
+                                  type: array
+                                name:
+                                  type: string
+                                percentage:
+                                  format: int32
+                                  type: integer
+                              required:
+                              - name
+                              type: object
+                            setWeight:
+                              format: int32
+                              type: integer
+                          type: object
+                        type: array
+                      trafficRouting:
+                        properties:
+                          alb:
+                            properties:
+                              annotationPrefix:
+                                type: string
+                              ingress:
+                                type: string
+                              ingresses:
+                                items:
+                                  type: string
+                                type: array
+                              rootService:
+                                type: string
+                              servicePort:
+                                format: int32
+                                type: integer
+                              stickinessConfig:
+                                properties:
+                                  durationSeconds:
+                                    format: int64
+                                    type: integer
+                                  enabled:
+                                    type: boolean
+                                required:
+                                - durationSeconds
+                                - enabled
+                                type: object
+                            required:
+                            - servicePort
+                            type: object
+                          ambassador:
+                            properties:
+                              mappings:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - mappings
+                            type: object
+                          apisix:
+                            properties:
+                              route:
+                                properties:
+                                  name:
+                                    type: string
+                                  rules:
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - name
+                                type: object
+                            type: object
+                          appMesh:
+                            properties:
+                              virtualNodeGroup:
+                                properties:
+                                  canaryVirtualNodeRef:
+                                    properties:
+                                      name:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  stableVirtualNodeRef:
+                                    properties:
+                                      name:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                required:
+                                - canaryVirtualNodeRef
+                                - stableVirtualNodeRef
+                                type: object
+                              virtualService:
+                                properties:
+                                  name:
+                                    type: string
+                                  routes:
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - name
+                                type: object
+                            type: object
+                          istio:
+                            properties:
+                              destinationRule:
+                                properties:
+                                  additionalSubsetNames:
+                                    items:
+                                      type: string
+                                    type: array
+                                  canarySubsetName:
+                                    type: string
+                                  name:
+                                    type: string
+                                  stableSubsetName:
+                                    type: string
+                                required:
+                                - canarySubsetName
+                                - name
+                                - stableSubsetName
+                                type: object
+                              virtualService:
+                                properties:
+                                  name:
+                                    type: string
+                                  routes:
+                                    items:
+                                      type: string
+                                    type: array
+                                  tcpRoutes:
+                                    items:
+                                      properties:
+                                        port:
+                                          format: int64
+                                          type: integer
+                                      type: object
+                                    type: array
+                                  tlsRoutes:
+                                    items:
+                                      properties:
+                                        port:
+                                          format: int64
+                                          type: integer
+                                        sniHosts:
+                                          items:
+                                            type: string
+                                          type: array
+                                      type: object
+                                    type: array
+                                required:
+                                - name
+                                type: object
+                              virtualServices:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    routes:
+                                      items:
+                                        type: string
+                                      type: array
+                                    tcpRoutes:
+                                      items:
+                                        properties:
+                                          port:
+                                            format: int64
+                                            type: integer
+                                        type: object
+                                      type: array
+                                    tlsRoutes:
+                                      items:
+                                        properties:
+                                          port:
+                                            format: int64
+                                            type: integer
+                                          sniHosts:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                            type: object
+                          managedRoutes:
+                            items:
+                              properties:
+                                name:
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                          maxTrafficWeight:
+                            format: int32
+                            type: integer
+                          nginx:
+                            properties:
+                              additionalIngressAnnotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              annotationPrefix:
+                                type: string
+                              canaryIngressAnnotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              stableIngress:
+                                type: string
+                              stableIngresses:
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          plugins:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          smi:
+                            properties:
+                              rootService:
+                                type: string
+                              trafficSplitName:
+                                type: string
+                            type: object
+                          traefik:
+                            properties:
+                              weightedTraefikServiceName:
+                                type: string
+                            required:
+                            - weightedTraefikServiceName
+                            type: object
+                        type: object
+                    type: object
+                  type:
+                    type: string
+                type: object
+              workloadRef:
+                properties:
+                  apiVersion:
+                    type: string
+                  kind:
+                    type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+            required:
+            - plugin
+            - strategy
+            - workloadRef
+            type: object
+          status:
+            properties:
+              aborted:
+                type: boolean
+              availableReplicas:
+                format: int32
+                type: integer
+              conditions:
+                items:
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    lastUpdateTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              currentRevision:
+                type: string
+              currentStepComplete:
+                type: boolean
+              currentStepIndex:
+                format: int32
+                type: integer
+              initialized:
+                type: boolean
+              message:
+                type: string
+              observedGeneration:
+                format: int64
+                type: integer
+              pauseStartTime:
+                format: date-time
+                type: string
+              paused:
+                type: boolean
+              phase:
+                type: string
+              pluginStatus:
+                additionalProperties:
+                  type: string
+                type: object
+              readyReplicas:
+                format: int32
+                type: integer
+              replicas:
+                format: int32
+                type: integer
+              rolloutInProgress:
+                type: boolean
+              updatedReplicas:
+                format: int32
+                type: integer
+              updatedRevision:
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

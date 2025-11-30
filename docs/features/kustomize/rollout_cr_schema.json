@@ -25522,6 +25522,16 @@
                     "version": "v1alpha1"
                 }
             ]
+        },
+        "io.argoproj.v1alpha1.RolloutPlugin": {
+            "properties": {},
+            "x-kubernetes-group-version-kind": [
+                {
+                    "group": "argoproj.io",
+                    "kind": "RolloutPlugin",
+                    "version": "v1alpha1"
+                }
+            ]
         }
     }
 }

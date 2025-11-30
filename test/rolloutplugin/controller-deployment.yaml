@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rolloutplugin-controller
+  namespace: argo-rollouts
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rolloutplugin-controller
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rolloutplugins
+  - rolloutplugins/status
+  - rolloutplugins/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  - statefulsets/status
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rolloutplugin-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rolloutplugin-controller
+subjects:
+- kind: ServiceAccount
+  name: rolloutplugin-controller
+  namespace: argo-rollouts
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rolloutplugin-controller
+  namespace: argo-rollouts
+  labels:
+    app: rolloutplugin-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rolloutplugin-controller
+  template:
+    metadata:
+      labels:
+        app: rolloutplugin-controller
+    spec:
+      serviceAccountName: rolloutplugin-controller
+      containers:
+      - name: controller
+        image: argo-rollouts:test
+        imagePullPolicy: Never
+        command:
+        - /bin/rollouts-controller
+        - --loglevel=debug
+        ports:
+        - containerPort: 8080
+          name: healthz
+        - containerPort: 8090
+          name: metrics
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
