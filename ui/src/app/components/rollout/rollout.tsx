@@ -354,7 +354,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     let icon: string;
     let content = '';
     let unit = '';
-    if (props.step.setWeight) {
+    if (props.step.setWeight || props.step.setWeight === 0) {
         icon = 'fa-weight';
         content = `Set Weight: ${props.step.setWeight}`;
         unit = '%';

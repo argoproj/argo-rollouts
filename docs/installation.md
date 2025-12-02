@@ -51,6 +51,14 @@ command line.
 brew install argoproj/tap/kubectl-argo-rollouts
 ```
 
+### Using mise
+
+If you are an enthusiast user of [mise](https://github.com/jdx/mise) polyglot tool version manager, you can use a command like this :
+
+```shell
+mise use -g argo-rollouts
+```
+
 ### Manual
 
 1. Install [Argo Rollouts Kubectl plugin](https://github.com/argoproj/argo-rollouts/releases) with curl.

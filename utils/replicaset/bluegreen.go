@@ -3,7 +3,7 @@ package replicaset
 import (
 	appsv1 "k8s.io/api/apps/v1"
 
-	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 // GetReplicaSetByTemplateHash find the replicaset that matches the podTemplateHash

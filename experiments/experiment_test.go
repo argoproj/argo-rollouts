@@ -623,12 +623,12 @@ func TestCreatenalysisRunWithClusterTemplatesAndTemplateAndInnerTemplates(t *tes
 		{
 			Name:         "exp-bar",
 			TemplateName: "bar",
-			ClusterScope: false,
+			ClusterScope: ptr.To(false),
 		},
 		{
 			Name:         "exp-bar-2",
 			TemplateName: "clusterbar4",
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		},
 	}
 
@@ -721,12 +721,12 @@ func TestCreatenalysisRunWithTemplatesAndNoMetricsAtRoot(t *testing.T) {
 		{
 			Name:         "exp-bar",
 			TemplateName: "bar",
-			ClusterScope: false,
+			ClusterScope: ptr.To(false),
 		},
 		{
 			Name:         "exp-bar-2",
 			TemplateName: "clusterbar4",
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		},
 	}
 
@@ -812,7 +812,7 @@ func TestAnalysisTemplateNotFoundShouldFailTheExperiment(t *testing.T) {
 		{
 			Name:         "exp-bar",
 			TemplateName: "bar",
-			ClusterScope: false,
+			ClusterScope: ptr.To(false),
 		},
 	}
 
@@ -829,7 +829,7 @@ func TestClusterAnalysisTemplateNotFoundShouldFailTheExperiment(t *testing.T) {
 		{
 			Name:         "exp-bar",
 			TemplateName: "cluster-bar",
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		},
 	}
 
@@ -848,7 +848,7 @@ func TestInnerAnalysisTemplateNotFoundShouldFailTheExperiment(t *testing.T) {
 		{
 			Name:         "exp-bar",
 			TemplateName: "bar",
-			ClusterScope: false,
+			ClusterScope: ptr.To(false),
 		},
 	}
 
@@ -868,7 +868,7 @@ func TestInnerClusterAnalysisTemplateNotFoundShouldFailTheExperiment(t *testing.
 		{
 			Name:         "exp-bar",
 			TemplateName: "clusterbar",
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		},
 	}
 	rs := templateToRS(e, templates[0], 0)
@@ -942,7 +942,7 @@ func analysisTemplateWithAnalysisRefs(name string, clusterScope bool, innerRefsN
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: clusterScope,
+			ClusterScope: ptr.To(clusterScope),
 		})
 	}
 	return &v1alpha1.AnalysisTemplate{
@@ -974,7 +974,7 @@ func analysisTemplateWithOnlyRefs(name string, clusterScope bool, innerRefsName 
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: clusterScope,
+			ClusterScope: ptr.To(clusterScope),
 		})
 	}
 	return &v1alpha1.AnalysisTemplate{
@@ -1009,7 +1009,7 @@ func clusterAnalysisTemplateWithAnalysisRefs(name string, innerRefsName ...strin
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		})
 	}
 	return &v1alpha1.ClusterAnalysisTemplate{

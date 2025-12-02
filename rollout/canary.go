@@ -123,7 +123,7 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// causing us to flap and scale up the stable 100 temporarily (before scaling down to 0 later).
 		// Therefore, we send c.rollout.Status.Canary.Weights so that the stable scaling happens in
 		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
-		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.rollout.Status.Canary.Weights)
+		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.newRS, c.stableRS, c.rollout.Status.Canary.Weights)
 	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
@@ -370,15 +370,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
-
-	if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && !c.rollout.Spec.Strategy.Canary.DynamicStableScale && c.stableRS != nil {
-		// When using traffic routed canary without scaling down the stable replicaset, the number of pods
-		// selected by the rollout selector will be up to twice the amount of desired spec.replicas.
-		// We update the selector to select the stable pods since the Scale subresource expects a
-		// label that queries over pods that should match the replicas count, because that is the number
-		// of pods that will be receiving traffic.
-		newStatus.Selector = metav1.FormatLabelSelector(c.stableRS.Spec.Selector)
-	}
 
 	newStatus.Canary.StablePingPong = c.rollout.Status.Canary.StablePingPong
 	newStatus.Canary.StepPluginStatuses = c.rollout.Status.Canary.StepPluginStatuses

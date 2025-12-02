@@ -178,7 +178,7 @@ func TestClusterAnalysisTemplateNotExists(t *testing.T) {
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		},
 	}
 	rs := templateToRS(e, templates[0], 1)
@@ -236,7 +236,7 @@ func TestCreateAnalysisRunWithClusterTemplate(t *testing.T) {
 		{
 			Name:         "cluster-success-rate",
 			TemplateName: aTemplates[0].Name,
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 			Args: []v1alpha1.Argument{{
 				Name:  "test",
 				Value: ptr.To[string]("sss"),
@@ -801,7 +801,7 @@ func TestCreateAnalysisRunWithMetadataAndDryRunWithClusterScope(t *testing.T) {
 		{
 			Name:         "success-rate",
 			TemplateName: aTemplates[0].Name,
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		},
 	}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning

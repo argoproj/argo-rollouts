@@ -56,7 +56,7 @@ func analysisTemplateWithAnalysisRefs(name string, clusterScope bool, innerRefsN
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: clusterScope,
+			ClusterScope: &clusterScope,
 		})
 	}
 	return &v1alpha1.AnalysisTemplate{
@@ -88,7 +88,7 @@ func analysisTemplateWithOnlyRefs(name string, clusterScope bool, innerRefsName 
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: clusterScope,
+			ClusterScope: &clusterScope,
 		})
 	}
 	return &v1alpha1.AnalysisTemplate{
@@ -123,7 +123,7 @@ func clusterAnalysisTemplateWithAnalysisRefs(name string, innerRefsName ...strin
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		})
 	}
 	return &v1alpha1.ClusterAnalysisTemplate{
@@ -342,7 +342,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}},
 		},
 	}
@@ -398,7 +398,7 @@ func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: "missing",
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}},
 		},
 	}
@@ -452,7 +452,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}, {
 				TemplateName: at.Name,
 			}},
@@ -533,7 +533,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplateAndInnerTempl
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}, {
 				TemplateName: at.Name,
 			}},
@@ -615,7 +615,7 @@ func TestCreateBackgroundAnalysisRunWithTemplatesAndNoMetrics(t *testing.T) {
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}, {
 				TemplateName: at.Name,
 			}},
@@ -693,7 +693,7 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	//rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	// rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
@@ -893,7 +893,7 @@ func TestCreateAnalysisRunOnPromotedAnalysisStepIfPreviousStepWasAnalysisToo(t *
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	//rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	// rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
@@ -913,7 +913,7 @@ func TestCreateAnalysisRunOnPromotedAnalysisStepIfPreviousStepWasAnalysisToo(t *
 	f.objects = append(f.objects, r2, at, ar0Step)
 
 	patchOldAnalysisIndex := f.expectPatchAnalysisRunAction(ar0Step)
-	//createdIndex := f.expectCreateAnalysisRunAction(ar0Step)
+	// createdIndex := f.expectCreateAnalysisRunAction(ar0Step)
 	index := f.expectPatchRolloutAction(r2)
 
 	// simulate promote action
@@ -1605,9 +1605,9 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2) + ": " + ar.Status.Message
+	errmsg := "Step-based analysis phase error/failed: " + ar.Status.Message
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, errmsg, false)
-	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, errmsg)
+	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": "+errmsg)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -1680,8 +1680,8 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 			"message": "RolloutAborted: %s"
 		}
 	}`
-	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
-	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
+	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2) + ": Background analysis phase error/failed"
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "Background analysis phase error/failed", false)
 
 	now := timeutil.Now().UTC().Format(time.RFC3339)
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg)), patch)
@@ -2064,7 +2064,6 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	}`, newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, cleanPatch(expectedPatch), patch)
-
 }
 
 // TestDoNotCreatePrePromotionAnalysisRunOnNewRollout ensures that a pre-promotion analysis is not created
@@ -2461,7 +2460,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
+	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "Blue/green pre-promotion analysis phase error/failed")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
 }
@@ -2700,7 +2699,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
+	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "Blue/green post-promotion analysis phase error/failed")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
 }
@@ -2725,7 +2724,7 @@ func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testin
 					TemplateName: at.Name,
 				},
 			},
-			AnalysisRunMetadata: v1alpha1.AnalysisRunMetadata{
+			AnalysisRunMetadata: &v1alpha1.AnalysisRunMetadata{
 				Annotations: map[string]string{"testAnnotationKey": "testAnnotationValue"},
 				Labels:      map[string]string{"testLabelKey": "testLabelValue"},
 			},
@@ -2799,6 +2798,125 @@ func TestCancelBackgroundAnalysisRunWhenRolloutAnalysisHasNoTemplate(t *testing.
 	patch := f.getPatchedRollout(patchIndex)
 
 	assert.Contains(t, patch, `"currentBackgroundAnalysisRunStatus":null`)
+}
+
+// TestDoNotCreatePrePromotionAnalysisRunWithEmptyTemplates verifies that when PrePromotionAnalysis
+// is specified but has no templates (e.g., after a declarative deletion with server-side apply),
+// the controller does not attempt to create an AnalysisRun and the rollout proceeds normally.
+func TestDoNotCreatePrePromotionAnalysisRunWithEmptyTemplates(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
+	r2 := bumpVersion(r1)
+	// PrePromotionAnalysis is set but has no templates - simulates field ownership scenario
+	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
+		AnalysisRunMetadata: &v1alpha1.AnalysisRunMetadata{},
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
+
+	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	previewSvc := newService("preview", 80, previewSelector, r2)
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	activeSvc := newService("active", 80, activeSelector, r2)
+
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+	// Should not create an AnalysisRun since templates are empty
+	f.expectPatchRolloutAction(r2) // conditions patch
+	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+
+	// Verify no prePromotionAnalysisRunStatus was set (analysis was skipped)
+	assert.NotContains(t, patch, "prePromotionAnalysisRunStatus")
+}
+
+// TestDoNotCreatePostPromotionAnalysisRunWithEmptyTemplates verifies that when PostPromotionAnalysis
+// is specified but has no templates, the controller does not attempt to create an AnalysisRun.
+func TestDoNotCreatePostPromotionAnalysisRunWithEmptyTemplates(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
+	r2 := bumpVersion(r1)
+	// PostPromotionAnalysis is set but has no templates - simulates field ownership scenario
+	r2.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
+		AnalysisRunMetadata: &v1alpha1.AnalysisRunMetadata{},
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	// Active service has been promoted to new RS (rs2), but stableRS is still old (rs1)
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true, true)
+
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	activeSvc := newService("active", 80, activeSelector, r2)
+
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc)
+
+	// Should not create an AnalysisRun since templates are empty
+	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+
+	// Verify no postPromotionAnalysisRunStatus was set (analysis was skipped)
+	assert.NotContains(t, patch, "postPromotionAnalysisRunStatus")
+}
+
+// TestDoNotCreateStepAnalysisRunWithEmptyTemplates verifies that when a canary step has
+// analysis specified but with no templates, the controller does not attempt to create an AnalysisRun.
+func TestDoNotCreateStepAnalysisRunWithEmptyTemplates(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To[int32](10),
+		},
+		{
+			// Analysis is set but has no templates
+			Analysis: &v1alpha1.RolloutAnalysis{
+				AnalysisRunMetadata: &v1alpha1.AnalysisRunMetadata{},
+			},
+		},
+	}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](1), intstr.FromInt(0), intstr.FromInt(1))
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 1, 1, 1, false)
+
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.objects = append(f.objects, r1)
+
+	// Should not create an AnalysisRun since templates are empty
+	patchIndex := f.expectPatchRolloutAction(r1)
+	f.run(getKey(r1, t))
+	patch := f.getPatchedRollout(patchIndex)
+
+	// Verify no currentStepAnalysisRunStatus was set (analysis was skipped)
+	assert.NotContains(t, patch, "currentStepAnalysisRunStatus")
 }
 
 func concatMultipleSlices[T any](slices [][]T) []T {
