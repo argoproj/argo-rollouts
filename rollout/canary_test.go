@@ -83,9 +83,9 @@ func TestCanaryRolloutBumpVersion(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	createdRSIndex := f.expectCreateReplicaSetAction(rs2)
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)                  // scale up RS
-	updatedRolloutRevisionIndex := f.expectUpdateRolloutAction(r2)         // update rollout revision
-	updatedRolloutConditionsIndex := f.expectUpdateRolloutStatusAction(r2) // update rollout conditions
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)                   // scale up RS
+	updatedRolloutRevisionIndex := f.expectPatchRolloutAnnotationAction(r2) // patch rollout revision
+	updatedRolloutConditionsIndex := f.expectUpdateRolloutStatusAction(r2)  // update rollout conditions
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
@@ -96,10 +96,10 @@ func TestCanaryRolloutBumpVersion(t *testing.T) {
 	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(1), *updatedRS.Spec.Replicas)
 
-	updatedRollout := f.getUpdatedRollout(updatedRolloutRevisionIndex)
-	assert.Equal(t, "2", updatedRollout.Annotations[annotations.RevisionAnnotation])
+	patchedAnnotations := f.getPatchedRolloutAnnotations(updatedRolloutRevisionIndex)
+	assert.Equal(t, "2", patchedAnnotations[annotations.RevisionAnnotation])
 
-	updatedRollout = f.getUpdatedRollout(updatedRolloutConditionsIndex)
+	updatedRollout := f.getUpdatedRollout(updatedRolloutConditionsIndex)
 	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
 	assert.NotNil(t, progressingCondition)
 	assert.Equal(t, conditions.NewReplicaSetReason, progressingCondition.Reason)
@@ -921,7 +921,7 @@ func TestRollBackToStable(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1) // Bump replicaset revision from 1 to 3
-	f.expectUpdateRolloutAction(r2)                       // Bump rollout revision from 1 to 3
+	f.expectPatchRolloutAnnotationAction(r2)              // Patch rollout revision from 1 to 3
 	patchIndex := f.expectPatchRolloutAction(r2)          // Patch rollout status
 	f.run(getKey(r2, t))
 
@@ -980,7 +980,7 @@ func TestRollBackToActiveReplicaSetWithinWindow(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	f.expectUpdateReplicaSetAction(rs1)                 // Update replicaset revision from 1 to 3
-	f.expectUpdateRolloutAction(r2)                     // Update rollout revision from 1 to 3
+	f.expectPatchRolloutAnnotationAction(r2)            // Patch rollout revision from 1 to 3
 	rolloutPatchIndex := f.expectPatchRolloutAction(r2) // Patch rollout status
 	f.run(getKey(r2, t))
 
@@ -1060,7 +1060,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
 	//f.expectUpdateReplicaSetAction(rs1)
-	f.expectUpdateRolloutAction(r2)
+	f.expectPatchRolloutAnnotationAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
