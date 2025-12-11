@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-config
+  namespace: argo-rollouts
+data:
+  # RolloutPlugin configuration
+  rolloutPlugins: |
+    rollouts:
+      statefulset:
+        name: statefulset
+        location: /plugins/argo-rollouts-statefulset-plugin
+        # Optional: sha256 checksum for plugin verification
+        # sha256: abc123...

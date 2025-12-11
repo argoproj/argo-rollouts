@@ -85,7 +85,7 @@ show_details() {
 }
 
 log "${BLUE}==> Test 1: CREATE - Creating RolloutPlugin${NC}"
-log "Creating nginx-rollout..."
+log "Creating test-statefulset-rollout..."
 if kubectl apply -f test/rolloutplugin/rolloutplugin-sample.yaml -n argo-rollouts >> "$RESULTS_FILE" 2>&1; then
     mark_pass
 else
@@ -97,7 +97,7 @@ log "Waiting for controller to reconcile (3 seconds)..."
 sleep 3
 
 log "Checking if resource exists:"
-if kubectl get rolloutplugin nginx-rollout -n argo-rollouts >> "$RESULTS_FILE" 2>&1; then
+if kubectl get rolloutplugin test-statefulset-rollout -n argo-rollouts >> "$RESULTS_FILE" 2>&1; then
     mark_pass
 else
     mark_fail "Resource not found after creation"
@@ -106,14 +106,14 @@ fi
 
 log ""
 log "Checking status:"
-kubectl get rolloutplugin nginx-rollout -n argo-rollouts -o jsonpath='{.status}' | jq . | tee -a "$RESULTS_FILE" || echo "No status yet" | tee -a "$RESULTS_FILE"
+kubectl get rolloutplugin test-statefulset-rollout -n argo-rollouts -o jsonpath='{.status}' | jq . | tee -a "$RESULTS_FILE" || echo "No status yet" | tee -a "$RESULTS_FILE"
 log ""
 
-show_details "nginx-rollout"
+show_details "test-statefulset-rollout"
 
 log "${BLUE}==> Test 2: READ - Getting RolloutPlugin${NC}"
 log "Get by name:"
-if kubectl get rolloutplugin nginx-rollout -n argo-rollouts >> "$RESULTS_FILE" 2>&1; then
+if kubectl get rolloutplugin test-statefulset-rollout -n argo-rollouts >> "$RESULTS_FILE" 2>&1; then
     mark_pass
 else
     mark_fail "Failed to get resource by name"
@@ -121,7 +121,7 @@ fi
 
 log ""
 log "Get with custom columns:"
-kubectl get rolloutplugin nginx-rollout -n argo-rollouts -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,MESSAGE:.status.message,REPLICAS:.status.replicas | tee -a "$RESULTS_FILE"
+kubectl get rolloutplugin test-statefulset-rollout -n argo-rollouts -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,MESSAGE:.status.message,REPLICAS:.status.replicas | tee -a "$RESULTS_FILE"
 log ""
 
 log "List all RolloutPlugins:"
@@ -133,7 +133,7 @@ fi
 
 log ""
 log "Describe resource:"
-kubectl describe rolloutplugin nginx-rollout -n argo-rollouts >> "$RESULTS_FILE" 2>&1
+kubectl describe rolloutplugin test-statefulset-rollout -n argo-rollouts >> "$RESULTS_FILE" 2>&1
 if [ $? -eq 0 ]; then
     mark_pass
 else
@@ -143,7 +143,7 @@ log ""
 
 log "${BLUE}==> Test 3: UPDATE - Modifying RolloutPlugin Spec${NC}"
 log "Current strategy steps:"
-kubectl get rolloutplugin nginx-rollout -n argo-rollouts -o jsonpath='{.spec.strategy.canary.steps}' | jq . | tee -a "$RESULTS_FILE"
+kubectl get rolloutplugin test-statefulset-rollout -n argo-rollouts -o jsonpath='{.spec.strategy.canary.steps}' | jq . | tee -a "$RESULTS_FILE"
 log ""
 
 log "Creating a modified version with different weights..."
@@ -151,7 +151,7 @@ cat > /tmp/rolloutplugin-updated.yaml <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: RolloutPlugin
 metadata:
-  name: nginx-rollout
+  name: test-statefulset-rollout
   namespace: argo-rollouts
 spec:
   workloadRef:
@@ -184,11 +184,11 @@ log "Waiting for controller to reconcile (3 seconds)..."
 sleep 3
 
 log "New strategy steps:"
-kubectl get rolloutplugin nginx-rollout -n argo-rollouts -o jsonpath='{.spec.strategy.canary.steps}' | jq . | tee -a "$RESULTS_FILE"
+kubectl get rolloutplugin test-statefulset-rollout -n argo-rollouts -o jsonpath='{.spec.strategy.canary.steps}' | jq . | tee -a "$RESULTS_FILE"
 log ""
 
 log "Checking if observedGeneration updated:"
-GEN_STATUS=$(kubectl get rolloutplugin nginx-rollout -n argo-rollouts -o jsonpath='{.metadata.generation} {.status.observedGeneration}')
+GEN_STATUS=$(kubectl get rolloutplugin test-statefulset-rollout -n argo-rollouts -o jsonpath='{.metadata.generation} {.status.observedGeneration}')
 echo "  Generation: $(echo $GEN_STATUS | awk '{print $1}'), ObservedGeneration: $(echo $GEN_STATUS | awk '{print $2}')" | tee -a "$RESULTS_FILE"
 if [ "$(echo $GEN_STATUS | awk '{print $1}')" == "$(echo $GEN_STATUS | awk '{print $2}')" ]; then
     mark_pass
@@ -197,11 +197,11 @@ else
 fi
 log ""
 
-show_details "nginx-rollout"
+show_details "test-statefulset-rollout"
 
 log "${BLUE}==> Test 4: UPDATE - Testing Status Subresource${NC}"
 log "Current status:"
-STATUS_JSON=$(kubectl get rolloutplugin nginx-rollout -n argo-rollouts -o jsonpath='{.status}')
+STATUS_JSON=$(kubectl get rolloutplugin test-statefulset-rollout -n argo-rollouts -o jsonpath='{.status}')
 echo "$STATUS_JSON" | jq . | tee -a "$RESULTS_FILE"
 log ""
 
@@ -222,7 +222,7 @@ cat > /tmp/rolloutplugin-second.yaml <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: RolloutPlugin
 metadata:
-  name: nginx-rollout-2
+  name: test-statefulset-rollout-2
   namespace: argo-rollouts
 spec:
   workloadRef:
@@ -267,14 +267,14 @@ log ""
 
 log "${BLUE}==> Test 6: PATCH - Updating individual fields${NC}"
 log "Patching plugin config..."
-if kubectl patch rolloutplugin nginx-rollout -n argo-rollouts --type=merge -p '{"spec":{"plugin":{"config":{"newField":"newValue"}}}}' >> "$RESULTS_FILE" 2>&1; then
+if kubectl patch rolloutplugin test-statefulset-rollout -n argo-rollouts --type=merge -p '{"spec":{"plugin":{"config":{"newField":"newValue"}}}}' >> "$RESULTS_FILE" 2>&1; then
     mark_pass
 else
     mark_fail "Failed to patch resource"
 fi
 
 log "Verifying patch:"
-PATCH_RESULT=$(kubectl get rolloutplugin nginx-rollout -n argo-rollouts -o jsonpath='{.spec.plugin.config}')
+PATCH_RESULT=$(kubectl get rolloutplugin test-statefulset-rollout -n argo-rollouts -o jsonpath='{.spec.plugin.config}')
 echo "$PATCH_RESULT" | jq . | tee -a "$RESULTS_FILE"
 if echo "$PATCH_RESULT" | jq -e '.newField' > /dev/null; then
     mark_pass
@@ -284,8 +284,8 @@ fi
 log ""
 
 log "${BLUE}==> Test 7: DELETE - Removing RolloutPlugin${NC}"
-log "Deleting nginx-rollout-2..."
-if kubectl delete rolloutplugin nginx-rollout-2 -n argo-rollouts >> "$RESULTS_FILE" 2>&1; then
+log "Deleting test-statefulset-rollout-2..."
+if kubectl delete rolloutplugin test-statefulset-rollout-2 -n argo-rollouts >> "$RESULTS_FILE" 2>&1; then
     mark_pass
 else
     mark_fail "Failed to delete resource"
@@ -293,8 +293,8 @@ fi
 
 log "Verifying deletion:"
 kubectl get rolloutplugin -n argo-rollouts | tee -a "$RESULTS_FILE"
-# Verify nginx-rollout-2 is not in the list
-if ! kubectl get rolloutplugin nginx-rollout-2 -n argo-rollouts 2>/dev/null; then
+# Verify test-statefulset-rollout-2 is not in the list
+if ! kubectl get rolloutplugin test-statefulset-rollout-2 -n argo-rollouts 2>/dev/null; then
     mark_pass
 else
     mark_fail "Resource still exists after deletion"
@@ -340,7 +340,7 @@ log ""
 
 log "${BLUE}==> Test 10: Final State Check${NC}"
 log "Final resource state:"
-kubectl get rolloutplugin nginx-rollout -n argo-rollouts -o yaml | grep -A 30 "status:" | tee -a "$RESULTS_FILE"
+kubectl get rolloutplugin test-statefulset-rollout -n argo-rollouts -o yaml | grep -A 30 "status:" | tee -a "$RESULTS_FILE"
 log ""
 
 # Generate summary
@@ -391,7 +391,7 @@ log "  - ${BLUE}$SUMMARY_FILE${NC}"
 log ""
 
 log "Cleanup (optional):"
-log "  To clean up: kubectl delete rolloutplugin nginx-rollout -n argo-rollouts"
+log "  To clean up: kubectl delete rolloutplugin test-statefulset-rollout -n argo-rollouts"
 log "  Or run: ./test/rolloutplugin/test-rolloutplugin-cleanup.sh"
 log ""
 

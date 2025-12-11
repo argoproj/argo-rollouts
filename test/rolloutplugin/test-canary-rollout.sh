@@ -5,7 +5,7 @@ set -e
 # Configuration
 NAMESPACE="argo-rollouts"
 STS_NAME="test-sts"
-ROLLOUT_NAME="test-sts-rollout"
+ROLLOUT_NAME="test-statefulset-rollout"
 SERVICE_NAME="test-sts"
 
 # Image configuration - using quay.io images
@@ -172,7 +172,7 @@ create_rolloutplugin() {
 apiVersion: argoproj.io/v1alpha1
 kind: RolloutPlugin
 metadata:
-  name: nginx-rollout
+  name: test-statefulset-rollout
 spec:
   workloadRef:
     apiVersion: apps/v1

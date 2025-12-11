@@ -1,20 +1,34 @@
 apiVersion: argoproj.io/v1alpha1
 kind: RolloutPlugin
 metadata:
-  name: nginx-rollout
+  name: test-statefulset-rollout
+  namespace: argo-rollouts
 spec:
+  # Reference to the StatefulSet being managed
   workloadRef:
     apiVersion: apps/v1
     kind: StatefulSet
-    name: nginx-test
+    name: test-sts
+    # namespace is optional, defaults to RolloutPlugin's namespace
+  
+  # Plugin configuration
   plugin:
-    name: statefulset-plugin
+    name: statefulset
+    # Optional: plugin-specific configuration
     config:
-      resourceType: StatefulSet
+      # Any StatefulSet-specific settings
+      a: b
+  
+  # Canary rollout strategy
   strategy:
     canary:
       steps:
-      - setWeight: 33
-      - pause: {}
-      - setWeight: 66
-      - pause: {}
+        - setWeight: 20
+        - pause: {duration: 30s}
+        - setWeight: 40
+        - pause: {duration: 30s}
+        - setWeight: 60
+        - pause: {duration: 30s}
+        - setWeight: 80
+        - pause: {duration: 30s}
+        - setWeight: 100

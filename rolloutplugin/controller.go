@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
@@ -176,7 +179,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	}
 
 	newStatus.Phase = "Healthy"
-	newStatus.Message = "Rollout is healthy"
+	newStatus.Message = "RolloutPlugin is healthy"
 	return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus)
 }
 
@@ -236,7 +239,7 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 	logger.Info("Processing canary step", "stepIndex", currentStepIndex)
 
 	// Process setWeight step
-	if currentStep.SetWeight != nil && !newStatus.CurrentStepComplete {
+	if currentStep.SetWeight != nil {
 		weight := *currentStep.SetWeight
 		logger.Info("Setting weight", "weight", weight)
 
@@ -255,38 +258,68 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 			return ctrl.Result{}, err
 		}
 
-		if verified {
-			newStatus.CurrentStepComplete = true
-			newStatus.Message = fmt.Sprintf("Weight set to %d and verified", weight)
-		} else {
+		if !verified {
 			newStatus.Message = fmt.Sprintf("Waiting for weight %d to be verified", weight)
 			// Requeue to check again after 5 seconds
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 		}
+
+		// Weight verified, move to next step
+		newStatus.Message = fmt.Sprintf("Weight set to %d and verified", weight)
+		nextStep := currentStepIndex + 1
+		newStatus.CurrentStepIndex = &nextStep
+		logger.Info("Weight verified, moving to next step", "nextStep", nextStep)
+		// Requeue immediately to process next step
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Handle pause step
-	if currentStep.Pause != nil && newStatus.CurrentStepComplete {
+	if currentStep.Pause != nil {
+		logger.Info("Handling pause step", "pauseStartTime", newStatus.PauseStartTime)
+
 		if newStatus.PauseStartTime == nil {
 			now := metav1.Now()
 			newStatus.PauseStartTime = &now
 			newStatus.Paused = true
 			newStatus.Message = "Paused"
-			logger.Info("Pausing rollout")
+			logger.Info("Starting pause", "duration", currentStep.Pause.Duration)
 			return ctrl.Result{}, nil
 		}
-		// For now, support only indefinite pause or manual promotion
-		// TODO: Add duration support when RolloutPause is updated
-		logger.Info("Rollout is paused, waiting for manual promotion")
+
+		// Check if pause duration has elapsed
+		if currentStep.Pause.Duration != nil {
+			durationStr := currentStep.Pause.Duration.String()
+			duration, err := time.ParseDuration(durationStr)
+			if err != nil {
+				logger.Error(err, "Failed to parse pause duration", "duration", durationStr)
+				newStatus.Phase = "Failed"
+				newStatus.Message = fmt.Sprintf("Invalid pause duration: %v", err)
+				return ctrl.Result{}, err
+			}
+
+			elapsed := time.Since(newStatus.PauseStartTime.Time)
+			if elapsed >= duration {
+				logger.Info("Pause duration elapsed, moving to next step")
+				// Move to next step
+				nextStep := currentStepIndex + 1
+				newStatus.CurrentStepIndex = &nextStep
+				newStatus.CurrentStepComplete = false
+				newStatus.PauseStartTime = nil
+				newStatus.Paused = false
+				// Requeue immediately to process next step
+				return ctrl.Result{Requeue: true}, nil
+			}
+
+			remaining := duration - elapsed
+			newStatus.Message = fmt.Sprintf("Paused (remaining: %s)", remaining.Round(time.Second))
+			logger.Info("Still paused", "remaining", remaining)
+			// Requeue when pause should be done
+			return ctrl.Result{RequeueAfter: remaining}, nil
+		}
+
+		// Indefinite pause - wait for manual promotion
+		logger.Info("Rollout is paused indefinitely, waiting for manual promotion")
 		return ctrl.Result{}, nil
-	} else if newStatus.CurrentStepComplete && currentStep.Pause == nil {
-		// No pause, move to next step immediately
-		nextStep := currentStepIndex + 1
-		newStatus.CurrentStepIndex = &nextStep
-		newStatus.CurrentStepComplete = false
-		logger.Info("Moving to next step")
-		// Requeue immediately to process next step
-		return ctrl.Result{Requeue: true}, nil
 	}
 
 	return ctrl.Result{}, nil
@@ -324,5 +357,40 @@ func (r *RolloutPluginReconciler) updateStatus(ctx context.Context, rolloutPlugi
 func (r *RolloutPluginReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.RolloutPlugin{}).
+		Watches(
+			&appsv1.StatefulSet{},
+			handler.EnqueueRequestsFromMapFunc(r.findRolloutPluginsForStatefulSet),
+		).
 		Complete(r)
+}
+
+// findRolloutPluginsForStatefulSet maps a StatefulSet to RolloutPlugin CRs that reference it
+func (r *RolloutPluginReconciler) findRolloutPluginsForStatefulSet(ctx context.Context, obj client.Object) []reconcile.Request {
+	sts := obj.(*appsv1.StatefulSet)
+
+	// List all RolloutPlugin resources in the same namespace
+	var rolloutPlugins v1alpha1.RolloutPluginList
+	if err := r.Client.List(ctx, &rolloutPlugins, client.InNamespace(sts.GetNamespace())); err != nil {
+		log.FromContext(ctx).Error(err, "Failed to list RolloutPlugin resources")
+		return []reconcile.Request{}
+	}
+
+	// Find RolloutPlugins that reference this StatefulSet
+	var requests []reconcile.Request
+	for _, rp := range rolloutPlugins.Items {
+		if rp.Spec.WorkloadRef.Kind == "StatefulSet" &&
+			rp.Spec.WorkloadRef.Name == sts.GetName() {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: client.ObjectKey{
+					Namespace: rp.GetNamespace(),
+					Name:      rp.GetName(),
+				},
+			})
+			log.FromContext(ctx).Info("StatefulSet change detected, triggering rollout",
+				"statefulset", sts.GetName(),
+				"rolloutplugin", rp.GetName())
+		}
+	}
+
+	return requests
 }
