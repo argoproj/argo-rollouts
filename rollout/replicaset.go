@@ -401,23 +401,34 @@ func (c *rolloutContext) isReplicaSetReferenced(rs *appsv1.ReplicaSet) bool {
 	return false
 }
 
+// getIstioDestinationRuleSpec returns the Istio DestinationRule spec from the rollout if configured,
+// or nil if Istio traffic routing with a DestinationRule is not configured.
+func getIstioDestinationRuleSpec(ro *v1alpha1.Rollout) *v1alpha1.IstioDestinationRule {
+	if ro.Spec.Strategy.Canary == nil {
+		return nil
+	}
+	if ro.Spec.Strategy.Canary.TrafficRouting == nil {
+		return nil
+	}
+	if ro.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+		return nil
+	}
+	return ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
+}
+
 // isReplicaSetReferencedByIstioDestinationRule checks if the given pod template hash is still
 // referenced by any subset in the Istio DestinationRule. This prevents scaling down a ReplicaSet
 // that is still receiving traffic via Istio subset-level routing.
 func (c *rolloutContext) isReplicaSetReferencedByIstioDestinationRule(rsPodHash string) bool {
-	ro := c.rollout
-	if ro.Spec.Strategy.Canary == nil || ro.Spec.Strategy.Canary.TrafficRouting == nil ||
-		ro.Spec.Strategy.Canary.TrafficRouting.Istio == nil ||
-		ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule == nil {
+	dRuleSpec := getIstioDestinationRuleSpec(c.rollout)
+	if dRuleSpec == nil {
 		return false
 	}
 
 	if c.IstioController == nil || c.IstioController.DestinationRuleLister == nil {
 		return false
 	}
-
-	dRuleSpec := ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
-	dRuleUn, err := c.IstioController.DestinationRuleLister.Namespace(ro.Namespace).Get(dRuleSpec.Name)
+	dRuleUn, err := c.IstioController.DestinationRuleLister.Namespace(c.rollout.Namespace).Get(dRuleSpec.Name)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return false
