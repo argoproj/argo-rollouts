@@ -651,6 +651,13 @@ spec:
 `, name, stableHash, canaryHash)
 	}
 
+	// Helper to create a rollout with TrafficRouting but no Istio config
+	newRolloutWithTrafficRoutingNoIstio := func() *v1alpha1.Rollout {
+		r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+		return r
+	}
+
 	testCases := []struct {
 		name               string
 		rollout            *v1alpha1.Rollout
@@ -662,6 +669,12 @@ spec:
 		{
 			name:           "no istio traffic routing configured",
 			rollout:        newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1)),
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+		{
+			name:           "traffic routing configured but no istio",
+			rollout:        newRolloutWithTrafficRoutingNoIstio(),
 			rsHash:         "abc123",
 			expectedResult: false,
 		},
@@ -705,6 +718,38 @@ spec:
 			destinationRule: newDestinationRuleYAML("test-destrule", "stable-hash", "canary-hash"),
 			rsHash:          "canary-hash",
 			expectedResult:  true,
+		},
+		{
+			name:    "destination rule with no subsets - should return false",
+			rollout: newRolloutWithIstioDestinationRule("test-destrule"),
+			destinationRule: `
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: test-destrule
+  namespace: default
+spec:
+  host: test-service
+`,
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+		{
+			name:    "destination rule with subset missing labels - should return false",
+			rollout: newRolloutWithIstioDestinationRule("test-destrule"),
+			destinationRule: `
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: test-destrule
+  namespace: default
+spec:
+  host: test-service
+  subsets:
+  - name: stable
+`,
+			rsHash:         "abc123",
+			expectedResult: false,
 		},
 	}
 
