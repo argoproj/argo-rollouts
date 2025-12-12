@@ -6,21 +6,20 @@ import (
 	"sort"
 	"time"
 
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
-
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")
