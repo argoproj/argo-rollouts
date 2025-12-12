@@ -6,17 +6,17 @@ import (
 	"sort"
 	"time"
 
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
-
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
@@ -391,5 +391,73 @@ func (c *rolloutContext) isReplicaSetReferenced(rs *appsv1.ReplicaSet) bool {
 			return true
 		}
 	}
+
+	// Check if the ReplicaSet is still referenced by Istio DestinationRule subsets.
+	// This is important for subset-level traffic splitting where we don't use services.
+	if c.isReplicaSetReferencedByIstioDestinationRule(rsPodHash) {
+		return true
+	}
+
+	return false
+}
+
+// getIstioDestinationRuleSpec returns the Istio DestinationRule spec from the rollout if configured,
+// or nil if Istio traffic routing with a DestinationRule is not configured.
+func getIstioDestinationRuleSpec(ro *v1alpha1.Rollout) *v1alpha1.IstioDestinationRule {
+	if ro.Spec.Strategy.Canary == nil {
+		return nil
+	}
+	if ro.Spec.Strategy.Canary.TrafficRouting == nil {
+		return nil
+	}
+	if ro.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+		return nil
+	}
+	return ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
+}
+
+// isReplicaSetReferencedByIstioDestinationRule checks if the given pod template hash is still
+// referenced by any subset in the Istio DestinationRule. This prevents scaling down a ReplicaSet
+// that is still receiving traffic via Istio subset-level routing.
+func (c *rolloutContext) isReplicaSetReferencedByIstioDestinationRule(rsPodHash string) bool {
+	dRuleSpec := getIstioDestinationRuleSpec(c.rollout)
+	if dRuleSpec == nil {
+		return false
+	}
+
+	if c.IstioController == nil || c.IstioController.DestinationRuleLister == nil {
+		return false
+	}
+	dRuleUn, err := c.IstioController.DestinationRuleLister.Namespace(c.rollout.Namespace).Get(dRuleSpec.Name)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return false
+		}
+		// If we can't get the DestinationRule, err on the side of caution
+		c.log.Warnf("Failed to get DestinationRule %s: %v", dRuleSpec.Name, err)
+		return true
+	}
+
+	// Extract subsets from the DestinationRule
+	subsets, found, err := unstructured.NestedSlice(dRuleUn.UnstructuredContent(), "spec", "subsets")
+	if err != nil || !found {
+		return false
+	}
+
+	for _, subsetObj := range subsets {
+		subset, ok := subsetObj.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		labels, found, err := unstructured.NestedStringMap(subset, "labels")
+		if err != nil || !found {
+			continue
+		}
+		if hash, ok := labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok && hash == rsPodHash {
+			c.log.Infof("ReplicaSet with hash %s is still referenced by DestinationRule %s", rsPodHash, dRuleSpec.Name)
+			return true
+		}
+	}
+
 	return false
 }
