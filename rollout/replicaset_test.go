@@ -600,6 +600,57 @@ func TestIsReplicaSetReferencedByIstioDestinationRule(t *testing.T) {
 		}
 	}
 
+	// Helper to create a rollout with Istio traffic routing and destination rule
+	newRolloutWithIstioDestinationRule := func(destRuleName string) *v1alpha1.Rollout {
+		r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Istio: &v1alpha1.IstioTrafficRouting{
+				VirtualService: &v1alpha1.IstioVirtualService{
+					Name: "vsvc",
+				},
+				DestinationRule: &v1alpha1.IstioDestinationRule{
+					Name:             destRuleName,
+					CanarySubsetName: "canary",
+					StableSubsetName: "stable",
+				},
+			},
+		}
+		return r
+	}
+
+	// Helper to create a rollout with Istio virtual service only (no destination rule)
+	newRolloutWithIstioVSvcOnly := func() *v1alpha1.Rollout {
+		r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Istio: &v1alpha1.IstioTrafficRouting{
+				VirtualService: &v1alpha1.IstioVirtualService{
+					Name: "vsvc",
+				},
+			},
+		}
+		return r
+	}
+
+	// Helper to create destination rule YAML with given subsets
+	newDestinationRuleYAML := func(name, stableHash, canaryHash string) string {
+		return fmt.Sprintf(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: %s
+  namespace: default
+spec:
+  host: test-service
+  subsets:
+  - name: stable
+    labels:
+      rollouts-pod-template-hash: %s
+  - name: canary
+    labels:
+      rollouts-pod-template-hash: %s
+`, name, stableHash, canaryHash)
+	}
+
 	testCases := []struct {
 		name               string
 		rollout            *v1alpha1.Rollout
@@ -615,187 +666,45 @@ func TestIsReplicaSetReferencedByIstioDestinationRule(t *testing.T) {
 			expectedResult: false,
 		},
 		{
-			name: "no destination rule configured",
-			rollout: func() *v1alpha1.Rollout {
-				r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-				r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-					Istio: &v1alpha1.IstioTrafficRouting{
-						VirtualService: &v1alpha1.IstioVirtualService{
-							Name: "vsvc",
-						},
-					},
-				}
-				return r
-			}(),
+			name:           "no destination rule configured",
+			rollout:        newRolloutWithIstioVSvcOnly(),
 			rsHash:         "abc123",
 			expectedResult: false,
 		},
 		{
-			name: "destination rule references hash - should return true",
-			rollout: func() *v1alpha1.Rollout {
-				r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-				r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-					Istio: &v1alpha1.IstioTrafficRouting{
-						VirtualService: &v1alpha1.IstioVirtualService{
-							Name: "vsvc",
-						},
-						DestinationRule: &v1alpha1.IstioDestinationRule{
-							Name:             "test-destrule",
-							CanarySubsetName: "canary",
-							StableSubsetName: "stable",
-						},
-					},
-				}
-				return r
-			}(),
-			destinationRule: `
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
-metadata:
-  name: test-destrule
-  namespace: default
-spec:
-  host: test-service
-  subsets:
-  - name: stable
-    labels:
-      rollouts-pod-template-hash: abc123
-  - name: canary
-    labels:
-      rollouts-pod-template-hash: def456
-`,
-			rsHash:         "abc123",
-			expectedResult: true,
+			name:            "destination rule references hash - should return true",
+			rollout:         newRolloutWithIstioDestinationRule("test-destrule"),
+			destinationRule: newDestinationRuleYAML("test-destrule", "abc123", "def456"),
+			rsHash:          "abc123",
+			expectedResult:  true,
 		},
 		{
-			name: "destination rule does not reference hash - should return false",
-			rollout: func() *v1alpha1.Rollout {
-				r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-				r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-					Istio: &v1alpha1.IstioTrafficRouting{
-						VirtualService: &v1alpha1.IstioVirtualService{
-							Name: "vsvc",
-						},
-						DestinationRule: &v1alpha1.IstioDestinationRule{
-							Name:             "test-destrule",
-							CanarySubsetName: "canary",
-							StableSubsetName: "stable",
-						},
-					},
-				}
-				return r
-			}(),
-			destinationRule: `
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
-metadata:
-  name: test-destrule
-  namespace: default
-spec:
-  host: test-service
-  subsets:
-  - name: stable
-    labels:
-      rollouts-pod-template-hash: abc123
-  - name: canary
-    labels:
-      rollouts-pod-template-hash: def456
-`,
-			rsHash:         "xyz789",
-			expectedResult: false,
+			name:            "destination rule does not reference hash - should return false",
+			rollout:         newRolloutWithIstioDestinationRule("test-destrule"),
+			destinationRule: newDestinationRuleYAML("test-destrule", "abc123", "def456"),
+			rsHash:          "xyz789",
+			expectedResult:  false,
 		},
 		{
-			name: "destination rule not found - should return false",
-			rollout: func() *v1alpha1.Rollout {
-				r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-				r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-					Istio: &v1alpha1.IstioTrafficRouting{
-						VirtualService: &v1alpha1.IstioVirtualService{
-							Name: "vsvc",
-						},
-						DestinationRule: &v1alpha1.IstioDestinationRule{
-							Name:             "non-existent-destrule",
-							CanarySubsetName: "canary",
-							StableSubsetName: "stable",
-						},
-					},
-				}
-				return r
-			}(),
-			destinationRule: `
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
-metadata:
-  name: test-destrule
-  namespace: default
-spec:
-  host: test-service
-  subsets:
-  - name: stable
-    labels:
-      rollouts-pod-template-hash: abc123
-`,
-			rsHash:         "abc123",
-			expectedResult: false,
+			name:            "destination rule not found - should return false",
+			rollout:         newRolloutWithIstioDestinationRule("non-existent-destrule"),
+			destinationRule: newDestinationRuleYAML("test-destrule", "abc123", "def456"),
+			rsHash:          "abc123",
+			expectedResult:  false,
 		},
 		{
-			name: "no istio controller - should return false",
-			rollout: func() *v1alpha1.Rollout {
-				r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-				r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-					Istio: &v1alpha1.IstioTrafficRouting{
-						VirtualService: &v1alpha1.IstioVirtualService{
-							Name: "vsvc",
-						},
-						DestinationRule: &v1alpha1.IstioDestinationRule{
-							Name:             "test-destrule",
-							CanarySubsetName: "canary",
-							StableSubsetName: "stable",
-						},
-					},
-				}
-				return r
-			}(),
+			name:              "no istio controller - should return false",
+			rollout:           newRolloutWithIstioDestinationRule("test-destrule"),
 			noIstioController: true,
 			rsHash:            "abc123",
 			expectedResult:    false,
 		},
 		{
-			name: "canary subset references hash - should return true",
-			rollout: func() *v1alpha1.Rollout {
-				r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-				r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-					Istio: &v1alpha1.IstioTrafficRouting{
-						VirtualService: &v1alpha1.IstioVirtualService{
-							Name: "vsvc",
-						},
-						DestinationRule: &v1alpha1.IstioDestinationRule{
-							Name:             "test-destrule",
-							CanarySubsetName: "canary",
-							StableSubsetName: "stable",
-						},
-					},
-				}
-				return r
-			}(),
-			destinationRule: `
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
-metadata:
-  name: test-destrule
-  namespace: default
-spec:
-  host: test-service
-  subsets:
-  - name: stable
-    labels:
-      rollouts-pod-template-hash: stable-hash
-  - name: canary
-    labels:
-      rollouts-pod-template-hash: canary-hash
-`,
-			rsHash:         "canary-hash",
-			expectedResult: true,
+			name:            "canary subset references hash - should return true",
+			rollout:         newRolloutWithIstioDestinationRule("test-destrule"),
+			destinationRule: newDestinationRuleYAML("test-destrule", "stable-hash", "canary-hash"),
+			rsHash:          "canary-hash",
+			expectedResult:  true,
 		},
 	}
 
