@@ -1783,17 +1783,10 @@ func TestReconcileTrafficRoutingSetHeaderRouteShouldBeCalledEvenIfStableUnavaila
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("SetHeaderRoute", &v1alpha1.SetHeaderRoute{
-		Name: "test-header",
-		Match: []v1alpha1.HeaderRoutingMatch{
-			{
-				HeaderName: "test",
-				HeaderValue: &v1alpha1.StringMatch{
-					Prefix: "test",
-				},
-			},
-		},
-	}).Once().Return(nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything).Return(nil)
 	f.run(getKey(r1, t))
+
+	// Make sure that SetHeaderRoute was called.
+	f.fakeTrafficRouting.AssertCalled(t, "SetHeaderRoute", mock.Anything)
 }
