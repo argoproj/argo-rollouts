@@ -139,7 +139,6 @@ data:
   annotationsToSkip: |
     - "cert-manager.io/cluster-issuer"
     - "cert-manager.io/certificate-name"
-
 ```
 
 ## Troubleshooting
