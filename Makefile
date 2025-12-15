@@ -217,6 +217,10 @@ plugin-windows: ui/dist  ## build plugin for windows
 controller: ## build controller binary
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
 
+.PHONY: combined-controller
+combined-controller: ## build combined controller binary (standard + RolloutPlugin)
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/combined-controller
+
 .PHONY: builder-image
 builder-image: ## build builder image
 	DOCKER_BUILDKIT=1 docker build  -t $(IMAGE_PREFIX)argo-rollouts-ci-builder:$(IMAGE_TAG) --target builder .
@@ -226,7 +230,7 @@ builder-image: ## build builder image
 image:
 ifeq ($(DEV_IMAGE), true)
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/step-plugin-e2e-linux-amd64 ./test/cmd/step-plugin-e2e
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller-linux-amd64 ./cmd/rollouts-controller
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller-linux-amd64 ./cmd/combined-controller
 	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) -f Dockerfile.dev ${DIST_DIR}
 else
 	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .

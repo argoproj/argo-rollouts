@@ -1,0 +1,276 @@
+---
+# Updated ClusterRole with RolloutPlugin and StatefulSet permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts
+    app.kubernetes.io/part-of: argo-rollouts
+  name: argo-rollouts
+rules:
+# Existing Rollout permissions
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rollouts
+  - rollouts/status
+  - rollouts/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+# RolloutPlugin CRD permissions
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rolloutplugins
+  - rolloutplugins/status
+  - rolloutplugins/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+# AnalysisRuns and Experiments
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysisruns
+  - analysisruns/finalizers
+  - experiments
+  - experiments/finalizers
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+# Analysis Templates
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysistemplates
+  - clusteranalysistemplates
+  verbs:
+  - get
+  - list
+  - watch
+# ReplicaSets
+- apiGroups:
+  - apps
+  resources:
+  - replicasets
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+# StatefulSets (NEW - for RolloutPlugin controller)
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+# Deployments and PodTemplates
+- apiGroups:
+  - ""
+  - apps
+  resources:
+  - deployments
+  - podtemplates
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+# Services
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - delete
+# Leader Election
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - get
+  - update
+# Secrets and ConfigMaps
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+# Pods
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+  - update
+  - watch
+# Pod Eviction
+- apiGroups:
+  - ""
+  resources:
+  - pods/eviction
+  verbs:
+  - create
+# Events
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - update
+  - patch
+# Ingresses
+- apiGroups:
+  - networking.k8s.io
+  - extensions
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+# Jobs
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+# Istio VirtualServices and DestinationRules
+- apiGroups:
+  - networking.istio.io
+  resources:
+  - virtualservices
+  - destinationrules
+  verbs:
+  - watch
+  - get
+  - update
+  - patch
+  - list
+# SMI TrafficSplits
+- apiGroups:
+  - split.smi-spec.io
+  resources:
+  - trafficsplits
+  verbs:
+  - create
+  - watch
+  - get
+  - update
+  - patch
+# Ambassador Mappings
+- apiGroups:
+  - getambassador.io
+  - x.getambassador.io
+  resources:
+  - mappings
+  - ambassadormappings
+  verbs:
+  - create
+  - watch
+  - get
+  - update
+  - list
+  - delete
+# Endpoints
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+# AWS TargetGroupBindings
+- apiGroups:
+  - elbv2.k8s.aws
+  - eks.amazonaws.com
+  resources:
+  - targetgroupbindings
+  verbs:
+  - list
+  - get
+# AppMesh VirtualServices
+- apiGroups:
+  - appmesh.k8s.aws
+  resources:
+  - virtualservices
+  verbs:
+  - watch
+  - get
+  - list
+# AppMesh VirtualNodes and VirtualRouters
+- apiGroups:
+  - appmesh.k8s.aws
+  resources:
+  - virtualnodes
+  - virtualrouters
+  verbs:
+  - watch
+  - get
+  - list
+  - update
+  - patch
+# Traefik Services
+- apiGroups:
+  - traefik.containo.us
+  - traefik.io
+  resources:
+  - traefikservices
+  verbs:
+  - watch
+  - get
+  - update
+# APISIX Routes
+- apiGroups:
+  - apisix.apache.org
+  resources:
+  - apisixroutes
+  verbs:
+  - watch
+  - get
+  - update

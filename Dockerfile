@@ -63,7 +63,7 @@ RUN touch ui/dist/node_modules.marker && \
 
 ARG TARGETOS
 ARG TARGETARCH
-ARG MAKE_TARGET="controller plugin"
+ARG MAKE_TARGET="combined-controller plugin"
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make ${MAKE_TARGET}
 
 ####################################################################################################
