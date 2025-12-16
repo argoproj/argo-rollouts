@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -116,16 +117,47 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 
 func (c *rolloutContext) setRolloutRevision(revision string) error {
 	if annotations.SetRolloutRevision(c.rollout, revision) {
-		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
+		// Use Patch instead of Update to avoid writing back normalized spec fields.
+		// This prevents empty fields like container resources from being set to {} in the cluster.
+		patch := map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]interface{}{
+					annotations.RevisionAnnotation: revision,
+				},
+			},
+		}
+		patchData, err := json.Marshal(patch)
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout revision")
+			c.log.WithError(err).Error("Error: creating rollout revision patch")
 			return err
 		}
-		c.rollout = updatedRollout.DeepCopy()
-		if err := c.refResolver.Resolve(c.rollout); err != nil {
-			return err
+
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(
+			context.TODO(),
+			c.rollout.Name,
+			patchtypes.MergePatchType,
+			patchData,
+			metav1.PatchOptions{},
+		)
+		if err != nil {
+			// Check if the error is due to unmarshaling the response (e.g., malformed rollout with invalid quantities).
+			// The patch may have succeeded on the server side, but the response contains invalid fields that can't be unmarshaled.
+			// In this case, we log a warning and continue without updating our local copy.
+			// The next reconciliation will pick up the changes from the informer (which uses tolerant conversion).
+			if isUnmarshalError(err) {
+				c.log.WithError(err).Warn("Patched rollout revision successfully, but failed to unmarshal response (likely due to malformed rollout)")
+				// Don't return error - the patch succeeded, we just can't read the response
+			} else {
+				c.log.WithError(err).Error("Error: patching rollout revision")
+				return err
+			}
+		} else {
+			c.rollout = updatedRollout.DeepCopy()
+			if err := c.refResolver.Resolve(c.rollout); err != nil {
+				return err
+			}
+			c.newRollout = updatedRollout
 		}
-		c.newRollout = updatedRollout
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutUpdatedReason}, conditions.RolloutUpdatedMessage, revision)
 	}
 	return nil
