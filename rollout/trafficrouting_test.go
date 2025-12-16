@@ -1688,3 +1688,105 @@ func TestDynamicScalingAbortWithZeroReplicas(t *testing.T) {
 	// This should not panic or cause division by zero
 	f.run(getKey(r1, t))
 }
+
+func TestReconcileTrafficRoutingSetHeaderRouteShouldBeCalledEvenIfStableUnavailable(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: "test-header",
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "test",
+						HeaderValue: &v1alpha1.StringMatch{
+							Prefix: "test",
+						},
+					},
+				},
+			},
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: &v1alpha1.IstioVirtualService{
+				Name: "test",
+				Routes: []string{
+					"primary",
+				},
+			},
+		},
+		ManagedRoutes: []v1alpha1.MangedRoutes{
+			{
+				Name: "test-header",
+			},
+		},
+	}
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r2 := bumpVersion(r1)
+
+	// Stable ReplicaSet is not redy (desired: 10, available: 5)
+	rs1 := newReplicaSetWithStatus(r1, 10, 5)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r1)
+	stableSvc := newService("stable", 80, stableSelector, r1)
+	r2.Status.StableRS = rs1PodHash
+
+	vs := istio.VirtualService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: r1.Namespace,
+		},
+		Spec: istio.VirtualServiceSpec{
+			HTTP: []istio.VirtualServiceHTTPRoute{{
+				Name: "primary",
+				Route: []istio.VirtualServiceRouteDestination{{
+					Destination: istio.VirtualServiceDestination{
+						Host: "stable",
+					},
+					Weight: 100,
+				}, {
+					Destination: istio.VirtualServiceDestination{
+						Host: "canary",
+					},
+					Weight: 0,
+				}},
+			}},
+		},
+	}
+	mapObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&vs)
+	assert.Nil(t, err)
+
+	unstructuredObj := &unstructured.Unstructured{Object: mapObj}
+	unstructuredObj.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   istioutil.GetIstioVirtualServiceGVR().Group,
+		Version: istioutil.GetIstioVirtualServiceGVR().Version,
+		Kind:    "VirtualService",
+	})
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2, unstructuredObj)
+
+	f.expectPatchRolloutAction(r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything).Return(nil)
+	f.run(getKey(r1, t))
+
+	// Make sure that SetHeaderRoute was called.
+	f.fakeTrafficRouting.AssertCalled(t, "SetHeaderRoute", mock.Anything)
+}
