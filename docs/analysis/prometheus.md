@@ -104,6 +104,22 @@ provider:
         roleArn: $ROLEARN
 ```
 
+### Utilizing Google Managed Prometheus
+
+Google Managed Prometheus can be used as the data source for analysis.
+When supplying an address beginning with `https://monitoring.googleapis.com/` the provider enables authentication to Google Managed Prometheus.
+
+In order to authenticate to Google Managed Prometheus, the Argo Rollouts service account must have the `roles/monitoring.viewer` role.
+The provider uses [Workload Identity Federation for GKE](https://cloud.google.com/kubernetes-engine/docs/concepts/workload-identity)
+to authenticate to Google cloud services.
+
+```yaml
+provider:
+  prometheus:
+    address: https://monitoring.googleapis.com/v1/projects/$PROJECT_ID/location/global/prometheus/
+    query: vector(1)
+```
+
 ### With OAuth2
 
 You can setup an [OAuth2 client credential](https://datatracker.ietf.org/doc/html/rfc6749#section-4.4) flow using the following values:

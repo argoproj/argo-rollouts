@@ -20,6 +20,9 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 
+	"google.golang.org/api/option"
+	gcphttp "google.golang.org/api/transport/http"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
@@ -275,6 +278,19 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 			return nil, err
 		}
 		roundTripper = sigv4RoundTripper
+	}
+
+	// Authenticate with Google API client when Prometheus address is Google Managed Prometheus.
+	if strings.HasPrefix(metric.Provider.Prometheus.Address, "https://monitoring.googleapis.com/") {
+		opts := []option.ClientOption{
+			option.WithScopes("https://www.googleapis.com/auth/monitoring.read"),
+		}
+
+		transport, err := gcphttp.NewTransport(context.Background(), http.DefaultTransport, opts...)
+		if err != nil {
+			return nil, err
+		}
+		roundTripper = transport
 	}
 
 	httpClient := &http.Client{
