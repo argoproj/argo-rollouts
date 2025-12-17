@@ -1688,3 +1688,141 @@ func TestDynamicScalingAbortWithZeroReplicas(t *testing.T) {
 	// This should not panic or cause division by zero
 	f.run(getKey(r1, t))
 }
+
+// TestNewRolloutResetsWeightBeforeUpdatingHash verifies that when a new rollout is triggered
+// while one is already in progress with canary weight > 0, the VirtualService weight is reset
+// to 0 BEFORE the DestinationRule subsets are updated to point to the new canary.
+//
+// This is critical because if the order is reversed (hash updated first, then weight reset),
+// there's a window where traffic is routed to a canary subset that points to pods that don't
+// exist yet (or have 0 replicas).
+//
+// Scenario from production logs showing the problematic order:
+//
+//	10:11:25.678 - Created ReplicaSet myservice-5c88b7f59c
+//	10:11:25.912 - DestinationRule myservice subset updated (canary: 5c88b7f59c, stable: cff675f55)
+//	10:11:25.921 - VirtualService `myservice` set to desiredWeight '0'
+//	10:11:25.939 - Traffic weight updated from 5 to 0
+//
+// The correct order should be:
+//  1. SetWeight to 0 (stop sending traffic to canary subset)
+//  2. UpdateHash (update DestinationRule to point to new canary pods)
+//  3. Scale up new canary pods
+//  4. SetWeight to desired canary weight
+func TestNewRolloutResetsWeightBeforeUpdatingHash(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](5)},
+		{Pause: &v1alpha1.RolloutPause{}},
+		{SetWeight: ptr.To[int32](50)},
+		{Pause: &v1alpha1.RolloutPause{}},
+	}
+
+	// r1 is the stable version
+	r1 := newCanaryRollout("myservice", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		// Use a generic traffic routing config (SMI) that uses the mock reconciler
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.CanaryService = "myservice-canary"
+	r1.Spec.Strategy.Canary.StableService = "myservice-stable"
+
+	// r2 is the "previous canary" - rollout in progress at 5% weight
+	r2 := bumpVersion(r1)
+
+	// r3 is the "new canary" - just triggered, should reset to 0%
+	r3 := bumpVersion(r2)
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10) // stable - fully available
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)   // previous canary - 1 replica at 5%
+	rs3 := newReplicaSetWithStatus(r3, 0, 0)   // new canary - 0 replicas (just created)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs3PodHash := rs3.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("myservice-canary", 80, canarySelector, r3)
+	stableSvc := newService("myservice-stable", 80, stableSelector, r3)
+
+	// Status reflects the previous rollout was in progress at 5% weight
+	r3.Status.StableRS = rs1PodHash
+	r3.Status.CurrentPodHash = rs3PodHash
+	r3.Status.CurrentStepIndex = ptr.To[int32](0) // Reset to beginning
+	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			Weight:          5, // Previous canary weight - this is the bug scenario
+			ServiceName:     "myservice-canary",
+			PodTemplateHash: rs2PodHash, // Still pointing to previous canary!
+		},
+		Stable: v1alpha1.WeightDestination{
+			Weight:          95,
+			ServiceName:     "myservice-stable",
+			PodTemplateHash: rs1PodHash,
+		},
+	}
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.rolloutLister = append(f.rolloutLister, r3)
+	f.objects = append(f.objects, r3)
+
+	// Track the order of operations
+	var operationOrder []string
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(func(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+		operationOrder = append(operationOrder, fmt.Sprintf("UpdateHash(canary=%s)", canaryHash))
+		t.Logf("UpdateHash called: canary=%s, stable=%s", canaryHash, stableHash)
+		return nil
+	})
+
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+		operationOrder = append(operationOrder, fmt.Sprintf("SetWeight(%d)", desiredWeight))
+		t.Logf("SetWeight called: weight=%d", desiredWeight)
+		return nil
+	})
+
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+
+	f.expectPatchRolloutAction(r3)
+	f.expectUpdateReplicaSetAction(rs3) // Scale up new canary
+	f.run(getKey(r3, t))
+
+	t.Logf("Operation order: %v", operationOrder)
+	t.Logf("New canary hash: %s, Previous canary hash: %s", rs3PodHash, rs2PodHash)
+
+	// Find the indices of the key operations (first occurrence of each)
+	firstSetWeightZeroIndex := -1
+	updateHashNewCanaryIndex := -1
+
+	for i, op := range operationOrder {
+		if op == "SetWeight(0)" && firstSetWeightZeroIndex == -1 {
+			firstSetWeightZeroIndex = i
+		}
+		if op == fmt.Sprintf("UpdateHash(canary=%s)", rs3PodHash) && updateHashNewCanaryIndex == -1 {
+			updateHashNewCanaryIndex = i
+		}
+	}
+
+	// CRITICAL ASSERTION: SetWeight(0) must happen BEFORE UpdateHash with new canary
+	// If UpdateHash happens first, there's a window where 5% of traffic goes to
+	// a canary subset pointing to pods that don't exist yet.
+	// Note: SetWeight is idempotent, so it may be called multiple times (before and after UpdateHash).
+	assert.NotEqual(t, -1, firstSetWeightZeroIndex,
+		"SetWeight(0) should have been called to reset traffic before updating hash")
+	assert.NotEqual(t, -1, updateHashNewCanaryIndex,
+		"UpdateHash with new canary hash should have been called")
+
+	if firstSetWeightZeroIndex != -1 && updateHashNewCanaryIndex != -1 {
+		assert.Less(t, firstSetWeightZeroIndex, updateHashNewCanaryIndex,
+			"SetWeight(0) must be called BEFORE UpdateHash with new canary hash to avoid "+
+				"routing traffic to non-existent pods. Current order: %v", operationOrder)
+	}
+}
