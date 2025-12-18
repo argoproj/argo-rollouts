@@ -416,29 +416,35 @@ func getIstioDestinationRuleSpec(ro *v1alpha1.Rollout) *v1alpha1.IstioDestinatio
 	return ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
 }
 
+// subsetReferencesHash checks if a single subset's labels contain the given pod template hash.
+func subsetReferencesHash(subset map[string]interface{}, rsPodHash string) bool {
+	labels, found, err := unstructured.NestedStringMap(subset, "labels")
+	if err != nil || !found {
+		return false
+	}
+	hash, ok := labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	return ok && hash == rsPodHash
+}
+
 // isReplicaSetReferencedByIstioDestinationRule checks if the given pod template hash is still
 // referenced by any subset in the Istio DestinationRule. This prevents scaling down a ReplicaSet
 // that is still receiving traffic via Istio subset-level routing.
 func (c *rolloutContext) isReplicaSetReferencedByIstioDestinationRule(rsPodHash string) bool {
 	dRuleSpec := getIstioDestinationRuleSpec(c.rollout)
-	if dRuleSpec == nil {
+	if dRuleSpec == nil || c.IstioController == nil || c.IstioController.DestinationRuleLister == nil {
 		return false
 	}
 
-	if c.IstioController == nil || c.IstioController.DestinationRuleLister == nil {
-		return false
-	}
 	dRuleUn, err := c.IstioController.DestinationRuleLister.Namespace(c.rollout.Namespace).Get(dRuleSpec.Name)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return false
 		}
-		// If we can't get the DestinationRule, err on the side of caution
+		// For unexpected errors, err on the side of caution and assume it's still referenced.
 		c.log.Warnf("Failed to get DestinationRule %s: %v", dRuleSpec.Name, err)
 		return true
 	}
 
-	// Extract subsets from the DestinationRule
 	subsets, found, err := unstructured.NestedSlice(dRuleUn.UnstructuredContent(), "spec", "subsets")
 	if err != nil || !found {
 		return false
@@ -446,18 +452,10 @@ func (c *rolloutContext) isReplicaSetReferencedByIstioDestinationRule(rsPodHash 
 
 	for _, subsetObj := range subsets {
 		subset, ok := subsetObj.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		labels, found, err := unstructured.NestedStringMap(subset, "labels")
-		if err != nil || !found {
-			continue
-		}
-		if hash, ok := labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok && hash == rsPodHash {
+		if ok && subsetReferencesHash(subset, rsPodHash) {
 			c.log.Infof("ReplicaSet with hash %s is still referenced by DestinationRule %s", rsPodHash, dRuleSpec.Name)
 			return true
 		}
 	}
-
 	return false
 }
