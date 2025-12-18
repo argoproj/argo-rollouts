@@ -1710,6 +1710,11 @@ func TestDynamicScalingAbortWithZeroReplicas(t *testing.T) {
 //  3. Scale up new canary pods
 //  4. SetWeight to desired canary weight
 func TestNewRolloutResetsWeightBeforeUpdatingHash(t *testing.T) {
+	const (
+		canaryService = "myservice-canary"
+		stableService = "myservice-stable"
+	)
+
 	f := newFixture(t)
 	defer f.Close()
 
@@ -1726,8 +1731,8 @@ func TestNewRolloutResetsWeightBeforeUpdatingHash(t *testing.T) {
 		// Use a generic traffic routing config (SMI) that uses the mock reconciler
 		SMI: &v1alpha1.SMITrafficRouting{},
 	}
-	r1.Spec.Strategy.Canary.CanaryService = "myservice-canary"
-	r1.Spec.Strategy.Canary.StableService = "myservice-stable"
+	r1.Spec.Strategy.Canary.CanaryService = canaryService
+	r1.Spec.Strategy.Canary.StableService = stableService
 
 	// r2 is the "previous canary" - rollout in progress at 5% weight
 	r2 := bumpVersion(r1)
@@ -1745,8 +1750,8 @@ func TestNewRolloutResetsWeightBeforeUpdatingHash(t *testing.T) {
 
 	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}
 	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
-	canarySvc := newService("myservice-canary", 80, canarySelector, r3)
-	stableSvc := newService("myservice-stable", 80, stableSelector, r3)
+	canarySvc := newService(canaryService, 80, canarySelector, r3)
+	stableSvc := newService(stableService, 80, stableSelector, r3)
 
 	// Status reflects the previous rollout was in progress at 5% weight
 	r3.Status.StableRS = rs1PodHash
@@ -1755,12 +1760,12 @@ func TestNewRolloutResetsWeightBeforeUpdatingHash(t *testing.T) {
 	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
 		Canary: v1alpha1.WeightDestination{
 			Weight:          5, // Previous canary weight - this is the bug scenario
-			ServiceName:     "myservice-canary",
+			ServiceName:     canaryService,
 			PodTemplateHash: rs2PodHash, // Still pointing to previous canary!
 		},
 		Stable: v1alpha1.WeightDestination{
 			Weight:          95,
-			ServiceName:     "myservice-stable",
+			ServiceName:     stableService,
 			PodTemplateHash: rs1PodHash,
 		},
 	}
@@ -1824,5 +1829,93 @@ func TestNewRolloutResetsWeightBeforeUpdatingHash(t *testing.T) {
 		assert.Less(t, firstSetWeightZeroIndex, updateHashNewCanaryIndex,
 			"SetWeight(0) must be called BEFORE UpdateHash with new canary hash to avoid "+
 				"routing traffic to non-existent pods. Current order: %v", operationOrder)
+	}
+}
+
+// TestTrafficRoutingErrorsWhenNewCanaryHasNoReplicas verifies that errors from
+// SetWeight and RemoveManagedRoutes are properly propagated when the new canary
+// has no available replicas.
+func TestTrafficRoutingErrorsWhenNewCanaryHasNoReplicas(t *testing.T) {
+	const (
+		canaryService = "myservice-canary"
+		stableService = "myservice-stable"
+	)
+
+	tests := []struct {
+		name                   string
+		previousCanaryWeights  *v1alpha1.TrafficWeights
+		setWeightErr           error
+		removeManagedRoutesErr error
+		expectedCall           string
+	}{
+		{
+			name: "SetWeight error when resetting canary weight",
+			previousCanaryWeights: &v1alpha1.TrafficWeights{
+				Canary: v1alpha1.WeightDestination{Weight: 5, ServiceName: canaryService, PodTemplateHash: "oldcanary"},
+				Stable: v1alpha1.WeightDestination{Weight: 95, ServiceName: stableService},
+			},
+			setWeightErr:           fmt.Errorf("failed to set weight: connection refused"),
+			removeManagedRoutesErr: nil,
+			expectedCall:           "SetWeight",
+		},
+		{
+			name:                   "RemoveManagedRoutes error",
+			previousCanaryWeights:  nil,
+			setWeightErr:           nil,
+			removeManagedRoutesErr: fmt.Errorf("failed to remove managed routes: API server unavailable"),
+			expectedCall:           "RemoveManagedRoutes",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			steps := []v1alpha1.CanaryStep{
+				{SetWeight: ptr.To[int32](5)},
+				{Pause: &v1alpha1.RolloutPause{}},
+			}
+
+			r1 := newCanaryRollout("myservice", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+			r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+				SMI: &v1alpha1.SMITrafficRouting{},
+			}
+			r1.Spec.Strategy.Canary.CanaryService = canaryService
+			r1.Spec.Strategy.Canary.StableService = stableService
+
+			r2 := bumpVersion(r1)
+
+			rs1 := newReplicaSetWithStatus(r1, 10, 10)
+			rs2 := newReplicaSetWithStatus(r2, 0, 0) // New canary with 0 replicas
+
+			rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+			canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+			stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+			canarySvc := newService(canaryService, 80, canarySelector, r2)
+			stableSvc := newService(stableService, 80, stableSelector, r2)
+
+			r2.Status.StableRS = rs1PodHash
+			r2.Status.CurrentPodHash = rs2PodHash
+			r2.Status.CurrentStepIndex = ptr.To[int32](0)
+			r2.Status.Canary.Weights = tc.previousCanaryWeights
+
+			f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+			f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+			f.rolloutLister = append(f.rolloutLister, r2)
+			f.objects = append(f.objects, r2)
+
+			f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+			f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(tc.setWeightErr)
+			f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+			f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(tc.removeManagedRoutesErr)
+			f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+
+			f.runExpectError(getKey(r2, t), true)
+
+			f.fakeTrafficRouting.AssertCalled(t, tc.expectedCall, mock.Anything, mock.Anything)
+		})
 	}
 }
