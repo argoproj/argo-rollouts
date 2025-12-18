@@ -590,6 +590,8 @@ func TestIsReplicaSetReferenced(t *testing.T) {
 }
 
 func TestIsReplicaSetReferencedByIstioDestinationRule(t *testing.T) {
+	const testDestRuleName = "test-destrule"
+
 	newRSWithPodTemplateHash := func(hash string) *appsv1.ReplicaSet {
 		return &appsv1.ReplicaSet{
 			ObjectMeta: metav1.ObjectMeta{
@@ -686,47 +688,47 @@ spec:
 		},
 		{
 			name:            "destination rule references hash - should return true",
-			rollout:         newRolloutWithIstioDestinationRule("test-destrule"),
-			destinationRule: newDestinationRuleYAML("test-destrule", "abc123", "def456"),
+			rollout:         newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "abc123", "def456"),
 			rsHash:          "abc123",
 			expectedResult:  true,
 		},
 		{
 			name:            "destination rule does not reference hash - should return false",
-			rollout:         newRolloutWithIstioDestinationRule("test-destrule"),
-			destinationRule: newDestinationRuleYAML("test-destrule", "abc123", "def456"),
+			rollout:         newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "abc123", "def456"),
 			rsHash:          "xyz789",
 			expectedResult:  false,
 		},
 		{
 			name:            "destination rule not found - should return false",
 			rollout:         newRolloutWithIstioDestinationRule("non-existent-destrule"),
-			destinationRule: newDestinationRuleYAML("test-destrule", "abc123", "def456"),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "abc123", "def456"),
 			rsHash:          "abc123",
 			expectedResult:  false,
 		},
 		{
 			name:              "no istio controller - should return false",
-			rollout:           newRolloutWithIstioDestinationRule("test-destrule"),
+			rollout:           newRolloutWithIstioDestinationRule(testDestRuleName),
 			noIstioController: true,
 			rsHash:            "abc123",
 			expectedResult:    false,
 		},
 		{
 			name:            "canary subset references hash - should return true",
-			rollout:         newRolloutWithIstioDestinationRule("test-destrule"),
-			destinationRule: newDestinationRuleYAML("test-destrule", "stable-hash", "canary-hash"),
+			rollout:         newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "stable-hash", "canary-hash"),
 			rsHash:          "canary-hash",
 			expectedResult:  true,
 		},
 		{
 			name:    "destination rule with no subsets - should return false",
-			rollout: newRolloutWithIstioDestinationRule("test-destrule"),
+			rollout: newRolloutWithIstioDestinationRule(testDestRuleName),
 			destinationRule: `
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
-  name: test-destrule
+  name: ` + testDestRuleName + `
   namespace: default
 spec:
   host: test-service
@@ -736,12 +738,12 @@ spec:
 		},
 		{
 			name:    "destination rule with subset missing labels - should return false",
-			rollout: newRolloutWithIstioDestinationRule("test-destrule"),
+			rollout: newRolloutWithIstioDestinationRule(testDestRuleName),
 			destinationRule: `
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
-  name: test-destrule
+  name: ` + testDestRuleName + `
   namespace: default
 spec:
   host: test-service
