@@ -132,4 +132,15 @@ spec:
         name: argo-rollouts-dashboard
         ports:
         - containerPort: 3100
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          runAsUser: 1000
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
       serviceAccountName: argo-rollouts-dashboard
