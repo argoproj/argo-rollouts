@@ -43,11 +43,11 @@ func (m *mockAPI) DeleteSeries(ctx context.Context, matches []string, startTime 
 	panic("Not used")
 }
 
-func (m *mockAPI) LabelNames(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) ([]string, v1.Warnings, error) {
+func (m *mockAPI) LabelNames(ctx context.Context, matches []string, startTime time.Time, endTime time.Time, _ ...v1.Option) ([]string, v1.Warnings, error) {
 	panic("Not used")
 }
 
-func (m *mockAPI) LabelValues(ctx context.Context, label string, matches []string, startTime time.Time, endTime time.Time) (model.LabelValues, v1.Warnings, error) {
+func (m *mockAPI) LabelValues(ctx context.Context, label string, matches []string, startTime time.Time, endTime time.Time, _ ...v1.Option) (model.LabelValues, v1.Warnings, error) {
 	panic("Not used")
 }
 
@@ -61,7 +61,7 @@ func (m *mockAPI) QueryRange(ctx context.Context, query string, r v1.Range, opt 
 	return m.value, m.warnings, nil
 }
 
-func (m *mockAPI) Series(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) ([]model.LabelSet, v1.Warnings, error) {
+func (m *mockAPI) Series(ctx context.Context, matches []string, startTime time.Time, endTime time.Time, _ ...v1.Option) ([]model.LabelSet, v1.Warnings, error) {
 	panic("Not used")
 }
 
@@ -101,7 +101,7 @@ func (m *mockAPI) Runtimeinfo(ctx context.Context) (v1.RuntimeinfoResult, error)
 	panic("Not used")
 }
 
-func (m *mockAPI) TSDB(ctx context.Context) (v1.TSDBResult, error) {
+func (m *mockAPI) TSDB(ctx context.Context, _ ...v1.Option) (v1.TSDBResult, error) {
 	panic("Not used")
 }
 

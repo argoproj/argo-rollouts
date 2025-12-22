@@ -137,6 +137,8 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	return nil, nil
 }
 
+// checkReplicasAvailable checks if the given replicaset has enough available replicas
+// for the desiredWeight taking into consideration replicaProgressThreshold.
 func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWeight int32) bool {
 	if rs == nil {
 		return false
@@ -145,7 +147,8 @@ func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWe
 	totalReplicas := *c.rollout.Spec.Replicas
 
 	desiredReplicas := (desiredWeight * totalReplicas) / 100
-	if availableReplicas < desiredReplicas {
+	if availableReplicas < desiredReplicas &&
+		!replicasetutil.ReplicaProgressThresholdMet(c.rollout.Spec.Strategy.Canary.ReplicaProgressThreshold, rs, desiredReplicas) {
 		c.log.Infof("ReplicaSet '%s' has %d available replicas, waiting for %d", rs.Name, availableReplicas, desiredReplicas)
 		return false
 	}
@@ -265,6 +268,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			}
 		}
 
+		// check if the stable RS has enough pods before recalculating the new
+		// weight status.
 		if !c.checkReplicasAvailable(c.stableRS, weightutil.MaxTrafficWeight(c.rollout)-desiredWeight) {
 			return nil
 		}
@@ -339,21 +344,40 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 // calculateDesiredWeightOnAbortOrStableRollback returns the desired weight to use when we are either
 // aborting, or rolling back to stable RS.
 func (c *rolloutContext) calculateDesiredWeightOnAbortOrStableRollback() int32 {
-	if !c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-		// When aborting or rolling back to stable RS and dynamicStableScaling is disabled,
-		// then desired canary weight should immediately be 0 (100% to stable) since we can trust
-		// that it is fully scaled up
+	// Safety checks and early returns for immediate rollback scenarios
+	if !c.rollout.Spec.Strategy.Canary.DynamicStableScale ||
+		c.stableRS == nil || c.newRS == nil ||
+		c.rollout.Spec.Replicas == nil || *c.rollout.Spec.Replicas == 0 {
 		return 0
 	}
-	// When using dynamic stable scaling, we must dynamically decreasing the weight to the canary
-	// according to the availability of the stable (whatever it can support).
-	desiredWeight := maxInt(0, weightutil.MaxTrafficWeight(c.rollout)-((weightutil.MaxTrafficWeight(c.rollout)*c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas))
-	if c.rollout.Status.Canary.Weights != nil {
+
+	maxWeight := weightutil.MaxTrafficWeight(c.rollout)
+	// On rollback with .DynamicStableScale, we roll back based on step weights in reverse order
+	// therefore we need to scale based on canary availability
+	desiredCanaryWeight := replicasetutil.GetDesiredCanaryWeight(c.rollout, c.newRS, c.stableRS)
+	// canary weight computed based on available stable replicas
+	expectedCanaryWeight := maxInt(0, maxWeight-((maxWeight*c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas))
+	if c.rollout.Status.Canary.Weights == nil {
+		return maxInt(expectedCanaryWeight, desiredCanaryWeight)
+	}
+
+	currentCanaryWeight := c.rollout.Status.Canary.Weights.Canary.Weight
+	if desiredCanaryWeight <= 0 {
 		// This ensures that if we are already at a lower weight, then we will not
 		// increase the weight because stable availability is flapping (e.g. pod restarts)
-		desiredWeight = minInt(desiredWeight, c.rollout.Status.Canary.Weights.Canary.Weight)
+		return minInt(expectedCanaryWeight, currentCanaryWeight)
 	}
-	return desiredWeight
+
+	// this logic __heavily__ relies on the fact that CalculateReplicaCountsForTrafficRoutedCanary.
+	// Controller will scale canary down only if weight is shifted to primary,
+	// therefore we can safely delay shifting weight to primary until enough of them are available.
+	currentStableReplicasWeight := (maxWeight * c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+	if desiredCanaryWeight > 0 && currentStableReplicasWeight < (maxWeight-desiredCanaryWeight) {
+		// Current stable is still scalingUp, keep canary weight as is
+		return currentCanaryWeight
+	}
+
+	return minInt(desiredCanaryWeight, currentCanaryWeight)
 }
 
 // trafficWeightUpdatedMessage returns a message we emit for the kubernetes event whenever we adjust traffic weights

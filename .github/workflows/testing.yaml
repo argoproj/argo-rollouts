@@ -13,7 +13,7 @@ on:
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.23'
+  GOLANG_VERSION: '1.24'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Event File
           path: ${{ github.event_path }}
@@ -37,13 +37,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.4.0
+        uses: actions/setup-go@v6.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Restore go build cache
         uses: actions/cache@v4
@@ -59,13 +59,13 @@ jobs:
 
       - name: Upload Unit Test Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Unit Test Results
           path: |
             junit-unit-test.xml
       - name: Generate code coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-output-unit
           path: coverage-output-unit
@@ -75,22 +75,22 @@ jobs:
       fail-fast: false
       matrix:
         kubernetes:
-          - version: '1.28'
-            latest: false
-          - version: '1.29'
-            latest: false
-          - version: '1.30'
-            latest: false
           - version: '1.31'
+            latest: false
+          - version: '1.32'
+            latest: false
+          - version: '1.33'
+            latest: false
+          - version: '1.34'
             latest: true
     name: Run end-to-end tests
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.4.0
+        uses: actions/setup-go@v6.0.0
         with:
-          go-version: '1.23'
-      - uses: actions/checkout@v4
+          go-version: '1.24'
+      - uses: actions/checkout@v6
       - name: Setup k3s
         env:
           INSTALL_K3S_CHANNEL: v${{ matrix.kubernetes.version }}
@@ -132,19 +132,19 @@ jobs:
           [[ -f rerunreport.txt ]] && cat rerunreport.txt || echo "No rerun report found"
       - name: Upload E2E Test Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: E2E Test Results (k8s ${{ matrix.kubernetes.version }})
           path: |
             junit-e2e-test.xml
       - name: Upload e2e-controller logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: e2e-controller-k8s-${{ matrix.kubernetes.version }}.log
           path: /tmp/e2e-controller.log
         if: ${{ always() }}
       - name: Upload code coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-output-e2e
           path: coverage-output-e2e
@@ -158,18 +158,18 @@ jobs:
       - test-e2e
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.4.0
+        uses: actions/setup-go@v6.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Get e2e code coverage
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: coverage-output-e2e
           path: coverage-output-e2e
       - name: Get unit test code coverage
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: coverage-output-unit
           path: coverage-output-unit
@@ -177,9 +177,9 @@ jobs:
         run: |
           go tool covdata textfmt -i=coverage-output-unit/,coverage-output-e2e/ -o full-coverage.out
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:
-          file: full-coverage.out
+          files: full-coverage.out
           fail_ci_if_error: false
           codecov_yml_path: .codecov.yml
           disable_search: true

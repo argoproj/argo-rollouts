@@ -587,13 +587,19 @@ type RolloutExperimentStepAnalysisTemplateRef struct {
 	TemplateName string `json:"templateName" protobuf:"bytes,2,opt,name=templateName"`
 	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
-	ClusterScope bool `json:"clusterScope,omitempty" protobuf:"varint,3,opt,name=clusterScope"`
+	ClusterScope *bool `json:"clusterScope,omitempty" protobuf:"varint,3,opt,name=clusterScope"`
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
 	// +patchStrategy=merge
 	Args []AnalysisRunArgument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,4,rep,name=args"`
 	// RequiredForCompletion blocks the Experiment from completing until the analysis has completed
 	RequiredForCompletion bool `json:"requiredForCompletion,omitempty" protobuf:"varint,5,opt,name=requiredForCompletion"`
+}
+
+// IsClusterScope returns true if the template should be looked up at cluster scope.
+// Defaults to false (namespace scope) if ClusterScope is nil.
+func (ref *RolloutExperimentStepAnalysisTemplateRef) IsClusterScope() bool {
+	return ref.ClusterScope != nil && *ref.ClusterScope
 }
 
 // RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step
@@ -778,7 +784,7 @@ type RolloutAnalysis struct {
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
 	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
 	// +optional
-	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
+	AnalysisRunMetadata *AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
 }
 
 type AnalysisTemplateRef struct {
@@ -787,7 +793,13 @@ type AnalysisTemplateRef struct {
 	TemplateName string `json:"templateName" protobuf:"bytes,1,opt,name=templateName"`
 	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
-	ClusterScope bool `json:"clusterScope,omitempty" protobuf:"varint,2,opt,name=clusterScope"`
+	ClusterScope *bool `json:"clusterScope,omitempty" protobuf:"varint,2,opt,name=clusterScope"`
+}
+
+// IsClusterScope returns true if the template should be looked up at cluster scope.
+// Defaults to false (namespace scope) if ClusterScope is nil.
+func (ref *AnalysisTemplateRef) IsClusterScope() bool {
+	return ref.ClusterScope != nil && *ref.ClusterScope
 }
 
 // AnalysisRunArgument argument to add to analysisRun

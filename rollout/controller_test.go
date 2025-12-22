@@ -322,7 +322,11 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 	}
 
 	if optionalMessage != "" {
-		msg = optionalMessage
+		if msg != "" {
+			msg += ": " + optionalMessage
+		} else {
+			msg = optionalMessage
+		}
 	}
 
 	condition := v1alpha1.RolloutCondition{
@@ -620,6 +624,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Recorder:                        record.NewFakeEventRecorder(),
 		RefResolver:                     &FakeWorkloadRefResolver{},
 		EphemeralMetadataThreads:        DefaultEphemeralMetadataThreads,
+		EphemeralMetadataPodRetries:     DefaultEphemeralMetadataPodRetries,
 	})
 
 	c.enqueueRollout = func(obj any) {
@@ -1457,7 +1462,7 @@ func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedReplicaSetName to match the new hash.
-	expectedReplicaSetName := "guestbook-6c5667f666"
+	expectedReplicaSetName := "guestbook-6f496f9f78"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
@@ -1682,7 +1687,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 	rolloutAnalysisFail := v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: "does-not-exist",
-			ClusterScope: false,
+			ClusterScope: ptr.To(false),
 		}},
 	}
 
@@ -1774,7 +1779,7 @@ func TestGetReferencedClusterAnalysisTemplate(t *testing.T) {
 	roAnalysisTemplate := &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: "cluster-analysis-template-name",
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		}},
 	}
 	activeSvc := newService("active-service", 80, nil, r)
@@ -1810,7 +1815,7 @@ func TestGetInnerReferencedAnalysisTemplate(t *testing.T) {
 	roAnalysisTemplate := &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: "first-cluster-analysis-template-name",
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		}},
 	}
 	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplateWithAnalysisRefs("first-cluster-analysis-template-name", "second-cluster-analysis-template-name", "third-cluster-analysis-template-name"))

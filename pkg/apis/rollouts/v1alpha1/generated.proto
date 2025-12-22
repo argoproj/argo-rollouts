@@ -78,7 +78,7 @@ message AmbassadorTrafficRouting {
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="AnalysisRun status"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time since resource was created"
 message AnalysisRun {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   optional AnalysisRunSpec spec = 2;
 
@@ -100,7 +100,7 @@ message AnalysisRunArgument {
 // AnalysisRunList is a list of AnalysisTemplate resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message AnalysisRunList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated AnalysisRun items = 2;
 }
@@ -161,7 +161,7 @@ message AnalysisRunStatus {
   repeated MetricResult metricResults = 3;
 
   // StartedAt indicates when the analysisRun first started
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 4;
 
   // RunSummary contains the final results from the metric executions
   optional RunSummary runSummary = 5;
@@ -170,7 +170,7 @@ message AnalysisRunStatus {
   optional RunSummary dryRunSummary = 6;
 
   // CompletedAt indicates when the analysisRun completed
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time completedAt = 7;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time completedAt = 7;
 }
 
 // AnalysisRunStrategy configuration for the analysis runs and experiments to retain
@@ -189,7 +189,7 @@ message AnalysisRunStrategy {
 // +kubebuilder:resource:path=analysistemplates,shortName=at
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time since resource was created"
 message AnalysisTemplate {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   optional AnalysisTemplateSpec spec = 2;
 }
@@ -197,7 +197,7 @@ message AnalysisTemplate {
 // AnalysisTemplateList is a list of AnalysisTemplate resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message AnalysisTemplateList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated AnalysisTemplate items = 2;
 }
@@ -393,7 +393,7 @@ message BlueGreenStrategy {
   // MaxUnavailable The maximum number of pods that can be unavailable during a restart operation.
   // Defaults to 25% of total replicas.
   // +optional
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUnavailable = 6;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUnavailable = 6;
 
   // ScaleDownDelaySeconds adds a delay before scaling down the previous replicaset.
   // If omitted, the Rollout waits 30 seconds before scaling down the previous ReplicaSet.
@@ -513,7 +513,7 @@ message CanaryStrategy {
   // that at least 70% of original number of pods are available at all times
   // during the update.
   // +optional
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUnavailable = 5;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUnavailable = 5;
 
   // MaxSurge The maximum number of pods that can be scheduled above the original number of
   // pods.
@@ -526,7 +526,7 @@ message CanaryStrategy {
   // new RC can be scaled up further, ensuring that total number of pods running
   // at any time during the update is at most 130% of original pods.
   // +optional
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString maxSurge = 6;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString maxSurge = 6;
 
   // Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet
   optional RolloutAnalysisBackground analysis = 7;
@@ -598,7 +598,7 @@ message CloudWatchMetricDataQuery {
 
   optional CloudWatchMetricStat metricStat = 4;
 
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString period = 5;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString period = 5;
 
   optional bool returnData = 6;
 }
@@ -606,7 +606,7 @@ message CloudWatchMetricDataQuery {
 message CloudWatchMetricStat {
   optional CloudWatchMetricStatMetric metric = 1;
 
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString period = 2;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString period = 2;
 
   optional string stat = 3;
 
@@ -634,7 +634,7 @@ message CloudWatchMetricStatMetricDimension {
 // +kubebuilder:resource:path=clusteranalysistemplates,shortName=cat,scope=Cluster
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time since resource was created"
 message ClusterAnalysisTemplate {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   optional AnalysisTemplateSpec spec = 2;
 }
@@ -642,7 +642,7 @@ message ClusterAnalysisTemplate {
 // AnalysisTemplateList is a list of AnalysisTemplate resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message ClusterAnalysisTemplateList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated ClusterAnalysisTemplate items = 2;
 }
@@ -689,7 +689,7 @@ message DryRun {
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Experiment status"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time since resource was created"
 message Experiment {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   optional ExperimentSpec spec = 2;
 
@@ -740,10 +740,10 @@ message ExperimentCondition {
   optional string status = 2;
 
   // The last time this condition was updated.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastUpdateTime = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastUpdateTime = 3;
 
   // Last time the condition transitioned from one status to another.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 4;
 
   // The reason for the condition's last transition.
   optional string reason = 5;
@@ -754,7 +754,7 @@ message ExperimentCondition {
 
 // ExperimentList is a list of Experiment resources
 message ExperimentList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Experiment items = 2;
 }
@@ -829,7 +829,7 @@ message ExperimentStatus {
   // AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to
   // run for the duration of specificed in the spec.
   // +optional
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time availableAt = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time availableAt = 4;
 
   // Conditions a list of conditions a experiment can have.
   // +optional
@@ -916,9 +916,9 @@ message IstioVirtualService {
 
 // JobMetric defines a job to run which acts as a metric
 message JobMetric {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional k8s.io.api.batch.v1.JobSpec spec = 2;
+  optional .k8s.io.api.batch.v1.JobSpec spec = 2;
 }
 
 message KayentaMetric {
@@ -968,10 +968,10 @@ message Measurement {
   optional string message = 2;
 
   // StartedAt is the timestamp in which this measurement started to be measured
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 3;
 
   // FinishedAt is the timestamp in which this measurement completed and value was collected
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 4;
 
   // Value is the measured value of the metric
   optional string value = 5;
@@ -981,7 +981,7 @@ message Measurement {
   map<string, string> metadata = 6;
 
   // ResumeAt is the  timestamp when the analysisRun should try to resume the measurement
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time resumeAt = 7;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time resumeAt = 7;
 }
 
 // MeasurementRetention defines the settings for retaining the number of measurements during the analysis.
@@ -1008,7 +1008,7 @@ message Metric {
   // Count is the number of times to run the measurement. If both interval and count are omitted,
   // the effective count is 1. If only interval is specified, metric runs indefinitely.
   // If count > 1, interval must be specified.
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString count = 4;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString count = 4;
 
   // SuccessCondition is an expression which determines if a measurement is considered successful
   // Expression is a goevaluate expression. The keyword `result` is a variable reference to the
@@ -1026,22 +1026,22 @@ message Metric {
   // FailureLimit is the maximum number of times the measurement is allowed to fail, before the
   // entire metric is considered Failed (default: 0)
   // -1 for making it disabled (when opting to use ConsecutiveSuccessLimit solely)
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString failureLimit = 7;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString failureLimit = 7;
 
   // InconclusiveLimit is the maximum number of times the measurement is allowed to measure
   // Inconclusive, before the entire metric is considered Inconclusive (default: 0)
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString inconclusiveLimit = 8;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString inconclusiveLimit = 8;
 
   // ConsecutiveErrorLimit is the maximum number of times the measurement is allowed to error in
   // succession, before the metric is considered error (default: 4)
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString consecutiveErrorLimit = 9;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString consecutiveErrorLimit = 9;
 
   // Provider configuration to the external system to use to verify the analysis
   optional MetricProvider provider = 10;
 
   // ConsecutiveSuccessLimit is the number of consecutive times the measurement must succeed for the
   // entire metric to be considered Successful (default: 0, which means it's disabled)
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString consecutiveSuccessLimit = 11;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString consecutiveSuccessLimit = 11;
 }
 
 // MetricProvider which external system to use to verify the analysis
@@ -1202,7 +1202,7 @@ message ObjectRef {
 message PauseCondition {
   optional string reason = 1;
 
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startTime = 2;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startTime = 2;
 }
 
 // PingPongSpec holds the ping and pong service name.
@@ -1304,7 +1304,7 @@ message RollbackWindowSpec {
 
 // Rollout is a specification for a Rollout resource
 message Rollout {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   optional RolloutSpec spec = 2;
 
@@ -1366,10 +1366,10 @@ message RolloutCondition {
   optional string status = 2;
 
   // The last time this condition was updated.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastUpdateTime = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastUpdateTime = 3;
 
   // Last time the condition transitioned from one status to another.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 4;
 
   // The reason for the condition's last transition.
   optional string reason = 5;
@@ -1448,7 +1448,7 @@ message RolloutExperimentTemplate {
   // Selector overrides the selector to be used for the template's ReplicaSet. If omitted, will
   // use the same selector as the Rollout
   // +optional
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 5;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 5;
 
   // Weight sets the percentage of traffic the template's replicas should receive
   optional int32 weight = 6;
@@ -1459,7 +1459,7 @@ message RolloutExperimentTemplate {
 
 // RolloutList is a list of Rollout resources
 message RolloutList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Rollout items = 2;
 }
@@ -1468,7 +1468,7 @@ message RolloutList {
 message RolloutPause {
   // Duration the amount of time to wait before moving to the next step.
   // +optional
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString duration = 1;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString duration = 1;
 }
 
 // RolloutSpec is the spec for a Rollout resource
@@ -1483,11 +1483,11 @@ message RolloutSpec {
   // It must match the pod template's labels.
   // +optional
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message=".spec.selector is immutable"
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 2;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 2;
 
   // Template describes the pods that will be created.
   // +optional
-  optional k8s.io.api.core.v1.PodTemplateSpec template = 3;
+  optional .k8s.io.api.core.v1.PodTemplateSpec template = 3;
 
   // WorkloadRef holds a references to a workload that provides Pod template
   // +optional
@@ -1527,7 +1527,7 @@ message RolloutSpec {
   optional bool progressDeadlineAbort = 12;
 
   // RestartAt indicates when all the pods of a Rollout should be restarted
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time restartAt = 9;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time restartAt = 9;
 
   // Analysis configuration for the analysis runs to retain
   optional AnalysisRunStrategy analysis = 11;
@@ -1556,7 +1556,7 @@ message RolloutStatus {
   // the controller needs to do some specific work when a Rollout is aborted. For example, the reconcileAbort is used
   // to indicate if the Rollout should enter an aborted state when the latest AnalysisRun is a failure, or the controller
   // has already put the Rollout into an aborted and should create a new AnalysisRun.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time abortedAt = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time abortedAt = 4;
 
   // CurrentPodHash the hash of the current pod template
   // +optional
@@ -1623,7 +1623,7 @@ message RolloutStatus {
   optional string stableRS = 19;
 
   // RestartedAt indicates last time a Rollout was restarted
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time restartedAt = 20;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time restartedAt = 20;
 
   // PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses.
   optional bool promoteFull = 21;
@@ -1840,13 +1840,13 @@ message StepPluginStatus {
   optional string message = 5;
 
   // StartedAt indicates when the plugin was first called for the operation
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 6;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 6;
 
   // UpdatedAt indicates when the plugin was last called for the operation
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time updatedAt = 7;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time updatedAt = 7;
 
   // FinishedAt indicates when the operation was completed
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 8;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 8;
 
   // Backoff is a duration to wait before trying to execute the operation again if it was not completed
   optional string backoff = 9;
@@ -1932,10 +1932,10 @@ message TemplateSpec {
   // Label selector for pods. Existing ReplicaSets whose pods are
   // selected by this will be the ones affected by this experiment.
   // It must match the pod template's labels. Each selector must be unique to the other selectors in the other templates
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 4;
 
   // Template describes the pods that will be created.
-  optional k8s.io.api.core.v1.PodTemplateSpec template = 5;
+  optional .k8s.io.api.core.v1.PodTemplateSpec template = 5;
 
   // TemplateService describes how a service should be generated for template
   optional TemplateService service = 6;
@@ -1972,7 +1972,7 @@ message TemplateStatus {
 
   // LastTransitionTime is the last time the replicaset transitioned, which resets the countdown
   // on the ProgressDeadlineSeconds check.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 9;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 9;
 
   // ServiceName is the name of the service which corresponds to this experiment
   optional string serviceName = 10;

@@ -1,4 +1,6 @@
-# A web metric which uses the httpbin service as a metric provider
+# A web metric which uses Google Public DNS-over-HTTPS API (returns JSON)
+# The conditions check for values that won't match the actual response,
+# causing measurements to be inconclusive (neither success nor failure)
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -6,17 +8,13 @@ metadata:
 spec:
   args:
     - name: url-val
-      value: "https://httpbin.org/anything"
+      value: "https://dns.google/resolve?name=google.com"
   metrics:
     - name: web
-      interval: 7s
+      interval: 5s
       inconclusiveLimit: 3
-      successCondition: result.status == "success"
-      failureCondition: result.status == "failure"
+      successCondition: result.Status == 999
+      failureCondition: result.Status == -1
       provider:
         web:
           url: "{{args.url-val}}"
-          method: POST
-          jsonBody:
-            status: "inconclusive"
-          jsonPath: "{$.json}"
