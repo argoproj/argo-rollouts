@@ -230,10 +230,9 @@ pluginManager.RegisterPlugin("statefulset-plugin", statefulSetPlugin)
 ## Future Enhancements
 
 1. **Analysis Support**: Integration with Argo Rollouts Analysis for automated health checks
-2. **Blue-Green Strategy**: Support for blue-green deployments with StatefulSets
-3. **Custom Health Checks**: Plugin-specific readiness verification
-4. **External Plugin Support**: Load plugins from external URLs using HashiCorp go-plugin
-5. **Multi-Stage Rollouts**: Support for more complex rollout patterns
+2. **Custom Health Checks**: Plugin-specific readiness verification
+3. **External Plugin Support**: Load plugins from external URLs using HashiCorp go-plugin
+4. **Multi-Stage Rollouts**: Support for more complex rollout patterns
 
 ## References
 

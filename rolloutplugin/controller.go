@@ -7,7 +7,9 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,6 +30,22 @@ type RolloutPluginReconciler struct {
 	ArgoProjClientset clientset.Interface
 	DynamicClientset  dynamic.Interface
 	PluginManager     PluginManager
+	AnalysisHelper    AnalysisHelper
+}
+
+// AnalysisHelper is an interface for managing AnalysisRuns
+type AnalysisHelper interface {
+	// GetAnalysisRunsForOwner returns all AnalysisRuns owned by the specified resource
+	GetAnalysisRunsForOwner(ctx context.Context, ownerName string, namespace string, ownerUID types.UID, statusRefs []v1alpha1.RolloutAnalysisRunStatus) ([]*v1alpha1.AnalysisRun, error)
+
+	// CreateAnalysisRun creates a new AnalysisRun
+	CreateAnalysisRun(ctx context.Context, rolloutAnalysis *v1alpha1.RolloutAnalysis, args []v1alpha1.Argument, namespace string, podHash string, infix string, labels map[string]string, annotations map[string]string, ownerRef metav1.OwnerReference) (*v1alpha1.AnalysisRun, error)
+
+	// CancelAnalysisRuns cancels the specified AnalysisRuns
+	CancelAnalysisRuns(ctx context.Context, analysisRuns []*v1alpha1.AnalysisRun) error
+
+	// DeleteAnalysisRuns deletes AnalysisRuns based on label selector and history limit
+	DeleteAnalysisRuns(ctx context.Context, namespace string, selector labels.Selector, limit int) error
 }
 
 // PluginManager is an interface for managing plugins
@@ -188,8 +206,6 @@ func (r *RolloutPluginReconciler) processRollout(ctx context.Context, rolloutPlu
 	strategy := rolloutPlugin.Spec.Strategy
 	if strategy.Canary != nil {
 		return r.processCanaryRollout(ctx, rolloutPlugin, newStatus, plugin, workloadRef)
-	} else if strategy.BlueGreen != nil {
-		return r.processBlueGreenRollout(ctx, rolloutPlugin, newStatus, plugin, workloadRef)
 	}
 
 	logger := log.FromContext(ctx)
@@ -210,6 +226,28 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 		newStatus.Message = "No canary steps to execute"
 		newStatus.RolloutInProgress = false
 		return ctrl.Result{}, nil
+	}
+
+	// Reconcile analysis runs if AnalysisHelper is available
+	if r.AnalysisHelper != nil {
+		// Create a temporary rolloutPlugin with newStatus for analysis reconciliation
+		// This ensures reconcileAnalysisRuns sees the latest status including step index
+		rpWithNewStatus := rolloutPlugin.DeepCopy()
+		rpWithNewStatus.Status = *newStatus
+
+		allArs, err := r.getAnalysisRunsForRolloutPlugin(ctx, rpWithNewStatus)
+		if err != nil {
+			logger.Error(err, "Failed to get analysis runs")
+			return ctrl.Result{}, err
+		}
+		if err := r.reconcileAnalysisRuns(ctx, rpWithNewStatus, allArs); err != nil {
+			logger.Error(err, "Failed to reconcile analysis runs")
+			return ctrl.Result{}, err
+		}
+		// Copy analysis status from rpWithNewStatus back to newStatus
+		// reconcileAnalysisRuns updates rpWithNewStatus.Status directly
+		newStatus.Canary.CurrentBackgroundAnalysisRunStatus = rpWithNewStatus.Status.Canary.CurrentBackgroundAnalysisRunStatus
+		newStatus.Canary.CurrentStepAnalysisRunStatus = rpWithNewStatus.Status.Canary.CurrentStepAnalysisRunStatus
 	}
 
 	// Initialize step index if not set
@@ -273,6 +311,65 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 		return ctrl.Result{Requeue: true}, nil
 	}
 
+	// Handle analysis step
+	if currentStep.Analysis != nil {
+		logger.Info("Handling analysis step")
+
+		// Check if step analysis is running
+		if newStatus.Canary.CurrentStepAnalysisRunStatus == nil {
+			newStatus.Message = "Waiting for analysis to start"
+			// Requeue to check again after 2 seconds
+			return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
+		}
+
+		analysisStatus := newStatus.Canary.CurrentStepAnalysisRunStatus.Status
+		logger.Info("Step analysis status", "status", analysisStatus, "analysisRun", newStatus.Canary.CurrentStepAnalysisRunStatus.Name)
+
+		switch analysisStatus {
+		case v1alpha1.AnalysisPhaseSuccessful:
+			// Analysis completed successfully, move to next step
+			logger.Info("Step analysis completed successfully, moving to next step")
+			nextStep := currentStepIndex + 1
+			newStatus.CurrentStepIndex = &nextStep
+			newStatus.CurrentStepComplete = false
+			newStatus.Message = "Analysis successful"
+			// Requeue immediately to process next step
+			return ctrl.Result{Requeue: true}, nil
+
+		case v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError:
+			// Analysis failed, abort the rollout
+			logger.Error(nil, "Step analysis failed, aborting rollout")
+			newStatus.Phase = "Failed"
+			newStatus.Message = fmt.Sprintf("Analysis failed: %s", newStatus.Canary.CurrentStepAnalysisRunStatus.Name)
+			newStatus.RolloutInProgress = false
+			if err := plugin.Abort(ctx, workloadRef); err != nil {
+				logger.Error(err, "Failed to abort rollout")
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, nil
+
+		case v1alpha1.AnalysisPhaseInconclusive:
+			// Analysis is inconclusive, pause the rollout
+			logger.Info("Step analysis is inconclusive, pausing rollout")
+			newStatus.Paused = true
+			newStatus.Message = "Paused: Analysis inconclusive"
+			return ctrl.Result{}, nil
+
+		case v1alpha1.AnalysisPhaseRunning, v1alpha1.AnalysisPhasePending, "":
+			// Analysis is still running, wait
+			newStatus.Message = fmt.Sprintf("Running analysis: %s", newStatus.Canary.CurrentStepAnalysisRunStatus.Name)
+			logger.Info("Step analysis still running", "analysisRun", newStatus.Canary.CurrentStepAnalysisRunStatus.Name)
+			// Requeue to check again after 5 seconds
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+
+		default:
+			logger.Info("Unknown analysis status", "status", analysisStatus)
+			newStatus.Message = fmt.Sprintf("Unknown analysis status: %s", analysisStatus)
+			// Requeue to check again
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		}
+	}
+
 	// Handle pause step
 	if currentStep.Pause != nil {
 		logger.Info("Handling pause step", "pauseStartTime", newStatus.PauseStartTime)
@@ -321,18 +418,6 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 		logger.Info("Rollout is paused indefinitely, waiting for manual promotion")
 		return ctrl.Result{}, nil
 	}
-
-	return ctrl.Result{}, nil
-}
-
-// processBlueGreenRollout processes a blue/green rollout
-func (r *RolloutPluginReconciler) processBlueGreenRollout(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, workloadRef v1alpha1.WorkloadRef) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("Processing blue/green rollout")
-
-	// TODO: Implement blue/green rollout logic
-	newStatus.Phase = "Progressing"
-	newStatus.Message = "Blue/Green rollout not yet implemented"
 
 	return ctrl.Result{}, nil
 }

@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	"github.com/argoproj/argo-rollouts/rollout"
 	"github.com/argoproj/argo-rollouts/rolloutplugin"
+	analysishelper "github.com/argoproj/argo-rollouts/rolloutplugin/analysis"
 	pluginPackage "github.com/argoproj/argo-rollouts/rolloutplugin/plugin"
 	statefulset "github.com/argoproj/argo-rollouts/rolloutplugin/plugins/statefulset"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
@@ -319,6 +320,15 @@ func newCommand() *cobra.Command {
 			}
 			setupLog.Info("Registered StatefulSet plugin")
 
+			// Create analysis helper to enable RolloutPlugin controller to reuse AnalysisRun logic
+			// The helper uses listers from the informer-based controller manager
+			analysisHelper := analysishelper.NewHelper(
+				argoprojClient,
+				tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory).Lister(),
+				tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory).Lister(),
+				tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory).Lister(),
+			)
+
 			// Set up the RolloutPlugin controller
 			if err = (&rolloutplugin.RolloutPluginReconciler{
 				Client:            mgr.GetClient(),
@@ -327,6 +337,7 @@ func newCommand() *cobra.Command {
 				ArgoProjClientset: argoprojClient,
 				DynamicClientset:  dynamicClient,
 				PluginManager:     pluginManager,
+				AnalysisHelper:    analysisHelper,
 			}).SetupWithManager(mgr); err != nil {
 				return fmt.Errorf("failed to setup RolloutPlugin controller: %w", err)
 			}

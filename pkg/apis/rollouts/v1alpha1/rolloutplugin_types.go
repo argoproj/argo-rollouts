@@ -41,6 +41,10 @@ type RolloutPluginSpec struct {
 
 	// Strategy defines the deployment strategy (canary or blueGreen)
 	Strategy RolloutPluginStrategy `json:"strategy" protobuf:"bytes,3,opt,name=strategy"`
+
+	// Analysis configuration for the analysis runs to retain
+	// +optional
+	Analysis *AnalysisRunStrategy `json:"analysis,omitempty" protobuf:"bytes,4,opt,name=analysis"`
 }
 
 // WorkloadRef references a Kubernetes resource to be managed by the RolloutPlugin
@@ -163,6 +167,10 @@ type RolloutPluginStatus struct {
 	// AvailableReplicas is the number of replicas that are available
 	// +optional
 	AvailableReplicas int32 `json:"availableReplicas,omitempty" protobuf:"varint,18,opt,name=availableReplicas"`
+
+	// Canary-specific status fields for canary strategy
+	// +optional
+	Canary CanaryStatus `json:"canary,omitempty" protobuf:"bytes,19,opt,name=canary"`
 }
 
 // RolloutPluginCondition describes a condition of the RolloutPlugin

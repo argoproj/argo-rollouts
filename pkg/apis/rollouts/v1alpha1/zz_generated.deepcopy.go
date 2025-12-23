@@ -2524,6 +2524,11 @@ func (in *RolloutPluginSpec) DeepCopyInto(out *RolloutPluginSpec) {
 	out.WorkloadRef = in.WorkloadRef
 	in.Plugin.DeepCopyInto(&out.Plugin)
 	in.Strategy.DeepCopyInto(&out.Strategy)
+	if in.Analysis != nil {
+		in, out := &in.Analysis, &out.Analysis
+		*out = new(AnalysisRunStrategy)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -2563,6 +2568,7 @@ func (in *RolloutPluginStatus) DeepCopyInto(out *RolloutPluginStatus) {
 			(*out)[key] = val
 		}
 	}
+	in.Canary.DeepCopyInto(&out.Canary)
 	return
 }
 

@@ -25524,7 +25524,324 @@
             ]
         },
         "io.argoproj.v1alpha1.RolloutPlugin": {
-            "properties": {},
+            "properties": {
+                "spec": {
+                    "properties": {
+                        "strategy": {
+                            "properties": {
+                                "blueGreen": {
+                                    "properties": {
+                                        "postPromotionAnalysis": {
+                                            "properties": {
+                                                "args": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "value": {
+                                                                "type": "string"
+                                                            },
+                                                            "valueFrom": {
+                                                                "properties": {
+                                                                    "fieldRef": {
+                                                                        "properties": {
+                                                                            "fieldPath": {
+                                                                                "type": "string"
+                                                                            }
+                                                                        },
+                                                                        "required": [
+                                                                            "fieldPath"
+                                                                        ],
+                                                                        "type": "object"
+                                                                    },
+                                                                    "podTemplateHashValue": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "name",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "dryRun": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "measurementRetention": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "limit": {
+                                                                "format": "int32",
+                                                                "type": "integer"
+                                                            },
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "limit",
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "templates": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "clusterScope": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "templateName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "templateName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "prePromotionAnalysis": {
+                                            "properties": {
+                                                "args": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "value": {
+                                                                "type": "string"
+                                                            },
+                                                            "valueFrom": {
+                                                                "properties": {
+                                                                    "fieldRef": {
+                                                                        "properties": {
+                                                                            "fieldPath": {
+                                                                                "type": "string"
+                                                                            }
+                                                                        },
+                                                                        "required": [
+                                                                            "fieldPath"
+                                                                        ],
+                                                                        "type": "object"
+                                                                    },
+                                                                    "podTemplateHashValue": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "name",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "dryRun": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "measurementRetention": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "limit": {
+                                                                "format": "int32",
+                                                                "type": "integer"
+                                                            },
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "limit",
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "templates": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "clusterScope": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "templateName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "templateName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "required": [
+                                        "activeService"
+                                    ],
+                                    "type": "object"
+                                },
+                                "canary": {
+                                    "properties": {
+                                        "analysis": {
+                                            "properties": {
+                                                "args": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "value": {
+                                                                "type": "string"
+                                                            },
+                                                            "valueFrom": {
+                                                                "properties": {
+                                                                    "fieldRef": {
+                                                                        "properties": {
+                                                                            "fieldPath": {
+                                                                                "type": "string"
+                                                                            }
+                                                                        },
+                                                                        "required": [
+                                                                            "fieldPath"
+                                                                        ],
+                                                                        "type": "object"
+                                                                    },
+                                                                    "podTemplateHashValue": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "name",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "dryRun": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "measurementRetention": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "limit": {
+                                                                "format": "int32",
+                                                                "type": "integer"
+                                                            },
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "limit",
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "templates": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "clusterScope": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "templateName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "templateName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "required": [
+                        "plugin",
+                        "strategy",
+                        "workloadRef"
+                    ],
+                    "type": "object"
+                }
+            },
             "x-kubernetes-group-version-kind": [
                 {
                     "group": "argoproj.io",

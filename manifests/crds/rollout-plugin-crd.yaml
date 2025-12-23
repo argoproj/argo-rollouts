@@ -44,6 +44,15 @@ spec:
             type: object
           spec:
             properties:
+              analysis:
+                properties:
+                  successfulRunHistoryLimit:
+                    format: int32
+                    type: integer
+                  unsuccessfulRunHistoryLimit:
+                    format: int32
+                    type: integer
+                type: object
               plugin:
                 properties:
                   config:
@@ -976,6 +985,122 @@ spec:
               availableReplicas:
                 format: int32
                 type: integer
+              canary:
+                properties:
+                  currentBackgroundAnalysisRunStatus:
+                    properties:
+                      message:
+                        type: string
+                      name:
+                        type: string
+                      status:
+                        type: string
+                    required:
+                    - name
+                    - status
+                    type: object
+                  currentExperiment:
+                    type: string
+                  currentStepAnalysisRunStatus:
+                    properties:
+                      message:
+                        type: string
+                      name:
+                        type: string
+                      status:
+                        type: string
+                    required:
+                    - name
+                    - status
+                    type: object
+                  stablePingPong:
+                    type: string
+                  stepPluginStatuses:
+                    items:
+                      properties:
+                        backoff:
+                          type: string
+                        disabled:
+                          type: boolean
+                        executions:
+                          format: int32
+                          type: integer
+                        finishedAt:
+                          format: date-time
+                          type: string
+                        index:
+                          format: int32
+                          type: integer
+                        message:
+                          type: string
+                        name:
+                          type: string
+                        operation:
+                          type: string
+                        phase:
+                          type: string
+                        startedAt:
+                          format: date-time
+                          type: string
+                        status:
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        updatedAt:
+                          format: date-time
+                          type: string
+                      required:
+                      - index
+                      - name
+                      - operation
+                      type: object
+                    type: array
+                  weights:
+                    properties:
+                      additional:
+                        items:
+                          properties:
+                            podTemplateHash:
+                              type: string
+                            serviceName:
+                              type: string
+                            weight:
+                              format: int32
+                              type: integer
+                          required:
+                          - weight
+                          type: object
+                        type: array
+                      canary:
+                        properties:
+                          podTemplateHash:
+                            type: string
+                          serviceName:
+                            type: string
+                          weight:
+                            format: int32
+                            type: integer
+                        required:
+                        - weight
+                        type: object
+                      stable:
+                        properties:
+                          podTemplateHash:
+                            type: string
+                          serviceName:
+                            type: string
+                          weight:
+                            format: int32
+                            type: integer
+                        required:
+                        - weight
+                        type: object
+                      verified:
+                        type: boolean
+                    required:
+                    - canary
+                    - stable
+                    type: object
+                type: object
               conditions:
                 items:
                   properties:
