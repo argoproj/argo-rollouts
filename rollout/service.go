@@ -261,14 +261,6 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		return err
 	}
 
-	if c.pauseContext != nil && c.pauseContext.IsAborted() && c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
-		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
 	if dynamicallyRollingBackToStable, currSelector := isDynamicallyRollingBackToStable(c.rollout, c.newRS); dynamicallyRollingBackToStable {
 		// User may have interrupted an update in order go back to stableRS, and is using dynamic
 		// stable scaling. If that is the case, the stableRS might be undersized and if we blindly
@@ -277,6 +269,14 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		// stable, but stable is not fully available. Skip the service switch for now.
 		c.log.Infof("delaying fully promoted service switch of '%s' from %s to %s: ReplicaSet '%s' not fully available",
 			c.rollout.Spec.Strategy.Canary.CanaryService, currSelector, replicasetutil.GetPodTemplateHash(c.newRS), c.newRS.Name)
+		return nil
+	}
+
+	if c.pauseContext != nil && c.pauseContext.IsAborted(){
+		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 
