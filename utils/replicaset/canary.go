@@ -361,7 +361,7 @@ func CheckMinPodsPerReplicaSet(rollout *v1alpha1.Rollout, count int32) int32 {
 	if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.MinPodsPerReplicaSet == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 		return count
 	}
-	// Cap the minPodsPerReplicaSet to the total number of replicas in the rollout spec to prevent reconciliation loop
+	// Cap MinPodsPerReplicaSet to rollout spec replicas to prevent reconciliation loop
 	minPodsPerReplicaSet := *rollout.Spec.Strategy.Canary.MinPodsPerReplicaSet
 	rolloutSpecReplicaSet := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	if minPodsPerReplicaSet > rolloutSpecReplicaSet {
