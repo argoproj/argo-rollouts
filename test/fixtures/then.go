@@ -554,3 +554,70 @@ func (t *Then) ExpectDeploymentReplicasCount(expectation string, deploymentName 
 
 	return t
 }
+
+// ===================== RolloutPlugin Assertion Methods =====================
+
+// GetRolloutPlugin returns the live RolloutPlugin from the cluster
+func (t *Then) GetRolloutPlugin() *rov1.RolloutPlugin {
+	return t.Common.GetRolloutPlugin()
+}
+
+// GetStatefulSet returns the live StatefulSet from the cluster
+func (t *Then) GetStatefulSet() *appsv1.StatefulSet {
+	return t.Common.GetStatefulSet()
+}
+
+// ExpectRolloutPluginStatus expects the RolloutPlugin to have the specified status
+func (t *Then) ExpectRolloutPluginStatus(expectedStatus string) *Then {
+	rp := t.GetRolloutPlugin()
+	if rp.Status.Phase != expectedStatus {
+		t.log.Errorf("RolloutPlugin status expected to be '%s'. actual: %s", expectedStatus, rp.Status.Phase)
+		t.t.FailNow()
+	}
+	t.log.Infof("RolloutPlugin expectation status=%s met", expectedStatus)
+	return t
+}
+
+// ExpectStatefulSetPartition expects the StatefulSet's partition to match
+func (t *Then) ExpectStatefulSetPartition(expectedPartition int32) *Then {
+	t.t.Helper()
+	sts := t.GetStatefulSet()
+	var actualPartition int32 = 0
+	if sts.Spec.UpdateStrategy.RollingUpdate != nil && sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
+		actualPartition = *sts.Spec.UpdateStrategy.RollingUpdate.Partition
+	}
+	if actualPartition != expectedPartition {
+		t.log.Errorf("StatefulSet partition expected to be %d. actual: %d", expectedPartition, actualPartition)
+		t.t.FailNow()
+	}
+	t.log.Infof("StatefulSet partition expectation %d met", expectedPartition)
+	return t
+}
+
+// ExpectStatefulSetPartitionLessThan expects the StatefulSet's partition to be less than specified
+func (t *Then) ExpectStatefulSetPartitionLessThan(maxPartition int32) *Then {
+	t.t.Helper()
+	sts := t.GetStatefulSet()
+	var actualPartition int32 = 0
+	if sts.Spec.UpdateStrategy.RollingUpdate != nil && sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
+		actualPartition = *sts.Spec.UpdateStrategy.RollingUpdate.Partition
+	}
+	if actualPartition >= maxPartition {
+		t.log.Errorf("StatefulSet partition expected to be less than %d. actual: %d", maxPartition, actualPartition)
+		t.t.FailNow()
+	}
+	t.log.Infof("StatefulSet partition < %d expectation met (actual: %d)", maxPartition, actualPartition)
+	return t
+}
+
+// ExpectRolloutPluginAnalysisRunCount expects the number of AnalysisRuns owned by the RolloutPlugin
+func (t *Then) ExpectRolloutPluginAnalysisRunCount(expectedCount int) *Then {
+	t.t.Helper()
+	aruns := t.Common.GetRolloutPluginAnalysisRuns()
+	if len(aruns.Items) != expectedCount {
+		t.log.Errorf("RolloutPlugin AnalysisRun count expected to be %d. actual: %d", expectedCount, len(aruns.Items))
+		t.t.FailNow()
+	}
+	t.log.Infof("RolloutPlugin AnalysisRun count expectation %d met", expectedCount)
+	return t
+}

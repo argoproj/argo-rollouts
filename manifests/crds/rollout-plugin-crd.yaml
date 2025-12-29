@@ -53,6 +53,11 @@ spec:
                     format: int32
                     type: integer
                 type: object
+              minReadySeconds:
+                format: int32
+                type: integer
+              paused:
+                type: boolean
               plugin:
                 properties:
                   config:
@@ -70,6 +75,14 @@ spec:
                 required:
                 - name
                 type: object
+              progressDeadlineAbort:
+                type: boolean
+              progressDeadlineSeconds:
+                format: int32
+                type: integer
+              restartAt:
+                format: int32
+                type: integer
               strategy:
                 properties:
                   blueGreen:
@@ -980,6 +993,8 @@ spec:
             type: object
           status:
             properties:
+              abort:
+                type: boolean
               aborted:
                 type: boolean
               availableReplicas:
@@ -1148,10 +1163,18 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
+              promoteFull:
+                type: boolean
               readyReplicas:
                 format: int32
                 type: integer
               replicas:
+                format: int32
+                type: integer
+              restartedAt:
+                format: date-time
+                type: string
+              retryAttempt:
                 format: int32
                 type: integer
               rolloutInProgress:

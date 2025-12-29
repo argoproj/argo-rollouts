@@ -198,27 +198,44 @@ This script will:
 
 ## Implementation Details
 
+### Architecture
+
+The StatefulSet plugin is implemented as a **built-in plugin** (similar to metric providers in Argo Rollouts):
+
+- **Built-in Mode**: Runs in-process with the controller
+- **No RPC Overhead**: Direct function calls for better performance
+- **Native Kubernetes Kind**: StatefulSet is a core Kubernetes resource
+
+This follows the same pattern as metric providers (Prometheus, Datadog, etc.) which are also built-in.
+
 ### File Structure
 
 ```
 rolloutplugin/plugins/statefulset/
-└── plugin.go          # StatefulSet plugin implementation
+└── plugin.go          # Built-in StatefulSet plugin implementation
 ```
 
 ### Dependencies
 
 - `k8s.io/client-go/kubernetes`: Kubernetes client for StatefulSet operations
-- `k8s.io/klog/v2`: Logging
+- `github.com/sirupsen/logrus`: Logging
 - `github.com/argoproj/argo-rollouts/rolloutplugin`: Plugin interface
 
 ### Registration
 
-The plugin is registered in `cmd/rolloutplugin-controller/main.go`:
+The plugin is registered as a built-in plugin in `cmd/rolloutplugin-controller/main.go`:
 
 ```go
-statefulSetPlugin := statefulset.NewPlugin(kubeClientset)
-pluginManager.RegisterPlugin("statefulset-plugin", statefulSetPlugin)
+// Register built-in plugins (similar to metric providers pattern)
+logrusCtx := log.WithField("plugin", "statefulset")
+statefulSetPlugin := statefulset.NewPlugin(kubeClientset, logrusCtx)
+wrappedPlugin := pluginPackage.NewRolloutPlugin(statefulSetPlugin)
+pluginManager.RegisterPlugin("statefulset", wrappedPlugin)
 ```
+
+### RPC Plugin Support
+
+While StatefulSet is built-in, the RPC plugin infrastructure remains available for third-party plugins that manage custom or external workload types. This allows extending RolloutPlugin to support non-Kubernetes resources or proprietary workload types.
 
 ## Limitations
 

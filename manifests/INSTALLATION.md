@@ -84,25 +84,109 @@ curl http://localhost:8082/metrics  # Plugin metrics
 
 ## Configuration Options
 
-### Namespace Watching
+### Namespace Scoping
 
-To watch only specific namespace, add to deployment args:
+#### Cluster-Scoped Mode (Default)
+By default, the combined controller watches all namespaces:
 ```yaml
 args:
+- --rolloutplugin-metrics-port=8082
+- --rolloutplugin-healthz-port=8083
+```
+
+#### Namespace-Scoped Mode
+To watch only a specific namespace and enable namespace-scoped RBAC:
+```yaml
+args:
+- --namespaced
 - --namespace=argo-rollouts
 - --rolloutplugin-metrics-port=8082
 - --rolloutplugin-healthz-port=8083
 ```
 
+**Benefits of Namespace-Scoped Mode:**
+- ✅ Reduced RBAC permissions (no cluster-wide access needed)
+- ✅ Better security in multi-tenant environments
+- ✅ Lower resource usage (fewer objects to watch)
+- ✅ Leader election lease stored in the watched namespace
+
+**Note:** In namespace-scoped mode, both the standard Argo Rollouts controllers and the RolloutPlugin controller will only watch resources in the specified namespace.
+
 ### Leader Election
 
-To enable leader election, add:
+#### Single-Instance Mode (Default for Development)
+Leader election is enabled by default. To disable it for single-instance mode:
 ```yaml
 args:
-- --leader-elect=true
+- --leader-elect=false
 - --rolloutplugin-metrics-port=8082
 - --rolloutplugin-healthz-port=8083
 ```
+
+**Note:** Disabling leader election is only recommended for development or when you're certain only one controller instance is running.
+
+#### Multi-Instance Mode with Leader Election (Recommended for Production)
+Leader election is enabled by default with these parameters:
+```yaml
+args:
+- --leader-elect=true  # Default: true
+- --leader-election-lease-duration=15s  # Default: 15s
+- --leader-election-renew-deadline=10s  # Default: 10s
+- --leader-election-retry-period=2s     # Default: 2s
+- --rolloutplugin-metrics-port=8082
+- --rolloutplugin-healthz-port=8083
+```
+
+**Leader Election Behavior:**
+- ✅ **Standard Controllers:** Use client-go lease-based leader election with lock `argo-rollouts-controller-lock`
+- ✅ **RolloutPlugin Controller:** Use controller-runtime leader election with lock `rolloutplugin.argoproj.io`
+- ✅ Both controllers share the same leader election namespace
+- ✅ When an instance loses leadership, it stops reconciling but keeps running
+- ✅ Only the leader instance actively reconciles resources
+
+**Custom Leader Election Namespace:**
+By default, the leader election namespace is:
+- The controller namespace (if `--namespaced` mode is enabled)
+- The `argo-rollouts` namespace (if cluster-scoped mode)
+
+To override:
+```yaml
+args:
+- --leader-election-namespace=my-namespace
+- --rolloutplugin-metrics-port=8082
+- --rolloutplugin-healthz-port=8083
+```
+
+**High Availability Setup:**
+For production deployments, run multiple replicas with leader election enabled:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-rollouts
+  namespace: argo-rollouts
+spec:
+  replicas: 3  # Run 3 instances for HA
+  selector:
+    matchLabels:
+      app: argo-rollouts
+  template:
+    metadata:
+      labels:
+        app: argo-rollouts
+    spec:
+      containers:
+      - name: argo-rollouts
+        args:
+        - --leader-elect=true
+        - --rolloutplugin-metrics-port=8082
+        - --rolloutplugin-healthz-port=8083
+```
+
+With this setup:
+- Only 1 instance will be the leader and actively reconcile
+- The other 2 instances will be standby replicas
+- If the leader fails, another instance takes over within ~15 seconds
 
 ### Log Level
 
@@ -116,30 +200,85 @@ args:
 
 ## Testing the RolloutPlugin
 
-### 1. Create a Test StatefulSet
+### 1. Create AnalysisTemplate (Optional - for analysis support)
+
+```bash
+# Create sample analysis templates using Job provider (no Prometheus required)
+kubectl apply -f - <<EOF
+---
+# Background analysis - 60 second sleep job
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: sleep-job
+  namespace: argo-rollouts
+spec:
+  metrics:
+  - name: sleep-test
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: quay.io/prometheus/busybox:latest
+                command: [sh, -c]
+                args: ["sleep 60 && exit 0"]
+              restartPolicy: Never
+---
+# Step-based analysis - 30 second sleep job
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: quick-sleep-job
+  namespace: argo-rollouts
+spec:
+  metrics:
+  - name: quick-test
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: quay.io/prometheus/busybox:latest
+                command: [sh, -c]
+                args: ["sleep 30 && exit 0"]
+              restartPolicy: Never
+EOF
+```
+
+### 2. Create a Test StatefulSet
 
 ```bash
 kubectl apply -f test/rolloutplugin/test-statefulset.yaml
 ```
 
-### 2. Create a RolloutPlugin CR
+### 3. Create a RolloutPlugin CR
 
 ```bash
 kubectl apply -f test/rolloutplugin/test-rolloutplugin.yaml
 ```
 
-### 3. Trigger a Rollout
+### 4. Trigger a Rollout
 
 Update the StatefulSet image:
 ```bash
 kubectl set image statefulset/test-sts busybox=quay.io/prometheus/busybox:glibc -n argo-rollouts
 ```
 
-### 4. Watch the Rollout Progress
+### 5. Watch the Rollout Progress
 
 ```bash
 # Watch RolloutPlugin status
 kubectl get rolloutplugin -n argo-rollouts -w
+
+# Watch AnalysisRuns (if using analysis)
+kubectl get analysisrun -n argo-rollouts -w
 
 # Watch StatefulSet
 kubectl get sts -n argo-rollouts -w
@@ -178,6 +317,43 @@ spec:
 Apply with:
 ```bash
 kubectl apply -f <servicemonitor-file>.yaml
+```
+
+## AnalysisRun Support
+
+The RolloutPlugin CRD now supports AnalysisRuns just like the standard Rollout CRD. This enables:
+
+### Features
+
+1. **Background Analysis (Canary)**: Continuously runs analysis during the entire rollout
+2. **Step-based Analysis (Canary)**: Runs analysis at specific steps
+3. **Analysis History Limits**: Configure successful/unsuccessful run retention
+
+### Status Fields
+
+The RolloutPlugin status now includes analysis run status for both strategies:
+
+**Canary Status:**
+- `status.canary.currentStepAnalysisRunStatus` - Current step analysis run
+- `status.canary.currentBackgroundAnalysisRunStatus` - Background analysis run
+
+### Example Usage
+
+See the updated sample file `test/rolloutplugin/test-sts-manifests/rolloutplugin-sample.yaml` for complete examples including:
+- Canary with background and step-based analysis
+- Blue-Green with pre/post promotion analysis
+
+### Monitoring Analysis
+
+```bash
+# Watch all analysis runs
+kubectl get analysisrun -n argo-rollouts -w
+
+# Get analysis run details
+kubectl describe analysisrun <analysis-run-name> -n argo-rollouts
+
+# Check RolloutPlugin status for analysis status
+kubectl get rolloutplugin <name> -n argo-rollouts -o yaml
 ```
 
 ## Troubleshooting

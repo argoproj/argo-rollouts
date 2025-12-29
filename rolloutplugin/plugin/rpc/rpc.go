@@ -36,6 +36,10 @@ type AbortArgs struct {
 	WorkloadRef v1alpha1.WorkloadRef
 }
 
+type ResetArgs struct {
+	WorkloadRef v1alpha1.WorkloadRef
+}
+
 // Responses for RPC calls
 type GetResourceStatusResponse struct {
 	Status *ResourceStatus
@@ -64,6 +68,7 @@ func init() {
 	gob.RegisterName("rolloutplugin.VerifyWeightArgs", new(VerifyWeightArgs))
 	gob.RegisterName("rolloutplugin.PromoteArgs", new(PromoteArgs))
 	gob.RegisterName("rolloutplugin.AbortArgs", new(AbortArgs))
+	gob.RegisterName("rolloutplugin.ResetArgs", new(ResetArgs))
 	gob.RegisterName("rolloutplugin.GetResourceStatusResponse", new(GetResourceStatusResponse))
 	gob.RegisterName("rolloutplugin.ResourceStatus", new(ResourceStatus))
 	gob.RegisterName("rolloutplugin.VerifyWeightResponse", new(VerifyWeightResponse))
@@ -77,6 +82,7 @@ type ResourcePlugin interface {
 	VerifyWeight(workloadRef v1alpha1.WorkloadRef, weight int32) (bool, types.RpcError)
 	Promote(workloadRef v1alpha1.WorkloadRef) types.RpcError
 	Abort(workloadRef v1alpha1.WorkloadRef) types.RpcError
+	Reset(workloadRef v1alpha1.WorkloadRef) types.RpcError
 	Type() string
 }
 
@@ -150,6 +156,17 @@ func (g *ResourcePluginRPC) Abort(workloadRef v1alpha1.WorkloadRef) types.RpcErr
 	return resp
 }
 
+// Reset returns the workload to baseline state for retry
+func (g *ResourcePluginRPC) Reset(workloadRef v1alpha1.WorkloadRef) types.RpcError {
+	var resp types.RpcError
+	args := ResetArgs{WorkloadRef: workloadRef}
+	err := g.client.Call("Plugin.Reset", &args, &resp)
+	if err != nil {
+		return types.RpcError{ErrorString: fmt.Sprintf("Reset rpc call error: %s", err)}
+	}
+	return resp
+}
+
 // Type returns the type of the resource plugin
 func (g *ResourcePluginRPC) Type() string {
 	var resp string
@@ -172,6 +189,7 @@ func (s *ResourcePluginRPCServer) InitPlugin(args any, resp *types.RpcError) err
 	return nil
 }
 
+// TODOH Return type?
 // GetResourceStatus handles the GetResourceStatus RPC call
 func (s *ResourcePluginRPCServer) GetResourceStatus(args any, resp *GetResourceStatusResponse) error {
 	getStatusArgs, ok := args.(*GetResourceStatusArgs)
@@ -228,6 +246,17 @@ func (s *ResourcePluginRPCServer) Abort(args any, resp *types.RpcError) error {
 		return nil
 	}
 	*resp = s.Impl.Abort(abortArgs.WorkloadRef)
+	return nil
+}
+
+// Reset handles the Reset RPC call
+func (s *ResourcePluginRPCServer) Reset(args any, resp *types.RpcError) error {
+	resetArgs, ok := args.(*ResetArgs)
+	if !ok {
+		*resp = types.RpcError{ErrorString: fmt.Sprintf("invalid args %v", args)}
+		return nil
+	}
+	*resp = s.Impl.Reset(resetArgs.WorkloadRef)
 	return nil
 }
 

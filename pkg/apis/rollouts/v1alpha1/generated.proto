@@ -1554,6 +1554,38 @@ message RolloutPluginSpec {
   // Analysis configuration for the analysis runs to retain
   // +optional
   optional AnalysisRunStrategy analysis = 4;
+
+  // Minimum number of seconds for which a newly created pod should be ready
+  // without any of its container crashing, for it to be considered available.
+  // Defaults to 0 (pod will be considered available as soon as it is ready)
+  // +optional
+  optional int32 minReadySeconds = 5;
+
+  // Paused pauses the rollout at its current step.
+  optional bool paused = 6;
+
+  // ProgressDeadlineSeconds The maximum time in seconds for a rollout to
+  // make progress before it is considered to be failed. Argo Rollouts will
+  // continue to process failed rollouts and a condition with a
+  // ProgressDeadlineExceeded reason will be surfaced in the rollout status.
+  // Note that progress will not be estimated during the time a rollout is paused.
+  // Defaults to 600s.
+  optional int32 progressDeadlineSeconds = 7;
+
+  // ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds
+  // is exceeded.
+  // +optional
+  optional bool progressDeadlineAbort = 8;
+
+  // RestartAt restarts the rollout at the specified step index (0-based).
+  // When set, the controller will:
+  // 1. Validate the rollout is NOT in success state (Healthy=True, Progressing=False, Completed=True)
+  // 2. Call plugin.Reset() to return workload to baseline
+  // 3. Reset status.currentStepIndex to this value
+  // 4. Increment status.retryAttempt
+  // 5. Clear this field after processing
+  // +optional
+  optional int32 restartAt = 9;
 }
 
 // RolloutPluginStatus is the status for a RolloutPlugin resource
@@ -1599,6 +1631,15 @@ message RolloutPluginStatus {
   // Aborted indicates whether the rollout has been aborted
   optional bool aborted = 12;
 
+  // Abort will stop the rollout and revert to the previous version when set to true.
+  // Similar to Rollout CRD's status.abort field, this allows manual abortion of a rollout.
+  // +optional
+  optional bool abort = 21;
+
+  // PromoteFull when set to true will skip analysis, pause, and steps and promote the rollout immediately
+  // +optional
+  optional bool promoteFull = 20;
+
   // Conditions is a list of conditions describing the current state
   // +optional
   repeated RolloutPluginCondition conditions = 13;
@@ -1626,6 +1667,16 @@ message RolloutPluginStatus {
   // Canary-specific status fields for canary strategy
   // +optional
   optional CanaryStatus canary = 19;
+
+  // RetryAttempt tracks the number of retry attempts for the current rollout
+  // Incremented each time RestartAt is processed
+  // Reset to 0 when a new rollout starts (UpdatedRevision changes)
+  // +optional
+  optional int32 retryAttempt = 22;
+
+  // RestartedAt indicates when the last retry occurred
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time restartedAt = 23;
 }
 
 // RolloutPluginStrategy defines the strategy for the rollout

@@ -4769,6 +4769,41 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginSpec(ref common.ReferenceCal
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStrategy"),
 						},
 					},
+					"minReadySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Minimum number of seconds for which a newly created pod should be ready without any of its container crashing, for it to be considered available. Defaults to 0 (pod will be considered available as soon as it is ready)",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"paused": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Paused pauses the rollout at its current step.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"progressDeadlineSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProgressDeadlineSeconds The maximum time in seconds for a rollout to make progress before it is considered to be failed. Argo Rollouts will continue to process failed rollouts and a condition with a ProgressDeadlineExceeded reason will be surfaced in the rollout status. Note that progress will not be estimated during the time a rollout is paused. Defaults to 600s.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"progressDeadlineAbort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds is exceeded.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"restartAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RestartAt restarts the rollout at the specified step index (0-based). When set, the controller will: 1. Validate the rollout is NOT in success state (Healthy=True, Progressing=False, Completed=True) 2. Call plugin.Reset() to return workload to baseline 3. Reset status.currentStepIndex to this value 4. Increment status.retryAttempt 5. Clear this field after processing",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 				Required: []string{"workloadRef", "plugin", "strategy"},
 			},
@@ -4868,6 +4903,20 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStatus(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"abort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Abort will stop the rollout and revert to the previous version when set to true. Similar to Rollout CRD's status.abort field, this allows manual abortion of a rollout.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"promoteFull": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PromoteFull when set to true will skip analysis, pause, and steps and promote the rollout immediately",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"conditions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Conditions is a list of conditions describing the current state",
@@ -4931,6 +4980,19 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStatus(ref common.ReferenceC
 							Description: "Canary-specific status fields for canary strategy",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus"),
+						},
+					},
+					"retryAttempt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RetryAttempt tracks the number of retry attempts for the current rollout Incremented each time RestartAt is processed Reset to 0 when a new rollout starts (UpdatedRevision changes)",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"restartedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RestartedAt indicates when the last retry occurred",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 				},

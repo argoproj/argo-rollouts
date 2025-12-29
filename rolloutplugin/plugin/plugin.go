@@ -10,9 +10,10 @@ import (
 	"github.com/argoproj/argo-rollouts/rolloutplugin/plugin/rpc"
 )
 
-const ProviderType = "RPCPlugin"
+const ResourceType = "RPCPlugin"
 
 // RolloutPluginWrapper wraps the RPC plugin to implement the controller's ResourcePlugin interface
+// TODOH is RPC needed for statefulset?
 type RolloutPluginWrapper struct {
 	rpc.ResourcePlugin
 }
@@ -100,6 +101,15 @@ func (r RolloutPluginWrapper) Abort(ctx context.Context, workloadRef v1alpha1.Wo
 	rpcErr := r.ResourcePlugin.Abort(workloadRef)
 	if rpcErr.HasError() {
 		return fmt.Errorf("failed to abort: %s", rpcErr.ErrorString)
+	}
+	return nil
+}
+
+// Reset returns the workload to baseline state for retry (adapts RPC interface)
+func (r RolloutPluginWrapper) Reset(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
+	rpcErr := r.ResourcePlugin.Reset(workloadRef)
+	if rpcErr.HasError() {
+		return fmt.Errorf("failed to reset: %s", rpcErr.ErrorString)
 	}
 	return nil
 }

@@ -45,6 +45,38 @@ type RolloutPluginSpec struct {
 	// Analysis configuration for the analysis runs to retain
 	// +optional
 	Analysis *AnalysisRunStrategy `json:"analysis,omitempty" protobuf:"bytes,4,opt,name=analysis"`
+
+	// Minimum number of seconds for which a newly created pod should be ready
+	// without any of its container crashing, for it to be considered available.
+	// Defaults to 0 (pod will be considered available as soon as it is ready)
+	// +optional
+	MinReadySeconds int32 `json:"minReadySeconds,omitempty" protobuf:"varint,5,opt,name=minReadySeconds"`
+
+	// Paused pauses the rollout at its current step.
+	Paused bool `json:"paused,omitempty" protobuf:"varint,6,opt,name=paused"`
+
+	// ProgressDeadlineSeconds The maximum time in seconds for a rollout to
+	// make progress before it is considered to be failed. Argo Rollouts will
+	// continue to process failed rollouts and a condition with a
+	// ProgressDeadlineExceeded reason will be surfaced in the rollout status.
+	// Note that progress will not be estimated during the time a rollout is paused.
+	// Defaults to 600s.
+	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty" protobuf:"varint,7,opt,name=progressDeadlineSeconds"`
+
+	// ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds
+	// is exceeded.
+	// +optional
+	ProgressDeadlineAbort bool `json:"progressDeadlineAbort,omitempty" protobuf:"varint,8,opt,name=progressDeadlineAbort"`
+
+	// RestartAt restarts the rollout at the specified step index (0-based).
+	// When set, the controller will:
+	// 1. Validate the rollout is NOT in success state (Healthy=True, Progressing=False, Completed=True)
+	// 2. Call plugin.Reset() to return workload to baseline
+	// 3. Reset status.currentStepIndex to this value
+	// 4. Increment status.retryAttempt
+	// 5. Clear this field after processing
+	// +optional
+	RestartAt *int32 `json:"restartAt,omitempty" protobuf:"varint,9,opt,name=restartAt"`
 }
 
 // WorkloadRef references a Kubernetes resource to be managed by the RolloutPlugin
@@ -63,6 +95,7 @@ type WorkloadRef struct {
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
 }
 
+// TODOH is this needed?
 // PluginConfig contains configuration for the resource plugin
 type PluginConfig struct {
 	// Name of the plugin (e.g., "statefulset", "daemonset")
@@ -144,6 +177,15 @@ type RolloutPluginStatus struct {
 	// Aborted indicates whether the rollout has been aborted
 	Aborted bool `json:"aborted,omitempty" protobuf:"varint,12,opt,name=aborted"`
 
+	// Abort will stop the rollout and revert to the previous version when set to true.
+	// Similar to Rollout CRD's status.abort field, this allows manual abortion of a rollout.
+	// +optional
+	Abort bool `json:"abort,omitempty" protobuf:"varint,21,opt,name=abort"`
+
+	// PromoteFull when set to true will skip analysis, pause, and steps and promote the rollout immediately
+	// +optional
+	PromoteFull bool `json:"promoteFull,omitempty" protobuf:"varint,20,opt,name=promoteFull"`
+
 	// Conditions is a list of conditions describing the current state
 	// +optional
 	Conditions []RolloutPluginCondition `json:"conditions,omitempty" protobuf:"bytes,13,rep,name=conditions"`
@@ -171,6 +213,16 @@ type RolloutPluginStatus struct {
 	// Canary-specific status fields for canary strategy
 	// +optional
 	Canary CanaryStatus `json:"canary,omitempty" protobuf:"bytes,19,opt,name=canary"`
+
+	// RetryAttempt tracks the number of retry attempts for the current rollout
+	// Incremented each time RestartAt is processed
+	// Reset to 0 when a new rollout starts (UpdatedRevision changes)
+	// +optional
+	RetryAttempt int32 `json:"retryAttempt,omitempty" protobuf:"varint,22,opt,name=retryAttempt"`
+
+	// RestartedAt indicates when the last retry occurred
+	// +optional
+	RestartedAt *metav1.Time `json:"restartedAt,omitempty" protobuf:"bytes,23,opt,name=restartedAt"`
 }
 
 // RolloutPluginCondition describes a condition of the RolloutPlugin

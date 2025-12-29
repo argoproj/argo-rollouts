@@ -2529,6 +2529,16 @@ func (in *RolloutPluginSpec) DeepCopyInto(out *RolloutPluginSpec) {
 		*out = new(AnalysisRunStrategy)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ProgressDeadlineSeconds != nil {
+		in, out := &in.ProgressDeadlineSeconds, &out.ProgressDeadlineSeconds
+		*out = new(int32)
+		**out = **in
+	}
+	if in.RestartAt != nil {
+		in, out := &in.RestartAt, &out.RestartAt
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
@@ -2569,6 +2579,10 @@ func (in *RolloutPluginStatus) DeepCopyInto(out *RolloutPluginStatus) {
 		}
 	}
 	in.Canary.DeepCopyInto(&out.Canary)
+	if in.RestartedAt != nil {
+		in, out := &in.RestartedAt, &out.RestartedAt
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 

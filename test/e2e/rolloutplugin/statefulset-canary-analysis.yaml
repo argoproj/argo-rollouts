@@ -1,0 +1,85 @@
+---
+# Canary test with background analysis
+# Used by: TestRolloutPluginWithBackgroundAnalysis
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: test-sts-analysis-always-pass
+spec:
+  metrics:
+  - name: always-pass
+    count: 1
+    interval: 5s
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+              - name: sleep
+                image: quay.io/prometheus/busybox:latest
+                command: ["/bin/sh", "-c", "echo success && exit 0"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-sts-analysis-svc
+spec:
+  clusterIP: None
+  selector:
+    app: test-sts-analysis
+  ports:
+  - port: 80
+    name: web
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-sts-analysis
+spec:
+  serviceName: test-sts-analysis-svc
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-sts-analysis
+  template:
+    metadata:
+      labels:
+        app: test-sts-analysis
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: busybox
+        image: quay.io/prometheus/busybox:latest
+        command: ["sleep", "3600"]
+        ports:
+        - containerPort: 80
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 3
+---
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: test-sts-analysis-rollout
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: test-sts-analysis
+  plugin:
+    name: statefulset
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: test-sts-analysis-always-pass
+      steps:
+      - setWeight: 33
+      - pause: {duration: 5s}
+      - setWeight: 66
+      - pause: {duration: 3s}
+      - setWeight: 100

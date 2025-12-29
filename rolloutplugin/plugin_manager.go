@@ -12,7 +12,7 @@ import (
 // DefaultPluginManager implements PluginManager
 type DefaultPluginManager struct {
 	// plugins is a map of plugin name to plugin instance
-	plugins map[string]ResourcePlugin
+	plugins map[string]ResourcePlugin // TODOH Rename?
 
 	// mu protects plugins map
 	mu sync.RWMutex
@@ -51,7 +51,7 @@ func (pm *DefaultPluginManager) LoadPlugin(config v1alpha1.PluginConfig) error {
 		return nil
 	}
 
-	// TODO: Implement plugin loading using HashiCorp go-plugin
+	// TODOH: Implement plugin loading using HashiCorp go-plugin
 	// For now, return an error indicating that plugin needs to be registered manually
 
 	if config.Config != nil {

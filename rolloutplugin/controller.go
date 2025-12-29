@@ -6,6 +6,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,6 +21,8 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 // RolloutPluginReconciler reconciles a RolloutPlugin object
@@ -75,6 +78,9 @@ type ResourcePlugin interface {
 
 	// Abort aborts the rollout and reverts to the stable version
 	Abort(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error
+
+	// Reset returns the workload to baseline state for retry
+	Reset(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error
 }
 
 // ResourceStatus contains the status of a workload resource
@@ -91,9 +97,17 @@ type ResourceStatus struct {
 //+kubebuilder:rbac:groups=argoproj.io,resources=rolloutplugins,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=argoproj.io,resources=rolloutplugins/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=argoproj.io,resources=rolloutplugins/finalizers,verbs=update
+//+kubebuilder:rbac:groups=argoproj.io,resources=analysisruns,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=argoproj.io,resources=analysistemplates,verbs=get;list;watch
+//+kubebuilder:rbac:groups=argoproj.io,resources=clusteranalysistemplates,verbs=get;list;watch
+//+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;update;patch
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;delete
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+//+kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
+// TOODH RBAC Generic?
 func (r *RolloutPluginReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Reconciling RolloutPlugin", "namespace", req.Namespace, "name", req.Name)
@@ -128,6 +142,113 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 
 	newStatus := rolloutPlugin.Status.DeepCopy()
 	newStatus.ObservedGeneration = rolloutPlugin.Generation
+
+	// Check if retry is requested via spec.RestartAt
+	if rolloutPlugin.Spec.RestartAt != nil {
+		return r.processRetry(ctx, rolloutPlugin, newStatus)
+	}
+
+	// Check if spec.paused is set (manual pause by user)
+	if rolloutPlugin.Spec.Paused {
+		if !newStatus.Paused {
+			logger.Info("Rollout manually paused by user")
+			now := metav1.Now()
+			newStatus.PauseStartTime = &now
+			newStatus.Paused = true
+			newStatus.Phase = "Paused"
+			newStatus.Message = "manually paused"
+		}
+		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus)
+	}
+
+	// If spec.paused was false but status.paused is true, user is manually resuming
+	// Only clear pause state if it was a manual pause (not a step pause)
+	// Step pauses are managed within processCanaryRollout logic
+	if newStatus.Paused && !rolloutPlugin.Spec.Paused && newStatus.CurrentStepIndex == nil {
+		// This was a manual pause that's being resumed
+		logger.Info("Resuming RolloutPlugin from manual pause")
+		newStatus.Paused = false
+		newStatus.PauseStartTime = nil
+	}
+
+	// Check if manual abort is requested via status.Abort field
+	if newStatus.Abort && !newStatus.Aborted {
+		logger.Info("Manual abort requested via status.Abort field")
+
+		// Get the plugin
+		plugin, err := r.PluginManager.GetPlugin(rolloutPlugin.Spec.Plugin.Name)
+		if err != nil {
+			logger.Error(err, "Failed to get plugin for abort")
+			newStatus.Phase = "Failed"
+			newStatus.Message = fmt.Sprintf("Failed to get plugin for abort: %v", err)
+			return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus)
+		}
+
+		// Prepare workload reference
+		workloadRef := rolloutPlugin.Spec.WorkloadRef
+		if workloadRef.Namespace == "" {
+			workloadRef.Namespace = rolloutPlugin.Namespace
+		}
+
+		// Call plugin abort
+		if abortErr := plugin.Abort(ctx, workloadRef); abortErr != nil {
+			logger.Error(abortErr, "Failed to abort rollout")
+			newStatus.Phase = "Failed"
+			newStatus.Message = fmt.Sprintf("Failed to abort rollout: %v", abortErr)
+			return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus)
+		}
+
+		newStatus.Aborted = true
+		newStatus.Abort = false // Clear the abort flag
+		newStatus.RolloutInProgress = false
+		newStatus.Phase = "Degraded"
+		newStatus.Message = "Rollout aborted by user"
+
+		// Set aborted condition // TODOH one more condition?
+		condition := conditions.NewRolloutPluginCondition(
+			conditions.RolloutPluginProgressing,
+			corev1.ConditionFalse,
+			conditions.RolloutPluginAbortedReason,
+			"Rollout manually aborted by user")
+		conditions.SetRolloutPluginCondition(newStatus, *condition)
+
+		logger.Info("Rollout aborted successfully")
+		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus)
+	}
+
+	// Check progress deadline timeout
+	if conditions.RolloutPluginTimedOut(rolloutPlugin, newStatus) {
+		logger.Info("RolloutPlugin has timed out")
+
+		// If progressDeadlineAbort is enabled and not already aborted, abort the rollout
+		if rolloutPlugin.Spec.ProgressDeadlineAbort && !newStatus.Aborted {
+			logger.Info("Aborting RolloutPlugin due to timeout")
+			plugin, err := r.PluginManager.GetPlugin(rolloutPlugin.Spec.Plugin.Name)
+			if err == nil {
+				workloadRef := rolloutPlugin.Spec.WorkloadRef
+				if workloadRef.Namespace == "" {
+					workloadRef.Namespace = rolloutPlugin.Namespace
+				}
+				if abortErr := plugin.Abort(ctx, workloadRef); abortErr != nil {
+					logger.Error(abortErr, "Failed to abort rollout")
+				}
+			}
+			newStatus.Aborted = true
+			newStatus.Phase = "Degraded"
+		}
+
+		// Set timeout condition
+		condition := conditions.NewRolloutPluginCondition(
+			conditions.RolloutPluginProgressing,
+			corev1.ConditionFalse,
+			conditions.RolloutPluginTimedOutReason,
+			fmt.Sprintf("RolloutPlugin %s has timed out progressing after %d seconds",
+				rolloutPlugin.Name,
+				defaults.GetRolloutPluginProgressDeadlineSecondsOrDefault(rolloutPlugin)))
+		conditions.SetRolloutPluginCondition(newStatus, *condition)
+
+		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus)
+	}
 
 	// Get the plugin
 	plugin, err := r.PluginManager.GetPlugin(rolloutPlugin.Spec.Plugin.Name)
@@ -173,13 +294,38 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	newStatus.CurrentRevision = resourceStatus.CurrentRevision
 	newStatus.UpdatedRevision = resourceStatus.UpdatedRevision
 
+	// Check minReadySeconds - ensure pods have been ready for the required duration
+	if rolloutPlugin.Spec.MinReadySeconds > 0 {
+		if !meetsMinReadySeconds(resourceStatus, rolloutPlugin.Spec.MinReadySeconds) {
+			logger.Info("Waiting for pods to meet minReadySeconds",
+				"minReadySeconds", rolloutPlugin.Spec.MinReadySeconds,
+				"readyReplicas", resourceStatus.ReadyReplicas,
+				"availableReplicas", resourceStatus.AvailableReplicas)
+			newStatus.Message = fmt.Sprintf("Waiting for pods to meet minReadySeconds (%d seconds)", rolloutPlugin.Spec.MinReadySeconds)
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, r.updateStatus(ctx, rolloutPlugin, newStatus)
+		}
+	}
+
 	// Check if we need to start a rollout
 	if resourceStatus.CurrentRevision != resourceStatus.UpdatedRevision {
 		if !newStatus.RolloutInProgress {
 			logger.Info("Starting new rollout")
+
+			// Reset retry counter for new rollout (new UpdatedRevision)
+			newStatus.RetryAttempt = 0
+			newStatus.RestartedAt = nil
+
 			newStatus.RolloutInProgress = true
 			newStatus.CurrentStepIndex = nil
 			newStatus.Phase = "Progressing"
+
+			// Set progressing condition
+			condition := conditions.NewRolloutPluginCondition(
+				conditions.RolloutPluginProgressing,
+				corev1.ConditionTrue,
+				conditions.RolloutPluginProgressingReason,
+				"RolloutPlugin is progressing")
+			conditions.SetRolloutPluginCondition(newStatus, *condition)
 		}
 	}
 
@@ -198,6 +344,17 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 
 	newStatus.Phase = "Healthy"
 	newStatus.Message = "RolloutPlugin is healthy"
+
+	// Set healthy condition
+	if conditions.RolloutPluginIsHealthy(rolloutPlugin, newStatus) {
+		condition := conditions.NewRolloutPluginCondition(
+			conditions.RolloutPluginHealthy,
+			corev1.ConditionTrue,
+			conditions.RolloutPluginHealthyReason,
+			"RolloutPlugin is healthy")
+		conditions.SetRolloutPluginCondition(newStatus, *condition)
+	}
+
 	return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus)
 }
 
@@ -228,6 +385,38 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 		return ctrl.Result{}, nil
 	}
 
+	// Check if PromoteFull is set - if so, skip all steps and promote immediately
+	if newStatus.PromoteFull {
+		logger.Info("PromoteFull is set, skipping remaining steps and promoting immediately")
+
+		// Promote the rollout
+		if err := plugin.Promote(ctx, workloadRef); err != nil {
+			logger.Error(err, "Failed to promote during full promotion")
+			newStatus.Phase = "Failed"
+			newStatus.Message = fmt.Sprintf("Failed to promote: %v", err)
+			return ctrl.Result{}, err
+		}
+
+		newStatus.Phase = "Successful"
+		newStatus.Message = "Rollout promoted successfully (full promotion)"
+		newStatus.RolloutInProgress = false
+		newStatus.PromoteFull = false // Clear the flag
+		newStatus.Paused = false
+		newStatus.PauseStartTime = nil
+
+		// Remove progressing condition and set completed condition
+		conditions.RemoveRolloutPluginCondition(newStatus, conditions.RolloutPluginProgressing)
+		completedCondition := conditions.NewRolloutPluginCondition(
+			conditions.RolloutPluginCompleted,
+			corev1.ConditionTrue,
+			conditions.RolloutPluginCompletedReason,
+			"RolloutPlugin promoted successfully (full promotion)")
+		conditions.SetRolloutPluginCondition(newStatus, *completedCondition)
+
+		logger.Info("Full promotion completed successfully")
+		return ctrl.Result{}, nil
+	}
+
 	// Reconcile analysis runs if AnalysisHelper is available
 	if r.AnalysisHelper != nil {
 		// Create a temporary rolloutPlugin with newStatus for analysis reconciliation
@@ -244,6 +433,7 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 			logger.Error(err, "Failed to reconcile analysis runs")
 			return ctrl.Result{}, err
 		}
+		// TODOH too much copying?
 		// Copy analysis status from rpWithNewStatus back to newStatus
 		// reconcileAnalysisRuns updates rpWithNewStatus.Status directly
 		newStatus.Canary.CurrentBackgroundAnalysisRunStatus = rpWithNewStatus.Status.Canary.CurrentBackgroundAnalysisRunStatus
@@ -270,6 +460,16 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 		newStatus.Phase = "Successful"
 		newStatus.Message = "Rollout completed successfully"
 		newStatus.RolloutInProgress = false
+
+		// Remove progressing condition and set completed condition
+		conditions.RemoveRolloutPluginCondition(newStatus, conditions.RolloutPluginProgressing)
+		completedCondition := conditions.NewRolloutPluginCondition(
+			conditions.RolloutPluginCompleted,
+			corev1.ConditionTrue,
+			conditions.RolloutPluginCompletedReason,
+			"RolloutPlugin completed successfully")
+		conditions.SetRolloutPluginCondition(newStatus, *completedCondition)
+
 		return ctrl.Result{}, nil
 	}
 
@@ -372,7 +572,7 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 
 	// Handle pause step
 	if currentStep.Pause != nil {
-		logger.Info("Handling pause step", "pauseStartTime", newStatus.PauseStartTime)
+		logger.Info("Handling pause step", "pauseStartTime", newStatus.PauseStartTime) // TODOH time nil?
 
 		if newStatus.PauseStartTime == nil {
 			now := metav1.Now()
@@ -380,7 +580,12 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 			newStatus.Paused = true
 			newStatus.Message = "Paused"
 			logger.Info("Starting pause", "duration", currentStep.Pause.Duration)
-			return ctrl.Result{}, nil
+			// Update status to persist pause start time, then requeue to continue
+			if err := r.updateStatus(ctx, rolloutPlugin, newStatus); err != nil {
+				return ctrl.Result{}, err
+			}
+			// Requeue immediately to recalculate remaining pause time
+			return ctrl.Result{Requeue: true}, nil
 		}
 
 		// Check if pause duration has elapsed
@@ -419,7 +624,131 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 		return ctrl.Result{}, nil
 	}
 
-	return ctrl.Result{}, nil
+	// If we reach here, the step has no recognized type (setWeight, analysis, pause)
+	// This could be an empty step or a future step type we don't handle yet
+	// Move to the next step immediately
+	logger.Info("Step has no action, moving to next step", "stepIndex", currentStepIndex)
+	nextStep := currentStepIndex + 1
+	newStatus.CurrentStepIndex = &nextStep
+	newStatus.CurrentStepComplete = false
+	newStatus.Message = fmt.Sprintf("Completed step %d", currentStepIndex)
+	// Requeue immediately to process next step
+	return ctrl.Result{Requeue: true}, nil
+} //TODO return ctrl.Result{}, nil ?
+
+// processRetry handles the retry logic when spec.RestartAt is set
+func (r *RolloutPluginReconciler) processRetry(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	restartAt := *rolloutPlugin.Spec.RestartAt
+
+	logger.Info("Processing rollout retry", "restartAt", restartAt, "attempt", newStatus.RetryAttempt+1)
+
+	// SAFETY CHECK: Only allow retry if rollout is NOT in success state
+	// Success states: Healthy=True AND Progressing=False AND Completed=True
+	healthyCondition := conditions.GetRolloutPluginCondition(*newStatus, conditions.RolloutPluginHealthy)
+	progressingCondition := conditions.GetRolloutPluginCondition(*newStatus, conditions.RolloutPluginProgressing)
+	completedCondition := conditions.GetRolloutPluginCondition(*newStatus, conditions.RolloutPluginCompleted)
+
+	isHealthy := healthyCondition != nil && healthyCondition.Status == corev1.ConditionTrue
+	isNotProgressing := progressingCondition == nil || progressingCondition.Status == corev1.ConditionFalse
+	isCompleted := completedCondition != nil && completedCondition.Status == corev1.ConditionTrue
+
+	if isHealthy && isNotProgressing && isCompleted {
+		logger.Info("Cannot retry: rollout is in success state",
+			"healthy", isHealthy, "progressing", !isNotProgressing, "completed", isCompleted)
+
+		newStatus.Phase = "Failed"
+		newStatus.Message = "Cannot retry: rollout is already in success state (Healthy=True, Progressing=False, Completed=True)"
+
+		// Clear RestartAt to prevent retry loop
+		rpCopy := rolloutPlugin.DeepCopy()
+		rpCopy.Spec.RestartAt = nil
+		if err := r.Update(ctx, rpCopy); err != nil {
+			logger.Error(err, "Failed to clear RestartAt")
+		}
+
+		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus)
+	}
+
+	// Get plugin
+	plugin, err := r.PluginManager.GetPlugin(rolloutPlugin.Spec.Plugin.Name)
+	if err != nil {
+		logger.Error(err, "Failed to get plugin for retry")
+		newStatus.Phase = "Failed"
+		newStatus.Message = fmt.Sprintf("Retry failed: failed to get plugin: %v", err)
+
+		// Clear RestartAt to prevent retry loop
+		rpCopy := rolloutPlugin.DeepCopy()
+		rpCopy.Spec.RestartAt = nil
+		if err := r.Update(ctx, rpCopy); err != nil {
+			logger.Error(err, "Failed to clear RestartAt")
+		}
+
+		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus)
+	}
+
+	// Prepare workload reference
+	workloadRef := rolloutPlugin.Spec.WorkloadRef
+	if workloadRef.Namespace == "" {
+		workloadRef.Namespace = rolloutPlugin.Namespace
+	}
+
+	// Call plugin Reset() to return workload to baseline
+	if err := plugin.Reset(ctx, workloadRef); err != nil {
+		logger.Error(err, "Plugin reset failed")
+		newStatus.Phase = "Failed"
+		newStatus.Message = fmt.Sprintf("Retry failed: plugin reset error: %v", err)
+
+		// Clear RestartAt to prevent retry loop
+		rpCopy := rolloutPlugin.DeepCopy()
+		rpCopy.Spec.RestartAt = nil
+		if err := r.Update(ctx, rpCopy); err != nil {
+			logger.Error(err, "Failed to clear RestartAt")
+		}
+
+		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus)
+	}
+
+	// Increment retry attempt counter
+	newStatus.RetryAttempt++
+	now := metav1.Now()
+	newStatus.RestartedAt = &now
+
+	// Reset rollout state
+	newStatus.CurrentStepIndex = &restartAt
+	newStatus.CurrentStepComplete = false
+	newStatus.RolloutInProgress = true
+	newStatus.Paused = false
+	newStatus.PauseStartTime = nil
+	newStatus.Aborted = false
+	newStatus.Phase = "Progressing"
+	newStatus.Message = fmt.Sprintf("Retry attempt %d: restarting at step %d", newStatus.RetryAttempt, restartAt)
+
+	// Set progressing condition
+	condition := conditions.NewRolloutPluginCondition(
+		conditions.RolloutPluginProgressing,
+		corev1.ConditionTrue,
+		"RolloutRestarted",
+		fmt.Sprintf("Rollout restarted at step %d (attempt %d)", restartAt, newStatus.RetryAttempt))
+	conditions.SetRolloutPluginCondition(newStatus, *condition)
+
+	// Clear RestartAt from spec (one-shot trigger)
+	rpCopy := rolloutPlugin.DeepCopy()
+	rpCopy.Spec.RestartAt = nil
+	if err := r.Update(ctx, rpCopy); err != nil {
+		logger.Error(err, "Failed to clear RestartAt")
+		return ctrl.Result{}, err
+	}
+
+	// Update status
+	if err := r.updateStatus(ctx, rolloutPlugin, newStatus); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	logger.Info("Retry processed successfully", "attempt", newStatus.RetryAttempt, "startingStep", restartAt)
+
+	// Requeue immediately to process the retry
+	return ctrl.Result{Requeue: true}, nil
 }
 
 // updateStatus updates the status of the RolloutPlugin
@@ -452,13 +781,18 @@ func (r *RolloutPluginReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // findRolloutPluginsForStatefulSet maps a StatefulSet to RolloutPlugin CRs that reference it
 func (r *RolloutPluginReconciler) findRolloutPluginsForStatefulSet(ctx context.Context, obj client.Object) []reconcile.Request {
 	sts := obj.(*appsv1.StatefulSet)
+	logger := log.FromContext(ctx).WithValues("statefulset", sts.GetName(), "namespace", sts.GetNamespace())
 
-	// List all RolloutPlugin resources in the same namespace
+	logger.Info("StatefulSet event received, checking for related RolloutPlugins")
+
+	// List all RolloutPlugin resources in the same namespace as statefulset
 	var rolloutPlugins v1alpha1.RolloutPluginList
 	if err := r.Client.List(ctx, &rolloutPlugins, client.InNamespace(sts.GetNamespace())); err != nil {
-		log.FromContext(ctx).Error(err, "Failed to list RolloutPlugin resources")
+		logger.Error(err, "Failed to list RolloutPlugin resources")
 		return []reconcile.Request{}
 	}
+
+	logger.Info("Found RolloutPlugins in namespace", "count", len(rolloutPlugins.Items))
 
 	// Find RolloutPlugins that reference this StatefulSet
 	var requests []reconcile.Request
@@ -471,11 +805,32 @@ func (r *RolloutPluginReconciler) findRolloutPluginsForStatefulSet(ctx context.C
 					Name:      rp.GetName(),
 				},
 			})
-			log.FromContext(ctx).Info("StatefulSet change detected, triggering rollout",
-				"statefulset", sts.GetName(),
-				"rolloutplugin", rp.GetName())
+			logger.Info("StatefulSet change detected, triggering rollout reconciliation",
+				"rolloutplugin", rp.GetName(),
+				"currentGeneration", sts.GetGeneration(),
+				"observedGeneration", sts.Status.ObservedGeneration)
 		}
 	}
 
+	if len(requests) == 0 {
+		logger.Info("No RolloutPlugins found referencing this StatefulSet")
+	}
+
 	return requests
+}
+
+// meetsMinReadySeconds checks if the workload meets the minReadySeconds requirement.
+// For now, this is a simple check that compares availableReplicas with readyReplicas.
+// A more sophisticated implementation would track pod ready times, but that requires
+// fetching pod details from the cluster, which is kind-specific.
+// Plugins can override this behavior with their own kind-specific logic if needed.
+func meetsMinReadySeconds(resourceStatus *ResourceStatus, minReadySeconds int32) bool {
+	if minReadySeconds == 0 {
+		return true
+	}
+	// TODOH make it generic
+	// Simple heuristic: if availableReplicas equals readyReplicas, assume minReadySeconds is met
+	// This works because availableReplicas in most workloads (Deployment, ReplicaSet, StatefulSet)
+	// already factors in minReadySeconds
+	return resourceStatus.AvailableReplicas == resourceStatus.ReadyReplicas
 }

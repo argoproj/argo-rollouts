@@ -102,20 +102,17 @@ func main() {
 	// Create plugin manager
 	pluginManager := rolloutplugin.NewPluginManager()
 
-	// Register built-in plugins
-	// For StatefulSet plugin, we can either use the direct plugin or the RPC wrapper
-	// Using direct plugin for built-in mode (no separate executable needed)
+	// Register built-in plugins (similar to metric providers pattern)
+	// StatefulSet is a built-in plugin for native Kubernetes kind
 	logrusCtx := log.WithField("plugin", "statefulset")
 	statefulSetPlugin := statefulset.NewPlugin(kubeClientset, logrusCtx)
-
-	// Wrap the plugin with RPC interface for consistency
 	wrappedPlugin := pluginPackage.NewRolloutPlugin(statefulSetPlugin)
 
 	if err := pluginManager.RegisterPlugin("statefulset", wrappedPlugin); err != nil {
 		setupLog.Error(err, "unable to register statefulset plugin")
 		os.Exit(1)
 	}
-	setupLog.Info("Registered StatefulSet plugin")
+	setupLog.Info("Registered built-in StatefulSet plugin")
 
 	// Set up the controller
 	if err = (&rolloutplugin.RolloutPluginReconciler{

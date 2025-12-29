@@ -119,6 +119,11 @@ func NewLeaderElectionOptions() *LeaderElectionOptions {
 	}
 }
 
+// GetLeaderElectionLeaseLockName returns the lease lock name used for leader election
+func GetLeaderElectionLeaseLockName() string {
+	return defaultLeaderElectionLeaseLockName
+}
+
 // Manager is the controller implementation for Argo-Rollout resources
 type Manager struct {
 	wg                      *sync.WaitGroup

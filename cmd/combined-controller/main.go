@@ -286,21 +286,35 @@ func newCommand() *cobra.Command {
 			// Set up controller-runtime logger
 			ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zap.Options{Development: true})))
 
+			// Determine leader election namespace
+			leaderElectionNamespace := electOpts.LeaderElectionNamespace
+			if leaderElectionNamespace == "" {
+				if namespaced && namespace != metav1.NamespaceAll {
+					leaderElectionNamespace = namespace
+				} else {
+					leaderElectionNamespace = defaults.Namespace()
+				}
+				// Update electOpts with the computed namespace for standard controllers
+				electOpts.LeaderElectionNamespace = leaderElectionNamespace
+			}
+
 			mgrOpts := ctrl.Options{
 				Scheme: scheme,
 				Metrics: metricsserver.Options{
 					BindAddress: fmt.Sprintf(":%d", rolloutPluginMetricsPort),
 				},
-				HealthProbeBindAddress: fmt.Sprintf(":%d", rolloutPluginHealthzPort),
-				LeaderElection:         false, // Using standard controller's leader election
-				LeaderElectionID:       "rolloutplugin.argoproj.io",
-			}
-
-			if namespace != metav1.NamespaceAll {
-				setupLog.Info("RolloutPlugin controller watching specific namespace", "namespace", namespace)
+				HealthProbeBindAddress:  fmt.Sprintf(":%d", rolloutPluginHealthzPort),
+				LeaderElection:          false, // Combined controller uses standard controller's leader election
+				LeaderElectionID:        controller.GetLeaderElectionLeaseLockName(),
+				LeaderElectionNamespace: leaderElectionNamespace,
+			} // Configure namespace scoping
+			if namespaced && namespace != metav1.NamespaceAll {
+				setupLog.Info("RolloutPlugin controller running in namespaced mode", "namespace", namespace)
 				mgrOpts.Cache.DefaultNamespaces = map[string]cache.Config{
 					namespace: {},
 				}
+			} else {
+				setupLog.Info("RolloutPlugin controller running in cluster-scoped mode")
 			}
 
 			mgr, err := ctrl.NewManager(config, mgrOpts)
@@ -308,6 +322,7 @@ func newCommand() *cobra.Command {
 				return fmt.Errorf("failed to create controller-runtime manager: %w", err)
 			}
 
+			// TODOH
 			// Create plugin manager and register built-in plugins
 			pluginManager := rolloutplugin.NewPluginManager()
 
@@ -428,6 +443,7 @@ func newCommand() *cobra.Command {
 	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Defines all the ingress class annotations that the nginx ingress controller operates on")
 	command.Flags().BoolVar(&awsVerifyTargetGroup, "aws-verify-target-group", false, "Verify ALB target group before progressing through steps")
 	command.Flags().BoolVar(&electOpts.LeaderElect, "leader-elect", controller.DefaultLeaderElect, "Enable leader election")
+	command.Flags().StringVar(&electOpts.LeaderElectionNamespace, "leader-election-namespace", "", "Namespace for leader election lock (defaults to controller namespace or argo-rollouts)")
 	command.Flags().DurationVar(&electOpts.LeaderElectionLeaseDuration, "leader-election-lease-duration", controller.DefaultLeaderElectionLeaseDuration, "Leader election lease duration")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRenewDeadline, "leader-election-renew-deadline", controller.DefaultLeaderElectionRenewDeadline, "Leader election renew deadline")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "Leader election retry period")
