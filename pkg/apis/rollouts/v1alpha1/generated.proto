@@ -1214,6 +1214,7 @@ message PingPongSpec {
   optional string pongService = 2;
 }
 
+// TODOH is this needed?
 // PluginConfig contains configuration for the resource plugin
 message PluginConfig {
   // Name of the plugin (e.g., "statefulset", "daemonset")

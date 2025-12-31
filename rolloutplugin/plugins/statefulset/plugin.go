@@ -459,6 +459,14 @@ func (p *Plugin) Reset(workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	}
 	sts.Spec.UpdateStrategy.RollingUpdate.Partition = &partition
 
+	// Clear abort-related annotations since retry is being allowed by the controller
+	// The controller only calls Reset() after verifying the rollout is in aborted state
+	if sts.Annotations != nil {
+		delete(sts.Annotations, "rolloutplugin.argoproj.io/aborted-revision")
+		delete(sts.Annotations, "rolloutplugin.argoproj.io/allow-retry")
+		p.logCtx.Info("Cleared abort-related annotations for retry")
+	}
+
 	// Update the StatefulSet
 	_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
 	if err != nil {

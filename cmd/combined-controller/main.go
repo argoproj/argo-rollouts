@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/kubeclientmetrics"
+	"github.com/go-logr/logr"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -23,7 +24,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/argoproj/argo-rollouts/controller"
@@ -46,11 +47,14 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
 )
 
 func init() {
+	// Set controller-runtime logger to a null logger to suppress the warning
+	// We use logrus for our own logging
+	ctrl.SetLogger(logr.New(ctrllog.NullLogSink{}))
+
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 }
@@ -172,7 +176,7 @@ func newCommand() *cobra.Command {
 			// ========================================
 			// PART 1: Setup Standard Argo Rollouts Controllers
 			// ========================================
-			setupLog.Info("Setting up standard Argo Rollouts controllers")
+			log.Info("Setting up standard Argo Rollouts controllers")
 
 			resyncDuration := time.Duration(rolloutResyncPeriod) * time.Second
 			kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
@@ -281,10 +285,7 @@ func newCommand() *cobra.Command {
 			// ========================================
 			// PART 2: Setup RolloutPlugin Controller (controller-runtime)
 			// ========================================
-			setupLog.Info("Setting up RolloutPlugin controller (controller-runtime)")
-
-			// Set up controller-runtime logger
-			ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zap.Options{Development: true})))
+			log.Info("Setting up RolloutPlugin controller (controller-runtime)")
 
 			// Determine leader election namespace
 			leaderElectionNamespace := electOpts.LeaderElectionNamespace
@@ -309,12 +310,12 @@ func newCommand() *cobra.Command {
 				LeaderElectionNamespace: leaderElectionNamespace,
 			} // Configure namespace scoping
 			if namespaced && namespace != metav1.NamespaceAll {
-				setupLog.Info("RolloutPlugin controller running in namespaced mode", "namespace", namespace)
+				log.WithField("namespace", namespace).Info("RolloutPlugin controller running in namespaced mode")
 				mgrOpts.Cache.DefaultNamespaces = map[string]cache.Config{
 					namespace: {},
 				}
 			} else {
-				setupLog.Info("RolloutPlugin controller running in cluster-scoped mode")
+				log.Info("RolloutPlugin controller running in cluster-scoped mode")
 			}
 
 			mgr, err := ctrl.NewManager(config, mgrOpts)
@@ -333,7 +334,7 @@ func newCommand() *cobra.Command {
 			if err := pluginManager.RegisterPlugin("statefulset", wrappedPlugin); err != nil {
 				return fmt.Errorf("failed to register statefulset plugin: %w", err)
 			}
-			setupLog.Info("Registered StatefulSet plugin")
+			log.Info("Registered StatefulSet plugin")
 
 			// Create analysis helper to enable RolloutPlugin controller to reuse AnalysisRun logic
 			// The helper uses listers from the informer-based controller manager
@@ -374,35 +375,35 @@ func newCommand() *cobra.Command {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				setupLog.Info("Starting standard Argo Rollouts controllers")
+				log.Info("Starting standard Argo Rollouts controllers")
 				if err := cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
-					setupLog.Error(err, "Error running standard controllers")
+					log.WithError(err).Error("Error running standard controllers")
 					os.Exit(1)
 				}
-				setupLog.Info("Standard Argo Rollouts controllers stopped")
+				log.Info("Standard Argo Rollouts controllers stopped")
 			}()
 
 			// Start controller-runtime manager for RolloutPlugin
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				setupLog.Info("Starting RolloutPlugin controller (controller-runtime)")
+				log.Info("Starting RolloutPlugin controller (controller-runtime)")
 				if err := mgr.Start(ctx); err != nil {
-					setupLog.Error(err, "Error running RolloutPlugin controller")
+					log.WithError(err).Error("Error running RolloutPlugin controller")
 					os.Exit(1)
 				}
-				setupLog.Info("RolloutPlugin controller stopped")
+				log.Info("RolloutPlugin controller stopped")
 			}()
 
-			setupLog.Info("All controllers started successfully")
+			log.Info("All controllers started successfully")
 
 			// Wait for context cancellation
 			<-ctx.Done()
-			setupLog.Info("Received shutdown signal, waiting for controllers to stop")
+			log.Info("Received shutdown signal, waiting for controllers to stop")
 
 			// Wait for all controllers to finish
 			wg.Wait()
-			setupLog.Info("All controllers stopped gracefully")
+			log.Info("All controllers stopped gracefully")
 
 			return nil
 		},

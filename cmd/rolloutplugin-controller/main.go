@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"os"
 
+	"github.com/go-logr/logr"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -13,7 +13,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -24,11 +24,14 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
 )
 
 func init() {
+	// Set controller-runtime logger to a null logger to suppress the warning
+	// We use logrus for our own logging
+	ctrl.SetLogger(logr.New(ctrllog.NullLogSink{}))
+
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 }
@@ -38,20 +41,19 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var namespace string
+	var logLevel string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&namespace, "namespace", "", "The namespace to watch. If empty, watches all namespaces.")
+	flag.StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug, info, warn, error")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	// Set up logrus log level
+	setLogLevel(logLevel)
 
 	// Set up manager options
 	mgrOpts := ctrl.Options{
@@ -66,7 +68,7 @@ func main() {
 
 	// If a specific namespace is provided, configure the cache to watch only that namespace
 	if namespace != "" {
-		setupLog.Info("Watching specific namespace", "namespace", namespace)
+		log.WithField("namespace", namespace).Info("Watching specific namespace")
 		mgrOpts.Cache.DefaultNamespaces = map[string]cache.Config{
 			namespace: {},
 		}
@@ -74,8 +76,7 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgrOpts)
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		log.WithError(err).Fatal("Unable to start manager")
 	}
 
 	// Create additional clientsets
@@ -83,20 +84,17 @@ func main() {
 
 	kubeClientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		setupLog.Error(err, "unable to create kubernetes clientset")
-		os.Exit(1)
+		log.WithError(err).Fatal("Unable to create kubernetes clientset")
 	}
 
 	argoProjClientset, err := clientset.NewForConfig(config)
 	if err != nil {
-		setupLog.Error(err, "unable to create argoproj clientset")
-		os.Exit(1)
+		log.WithError(err).Fatal("Unable to create argoproj clientset")
 	}
 
 	dynamicClientset, err := dynamic.NewForConfig(config)
 	if err != nil {
-		setupLog.Error(err, "unable to create dynamic clientset")
-		os.Exit(1)
+		log.WithError(err).Fatal("Unable to create dynamic clientset")
 	}
 
 	// Create plugin manager
@@ -109,10 +107,9 @@ func main() {
 	wrappedPlugin := pluginPackage.NewRolloutPlugin(statefulSetPlugin)
 
 	if err := pluginManager.RegisterPlugin("statefulset", wrappedPlugin); err != nil {
-		setupLog.Error(err, "unable to register statefulset plugin")
-		os.Exit(1)
+		log.WithError(err).Fatal("Unable to register statefulset plugin")
 	}
-	setupLog.Info("Registered built-in StatefulSet plugin")
+	log.Info("Registered built-in StatefulSet plugin")
 
 	// Set up the controller
 	if err = (&rolloutplugin.RolloutPluginReconciler{
@@ -123,23 +120,29 @@ func main() {
 		DynamicClientset:  dynamicClientset,
 		PluginManager:     pluginManager,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RolloutPlugin")
-		os.Exit(1)
+		log.WithError(err).WithField("controller", "RolloutPlugin").Fatal("Unable to create controller")
 	}
 
 	// Add health and readiness checks
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
+		log.WithError(err).Fatal("Unable to set up health check")
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
+		log.WithError(err).Fatal("Unable to set up ready check")
 	}
 
-	setupLog.Info("starting manager")
+	log.Info("Starting RolloutPlugin controller manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+		log.WithError(err).Fatal("Problem running manager")
 	}
+}
+
+// setLogLevel sets the logging level based on the provided string
+func setLogLevel(logLevel string) {
+	level, err := log.ParseLevel(logLevel)
+	if err != nil {
+		log.WithField("level", logLevel).Warn("Invalid log level, defaulting to info")
+		level = log.InfoLevel
+	}
+	log.SetLevel(level)
 }

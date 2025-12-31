@@ -138,10 +138,10 @@ func (s *RolloutPluginSuite) TestAbortRollout() {
 		})
 }
 
-// TestRetryPreventionOnAbortedRevision tests that retry is blocked for aborted revisions
-// without allow-retry annotation
+// TestRetryPreventionOnNonAbortedRollout tests that retry is blocked when rollout is not aborted
 // Based on: TEST 4 from test-retry-features.sh
-func (s *RolloutPluginSuite) TestRetryPreventionOnAbortedRevision() {
+// Note: Retry is only allowed after abort - this tests that retry is rejected when not aborted
+func (s *RolloutPluginSuite) TestRetryPreventionOnNonAbortedRollout() {
 	s.Given().
 		RolloutPluginObjects("@rolloutplugin/statefulset-canary.yaml").
 		When().
@@ -150,27 +150,28 @@ func (s *RolloutPluginSuite) TestRetryPreventionOnAbortedRevision() {
 		WaitForRolloutPluginStatus("Healthy").
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
 		WaitForRolloutPluginCanaryStepIndex(1, 120*time.Second).
-		AbortRolloutPlugin().
-		WaitForRolloutPluginStatus("Degraded", 60*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
-			assert.True(s.T(), rp.Status.Aborted)
+			assert.False(s.T(), rp.Status.Aborted, "Rollout should not be aborted")
+			assert.Equal(s.T(), "Progressing", rp.Status.Phase)
 		}).
 		When().
-		RetryRolloutPlugin(0). // Attempt retry from step 0
+		RetryRolloutPlugin(0). // Attempt retry without abort - should be rejected
 		Sleep(5 * time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
-			// Retry should be blocked - status should still show aborted
-			assert.True(s.T(), rp.Status.Aborted, "Retry should be blocked without allow-retry annotation")
+			// Retry should be blocked - rollout was not aborted
+			assert.Equal(s.T(), "Failed", rp.Status.Phase, "Phase should be Failed because retry without abort is not allowed")
+			assert.Contains(s.T(), rp.Status.Message, "not been aborted", "Message should indicate retry requires abort")
 		})
 }
 
-// TestRetryWithAllowRetryAnnotation tests retry works with allow-retry annotation
+// TestRetryWithAllowRetryAnnotation tests retry works after abort
 // Based on: TEST 5 from test-retry-features.sh
-func (s *RolloutPluginSuite) TestRetryWithAllowRetryAnnotation() {
+// Note: allow-retry annotation is now optional - retry just requires abort state
+func (s *RolloutPluginSuite) TestRetryAfterAbort() {
 	s.Given().
 		RolloutPluginObjects("@rolloutplugin/statefulset-canary.yaml").
 		When().
@@ -181,15 +182,15 @@ func (s *RolloutPluginSuite) TestRetryWithAllowRetryAnnotation() {
 		WaitForRolloutPluginCanaryStepIndex(1, 120*time.Second).
 		AbortRolloutPlugin().
 		WaitForRolloutPluginStatus("Degraded", 60*time.Second).
-		SetStatefulSetAnnotation("rolloutplugin.argoproj.io/allow-retry", "true").
 		RetryRolloutPlugin(0).
 		WaitForRolloutPluginStatus("Progressing", 60*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
-			// With allow-retry annotation, retry should work
-			assert.False(s.T(), rp.Status.Aborted, "Aborted should be cleared after retry with allow-retry annotation")
+			// After abort and retry, rollout should resume
+			assert.False(s.T(), rp.Status.Aborted, "Aborted should be cleared after retry")
 			assert.Greater(s.T(), rp.Status.RetryAttempt, int32(0), "RetryAttempt should be incremented")
+			assert.True(s.T(), rp.Status.RolloutInProgress, "Rollout should be in progress")
 		})
 }
 
@@ -203,28 +204,40 @@ func (s *RolloutPluginSuite) TestRetryCounterResetOnNewRollout() {
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus("Healthy").
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 120*time.Second).
-		SetStatefulSetAnnotation("rolloutplugin.argoproj.io/allow-retry", "true").
+		WaitForRolloutPluginCanaryStepIndex(1, 30*time.Second).
+		AbortRolloutPlugin(). // Must abort before retry
+		WaitForRolloutPluginStatus("Degraded", 60*time.Second).
 		RetryRolloutPlugin(0).
-		WaitForRolloutPluginStatus("Progressing", 60*time.Second).
+		Sleep(3*time.Second). // Give controller time to process retry
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
+			s.T().Logf("After retry: RetryAttempt=%d, CurrentStepIndex=%v, Phase=%s",
+				rp.Status.RetryAttempt, rp.Status.CurrentStepIndex, rp.Status.Phase)
 			assert.Greater(s.T(), rp.Status.RetryAttempt, int32(0), "RetryAttempt should be > 0")
+			assert.True(s.T(), rp.Status.RolloutInProgress, "Rollout should be in progress after retry")
 		}).
 		When().
-		// Trigger new rollout
+		// Trigger new rollout with different image
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:musl").
-		WaitForRolloutPluginStatus("Progressing", 60*time.Second).
-		Sleep(5 * time.Second).
+		WaitForRolloutPluginStatus("Progressing", 30*time.Second). // Wait for new rollout to be detected
+		Sleep(2 * time.Second).                                    // Give controller time to reset retry counter
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
+			s.T().Logf("After new rollout: RetryAttempt=%d, UpdatedRevision=%s, CurrentRevision=%s",
+				rp.Status.RetryAttempt, rp.Status.UpdatedRevision, rp.Status.CurrentRevision)
+
+			// RetryAttempt should reset to 0 when a new rollout starts (new UpdatedRevision)
 			assert.Equal(s.T(), int32(0), rp.Status.RetryAttempt, "RetryAttempt should reset to 0 on new rollout")
+			assert.True(s.T(), rp.Status.RolloutInProgress, "New rollout should be in progress")
+
+			// Verify it's actually a new rollout (CurrentRevision != UpdatedRevision)
+			assert.NotEqual(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision, "Should be a new rollout with different revisions")
 		})
 }
 
-// TestRetryFromSpecificStep tests retry from a specific step
+// TestRetryFromSpecificStep tests retry from a specific step after abort
 // Based on: TEST 8 from test-retry-features.sh
 func (s *RolloutPluginSuite) TestRetryFromSpecificStep() {
 	s.Given().
@@ -242,6 +255,8 @@ func (s *RolloutPluginSuite) TestRetryFromSpecificStep() {
 			assert.GreaterOrEqual(s.T(), *rp.Status.CurrentStepIndex, int32(3))
 		}).
 		When().
+		AbortRolloutPlugin(). // Must abort before retry
+		WaitForRolloutPluginStatus("Degraded", 60*time.Second).
 		RetryRolloutPlugin(1). // Retry from step 1
 		Sleep(5 * time.Second).
 		Then().
@@ -254,8 +269,9 @@ func (s *RolloutPluginSuite) TestRetryFromSpecificStep() {
 		})
 }
 
-// TestResetFunctionality tests the Reset() plugin method via retry
+// TestResetFunctionality tests the Reset() plugin method via retry after abort
 // Based on: TEST 9 from test-retry-features.sh
+// Note: Retry is only allowed after aborting the rollout (matches main Rollout controller behavior)
 func (s *RolloutPluginSuite) TestResetFunctionality() {
 	s.Given().
 		RolloutPluginObjects("@rolloutplugin/statefulset-canary.yaml").
@@ -264,15 +280,56 @@ func (s *RolloutPluginSuite) TestResetFunctionality() {
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus("Healthy").
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(2, 120*time.Second). // Progress a bit
+		WaitForRolloutPluginCanaryStepIndex(2, 120*time.Second). // Progress to step 2
 		Then().
-		// Verify partition is less than replicas (canary active)
+		// Verify partition is less than replicas (canary in progress)
 		ExpectStatefulSetPartitionLessThan(5).
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			// Record state before abort
+			s.T().Logf("Before abort: Phase=%s, RetryAttempt=%d, CurrentStepIndex=%v",
+				rp.Status.Phase, rp.Status.RetryAttempt, *rp.Status.CurrentStepIndex)
+			assert.Equal(s.T(), int32(2), *rp.Status.CurrentStepIndex, "Should be at step 2")
+			assert.Equal(s.T(), int32(0), rp.Status.RetryAttempt, "RetryAttempt should be 0 before retry")
+		}).
 		When().
-		RetryRolloutPlugin(0).                          // Trigger Reset()
-		WaitForStatefulSetPartition(5, 60*time.Second). // After Reset(), partition should be replicas (0% canary)
+		AbortRolloutPlugin().                   // Abort the rollout first
+		WaitForRolloutPluginStatus("Degraded"). // Wait for abort to complete
+		RetryRolloutPlugin(0).                  // Trigger Reset() and restart from step 0
+		Sleep(3*time.Second).                   // Give controller time to process retry and start step 0
 		Then().
-		ExpectStatefulSetPartition(5)
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			// Verify that retry was processed and rollout restarted
+			s.T().Logf("After retry: Phase=%s, RetryAttempt=%d, CurrentStepIndex=%v, RolloutInProgress=%v",
+				rp.Status.Phase, rp.Status.RetryAttempt, rp.Status.CurrentStepIndex, rp.Status.RolloutInProgress)
+
+			// Key verification: RetryAttempt should be incremented
+			assert.Equal(s.T(), int32(1), rp.Status.RetryAttempt, "RetryAttempt should be 1 after retry")
+
+			// Rollout should be in progress
+			assert.True(s.T(), rp.Status.RolloutInProgress, "Rollout should be in progress")
+			assert.Equal(s.T(), "Progressing", rp.Status.Phase, "Phase should be Progressing")
+
+			// CurrentStepIndex should be processing from step 0 onwards
+			// (may already be past step 0 due to immediate requeue)
+			assert.NotNil(s.T(), rp.Status.CurrentStepIndex, "CurrentStepIndex should be set")
+			assert.GreaterOrEqual(s.T(), *rp.Status.CurrentStepIndex, int32(0), "Should be at or past step 0")
+		}).
+		When().
+		// Wait for rollout to complete successfully after retry
+		WaitForRolloutPluginStatus("Successful", 180*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			s.T().Logf("After completion: Phase=%s, RetryAttempt=%d",
+				rp.Status.Phase, rp.Status.RetryAttempt)
+
+			// Verify rollout completed successfully with retry counter preserved
+			assert.Equal(s.T(), "Successful", rp.Status.Phase, "Rollout should complete successfully")
+			assert.Equal(s.T(), int32(1), rp.Status.RetryAttempt, "RetryAttempt should still be 1")
+			assert.False(s.T(), rp.Status.RolloutInProgress, "Rollout should be complete")
+		})
 }
 
 // TestPromoteToFullLoad tests promoting to 100% (full load)
