@@ -141,6 +141,23 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	newStatus := rolloutPlugin.Status.DeepCopy()
 	newStatus.ObservedGeneration = rolloutPlugin.Generation
 
+	// Validate the RolloutPlugin spec
+	prevInvalidSpecCond := conditions.GetRolloutPluginCondition(rolloutPlugin.Status, conditions.RolloutPluginInvalidSpec)
+	invalidSpecCond := conditions.VerifyRolloutPluginSpec(rolloutPlugin, prevInvalidSpecCond)
+	if invalidSpecCond != nil {
+		logCtx.WithField("reason", invalidSpecCond.Message).Warn("RolloutPlugin spec validation failed")
+		newStatus.Phase = "Failed"
+		newStatus.Message = invalidSpecCond.Message
+		conditions.SetRolloutPluginCondition(newStatus, *invalidSpecCond)
+		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
+	}
+
+	// Remove InvalidSpec condition if spec is now valid
+	if prevInvalidSpecCond != nil {
+		logCtx.Info("RolloutPlugin spec is now valid, removing InvalidSpec condition")
+		conditions.RemoveRolloutPluginCondition(newStatus, conditions.RolloutPluginInvalidSpec)
+	}
+
 	// Check if retry is requested via spec.RestartAt
 	if rolloutPlugin.Spec.RestartAt != nil {
 		return r.processRetry(ctx, rolloutPlugin, newStatus, logCtx)
@@ -253,7 +270,15 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	if err != nil {
 		logCtx.WithError(err).Error("Failed to get plugin")
 		newStatus.Phase = "Failed"
-		newStatus.Message = fmt.Sprintf("Failed to get plugin: %v", err)
+		newStatus.Message = fmt.Sprintf("Plugin '%s' not found. Ensure the plugin is registered in the argo-rollouts-config ConfigMap under 'rolloutPlugins'", rolloutPlugin.Spec.Plugin.Name)
+		// Set InvalidSpec condition for plugin not found
+		pluginNotFoundCond := conditions.NewRolloutPluginCondition(
+			conditions.RolloutPluginInvalidSpec,
+			corev1.ConditionTrue,
+			conditions.RolloutPluginInvalidSpecReason,
+			newStatus.Message,
+		)
+		conditions.SetRolloutPluginCondition(newStatus, *pluginNotFoundCond)
 		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
 	}
 

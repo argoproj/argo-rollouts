@@ -1,0 +1,57 @@
+---
+# Invalid RolloutPlugin - plugin not registered in ConfigMap
+# Uses a non-existent plugin name that is not in argo-rollouts-config ConfigMap
+# Used by: TestInvalidSpecPluginNotFound
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-plugin-notfound-svc
+spec:
+  clusterIP: None
+  selector:
+    app: test-plugin-notfound
+  ports:
+  - port: 80
+    name: web
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-plugin-notfound-sts
+spec:
+  serviceName: test-plugin-notfound-svc
+  replicas: 2
+  selector:
+    matchLabels:
+      app: test-plugin-notfound
+  template:
+    metadata:
+      labels:
+        app: test-plugin-notfound
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: busybox
+        image: quay.io/prometheus/busybox:latest
+        command: ["sleep", "3600"]
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 2
+---
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: test-plugin-notfound-rollout
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: test-plugin-notfound-sts
+  plugin:
+    # This plugin does not exist in the ConfigMap
+    name: nonexistent-plugin
+  strategy:
+    canary:
+      steps:
+      - setWeight: 50

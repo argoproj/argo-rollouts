@@ -510,3 +510,85 @@ func (s *RolloutPluginSuite) TestCompleteRolloutToHealthy() {
 			assert.NotEmpty(s.T(), rp.Status.CurrentRevision)
 		})
 }
+
+// =================== Validation Tests ===================
+
+// TestInvalidSpecMissingStrategy tests that validation fails when no strategy is specified
+// Note: CRD allows empty strategy, but controller validates it
+func (s *RolloutPluginSuite) TestInvalidSpecMissingStrategy() {
+	s.Given().
+		RolloutPluginObjects("@rolloutplugin/invalid-spec-missing-strategy.yaml").
+		When().
+		ApplyManifests().
+		WaitForStatefulSetReady().
+		WaitForRolloutPluginStatus("Failed", 60*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.Equal(s.T(), "Failed", rp.Status.Phase)
+			assert.Contains(s.T(), rp.Status.Message, "canary or blueGreen strategy")
+
+			// Verify InvalidSpec condition is set
+			var foundInvalidSpec bool
+			for _, cond := range rp.Status.Conditions {
+				if cond.Type == "InvalidSpec" {
+					foundInvalidSpec = true
+					assert.Equal(s.T(), "True", string(cond.Status))
+					break
+				}
+			}
+			assert.True(s.T(), foundInvalidSpec, "InvalidSpec condition should be set")
+		})
+}
+
+// TestInvalidSpecPluginNotFound tests that validation fails when the plugin is not registered
+func (s *RolloutPluginSuite) TestInvalidSpecPluginNotFound() {
+	s.Given().
+		RolloutPluginObjects("@rolloutplugin/invalid-spec-plugin-notfound.yaml").
+		When().
+		ApplyManifests().
+		WaitForStatefulSetReady().
+		WaitForRolloutPluginStatus("Failed", 60*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.Equal(s.T(), "Failed", rp.Status.Phase)
+			// Check for plugin not found error message
+			assert.Contains(s.T(), rp.Status.Message, "not found")
+			assert.Contains(s.T(), rp.Status.Message, "nonexistent-plugin")
+
+			// Verify InvalidSpec condition is set for plugin not found
+			var foundInvalidSpec bool
+			for _, cond := range rp.Status.Conditions {
+				if cond.Type == "InvalidSpec" {
+					foundInvalidSpec = true
+					assert.Equal(s.T(), "True", string(cond.Status))
+					assert.Contains(s.T(), cond.Message, "not found")
+					break
+				}
+			}
+			assert.True(s.T(), foundInvalidSpec, "InvalidSpec condition should be set for plugin not found")
+		})
+}
+
+// TestValidSpecNoInvalidCondition tests that a valid spec doesn't have InvalidSpec condition
+func (s *RolloutPluginSuite) TestValidSpecNoInvalidCondition() {
+	s.Given().
+		RolloutPluginObjects("@rolloutplugin/valid-spec-fix.yaml").
+		When().
+		ApplyManifests().
+		WaitForStatefulSetReady().
+		WaitForRolloutPluginStatus("Healthy", 60*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.Equal(s.T(), "Healthy", rp.Status.Phase)
+
+			// InvalidSpec condition should NOT be present for valid spec
+			for _, cond := range rp.Status.Conditions {
+				if cond.Type == "InvalidSpec" {
+					s.T().Errorf("InvalidSpec condition should not be present on valid spec, but found: %+v", cond)
+				}
+			}
+		})
+}

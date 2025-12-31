@@ -21,6 +21,8 @@ const (
 	RolloutPluginPaused = "Paused"
 	// RolloutPluginCompleted indicates the RolloutPlugin has completed
 	RolloutPluginCompleted = "Completed"
+	// RolloutPluginInvalidSpec indicates the RolloutPlugin spec is invalid
+	RolloutPluginInvalidSpec = "InvalidSpec"
 
 	// Reasons for Progressing condition
 	// RolloutPluginProgressingReason indicates the RolloutPlugin is progressing
@@ -44,6 +46,9 @@ const (
 	RolloutPluginAbortedReason = "RolloutPluginAborted"
 	// RolloutPluginAbortedMessage is the message for abort
 	RolloutPluginAbortedMessage = "RolloutPlugin aborted"
+
+	// RolloutPluginInvalidSpecReason indicates the spec is invalid
+	RolloutPluginInvalidSpecReason = "InvalidSpec"
 
 	// Reasons for Healthy/Completed condition
 	// RolloutPluginHealthyReason indicates the RolloutPlugin is healthy
@@ -147,4 +152,101 @@ func RolloutPluginIsHealthy(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1
 		return true
 	}
 	return false
+}
+
+// newInvalidSpecRolloutPluginCondition creates a new InvalidSpec condition for RolloutPlugin
+func newInvalidSpecRolloutPluginCondition(prevCond *v1alpha1.RolloutPluginCondition, reason string, message string) *v1alpha1.RolloutPluginCondition {
+	if prevCond != nil && prevCond.Message == message {
+		prevCond.LastUpdateTime = metav1.Now()
+		return prevCond
+	}
+	return NewRolloutPluginCondition(RolloutPluginInvalidSpec, corev1.ConditionTrue, reason, message)
+}
+
+// VerifyRolloutPluginSpec checks for a valid spec and returns an InvalidSpec condition if invalid.
+// Returns nil if the spec is valid.
+func VerifyRolloutPluginSpec(rolloutPlugin *v1alpha1.RolloutPlugin, prevCond *v1alpha1.RolloutPluginCondition) *v1alpha1.RolloutPluginCondition {
+	spec := rolloutPlugin.Spec
+
+	// Validate WorkloadRef
+	if spec.WorkloadRef.Name == "" {
+		message := "RolloutPlugin spec.workloadRef.name is required"
+		return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+	}
+	if spec.WorkloadRef.Kind == "" {
+		message := "RolloutPlugin spec.workloadRef.kind is required"
+		return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+	}
+	if spec.WorkloadRef.APIVersion == "" {
+		message := "RolloutPlugin spec.workloadRef.apiVersion is required"
+		return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+	}
+
+	// Validate Plugin
+	if spec.Plugin.Name == "" {
+		message := "RolloutPlugin spec.plugin.name is required"
+		return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+	}
+
+	// Validate Strategy
+	strategyType := spec.Strategy.Type
+	if strategyType != "" && strategyType != "Canary" && strategyType != "BlueGreen" {
+		message := "RolloutPlugin spec.strategy.type must be 'Canary' or 'BlueGreen'"
+		return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+	}
+
+	// Validate strategy type matches strategy configuration
+	if strategyType == "Canary" && spec.Strategy.Canary == nil {
+		message := "RolloutPlugin spec.strategy.canary is required when strategy type is 'Canary'"
+		return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+	}
+	if strategyType == "BlueGreen" && spec.Strategy.BlueGreen == nil {
+		message := "RolloutPlugin spec.strategy.blueGreen is required when strategy type is 'BlueGreen'"
+		return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+	}
+
+	// Validate that only one strategy is specified (not both)
+	if spec.Strategy.Canary != nil && spec.Strategy.BlueGreen != nil {
+		message := "RolloutPlugin cannot have both canary and blueGreen strategies specified"
+		return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+	}
+
+	// Infer strategy type if not explicitly set
+	if strategyType == "" {
+		if spec.Strategy.Canary == nil && spec.Strategy.BlueGreen == nil {
+			message := "RolloutPlugin must have either canary or blueGreen strategy specified"
+			return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+		}
+	}
+
+	// Validate RestartAt is within bounds if set
+	if spec.RestartAt != nil {
+		restartAt := *spec.RestartAt
+		if restartAt < 0 {
+			message := "RolloutPlugin spec.restartAt cannot be negative"
+			return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+		}
+		// Validate restartAt is within the step count if canary strategy with steps
+		if spec.Strategy.Canary != nil && spec.Strategy.Canary.Steps != nil {
+			stepCount := int32(len(spec.Strategy.Canary.Steps))
+			if restartAt >= stepCount {
+				message := "RolloutPlugin spec.restartAt exceeds the number of steps"
+				return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+			}
+		}
+	}
+
+	// Validate minReadySeconds
+	if spec.MinReadySeconds < 0 {
+		message := "RolloutPlugin spec.minReadySeconds cannot be negative"
+		return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+	}
+
+	// Validate progressDeadlineSeconds
+	if spec.ProgressDeadlineSeconds != nil && *spec.ProgressDeadlineSeconds <= 0 {
+		message := "RolloutPlugin spec.progressDeadlineSeconds must be greater than 0"
+		return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
+	}
+
+	return nil
 }
