@@ -84,17 +84,23 @@ func GetRolloutPluginCondition(status v1alpha1.RolloutPluginStatus, condType str
 
 // SetRolloutPluginCondition updates the RolloutPlugin to include the provided condition.
 // If the condition already exists with the same status, reason, and message, it is not updated.
+// This prevents unnecessary reconciliation loops caused by timestamp changes.
 // Returns true if the condition was updated.
 func SetRolloutPluginCondition(status *v1alpha1.RolloutPluginStatus, condition v1alpha1.RolloutPluginCondition) bool {
 	currentCond := GetRolloutPluginCondition(*status, condition.Type)
 	if currentCond != nil && currentCond.Status == condition.Status &&
 		currentCond.Reason == condition.Reason && currentCond.Message == condition.Message {
+		// Condition is identical - don't update to avoid unnecessary reconciliation
 		return false
 	}
 
+	// Preserve LastTransitionTime if status hasn't changed
 	if currentCond != nil && currentCond.Status == condition.Status {
 		condition.LastTransitionTime = currentCond.LastTransitionTime
 	}
+
+	// Preserve LastUpdateTime if nothing has changed (already handled above by returning false)
+	// If we reach here, something has changed, so update the timestamp
 
 	newConditions := filterOutRolloutPluginCondition(status.Conditions, condition.Type)
 	status.Conditions = append(newConditions, condition)

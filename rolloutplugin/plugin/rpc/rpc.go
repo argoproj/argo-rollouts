@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/rpc"
 
-	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	"github.com/hashicorp/go-plugin"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
 
 // Args for RPC calls
@@ -42,18 +42,8 @@ type ResetArgs struct {
 
 // Responses for RPC calls
 type GetResourceStatusResponse struct {
-	Status *ResourceStatus
+	Status *types.ResourceStatus
 	Error  types.RpcError
-}
-
-type ResourceStatus struct {
-	Replicas          int32
-	UpdatedReplicas   int32
-	ReadyReplicas     int32
-	AvailableReplicas int32
-	CurrentRevision   string
-	UpdatedRevision   string
-	Ready             bool
 }
 
 type VerifyWeightResponse struct {
@@ -70,21 +60,12 @@ func init() {
 	gob.RegisterName("rolloutplugin.AbortArgs", new(AbortArgs))
 	gob.RegisterName("rolloutplugin.ResetArgs", new(ResetArgs))
 	gob.RegisterName("rolloutplugin.GetResourceStatusResponse", new(GetResourceStatusResponse))
-	gob.RegisterName("rolloutplugin.ResourceStatus", new(ResourceStatus))
 	gob.RegisterName("rolloutplugin.VerifyWeightResponse", new(VerifyWeightResponse))
 }
 
-// ResourcePlugin is the interface that we're exposing as a plugin
-type ResourcePlugin interface {
-	InitPlugin() types.RpcError
-	GetResourceStatus(workloadRef v1alpha1.WorkloadRef) (*ResourceStatus, types.RpcError)
-	SetWeight(workloadRef v1alpha1.WorkloadRef, weight int32) types.RpcError
-	VerifyWeight(workloadRef v1alpha1.WorkloadRef, weight int32) (bool, types.RpcError)
-	Promote(workloadRef v1alpha1.WorkloadRef) types.RpcError
-	Abort(workloadRef v1alpha1.WorkloadRef) types.RpcError
-	Reset(workloadRef v1alpha1.WorkloadRef) types.RpcError
-	Type() string
-}
+// ResourcePlugin is an alias for the shared RPC interface.
+// External plugins implement this interface.
+type ResourcePlugin = types.RpcResourcePlugin
 
 // ResourcePluginRPC is the RPC client implementation
 type ResourcePluginRPC struct {
@@ -102,7 +83,7 @@ func (g *ResourcePluginRPC) InitPlugin() types.RpcError {
 }
 
 // GetResourceStatus gets the current status of the workload
-func (g *ResourcePluginRPC) GetResourceStatus(workloadRef v1alpha1.WorkloadRef) (*ResourceStatus, types.RpcError) {
+func (g *ResourcePluginRPC) GetResourceStatus(workloadRef v1alpha1.WorkloadRef) (*types.ResourceStatus, types.RpcError) {
 	var resp GetResourceStatusResponse
 	args := GetResourceStatusArgs{WorkloadRef: workloadRef}
 	err := g.client.Call("Plugin.GetResourceStatus", &args, &resp)

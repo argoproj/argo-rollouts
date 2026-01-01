@@ -36,7 +36,6 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout"
 	"github.com/argoproj/argo-rollouts/rolloutplugin"
 	analysishelper "github.com/argoproj/argo-rollouts/rolloutplugin/analysis"
-	pluginPackage "github.com/argoproj/argo-rollouts/rolloutplugin/plugin"
 	statefulset "github.com/argoproj/argo-rollouts/rolloutplugin/plugins/statefulset"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -323,15 +322,15 @@ func newCommand() *cobra.Command {
 				return fmt.Errorf("failed to create controller-runtime manager: %w", err)
 			}
 
-			// TODOH
 			// Create plugin manager and register built-in plugins
 			pluginManager := rolloutplugin.NewPluginManager()
 
-			logrusCtx := log.WithField("plugin", "statefulset") // TODO Make it generic
+			logrusCtx := log.WithField("plugin", "statefulset")
+			// Built-in plugins directly implement rolloutplugin.ResourcePlugin
+			// No wrapper needed - this is more efficient than RPC-based external plugins
 			statefulSetPlugin := statefulset.NewPlugin(kubeClient, logrusCtx)
-			wrappedPlugin := pluginPackage.NewRolloutPlugin(statefulSetPlugin)
 
-			if err := pluginManager.RegisterPlugin("statefulset", wrappedPlugin); err != nil {
+			if err := pluginManager.RegisterPlugin("statefulset", statefulSetPlugin); err != nil {
 				return fmt.Errorf("failed to register statefulset plugin: %w", err)
 			}
 			log.Info("Registered StatefulSet plugin")

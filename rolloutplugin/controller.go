@@ -15,14 +15,18 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	plugintypes "github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
 
 // RolloutPluginReconciler reconciles a RolloutPlugin object
@@ -59,7 +63,9 @@ type PluginManager interface {
 	LoadPlugin(config v1alpha1.PluginConfig) error
 }
 
-// ResourcePlugin is the interface that all resource plugins must implement
+// ResourcePlugin is the interface that all resource plugins must implement.
+// Built-in plugins implement this interface directly.
+// External RPC plugins implement types.RpcResourcePlugin, which is adapted via RpcPluginWrapper.
 type ResourcePlugin interface {
 	// Init initializes the plugin
 	Init() error
@@ -83,16 +89,9 @@ type ResourcePlugin interface {
 	Reset(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error
 }
 
-// ResourceStatus contains the status of a workload resource
-type ResourceStatus struct {
-	Replicas          int32
-	UpdatedReplicas   int32
-	ReadyReplicas     int32
-	AvailableReplicas int32
-	CurrentRevision   string
-	UpdatedRevision   string
-	Ready             bool
-}
+// ResourceStatus is an alias for the shared type to avoid import changes in existing code.
+// The actual struct is defined in utils/plugin/types to be shared with RPC plugins.
+type ResourceStatus = plugintypes.ResourceStatus
 
 //+kubebuilder:rbac:groups=argoproj.io,resources=rolloutplugins,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=argoproj.io,resources=rolloutplugins/status,verbs=get;update;patch
@@ -107,7 +106,6 @@ type ResourceStatus struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TOODH RBAC Generic?
 func (r *RolloutPluginReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logCtx := log.WithFields(log.Fields{"namespace": req.Namespace, "rolloutplugin": req.Name})
 	logCtx.Info("Reconciling RolloutPlugin")
@@ -158,9 +156,44 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		conditions.RemoveRolloutPluginCondition(newStatus, conditions.RolloutPluginInvalidSpec)
 	}
 
+	// Get the plugin early - we'll need it for multiple operations
+	plugin, err := r.PluginManager.GetPlugin(rolloutPlugin.Spec.Plugin.Name)
+	if err != nil {
+		logCtx.WithError(err).Error("Failed to get plugin")
+		newStatus.Phase = "Failed"
+		newStatus.Message = fmt.Sprintf("Plugin '%s' not found. Ensure the plugin is registered in the argo-rollouts-config ConfigMap under 'rolloutPlugins'", rolloutPlugin.Spec.Plugin.Name)
+		// Set InvalidSpec condition for plugin not found
+		pluginNotFoundCond := conditions.NewRolloutPluginCondition(
+			conditions.RolloutPluginInvalidSpec,
+			corev1.ConditionTrue,
+			conditions.RolloutPluginInvalidSpecReason,
+			newStatus.Message,
+		)
+		conditions.SetRolloutPluginCondition(newStatus, *pluginNotFoundCond)
+		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
+	}
+
+	// Initialize plugin if not already initialized
+	if !newStatus.Initialized {
+		if err := plugin.Init(); err != nil {
+			logCtx.WithError(err).Error("Failed to initialize plugin")
+			newStatus.Phase = "Failed"
+			newStatus.Message = fmt.Sprintf("Failed to initialize plugin: %v", err)
+			return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
+		}
+		newStatus.Initialized = true
+		logCtx.Info("Plugin initialized successfully")
+	}
+
+	// Prepare workload reference with namespace defaulting (used by multiple operations below)
+	workloadRef := rolloutPlugin.Spec.WorkloadRef
+	if workloadRef.Namespace == "" {
+		workloadRef.Namespace = rolloutPlugin.Namespace
+	}
+
 	// Check if retry is requested via spec.RestartAt
 	if rolloutPlugin.Spec.RestartAt != nil {
-		return r.processRetry(ctx, rolloutPlugin, newStatus, logCtx)
+		return r.processRetry(ctx, rolloutPlugin, newStatus, plugin, workloadRef, logCtx)
 	}
 
 	// Check if spec.paused is set (manual pause by user)
@@ -190,21 +223,6 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	if newStatus.Abort && !newStatus.Aborted {
 		logCtx.Info("Manual abort requested via status.Abort field")
 
-		// Get the plugin
-		plugin, err := r.PluginManager.GetPlugin(rolloutPlugin.Spec.Plugin.Name)
-		if err != nil {
-			logCtx.WithError(err).Error("Failed to get plugin for abort")
-			newStatus.Phase = "Failed"
-			newStatus.Message = fmt.Sprintf("Failed to get plugin for abort: %v", err)
-			return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
-		}
-
-		// Prepare workload reference
-		workloadRef := rolloutPlugin.Spec.WorkloadRef
-		if workloadRef.Namespace == "" {
-			workloadRef.Namespace = rolloutPlugin.Namespace
-		}
-
 		// Call plugin abort
 		if abortErr := plugin.Abort(ctx, workloadRef); abortErr != nil {
 			logCtx.WithError(abortErr).Error("Failed to abort rollout")
@@ -219,7 +237,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		newStatus.Phase = "Degraded"
 		newStatus.Message = "Rollout aborted by user"
 
-		// Set aborted condition // TODOH one more condition?
+		// Set aborted condition
 		condition := conditions.NewRolloutPluginCondition(
 			conditions.RolloutPluginProgressing,
 			corev1.ConditionFalse,
@@ -238,15 +256,8 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		// If progressDeadlineAbort is enabled and not already aborted, abort the rollout
 		if rolloutPlugin.Spec.ProgressDeadlineAbort && !newStatus.Aborted {
 			logCtx.Info("Aborting RolloutPlugin due to timeout")
-			plugin, err := r.PluginManager.GetPlugin(rolloutPlugin.Spec.Plugin.Name)
-			if err == nil {
-				workloadRef := rolloutPlugin.Spec.WorkloadRef
-				if workloadRef.Namespace == "" {
-					workloadRef.Namespace = rolloutPlugin.Namespace
-				}
-				if abortErr := plugin.Abort(ctx, workloadRef); abortErr != nil {
-					logCtx.WithError(abortErr).Error("Failed to abort rollout")
-				}
+			if abortErr := plugin.Abort(ctx, workloadRef); abortErr != nil {
+				logCtx.WithError(abortErr).Error("Failed to abort rollout due to timeout")
 			}
 			newStatus.Aborted = true
 			newStatus.Phase = "Degraded"
@@ -263,41 +274,6 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		conditions.SetRolloutPluginCondition(newStatus, *condition)
 
 		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
-	}
-
-	// Get the plugin
-	plugin, err := r.PluginManager.GetPlugin(rolloutPlugin.Spec.Plugin.Name)
-	if err != nil {
-		logCtx.WithError(err).Error("Failed to get plugin")
-		newStatus.Phase = "Failed"
-		newStatus.Message = fmt.Sprintf("Plugin '%s' not found. Ensure the plugin is registered in the argo-rollouts-config ConfigMap under 'rolloutPlugins'", rolloutPlugin.Spec.Plugin.Name)
-		// Set InvalidSpec condition for plugin not found
-		pluginNotFoundCond := conditions.NewRolloutPluginCondition(
-			conditions.RolloutPluginInvalidSpec,
-			corev1.ConditionTrue,
-			conditions.RolloutPluginInvalidSpecReason,
-			newStatus.Message,
-		)
-		conditions.SetRolloutPluginCondition(newStatus, *pluginNotFoundCond)
-		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
-	}
-
-	// Initialize plugin if not already initialized
-	if !newStatus.Initialized {
-		if err := plugin.Init(); err != nil {
-			logCtx.WithError(err).Error("Failed to initialize plugin")
-			newStatus.Phase = "Failed"
-			newStatus.Message = fmt.Sprintf("Failed to initialize plugin: %v", err)
-			return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
-		}
-		newStatus.Initialized = true
-		logCtx.Info("Plugin initialized successfully")
-	}
-
-	// Prepare workload reference with namespace defaulting
-	workloadRef := rolloutPlugin.Spec.WorkloadRef
-	if workloadRef.Namespace == "" {
-		workloadRef.Namespace = rolloutPlugin.Namespace
 	}
 
 	// Get the current status of the referenced workload
@@ -385,17 +361,23 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		return result, nil
 	}
 
-	newStatus.Phase = "Healthy"
-	newStatus.Message = "RolloutPlugin is healthy"
+	// Only update phase/message if not already healthy to avoid unnecessary reconciliation
+	if newStatus.Phase != "Healthy" {
+		newStatus.Phase = "Healthy"
+		newStatus.Message = "RolloutPlugin is healthy"
+	}
 
-	// Set healthy condition
+	// Set healthy condition only if not already set
 	if conditions.RolloutPluginIsHealthy(rolloutPlugin, newStatus) {
-		condition := conditions.NewRolloutPluginCondition(
-			conditions.RolloutPluginHealthy,
-			corev1.ConditionTrue,
-			conditions.RolloutPluginHealthyReason,
-			"RolloutPlugin is healthy")
-		conditions.SetRolloutPluginCondition(newStatus, *condition)
+		existingHealthyCond := conditions.GetRolloutPluginCondition(*newStatus, conditions.RolloutPluginHealthy)
+		if existingHealthyCond == nil || existingHealthyCond.Status != corev1.ConditionTrue {
+			condition := conditions.NewRolloutPluginCondition(
+				conditions.RolloutPluginHealthy,
+				corev1.ConditionTrue,
+				conditions.RolloutPluginHealthyReason,
+				"RolloutPlugin is healthy")
+			conditions.SetRolloutPluginCondition(newStatus, *condition)
+		}
 	}
 
 	return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
@@ -548,7 +530,7 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 		newStatus.CurrentStepIndex = &nextStep
 		logCtx.WithField("nextStep", nextStep).Info("Weight verified, moving to next step")
 		// Requeue immediately to process next step
-		// SetWeight modified the StatefulSet, but we need to move to next step now
+		// SetWeight modified the workload, but we need to move to next step now
 		return ctrl.Result{Requeue: true}, nil
 	}
 
@@ -578,7 +560,7 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 			newStatus.CurrentStepComplete = false
 			newStatus.Message = "Analysis successful"
 			// Requeue immediately to process next step
-			// Analysis completion doesn't modify StatefulSet, so no watch trigger
+			// Analysis completion doesn't modify the workload, so no watch trigger
 			return ctrl.Result{Requeue: true}, nil
 
 		case v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError:
@@ -651,7 +633,7 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 				newStatus.PauseStartTime = nil
 				newStatus.Paused = false
 				// Requeue immediately to process next step
-				// Pause completion doesn't modify StatefulSet, so no watch trigger
+				// Pause completion doesn't modify the workload, so no watch trigger
 				return ctrl.Result{Requeue: true}, nil
 			}
 
@@ -680,7 +662,7 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 } //TODO return ctrl.Result{}, nil ?
 
 // processRetry handles the retry logic when spec.RestartAt is set
-func (r *RolloutPluginReconciler) processRetry(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, logCtx *log.Entry) (ctrl.Result, error) {
+func (r *RolloutPluginReconciler) processRetry(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, workloadRef v1alpha1.WorkloadRef, logCtx *log.Entry) (ctrl.Result, error) {
 	restartAt := *rolloutPlugin.Spec.RestartAt
 
 	logCtx.WithFields(log.Fields{"restartAt": restartAt, "attempt": newStatus.RetryAttempt + 1}).Info("Processing rollout retry")
@@ -704,29 +686,6 @@ func (r *RolloutPluginReconciler) processRetry(ctx context.Context, rolloutPlugi
 		}
 
 		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
-	}
-
-	// Get plugin
-	plugin, err := r.PluginManager.GetPlugin(rolloutPlugin.Spec.Plugin.Name)
-	if err != nil {
-		logCtx.WithError(err).Error("Failed to get plugin for retry")
-		newStatus.Phase = "Failed"
-		newStatus.Message = fmt.Sprintf("Retry failed: failed to get plugin: %v", err)
-
-		// Clear RestartAt to prevent retry loop
-		rpCopy := rolloutPlugin.DeepCopy()
-		rpCopy.Spec.RestartAt = nil
-		if err := r.Update(ctx, rpCopy); err != nil {
-			logCtx.WithError(err).Error("Failed to clear RestartAt")
-		}
-
-		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
-	}
-
-	// Prepare workload reference
-	workloadRef := rolloutPlugin.Spec.WorkloadRef
-	if workloadRef.Namespace == "" {
-		workloadRef.Namespace = rolloutPlugin.Namespace
 	}
 
 	// Call plugin Reset() to return workload to baseline
@@ -800,13 +759,12 @@ func (r *RolloutPluginReconciler) processRetry(ctx context.Context, rolloutPlugi
 	}).Info("Retry processed successfully")
 
 	// Requeue immediately to process the restart step
-	// Reset() modified the StatefulSet, and we need to begin processing from restartAt step
+	// Reset() modified the workload, and we need to begin processing from restartAt step
 	return ctrl.Result{Requeue: true}, nil
 }
 
-// updateStatus updates the status of the RolloutPlugin
+// updateStatus updates the status of the RolloutPlugin.
 func (r *RolloutPluginReconciler) updateStatus(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, logCtx *log.Entry) error {
-
 	patch := client.MergeFrom(rolloutPlugin.DeepCopy())
 	rolloutPlugin.Status = *newStatus
 
@@ -815,53 +773,104 @@ func (r *RolloutPluginReconciler) updateStatus(ctx context.Context, rolloutPlugi
 		return err
 	}
 
-	logCtx.Info("Status updated successfully")
+	logCtx.Debug("Status updated successfully")
 	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *RolloutPluginReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Create a predicate that filters StatefulSet events to only trigger on meaningful changes
+	// This prevents excessive reconciliation from status-only updates
+	statefulSetPredicate := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldSts, ok1 := e.ObjectOld.(*appsv1.StatefulSet)
+			newSts, ok2 := e.ObjectNew.(*appsv1.StatefulSet)
+			if !ok1 || !ok2 {
+				return true
+			}
+
+			// Skip if ResourceVersion is the same (periodic resync)
+			if oldSts.ResourceVersion == newSts.ResourceVersion {
+				return false
+			}
+
+			// Trigger reconcile if spec changed (generation changed)
+			if oldSts.Generation != newSts.Generation {
+				return true
+			}
+
+			// Trigger reconcile if revision changed (rollout in progress)
+			if oldSts.Status.CurrentRevision != newSts.Status.CurrentRevision ||
+				oldSts.Status.UpdateRevision != newSts.Status.UpdateRevision {
+				return true
+			}
+
+			// Trigger reconcile if replica counts changed
+			if oldSts.Status.ReadyReplicas != newSts.Status.ReadyReplicas ||
+				oldSts.Status.UpdatedReplicas != newSts.Status.UpdatedReplicas ||
+				oldSts.Status.AvailableReplicas != newSts.Status.AvailableReplicas {
+				return true
+			}
+
+			// Skip other status-only updates
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return true
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return true
+		},
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.RolloutPlugin{}).
 		Watches(
 			&appsv1.StatefulSet{},
-			handler.EnqueueRequestsFromMapFunc(r.findRolloutPluginsForStatefulSet),
+			handler.EnqueueRequestsFromMapFunc(r.findRolloutPluginsForWorkload),
+			builder.WithPredicates(statefulSetPredicate),
 		).
 		Complete(r)
 }
 
-// Note: .For() automatically watches for changes to RolloutPlugin resources.
-// By default, it uses GenerationChangedPredicate which triggers on spec changes.
-// Since spec.restartAt is a spec field, changes to it should increment generation
-// and trigger reconciliation. If reconciliation is not being triggered, verify:
-// 1. The patch is being applied successfully (check with kubectl get)
-// 2. The generation is incrementing (check metadata.generation)
-// 3. The controller has proper RBAC permissions
+// findRolloutPluginsForWorkload maps a workload (StatefulSet, DaemonSet, Deployment, etc.) to RolloutPlugin CRs that reference it
+// This is kind-agnostic - it matches any workload based on the WorkloadRef.Kind and WorkloadRef.Name
+func (r *RolloutPluginReconciler) findRolloutPluginsForWorkload(ctx context.Context, obj client.Object) []reconcile.Request {
+	workloadKind := obj.GetObjectKind().GroupVersionKind().Kind
+	// For typed objects, GroupVersionKind may not be set, so we need to infer it
+	if workloadKind == "" {
+		switch obj.(type) {
+		case *appsv1.StatefulSet:
+			workloadKind = "StatefulSet"
+		default:
+			workloadKind = "Unknown"
+		}
+	}
+	// TOODH maintain an allow list?
 
-// findRolloutPluginsForStatefulSet maps a StatefulSet to RolloutPlugin CRs that reference it
-func (r *RolloutPluginReconciler) findRolloutPluginsForStatefulSet(ctx context.Context, obj client.Object) []reconcile.Request {
-	sts := obj.(*appsv1.StatefulSet)
 	logCtx := log.WithFields(log.Fields{
-		"statefulset": sts.GetName(),
-		"namespace":   sts.GetNamespace(),
+		"workloadKind": workloadKind,
+		"workloadName": obj.GetName(),
+		"namespace":    obj.GetNamespace(),
 	})
 
-	logCtx.Info("StatefulSet event received, checking for related RolloutPlugins")
+	logCtx.Debug("Workload event received, checking for related RolloutPlugins")
 
-	// List all RolloutPlugin resources in the same namespace as statefulset
+	// List all RolloutPlugin resources in the same namespace as the workload
 	var rolloutPlugins v1alpha1.RolloutPluginList
-	if err := r.Client.List(ctx, &rolloutPlugins, client.InNamespace(sts.GetNamespace())); err != nil {
+	if err := r.Client.List(ctx, &rolloutPlugins, client.InNamespace(obj.GetNamespace())); err != nil {
 		logCtx.WithError(err).Error("Failed to list RolloutPlugin resources")
 		return []reconcile.Request{}
 	}
 
-	logCtx.WithField("count", len(rolloutPlugins.Items)).Info("Found RolloutPlugins in namespace")
-
-	// Find RolloutPlugins that reference this StatefulSet
+	// Find RolloutPlugins that reference this workload (matching both Kind and Name)
 	var requests []reconcile.Request
 	for _, rp := range rolloutPlugins.Items {
-		if rp.Spec.WorkloadRef.Kind == "StatefulSet" &&
-			rp.Spec.WorkloadRef.Name == sts.GetName() {
+		if rp.Spec.WorkloadRef.Kind == workloadKind &&
+			rp.Spec.WorkloadRef.Name == obj.GetName() {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: client.ObjectKey{
 					Namespace: rp.GetNamespace(),
@@ -869,15 +878,13 @@ func (r *RolloutPluginReconciler) findRolloutPluginsForStatefulSet(ctx context.C
 				},
 			})
 			logCtx.WithFields(log.Fields{
-				"rolloutplugin":      rp.GetName(),
-				"currentGeneration":  sts.GetGeneration(),
-				"observedGeneration": sts.Status.ObservedGeneration,
-			}).Info("StatefulSet change detected, triggering rollout reconciliation")
+				"rolloutplugin": rp.GetName(),
+			}).Info("Workload change detected, triggering RolloutPlugin reconciliation")
 		}
 	}
 
 	if len(requests) == 0 {
-		logCtx.Info("No RolloutPlugins found referencing this StatefulSet")
+		logCtx.Debug("No RolloutPlugins found referencing this workload")
 	}
 
 	return requests
@@ -892,9 +899,8 @@ func meetsMinReadySeconds(resourceStatus *ResourceStatus, minReadySeconds int32)
 	if minReadySeconds == 0 {
 		return true
 	}
-	// TODOH make it generic
 	// Simple heuristic: if availableReplicas equals readyReplicas, assume minReadySeconds is met
-	// This works because availableReplicas in most workloads (Deployment, ReplicaSet, StatefulSet)
+	// This works because availableReplicas in most workloads (Deployment, ReplicaSet, StatefulSet, DaemonSet)
 	// already factors in minReadySeconds
 	return resourceStatus.AvailableReplicas == resourceStatus.ReadyReplicas
 }

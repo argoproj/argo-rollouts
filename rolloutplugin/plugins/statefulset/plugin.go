@@ -11,12 +11,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rolloutplugin/plugin/rpc"
-	"github.com/argoproj/argo-rollouts/utils/plugin/types"
+	"github.com/argoproj/argo-rollouts/rolloutplugin"
 )
 
-// Plugin implements the ResourcePlugin RPC interface for StatefulSets
-// TODOH name?
+// Plugin implements the ResourcePlugin interface directly for StatefulSets.
+// This is a built-in plugin that runs in-process, avoiding RPC overhead
+// and struct conversions that external plugins require.
 type Plugin struct {
 	logCtx     *log.Entry
 	kubeClient kubernetes.Interface
@@ -30,20 +30,18 @@ func NewPlugin(kubeClient kubernetes.Interface, logCtx *log.Entry) *Plugin {
 	}
 }
 
-// InitPlugin initializes the plugin
-func (p *Plugin) InitPlugin() types.RpcError {
+// Init initializes the plugin
+func (p *Plugin) Init() error {
 	p.logCtx.Info("Initializing StatefulSet plugin")
-	return types.RpcError{}
+	return nil
 }
 
 // GetResourceStatus gets the current status of the StatefulSet
-func (p *Plugin) GetResourceStatus(workloadRef v1alpha1.WorkloadRef) (*rpc.ResourceStatus, types.RpcError) {
-	ctx := context.Background()
-
+func (p *Plugin) GetResourceStatus(ctx context.Context, workloadRef v1alpha1.WorkloadRef) (*rolloutplugin.ResourceStatus, error) {
 	// Use the namespace from workloadRef, it should already be set by the controller
 	namespace := workloadRef.Namespace
 	if namespace == "" {
-		return nil, types.RpcError{ErrorString: "namespace is required in workloadRef"}
+		return nil, fmt.Errorf("namespace is required in workloadRef")
 	}
 
 	p.logCtx.WithFields(log.Fields{
@@ -54,7 +52,7 @@ func (p *Plugin) GetResourceStatus(workloadRef v1alpha1.WorkloadRef) (*rpc.Resou
 	// Get the StatefulSet
 	sts, err := p.kubeClient.AppsV1().StatefulSets(namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, types.RpcError{ErrorString: fmt.Sprintf("failed to get StatefulSet: %v", err)}
+		return nil, fmt.Errorf("failed to get StatefulSet: %w", err)
 	}
 
 	// Calculate replicas
@@ -81,7 +79,7 @@ func (p *Plugin) GetResourceStatus(workloadRef v1alpha1.WorkloadRef) (*rpc.Resou
 	// Check if all pods are ready
 	ready := sts.Status.ReadyReplicas == replicas
 
-	status := &rpc.ResourceStatus{
+	status := &rolloutplugin.ResourceStatus{
 		Replicas:          replicas,
 		UpdatedReplicas:   updatedReplicas,
 		ReadyReplicas:     sts.Status.ReadyReplicas,
@@ -99,12 +97,11 @@ func (p *Plugin) GetResourceStatus(workloadRef v1alpha1.WorkloadRef) (*rpc.Resou
 		"ready":           ready,
 	}).Info("StatefulSet status retrieved")
 
-	return status, types.RpcError{}
+	return status, nil
 }
 
 // SetWeight sets the canary weight by adjusting the partition field
-func (p *Plugin) SetWeight(workloadRef v1alpha1.WorkloadRef, weight int32) types.RpcError {
-	ctx := context.Background()
+func (p *Plugin) SetWeight(ctx context.Context, workloadRef v1alpha1.WorkloadRef, weight int32) error {
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": workloadRef.Namespace,
@@ -114,7 +111,7 @@ func (p *Plugin) SetWeight(workloadRef v1alpha1.WorkloadRef, weight int32) types
 	// Get the StatefulSet
 	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
 	if err != nil {
-		return types.RpcError{ErrorString: fmt.Sprintf("failed to get StatefulSet: %v", err)}
+		return fmt.Errorf("failed to get StatefulSet: %w", err)
 	}
 
 	// Check if this revision was previously aborted
@@ -134,14 +131,12 @@ func (p *Plugin) SetWeight(workloadRef v1alpha1.WorkloadRef, weight int32) types
 				shouldClearAbortedAnnotations = true
 			} else {
 				// Retry not allowed
-				return types.RpcError{
-					ErrorString: fmt.Sprintf(
-						"cannot rollout previously aborted revision %s. "+
-							"To retry this revision, set annotation 'rolloutplugin.argoproj.io/allow-retry=true' "+
-							"or update the StatefulSet spec to create a new revision",
-						abortedRev,
-					),
-				}
+				return fmt.Errorf(
+					"cannot rollout previously aborted revision %s. "+
+						"To retry this revision, set annotation 'rolloutplugin.argoproj.io/allow-retry=true' "+
+						"or update the StatefulSet spec to create a new revision",
+					abortedRev,
+				)
 			}
 		} else {
 			// Different revision - we'll clear annotations after successful partition update
@@ -188,7 +183,7 @@ func (p *Plugin) SetWeight(workloadRef v1alpha1.WorkloadRef, weight int32) types
 	// Update the StatefulSet
 	_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
 	if err != nil {
-		return types.RpcError{ErrorString: fmt.Sprintf("failed to update StatefulSet partition: %v", err)}
+		return fmt.Errorf("failed to update StatefulSet partition: %w", err)
 	}
 
 	p.logCtx.WithField("partition", partition).Info("Successfully set partition")
@@ -200,7 +195,7 @@ func (p *Plugin) SetWeight(workloadRef v1alpha1.WorkloadRef, weight int32) types
 		if err != nil {
 			p.logCtx.WithError(err).Warn("Failed to re-fetch StatefulSet after partition update, annotations not cleared")
 			// Don't fail the entire operation, partition was set successfully
-			return types.RpcError{}
+			return nil
 		}
 
 		annotationsCleared := false
@@ -229,12 +224,11 @@ func (p *Plugin) SetWeight(workloadRef v1alpha1.WorkloadRef, weight int32) types
 		}
 	}
 
-	return types.RpcError{}
+	return nil
 }
 
 // VerifyWeight verifies that the canary weight has been achieved
-func (p *Plugin) VerifyWeight(workloadRef v1alpha1.WorkloadRef, weight int32) (bool, types.RpcError) {
-	ctx := context.Background()
+func (p *Plugin) VerifyWeight(ctx context.Context, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, error) {
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": workloadRef.Namespace,
@@ -244,7 +238,7 @@ func (p *Plugin) VerifyWeight(workloadRef v1alpha1.WorkloadRef, weight int32) (b
 	// Get the StatefulSet
 	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
 	if err != nil {
-		return false, types.RpcError{ErrorString: fmt.Sprintf("failed to get StatefulSet: %v", err)}
+		return false, fmt.Errorf("failed to get StatefulSet: %w", err)
 	}
 
 	// Calculate replicas
@@ -274,7 +268,7 @@ func (p *Plugin) VerifyWeight(workloadRef v1alpha1.WorkloadRef, weight int32) (b
 			"expected": expectedPartition,
 			"actual":   partition,
 		}).Info("Partition mismatch")
-		return false, types.RpcError{}
+		return false, nil
 	}
 
 	// Calculate expected updated replicas
@@ -301,12 +295,11 @@ func (p *Plugin) VerifyWeight(workloadRef v1alpha1.WorkloadRef, weight int32) (b
 	verified := partition == expectedPartition && actualUpdated >= expectedUpdated && ready
 
 	p.logCtx.WithField("verified", verified).Info("Weight verification result")
-	return verified, types.RpcError{}
+	return verified, nil
 }
 
 // Promote completes the rollout by setting partition to 0
-func (p *Plugin) Promote(workloadRef v1alpha1.WorkloadRef) types.RpcError {
-	ctx := context.Background()
+func (p *Plugin) Promote(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": workloadRef.Namespace,
@@ -315,7 +308,7 @@ func (p *Plugin) Promote(workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	// Get the StatefulSet
 	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
 	if err != nil {
-		return types.RpcError{ErrorString: fmt.Sprintf("failed to get StatefulSet: %v", err)}
+		return fmt.Errorf("failed to get StatefulSet: %w", err)
 	}
 
 	// Set partition to 0 to update all pods
@@ -328,16 +321,15 @@ func (p *Plugin) Promote(workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	// Update the StatefulSet
 	_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
 	if err != nil {
-		return types.RpcError{ErrorString: fmt.Sprintf("failed to promote StatefulSet: %v", err)}
+		return fmt.Errorf("failed to promote StatefulSet: %w", err)
 	}
 
 	p.logCtx.WithField("partition", partition).Info("Successfully promoted rollout")
-	return types.RpcError{}
+	return nil
 }
 
 // Abort aborts the rollout by setting partition to replicas and deleting updated pods
-func (p *Plugin) Abort(workloadRef v1alpha1.WorkloadRef) types.RpcError {
-	ctx := context.Background()
+func (p *Plugin) Abort(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": workloadRef.Namespace,
@@ -346,7 +338,7 @@ func (p *Plugin) Abort(workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	// Get the StatefulSet
 	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
 	if err != nil {
-		return types.RpcError{ErrorString: fmt.Sprintf("failed to get StatefulSet: %v", err)}
+		return fmt.Errorf("failed to get StatefulSet: %w", err)
 	}
 
 	// Calculate replicas
@@ -378,7 +370,7 @@ func (p *Plugin) Abort(workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	// Update the StatefulSet
 	_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
 	if err != nil {
-		return types.RpcError{ErrorString: fmt.Sprintf("failed to update StatefulSet during abort: %v", err)}
+		return fmt.Errorf("failed to update StatefulSet during abort: %w", err)
 	}
 
 	// STEP 3: Delete pods that were updated (ordinals < oldPartition)
@@ -423,18 +415,15 @@ func (p *Plugin) Abort(workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	}).Info("Successfully aborted rollout")
 
 	if len(failedDeletes) > 0 {
-		return types.RpcError{
-			ErrorString: fmt.Sprintf("aborted rollout but failed to delete %d pods: %v",
-				len(failedDeletes), failedDeletes),
-		}
+		return fmt.Errorf("aborted rollout but failed to delete %d pods: %v",
+			len(failedDeletes), failedDeletes)
 	}
 
-	return types.RpcError{}
+	return nil
 }
 
 // Reset returns the StatefulSet to baseline state (partition = replicas) for retry
-func (p *Plugin) Reset(workloadRef v1alpha1.WorkloadRef) types.RpcError {
-	ctx := context.Background()
+func (p *Plugin) Reset(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": workloadRef.Namespace,
@@ -443,7 +432,7 @@ func (p *Plugin) Reset(workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	// Get the StatefulSet
 	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
 	if err != nil {
-		return types.RpcError{ErrorString: fmt.Sprintf("failed to get StatefulSet: %v", err)}
+		return fmt.Errorf("failed to get StatefulSet: %w", err)
 	}
 
 	// Calculate replicas
@@ -470,7 +459,7 @@ func (p *Plugin) Reset(workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	// Update the StatefulSet
 	_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
 	if err != nil {
-		return types.RpcError{ErrorString: fmt.Sprintf("failed to reset StatefulSet: %v", err)}
+		return fmt.Errorf("failed to reset StatefulSet: %w", err)
 	}
 
 	p.logCtx.WithFields(log.Fields{
@@ -478,7 +467,7 @@ func (p *Plugin) Reset(workloadRef v1alpha1.WorkloadRef) types.RpcError {
 		"replicas":  replicas,
 	}).Info("Successfully reset StatefulSet to baseline (partition = replicas)")
 
-	return types.RpcError{}
+	return nil
 }
 
 // Type returns the type of the resource plugin
@@ -486,5 +475,5 @@ func (p *Plugin) Type() string {
 	return "StatefulSet"
 }
 
-// Ensure Plugin implements RPC ResourcePlugin interface
-var _ rpc.ResourcePlugin = &Plugin{}
+// Ensure Plugin implements the controller's ResourcePlugin interface
+var _ rolloutplugin.ResourcePlugin = &Plugin{}

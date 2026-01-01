@@ -14,7 +14,7 @@ import (
 
 type resourcePlugin struct {
 	pluginClient map[string]*goPlugin.Client
-	plugin       map[string]rpc.ResourcePlugin
+	plugin       map[string]types.RpcResourcePlugin
 }
 
 var pluginClients *resourcePlugin
@@ -34,11 +34,11 @@ var pluginMap = map[string]goPlugin.Plugin{
 
 // GetResourcePlugin returns a singleton plugin client for the given resource plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the rolloutplugin object.
-func GetResourcePlugin(pluginName string) (rpc.ResourcePlugin, error) {
+func GetResourcePlugin(pluginName string) (types.RpcResourcePlugin, error) {
 	once.Do(func() {
 		pluginClients = &resourcePlugin{
 			pluginClient: make(map[string]*goPlugin.Client),
-			plugin:       make(map[string]rpc.ResourcePlugin),
+			plugin:       make(map[string]types.RpcResourcePlugin),
 		}
 	})
 	plugin, err := pluginClients.startPlugin(pluginName)
@@ -48,7 +48,7 @@ func GetResourcePlugin(pluginName string) (rpc.ResourcePlugin, error) {
 	return plugin, nil
 }
 
-func (r *resourcePlugin) startPlugin(pluginName string) (rpc.ResourcePlugin, error) {
+func (r *resourcePlugin) startPlugin(pluginName string) (types.RpcResourcePlugin, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -78,7 +78,7 @@ func (r *resourcePlugin) startPlugin(pluginName string) (rpc.ResourcePlugin, err
 			return nil, fmt.Errorf("unable to dispense plugin (%s): %w", pluginName, err)
 		}
 
-		pluginType, ok := pluginInstance.(rpc.ResourcePlugin)
+		pluginType, ok := pluginInstance.(types.RpcResourcePlugin)
 		if !ok {
 			return nil, fmt.Errorf("unexpected type from plugin")
 		}
