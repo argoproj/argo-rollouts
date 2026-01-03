@@ -227,9 +227,21 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			// During the V2 rollout, managed routes could have been setup and would continue
 			// to direct traffic to the canary service which is now in front of 0 available replicas.
 			// We want to remove these managed routes alongside the safety here of never weighting to the canary.
-			err := reconciler.RemoveManagedRoutes()
-			if err != nil {
-				return err
+
+			// Check if current step uses managed routes (setHeaderRoute or setMirrorRoute)
+			currentStepUsesManagedRoutes := false
+			if currentStep != nil {
+				if currentStep.SetHeaderRoute != nil || currentStep.SetMirrorRoute != nil {
+					currentStepUsesManagedRoutes = true
+				}
+			}
+
+			// Only remove managed routes if current step doesn't use them
+			if !currentStepUsesManagedRoutes {
+				err := reconciler.RemoveManagedRoutes()
+				if err != nil {
+					return err
+				}
 			}
 		} else if c.rollout.Status.PromoteFull {
 			// on a promote full, desired stable weight should be 0 (100% to canary),
