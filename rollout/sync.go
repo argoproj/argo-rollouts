@@ -934,6 +934,15 @@ func (c *rolloutContext) isRollbackWithinWindow() bool {
 	return false
 }
 
+// checks if the new ReplicaSet meets the replica progress threshold
+func (c *rolloutContext) checkReplicaProgressThreshold(threshold *v1alpha1.ReplicaProgressThreshold) bool {
+	if c.newRS == nil {
+		return false
+	}
+	desired := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
+	return replicasetutil.ReplicaProgressThresholdMet(threshold, c.newRS, desired)
+}
+
 // shouldFullPromote returns a reason string explaining why a rollout should fully promote, marking
 // the desired ReplicaSet as stable. Returns empty string if the rollout is in middle of update
 func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) string {
@@ -955,6 +964,9 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		}
 		if c.isRollbackWithinWindow() {
 			return "Rollback within window"
+		}
+		if !c.checkReplicaProgressThreshold(c.rollout.Spec.Strategy.Canary.ReplicaProgressThreshold) {
+			return ""
 		}
 		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 		stepCount := len(c.rollout.Spec.Strategy.Canary.Steps)
@@ -984,6 +996,9 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 			return "Rollback within window"
 		}
 		if c.pauseContext.IsAborted() {
+			return ""
+		}
+		if !c.checkReplicaProgressThreshold(c.rollout.Spec.Strategy.BlueGreen.ReplicaProgressThreshold) {
 			return ""
 		}
 		if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {

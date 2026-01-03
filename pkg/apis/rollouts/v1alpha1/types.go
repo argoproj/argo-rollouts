@@ -221,6 +221,10 @@ type BlueGreenStrategy struct {
 	// Default is 30 second
 	// +optional
 	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,14,opt,name=abortScaleDownDelaySeconds"`
+	// ReplicaProgressThreshold defines the minimum percentage or count of available replicas
+	// required to consider the rollout as progressing
+	// +optional
+	ReplicaProgressThreshold *ReplicaProgressThreshold `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,15,opt,name=replicaProgressThreshold"`
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection
