@@ -228,17 +228,16 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			// to direct traffic to the canary service which is now in front of 0 available replicas.
 			// We want to remove these managed routes alongside the safety here of never weighting to the canary.
 
-			// Check if any step uses managed routes
-			usesManagedRoutes := false
-			for _, step := range c.rollout.Spec.Strategy.Canary.Steps {
-				if step.SetHeaderRoute != nil || step.SetMirrorRoute != nil {
-					usesManagedRoutes = true
-					break
+			// Check if current step uses managed routes (setHeaderRoute or setMirrorRoute)
+			currentStepUsesManagedRoutes := false
+			if currentStep != nil {
+				if currentStep.SetHeaderRoute != nil || currentStep.SetMirrorRoute != nil {
+					currentStepUsesManagedRoutes = true
 				}
 			}
 
 			// Only remove managed routes if current step doesn't use them
-			if !usesManagedRoutes {
+			if !currentStepUsesManagedRoutes {
 				err := reconciler.RemoveManagedRoutes()
 				if err != nil {
 					return err
