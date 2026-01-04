@@ -1746,15 +1746,9 @@ func TestRemoveManagedRoute(t *testing.T) {
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
-	f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(errors.New("remove managed routes error"))
 
 	f.expectPatchServiceAction(stableSvc, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
-	f.expectUpdateReplicaSetAction(rs2)
-	f.expectPatchRolloutAction(r2)
-
-	f.run(getKey(r2, t))
+	f.runExpectError(getKey(r2, t), true)
 	f.fakeTrafficRouting.AssertCalled(t, "RemoveManagedRoutes")
 }
