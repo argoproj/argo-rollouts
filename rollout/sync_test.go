@@ -845,7 +845,7 @@ func TestShouldFullPromoteCanaryWithReplicaProgressThreshold(t *testing.T) {
 		assert.Contains(t, reason, "Completed all")
 	})
 
-	t.Run("DoNotPromoteWhenThresholdNotMet", func(t *testing.T) {
+	t.Run("PromoteWhenThresholdNotMet", func(t *testing.T) {
 		f := newFixture(t)
 		defer f.Close()
 
@@ -882,7 +882,7 @@ func TestShouldFullPromoteCanaryWithReplicaProgressThreshold(t *testing.T) {
 		assert.Empty(t, reason)
 	})
 
-	t.Run("DefaultTo100PercentWhenNoThreshold", func(t *testing.T) {
+	t.Run("PromoteDefaultWhenNoThreshold", func(t *testing.T) {
 		f := newFixture(t)
 		defer f.Close()
 
@@ -1001,7 +1001,7 @@ func TestShouldFullPromoteBlueGreenWithReplicaProgressThreshold(t *testing.T) {
 		assert.Contains(t, reason, "Completed blue-green update")
 	})
 
-	t.Run("DoNotPromoteWhenThresholdNotMet", func(t *testing.T) {
+	t.Run("PromoteWhenThresholdNotMet", func(t *testing.T) {
 		f := newFixture(t)
 		defer f.Close()
 
