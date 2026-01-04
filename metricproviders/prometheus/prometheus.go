@@ -51,12 +51,23 @@ func (p *Provider) Type() string {
 func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	metricsMetadata := make(map[string]string)
 	if metric.Provider.Prometheus.Query != "" {
-		metricsMetadata[ResolvedPrometheusQuery] = metric.Provider.Prometheus.Query
+		evaluatedQuery, err := evaluate.EvalQuery(metric.Provider.Prometheus.Query)
+		if err != nil {
+			evaluatedQuery = metric.Provider.Prometheus.Query
+		}
+		metricsMetadata[ResolvedPrometheusQuery] = evaluatedQuery
 	}
 	return metricsMetadata
 }
 
 func (p *Provider) executeQuery(ctx context.Context, metric v1alpha1.Metric) (model.Value, v1.Warnings, error) {
+
+	evalutedQuery, err := evaluate.EvalQuery(metric.Provider.Prometheus.Query)
+	if err != nil {
+		// If err != nil we want the old behavior to just pass in the query
+		evalutedQuery = metric.Provider.Prometheus.Query
+	}
+
 	if metric.Provider.Prometheus.RangeQuery != nil {
 		start, err := evaluate.EvalTime(metric.Provider.Prometheus.RangeQuery.Start)
 		if err != nil {
@@ -70,13 +81,13 @@ func (p *Provider) executeQuery(ctx context.Context, metric v1alpha1.Metric) (mo
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to parse rangeQuery.step as duration: %w", err)
 		}
-		return p.api.QueryRange(ctx, metric.Provider.Prometheus.Query, v1.Range{
+		return p.api.QueryRange(ctx, evalutedQuery, v1.Range{
 			Start: start,
 			End:   end,
 			Step:  stepDuration,
 		})
 	} else {
-		return p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
+		return p.api.Query(ctx, evalutedQuery, time.Now())
 	}
 }
 
