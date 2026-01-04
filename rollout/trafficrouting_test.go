@@ -1689,81 +1689,72 @@ func TestDynamicScalingAbortWithZeroReplicas(t *testing.T) {
 	f.run(getKey(r1, t))
 }
 
-func TestPreserveHeaderRouteDuringNormalCanaryDeployment(t *testing.T) {
+func TestPreserveHeaderRoute(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{
-		{
-			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
-				Name: "test-header",
-				Match: []v1alpha1.HeaderRoutingMatch{
-					{
-						HeaderName:  "x-test",
-						HeaderValue: &v1alpha1.StringMatch{Exact: "canary"},
-					},
-				},
-			},
-		},
-		{
-			SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: pointer.Int32(1)},
-		},
-		{
-			SetWeight: pointer.Int32(10),
-		},
-		{
-			Pause: &v1alpha1.RolloutPause{},
-		},
+		{SetHeaderRoute: &v1alpha1.SetHeaderRoute{Name: "test"}},
 	}
+
+	r := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		ALB: &v1alpha1.ALBTrafficRouting{Ingress: "test-ingress"},
+	}
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(nil).Maybe()
+
+	f.run(getKey(r, t))
+	f.fakeTrafficRouting.AssertNotCalled(t, "RemoveManagedRoutes")
+}
+
+func TestRemoveManagedRoute(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: pointer.Int32(10)}}
 
 	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{Ingress: "test-ingress"},
-		ManagedRoutes: []v1alpha1.MangedRoutes{
-			{Name: "test-header"},
-		},
 	}
 	r1.Spec.Strategy.Canary.StableService = "stable-svc"
 	r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
 
 	r2 := bumpVersion(r1)
-
 	rs1 := newReplicaSetWithStatus(r1, 5, 5)
 	rs2 := newReplicaSetWithStatus(r2, 0, 0)
 
-	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-
-	stableSvc := newService("stable-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r1)
-	canarySvc := newService("canary-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
-
+	stableSvc := newService("stable-svc", 80, nil, r2)
+	canarySvc := newService("canary-svc", 80, nil, r2)
 	ingress := newIngress("test-ingress", canarySvc, stableSvc)
 	ingress.Spec.Rules[0].HTTP.Paths[0].Backend.ServiceName = stableSvc.Name
 
-	r2.Status.StableRS = rs1PodHash
-	r2.Status.CurrentPodHash = rs2PodHash
+	r2.Status.StableRS = rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r2.Status.CurrentPodHash = rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r2.Status.CurrentStepIndex = pointer.Int32(0)
 
 	f.objects = append(f.objects, r2)
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc, ingress)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, stableSvc, canarySvc, ingress)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, stableSvc, canarySvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
 
-	f.expectPatchRolloutAction(r2)
-
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("SetHeaderRoute", &v1alpha1.SetHeaderRoute{
-		Name: "test-header",
-		Match: []v1alpha1.HeaderRoutingMatch{
-			{
-				HeaderName:  "x-test",
-				HeaderValue: &v1alpha1.StringMatch{Exact: "canary"},
-			},
-		},
-	}).Once().Return(nil)
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(nil)
+
+	f.expectPatchServiceAction(stableSvc, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchRolloutAction(r2)
 
 	f.run(getKey(r2, t))
+	f.fakeTrafficRouting.AssertCalled(t, "RemoveManagedRoutes")
 }
