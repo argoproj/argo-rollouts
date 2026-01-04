@@ -939,6 +939,12 @@ func (c *rolloutContext) checkReplicaProgressThreshold(threshold *v1alpha1.Repli
 	if c.newRS == nil {
 		return false
 	}
+
+	if threshold == nil {
+		desiredReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
+		return c.newRS.Status.AvailableReplicas >= desiredReplicas
+	}
+
 	desired := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
 	return replicasetutil.ReplicaProgressThresholdMet(threshold, c.newRS, desired)
 }
