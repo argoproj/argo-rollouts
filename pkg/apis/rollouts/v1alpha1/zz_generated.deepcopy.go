@@ -770,6 +770,11 @@ func (in *BlueGreenStrategy) DeepCopyInto(out *BlueGreenStrategy) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.ReplicaProgressThreshold != nil {
+		in, out := &in.ReplicaProgressThreshold, &out.ReplicaProgressThreshold
+		*out = new(ReplicaProgressThreshold)
+		**out = **in
+	}
 	return
 }
 
