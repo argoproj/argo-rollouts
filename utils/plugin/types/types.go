@@ -57,8 +57,8 @@ type RpcResourcePlugin interface {
 	Promote(workloadRef v1alpha1.WorkloadRef) RpcError
 	// Abort aborts the rollout and reverts to the stable version
 	Abort(workloadRef v1alpha1.WorkloadRef) RpcError
-	// Reset returns the workload to baseline state for retry
-	Reset(workloadRef v1alpha1.WorkloadRef) RpcError
+	// Restart returns the workload to baseline state for restart
+	Restart(workloadRef v1alpha1.WorkloadRef) RpcError
 	// Type returns the type of the resource plugin
 	Type() string
 }

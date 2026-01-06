@@ -225,23 +225,6 @@ func VerifyRolloutPluginSpec(rolloutPlugin *v1alpha1.RolloutPlugin, prevCond *v1
 		}
 	}
 
-	// Validate RestartAt is within bounds if set
-	if spec.RestartAt != nil {
-		restartAt := *spec.RestartAt
-		if restartAt < 0 {
-			message := "RolloutPlugin spec.restartAt cannot be negative"
-			return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
-		}
-		// Validate restartAt is within the step count if canary strategy with steps
-		if spec.Strategy.Canary != nil && spec.Strategy.Canary.Steps != nil {
-			stepCount := int32(len(spec.Strategy.Canary.Steps))
-			if restartAt >= stepCount {
-				message := "RolloutPlugin spec.restartAt exceeds the number of steps"
-				return newInvalidSpecRolloutPluginCondition(prevCond, RolloutPluginInvalidSpecReason, message)
-			}
-		}
-	}
-
 	// Validate minReadySeconds
 	if spec.MinReadySeconds < 0 {
 		message := "RolloutPlugin spec.minReadySeconds cannot be negative"

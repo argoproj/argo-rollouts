@@ -114,40 +114,6 @@ func (p *Plugin) SetWeight(ctx context.Context, workloadRef v1alpha1.WorkloadRef
 		return fmt.Errorf("failed to get StatefulSet: %w", err)
 	}
 
-	// Check if this revision was previously aborted
-	shouldClearAbortedAnnotations := false
-	shouldClearNewRevisionAnnotations := false
-
-	if abortedRev, exists := sts.Annotations["rolloutplugin.argoproj.io/aborted-revision"]; exists {
-		currentUpdateRevision := sts.Status.UpdateRevision
-
-		if currentUpdateRevision == abortedRev {
-			// Same revision that was aborted - check if retry is allowed
-			if allowRetry, retryExists := sts.Annotations["rolloutplugin.argoproj.io/allow-retry"]; retryExists && allowRetry == "true" {
-				// User explicitly allowed retry - we'll clear annotations after successful partition update
-				p.logCtx.WithFields(log.Fields{
-					"abortedRevision": abortedRev,
-				}).Info("Retry allowed for aborted revision, will clear annotations after successful update")
-				shouldClearAbortedAnnotations = true
-			} else {
-				// Retry not allowed
-				return fmt.Errorf(
-					"cannot rollout previously aborted revision %s. "+
-						"To retry this revision, set annotation 'rolloutplugin.argoproj.io/allow-retry=true' "+
-						"or update the StatefulSet spec to create a new revision",
-					abortedRev,
-				)
-			}
-		} else {
-			// Different revision - we'll clear annotations after successful partition update
-			p.logCtx.WithFields(log.Fields{
-				"abortedRevision": abortedRev,
-				"currentRevision": currentUpdateRevision,
-			}).Info("New revision detected, will clear aborted-revision annotation after successful update")
-			shouldClearNewRevisionAnnotations = true
-		}
-	}
-
 	// Calculate replicas
 	replicas := int32(1)
 	if sts.Spec.Replicas != nil {
@@ -187,43 +153,6 @@ func (p *Plugin) SetWeight(ctx context.Context, workloadRef v1alpha1.WorkloadRef
 	}
 
 	p.logCtx.WithField("partition", partition).Info("Successfully set partition")
-
-	// Clear annotations AFTER successful partition update
-	if shouldClearAbortedAnnotations || shouldClearNewRevisionAnnotations {
-		// Re-fetch to get latest state
-		sts, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
-		if err != nil {
-			p.logCtx.WithError(err).Warn("Failed to re-fetch StatefulSet after partition update, annotations not cleared")
-			// Don't fail the entire operation, partition was set successfully
-			return nil
-		}
-
-		annotationsCleared := false
-		if shouldClearAbortedAnnotations {
-			// Retry was allowed, clear both abort annotations
-			delete(sts.Annotations, "rolloutplugin.argoproj.io/aborted-revision")
-			delete(sts.Annotations, "rolloutplugin.argoproj.io/allow-retry")
-			annotationsCleared = true
-			p.logCtx.Info("Clearing aborted-revision and allow-retry annotations after successful partition update")
-		} else if shouldClearNewRevisionAnnotations {
-			// New revision detected, clear abort annotations
-			delete(sts.Annotations, "rolloutplugin.argoproj.io/aborted-revision")
-			delete(sts.Annotations, "rolloutplugin.argoproj.io/allow-retry") // Clean up if exists
-			annotationsCleared = true
-			p.logCtx.Info("Clearing aborted-revision annotation after successful partition update (new revision)")
-		}
-
-		if annotationsCleared {
-			_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
-			if err != nil {
-				p.logCtx.WithError(err).Warn("Failed to clear annotations, but partition was set successfully")
-				// Don't fail - partition update succeeded, annotation cleanup is best-effort
-			} else {
-				p.logCtx.Info("Successfully cleared annotations")
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -361,25 +290,18 @@ func (p *Plugin) Abort(ctx context.Context, workloadRef v1alpha1.WorkloadRef) er
 	}
 	sts.Spec.UpdateStrategy.RollingUpdate.Partition = &partition
 
-	// STEP 2: Add annotation to track aborted revision
-	if sts.Annotations == nil {
-		sts.Annotations = make(map[string]string)
-	}
-	sts.Annotations["rolloutplugin.argoproj.io/aborted-revision"] = sts.Status.UpdateRevision
-
 	// Update the StatefulSet
 	_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to update StatefulSet during abort: %w", err)
 	}
 
-	// STEP 3: Delete pods that were updated (ordinals < oldPartition)
+	// STEP 2: Delete pods that were updated (ordinals < oldPartition)
 	// StatefulSet controller will recreate them using CurrentRevision (old version)
 	// because partition=replicas means all pods should be on old version
 	p.logCtx.WithFields(log.Fields{
-		"oldPartition":    oldPartition,
-		"podsToDelete":    oldPartition,
-		"abortedRevision": sts.Status.UpdateRevision,
+		"oldPartition": oldPartition,
+		"podsToDelete": oldPartition,
 	}).Info("Deleting updated pods to force rollback")
 
 	deletedCount := int32(0)
@@ -422,12 +344,12 @@ func (p *Plugin) Abort(ctx context.Context, workloadRef v1alpha1.WorkloadRef) er
 	return nil
 }
 
-// Reset returns the StatefulSet to baseline state (partition = replicas) for retry
-func (p *Plugin) Reset(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
+// Restart returns the StatefulSet to baseline state (partition = replicas) for restart
+func (p *Plugin) Restart(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": workloadRef.Namespace,
-	}).Info("Resetting StatefulSet for retry")
+	}).Info("Restarting StatefulSet for restart")
 
 	// Get the StatefulSet
 	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
@@ -448,24 +370,16 @@ func (p *Plugin) Reset(ctx context.Context, workloadRef v1alpha1.WorkloadRef) er
 	}
 	sts.Spec.UpdateStrategy.RollingUpdate.Partition = &partition
 
-	// Clear abort-related annotations since retry is being allowed by the controller
-	// The controller only calls Reset() after verifying the rollout is in aborted state
-	if sts.Annotations != nil {
-		delete(sts.Annotations, "rolloutplugin.argoproj.io/aborted-revision")
-		delete(sts.Annotations, "rolloutplugin.argoproj.io/allow-retry")
-		p.logCtx.Info("Cleared abort-related annotations for retry")
-	}
-
 	// Update the StatefulSet
 	_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to reset StatefulSet: %w", err)
+		return fmt.Errorf("failed to restart StatefulSet: %w", err)
 	}
 
 	p.logCtx.WithFields(log.Fields{
 		"partition": partition,
 		"replicas":  replicas,
-	}).Info("Successfully reset StatefulSet to baseline (partition = replicas)")
+	}).Info("Successfully restarted StatefulSet to baseline (partition = replicas)")
 
 	return nil
 }

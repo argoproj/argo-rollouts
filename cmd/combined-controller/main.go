@@ -322,8 +322,9 @@ func newCommand() *cobra.Command {
 				return fmt.Errorf("failed to create controller-runtime manager: %w", err)
 			}
 
-			// Create plugin manager and register built-in plugins
-			pluginManager := rolloutplugin.NewPluginManager()
+			// Get the singleton plugin manager instance
+			// This ensures all RolloutPlugin CRs share the same plugin instances
+			pluginManager := rolloutplugin.GetGlobalPluginManager()
 
 			logrusCtx := log.WithField("plugin", "statefulset")
 			// Built-in plugins directly implement rolloutplugin.ResourcePlugin

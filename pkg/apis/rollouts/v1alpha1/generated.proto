@@ -1577,16 +1577,6 @@ message RolloutPluginSpec {
   // is exceeded.
   // +optional
   optional bool progressDeadlineAbort = 8;
-
-  // RestartAt restarts the rollout at the specified step index (0-based).
-  // When set, the controller will:
-  // 1. Validate the rollout is NOT in success state (Healthy=True, Progressing=False, Completed=True)
-  // 2. Call plugin.Reset() to return workload to baseline
-  // 3. Reset status.currentStepIndex to this value
-  // 4. Increment status.retryAttempt
-  // 5. Clear this field after processing
-  // +optional
-  optional int32 restartAt = 9;
 }
 
 // RolloutPluginStatus is the status for a RolloutPlugin resource
@@ -1632,6 +1622,19 @@ message RolloutPluginStatus {
   // Aborted indicates whether the rollout has been aborted
   optional bool aborted = 12;
 
+  // AbortedRevision is the UpdatedRevision that was aborted
+  // This is used to prevent retrying the same failed revision without explicit user action
+  // +optional
+  optional string abortedRevision = 25;
+
+  // AllowRestart when set to true will allow restarting a previously aborted revision.
+  // This is a one-shot trigger field similar to status.Abort and status.Restart.
+  // When set to true and the current UpdatedRevision matches AbortedRevision:
+  // 1. The controller will clear the aborted state and allow the rollout to proceed
+  // 2. This field will be cleared after processing
+  // +optional
+  optional bool allowRestart = 26;
+
   // Abort will stop the rollout and revert to the previous version when set to true.
   // Similar to Rollout CRD's status.abort field, this allows manual abortion of a rollout.
   // +optional
@@ -1669,15 +1672,26 @@ message RolloutPluginStatus {
   // +optional
   optional CanaryStatus canary = 19;
 
-  // RetryAttempt tracks the number of retry attempts for the current rollout
-  // Incremented each time RestartAt is processed
+  // RestartCount tracks the number of restart attempts for the current rollout
+  // Incremented each time Restart is processed
   // Reset to 0 when a new rollout starts (UpdatedRevision changes)
   // +optional
-  optional int32 retryAttempt = 22;
+  optional int32 restartCount = 22;
 
-  // RestartedAt indicates when the last retry occurred
+  // RestartedAt indicates when the last restart occurred
   // +optional
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time restartedAt = 23;
+
+  // Restart when set to true will restart the rollout from step 0.
+  // When set, the controller will:
+  // 1. Validate the rollout has been aborted (status.Aborted=true)
+  // 2. Call plugin.Restart() to return workload to baseline
+  // 3. Reset status.currentStepIndex to 0
+  // 4. Increment status.restartCount
+  // 5. Clear this field after processing
+  // Similar to status.Abort and status.PromoteFull, this is a one-shot trigger field.
+  // +optional
+  optional bool restart = 24;
 }
 
 // RolloutPluginStrategy defines the strategy for the rollout

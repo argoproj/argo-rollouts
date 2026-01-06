@@ -226,16 +226,37 @@ rolloutplugin/plugins/statefulset/
 The plugin is registered as a built-in plugin in `cmd/rolloutplugin-controller/main.go`:
 
 ```go
-// Register built-in plugins (similar to metric providers pattern)
+// Built-in plugins directly implement rolloutplugin.ResourcePlugin
+// No wrapper needed - this is more efficient than RPC-based external plugins
 logrusCtx := log.WithField("plugin", "statefulset")
 statefulSetPlugin := statefulset.NewPlugin(kubeClientset, logrusCtx)
-wrappedPlugin := pluginPackage.NewRolloutPlugin(statefulSetPlugin)
-pluginManager.RegisterPlugin("statefulset", wrappedPlugin)
+pluginManager.RegisterPlugin("statefulset", statefulSetPlugin)
 ```
+
+### Architecture
+
+Built-in plugins like StatefulSet directly implement the `rolloutplugin.ResourcePlugin` interface:
+
+```go
+type ResourcePlugin interface {
+    Init() error
+    GetResourceStatus(ctx context.Context, workloadRef WorkloadRef) (*ResourceStatus, error)
+    SetWeight(ctx context.Context, workloadRef WorkloadRef, weight int32) error
+    VerifyWeight(ctx context.Context, workloadRef WorkloadRef, weight int32) (bool, error)
+    Promote(ctx context.Context, workloadRef WorkloadRef) error
+    Abort(ctx context.Context, workloadRef WorkloadRef) error
+    Restart(ctx context.Context, workloadRef WorkloadRef) error
+}
+```
+
+This is more efficient than external RPC plugins because:
+1. No RPC overhead - direct function calls
+2. No struct conversions - uses controller types directly
+3. Full `context.Context` support for cancellation and timeouts
 
 ### RPC Plugin Support
 
-While StatefulSet is built-in, the RPC plugin infrastructure remains available for third-party plugins that manage custom or external workload types. This allows extending RolloutPlugin to support non-Kubernetes resources or proprietary workload types.
+While StatefulSet is built-in, the RPC plugin infrastructure remains available for third-party plugins that manage custom or external workload types. External plugins implement the RPC interface and are wrapped by `RpcPluginWrapper` to adapt to the controller interface. This allows extending RolloutPlugin to support non-Kubernetes resources or proprietary workload types.
 
 ## Limitations
 

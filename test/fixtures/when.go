@@ -1000,15 +1000,28 @@ func (w *When) AbortRolloutPlugin() *When {
 	return w
 }
 
-// RetryRolloutPlugin retries the RolloutPlugin from the specified step
-func (w *When) RetryRolloutPlugin(step int32) *When {
+// RestartRolloutPlugin triggers a restart of the RolloutPlugin by setting status.restart=true
+// This is used after an abort to restart the rollout from step 0
+func (w *When) RestartRolloutPlugin() *When {
 	if w.rolloutPlugin == nil {
 		w.t.Fatal("RolloutPlugin not set")
 	}
-	patchBytes := []byte(fmt.Sprintf(`{"spec":{"restartAt":%d}}`, step))
-	_, err := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	patchBytes := []byte(`{"status":{"restart":true}}`)
+	_, err := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
 	w.CheckError(err)
-	w.log.Infof("Retried RolloutPlugin from step %d", step)
+	w.log.Info("Triggered restart for RolloutPlugin")
+	return w
+}
+
+// AllowRestartRolloutPlugin sets status.allowRestart=true to permit restarting an aborted revision
+func (w *When) AllowRestartRolloutPlugin() *When {
+	if w.rolloutPlugin == nil {
+		w.t.Fatal("RolloutPlugin not set")
+	}
+	patchBytes := []byte(`{"status":{"allowRestart":true}}`)
+	_, err := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	w.CheckError(err)
+	w.log.Info("Set allowRestart=true for RolloutPlugin")
 	return w
 }
 
@@ -1059,6 +1072,30 @@ func (w *When) ResumeRolloutPlugin() *When {
 	w.CheckError(err)
 	w.log.Info("Resumed RolloutPlugin")
 	return w
+}
+
+// WaitForRolloutPluginBackgroundAnalysisRunPhase waits for RolloutPlugin background analysis run to reach a phase
+func (w *When) WaitForRolloutPluginBackgroundAnalysisRunPhase(phase string) *When {
+	// Get the current RolloutPlugin to find the background analysis run
+	rp := w.GetRolloutPlugin()
+	if rp.Status.Canary.CurrentBackgroundAnalysisRunStatus == nil {
+		w.t.Fatal("RolloutPlugin has no background analysis run")
+	}
+	arun := rp.Status.Canary.CurrentBackgroundAnalysisRunStatus.Name
+	w.log.Infof("Waiting for RolloutPlugin background AnalysisRun %s to reach phase %s", arun, phase)
+	return w.WaitForAnalysisRunCondition(arun, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+}
+
+// WaitForRolloutPluginInlineAnalysisRunPhase waits for RolloutPlugin inline (step) analysis run to reach a phase
+func (w *When) WaitForRolloutPluginInlineAnalysisRunPhase(phase string) *When {
+	// Get the current RolloutPlugin to find the step analysis run
+	rp := w.GetRolloutPlugin()
+	if rp.Status.Canary.CurrentStepAnalysisRunStatus == nil {
+		w.t.Fatal("RolloutPlugin has no step analysis run")
+	}
+	arun := rp.Status.Canary.CurrentStepAnalysisRunStatus.Name
+	w.log.Infof("Waiting for RolloutPlugin step AnalysisRun %s to reach phase %s", arun, phase)
+	return w.WaitForAnalysisRunCondition(arun, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
 }
 
 // TODOH method calls

@@ -36,7 +36,7 @@ type AbortArgs struct {
 	WorkloadRef v1alpha1.WorkloadRef
 }
 
-type ResetArgs struct {
+type RestartArgs struct {
 	WorkloadRef v1alpha1.WorkloadRef
 }
 
@@ -58,7 +58,7 @@ func init() {
 	gob.RegisterName("rolloutplugin.VerifyWeightArgs", new(VerifyWeightArgs))
 	gob.RegisterName("rolloutplugin.PromoteArgs", new(PromoteArgs))
 	gob.RegisterName("rolloutplugin.AbortArgs", new(AbortArgs))
-	gob.RegisterName("rolloutplugin.ResetArgs", new(ResetArgs))
+	gob.RegisterName("rolloutplugin.RestartArgs", new(RestartArgs))
 	gob.RegisterName("rolloutplugin.GetResourceStatusResponse", new(GetResourceStatusResponse))
 	gob.RegisterName("rolloutplugin.VerifyWeightResponse", new(VerifyWeightResponse))
 }
@@ -137,13 +137,13 @@ func (g *ResourcePluginRPC) Abort(workloadRef v1alpha1.WorkloadRef) types.RpcErr
 	return resp
 }
 
-// Reset returns the workload to baseline state for retry
-func (g *ResourcePluginRPC) Reset(workloadRef v1alpha1.WorkloadRef) types.RpcError {
+// Restart returns the workload to baseline state for restart
+func (g *ResourcePluginRPC) Restart(workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	var resp types.RpcError
-	args := ResetArgs{WorkloadRef: workloadRef}
-	err := g.client.Call("Plugin.Reset", &args, &resp)
+	args := RestartArgs{WorkloadRef: workloadRef}
+	err := g.client.Call("Plugin.Restart", &args, &resp)
 	if err != nil {
-		return types.RpcError{ErrorString: fmt.Sprintf("Reset rpc call error: %s", err)}
+		return types.RpcError{ErrorString: fmt.Sprintf("Restart rpc call error: %s", err)}
 	}
 	return resp
 }
@@ -230,14 +230,14 @@ func (s *ResourcePluginRPCServer) Abort(args any, resp *types.RpcError) error {
 	return nil
 }
 
-// Reset handles the Reset RPC call
-func (s *ResourcePluginRPCServer) Reset(args any, resp *types.RpcError) error {
-	resetArgs, ok := args.(*ResetArgs)
+// Restart handles the Restart RPC call
+func (s *ResourcePluginRPCServer) Restart(args any, resp *types.RpcError) error {
+	restartArgs, ok := args.(*RestartArgs)
 	if !ok {
 		*resp = types.RpcError{ErrorString: fmt.Sprintf("invalid args %v", args)}
 		return nil
 	}
-	*resp = s.Impl.Reset(resetArgs.WorkloadRef)
+	*resp = s.Impl.Restart(restartArgs.WorkloadRef)
 	return nil
 }
 

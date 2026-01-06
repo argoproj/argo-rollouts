@@ -95,9 +95,8 @@ func (r RpcPluginWrapper) Abort(ctx context.Context, workloadRef v1alpha1.Worklo
 	return nil
 }
 
-// Reset returns the workload to baseline state for retry
-func (r RpcPluginWrapper) Reset(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
-	rpcErr := r.RpcResourcePlugin.Reset(workloadRef)
+func (r RpcPluginWrapper) Restart(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
+	rpcErr := r.RpcResourcePlugin.Restart(workloadRef)
 	if rpcErr.HasError() {
 		return fmt.Errorf("failed to reset: %s", rpcErr.ErrorString)
 	}

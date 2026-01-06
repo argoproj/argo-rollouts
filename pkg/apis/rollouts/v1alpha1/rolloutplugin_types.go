@@ -67,16 +67,6 @@ type RolloutPluginSpec struct {
 	// is exceeded.
 	// +optional
 	ProgressDeadlineAbort bool `json:"progressDeadlineAbort,omitempty" protobuf:"varint,8,opt,name=progressDeadlineAbort"`
-
-	// RestartAt restarts the rollout at the specified step index (0-based).
-	// When set, the controller will:
-	// 1. Validate the rollout is NOT in success state (Healthy=True, Progressing=False, Completed=True)
-	// 2. Call plugin.Reset() to return workload to baseline
-	// 3. Reset status.currentStepIndex to this value
-	// 4. Increment status.retryAttempt
-	// 5. Clear this field after processing
-	// +optional
-	RestartAt *int32 `json:"restartAt,omitempty" protobuf:"varint,9,opt,name=restartAt"`
 }
 
 // WorkloadRef references a Kubernetes resource to be managed by the RolloutPlugin
@@ -177,6 +167,19 @@ type RolloutPluginStatus struct {
 	// Aborted indicates whether the rollout has been aborted
 	Aborted bool `json:"aborted,omitempty" protobuf:"varint,12,opt,name=aborted"`
 
+	// AbortedRevision is the UpdatedRevision that was aborted
+	// This is used to prevent retrying the same failed revision without explicit user action
+	// +optional
+	AbortedRevision string `json:"abortedRevision,omitempty" protobuf:"bytes,25,opt,name=abortedRevision"`
+
+	// AllowRestart when set to true will allow restarting a previously aborted revision.
+	// This is a one-shot trigger field similar to status.Abort and status.Restart.
+	// When set to true and the current UpdatedRevision matches AbortedRevision:
+	// 1. The controller will clear the aborted state and allow the rollout to proceed
+	// 2. This field will be cleared after processing
+	// +optional
+	AllowRestart bool `json:"allowRestart,omitempty" protobuf:"varint,26,opt,name=allowRestart"`
+
 	// Abort will stop the rollout and revert to the previous version when set to true.
 	// Similar to Rollout CRD's status.abort field, this allows manual abortion of a rollout.
 	// +optional
@@ -214,15 +217,26 @@ type RolloutPluginStatus struct {
 	// +optional
 	Canary CanaryStatus `json:"canary,omitempty" protobuf:"bytes,19,opt,name=canary"`
 
-	// RetryAttempt tracks the number of retry attempts for the current rollout
-	// Incremented each time RestartAt is processed
+	// RestartCount tracks the number of restart attempts for the current rollout
+	// Incremented each time Restart is processed
 	// Reset to 0 when a new rollout starts (UpdatedRevision changes)
 	// +optional
-	RetryAttempt int32 `json:"retryAttempt,omitempty" protobuf:"varint,22,opt,name=retryAttempt"`
+	RestartCount int32 `json:"restartCount,omitempty" protobuf:"varint,22,opt,name=restartCount"`
 
-	// RestartedAt indicates when the last retry occurred
+	// RestartedAt indicates when the last restart occurred
 	// +optional
 	RestartedAt *metav1.Time `json:"restartedAt,omitempty" protobuf:"bytes,23,opt,name=restartedAt"`
+
+	// Restart when set to true will restart the rollout from step 0.
+	// When set, the controller will:
+	// 1. Validate the rollout has been aborted (status.Aborted=true)
+	// 2. Call plugin.Restart() to return workload to baseline
+	// 3. Reset status.currentStepIndex to 0
+	// 4. Increment status.restartCount
+	// 5. Clear this field after processing
+	// Similar to status.Abort and status.PromoteFull, this is a one-shot trigger field.
+	// +optional
+	Restart bool `json:"restart,omitempty" protobuf:"varint,24,opt,name=restart"`
 }
 
 // RolloutPluginCondition describes a condition of the RolloutPlugin

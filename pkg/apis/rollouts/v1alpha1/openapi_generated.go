@@ -4797,13 +4797,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginSpec(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
-					"restartAt": {
-						SchemaProps: spec.SchemaProps{
-							Description: "RestartAt restarts the rollout at the specified step index (0-based). When set, the controller will: 1. Validate the rollout is NOT in success state (Healthy=True, Progressing=False, Completed=True) 2. Call plugin.Reset() to return workload to baseline 3. Reset status.currentStepIndex to this value 4. Increment status.retryAttempt 5. Clear this field after processing",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
 				},
 				Required: []string{"workloadRef", "plugin", "strategy"},
 			},
@@ -4903,6 +4896,20 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStatus(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"abortedRevision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AbortedRevision is the UpdatedRevision that was aborted This is used to prevent retrying the same failed revision without explicit user action",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"allowRestart": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AllowRestart when set to true will allow restarting a previously aborted revision. This is a one-shot trigger field similar to status.Abort and status.Restart. When set to true and the current UpdatedRevision matches AbortedRevision: 1. The controller will clear the aborted state and allow the rollout to proceed 2. This field will be cleared after processing",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"abort": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Abort will stop the rollout and revert to the previous version when set to true. Similar to Rollout CRD's status.abort field, this allows manual abortion of a rollout.",
@@ -4982,17 +4989,24 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStatus(ref common.ReferenceC
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus"),
 						},
 					},
-					"retryAttempt": {
+					"restartCount": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RetryAttempt tracks the number of retry attempts for the current rollout Incremented each time RestartAt is processed Reset to 0 when a new rollout starts (UpdatedRevision changes)",
+							Description: "RestartCount tracks the number of restart attempts for the current rollout Incremented each time Restart is processed Reset to 0 when a new rollout starts (UpdatedRevision changes)",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"restartedAt": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RestartedAt indicates when the last retry occurred",
+							Description: "RestartedAt indicates when the last restart occurred",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"restart": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Restart when set to true will restart the rollout from step 0. When set, the controller will: 1. Validate the rollout has been aborted (status.Aborted=true) 2. Call plugin.Restart() to return workload to baseline 3. Reset status.currentStepIndex to 0 4. Increment status.restartCount 5. Clear this field after processing Similar to status.Abort and status.PromoteFull, this is a one-shot trigger field.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},

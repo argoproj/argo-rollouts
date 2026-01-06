@@ -80,9 +80,6 @@ spec:
               progressDeadlineSeconds:
                 format: int32
                 type: integer
-              restartAt:
-                format: int32
-                type: integer
               strategy:
                 properties:
                   blueGreen:
@@ -997,6 +994,10 @@ spec:
                 type: boolean
               aborted:
                 type: boolean
+              abortedRevision:
+                type: string
+              allowRestart:
+                type: boolean
               availableReplicas:
                 format: int32
                 type: integer
@@ -1171,12 +1172,14 @@ spec:
               replicas:
                 format: int32
                 type: integer
+              restart:
+                type: boolean
+              restartCount:
+                format: int32
+                type: integer
               restartedAt:
                 format: date-time
                 type: string
-              retryAttempt:
-                format: int32
-                type: integer
               rolloutInProgress:
                 type: boolean
               updatedReplicas:

@@ -2534,11 +2534,6 @@ func (in *RolloutPluginSpec) DeepCopyInto(out *RolloutPluginSpec) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.RestartAt != nil {
-		in, out := &in.RestartAt, &out.RestartAt
-		*out = new(int32)
-		**out = **in
-	}
 	return
 }
 
