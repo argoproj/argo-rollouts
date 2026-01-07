@@ -1688,3 +1688,67 @@ func TestDynamicScalingAbortWithZeroReplicas(t *testing.T) {
 	// This should not panic or cause division by zero
 	f.run(getKey(r1, t))
 }
+
+func TestPreserveHeaderRoute(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetHeaderRoute: &v1alpha1.SetHeaderRoute{Name: "test"}},
+	}
+
+	r := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		ALB: &v1alpha1.ALBTrafficRouting{Ingress: "test-ingress"},
+	}
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(nil).Maybe()
+
+	f.run(getKey(r, t))
+	f.fakeTrafficRouting.AssertNotCalled(t, "RemoveManagedRoutes")
+}
+
+func TestRemoveManagedRoute(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: pointer.Int32(10)}}
+
+	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		ALB: &v1alpha1.ALBTrafficRouting{Ingress: "test-ingress"},
+	}
+	r1.Spec.Strategy.Canary.StableService = "stable-svc"
+	r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+
+	r2 := bumpVersion(r1)
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+
+	stableSvc := newService("stable-svc", 80, nil, r2)
+	canarySvc := newService("canary-svc", 80, nil, r2)
+	ingress := newIngress("test-ingress", canarySvc, stableSvc)
+	ingress.Spec.Rules[0].HTTP.Paths[0].Backend.ServiceName = stableSvc.Name
+
+	r2.Status.StableRS = rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r2.Status.CurrentPodHash = rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r2.Status.CurrentStepIndex = pointer.Int32(0)
+
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, stableSvc, canarySvc, ingress)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, stableSvc, canarySvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(errors.New("remove managed routes error"))
+
+	f.expectPatchServiceAction(stableSvc, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	f.runExpectError(getKey(r2, t), true)
+	f.fakeTrafficRouting.AssertCalled(t, "RemoveManagedRoutes")
+}
