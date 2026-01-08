@@ -3,6 +3,7 @@ package experiments
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -128,6 +129,22 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 
 	rs := ec.templateRSs[template.Name]
 
+	// If experiment is being retried, check if template RS pod template has changed and delete RS to recreate
+	if rs != nil && isExperimentRetried(ec.ex) {
+		expectedRS := newReplicaSetFromTemplate(ec.ex, template, experimentutil.GetCollisionCountForTemplate(ec.ex, template))
+		if !replicasetutil.PodTemplateEqualIgnoreHash(&rs.Spec.Template, &expectedRS.Spec.Template) {
+			logCtx.Infof("Template changed; deleting ReplicaSet '%s' to recreate", rs.Name)
+			if err := ec.deleteReplicaSet(rs); err != nil {
+				templateStatus.Status = v1alpha1.TemplateStatusError
+				templateStatus.Message = fmt.Sprintf("Failed to delete ReplicaSet '%s' for template '%s': %v", rs.Name, template.Name, err)
+			} else {
+				ec.templateRSs[template.Name] = nil
+				ec.enqueueExperimentAfter(ec.ex, time.Second)
+			}
+			return
+		}
+	}
+
 	// Create ReplicaSet if does not exist
 	if rs == nil {
 		ec.createReplicaSetForTemplate(template, templateStatus, logCtx, now)
@@ -234,6 +251,10 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "Template" + string(templateStatus.Status)}, msg)
 	}
 	experimentutil.SetTemplateStatus(ec.newStatus, *templateStatus)
+}
+
+func isExperimentRetried(ex *v1alpha1.Experiment) bool {
+	return reflect.DeepEqual(ex.Status, v1alpha1.ExperimentStatus{})
 }
 
 func (ec *experimentContext) addScaleDownDelayToTemplateRS(rs *appsv1.ReplicaSet, templateName string) {
