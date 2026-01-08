@@ -137,6 +137,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			if err := ec.deleteReplicaSet(rs); err != nil {
 				templateStatus.Status = v1alpha1.TemplateStatusError
 				templateStatus.Message = fmt.Sprintf("Failed to delete ReplicaSet '%s' for template '%s': %v", rs.Name, template.Name, err)
+				experimentutil.SetTemplateStatus(ec.newStatus, *templateStatus)
 			} else {
 				ec.templateRSs[template.Name] = nil
 				ec.enqueueExperimentAfter(ec.ex, time.Second)
