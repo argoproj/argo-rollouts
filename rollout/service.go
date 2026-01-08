@@ -261,8 +261,29 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		return err
 	}
 
-	if c.pauseContext != nil && c.pauseContext.IsAborted() && c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
-		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+	if c.pauseContext != nil && c.pauseContext.IsAborted() {
+		// No traffic routing: flip canary service back to stable
+		if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+			err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+
+		// With traffic routing, coordinate with traffic router behavior
+		if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+			// Only flip canary service to stable once desired canary weight has drained to 0
+			if c.calculateDesiredWeightOnAbortOrStableRollback() == 0 {
+				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, false)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, false)
 		if err != nil {
 			return err
 		}
