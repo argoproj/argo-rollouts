@@ -227,6 +227,15 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			// During the V2 rollout, managed routes could have been setup and would continue
 			// to direct traffic to the canary service which is now in front of 0 available replicas.
 			// We want to remove these managed routes alongside the safety here of never weighting to the canary.
+			// Additionally, if there was previous canary weight > 0, we must reset the weight
+			// BEFORE updating the hash (done later) to avoid routing traffic to non-existent pods.
+			// Note: SetWeight is idempotent, so calling it twice is harmless.
+			if c.rollout.Status.Canary.Weights != nil && c.rollout.Status.Canary.Weights.Canary.Weight > 0 {
+				if err := reconciler.SetWeight(desiredWeight, weightDestinations...); err != nil {
+					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
+					return err
+				}
+			}
 			err := reconciler.RemoveManagedRoutes()
 			if err != nil {
 				return err
