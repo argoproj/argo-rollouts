@@ -303,6 +303,15 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 	return scaled, rs, err
 }
 
+func (ec *experimentContext) deleteReplicaSet(rs *appsv1.ReplicaSet) error {
+	ctx := context.TODO()
+	err := ec.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Delete(ctx, rs.Name, metav1.DeleteOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
 func newReplicaSetAnnotations(experimentName, templateName string) map[string]string {
 	return map[string]string{
 		v1alpha1.ExperimentNameAnnotationKey:         experimentName,
