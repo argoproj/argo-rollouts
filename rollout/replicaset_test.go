@@ -12,6 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/dynamic/dynamiclister"
 	k8sinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
@@ -19,10 +21,14 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
+	testutil "github.com/argoproj/argo-rollouts/test/util"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 func newRolloutControllerRef(r *v1alpha1.Rollout) *metav1.OwnerReference {
@@ -579,6 +585,230 @@ func TestIsReplicaSetReferenced(t *testing.T) {
 				tc.expectedResult,
 				stillReferenced,
 			)
+		})
+	}
+}
+
+func TestIsReplicaSetReferencedByIstioDestinationRule(t *testing.T) {
+	const testDestRuleName = "test-destrule"
+
+	newRSWithPodTemplateHash := func(hash string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
+			},
+		}
+	}
+
+	// Helper to create a rollout with Istio traffic routing and destination rule
+	newRolloutWithIstioDestinationRule := func(destRuleName string) *v1alpha1.Rollout {
+		r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Istio: &v1alpha1.IstioTrafficRouting{
+				VirtualService: &v1alpha1.IstioVirtualService{
+					Name: "vsvc",
+				},
+				DestinationRule: &v1alpha1.IstioDestinationRule{
+					Name:             destRuleName,
+					CanarySubsetName: "canary",
+					StableSubsetName: "stable",
+				},
+			},
+		}
+		return r
+	}
+
+	// Helper to create a rollout with Istio virtual service only (no destination rule)
+	newRolloutWithIstioVSvcOnly := func() *v1alpha1.Rollout {
+		r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Istio: &v1alpha1.IstioTrafficRouting{
+				VirtualService: &v1alpha1.IstioVirtualService{
+					Name: "vsvc",
+				},
+			},
+		}
+		return r
+	}
+
+	// Helper to create destination rule YAML with given subsets
+	newDestinationRuleYAML := func(name, stableHash, canaryHash string) string {
+		return fmt.Sprintf(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: %s
+  namespace: default
+spec:
+  host: test-service
+  subsets:
+  - name: stable
+    labels:
+      rollouts-pod-template-hash: %s
+  - name: canary
+    labels:
+      rollouts-pod-template-hash: %s
+`, name, stableHash, canaryHash)
+	}
+
+	// Helper to create a rollout with TrafficRouting but no Istio config
+	newRolloutWithTrafficRoutingNoIstio := func() *v1alpha1.Rollout {
+		r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+		return r
+	}
+
+	testCases := []struct {
+		name              string
+		rollout           *v1alpha1.Rollout
+		destinationRule   string
+		rsHash            string
+		expectedResult    bool
+		noIstioController bool
+	}{
+		{
+			name:           "no istio traffic routing configured",
+			rollout:        newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1)),
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+		{
+			name:           "traffic routing configured but no istio",
+			rollout:        newRolloutWithTrafficRoutingNoIstio(),
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+		{
+			name:           "no destination rule configured",
+			rollout:        newRolloutWithIstioVSvcOnly(),
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+		{
+			name:            "destination rule references hash - should return true",
+			rollout:         newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "abc123", "def456"),
+			rsHash:          "abc123",
+			expectedResult:  true,
+		},
+		{
+			name:            "destination rule does not reference hash - should return false",
+			rollout:         newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "abc123", "def456"),
+			rsHash:          "xyz789",
+			expectedResult:  false,
+		},
+		{
+			name:            "destination rule not found - should return false",
+			rollout:         newRolloutWithIstioDestinationRule("non-existent-destrule"),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "abc123", "def456"),
+			rsHash:          "abc123",
+			expectedResult:  false,
+		},
+		{
+			name:              "no istio controller - should return false",
+			rollout:           newRolloutWithIstioDestinationRule(testDestRuleName),
+			noIstioController: true,
+			rsHash:            "abc123",
+			expectedResult:    false,
+		},
+		{
+			name:            "canary subset references hash - should return true",
+			rollout:         newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "stable-hash", "canary-hash"),
+			rsHash:          "canary-hash",
+			expectedResult:  true,
+		},
+		{
+			name:    "destination rule with no subsets - should return false",
+			rollout: newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: `
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: ` + testDestRuleName + `
+  namespace: default
+spec:
+  host: test-service
+`,
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+		{
+			name:    "destination rule with subset missing labels - should return false",
+			rollout: newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: `
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: ` + testDestRuleName + `
+  namespace: default
+spec:
+  host: test-service
+  subsets:
+  - name: stable
+`,
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var objs []runtime.Object
+			if tc.destinationRule != "" {
+				dRule := unstructuredutil.StrToUnstructuredUnsafe(tc.destinationRule)
+				objs = append(objs, dRule)
+			}
+
+			dynamicClient := testutil.NewFakeDynamicClient(objs...)
+			var istioController *istio.IstioController
+
+			if !tc.noIstioController {
+				druleGVR := istioutil.GetIstioDestinationRuleGVR()
+				vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
+				dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
+				destinationRuleInformer := dynamicInformerFactory.ForResource(druleGVR).Informer()
+				virtualServiceInformer := dynamicInformerFactory.ForResource(vsvcGVR).Informer()
+				stopCh := make(chan struct{})
+				dynamicInformerFactory.Start(stopCh)
+				dynamicInformerFactory.WaitForCacheSync(stopCh)
+				close(stopCh)
+				druleLister := dynamiclister.New(destinationRuleInformer.GetIndexer(), druleGVR)
+
+				istioController = &istio.IstioController{
+					IstioControllerConfig: istio.IstioControllerConfig{
+						DynamicClientSet:        dynamicClient,
+						DestinationRuleInformer: destinationRuleInformer,
+						VirtualServiceInformer:  virtualServiceInformer,
+					},
+				}
+				istioController.DestinationRuleLister = druleLister
+			}
+
+			roCtx := &rolloutContext{
+				rollout: tc.rollout,
+				log:     logutil.WithRollout(tc.rollout),
+				reconcilerBase: reconcilerBase{
+					argoprojclientset: &fake.Clientset{},
+					kubeclientset:     k8sfake.NewSimpleClientset(),
+					recorder:          record.NewFakeEventRecorder(),
+					IstioController:   istioController,
+				},
+			}
+
+			rs := newRSWithPodTemplateHash(tc.rsHash)
+			result := roCtx.isReplicaSetReferencedByIstioDestinationRule(tc.rsHash)
+
+			assert.Equal(t, tc.expectedResult, result, "Test case: %s", tc.name)
+
+			// Also test via isReplicaSetReferenced which should call the Istio check
+			if tc.expectedResult {
+				stillReferenced := roCtx.isReplicaSetReferenced(rs)
+				assert.True(t, stillReferenced, "isReplicaSetReferenced should return true when DestinationRule references hash")
+			}
 		})
 	}
 }
