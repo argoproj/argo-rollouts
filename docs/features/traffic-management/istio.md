@@ -550,6 +550,8 @@ leverage the following Argo CD features:
     feature, provides a way to manage the conflict in the desired state of a VirtualService between
     Argo CD and Argo Rollouts.
 
+For more information about the diffing behavior in Argo CD please see also the [managedFieldsManagers](https://argo-cd.readthedocs.io/en/release-2.4/user-guide/diffing/#application-level-configuration) option as [introduced in Argo CD version 2.3](https://blog.argoproj.io/new-sync-and-diff-strategies-in-argocd-44195d3f8b8c).
+
 ## Ping Pong
 
 !!! important
