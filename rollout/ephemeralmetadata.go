@@ -85,7 +85,7 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	// First update replicasets, then pods owned by it.
 	// So that any replicas created in the interim between the two steps are using the new updated version.
 	// 1. Update ReplicaSet so that any new pods it creates will have the metadata
-	rs, err := c.updateReplicaSet(ctx, modifiedRS)
+	rs, err := c.patchReplicaSet(ctx, rs, *modifiedRS.Spec.Replicas, modifiedRS.Annotations, modifiedRS.Labels)
 	if err != nil {
 		c.log.Infof("failed to sync ephemeral metadata %v to ReplicaSet %s: %v", podMetadata, originalRSCopy.Name, err)
 		return fmt.Errorf("failed to sync ephemeral metadata: %w", err)
