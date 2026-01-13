@@ -1,6 +1,5 @@
 ---
 # RolloutPlugin with valid spec - for testing fix of invalid spec
-# Used by: TestFixInvalidSpec
 apiVersion: v1
 kind: Service
 metadata:

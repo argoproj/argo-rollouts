@@ -1,6 +1,5 @@
 ---
 # Invalid RolloutPlugin - missing strategy (no canary or blueGreen)
-# Used by: TestInvalidSpecMissingStrategy
 apiVersion: v1
 kind: Service
 metadata:

@@ -1,9 +1,5 @@
 ---
 # Basic canary test with StatefulSet
-# Used by: TestBasicCanaryRollout, TestAbortRollout, TestRetryPreventionOnAbortedRevision,
-#          TestRetryWithAllowRetryAnnotation, TestRetryCounterResetOnNewRollout,
-#          TestResetFunctionality, TestPromoteToFullLoad, TestManualPauseAndResume,
-#          TestCanaryWeightProgression, TestRolloutPluginStatusUpdates
 apiVersion: v1
 kind: Service
 metadata:
@@ -66,9 +62,5 @@ spec:
       - setWeight: 20
       - pause: {duration: 3s}
       - setWeight: 40
-      - pause: {duration: 3s}
-      - setWeight: 60
-      - pause: {duration: 3s}
-      - setWeight: 80
-      - pause: {duration: 3s}
+      - pause: {duration: 30s}
       - setWeight: 100

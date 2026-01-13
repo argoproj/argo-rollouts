@@ -1,6 +1,5 @@
 ---
 # Fast canary test for testing complete rollout to healthy
-# Used by: TestCompleteRolloutToHealthy
 apiVersion: v1
 kind: Service
 metadata:

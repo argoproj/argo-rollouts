@@ -3,40 +3,114 @@ package statefulset
 import (
 	"context"
 	"fmt"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rolloutplugin"
+)
+
+const (
+	// FieldManager is the field manager name used for Server-Side Apply
+	FieldManager = "argo-rollouts"
 )
 
 // Plugin implements the ResourcePlugin interface directly for StatefulSets.
 // This is a built-in plugin that runs in-process, avoiding RPC overhead
 // and struct conversions that external plugins require.
 type Plugin struct {
-	logCtx     *log.Entry
-	kubeClient kubernetes.Interface
+	logCtx *log.Entry
+	client client.Client // Client with cache for reads, direct API for writes
+	cache  cache.Cache   // Underlying cache/informer
 }
 
 // NewPlugin creates a new StatefulSet plugin instance
-func NewPlugin(kubeClient kubernetes.Interface, logCtx *log.Entry) *Plugin {
+// The plugin will create its own k8s client and cache in Init()
+func NewPlugin(logCtx *log.Entry) *Plugin {
 	return &Plugin{
-		kubeClient: kubeClient,
-		logCtx:     logCtx,
+		logCtx: logCtx,
 	}
 }
 
-// Init initializes the plugin
+// Init initializes the plugin by creating a k8s client with informer cache
 func (p *Plugin) Init() error {
 	p.logCtx.Info("Initializing StatefulSet plugin")
+
+	// Get k8s config
+	config, err := ctrl.GetConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get k8s config: %w", err)
+	}
+
+	// Create scheme with required types
+	scheme := runtime.NewScheme()
+	if err := appsv1.AddToScheme(scheme); err != nil {
+		return fmt.Errorf("failed to add appsv1 to scheme: %w", err)
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return fmt.Errorf("failed to add corev1 to scheme: %w", err)
+	}
+
+	// Create cache (informer) for efficient reads
+	cacheInstance, err := cache.New(config, cache.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create cache: %w", err)
+	}
+
+	// Start the cache in a goroutine with a context that won't be cancelled
+	// The cache needs to run for the lifetime of the plugin
+	cacheCtx, cacheCancel := context.WithCancel(context.Background())
+	_ = cacheCancel // Keep cancel function in case we need it for cleanup later
+
+	go func() {
+		if err := cacheInstance.Start(cacheCtx); err != nil {
+			p.logCtx.WithError(err).Error("Cache failed to start")
+		}
+	}()
+
+	// Wait for cache to sync with a timeout context
+	syncCtx, syncCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer syncCancel()
+
+	p.logCtx.Info("Waiting for cache to sync...")
+	if !cacheInstance.WaitForCacheSync(syncCtx) {
+		return fmt.Errorf("failed to sync cache within timeout")
+	}
+	p.logCtx.Info("Cache synced successfully")
+
+	// Create client that reads from cache
+	// Writes will bypass cache and go directly to API server
+	k8sClient, err := client.New(config, client.Options{
+		Scheme: scheme,
+		Cache: &client.CacheOptions{
+			Reader: cacheInstance, // Reads go to cache
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create k8s client: %w", err)
+	}
+
+	p.client = k8sClient
+	p.cache = cacheInstance
+	p.logCtx.Info("StatefulSet plugin initialized successfully with cache")
+
 	return nil
 }
 
 // GetResourceStatus gets the current status of the StatefulSet
+// Reads from the informer cache for efficiency
 func (p *Plugin) GetResourceStatus(ctx context.Context, workloadRef v1alpha1.WorkloadRef) (*rolloutplugin.ResourceStatus, error) {
 	// Use the namespace from workloadRef, it should already be set by the controller
 	namespace := workloadRef.Namespace
@@ -47,12 +121,16 @@ func (p *Plugin) GetResourceStatus(ctx context.Context, workloadRef v1alpha1.Wor
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": namespace,
-	}).Info("Getting StatefulSet status")
+	}).Info("Getting StatefulSet status from cache")
 
-	// Get the StatefulSet
-	sts, err := p.kubeClient.AppsV1().StatefulSets(namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
+	// Get the StatefulSet from cache (efficient read)
+	sts := &appsv1.StatefulSet{}
+	err := p.client.Get(ctx, client.ObjectKey{
+		Name:      workloadRef.Name,
+		Namespace: namespace,
+	}, sts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get StatefulSet: %w", err)
+		return nil, fmt.Errorf("failed to get StatefulSet from cache: %w", err)
 	}
 
 	// Calculate replicas
@@ -95,12 +173,12 @@ func (p *Plugin) GetResourceStatus(ctx context.Context, workloadRef v1alpha1.Wor
 		"updatedReplicas": updatedReplicas,
 		"readyReplicas":   sts.Status.ReadyReplicas,
 		"ready":           ready,
-	}).Info("StatefulSet status retrieved")
+	}).Info("StatefulSet status retrieved from cache")
 
 	return status, nil
 }
 
-// SetWeight sets the canary weight by adjusting the partition field
+// SetWeight sets the canary weight by adjusting the partition field using Server-Side Apply
 func (p *Plugin) SetWeight(ctx context.Context, workloadRef v1alpha1.WorkloadRef, weight int32) error {
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
@@ -108,8 +186,12 @@ func (p *Plugin) SetWeight(ctx context.Context, workloadRef v1alpha1.WorkloadRef
 		"weight":    weight,
 	}).Info("Setting weight")
 
-	// Get the StatefulSet
-	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
+	// Get the StatefulSet from cache
+	sts := &appsv1.StatefulSet{}
+	err := p.client.Get(ctx, client.ObjectKey{
+		Name:      workloadRef.Name,
+		Namespace: workloadRef.Namespace,
+	}, sts)
 	if err != nil {
 		return fmt.Errorf("failed to get StatefulSet: %w", err)
 	}
@@ -140,23 +222,39 @@ func (p *Plugin) SetWeight(ctx context.Context, workloadRef v1alpha1.WorkloadRef
 		"partition": partition,
 	}).Info("Calculated partition")
 
-	// Update the partition field
-	if sts.Spec.UpdateStrategy.RollingUpdate == nil {
-		sts.Spec.UpdateStrategy.RollingUpdate = &appsv1.RollingUpdateStatefulSetStrategy{}
+	// Create an unstructured patch with ONLY the partition field
+	// This avoids including any other fields that might trigger validation
+	stsPatch := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "apps/v1",
+			"kind":       "StatefulSet",
+			"metadata": map[string]interface{}{
+				"name":      sts.Name,
+				"namespace": sts.Namespace,
+			},
+			"spec": map[string]interface{}{
+				"updateStrategy": map[string]interface{}{
+					"rollingUpdate": map[string]interface{}{
+						"partition": partition,
+					},
+				},
+			},
+		},
 	}
-	sts.Spec.UpdateStrategy.RollingUpdate.Partition = &partition
 
-	// Update the StatefulSet
-	_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
+	// Apply with Server-Side Apply to take ownership of partition field
+	// This prevents ArgoCD from showing the field as out-of-sync
+	err = p.client.Patch(ctx, stsPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldManager))
 	if err != nil {
-		return fmt.Errorf("failed to update StatefulSet partition: %w", err)
+		return fmt.Errorf("failed to update StatefulSet partition using SSA: %w", err)
 	}
 
-	p.logCtx.WithField("partition", partition).Info("Successfully set partition")
+	p.logCtx.WithField("partition", partition).Info("Successfully set partition using Server-Side Apply")
 	return nil
 }
 
 // VerifyWeight verifies that the canary weight has been achieved
+// Reads from cache for efficiency
 func (p *Plugin) VerifyWeight(ctx context.Context, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, error) {
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
@@ -164,10 +262,14 @@ func (p *Plugin) VerifyWeight(ctx context.Context, workloadRef v1alpha1.Workload
 		"weight":    weight,
 	}).Info("Verifying weight")
 
-	// Get the StatefulSet
-	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
+	// Get the StatefulSet from cache
+	sts := &appsv1.StatefulSet{}
+	err := p.client.Get(ctx, client.ObjectKey{
+		Name:      workloadRef.Name,
+		Namespace: workloadRef.Namespace,
+	}, sts)
 	if err != nil {
-		return false, fmt.Errorf("failed to get StatefulSet: %w", err)
+		return false, fmt.Errorf("failed to get StatefulSet from cache: %w", err)
 	}
 
 	// Calculate replicas
@@ -227,45 +329,56 @@ func (p *Plugin) VerifyWeight(ctx context.Context, workloadRef v1alpha1.Workload
 	return verified, nil
 }
 
-// Promote completes the rollout by setting partition to 0
+// Promote completes the rollout by setting partition to 0 using Server-Side Apply
 func (p *Plugin) Promote(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": workloadRef.Namespace,
 	}).Info("Promoting rollout")
 
-	// Get the StatefulSet
-	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get StatefulSet: %w", err)
-	}
-
-	// Set partition to 0 to update all pods
+	// Create an unstructured patch with partition set to 0
 	partition := int32(0)
-	if sts.Spec.UpdateStrategy.RollingUpdate == nil {
-		sts.Spec.UpdateStrategy.RollingUpdate = &appsv1.RollingUpdateStatefulSetStrategy{}
+	stsPatch := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "apps/v1",
+			"kind":       "StatefulSet",
+			"metadata": map[string]interface{}{
+				"name":      workloadRef.Name,
+				"namespace": workloadRef.Namespace,
+			},
+			"spec": map[string]interface{}{
+				"updateStrategy": map[string]interface{}{
+					"rollingUpdate": map[string]interface{}{
+						"partition": partition,
+					},
+				},
+			},
+		},
 	}
-	sts.Spec.UpdateStrategy.RollingUpdate.Partition = &partition
 
-	// Update the StatefulSet
-	_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
+	// Apply with Server-Side Apply
+	err := p.client.Patch(ctx, stsPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldManager))
 	if err != nil {
-		return fmt.Errorf("failed to promote StatefulSet: %w", err)
+		return fmt.Errorf("failed to promote StatefulSet using SSA: %w", err)
 	}
 
-	p.logCtx.WithField("partition", partition).Info("Successfully promoted rollout")
+	p.logCtx.WithField("partition", partition).Info("Successfully promoted rollout using Server-Side Apply")
 	return nil
 }
 
-// Abort aborts the rollout by setting partition to replicas and deleting updated pods
+// Abort aborts the rollout by setting partition to replicas and deleting updated pods using Server-Side Apply
 func (p *Plugin) Abort(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": workloadRef.Namespace,
 	}).Info("Aborting rollout")
 
-	// Get the StatefulSet
-	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
+	// Get the StatefulSet from cache to know replicas and current partition
+	sts := &appsv1.StatefulSet{}
+	err := p.client.Get(ctx, client.ObjectKey{
+		Name:      workloadRef.Name,
+		Namespace: workloadRef.Namespace,
+	}, sts)
 	if err != nil {
 		return fmt.Errorf("failed to get StatefulSet: %w", err)
 	}
@@ -276,29 +389,45 @@ func (p *Plugin) Abort(ctx context.Context, workloadRef v1alpha1.WorkloadRef) er
 		replicas = *sts.Spec.Replicas
 	}
 
-	// Remember current partition (how many pods are on new version)
+	// Remember current partition to know which pods are updated
+	// Pods with ordinal < partition are on NEW version and need to be rolled back
 	oldPartition := int32(0)
 	if sts.Spec.UpdateStrategy.RollingUpdate != nil &&
 		sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
 		oldPartition = *sts.Spec.UpdateStrategy.RollingUpdate.Partition
 	}
 
-	// STEP 1: Set partition to replicas (block further updates)
+	// STEP 1: Set partition to replicas (block further updates) using SSA
 	partition := replicas
-	if sts.Spec.UpdateStrategy.RollingUpdate == nil {
-		sts.Spec.UpdateStrategy.RollingUpdate = &appsv1.RollingUpdateStatefulSetStrategy{}
+	stsPatch := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "apps/v1",
+			"kind":       "StatefulSet",
+			"metadata": map[string]interface{}{
+				"name":      sts.Name,
+				"namespace": sts.Namespace,
+			},
+			"spec": map[string]interface{}{
+				"updateStrategy": map[string]interface{}{
+					"rollingUpdate": map[string]interface{}{
+						"partition": partition,
+					},
+				},
+			},
+		},
 	}
-	sts.Spec.UpdateStrategy.RollingUpdate.Partition = &partition
 
-	// Update the StatefulSet
-	_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
+	// Apply with Server-Side Apply
+	err = p.client.Patch(ctx, stsPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldManager))
 	if err != nil {
-		return fmt.Errorf("failed to update StatefulSet during abort: %w", err)
+		return fmt.Errorf("failed to update StatefulSet during abort using SSA: %w", err)
 	}
 
 	// STEP 2: Delete pods that were updated (ordinals < oldPartition)
 	// StatefulSet controller will recreate them using CurrentRevision (old version)
 	// because partition=replicas means all pods should be on old version
+	// We delete all pods with ordinal < oldPartition to ensure all potentially
+	// updated pods are rolled back
 	p.logCtx.WithFields(log.Fields{
 		"oldPartition": oldPartition,
 		"podsToDelete": oldPartition,
@@ -309,11 +438,13 @@ func (p *Plugin) Abort(ctx context.Context, workloadRef v1alpha1.WorkloadRef) er
 
 	for i := int32(0); i < oldPartition; i++ {
 		podName := fmt.Sprintf("%s-%d", sts.Name, i)
-		err := p.kubeClient.CoreV1().Pods(workloadRef.Namespace).Delete(
-			ctx,
-			podName,
-			metav1.DeleteOptions{},
-		)
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      podName,
+				Namespace: workloadRef.Namespace,
+			},
+		}
+		err := p.client.Delete(ctx, pod)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				// Log but continue - some pods might already be gone
@@ -344,15 +475,19 @@ func (p *Plugin) Abort(ctx context.Context, workloadRef v1alpha1.WorkloadRef) er
 	return nil
 }
 
-// Restart returns the StatefulSet to baseline state (partition = replicas) for restart
+// Restart returns the StatefulSet to baseline state (partition = replicas) for restart using Server-Side Apply
 func (p *Plugin) Restart(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": workloadRef.Namespace,
 	}).Info("Restarting StatefulSet for restart")
 
-	// Get the StatefulSet
-	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(ctx, workloadRef.Name, metav1.GetOptions{})
+	// Get the StatefulSet from cache to know replicas
+	sts := &appsv1.StatefulSet{}
+	err := p.client.Get(ctx, client.ObjectKey{
+		Name:      workloadRef.Name,
+		Namespace: workloadRef.Namespace,
+	}, sts)
 	if err != nil {
 		return fmt.Errorf("failed to get StatefulSet: %w", err)
 	}
@@ -363,23 +498,36 @@ func (p *Plugin) Restart(ctx context.Context, workloadRef v1alpha1.WorkloadRef) 
 		replicas = *sts.Spec.Replicas
 	}
 
-	// Set partition to replicas (0% canary = baseline)
+	// Set partition to replicas (0% canary = baseline) using SSA
 	partition := replicas
-	if sts.Spec.UpdateStrategy.RollingUpdate == nil {
-		sts.Spec.UpdateStrategy.RollingUpdate = &appsv1.RollingUpdateStatefulSetStrategy{}
+	stsPatch := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "apps/v1",
+			"kind":       "StatefulSet",
+			"metadata": map[string]interface{}{
+				"name":      sts.Name,
+				"namespace": sts.Namespace,
+			},
+			"spec": map[string]interface{}{
+				"updateStrategy": map[string]interface{}{
+					"rollingUpdate": map[string]interface{}{
+						"partition": partition,
+					},
+				},
+			},
+		},
 	}
-	sts.Spec.UpdateStrategy.RollingUpdate.Partition = &partition
 
-	// Update the StatefulSet
-	_, err = p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Update(ctx, sts, metav1.UpdateOptions{})
+	// Apply with Server-Side Apply
+	err = p.client.Patch(ctx, stsPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldManager))
 	if err != nil {
-		return fmt.Errorf("failed to restart StatefulSet: %w", err)
+		return fmt.Errorf("failed to restart StatefulSet using SSA: %w", err)
 	}
 
 	p.logCtx.WithFields(log.Fields{
 		"partition": partition,
 		"replicas":  replicas,
-	}).Info("Successfully restarted StatefulSet to baseline (partition = replicas)")
+	}).Info("Successfully restarted StatefulSet to baseline (partition = replicas) using Server-Side Apply")
 
 	return nil
 }

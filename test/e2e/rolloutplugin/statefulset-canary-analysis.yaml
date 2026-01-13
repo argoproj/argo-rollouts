@@ -1,6 +1,5 @@
 ---
 # Canary test with background analysis
-# Used by: TestRolloutPluginWithBackgroundAnalysis
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:

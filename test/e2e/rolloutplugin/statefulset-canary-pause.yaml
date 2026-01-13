@@ -1,6 +1,5 @@
 ---
 # Canary test with pause step for testing pause duration auto-resume
-# Used by: TestCanaryPauseStep
 apiVersion: v1
 kind: Service
 metadata:

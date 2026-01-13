@@ -1,7 +1,6 @@
 ---
 # Invalid RolloutPlugin - plugin not registered in ConfigMap
 # Uses a non-existent plugin name that is not in argo-rollouts-config ConfigMap
-# Used by: TestInvalidSpecPluginNotFound
 apiVersion: v1
 kind: Service
 metadata:

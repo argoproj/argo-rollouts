@@ -329,7 +329,8 @@ func newCommand() *cobra.Command {
 			logrusCtx := log.WithField("plugin", "statefulset")
 			// Built-in plugins directly implement rolloutplugin.ResourcePlugin
 			// No wrapper needed - this is more efficient than RPC-based external plugins
-			statefulSetPlugin := statefulset.NewPlugin(kubeClient, logrusCtx)
+			// Plugin creates its own k8s client and cache in Init()
+			statefulSetPlugin := statefulset.NewPlugin(logrusCtx)
 
 			if err := pluginManager.RegisterPlugin("statefulset", statefulSetPlugin); err != nil {
 				return fmt.Errorf("failed to register statefulset plugin: %w", err)

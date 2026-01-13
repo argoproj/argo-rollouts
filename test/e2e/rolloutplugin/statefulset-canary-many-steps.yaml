@@ -1,6 +1,5 @@
 ---
 # Canary test with many steps for testing retry from specific step
-# Used by: TestRetryFromSpecificStep, TestAbortDuringMidRollout
 apiVersion: v1
 kind: Service
 metadata:
