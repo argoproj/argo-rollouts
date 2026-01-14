@@ -75,12 +75,16 @@ func NewServer(o ServerOptions) *ArgoRolloutsServer {
 	return &ArgoRolloutsServer{Options: o}
 }
 
+const (
+	listenAddr  = "0.0.0.0"
+	connectAddr = "localhost"
+)
+
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
 	mux := http.NewServeMux()
-	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
 
 	httpS := http.Server{
-		Addr:    endpoint,
+		Addr:    net.JoinHostPort(listenAddr, fmt.Sprintf("%d", port)),
 		Handler: mux,
 	}
 
@@ -99,6 +103,7 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	}
 	opts = append(opts, grpc.WithInsecure())
 
+	endpoint := net.JoinHostPort(connectAddr, fmt.Sprintf("%d", port))
 	err := rollout.RegisterRolloutServiceHandlerFromEndpoint(ctx, gwmux, endpoint, opts)
 	if err != nil {
 		panic(err)
