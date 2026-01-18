@@ -1076,26 +1076,34 @@ func (w *When) ResumeRolloutPlugin() *When {
 
 // WaitForRolloutPluginBackgroundAnalysisRunPhase waits for RolloutPlugin background analysis run to reach a phase
 func (w *When) WaitForRolloutPluginBackgroundAnalysisRunPhase(phase string) *When {
-	// Get the current RolloutPlugin to find the background analysis run
-	rp := w.GetRolloutPlugin()
-	if rp.Status.Canary.CurrentBackgroundAnalysisRunStatus == nil {
-		w.t.Fatal("RolloutPlugin has no background analysis run")
+	arun := w.GetRolloutPluginBackgroundAnalysisRun()
+	// Fetch fresh status to check if already in desired phase (avoid race condition)
+	freshArun, err := w.dynamicClient.Resource(rov1.AnalysisRunGVR).Namespace(w.namespace).Get(w.Context, arun.Name, metav1.GetOptions{})
+	if err == nil {
+		var freshArunTyped rov1.AnalysisRun
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(freshArun.Object, &freshArunTyped); err == nil {
+			if string(freshArunTyped.Status.Phase) == phase {
+				w.log.Infof("AnalysisRun %s already in phase %s", arun.Name, phase)
+				return w
+			}
+		}
 	}
-	arun := rp.Status.Canary.CurrentBackgroundAnalysisRunStatus.Name
-	w.log.Infof("Waiting for RolloutPlugin background AnalysisRun %s to reach phase %s", arun, phase)
-	return w.WaitForAnalysisRunCondition(arun, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
 }
 
 // WaitForRolloutPluginInlineAnalysisRunPhase waits for RolloutPlugin inline (step) analysis run to reach a phase
 func (w *When) WaitForRolloutPluginInlineAnalysisRunPhase(phase string) *When {
-	// Get the current RolloutPlugin to find the step analysis run
-	rp := w.GetRolloutPlugin()
-	if rp.Status.Canary.CurrentStepAnalysisRunStatus == nil {
-		w.t.Fatal("RolloutPlugin has no step analysis run")
+	arun := w.GetRolloutPluginInlineAnalysisRun()
+	// Fetch fresh status to check if already in desired phase (avoid race condition)
+	freshArun, err := w.dynamicClient.Resource(rov1.AnalysisRunGVR).Namespace(w.namespace).Get(w.Context, arun.Name, metav1.GetOptions{})
+	if err == nil {
+		var freshArunTyped rov1.AnalysisRun
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(freshArun.Object, &freshArunTyped); err == nil {
+			if string(freshArunTyped.Status.Phase) == phase {
+				w.log.Infof("AnalysisRun %s already in phase %s", arun.Name, phase)
+				return w
+			}
+		}
 	}
-	arun := rp.Status.Canary.CurrentStepAnalysisRunStatus.Name
-	w.log.Infof("Waiting for RolloutPlugin step AnalysisRun %s to reach phase %s", arun, phase)
-	return w.WaitForAnalysisRunCondition(arun, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
-}
-
-// TODOH method calls
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+} // TODOH method calls

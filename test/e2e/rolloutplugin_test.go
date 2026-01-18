@@ -491,222 +491,189 @@ func (s *RolloutPluginSuite) TestRolloutPluginStatusUpdates() {
 		})
 }
 
-func (s *RolloutPluginSuite) TestRolloutPluginWithBackgroundAnalysis() {
+// =================== Analysis Tests ===================
+
+func (s *RolloutPluginSuite) TestBackgroundAnalysisSuccess() {
 	s.Given().
-		RolloutPluginObjects("@rolloutplugin/statefulset-canary-analysis.yaml").
+		RolloutPluginObjects("@rolloutplugin/statefulset-canary-bg-analysis-success.yaml").
 		When().
 		ApplyManifests().
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus("Healthy").
-		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 60*time.Second).
 		Then().
+		ExpectRolloutPluginAnalysisRunCount(0).
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.Equal(s.T(), "Healthy", rp.Status.Phase)
+			assert.False(s.T(), rp.Status.RolloutInProgress)
+		}).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(0, 60*time.Second).
+		Then().
+		// Background analysis should start immediately
+		ExpectRolloutPluginAnalysisRunCount(1).
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
 			assert.True(s.T(), rp.Status.RolloutInProgress)
 		}).
-		// Check that AnalysisRun was created
-		ExpectRolloutPluginAnalysisRunCount(1)
+		When().
+		// Wait for background analysis to complete successfully
+		WaitForRolloutPluginBackgroundAnalysisRunPhase("Successful").
+		// Wait for rollout to complete
+		WaitForRolloutPluginStatus("Healthy", 180*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.Equal(s.T(), "Healthy", rp.Status.Phase)
+			assert.False(s.T(), rp.Status.RolloutInProgress)
+		})
 }
 
-// =================== Analysis Tests ===================
+func (s *RolloutPluginSuite) TestBackgroundAnalysisFailure() {
+	s.Given().
+		RolloutPluginObjects("@rolloutplugin/statefulset-canary-bg-analysis-fail.yaml").
+		When().
+		ApplyManifests().
+		WaitForStatefulSetReady().
+		WaitForRolloutPluginStatus("Healthy").
+		Then().
+		ExpectRolloutPluginAnalysisRunCount(0).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(0, 60*time.Second).
+		Then().
+		// Background analysis should start
+		ExpectRolloutPluginAnalysisRunCount(1).
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.True(s.T(), rp.Status.RolloutInProgress)
+		}).
+		When().
+		// Wait for background analysis to fail
+		WaitForRolloutPluginBackgroundAnalysisRunPhase("Failed").
+		Sleep(5 * time.Second). // Give controller time to process the failure
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			s.T().Logf("Rollout Phase after analysis failure: %s", rp.Status.Phase)
+			// Rollout should be stopped (Degraded state)
+			assert.Contains(s.T(), []string{"Degraded"}, rp.Status.Phase,
+				"Rollout should be Degraded after analysis failure")
+		})
+}
 
-// func (s *RolloutPluginSuite) TestBackgroundAnalysisSuccess() {
-// 	s.Given().
-// 		RolloutPluginObjects("@rolloutplugin/statefulset-canary-bg-analysis-success.yaml").
-// 		When().
-// 		ApplyManifests().
-// 		WaitForStatefulSetReady().
-// 		WaitForRolloutPluginStatus("Healthy").
-// 		Then().
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			assert.Equal(s.T(), "Healthy", rp.Status.Phase)
-// 			assert.False(s.T(), rp.Status.RolloutInProgress)
-// 		}).
-// 		When().
-// 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-// 		WaitForRolloutPluginCanaryStepIndex(0, 60*time.Second).
-// 		Then().
-// 		// Background analysis should start immediately
-// 		ExpectRolloutPluginAnalysisRunCount(1).
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			assert.True(s.T(), rp.Status.RolloutInProgress)
-// 			// Background analysis status should be tracked
-// 			assert.NotNil(s.T(), rp.Status.Canary.CurrentBackgroundAnalysisRunStatus)
-// 			s.T().Logf("Background AnalysisRun: %s, Status: %s",
-// 				rp.Status.Canary.CurrentBackgroundAnalysisRunStatus.Name,
-// 				rp.Status.Canary.CurrentBackgroundAnalysisRunStatus.Status)
-// 		}).
-// 		When().
-// 		// Wait for background analysis to complete successfully
-// 		WaitForRolloutPluginBackgroundAnalysisRunPhase("Successful").
-// 		Then().
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			// Background analysis succeeded, rollout should continue
-// 			assert.Equal(s.T(), "Successful", string(rp.Status.Canary.CurrentBackgroundAnalysisRunStatus.Status))
-// 			assert.True(s.T(), rp.Status.RolloutInProgress, "Rollout should continue after successful analysis")
-// 		}).
-// 		When().
-// 		// Wait for rollout to complete
-// 		WaitForRolloutPluginStatus("Healthy", 180*time.Second).
-// 		Then().
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			assert.Equal(s.T(), "Healthy", rp.Status.Phase)
-// 			assert.False(s.T(), rp.Status.RolloutInProgress)
-// 		})
-// }
+func (s *RolloutPluginSuite) TestInlineAnalysisSuccess() {
+	s.Given().
+		RolloutPluginObjects("@rolloutplugin/statefulset-canary-inline-analysis-success.yaml").
+		When().
+		ApplyManifests().
+		WaitForStatefulSetReady().
+		WaitForRolloutPluginStatus("Healthy").
+		Then().
+		ExpectRolloutPluginAnalysisRunCount(0).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(0, 60*time.Second). // Step 0: setWeight 60
+		WaitForStatefulSetPartition(2, 60*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 120*time.Second). // Step 1: analysis - wait for it to start
+		Then().
+		ExpectRolloutPluginAnalysisRunCount(1).
+		When().
+		// Wait for inline analysis to complete successfully
+		WaitForRolloutPluginInlineAnalysisRunPhase("Successful").
+		Sleep(3*time.Second). // Give controller time to advance to next step
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			// Analysis succeeded, should advance to next step
+			assert.True(s.T(), rp.Status.RolloutInProgress, "Rollout should continue after successful step analysis")
+		}).
+		When().
+		// Wait for rollout to complete
+		WaitForRolloutPluginStatus("Healthy", 180*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.Equal(s.T(), "Healthy", rp.Status.Phase)
+			assert.False(s.T(), rp.Status.RolloutInProgress)
+		})
+}
 
-// func (s *RolloutPluginSuite) TestBackgroundAnalysisFailure() {
-// 	s.Given().
-// 		RolloutPluginObjects("@rolloutplugin/statefulset-canary-bg-analysis-fail.yaml").
-// 		When().
-// 		ApplyManifests().
-// 		WaitForStatefulSetReady().
-// 		WaitForRolloutPluginStatus("Healthy").
-// 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-// 		WaitForRolloutPluginCanaryStepIndex(0, 60*time.Second).
-// 		Then().
-// 		// Background analysis should start
-// 		ExpectRolloutPluginAnalysisRunCount(1).
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			assert.True(s.T(), rp.Status.RolloutInProgress)
-// 			assert.NotNil(s.T(), rp.Status.Canary.CurrentBackgroundAnalysisRunStatus)
-// 		}).
-// 		When().
-// 		// Wait for background analysis to fail
-// 		WaitForRolloutPluginBackgroundAnalysisRunPhase("Failed").
-// 		Sleep(5 * time.Second). // Give controller time to process the failure
-// 		Then().
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			// Background analysis failed, rollout should be aborted or failed
-// 			assert.Equal(s.T(), "Failed", string(rp.Status.Canary.CurrentBackgroundAnalysisRunStatus.Status))
-// 			s.T().Logf("Rollout Phase after analysis failure: %s", rp.Status.Phase)
-// 			// Rollout should be stopped (Failed or Degraded state)
-// 			assert.Contains(s.T(), []string{"Failed", "Degraded"}, rp.Status.Phase,
-// 				"Rollout should be Failed or Degraded after analysis failure")
-// 		})
-// }
+func (s *RolloutPluginSuite) TestInlineAnalysisFailure() {
+	s.Given().
+		RolloutPluginObjects("@rolloutplugin/statefulset-canary-inline-analysis-fail.yaml").
+		When().
+		ApplyManifests().
+		WaitForStatefulSetReady().
+		WaitForRolloutPluginStatus("Healthy").
+		Then().
+		ExpectRolloutPluginAnalysisRunCount(0).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(0, 60*time.Second). // Step 0: setWeight 33
+		WaitForRolloutPluginCanaryStepIndex(1, 60*time.Second). // Step 1: analysis
+		Sleep(3 * time.Second).                                 // Give controller time to create AnalysisRun
+		Then().
+		// Inline (step) analysis should be created
+		ExpectRolloutPluginAnalysisRunCount(1).
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.True(s.T(), rp.Status.RolloutInProgress)
+		}).
+		When().
+		// Wait for inline analysis to fail
+		WaitForRolloutPluginInlineAnalysisRunPhase("Failed").
+		Sleep(5 * time.Second). // Give controller time to process the failure and abort
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			s.T().Logf("Rollout Phase after step analysis failure: %s", rp.Status.Phase)
+			// After abort completes and StatefulSet stabilizes, phase should be Degraded
+			// (indicating the rollout was aborted and cannot auto-restart)
+			assert.Equal(s.T(), "Degraded", rp.Status.Phase,
+				"Rollout should be Degraded after analysis failure and abort")
+			assert.False(s.T(), rp.Status.RolloutInProgress, "Rollout should be stopped")
+			assert.True(s.T(), rp.Status.Aborted, "Rollout should be marked as aborted")
+			assert.NotEmpty(s.T(), rp.Status.AbortedRevision, "AbortedRevision should be set")
+		}).
+		When().
+		// Verify rollback happened
+		Sleep(3 * time.Second).
+		Then().
+		ExpectStatefulSetPartition(5) // Should rollback to stable (partition = replicas)
+}
 
-// func (s *RolloutPluginSuite) TestInlineAnalysisSuccess() {
-// 	s.Given().
-// 		RolloutPluginObjects("@rolloutplugin/statefulset-canary-inline-analysis-success.yaml").
-// 		When().
-// 		ApplyManifests().
-// 		WaitForStatefulSetReady().
-// 		WaitForRolloutPluginStatus("Healthy").
-// 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-// 		WaitForRolloutPluginCanaryStepIndex(0, 60*time.Second). // Step 0: setWeight 33
-// 		WaitForStatefulSetPartition(2, 60*time.Second).          // Verify weight set
-// 		WaitForRolloutPluginCanaryStepIndex(1, 60*time.Second). // Step 1: analysis
-// 		Then().
-// 		// Inline (step) analysis should be created
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			assert.True(s.T(), rp.Status.RolloutInProgress)
-// 			// Step analysis status should be tracked
-// 			assert.NotNil(s.T(), rp.Status.Canary.CurrentStepAnalysisRunStatus)
-// 			s.T().Logf("Step AnalysisRun: %s, Status: %s",
-// 				rp.Status.Canary.CurrentStepAnalysisRunStatus.Name,
-// 				rp.Status.Canary.CurrentStepAnalysisRunStatus.Status)
-// 		}).
-// 		When().
-// 		// Wait for inline analysis to complete successfully
-// 		WaitForRolloutPluginInlineAnalysisRunPhase("Successful").
-// 		Sleep(3 * time.Second). // Give controller time to advance to next step
-// 		Then().
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			// Analysis succeeded, should advance to next step
-// 			assert.True(s.T(), rp.Status.RolloutInProgress, "Rollout should continue after successful step analysis")
-// 			// Should have moved past the analysis step
-// 			assert.NotNil(s.T(), rp.Status.CurrentStepIndex)
-// 			assert.Greater(s.T(), *rp.Status.CurrentStepIndex, int32(1), "Should advance past analysis step")
-// 		}).
-// 		When().
-// 		// Wait for rollout to complete
-// 		WaitForRolloutPluginStatus("Healthy", 180*time.Second).
-// 		Then().
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			assert.Equal(s.T(), "Healthy", rp.Status.Phase)
-// 			assert.False(s.T(), rp.Status.RolloutInProgress)
-// 		})
-// }
+func (s *RolloutPluginSuite) TestAnalysisRunOwnership() {
+	s.Given().
+		RolloutPluginObjects("@rolloutplugin/statefulset-canary-bg-analysis-success.yaml").
+		When().
+		ApplyManifests().
+		WaitForStatefulSetReady().
+		WaitForRolloutPluginStatus("Healthy").
+		Then().
+		ExpectRolloutPluginAnalysisRunCount(0).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(0, 60*time.Second).
+		Then().
+		ExpectRolloutPluginAnalysisRunCount(1).
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			aruns := t.GetRolloutPluginAnalysisRuns()
 
-// func (s *RolloutPluginSuite) TestInlineAnalysisFailure() {
-// 	s.Given().
-// 		RolloutPluginObjects("@rolloutplugin/statefulset-canary-inline-analysis-fail.yaml").
-// 		When().
-// 		ApplyManifests().
-// 		WaitForStatefulSetReady().
-// 		WaitForRolloutPluginStatus("Healthy").
-// 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-// 		WaitForRolloutPluginCanaryStepIndex(0, 60*time.Second). // Step 0: setWeight 33
-// 		WaitForRolloutPluginCanaryStepIndex(1, 60*time.Second). // Step 1: analysis
-// 		Then().
-// 		// Inline (step) analysis should be created
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			assert.True(s.T(), rp.Status.RolloutInProgress)
-// 			assert.NotNil(s.T(), rp.Status.Canary.CurrentStepAnalysisRunStatus)
-// 			s.T().Logf("Step AnalysisRun: %s",
-// 				rp.Status.Canary.CurrentStepAnalysisRunStatus.Name)
-// 		}).
-// 		When().
-// 		// Wait for inline analysis to fail
-// 		WaitForRolloutPluginInlineAnalysisRunPhase("Failed").
-// 		Sleep(5 * time.Second). // Give controller time to process the failure
-// 		Then().
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			// Step analysis failed, rollout should be aborted/failed
-// 			assert.Equal(s.T(), "Failed", string(rp.Status.Canary.CurrentStepAnalysisRunStatus.Status))
-// 			s.T().Logf("Rollout Phase after step analysis failure: %s", rp.Status.Phase)
-// 			// Rollout should be stopped (Failed state)
-// 			assert.Equal(s.T(), "Failed", rp.Status.Phase,
-// 				"Rollout should be Failed after step analysis failure")
-// 			assert.False(s.T(), rp.Status.RolloutInProgress, "Rollout should be stopped")
-// 		}).
-// 		When().
-// 		// Verify rollback happened
-// 		Sleep(3 * time.Second).
-// 		Then().
-// 		ExpectStatefulSetPartition(3) // Should rollback to stable (partition = replicas)
-// }
+			assert.Len(s.T(), aruns.Items, 1, "Should have exactly one AnalysisRun")
 
-// func (s *RolloutPluginSuite) TestAnalysisRunOwnership() {
-// 	s.Given().
-// 		RolloutPluginObjects("@rolloutplugin/statefulset-canary-bg-analysis-success.yaml").
-// 		When().
-// 		ApplyManifests().
-// 		WaitForStatefulSetReady().
-// 		WaitForRolloutPluginStatus("Healthy").
-// 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-// 		WaitForRolloutPluginCanaryStepIndex(0, 60*time.Second).
-// 		Then().
-// 		ExpectRolloutPluginAnalysisRunCount(1).
-// 		Assert(func(t *fixtures.Then) {
-// 			rp := t.GetRolloutPlugin()
-// 			aruns := t.GetRolloutPluginAnalysisRuns()
+			ar := aruns.Items[0]
+			// Verify owner reference
+			assert.NotEmpty(s.T(), ar.OwnerReferences, "AnalysisRun should have owner reference")
+			assert.Equal(s.T(), rp.UID, ar.OwnerReferences[0].UID, "AnalysisRun should be owned by RolloutPlugin")
+			assert.Equal(s.T(), "RolloutPlugin", ar.OwnerReferences[0].Kind)
 
-// 			assert.Len(s.T(), aruns.Items, 1, "Should have exactly one AnalysisRun")
-
-// 			ar := aruns.Items[0]
-// 			// Verify owner reference
-// 			assert.NotEmpty(s.T(), ar.OwnerReferences, "AnalysisRun should have owner reference")
-// 			assert.Equal(s.T(), rp.UID, ar.OwnerReferences[0].UID, "AnalysisRun should be owned by RolloutPlugin")
-// 			assert.Equal(s.T(), "RolloutPlugin", ar.OwnerReferences[0].Kind)
-
-// 			s.T().Logf("AnalysisRun %s is correctly owned by RolloutPlugin %s",
-// 				ar.Name, rp.Name)
-// 		})
-// }
+			s.T().Logf("AnalysisRun %s is correctly owned by RolloutPlugin %s",
+				ar.Name, rp.Name)
+		})
+}
 
 func (s *RolloutPluginSuite) TestCompleteRolloutToHealthy() {
 	s.Given().

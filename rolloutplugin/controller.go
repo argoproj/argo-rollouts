@@ -38,6 +38,7 @@ type RolloutPluginReconciler struct {
 	DynamicClientset  dynamic.Interface
 	PluginManager     PluginManager
 	AnalysisHelper    AnalysisHelper
+	InstanceID        string
 }
 
 // AnalysisHelper is an interface for managing AnalysisRuns
@@ -522,6 +523,41 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 	currentStep := canary.Steps[currentStepIndex]
 	logCtx.WithField("stepIndex", currentStepIndex).Info("Processing canary step")
 
+	// Check background analysis status (if running)
+	// Background analysis runs throughout the rollout, so check it before processing each step
+	if newStatus.Canary.CurrentBackgroundAnalysisRunStatus != nil {
+		bgAnalysisStatus := newStatus.Canary.CurrentBackgroundAnalysisRunStatus.Status
+		logCtx.WithFields(log.Fields{
+			"status":      bgAnalysisStatus,
+			"analysisRun": newStatus.Canary.CurrentBackgroundAnalysisRunStatus.Name,
+		}).Info("Background analysis status")
+
+		switch bgAnalysisStatus {
+		case v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError:
+			// Background analysis failed, abort the rollout
+			logCtx.Error("Background analysis failed, aborting rollout")
+			newStatus.Phase = "Failed"
+			newStatus.Message = fmt.Sprintf("Background analysis failed: %s", newStatus.Canary.CurrentBackgroundAnalysisRunStatus.Name)
+			newStatus.RolloutInProgress = false
+			newStatus.Aborted = true
+			newStatus.AbortedRevision = newStatus.UpdatedRevision
+			if err := plugin.Abort(ctx, workloadRef); err != nil {
+				logCtx.WithError(err).Error("Failed to abort rollout")
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, nil
+
+		case v1alpha1.AnalysisPhaseInconclusive:
+			// Background analysis is inconclusive, pause the rollout
+			logCtx.Info("Background analysis is inconclusive, pausing rollout")
+			newStatus.Paused = true
+			newStatus.Message = "Paused: Background analysis inconclusive"
+			return ctrl.Result{}, nil
+		}
+		// For Running, Pending, Successful, or unknown status, continue processing the step
+		// Successful means the analysis completed successfully
+	}
+
 	// Process setWeight step
 	if currentStep.SetWeight != nil {
 		weight := *currentStep.SetWeight
@@ -625,6 +661,8 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 			newStatus.Phase = "Failed"
 			newStatus.Message = fmt.Sprintf("Analysis failed: %s", newStatus.Canary.CurrentStepAnalysisRunStatus.Name)
 			newStatus.RolloutInProgress = false
+			newStatus.Aborted = true
+			newStatus.AbortedRevision = newStatus.UpdatedRevision
 			if err := plugin.Abort(ctx, workloadRef); err != nil {
 				logCtx.WithError(err).Error("Failed to abort rollout")
 				return ctrl.Result{}, err
@@ -865,9 +903,6 @@ func (r *RolloutPluginReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			return true
 		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			return true
-		},
 	}
 
 	// Create a predicate for RolloutPlugin that watches ALL updates (like Rollouts controller)
@@ -896,13 +931,36 @@ func (r *RolloutPluginReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			return true
 		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			return true
+	}
+
+	// Predicate to filter AnalysisRun events - only trigger on phase changes
+	analysisRunPredicate := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true // Always trigger on creation
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldAR, ok1 := e.ObjectOld.(*v1alpha1.AnalysisRun)
+			newAR, ok2 := e.ObjectNew.(*v1alpha1.AnalysisRun)
+			if !ok1 || !ok2 {
+				return false
+			}
+
+			// Only trigger if phase changed (matches Rollouts controller behavior)
+			if oldAR.Status.Phase != newAR.Status.Phase {
+				return true
+			}
+
+			// Skip other updates
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return true // Always trigger on deletion
 		},
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.RolloutPlugin{}).
+		Owns(&v1alpha1.AnalysisRun{}, builder.WithPredicates(analysisRunPredicate)).
 		Watches(
 			&appsv1.StatefulSet{},
 			handler.EnqueueRequestsFromMapFunc(r.findRolloutPluginsForWorkload),

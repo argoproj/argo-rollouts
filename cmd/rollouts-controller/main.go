@@ -390,6 +390,7 @@ func newCommand() *cobra.Command {
 				DynamicClientset:  dynamicClient,
 				PluginManager:     pluginManager,
 				AnalysisHelper:    analysisHelper,
+				InstanceID:        instanceID,
 			}).SetupWithManager(mgr); err != nil {
 				log.Fatalf("Failed to setup RolloutPlugin controller: %s", err.Error())
 			}

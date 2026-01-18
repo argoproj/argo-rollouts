@@ -613,11 +613,23 @@ func (t *Then) ExpectStatefulSetPartitionLessThan(maxPartition int32) *Then {
 // ExpectRolloutPluginAnalysisRunCount expects the number of AnalysisRuns owned by the RolloutPlugin
 func (t *Then) ExpectRolloutPluginAnalysisRunCount(expectedCount int) *Then {
 	t.t.Helper()
-	aruns := t.Common.GetRolloutPluginAnalysisRuns()
-	if len(aruns.Items) != expectedCount {
+	checkAnalysisRunCount := func() (done bool, err error) {
+		aruns := t.Common.GetRolloutPluginAnalysisRuns()
+		if len(aruns.Items) == expectedCount {
+			t.log.Infof("RolloutPlugin AnalysisRun count expectation %d met", expectedCount)
+			return true, nil
+		}
+		t.log.Debugf("RolloutPlugin AnalysisRun count: expected %d, actual: %d", expectedCount, len(aruns.Items))
+		return false, nil
+	}
+
+	pollInterval := 5 * time.Second
+	pollTimeout := 1 * time.Minute
+	if err := wait.PollImmediate(pollInterval, pollTimeout, checkAnalysisRunCount); err != nil {
+		aruns := t.Common.GetRolloutPluginAnalysisRuns()
 		t.log.Errorf("RolloutPlugin AnalysisRun count expected to be %d. actual: %d", expectedCount, len(aruns.Items))
 		t.t.FailNow()
 	}
-	t.log.Infof("RolloutPlugin AnalysisRun count expectation %d met", expectedCount)
+
 	return t
 }

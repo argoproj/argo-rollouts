@@ -22,7 +22,7 @@ import (
 
 const (
 	// FieldManager is the field manager name used for Server-Side Apply
-	FieldManager = "argo-rollouts"
+	FieldManager = "argo-rollouts-statefulset-plugin"
 )
 
 // Plugin implements the ResourcePlugin interface directly for StatefulSets.
@@ -423,20 +423,22 @@ func (p *Plugin) Abort(ctx context.Context, workloadRef v1alpha1.WorkloadRef) er
 		return fmt.Errorf("failed to update StatefulSet during abort using SSA: %w", err)
 	}
 
-	// STEP 2: Delete pods that were updated (ordinals < oldPartition)
+	// STEP 2: Delete pods that were updated (ordinals >= oldPartition)
 	// StatefulSet controller will recreate them using CurrentRevision (old version)
-	// because partition=replicas means all pods should be on old version
-	// We delete all pods with ordinal < oldPartition to ensure all potentially
-	// updated pods are rolled back
+	// because partition=replicas means all pods should be on old version.
+	// With partition, pods with ordinal >= partition are on the NEW (updated) version.
+	// Pods with ordinal < partition are on the OLD (current) version.
+	// So we need to delete pods with ordinal >= oldPartition to roll them back.
+	podsToDelete := replicas - oldPartition
 	p.logCtx.WithFields(log.Fields{
 		"oldPartition": oldPartition,
-		"podsToDelete": oldPartition,
+		"podsToDelete": podsToDelete,
 	}).Info("Deleting updated pods to force rollback")
 
 	deletedCount := int32(0)
 	failedDeletes := []string{}
 
-	for i := int32(0); i < oldPartition; i++ {
+	for i := oldPartition; i < replicas; i++ {
 		podName := fmt.Sprintf("%s-%d", sts.Name, i)
 		pod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{

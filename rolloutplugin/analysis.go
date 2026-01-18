@@ -194,15 +194,40 @@ func (r *RolloutPluginReconciler) reconcileStepBasedAnalysisRun(ctx context.Cont
 	}
 
 	// Check if we need to create a new analysis run
-	if currentAr == nil || analysisutil.IsTerminating(currentAr) {
+	// Only create if:
+	// 1. No current AR exists
+	// 2. Rollout is aborted (allows retry after fixes)
+	// 3. AR is inconclusive and rollout is paused for it
+	if currentAr == nil {
 		logger.Info("Creating step-based analysis run", "step", currentStepIndex)
-		newAr, err := r.createAnalysisRun(ctx, rp, currentStep.Analysis, fmt.Sprintf("%s-step-%d", rp.Name, currentStepIndex))
+		newAr, err := r.createAnalysisRun(ctx, rp, currentStep.Analysis, fmt.Sprintf("%s-step-%d", rp.Name, currentStepIndex), v1alpha1.RolloutTypeStepLabel)
 		if err != nil {
 			return nil, err
 		}
 		return newAr, nil
 	}
 
+	// If rollout is aborted, allow creating a new analysis run (for retry scenarios)
+	if rp.Status.Aborted {
+		logger.Info("Rollout is aborted, creating new step-based analysis run", "step", currentStepIndex)
+		newAr, err := r.createAnalysisRun(ctx, rp, currentStep.Analysis, fmt.Sprintf("%s-step-%d", rp.Name, currentStepIndex), v1alpha1.RolloutTypeStepLabel)
+		if err != nil {
+			return nil, err
+		}
+		return newAr, nil
+	}
+
+	// If AR is inconclusive and rollout is paused, allow creating a new one
+	if currentAr.Status.Phase == v1alpha1.AnalysisPhaseInconclusive && rp.Status.Paused {
+		logger.Info("Analysis is inconclusive and rollout is paused, creating new step-based analysis run", "step", currentStepIndex)
+		newAr, err := r.createAnalysisRun(ctx, rp, currentStep.Analysis, fmt.Sprintf("%s-step-%d", rp.Name, currentStepIndex), v1alpha1.RolloutTypeStepLabel)
+		if err != nil {
+			return nil, err
+		}
+		return newAr, nil
+	}
+
+	// Otherwise, keep the existing AR (even if failed/error - controller needs to see it)
 	return currentAr, nil
 }
 
@@ -215,16 +240,41 @@ func (r *RolloutPluginReconciler) reconcileBackgroundAnalysisRun(ctx context.Con
 	}
 
 	// Check if we need to create a new analysis run
-	if currentAr == nil || analysisutil.IsTerminating(currentAr) {
+	// Only create if:
+	// 1. No current AR exists
+	// 2. Rollout is aborted (allows retry after fixes)
+	// 3. AR is inconclusive and rollout is paused for it
+	if currentAr == nil {
 		logger.Info("Creating background analysis run")
 		// RolloutAnalysisBackground embeds RolloutAnalysis, so we can use it directly
-		newAr, err := r.createAnalysisRun(ctx, rp, &rp.Spec.Strategy.Canary.Analysis.RolloutAnalysis, fmt.Sprintf("%s-background", rp.Name))
+		newAr, err := r.createAnalysisRun(ctx, rp, &rp.Spec.Strategy.Canary.Analysis.RolloutAnalysis, fmt.Sprintf("%s-background", rp.Name), v1alpha1.RolloutTypeBackgroundRunLabel)
 		if err != nil {
 			return nil, err
 		}
 		return newAr, nil
 	}
 
+	// If rollout is aborted, allow creating a new analysis run (for retry scenarios)
+	if rp.Status.Aborted {
+		logger.Info("Rollout is aborted, creating new background analysis run")
+		newAr, err := r.createAnalysisRun(ctx, rp, &rp.Spec.Strategy.Canary.Analysis.RolloutAnalysis, fmt.Sprintf("%s-background", rp.Name), v1alpha1.RolloutTypeBackgroundRunLabel)
+		if err != nil {
+			return nil, err
+		}
+		return newAr, nil
+	}
+
+	// If AR is inconclusive and rollout is paused, allow creating a new one
+	if currentAr.Status.Phase == v1alpha1.AnalysisPhaseInconclusive && rp.Status.Paused {
+		logger.Info("Analysis is inconclusive and rollout is paused, creating new background analysis run")
+		newAr, err := r.createAnalysisRun(ctx, rp, &rp.Spec.Strategy.Canary.Analysis.RolloutAnalysis, fmt.Sprintf("%s-background", rp.Name), v1alpha1.RolloutTypeBackgroundRunLabel)
+		if err != nil {
+			return nil, err
+		}
+		return newAr, nil
+	}
+
+	// Otherwise, keep the existing AR (even if failed/error - controller needs to see it)
 	return currentAr, nil
 }
 
@@ -246,7 +296,7 @@ func convertAnalysisRunArgsToArguments(args []v1alpha1.AnalysisRunArgument) []v1
 }
 
 // createAnalysisRun creates a new AnalysisRun from the analysis spec
-func (r *RolloutPluginReconciler) createAnalysisRun(ctx context.Context, rp *v1alpha1.RolloutPlugin, analysisSpec *v1alpha1.RolloutAnalysis, namePrefix string) (*v1alpha1.AnalysisRun, error) {
+func (r *RolloutPluginReconciler) createAnalysisRun(ctx context.Context, rp *v1alpha1.RolloutPlugin, analysisSpec *v1alpha1.RolloutAnalysis, namePrefix string, rolloutType string) (*v1alpha1.AnalysisRun, error) {
 	logger := log.FromContext(ctx)
 
 	// Get templates
@@ -277,8 +327,13 @@ func (r *RolloutPluginReconciler) createAnalysisRun(ctx context.Context, rp *v1a
 
 	// Build labels
 	labels := map[string]string{
-		v1alpha1.RolloutTypeLabel: "RolloutPlugin",
+		v1alpha1.RolloutTypeLabel: rolloutType, // "Step" or "Background"
 		"rollout-plugin-name":     rp.Name,
+	}
+
+	// Add instance ID label if set (required for controller filtering)
+	if r.InstanceID != "" {
+		labels[v1alpha1.LabelKeyControllerInstanceID] = r.InstanceID
 	}
 
 	// Build annotations
