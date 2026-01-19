@@ -252,6 +252,11 @@ func (r *Reconciler) Type() string {
 	return Type
 }
 
+// CanScaleDown returns nil (not implemented) as Ambassador does not support scale-down checks
+func (r *Reconciler) CanScaleDown(podTemplateHash string) (*bool, error) {
+	return nil, nil
+}
+
 func setMappingWeight(obj *unstructured.Unstructured, weight int32) {
 	unstructured.SetNestedField(obj.Object, int64(weight), "spec", "weight")
 }

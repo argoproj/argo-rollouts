@@ -96,3 +96,12 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 	}
 	return nil
 }
+
+// CanScaleDown checks if it is safe to scale down the ReplicaSet identified by the given pod template hash
+func (r *Reconciler) CanScaleDown(podTemplateHash string) (*bool, error) {
+	canScaleDown, errResp := r.TrafficRouterPlugin.CanScaleDown(r.Rollout, podTemplateHash)
+	if errResp.HasError() {
+		return canScaleDown.CanScaleDown(), fmt.Errorf("failed to check can scale down via plugin: %w", errResp)
+	}
+	return canScaleDown.CanScaleDown(), nil
+}

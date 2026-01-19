@@ -417,6 +417,11 @@ func (r *Reconciler) Type() string {
 	return Type
 }
 
+// CanScaleDown returns nil (not implemented) as Apisix does not support scale-down checks
+func (r *Reconciler) CanScaleDown(podTemplateHash string) (*bool, error) {
+	return nil, nil
+}
+
 func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) error {
 	return nil
 }

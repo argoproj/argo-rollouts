@@ -39,9 +39,19 @@ type RemoveManagedRoutesArgs struct {
 	Rollout v1alpha1.Rollout
 }
 
+type CanScaleDownArgs struct {
+	Rollout         v1alpha1.Rollout
+	PodTemplateHash string
+}
+
 type VerifyWeightResponse struct {
 	Verified types.RpcVerified
 	Err      types.RpcError
+}
+
+type CanScaleDownResponse struct {
+	CanScaleDown types.RpcScaleDownVerified
+	Err          types.RpcError
 }
 
 func init() {
@@ -50,6 +60,7 @@ func init() {
 	gob.RegisterName("SetHeaderArgs", new(SetHeaderArgs))
 	gob.RegisterName("SetMirrorArgs", new(SetMirrorArgs))
 	gob.RegisterName("RemoveManagedRoutesArgs", new(RemoveManagedRoutesArgs))
+	gob.RegisterName("CanScaleDownArgs", new(CanScaleDownArgs))
 }
 
 // TrafficRouterPlugin is the interface that we're exposing as a plugin. It needs to match metricproviders.Providers but we can
@@ -172,6 +183,20 @@ func (g *TrafficRouterPluginRPC) RemoveManagedRoutes(rollout *v1alpha1.Rollout) 
 	return resp
 }
 
+// CanScaleDown checks if it is safe to scale down the ReplicaSet identified by the given pod template hash
+func (g *TrafficRouterPluginRPC) CanScaleDown(rollout *v1alpha1.Rollout, podTemplateHash string) (types.RpcScaleDownVerified, types.RpcError) {
+	var resp CanScaleDownResponse
+	var args any = CanScaleDownArgs{
+		Rollout:         *rollout,
+		PodTemplateHash: podTemplateHash,
+	}
+	err := g.client.Call("Plugin.CanScaleDown", &args, &resp)
+	if err != nil {
+		return types.ScaleDownNotImplemented, types.RpcError{ErrorString: fmt.Sprintf("CanScaleDown rpc call error: %s", err)}
+	}
+	return resp.CanScaleDown, resp.Err
+}
+
 // TrafficRouterRPCServer Here is the RPC server that MetricsPluginRPC talks to, conforming to
 // the requirements of net/rpc
 type TrafficRouterRPCServer struct {
@@ -254,6 +279,20 @@ func (s *TrafficRouterRPCServer) RemoveManagedRoutes(args any, resp *types.RpcEr
 		return fmt.Errorf("invalid args %s", args)
 	}
 	*resp = s.Impl.RemoveManagedRoutes(&removeManagedRoutesArgs.Rollout)
+	return nil
+}
+
+// CanScaleDown checks if it is safe to scale down the ReplicaSet identified by the given pod template hash
+func (s *TrafficRouterRPCServer) CanScaleDown(args any, resp *CanScaleDownResponse) error {
+	canScaleDownArgs, ok := args.(*CanScaleDownArgs)
+	if !ok {
+		return fmt.Errorf("invalid args %s", args)
+	}
+	canScaleDown, err := s.Impl.CanScaleDown(&canScaleDownArgs.Rollout, canScaleDownArgs.PodTemplateHash)
+	*resp = CanScaleDownResponse{
+		CanScaleDown: canScaleDown,
+		Err:          err,
+	}
 	return nil
 }
 

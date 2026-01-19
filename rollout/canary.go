@@ -238,7 +238,19 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 				// and doesn't yet have scale down deadline. This happens when a user changes their
 				// mind in the middle of an V1 -> V2 update, and then applies a V3. We are deciding
 				// what to do with the defunct, intermediate V2 ReplicaSet right now.
-				// It is safe to scale the intermediate RS down, since no traffic is directed to it.
+				// Check if traffic routers allow scale-down (e.g., for drain completion).
+				// While no new traffic is directed to this RS, external systems may still
+				// have work running on it that needs to complete.
+				podTemplateHash := replicasetutil.GetPodTemplateHash(targetRS)
+				canScaleDown, err := c.canScaleDownRS(podTemplateHash)
+				if err != nil {
+					c.log.Warnf("Error checking CanScaleDown for intermediate RS '%s': %v", targetRS.Name, err)
+				}
+				if canScaleDown != nil && !*canScaleDown {
+					c.log.Infof("Intermediate RS '%s' scale-down blocked by traffic router plugin", targetRS.Name)
+					desiredReplicaCount = *targetRS.Spec.Replicas
+					continue
+				}
 				c.log.Infof("scaling down intermediate RS '%s'", targetRS.Name)
 			}
 		}

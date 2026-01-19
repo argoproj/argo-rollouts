@@ -60,6 +60,11 @@ func (r *Reconciler) Type() string {
 	return Type
 }
 
+// CanScaleDown returns nil (not implemented) as Nginx does not support scale-down checks
+func (r *Reconciler) CanScaleDown(podTemplateHash string) (*bool, error) {
+	return nil, nil
+}
+
 func (r *Reconciler) buildCanaryIngress(stableIngress *networkingv1.Ingress, name string, desiredWeight int32) (*ingressutil.Ingress, error) {
 	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	stableServiceName := r.cfg.Rollout.Spec.Strategy.Canary.StableService
