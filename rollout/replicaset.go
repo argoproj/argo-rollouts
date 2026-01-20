@@ -16,7 +16,9 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
@@ -324,10 +326,7 @@ func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 			c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
 			// Even when exceeding revision limit, check if traffic routers block scale-down
 			podTemplateHash := replicasetutil.GetPodTemplateHash(rs)
-			canScaleDown, err := c.canScaleDownRS(podTemplateHash)
-			if err != nil {
-				c.log.Warnf("Error checking CanScaleDown for RS '%s': %v", rs.Name, err)
-			}
+			canScaleDown, _ := c.canScaleDownRS(podTemplateHash)
 			if canScaleDown != nil && !*canScaleDown {
 				c.log.Infof("RS '%s' scale-down blocked by traffic router plugin (exceeds revision limit)", rs.Name)
 				logCtx := logutil.WithRollout(c.rollout)
@@ -350,10 +349,7 @@ func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 			} else {
 				// Scale-down deadline has passed, but check if traffic routers block scale-down
 				podTemplateHash := replicasetutil.GetPodTemplateHash(rs)
-				canScaleDown, err := c.canScaleDownRS(podTemplateHash)
-				if err != nil {
-					c.log.Warnf("Error checking CanScaleDown for RS '%s': %v", rs.Name, err)
-				}
+				canScaleDown, _ := c.canScaleDownRS(podTemplateHash)
 				if canScaleDown != nil && !*canScaleDown {
 					c.log.Infof("RS '%s' scale-down blocked by traffic router plugin", rs.Name)
 					// Requeue to check again later
@@ -381,7 +377,8 @@ func (c *rolloutContext) canScaleDownRS(podTemplateHash string) (*bool, error) {
 
 	reconcilers, err := c.newTrafficRoutingReconciler(c)
 	if err != nil {
-		return nil, err
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.ScaleDownCheckErrorReason}, conditions.ScaleDownCheckErrorMessage, err)
+		return nil, nil
 	}
 	if len(reconcilers) == 0 {
 		return nil, nil
@@ -391,7 +388,11 @@ func (c *rolloutContext) canScaleDownRS(podTemplateHash string) (*bool, error) {
 	for _, reconciler := range reconcilers {
 		canScaleDown, err := reconciler.CanScaleDown(podTemplateHash)
 		if err != nil {
-			c.log.Warnf("Error checking CanScaleDown from traffic router '%s': %v", reconciler.Type(), err)
+			if canScaleDown != nil {
+				// Plugin returned a result with an error - report it as an event
+				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.ScaleDownCheckErrorReason}, conditions.ScaleDownCheckErrorMessage, err)
+			}
+			// For backwards compatibility (old plugins) or errors, continue with next reconciler
 			continue
 		}
 		if canScaleDown == nil {
@@ -401,7 +402,6 @@ func (c *rolloutContext) canScaleDownRS(podTemplateHash string) (*bool, error) {
 		hasImplementation = true
 		if !*canScaleDown {
 			// At least one traffic router blocks scale-down
-			c.log.Infof("Traffic router '%s' blocks scale-down for pod template hash '%s'", reconciler.Type(), podTemplateHash)
 			return canScaleDown, nil
 		}
 	}

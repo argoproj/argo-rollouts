@@ -1998,9 +1998,21 @@ func TestCanScaleDownRS(t *testing.T) {
 
 			f.kubeobjects = append(f.kubeobjects, rs1)
 			f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+			if tc.hasTrafficRouting {
+				stableSvc := newService("stable-svc", 80, nil, r1)
+				canarySvc := newService("canary-svc", 80, nil, r1)
+				f.kubeobjects = append(f.kubeobjects, stableSvc, canarySvc)
+				f.serviceLister = append(f.serviceLister, stableSvc, canarySvc)
+
+				f.expectPatchServiceAction(stableSvc, rs1PodHash)
+				f.expectPatchServiceAction(canarySvc, rs1PodHash)
+			}
+
 			f.rolloutLister = append(f.rolloutLister, r1)
 			f.objects = append(f.objects, r1)
 
+			f.expectPatchRolloutAction(r1)
 			c, i, k8sI := f.newController(noResyncPeriodFunc)
 			f.runController(getKey(r1, t), true, false, c, i, k8sI)
 
@@ -2109,11 +2121,17 @@ func TestCanScaleDownRSMultipleReconcilers(t *testing.T) {
 			rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 			r1.Status.StableRS = rs1PodHash
 
-			f.kubeobjects = append(f.kubeobjects, rs1)
+			stableSvc := newService("stable-svc", 80, nil, r1)
+			canarySvc := newService("canary-svc", 80, nil, r1)
+			f.kubeobjects = append(f.kubeobjects, rs1, stableSvc, canarySvc)
 			f.replicaSetLister = append(f.replicaSetLister, rs1)
+			f.serviceLister = append(f.serviceLister, stableSvc, canarySvc)
 			f.rolloutLister = append(f.rolloutLister, r1)
 			f.objects = append(f.objects, r1)
 
+			f.expectPatchServiceAction(stableSvc, rs1PodHash)
+			f.expectPatchServiceAction(canarySvc, rs1PodHash)
+			f.expectPatchRolloutAction(r1)
 			c, i, k8sI := f.newController(noResyncPeriodFunc)
 			f.runController(getKey(r1, t), true, false, c, i, k8sI)
 

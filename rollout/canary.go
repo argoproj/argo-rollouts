@@ -242,10 +242,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 				// While no new traffic is directed to this RS, external systems may still
 				// have work running on it that needs to complete.
 				podTemplateHash := replicasetutil.GetPodTemplateHash(targetRS)
-				canScaleDown, err := c.canScaleDownRS(podTemplateHash)
-				if err != nil {
-					c.log.Warnf("Error checking CanScaleDown for intermediate RS '%s': %v", targetRS.Name, err)
-				}
+				canScaleDown, _ := c.canScaleDownRS(podTemplateHash)
 				if canScaleDown != nil && !*canScaleDown {
 					c.log.Infof("Intermediate RS '%s' scale-down blocked by traffic router plugin", targetRS.Name)
 					desiredReplicaCount = *targetRS.Spec.Replicas
