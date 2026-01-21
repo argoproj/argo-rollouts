@@ -230,7 +230,9 @@ spec:
 
       # The minimum number of pods that will be requested for each ReplicaSet
       # when using traffic routed canary. This is to ensure high availability
-      # of each ReplicaSet. Defaults to 1. +optional
+      # of each ReplicaSet. spec.replicas should be >= minPodsPerReplicaSet
+      # for it to take full effect; otherwise it is capped at the rollout
+      # replica count. Defaults to 1. +optional
       minPodsPerReplicaSet: 2
 
       # Limits the number of old RS that can run at one time before getting

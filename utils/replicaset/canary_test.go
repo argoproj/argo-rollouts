@@ -741,6 +741,24 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedStableReplicaCount: 10,
 			expectedCanaryReplicaCount: 2,
 		},
+		{
+			name:                "Cap MinPodsPerReplicaSet when it exceeds rollout replicas with trafficRouting",
+			rolloutSpecReplicas: 1,
+			setWeight:           100,
+			promoteFull:         true,
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			trafficRouting:       &v1alpha1.RolloutTrafficRouting{},
+			minPodsPerReplicaSet: intPnt(2),
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 1,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
