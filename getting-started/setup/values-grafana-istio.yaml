@@ -1,0 +1,92 @@
+# A minimal Grafana installation for dev & demo purposes and works well in minikube. 
+# Preloads Prometheus as a datasource as well as the official Istio dashboards.
+# Tested with:
+#  * Grafana helm chart: stable/grafana-5.1.4 (grafana 7.0.3)
+#  * Istio v1.7.1 dashboards
+service:
+  type: NodePort
+
+adminPassword: admin
+
+grafana.ini:
+  auth.anonymous:
+    enabled: 'true'
+    org_name: Main Org.
+    org_role: Viewer
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus.istio-system:9090
+      access: proxy
+      isDefault: true
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+    - name: istio-mesh
+      orgId: 1
+      folder: ''
+      type: file
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/istio-mesh
+    - name: istio-performance
+      orgId: 1
+      folder: ''
+      type: file
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/istio-performance
+    - name: istio-service
+      orgId: 1
+      folder: ''
+      type: file
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/istio-service
+    - name: istio-workload
+      orgId: 1
+      folder: ''
+      type: file
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/istio-workload
+    - name: mixer
+      orgId: 1
+      folder: ''
+      type: file
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/mixer
+    - name: pilot
+      orgId: 1
+      folder: ''
+      type: file
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/pilot
+
+dashboards:
+  istio-mesh:
+    local-dashboard:
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/istio-mesh-dashboard.json
+  istio-performance:
+    local-dashboard:
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/istio-performance-dashboard.json
+  istio-service:
+    local-dashboard:
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/istio-service-dashboard.json
+  istio-workload:
+    local-dashboard:
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/istio-workload-dashboard.json
+  mixer:
+    local-dashboard:
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/mixer-dashboard.json
+  pilot:
+    local-dashboard:
+      url: https://raw.githubusercontent.com/istio/istio/1.7.1/manifests/charts/istio-telemetry/grafana/dashboards/pilot-dashboard.json

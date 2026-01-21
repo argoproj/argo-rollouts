@@ -8,29 +8,31 @@
       
       
       
-        <link rel="canonical" href="https://argo-rollouts.readthedocs.io/">
+        <link rel="canonical" href="https://argo-rollouts.readthedocs.io/FAQ/">
       
       
+        <link rel="prev" href="../migrating/">
       
-        <link rel="next" href="installation/">
+      
+        <link rel="next" href="../security/security/">
       
       
         
       
       
-      <link rel="icon" href="assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
-        <title>Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
+        <title>FAQ - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -49,9 +51,9 @@
       
     
     
-      <link rel="stylesheet" href="assets/versions.css">
+      <link rel="stylesheet" href="../assets/versions.css">
     
-    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
   
@@ -86,7 +88,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#argo-rollouts-kubernetes-progressive-delivery-controller" class="md-skip">
+        <a href="#faq" class="md-skip">
           Skip to content
         </a>
       
@@ -102,9 +104,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-header__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
+    <a href=".." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-header__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
       
-  <img src="assets/logo.png" alt="logo">
+  <img src="../assets/logo.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -121,7 +123,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Overview
+              FAQ
             
           </span>
         </div>
@@ -237,9 +239,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
+    <a href=".." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
       
-  <img src="assets/logo.png" alt="logo">
+  <img src="../assets/logo.png" alt="logo">
 
     </a>
     Argo Rollouts - Kubernetes Progressive Delivery Controller
@@ -263,37 +265,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Overview
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="." class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -309,103 +284,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#what-is-argo-rollouts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What is Argo Rollouts?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-argo-rollouts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why Argo Rollouts?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#controller-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Controller Features
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quick-start" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Start
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-does-it-work" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How does it work?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#use-cases-of-argo-rollouts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Use cases of Argo Rollouts
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -417,7 +295,7 @@
   
   
     <li class="md-nav__item">
-      <a href="installation/" class="md-nav__link">
+      <a href="../installation/" class="md-nav__link">
         
   
   
@@ -444,7 +322,7 @@
   
   
     <li class="md-nav__item">
-      <a href="concepts/" class="md-nav__link">
+      <a href="../concepts/" class="md-nav__link">
         
   
   
@@ -471,7 +349,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/" class="md-nav__link">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
@@ -545,7 +423,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
@@ -573,7 +451,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/ambassador/" class="md-nav__link">
+      <a href="../getting-started/ambassador/" class="md-nav__link">
         
   
   
@@ -601,7 +479,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/alb/" class="md-nav__link">
+      <a href="../getting-started/alb/" class="md-nav__link">
         
   
   
@@ -629,7 +507,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/appmesh/" class="md-nav__link">
+      <a href="../getting-started/appmesh/" class="md-nav__link">
         
   
   
@@ -657,7 +535,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/istio/" class="md-nav__link">
+      <a href="../getting-started/istio/" class="md-nav__link">
         
   
   
@@ -685,7 +563,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/nginx/" class="md-nav__link">
+      <a href="../getting-started/nginx/" class="md-nav__link">
         
   
   
@@ -713,7 +591,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/smi/" class="md-nav__link">
+      <a href="../getting-started/smi/" class="md-nav__link">
         
   
   
@@ -741,7 +619,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/mixed/" class="md-nav__link">
+      <a href="../getting-started/mixed/" class="md-nav__link">
         
   
   
@@ -776,7 +654,7 @@
   
   
     <li class="md-nav__item">
-      <a href="dashboard/" class="md-nav__link">
+      <a href="../dashboard/" class="md-nav__link">
         
   
   
@@ -897,7 +775,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/bluegreen/" class="md-nav__link">
+      <a href="../features/bluegreen/" class="md-nav__link">
         
   
   
@@ -925,7 +803,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/canary/" class="md-nav__link">
+      <a href="../features/canary/" class="md-nav__link">
         
   
   
@@ -961,7 +839,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/specification/" class="md-nav__link">
+      <a href="../features/specification/" class="md-nav__link">
         
   
   
@@ -989,7 +867,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/canary/plugins/" class="md-nav__link">
+      <a href="../features/canary/plugins/" class="md-nav__link">
         
   
   
@@ -1017,7 +895,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/hpa-support/" class="md-nav__link">
+      <a href="../features/hpa-support/" class="md-nav__link">
         
   
   
@@ -1045,7 +923,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/vpa-support/" class="md-nav__link">
+      <a href="../features/vpa-support/" class="md-nav__link">
         
   
   
@@ -1073,7 +951,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/ephemeral-metadata/" class="md-nav__link">
+      <a href="../features/ephemeral-metadata/" class="md-nav__link">
         
   
   
@@ -1101,7 +979,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/restart/" class="md-nav__link">
+      <a href="../features/restart/" class="md-nav__link">
         
   
   
@@ -1129,7 +1007,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/scaledown-aborted-rs/" class="md-nav__link">
+      <a href="../features/scaledown-aborted-rs/" class="md-nav__link">
         
   
   
@@ -1157,7 +1035,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/rollback/" class="md-nav__link">
+      <a href="../features/rollback/" class="md-nav__link">
         
   
   
@@ -1185,7 +1063,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/anti-affinity/anti-affinity/" class="md-nav__link">
+      <a href="../features/anti-affinity/anti-affinity/" class="md-nav__link">
         
   
   
@@ -1213,7 +1091,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/helm/" class="md-nav__link">
+      <a href="../features/helm/" class="md-nav__link">
         
   
   
@@ -1241,7 +1119,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/kustomize/" class="md-nav__link">
+      <a href="../features/kustomize/" class="md-nav__link">
         
   
   
@@ -1269,7 +1147,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/controller-metrics/" class="md-nav__link">
+      <a href="../features/controller-metrics/" class="md-nav__link">
         
   
   
@@ -1351,7 +1229,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/traffic-management/" class="md-nav__link">
+      <a href="../features/traffic-management/" class="md-nav__link">
         
   
   
@@ -1379,7 +1257,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/traffic-management/ambassador/" class="md-nav__link">
+      <a href="../features/traffic-management/ambassador/" class="md-nav__link">
         
   
   
@@ -1407,7 +1285,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/traffic-management/apisix/" class="md-nav__link">
+      <a href="../features/traffic-management/apisix/" class="md-nav__link">
         
   
   
@@ -1435,7 +1313,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/traffic-management/alb/" class="md-nav__link">
+      <a href="../features/traffic-management/alb/" class="md-nav__link">
         
   
   
@@ -1463,7 +1341,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/traffic-management/google-cloud/" class="md-nav__link">
+      <a href="../features/traffic-management/google-cloud/" class="md-nav__link">
         
   
   
@@ -1491,7 +1369,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/traffic-management/istio/" class="md-nav__link">
+      <a href="../features/traffic-management/istio/" class="md-nav__link">
         
   
   
@@ -1519,7 +1397,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/traffic-management/kong/" class="md-nav__link">
+      <a href="../features/traffic-management/kong/" class="md-nav__link">
         
   
   
@@ -1547,7 +1425,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/traffic-management/nginx/" class="md-nav__link">
+      <a href="../features/traffic-management/nginx/" class="md-nav__link">
         
   
   
@@ -1575,7 +1453,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/traffic-management/plugins/" class="md-nav__link">
+      <a href="../features/traffic-management/plugins/" class="md-nav__link">
         
   
   
@@ -1603,7 +1481,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/traffic-management/smi/" class="md-nav__link">
+      <a href="../features/traffic-management/smi/" class="md-nav__link">
         
   
   
@@ -1631,7 +1509,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/traffic-management/traefik/" class="md-nav__link">
+      <a href="../features/traffic-management/traefik/" class="md-nav__link">
         
   
   
@@ -1713,7 +1591,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/analysis/" class="md-nav__link">
+      <a href="../features/analysis/" class="md-nav__link">
         
   
   
@@ -1741,7 +1619,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/plugins/" class="md-nav__link">
+      <a href="../analysis/plugins/" class="md-nav__link">
         
   
   
@@ -1769,7 +1647,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/prometheus/" class="md-nav__link">
+      <a href="../analysis/prometheus/" class="md-nav__link">
         
   
   
@@ -1797,7 +1675,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/datadog/" class="md-nav__link">
+      <a href="../analysis/datadog/" class="md-nav__link">
         
   
   
@@ -1825,7 +1703,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/newrelic/" class="md-nav__link">
+      <a href="../analysis/newrelic/" class="md-nav__link">
         
   
   
@@ -1853,7 +1731,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/wavefront/" class="md-nav__link">
+      <a href="../analysis/wavefront/" class="md-nav__link">
         
   
   
@@ -1881,7 +1759,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/job/" class="md-nav__link">
+      <a href="../analysis/job/" class="md-nav__link">
         
   
   
@@ -1909,7 +1787,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/web/" class="md-nav__link">
+      <a href="../analysis/web/" class="md-nav__link">
         
   
   
@@ -1937,7 +1815,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/kayenta/" class="md-nav__link">
+      <a href="../analysis/kayenta/" class="md-nav__link">
         
   
   
@@ -1965,7 +1843,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/cloudwatch/" class="md-nav__link">
+      <a href="../analysis/cloudwatch/" class="md-nav__link">
         
   
   
@@ -1993,7 +1871,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/graphite/" class="md-nav__link">
+      <a href="../analysis/graphite/" class="md-nav__link">
         
   
   
@@ -2021,7 +1899,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/influxdb/" class="md-nav__link">
+      <a href="../analysis/influxdb/" class="md-nav__link">
         
   
   
@@ -2049,7 +1927,7 @@
   
   
     <li class="md-nav__item">
-      <a href="analysis/skywalking/" class="md-nav__link">
+      <a href="../analysis/skywalking/" class="md-nav__link">
         
   
   
@@ -2084,7 +1962,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/experiment/" class="md-nav__link">
+      <a href="../features/experiment/" class="md-nav__link">
         
   
   
@@ -2158,7 +2036,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/notifications/" class="md-nav__link">
+      <a href="../features/notifications/" class="md-nav__link">
         
   
   
@@ -2233,7 +2111,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/alertmanager/" class="md-nav__link">
+      <a href="../generated/notification-services/alertmanager/" class="md-nav__link">
         
   
   
@@ -2261,7 +2139,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/awssqs/" class="md-nav__link">
+      <a href="../generated/notification-services/awssqs/" class="md-nav__link">
         
   
   
@@ -2289,7 +2167,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/email/" class="md-nav__link">
+      <a href="../generated/notification-services/email/" class="md-nav__link">
         
   
   
@@ -2317,7 +2195,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/github/" class="md-nav__link">
+      <a href="../generated/notification-services/github/" class="md-nav__link">
         
   
   
@@ -2345,7 +2223,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/googlechat/" class="md-nav__link">
+      <a href="../generated/notification-services/googlechat/" class="md-nav__link">
         
   
   
@@ -2373,7 +2251,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/grafana/" class="md-nav__link">
+      <a href="../generated/notification-services/grafana/" class="md-nav__link">
         
   
   
@@ -2401,7 +2279,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/mattermost/" class="md-nav__link">
+      <a href="../generated/notification-services/mattermost/" class="md-nav__link">
         
   
   
@@ -2429,7 +2307,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/newrelic/" class="md-nav__link">
+      <a href="../generated/notification-services/newrelic/" class="md-nav__link">
         
   
   
@@ -2457,7 +2335,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/opsgenie/" class="md-nav__link">
+      <a href="../generated/notification-services/opsgenie/" class="md-nav__link">
         
   
   
@@ -2485,7 +2363,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/overview/" class="md-nav__link">
+      <a href="../generated/notification-services/overview/" class="md-nav__link">
         
   
   
@@ -2513,7 +2391,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/pagerduty/" class="md-nav__link">
+      <a href="../generated/notification-services/pagerduty/" class="md-nav__link">
         
   
   
@@ -2541,7 +2419,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/pagerduty_v2/" class="md-nav__link">
+      <a href="../generated/notification-services/pagerduty_v2/" class="md-nav__link">
         
   
   
@@ -2569,7 +2447,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/pushover/" class="md-nav__link">
+      <a href="../generated/notification-services/pushover/" class="md-nav__link">
         
   
   
@@ -2597,7 +2475,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/rocketchat/" class="md-nav__link">
+      <a href="../generated/notification-services/rocketchat/" class="md-nav__link">
         
   
   
@@ -2625,7 +2503,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/slack/" class="md-nav__link">
+      <a href="../generated/notification-services/slack/" class="md-nav__link">
         
   
   
@@ -2653,7 +2531,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/teams/" class="md-nav__link">
+      <a href="../generated/notification-services/teams/" class="md-nav__link">
         
   
   
@@ -2681,7 +2559,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/telegram/" class="md-nav__link">
+      <a href="../generated/notification-services/telegram/" class="md-nav__link">
         
   
   
@@ -2709,7 +2587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/webex/" class="md-nav__link">
+      <a href="../generated/notification-services/webex/" class="md-nav__link">
         
   
   
@@ -2737,7 +2615,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/notification-services/webhook/" class="md-nav__link">
+      <a href="../generated/notification-services/webhook/" class="md-nav__link">
         
   
   
@@ -2827,7 +2705,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/kubectl-plugin/" class="md-nav__link">
+      <a href="../features/kubectl-plugin/" class="md-nav__link">
         
   
   
@@ -2902,7 +2780,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" class="md-nav__link">
         
   
   
@@ -2930,7 +2808,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/" class="md-nav__link">
         
   
   
@@ -2958,7 +2836,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/" class="md-nav__link">
         
   
   
@@ -2986,7 +2864,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/" class="md-nav__link">
         
   
   
@@ -3014,7 +2892,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/" class="md-nav__link">
         
   
   
@@ -3042,7 +2920,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard/" class="md-nav__link">
         
   
   
@@ -3070,7 +2948,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/" class="md-nav__link">
         
   
   
@@ -3098,7 +2976,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/" class="md-nav__link">
         
   
   
@@ -3126,7 +3004,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/" class="md-nav__link">
         
   
   
@@ -3154,7 +3032,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint/" class="md-nav__link">
         
   
   
@@ -3182,7 +3060,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/" class="md-nav__link">
         
   
   
@@ -3210,7 +3088,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/" class="md-nav__link">
         
   
   
@@ -3238,7 +3116,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/" class="md-nav__link">
         
   
   
@@ -3266,7 +3144,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/" class="md-nav__link">
         
   
   
@@ -3294,7 +3172,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/" class="md-nav__link">
         
   
   
@@ -3322,7 +3200,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/" class="md-nav__link">
         
   
   
@@ -3350,7 +3228,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/" class="md-nav__link">
         
   
   
@@ -3378,7 +3256,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/" class="md-nav__link">
         
   
   
@@ -3406,7 +3284,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/" class="md-nav__link">
         
   
   
@@ -3434,7 +3312,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/" class="md-nav__link">
         
   
   
@@ -3462,7 +3340,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/" class="md-nav__link">
         
   
   
@@ -3490,7 +3368,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/" class="md-nav__link">
         
   
   
@@ -3518,7 +3396,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/" class="md-nav__link">
         
   
   
@@ -3546,7 +3424,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/" class="md-nav__link">
         
   
   
@@ -3574,7 +3452,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/" class="md-nav__link">
         
   
   
@@ -3602,7 +3480,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/" class="md-nav__link">
         
   
   
@@ -3630,7 +3508,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/" class="md-nav__link">
         
   
   
@@ -3658,7 +3536,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/" class="md-nav__link">
         
   
   
@@ -3686,7 +3564,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status/" class="md-nav__link">
         
   
   
@@ -3714,7 +3592,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/" class="md-nav__link">
         
   
   
@@ -3742,7 +3620,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/" class="md-nav__link">
         
   
   
@@ -3770,7 +3648,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/" class="md-nav__link">
         
   
   
@@ -3798,7 +3676,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/" class="md-nav__link">
         
   
   
@@ -3826,7 +3704,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/" class="md-nav__link">
         
   
   
@@ -3869,7 +3747,7 @@
   
   
     <li class="md-nav__item">
-      <a href="best-practices/" class="md-nav__link">
+      <a href="../best-practices/" class="md-nav__link">
         
   
   
@@ -3896,7 +3774,7 @@
   
   
     <li class="md-nav__item">
-      <a href="migrating/" class="md-nav__link">
+      <a href="../migrating/" class="md-nav__link">
         
   
   
@@ -3920,10 +3798,37 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="FAQ/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -3939,6 +3844,342 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#general" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        General
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="General">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollouts-depend-on-argo-cd-or-any-other-argo-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does Argo Rollouts depend on Argo CD or any other Argo project?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-does-argo-rollouts-integrate-with-argo-cd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How does Argo Rollouts integrate with Argo CD?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-we-run-the-argo-rollouts-kubectl-plugin-commands-via-argo-cd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can we run the Argo Rollouts kubectl plugin commands via Argo CD?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollout-require-a-service-mesh-like-istio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does Argo Rollout require a Service Mesh like Istio?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollout-require-we-follow-gitops-in-my-organization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does Argo Rollout require we follow GitOps in my organization?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-we-run-the-argo-rollouts-controller-in-ha-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can we run the Argo Rollouts controller in HA mode?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-we-install-argo-rollouts-centrally-in-a-cluster-and-manage-rollout-resources-in-external-clusters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can we install Argo Rollouts centrally in a cluster and manage Rollout resources in external clusters?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-version-skew-policy-between-the-controller-and-the-kubectl-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the version skew policy between the controller and the kubectl plugin?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollouts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rollouts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#which-deployment-strategies-does-argo-rollouts-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which deployment strategies does Argo Rollouts support?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-the-rollout-object-follow-the-provided-strategy-when-it-is-first-created" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does the Rollout object follow the provided strategy when it is first created?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-does-bluegreen-rollback-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How does BlueGreen rollback work?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-argo-rolloutsargoprojiomanaged-by-rollouts-annotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the argo-rollouts.argoproj.io/managed-by-rollouts annotation?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollbacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollbacks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rollbacks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does Argo Rollouts write back in Git when a rollback takes place?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#if-i-use-both-argo-rollouts-and-argo-cd-wouldnt-i-have-an-endless-loop-in-the-case-of-a-rollback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        If I use both Argo Rollouts and Argo CD wouldn't I have an endless loop in the case of a Rollback?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#so-how-can-i-make-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        So how can I make Argo Rollouts write back in Git when a rollback takes place?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-relationship-between-rollbacks-with-argo-rollouts-and-rollbacks-with-argo-cd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the relationship between Rollbacks with Argo Rollouts and Rollbacks with Argo CD?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-can-i-deploy-multiple-services-in-a-single-step-and-roll-them-back-according-to-their-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How can I deploy multiple services in a single step and roll them back according to their dependencies?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-can-i-run-my-own-custom-tests-eg-smoke-tests-to-decide-if-a-rollback-should-take-place-or-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How can I run my own custom tests (e.g. smoke tests) to decide if a Rollback should take place or not?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#experiments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Experiments
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Experiments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-doesnt-my-experiment-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why doesn't my Experiment end?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-doesnt-my-analysisrun-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why doesn't my AnalysisRun end?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-difference-between-failures-and-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the difference between failures and errors?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3997,7 +4238,7 @@
   
   
     <li class="md-nav__item">
-      <a href="security/security/" class="md-nav__link">
+      <a href="../security/security/" class="md-nav__link">
         
   
   
@@ -4025,7 +4266,7 @@
   
   
     <li class="md-nav__item">
-      <a href="security/signed-release-assets/" class="md-nav__link">
+      <a href="../security/signed-release-assets/" class="md-nav__link">
         
   
   
@@ -4107,7 +4348,7 @@
   
   
     <li class="md-nav__item">
-      <a href="CONTRIBUTING/" class="md-nav__link">
+      <a href="../CONTRIBUTING/" class="md-nav__link">
         
   
   
@@ -4135,7 +4376,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/setup/" class="md-nav__link">
+      <a href="../getting-started/setup/" class="md-nav__link">
         
   
   
@@ -4163,7 +4404,7 @@
   
   
     <li class="md-nav__item">
-      <a href="releasing/" class="md-nav__link">
+      <a href="../releasing/" class="md-nav__link">
         
   
   
@@ -4191,7 +4432,7 @@
   
   
     <li class="md-nav__item">
-      <a href="plugins/" class="md-nav__link">
+      <a href="../plugins/" class="md-nav__link">
         
   
   
@@ -4327,79 +4568,318 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-is-argo-rollouts" class="md-nav__link">
+  <a href="#general" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What is Argo Rollouts?
+        General
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="General">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollouts-depend-on-argo-cd-or-any-other-argo-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does Argo Rollouts depend on Argo CD or any other Argo project?
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#why-argo-rollouts" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#how-does-argo-rollouts-integrate-with-argo-cd" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why Argo Rollouts?
+        How does Argo Rollouts integrate with Argo CD?
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#controller-features" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#can-we-run-the-argo-rollouts-kubectl-plugin-commands-via-argo-cd" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Controller Features
+        Can we run the Argo Rollouts kubectl plugin commands via Argo CD?
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#quick-start" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollout-require-a-service-mesh-like-istio" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quick Start
+        Does Argo Rollout require a Service Mesh like Istio?
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#how-does-it-work" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollout-require-we-follow-gitops-in-my-organization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How does it work?
+        Does Argo Rollout require we follow GitOps in my organization?
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#use-cases-of-argo-rollouts" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#can-we-run-the-argo-rollouts-controller-in-ha-mode" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Use cases of Argo Rollouts
+        Can we run the Argo Rollouts controller in HA mode?
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#can-we-install-argo-rollouts-centrally-in-a-cluster-and-manage-rollout-resources-in-external-clusters" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Examples
+        Can we install Argo Rollouts centrally in a cluster and manage Rollout resources in external clusters?
       
     </span>
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-version-skew-policy-between-the-controller-and-the-kubectl-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the version skew policy between the controller and the kubectl plugin?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollouts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rollouts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#which-deployment-strategies-does-argo-rollouts-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which deployment strategies does Argo Rollouts support?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-the-rollout-object-follow-the-provided-strategy-when-it-is-first-created" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does the Rollout object follow the provided strategy when it is first created?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-does-bluegreen-rollback-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How does BlueGreen rollback work?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-argo-rolloutsargoprojiomanaged-by-rollouts-annotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the argo-rollouts.argoproj.io/managed-by-rollouts annotation?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollbacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollbacks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rollbacks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does Argo Rollouts write back in Git when a rollback takes place?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#if-i-use-both-argo-rollouts-and-argo-cd-wouldnt-i-have-an-endless-loop-in-the-case-of-a-rollback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        If I use both Argo Rollouts and Argo CD wouldn't I have an endless loop in the case of a Rollback?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#so-how-can-i-make-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        So how can I make Argo Rollouts write back in Git when a rollback takes place?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-relationship-between-rollbacks-with-argo-rollouts-and-rollbacks-with-argo-cd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the relationship between Rollbacks with Argo Rollouts and Rollbacks with Argo CD?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-can-i-deploy-multiple-services-in-a-single-step-and-roll-them-back-according-to-their-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How can I deploy multiple services in a single step and roll them back according to their dependencies?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-can-i-run-my-own-custom-tests-eg-smoke-tests-to-decide-if-a-rollback-should-take-place-or-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How can I run my own custom tests (e.g. smoke tests) to decide if a Rollback should take place or not?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#experiments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Experiments
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Experiments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-doesnt-my-experiment-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why doesn't my Experiment end?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-doesnt-my-analysisrun-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why doesn't my AnalysisRun end?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-difference-between-failures-and-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the difference between failures and errors?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -4423,68 +4903,85 @@
   
 
 
-<h1 id="argo-rollouts-kubernetes-progressive-delivery-controller">Argo Rollouts - Kubernetes Progressive Delivery Controller<a class="headerlink" href="#argo-rollouts-kubernetes-progressive-delivery-controller" title="Permanent link">&para;</a></h1>
-<h2 id="what-is-argo-rollouts">What is Argo Rollouts?<a class="headerlink" href="#what-is-argo-rollouts" title="Permanent link">&para;</a></h2>
-<p>Argo Rollouts is a <a href="https://kubernetes.io/docs/concepts/architecture/controller/">Kubernetes controller</a> and set of <a href="https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/">CRDs</a> which provide advanced deployment capabilities such as blue-green, canary, canary analysis, experimentation, and progressive delivery features to Kubernetes.</p>
-<p>Argo Rollouts (optionally) integrates with <a href="https://kubernetes.io/docs/concepts/services-networking/ingress/">ingress controllers</a> and service meshes, leveraging their traffic shaping abilities to gradually shift traffic to the new version during an update. Additionally, Rollouts can query and interpret metrics from various providers to verify key KPIs and drive automated promotion or rollback during an update.</p>
-<p>Here is a demonstration video (click to watch on Youtube):</p>
-<p><a href="https://youtu.be/hIL0E2gLkf8"><img alt="Argo Rollouts Demo" src="https://img.youtube.com/vi/hIL0E2gLkf8/0.jpg" /></a></p>
-<h2 id="why-argo-rollouts">Why Argo Rollouts?<a class="headerlink" href="#why-argo-rollouts" title="Permanent link">&para;</a></h2>
-<p>The native Kubernetes Deployment Object supports the <code>RollingUpdate</code> strategy which provides a basic set of safety guarantees (readiness probes) during an update. However the rolling update strategy faces many limitations:</p>
-<ul>
-<li>Few controls over the speed of the rollout</li>
-<li>Inability to control traffic flow to the new version</li>
-<li>Readiness probes are unsuitable for deeper, stress, or one-time checks</li>
-<li>No ability to query external metrics to verify an update</li>
-<li>Can halt the progression, but unable to automatically abort and rollback the update</li>
-</ul>
-<p>For these reasons, in large scale high-volume production environments, a rolling update is often considered too risky of an update procedure since it provides no control over the blast radius, may rollout too aggressively, and provides no automated rollback upon failures.</p>
-<h2 id="controller-features">Controller Features<a class="headerlink" href="#controller-features" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Blue-Green update strategy</li>
-<li>Canary update strategy</li>
-<li>Fine-grained, weighted traffic shifting</li>
-<li>Automated rollbacks and promotions</li>
-<li>Manual judgement</li>
-<li>Customizable metric queries and analysis of business KPIs</li>
-<li>Ingress controller integration: NGINX, ALB, Apache APISIX</li>
-<li>Service Mesh integration: Istio, Linkerd, SMI</li>
-<li>Simultaneous usage of multiple providers: SMI + NGINX, Istio + ALB, etc.</li>
-<li>Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, Graphite, InfluxDB</li>
-</ul>
-<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+<h1 id="faq">FAQ<a class="headerlink" href="#faq" title="Permanent link">&para;</a></h1>
+<p>Be sure to read the <a href="../best-practices">Best practices page</a> as well.</p>
+<h2 id="general">General<a class="headerlink" href="#general" title="Permanent link">&para;</a></h2>
+<h3 id="does-argo-rollouts-depend-on-argo-cd-or-any-other-argo-project">Does Argo Rollouts depend on Argo CD or any other Argo project?<a class="headerlink" href="#does-argo-rollouts-depend-on-argo-cd-or-any-other-argo-project" title="Permanent link">&para;</a></h3>
+<p>Argo Rollouts is a standalone project. Even though it works great with Argo CD and other Argo projects, it can be used
+on its own for Progressive Delivery scenarios. More specifically, Argo Rollouts does <strong>NOT</strong> require that you also have installed Argo CD on the same cluster.</p>
+<h3 id="how-does-argo-rollouts-integrate-with-argo-cd">How does Argo Rollouts integrate with Argo CD?<a class="headerlink" href="#how-does-argo-rollouts-integrate-with-argo-cd" title="Permanent link">&para;</a></h3>
+<p>Argo CD understands the health of Argo Rollouts resources via Argo CD’s <a href="https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/health.md">Lua health check</a>. These Health checks understand when the Argo Rollout objects are Progressing, Suspended, Degraded, or Healthy.  Additionally, Argo CD has Lua based Resource Actions that can mutate an Argo Rollouts resource (i.e. unpause a Rollout).</p>
+<p>As a result, an operator can build automation to react to the states of the Argo Rollouts resources. For example, if a Rollout created by Argo CD is paused, Argo CD detects that and marks the Application as suspended. Once the new version is verified to be good, the operator can use Argo CD’s resume resource action to unpause the Rollout so it can continue to make progress. </p>
+<h3 id="can-we-run-the-argo-rollouts-kubectl-plugin-commands-via-argo-cd">Can we run the Argo Rollouts kubectl plugin commands via Argo CD?<a class="headerlink" href="#can-we-run-the-argo-rollouts-kubectl-plugin-commands-via-argo-cd" title="Permanent link">&para;</a></h3>
+<p>Argo CD supports running Lua scripts to modify resource kinds (i.e. suspending a CronJob by setting the <code>.spec.suspend</code> to true). These Lua Scripts can be configured in the argocd-cm ConfigMap or upstreamed to the Argo CD's <a href="https://github.com/argoproj/argo-cd/tree/master/resource_customizations">resource_customizations</a> directory. These custom actions have two Lua scripts: one to modify the said resource and another to detect if the action can be executed (i.e. A user should not be able to resuming an unpaused Rollout). Argo CD allows users to execute these actions via the UI or CLI.</p>
+<p>In the CLI, a user (or a CI system) can run
+<div class="highlight"><pre><span></span><code>argocd<span class="w"> </span>app<span class="w"> </span>actions<span class="w"> </span>run<span class="w"> </span>&lt;APP_NAME&gt;<span class="w"> </span>&lt;ACTION&gt;<span class="w"> </span>
 </code></pre></div>
-<p>Follow the full <a href="getting-started/">getting started guide</a> to walk through creating and then updating a rollout object.</p>
-<h2 id="how-does-it-work">How does it work?<a class="headerlink" href="#how-does-it-work" title="Permanent link">&para;</a></h2>
-<p>Similar to the <a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/">deployment object</a>, the Argo Rollouts controller will manage the creation, scaling, and deletion of <a href="https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/">ReplicaSets</a>. These ReplicaSets are defined by the <code>spec.template</code> field inside the Rollout resource, which uses the same pod template as the deployment object.</p>
-<p>When the <code>spec.template</code> is changed, that signals to the Argo Rollouts controller that a new ReplicaSet will be introduced. The controller will use the strategy set within the <code>spec.strategy</code> field in order to determine how the rollout will progress from the old ReplicaSet to the new ReplicaSet. Once that new ReplicaSet is scaled up (and optionally passes an <a href="features/analysis/">Analysis</a>), the controller will mark it as "stable".</p>
-<p>If another change occurs in the <code>spec.template</code> during a transition from a stable ReplicaSet to a new ReplicaSet (i.e. you change the application version in the middle of a rollout), then the previously new ReplicaSet will be scaled down, and the controller will try to progress the ReplicasSet that reflects the updated <code>spec.template</code> field. There is more information on the behaviors of each strategy in the <a href="features/specification/">spec</a> section.</p>
-<h2 id="use-cases-of-argo-rollouts">Use cases of Argo Rollouts<a class="headerlink" href="#use-cases-of-argo-rollouts" title="Permanent link">&para;</a></h2>
+This command executes the action listed on the application listed.</p>
+<p>In the UI, a user can click the hamburger button of a resource and the available actions will appear in a couple of seconds. The user can click and confirm that action to execute it.</p>
+<p>Currently, the Rollout action has two available custom actions in Argo CD: resume and restart.</p>
 <ul>
-<li>
-<p>A user wants to run last-minute functional tests on the new version before it starts to serve production traffic. With the BlueGreen strategy, Argo Rollouts allows users to specify a preview service and an active service. The Rollout will configure the preview service to send traffic to the new version while the active service continues to receive production traffic. Once a user is satisfied, they can promote the preview service to be the new active service. (<a href="https://github.com/argoproj/argo-rollouts/blob/master/examples/rollout-bluegreen.yaml">example</a>)</p>
-</li>
-<li>
-<p>Before a new version starts receiving live traffic, a generic set of steps need to be executed beforehand. With the BlueGreen Strategy, the user can bring up the new version without it receiving traffic from the active service. Once those steps finish executing, the rollout can cut over traffic to the new version.</p>
-</li>
-<li>
-<p>A user wants to give a small percentage of the production traffic to a new version of their application for a couple of hours. Afterward, they want to scale down the new version and look at some metrics to determine if the new version is performant compared to the old version. Then they will decide if they want to roll out the new version for all of the production traffic or stick with the current version. With the canary strategy, the rollout can scale up a ReplicaSet with the new version to receive a specified percentage of traffic, wait for a specified amount of time, set the percentage back to 0, and then wait to rollout out to service all of the traffic once the user is satisfied. (<a href="https://github.com/argoproj/argo-rollouts/blob/master/examples/rollout-analysis-step.yaml">example</a>)</p>
-</li>
-<li>
-<p>A user wants to slowly give the new version more production traffic. They start by giving it a small percentage of the live traffic and wait a while before giving the new version more traffic. Eventually, the new version will receive all the production traffic. With the canary strategy, the user specifies the percentages they want the new version to receive and the amount of time to wait between percentages. (<a href="https://github.com/argoproj/argo-rollouts/blob/master/examples/rollout-canary.yaml">example</a>)</p>
-</li>
-<li>
-<p>A user wants to use the normal Rolling Update strategy from the deployment. If a user uses the canary strategy with no steps, the rollout will use the max surge and max unavailable values to roll to the new version. (<a href="https://github.com/argoproj/argo-rollouts/blob/master/examples/rollout-rolling-update.yaml">example</a>)</p>
-</li>
+<li>Resume unpauses a Rollout with a PauseCondition</li>
+<li>Restart: Sets the RestartAt and causes all the pods to be restarted.</li>
 </ul>
-<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
-<p>You can see more examples of Rollouts at:</p>
-<ul>
-<li>The <a href="https://github.com/argoproj/argo-rollouts/tree/master/examples">example directory</a></li>
-<li>The <a href="https://github.com/argoproj/rollouts-demo">Argo Rollouts Demo application</a></li>
-</ul>
+<h3 id="does-argo-rollout-require-a-service-mesh-like-istio">Does Argo Rollout require a Service Mesh like Istio?<a class="headerlink" href="#does-argo-rollout-require-a-service-mesh-like-istio" title="Permanent link">&para;</a></h3>
+<p>Argo Rollouts does not require a service mesh or ingress controller to be used. In the absence of a traffic routing provider, Argo Rollouts manages the replica counts of the canary/stable ReplicaSets to achieve the desired canary weights. Normal Kubernetes Service routing (via kube-proxy) is used to split traffic between the ReplicaSets. </p>
+<h3 id="does-argo-rollout-require-we-follow-gitops-in-my-organization">Does Argo Rollout require we follow GitOps in my organization?<a class="headerlink" href="#does-argo-rollout-require-we-follow-gitops-in-my-organization" title="Permanent link">&para;</a></h3>
+<p>Argo Rollouts is a Kubernetes controller that will react to any manifest change regardless of how the manifest was changed. The manifest can be changed
+by a Git commit, an API call, another controller or even a manual <code>kubectl</code> command. You can use Argo Rollouts with any traditional CI/CD
+solution that does not follow the GitOps approach.</p>
+<h3 id="can-we-run-the-argo-rollouts-controller-in-ha-mode">Can we run the Argo Rollouts controller in HA mode?<a class="headerlink" href="#can-we-run-the-argo-rollouts-controller-in-ha-mode" title="Permanent link">&para;</a></h3>
+<p>Yes. A k8s cluster can run multiple replicas of Argo-rollouts controllers to achieve HA. To enable this feature, run the controller with <code>--leader-elect</code> flag and increase the number of replicas in the controller's deployment manifest. The implementation is based on the <a href="https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#section-documentation">k8s client-go's leaderelection package</a>. This implementation is tolerant to <em>arbitrary clock skew</em> among replicas. The level of tolerance to skew rate can be configured by setting <code>--leader-election-lease-duration</code> and <code>--leader-election-renew-deadline</code> appropriately. Please refer to the <a href="https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#pkg-overview">package documentation</a> for details.</p>
+<h3 id="can-we-install-argo-rollouts-centrally-in-a-cluster-and-manage-rollout-resources-in-external-clusters">Can we install Argo Rollouts centrally in a cluster and manage Rollout resources in external clusters?<a class="headerlink" href="#can-we-install-argo-rollouts-centrally-in-a-cluster-and-manage-rollout-resources-in-external-clusters" title="Permanent link">&para;</a></h3>
+<p>No you cannot do that (even though Argo CD can work that way). This is by design because the Rollout is a custom resource unknown to vanilla Kubernetes. You need the Rollout CRD as well as the controller in the deployment cluster (every cluster that will use workloads with Rollouts).</p>
+<h3 id="what-is-the-version-skew-policy-between-the-controller-and-the-kubectl-plugin">What is the version skew policy between the controller and the kubectl plugin?<a class="headerlink" href="#what-is-the-version-skew-policy-between-the-controller-and-the-kubectl-plugin" title="Permanent link">&para;</a></h3>
+<p>The Argo Rollout CLI/Kubectl plugin just patches the Rollout object or reads fields from it. <a href="../best-practices#there-is-no-argo-rollouts-api">There is no separate "Argo Rollouts API"</a>. Old versions of the plugin might not understand new fields that are added in the <a href="../features/specification/">Rollout specification</a>. We have never made a breaking change intentionally (removed something from the Rollout Spec). So old clients should work even with newer Rollout versions (excluding new features).</p>
+<h2 id="rollouts">Rollouts<a class="headerlink" href="#rollouts" title="Permanent link">&para;</a></h2>
+<h3 id="which-deployment-strategies-does-argo-rollouts-support">Which deployment strategies does Argo Rollouts support?<a class="headerlink" href="#which-deployment-strategies-does-argo-rollouts-support" title="Permanent link">&para;</a></h3>
+<p>Argo Rollouts supports BlueGreen, Canary, and Rolling Update. Additionally, Progressive Delivery features can be enabled on top of the blue-green/canary update, which further provides advanced deployment such as automated analysis and rollback.</p>
+<h3 id="does-the-rollout-object-follow-the-provided-strategy-when-it-is-first-created">Does the Rollout object follow the provided strategy when it is first created?<a class="headerlink" href="#does-the-rollout-object-follow-the-provided-strategy-when-it-is-first-created" title="Permanent link">&para;</a></h3>
+<p>As with Deployments, Rollouts does not follow the strategy parameters on the initial deploy. The controller tries to get the Rollout into a steady state as fast as possible by creating a fully scaled up ReplicaSet from the provided <code>.spec.template</code>. Once the Rollout has a stable ReplicaSet to transition from, the controller starts using the provided strategy to transition the previous ReplicaSet to the desired ReplicaSet.</p>
+<h3 id="how-does-bluegreen-rollback-work">How does BlueGreen rollback work?<a class="headerlink" href="#how-does-bluegreen-rollback-work" title="Permanent link">&para;</a></h3>
+<p>A BlueGreen Rollout keeps the old ReplicaSet up and running for 30 seconds or the value of the scaleDownDelaySeconds. The controller tracks the remaining time before scaling down by adding an annotation called <code>argo-rollouts.argoproj.io/scale-down-deadline</code> to the old ReplicaSet. If the user applies the old Rollout manifest before the old ReplicaSet scales down, the controller does something called a fast rollback. The controller immediately switches the active service’s selector back to the old ReplicaSet’s rollout-pod-template-hash and removes the scaled down annotation from that ReplicaSet. The controller does not do any of the normal operations when trying to introduce a new version since it is trying to revert as fast as possible. A non-fast-track rollback occurs when the scale down annotation has past and the old ReplicaSet has been scaled down. In this case, the Rollout treats the ReplicaSet like any other new ReplicaSet and follows the usual procedure for deploying a new ReplicaSet.</p>
+<h3 id="what-is-the-argo-rolloutsargoprojiomanaged-by-rollouts-annotation">What is the <code>argo-rollouts.argoproj.io/managed-by-rollouts</code> annotation?<a class="headerlink" href="#what-is-the-argo-rolloutsargoprojiomanaged-by-rollouts-annotation" title="Permanent link">&para;</a></h3>
+<p>Argo Rollouts adds an <code>argo-rollouts.argoproj.io/managed-by-rollouts</code> annotation to Services and Ingresses that the controller modifies. They are used when the Rollout managing these resources is deleted and the controller tries to revert them back into their previous state.</p>
+<h2 id="rollbacks">Rollbacks<a class="headerlink" href="#rollbacks" title="Permanent link">&para;</a></h2>
+<h3 id="does-argo-rollouts-write-back-in-git-when-a-rollback-takes-place">Does Argo Rollouts write back in Git when a rollback takes place?<a class="headerlink" href="#does-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" title="Permanent link">&para;</a></h3>
+<p>No. Argo Rollouts doesn't read/write anything to Git. Actually Argo Rollouts knows nothing about Git repositories (only Argo CD has this information if it manages the Rollout). When a rollback takes place, Argo Rollouts marks the application as "degraded" and changes the version on the cluster back to the known stable one.</p>
+<h3 id="if-i-use-both-argo-rollouts-and-argo-cd-wouldnt-i-have-an-endless-loop-in-the-case-of-a-rollback">If I use both Argo Rollouts and Argo CD wouldn't I have an endless loop in the case of a Rollback?<a class="headerlink" href="#if-i-use-both-argo-rollouts-and-argo-cd-wouldnt-i-have-an-endless-loop-in-the-case-of-a-rollback" title="Permanent link">&para;</a></h3>
+<p>No there is no endless loop. As explained already in the previous question, Argo Rollouts doesn't tamper with Git in any way. If you use both Argo projects together, the sequence of events for a rollback is the following:</p>
+<ol>
+<li>Version N runs on the cluster as a Rollout (managed by Argo CD). The Git repository is updated with version N+1 in the Rollout/Deployment manifest</li>
+<li>Argo CD sees the changes in Git and updates the live state in the cluster with the new Rollout object</li>
+<li>Argo Rollouts takes over as it watches for all changes in Rollout Objects. Argo Rollouts is completely oblivious to what is happening in Git. It only cares about what is happening with Rollout objects that are live in the cluster.</li>
+<li>Argo Rollouts tries to apply version N+1 with the selected strategy (e.g. blue/green)</li>
+<li>Version N+1 fails to deploy for some reason</li>
+<li>Argo Rollouts scales back again (or switches traffic back) to version N in the cluster. <strong>No change in Git takes place from Argo Rollouts</strong></li>
+<li>Cluster is running version N and is completely healthy</li>
+<li>The Rollout is marked as "Degraded" both in ArgoCD and Argo Rollouts.</li>
+<li>Argo CD syncs take no further action as the Rollout object in Git is exactly the same as in the cluster. They both mention version N+1</li>
+</ol>
+<h3 id="so-how-can-i-make-argo-rollouts-write-back-in-git-when-a-rollback-takes-place">So how can I make Argo Rollouts write back in Git when a rollback takes place?<a class="headerlink" href="#so-how-can-i-make-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" title="Permanent link">&para;</a></h3>
+<p>You don't need to do that if you simply want to go back to the previous version using Argo CD. When a deployment fails, Argo Rollouts automatically sets the cluster back to the stable/previous version as explained in the previous question. You don't need to write anything in Git to achieve this. The cluster is still healthy and you have avoided downtime. You are then expected to fix the issue and roll-forward (i.e. deploy the next version) if you want to follow GitOps in a pedantic manner. If you want Argo Rollouts to write back in Git after a failed deployment then you need to orchestrate this with an external system or write custom glue code. But this is normally not needed.</p>
+<h3 id="what-is-the-relationship-between-rollbacks-with-argo-rollouts-and-rollbacks-with-argo-cd">What is the relationship between Rollbacks with Argo Rollouts and Rollbacks with Argo CD?<a class="headerlink" href="#what-is-the-relationship-between-rollbacks-with-argo-rollouts-and-rollbacks-with-argo-cd" title="Permanent link">&para;</a></h3>
+<p>They are completely unrelated. Argo Rollouts "rollbacks" switch the cluster back to the previous version as explained in the previous question. They don't touch or affect Git in any way. Argo CD <a href="https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd_app_rollback/">rollbacks</a> simply point the cluster back a previous Git hash. Normally if you have Argo Rollouts, you don't need to use the Argo CD rollback command.</p>
+<h3 id="how-can-i-deploy-multiple-services-in-a-single-step-and-roll-them-back-according-to-their-dependencies">How can I deploy multiple services in a single step and roll them back according to their dependencies?<a class="headerlink" href="#how-can-i-deploy-multiple-services-in-a-single-step-and-roll-them-back-according-to-their-dependencies" title="Permanent link">&para;</a></h3>
+<p>The Rollout specification focuses on a single application/deployment. Argo Rollouts knows nothing about application dependencies. If you want to deploy multiple applications together in a smart way (e.g. automatically rollback a frontend if backend deployment fails) you need to write your own solution
+on top of Argo Rollouts. In most cases, you would need one Rollout resource for each application that you
+are deploying. Ideally you should also make your services backwards and forwards compatible (i.e. frontend should be able to work with both backend-preview and backend-active).</p>
+<h3 id="how-can-i-run-my-own-custom-tests-eg-smoke-tests-to-decide-if-a-rollback-should-take-place-or-not">How can I run my own custom tests (e.g. smoke tests) to decide if a Rollback should take place or not?<a class="headerlink" href="#how-can-i-run-my-own-custom-tests-eg-smoke-tests-to-decide-if-a-rollback-should-take-place-or-not" title="Permanent link">&para;</a></h3>
+<p>Use a custom <a href="https://argo-rollouts.readthedocs.io/en/stable/analysis/job/">Job</a> or <a href="https://argo-rollouts.readthedocs.io/en/stable/analysis/web/">Web</a> Analysis. You can pack all your smoke tests in a single container and run them as a Job analysis. Argo Rollouts will use the results of the analysis to automatically rollback if the tests fail.</p>
+<h2 id="experiments">Experiments<a class="headerlink" href="#experiments" title="Permanent link">&para;</a></h2>
+<h3 id="why-doesnt-my-experiment-end">Why doesn't my Experiment end?<a class="headerlink" href="#why-doesnt-my-experiment-end" title="Permanent link">&para;</a></h3>
+<p>An Experiment’s duration is controlled by the <code>.spec.duration</code> field and the analyses created for the Experiment. The <code>.spec.duration</code> indicates how long the ReplicaSets created by the Experiment should run. Once the duration passes, the experiment scales down the ReplicaSets it created and marks the AnalysisRuns successful unless the <code>requiredForCompletion</code> field is used in the Experiment. If enabled, the ReplicaSets are still scaled-down, but the Experiment does not finish until the Analysis Run finishes.</p>
+<p>Additionally, the <code>.spec.duration</code> is an optional field. If it’s left unset, and the Experiment creates no AnalysisRuns, the ReplicaSets run indefinitely. The Experiment creates AnalysisRuns without the <code>requiredForCompletion</code> field, the Experiment fails only when the AnalysisRun created fails or errors out. If the <code>requiredForCompletion</code> field is set, the Experiment only marks itself as Successful and scales down the created ReplicaSets when the AnalysisRun finishes Successfully.</p>
+<p>Additionally, an Experiment ends if the <code>.spec.terminate</code> field is set to true regardless of the state of the Experiment.</p>
+<h2 id="analysis">Analysis<a class="headerlink" href="#analysis" title="Permanent link">&para;</a></h2>
+<h3 id="why-doesnt-my-analysisrun-end">Why doesn't my AnalysisRun end?<a class="headerlink" href="#why-doesnt-my-analysisrun-end" title="Permanent link">&para;</a></h3>
+<p>The AnalysisRun’s duration is controlled by the metrics specified. Each Metric can specify an interval, count, and various limits (ConsecutiveErrorLimit, InconclusiveLimit, FailureLimit). If the interval is omitted, the AnalysisRun takes a single measurement. The count indicates how many measurements should be taken and causes the AnalysisRun to run indefinitely if omitted. The ConsecutiveErrorLimit, InconclusiveLimit, and FailureLimit define the thresholds allowed before putting the rollout into a completed state.</p>
+<p>Additionally, an AnalysisRun ends if the <code>.spec.terminate</code> field is set to true regardless of the state of the AnalysisRun.</p>
+<h3 id="what-is-the-difference-between-failures-and-errors">What is the difference between failures and errors?<a class="headerlink" href="#what-is-the-difference-between-failures-and-errors" title="Permanent link">&para;</a></h3>
+<p>Failures are when the failure condition evaluates to true or an AnalysisRun without a failure condition evaluates the success condition to false. Errors are when the controller has any kind of issue with taking a measurement (i.e. invalid Prometheus URL).</p>
 
 
 
@@ -4536,12 +5033,12 @@ kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/rele
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
-        <script src="assets/versions.js"></script>
+        <script src="../assets/versions.js"></script>
       
     
   </body>

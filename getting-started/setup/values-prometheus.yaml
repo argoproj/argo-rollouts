@@ -1,0 +1,17 @@
+# A minimal prometheus installation for dev & demo purposes and works well in minikube.
+# Sets a more aggressive global scrape interval to allow for faster, realtime data.
+# Tested with:
+#  * Prometheus helm chart: stable/prometheus-11.4.0 (prometheus 2.18.1)
+server:
+  service:
+    type: NodePort
+  global:
+    scrape_interval: 30s
+alertmanager:
+  enabled: false
+pushgateway:
+  enabled: false
+kubeStateMetrics:
+  enabled: false
+nodeExporter:
+  enabled: false
