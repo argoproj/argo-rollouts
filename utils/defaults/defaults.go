@@ -62,8 +62,8 @@ const (
 	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
 	DefaultAlbTagKeyResourceID          = "ingress.k8s.aws/resource"
 	DefaultAppMeshCRDVersion            = "v1beta2"
-	DefaultTraefikAPIGroup              = "traefik.containo.us"
-	DefaultTraefikVersion               = "traefik.containo.us/v1alpha1"
+	DefaultTraefikAPIGroup              = "traefik.io"
+	DefaultTraefikVersion               = "traefik.io/v1alpha1"
 	DefaultApisixAPIGroup               = "apisix.apache.org"
 	DefaultApisixVersion                = "apisix.apache.org/v2"
 )

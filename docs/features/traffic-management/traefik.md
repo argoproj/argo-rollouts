@@ -5,14 +5,34 @@ You can use the [Traefik Proxy](https://traefik.io/traefik/) for traffic managem
 The [TraefikService](https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#kind-traefikservice) is the object that supports the ability for [weighted round robin load balancing](https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#weighted-round-robin) and [traffic mirroring](https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#mirroring) when using Traefik as ingress.
 
 !!! note
-    Traefik is also supported via the  [Argo Rollouts Gateway API plugin](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/). 
+    Traefik is also supported via the  [Argo Rollouts Gateway API plugin](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/).
+
+## Version Compatibility
+
+Argo Rollouts supports **Traefik v3** by default.
+
+| Traefik Version | API Group             | Configuration                                                                 |
+|-----------------|-----------------------|-------------------------------------------------------------------------------|
+| **v3 (Default)**| `traefik.io`          | No extra configuration required.                                              |
+| **v2**          | `traefik.containo.us` | Requires CLI override flags (see below).                                      |
+
+### Overriding the Default
+
+If you are using Traefik v2, you must configure the Rollouts controller to use the legacy API group. This is done by passing the following flags to the `rollouts-controller` binary:
+
+```bash
+--traefik-api-group=traefik.containo.us
+--traefik-api-version=traefik.containo.us/v1alpha1
+```
+
+Failure to set these flags when using Traefik v2 will result in the controller attempting to communicate with `traefik.io`, which will fail. 
 
 ## How to integrate TraefikService with Argo Rollouts using it as weighted round robin load balancer
 
 First, we need to create the TraefikService object using its ability for weighted round robin load balancing.
 
 ```yaml
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: TraefikService
 metadata:
   name: traefik-service
