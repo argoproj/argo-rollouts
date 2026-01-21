@@ -1,0 +1,8 @@
+# This patch is intended to patch the ingress-nginx-controller deployment
+# so that Prometheus will scrape its metric endpoints
+spec:
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "10254"

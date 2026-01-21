@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: rollouts-demo-vsvc
+spec:
+  gateways:
+  - rollouts-demo-gateway
+  hosts:
+  - rollouts-demo.local
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: rollouts-demo-stable
+      weight: 100
+    - destination:
+        host: rollouts-demo-canary
+      weight: 0

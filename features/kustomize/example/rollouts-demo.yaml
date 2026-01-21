@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollouts-demo
+spec:
+  selector:
+    matchLabels:
+      app: rollouts-demo
+  template:
+    metadata:
+      labels:
+        app: rollouts-demo
+    spec:
+      volumes:
+      - name: config-volume
+        configMap:
+          name: rollouts-demo-cm
+      - name: secret-volume
+        secret:
+          secretName: rollouts-demo-secret
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        command:
+        - ping $(SERVICE_NAME)
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
+        - name: secret-volume
+          mountPath: /etc/secrets
+        env:
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rollouts-demo-secret
+              key: password
+        - name: FOO
+          valueFrom:
+            configMapKeyRef:
+              name: rollouts-demo-cm
+              key: FOO
+  strategy:
+    blueGreen:
+      activeService: rollouts-demo-svc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rollouts-demo-svc
+spec:
+  selector:
+    app: rollouts-demo
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080

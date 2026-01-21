@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rollouts-demo-stable
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    # The following annotation is needed with Linkerd in conjunction with NGINX ingress for
+    # proxying HTTP traffic. The annotations rewrites the incoming header (example.com) to the
+    # internal service name, preventing an infinite routing loop.
+    # See: https://linkerd.io/2/tasks/using-ingress/#nginx
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header l5d-dst-override $service_name.$namespace.svc.cluster.local:$service_port;
+spec:
+  rules:
+  - host: rollouts-demo.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            # Reference to a Service name, also specified in the Rollout spec.strategy.canary.stableService field
+            name: rollouts-demo-stable
+            port:
+              number: 80
