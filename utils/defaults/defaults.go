@@ -21,9 +21,9 @@ const (
 	// DefaultAnalysisRunUnsuccessfulHistoryLimit default number of unsuccessful AnalysisRuns to keep if .Spec.Analysis.UnsuccessfulRunHistoryLimit is nil
 	DefaultAnalysisRunUnsuccessfulHistoryLimit = int32(5)
 	// DefaultMaxSurge default number for the max number of additional pods that can be brought up during a rollout
-	DefaultMaxSurge = "25"
+	DefaultMaxSurge = "25%"
 	// DefaultMaxUnavailable default number for the max number of unavailable pods during a rollout
-	DefaultMaxUnavailable = "25"
+	DefaultMaxUnavailable = "25%"
 	// DefaultProgressDeadlineSeconds default number of seconds for the rollout to be making progress
 	DefaultProgressDeadlineSeconds = int32(600)
 	// DefaultScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
