@@ -21,4 +21,11 @@ type TrafficRoutingReconciler interface {
 	RemoveManagedRoutes() error
 	// Type returns the type of the traffic routing reconciler
 	Type() string
+	// CanScaleDown checks if it is safe to scale down the ReplicaSet identified by the given pod template hash.
+	// This allows traffic routing plugins to delay scale-down until external systems have completed draining.
+	// Returns:
+	// - *true: scale-down is safe
+	// - *false: scale-down is NOT safe yet
+	// - nil: not implemented, default behavior applies
+	CanScaleDown(podTemplateHash string) (*bool, error)
 }

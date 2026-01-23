@@ -8,6 +8,7 @@ import (
 
 func init() {
 	gob.RegisterName("RpcError", new(RpcError))
+	gob.RegisterName("RpcScaleDownVerified", new(RpcScaleDownVerified))
 }
 
 // RpcError is a wrapper around the error type to allow for usage with net/rpc
@@ -50,6 +51,38 @@ func (v *RpcVerified) IsVerified() *bool {
 	}
 }
 
+// RpcScaleDownVerified is the result type for CanScaleDown calls from traffic router plugins.
+// This allows plugins to signal whether it is safe to scale down a ReplicaSet.
+type RpcScaleDownVerified int32
+
+const (
+	// ScaleDownNotVerified indicates the plugin checked and scale-down is NOT safe yet
+	ScaleDownNotVerified RpcScaleDownVerified = iota
+	// ScaleDownVerified indicates the plugin checked and scale-down IS safe
+	ScaleDownVerified
+	// ScaleDownNotImplemented indicates the plugin does not implement this check (default behavior applies)
+	ScaleDownNotImplemented
+)
+
+// CanScaleDown returns a tri-state result:
+// - *true: plugin says scale-down is safe
+// - *false: plugin says scale-down is NOT safe
+// - nil: plugin does not implement this check (default behavior applies)
+func (v *RpcScaleDownVerified) CanScaleDown() *bool {
+	canScaleDown := true
+	cannotScaleDown := false
+	switch *v {
+	case ScaleDownVerified:
+		return &canScaleDown
+	case ScaleDownNotVerified:
+		return &cannotScaleDown
+	case ScaleDownNotImplemented:
+		return nil
+	default:
+		return nil
+	}
+}
+
 type RpcMetricProvider interface {
 	// Run start a new external system call for a measurement
 	// Should be idempotent and do nothing if a call has already been started
@@ -83,6 +116,14 @@ type RpcTrafficRoutingReconciler interface {
 	RemoveManagedRoutes(ro *v1alpha1.Rollout) RpcError
 	// Type returns the type of the traffic routing reconciler
 	Type() string
+	// CanScaleDown checks if it is safe to scale down the ReplicaSet identified by the given pod template hash.
+	// This allows traffic routing plugins to delay scale-down until external systems (e.g., long-running connections,
+	// message queue consumers) have completed draining.
+	// Returns:
+	// - ScaleDownVerified: scale-down is safe
+	// - ScaleDownNotVerified: scale-down is NOT safe yet, controller should retry later
+	// - ScaleDownNotImplemented: plugin does not implement this check, default behavior applies
+	CanScaleDown(rollout *v1alpha1.Rollout, podTemplateHash string) (RpcScaleDownVerified, RpcError)
 }
 
 type RpcStep interface {

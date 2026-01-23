@@ -16,7 +16,9 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
@@ -322,6 +324,16 @@ func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 		annotationedRSs++
 		if annotationedRSs > scaleDownRevisionLimit {
 			c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
+			// Even when exceeding revision limit, check if traffic routers block scale-down
+			podTemplateHash := replicasetutil.GetPodTemplateHash(rs)
+			canScaleDown, _ := c.canScaleDownRS(podTemplateHash)
+			if canScaleDown != nil && !*canScaleDown {
+				c.log.Infof("RS '%s' scale-down blocked by traffic router plugin (exceeds revision limit)", rs.Name)
+				logCtx := logutil.WithRollout(c.rollout)
+				logCtx.Info("rollout enqueue due to traffic router blocking scale-down")
+				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
+				desiredReplicaCount = rolloutReplicas
+			}
 		} else {
 			remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
 			if err != nil {
@@ -334,11 +346,74 @@ func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 					c.enqueueRolloutAfter(c.rollout, *remainingTime)
 				}
 				desiredReplicaCount = rolloutReplicas
+			} else {
+				// Scale-down deadline has passed, but check if traffic routers block scale-down
+				podTemplateHash := replicasetutil.GetPodTemplateHash(rs)
+				canScaleDown, _ := c.canScaleDownRS(podTemplateHash)
+				if canScaleDown != nil && !*canScaleDown {
+					c.log.Infof("RS '%s' scale-down blocked by traffic router plugin", rs.Name)
+					// Requeue to check again later
+					logCtx := logutil.WithRollout(c.rollout)
+					logCtx.Info("rollout enqueue due to traffic router blocking scale-down")
+					c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
+					desiredReplicaCount = rolloutReplicas
+				}
 			}
 		}
 	}
 
 	return annotationedRSs, desiredReplicaCount, nil
+}
+
+// canScaleDownRS checks if any traffic routing plugins block scale-down for the given pod template hash.
+// Returns:
+// - nil: no traffic routers are configured, or all return "not implemented" (default behavior)
+// - *true: all traffic routers that implement the check report scale-down is safe
+// - *false: at least one traffic router reports scale-down is NOT safe
+func (c *rolloutContext) canScaleDownRS(podTemplateHash string) (*bool, error) {
+	if c.rollout.Spec.Strategy.Canary == nil || c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		return nil, nil
+	}
+
+	reconcilers, err := c.newTrafficRoutingReconciler(c)
+	if err != nil {
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.ScaleDownCheckErrorReason}, conditions.ScaleDownCheckErrorMessage, err)
+		return nil, nil
+	}
+	if len(reconcilers) == 0 {
+		return nil, nil
+	}
+
+	var hasImplementation bool
+	for _, reconciler := range reconcilers {
+		canScaleDown, err := reconciler.CanScaleDown(podTemplateHash)
+		if err != nil {
+			if canScaleDown != nil {
+				// Plugin returned a result with an error - report it as an event
+				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.ScaleDownCheckErrorReason}, conditions.ScaleDownCheckErrorMessage, err)
+			}
+			// For backwards compatibility (old plugins) or errors, continue with next reconciler
+			continue
+		}
+		if canScaleDown == nil {
+			// This traffic router doesn't implement the check, skip
+			continue
+		}
+		hasImplementation = true
+		if !*canScaleDown {
+			// At least one traffic router blocks scale-down
+			return canScaleDown, nil
+		}
+	}
+
+	if !hasImplementation {
+		// No traffic router implements the check, use default behavior
+		return nil, nil
+	}
+
+	// All implementing traffic routers allow scale-down
+	canScaleDown := true
+	return &canScaleDown, nil
 }
 
 // isReplicaSetReferenced returns if the given ReplicaSet is still being referenced by any of

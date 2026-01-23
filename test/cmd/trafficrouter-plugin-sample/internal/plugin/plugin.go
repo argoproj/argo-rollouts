@@ -334,6 +334,19 @@ func (r *RpcPlugin) Type() string {
 	return "plugin-nginx"
 }
 
+// CanScaleDown checks if it is safe to scale down the ReplicaSet identified by the given pod template hash.
+// This sample implementation returns ScaleDownNotImplemented, meaning the default behavior will be used.
+// Plugins can implement custom logic here to delay scale-down until external systems have completed draining.
+func (r *RpcPlugin) CanScaleDown(ro *v1alpha1.Rollout, podTemplateHash string) (pluginTypes.RpcScaleDownVerified, pluginTypes.RpcError) {
+	r.LogCtx.Infof("CanScaleDown called for pod template hash: %s", podTemplateHash)
+	// Return ScaleDownNotImplemented to use default scale-down behavior.
+	// Plugins can return:
+	// - ScaleDownVerified: scale-down is safe
+	// - ScaleDownNotVerified: scale-down is NOT safe, controller should retry later
+	// - ScaleDownNotImplemented: plugin does not implement this check, default behavior applies
+	return pluginTypes.ScaleDownNotImplemented, pluginTypes.RpcError{}
+}
+
 func getCanaryIngressName(rollout *v1alpha1.Rollout, stableIngress string) string {
 	// names limited to 253 characters
 	if rollout.Spec.Strategy.Canary != nil &&
