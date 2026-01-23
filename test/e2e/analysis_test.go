@@ -798,7 +798,7 @@ func (s *AnalysisSuite) TestCanaryInlineAnalysisInvalidImageJob() {
 		ExpectAnalysisRunCount(0).
 		When().
 		UpdateSpec().
-		WaitForRolloutStatus("Paused").
+		WaitForRolloutStatus("Degraded").
 		Then().
 		ExpectAnalysisRunCount(1).
 		When().
