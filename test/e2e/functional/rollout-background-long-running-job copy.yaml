@@ -1,23 +1,23 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: rollout-inline-invalid-image-job
+  name: rollout-background-long-running-job
 spec:
   strategy:
     canary:
+      analysis:
+        templates:
+        - templateName: invalid-image-job
       steps:
       - setWeight: 10
-      - analysis:
-          templates:
-          - templateName: invalid-image-job-deadline
-      - pause: {duration: 30s}      
+      - pause: {duration: 10s}      
   selector:
     matchLabels:
-      app: rollout-inline-invalid-image-job
+      app: rollout-background-long-running-job
   template:
     metadata:
       labels:
-        app: rollout-inline-invalid-image-job
+        app: rollout-background-long-running-job
     spec:
       containers:
       - name: rollouts-demo

@@ -7,7 +7,7 @@ metadata:
   name: long-running-job
 spec:
   metrics:
-  - name: long-running-job
+  - name: long-running-job-metric
     count: 1
     provider:
       job:
@@ -18,6 +18,6 @@ spec:
               - name: long-running-job
                 image: nginx:1.19-alpine
                 command: [sh, -c]
-                args: ["sleep 60"]
+                args: ["sleep 6000"]
               restartPolicy: Never
           backoffLimit: 0

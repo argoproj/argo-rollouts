@@ -3,14 +3,15 @@
 kind: AnalysisTemplate
 apiVersion: argoproj.io/v1alpha1
 metadata:
-  name: invalid-image-job
+  name: invalid-image-job-deadline
 spec:
   metrics:
-  - name: invalid-image-job-metric
+  - name: invalid-image-job-deadline-metric
     count: 1
     provider:
       job:
         spec:
+          activeDeadlineSeconds: 10
           template:
             spec:
               containers:

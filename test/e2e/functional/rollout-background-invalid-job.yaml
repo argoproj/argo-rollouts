@@ -10,7 +10,7 @@ spec:
         - templateName: long-running-job
       steps:
       - setWeight: 10
-      - pause: {}
+      - pause: {duration: 10s}      
   selector:
     matchLabels:
       app: rollout-background-long-running-job

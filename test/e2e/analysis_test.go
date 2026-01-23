@@ -34,6 +34,7 @@ func (s *AnalysisSuite) SetupSuite() {
 	s.ApplyManifests("@functional/analysistemplate-fail-multiple-job.yaml")
 	s.ApplyManifests("@functional/analysistemplate-long-running-job.yaml")
 	s.ApplyManifests("@functional/analysistemplate-invalid-image-job.yaml")
+	s.ApplyManifests("@functional/analysistemplate-invalid-image-job-deadline.yaml")
 }
 
 // convenience to generate a new service with a given name
@@ -775,11 +776,11 @@ func (s *AnalysisSuite) TestCanaryBackgroundAnalysisLongRunningJobTermination() 
 			ar := t.GetBackgroundAnalysisRun()
 			if len(ar.Status.MetricResults) > 0 {
 				metricResult := ar.Status.MetricResults[0]
-				// The terminated job should be marked as Inconclusive, not Successful
+				// The terminated job should be marked as Inconclusive, not Successful as it never finished
 				assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, metricResult.Phase)
 				if len(metricResult.Measurements) > 0 {
 					measurement := metricResult.Measurements[len(metricResult.Measurements)-1]
-					// The terminated measurement should be Inconclusive, not Successful
+					// The terminated measurement should be Inconclusive, not Successful as it never finished
 					assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, measurement.Phase, "Terminated job measurement should be Inconclusive, not Successful")
 				}
 			}
@@ -810,9 +811,40 @@ func (s *AnalysisSuite) TestCanaryInlineAnalysisInvalidImageJob() {
 				assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, metricResult.Phase)
 				if len(metricResult.Measurements) > 0 {
 					measurement := metricResult.Measurements[len(metricResult.Measurements)-1]
-					// The job that failed to start should be Inconclusive, not Successful
+					// The job that failed to start should be Inconclusive, not Successful as it never run at all
 					assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
 				}
 			}
 		})
 }
+
+// func (s *AnalysisSuite) TestCanaryBackgroundAnalysisInvalidImageJob() {
+// 	s.Given().
+// 		RolloutObjects("@functional/rollout-background-invalid-image-job.yaml").
+// 		When().
+// 		ApplyManifests().
+// 		WaitForRolloutStatus("Healthy").
+// 		Then().
+// 		ExpectAnalysisRunCount(0).
+// 		When().
+// 		UpdateSpec().
+// 		WaitForRolloutStatus("Paused").
+// 		Then().
+// 		ExpectAnalysisRunCount(1).
+// 		When().
+// 		WaitForInlineAnalysisRunPhase("Inconclusive").
+// 		Then().
+// 		Assert(func(t *fixtures.Then) {
+// 			ar := t.GetRolloutAnalysisRuns().Items[0]
+// 			assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, ar.Status.Phase)
+// 			if len(ar.Status.MetricResults) > 0 {
+// 				metricResult := ar.Status.MetricResults[0]
+// 				assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, metricResult.Phase)
+// 				if len(metricResult.Measurements) > 0 {
+// 					measurement := metricResult.Measurements[len(metricResult.Measurements)-1]
+// 					// The job that failed to start should be Inconclusive, not Successful as it never run at all
+// 					assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
+// 				}
+// 			}
+// 		})
+// }
