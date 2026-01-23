@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-background-long-running-job
+spec:
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: long-running-job
+      steps:
+      - setWeight: 10
+      - pause: {}
+  selector:
+    matchLabels:
+      app: rollout-background-long-running-job
+  template:
+    metadata:
+      labels:
+        app: rollout-background-long-running-job
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m

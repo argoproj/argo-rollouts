@@ -5,9 +5,10 @@ package e2e
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 
 	"github.com/stretchr/testify/suite"
 	"github.com/tj/assert"
@@ -31,6 +32,8 @@ func (s *AnalysisSuite) SetupSuite() {
 	s.ApplyManifests("@functional/analysistemplate-sleep-job.yaml")
 	s.ApplyManifests("@functional/analysistemplate-multiple-job.yaml")
 	s.ApplyManifests("@functional/analysistemplate-fail-multiple-job.yaml")
+	s.ApplyManifests("@functional/analysistemplate-long-running-job.yaml")
+	s.ApplyManifests("@functional/analysistemplate-invalid-image-job.yaml")
 }
 
 // convenience to generate a new service with a given name
@@ -747,4 +750,69 @@ func (s *AnalysisSuite) TestBackgroundAnalysisWithArgs() {
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
 		WaitForBackgroundAnalysisRunPhase("Successful")
+}
+
+func (s *AnalysisSuite) TestCanaryBackgroundAnalysisLongRunningJobTermination() {
+	s.Given().
+		RolloutObjects("@functional/rollout-background-long-running-job.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectAnalysisRunCount(1).
+		ExpectBackgroundAnalysisRunPhase("Running").
+		When().
+		Sleep(2 * time.Second). // Give the job time to start running
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			ar := t.GetBackgroundAnalysisRun()
+			if len(ar.Status.MetricResults) > 0 {
+				metricResult := ar.Status.MetricResults[0]
+				// The terminated job should be marked as Inconclusive, not Successful
+				assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, metricResult.Phase)
+				if len(metricResult.Measurements) > 0 {
+					measurement := metricResult.Measurements[len(metricResult.Measurements)-1]
+					// The terminated measurement should be Inconclusive, not Successful
+					assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, measurement.Phase, "Terminated job measurement should be Inconclusive, not Successful")
+				}
+			}
+		})
+}
+
+func (s *AnalysisSuite) TestCanaryInlineAnalysisInvalidImageJob() {
+	s.Given().
+		RolloutObjects("@functional/rollout-inline-invalid-image-job.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectAnalysisRunCount(1).
+		When().
+		WaitForInlineAnalysisRunPhase("Inconclusive").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			ar := t.GetRolloutAnalysisRuns().Items[0]
+			assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, ar.Status.Phase)
+			if len(ar.Status.MetricResults) > 0 {
+				metricResult := ar.Status.MetricResults[0]
+				assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, metricResult.Phase)
+				if len(metricResult.Measurements) > 0 {
+					measurement := metricResult.Measurements[len(metricResult.Measurements)-1]
+					// The job that failed to start should be Inconclusive, not Successful
+					assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
+				}
+			}
+		})
 }

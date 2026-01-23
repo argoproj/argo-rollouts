@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-inline-invalid-image-job
+spec:
+  strategy:
+    canary:
+      steps:
+      - setWeight: 10
+      - analysis:
+          templates:
+          - templateName: invalid-image-job
+      - pause: {}
+  selector:
+    matchLabels:
+      app: rollout-inline-invalid-image-job
+  template:
+    metadata:
+      labels:
+        app: rollout-inline-invalid-image-job
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
