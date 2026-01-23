@@ -1,13 +1,16 @@
+# Rollout with a background analysis that uses a non-existent docker image
+# The job has no deadline, so the canary finishes before the job starts, resulting in an Inconclusive analysis.
+
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: rollout-background-long-running-job
+  name: rollout-background-invalid-job
 spec:
   strategy:
     canary:
       analysis:
         templates:
-        - templateName: long-running-job
+        - templateName: invalid-image-job
       steps:
       - setWeight: 10
       - pause: {duration: 10s}      

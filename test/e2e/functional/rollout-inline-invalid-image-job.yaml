@@ -1,3 +1,7 @@
+# Rollout with an inline analysis that uses a non-existent docker image
+# The job has a deadline of 10 seconds which is less than the 30 second pause, so the job should be terminated 
+# and the analysis should be failed.
+
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
