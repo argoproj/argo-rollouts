@@ -661,12 +661,12 @@ spec:
 	}
 
 	testCases := []struct {
-		name               string
-		rollout            *v1alpha1.Rollout
-		destinationRule    string
-		rsHash             string
-		expectedResult     bool
-		noIstioController  bool
+		name              string
+		rollout           *v1alpha1.Rollout
+		destinationRule   string
+		rsHash            string
+		expectedResult    bool
+		noIstioController bool
 	}{
 		{
 			name:           "no istio traffic routing configured",
@@ -780,9 +780,9 @@ spec:
 
 				istioController = &istio.IstioController{
 					IstioControllerConfig: istio.IstioControllerConfig{
-						DynamicClientSet:           dynamicClient,
-						DestinationRuleInformer:    destinationRuleInformer,
-						VirtualServiceInformer:     virtualServiceInformer,
+						DynamicClientSet:        dynamicClient,
+						DestinationRuleInformer: destinationRuleInformer,
+						VirtualServiceInformer:  virtualServiceInformer,
 					},
 				}
 				istioController.DestinationRuleLister = druleLister
