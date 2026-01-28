@@ -8,18 +8,32 @@ permissions: {}
 
 env:
   GOLANG_VERSION: '1.24' # Note: go-version must also be set in job controller-image.with.go-version & plugin-image.with.go-version.
-  # Registry namespace - defaults to 'argoproj', override via GitHub vars
-  REGISTRY_NAMESPACE: ${{ vars.REGISTRY_NAMESPACE || 'argoproj' }}
 
 jobs:
+  # Central registry namespace configuration - Allows override of the registry namespace via GitHub vars. Defaults to 'argoproj'
+  set-registry-namespace:
+    runs-on: ubuntu-latest
+    outputs:
+      registry_namespace: ${{ steps.set.outputs.registry_namespace }}
+    steps:
+      - name: Set registry namespace
+        id: set
+        run: |
+          REGISTRY_NAMESPACE="${{ vars.REGISTRY_NAMESPACE }}"
+          if [ -z "$REGISTRY_NAMESPACE" ]; then
+            REGISTRY_NAMESPACE="argoproj"
+          fi
+          echo "registry_namespace=$REGISTRY_NAMESPACE" >> $GITHUB_OUTPUT
+
   controller-image:
+    needs: set-registry-namespace
     permissions:
       contents: read
       packages: write # Required and used to push images to `ghcr.io` if used.
       id-token: write # For creating OIDC tokens for signing.
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: quay.io/${{ env.REGISTRY_NAMESPACE }}/argo-rollouts:${{ github.ref_name }}
+      quay_image_name: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       go-version: '1.24'
       platforms: linux/amd64,linux/arm64
@@ -29,13 +43,14 @@ jobs:
       quay_password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
   plugin-image:
+    needs: set-registry-namespace
     permissions:
       contents: read
       packages: write # Required and used to push images to `ghcr.io` if used.
       id-token: write # For creating OIDC tokens for signing.
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: quay.io/${{ env.REGISTRY_NAMESPACE }}/kubectl-argo-rollouts:${{ github.ref_name }}
+      quay_image_name: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/kubectl-argo-rollouts:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       go-version: '1.24'
       platforms: linux/amd64,linux/arm64
@@ -48,6 +63,7 @@ jobs:
   controller-image-provenance:
     needs:
       - controller-image
+      - set-registry-namespace
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
@@ -55,7 +71,7 @@ jobs:
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: quay.io/${{ env.REGISTRY_NAMESPACE }}/argo-rollouts
+      image: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts
       digest: ${{ needs.controller-image.outputs.image-digest }}
     secrets:
       registry-username: ${{ secrets.QUAY_USERNAME }}
@@ -64,6 +80,7 @@ jobs:
   plugin-image-provenance:
     needs:
       - plugin-image
+      - set-registry-namespace
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
@@ -71,13 +88,14 @@ jobs:
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: quay.io/${{ env.REGISTRY_NAMESPACE }}/kubectl-argo-rollouts
+      image: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/kubectl-argo-rollouts
       digest: ${{ needs.plugin-image.outputs.image-digest }}
     secrets:
       registry-username: ${{ secrets.QUAY_USERNAME }}
       registry-password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
   release-artifacts:
+    needs: set-registry-namespace
     permissions:
       contents: write # for softprops/action-gh-release to create GitHub release
     runs-on: ubuntu-latest
@@ -106,7 +124,7 @@ jobs:
         run: |
           make release-plugins
           make checksums
-          make manifests IMAGE_TAG=${{ github.ref_name }} REGISTRY_NAMESPACE=${{ env.REGISTRY_NAMESPACE }}
+          make manifests IMAGE_TAG=${{ github.ref_name }} REGISTRY_NAMESPACE=${{ needs.set-registry-namespace.outputs.registry_namespace }}
 
       - name: Draft release
         uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v0.1.15
@@ -153,6 +171,7 @@ jobs:
     needs:
       - release-artifacts
       - release-artifacts-provenance
+      - set-registry-namespace
     permissions:
       contents: write # Needed for release uploads
       id-token: write # Needed for signing Sbom
@@ -185,7 +204,7 @@ jobs:
           # managers (gomod, yarn, npm).
           PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the container image to be inspected
-          CONTAINER_IMAGE: quay.io/${{ env.REGISTRY_NAMESPACE }}/argo-rollouts:${{ github.event.inputs.tag }}
+          CONTAINER_IMAGE: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts:${{ github.ref_name }}
 
         run: |
           yarn install --cwd ./ui
