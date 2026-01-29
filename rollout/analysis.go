@@ -294,7 +294,7 @@ func skipPrePromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 	return !annotations.IsSaturated(rollout, newRS)
 }
 
-// skipPrePromotionAnalysisRun checks if the controller should skip creating a post promotion
+// skipPostPromotionAnalysisRun checks if the controller should skip creating a post promotion
 // analysis run by checking that the desired ReplicaSet is the stable ReplicaSet, the active
 // service promotion has not happened, the rollout was just created, or the newRS is not saturated
 func skipPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, currentAr *v1alpha1.AnalysisRun) bool {
