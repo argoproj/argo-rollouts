@@ -19,7 +19,9 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
@@ -2817,4 +2819,228 @@ func concatMultipleSlices[T any](slices [][]T) []T {
 	}
 
 	return result
+}
+
+// TestSkipPrePromotionAnalysisRun tests the skipPrePromotionAnalysisRun function
+func TestSkipPrePromotionAnalysisRun(t *testing.T) {
+	t.Run("should skip when StableRS equals currentPodHash", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.StableRS = podHash
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when StableRS equals currentPodHash")
+	})
+
+	t.Run("should skip when activeSelector is empty", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		rollout.Status.BlueGreen.ActiveSelector = ""
+		rollout.Status.StableRS = "different-hash"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when activeSelector is empty")
+	})
+
+	t.Run("should skip when activeSelector equals currentPodHash", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+		rollout.Status.StableRS = "different-hash"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when activeSelector equals currentPodHash")
+	})
+
+	t.Run("should skip when currentPodHash is empty", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		newRS.Labels = nil // Remove labels to make podHash empty
+		rollout.Status.BlueGreen.ActiveSelector = "some-hash"
+		rollout.Status.StableRS = "different-hash"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when currentPodHash is empty")
+	})
+
+	t.Run("should not skip when currentAr is not nil", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 1) // Unsaturated
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+		currentAr := &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-ar",
+			},
+		}
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, currentAr)
+		assert.False(t, result, "Should not skip when currentAr is not nil, even if ReplicaSet is unsaturated")
+	})
+
+	t.Run("should skip when currentAr is nil and ReplicaSet is not saturated", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 1) // Unsaturated: 2 desired, 1 available
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+		// Set up annotations for IsSaturated check
+		if newRS.Annotations == nil {
+			newRS.Annotations = make(map[string]string)
+		}
+		newRS.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when currentAr is nil and ReplicaSet is not saturated")
+	})
+
+	t.Run("should not skip when currentAr is nil and ReplicaSet is saturated", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2) // Saturated: 2 desired, 2 available
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+		// Set up annotations for IsSaturated check
+		if newRS.Annotations == nil {
+			newRS.Annotations = make(map[string]string)
+		}
+		newRS.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.False(t, result, "Should not skip when currentAr is nil and ReplicaSet is saturated")
+	})
+
+	t.Run("should handle PreviewReplicaCount when currentAr is nil", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		previewCount := int32(3)
+		rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount = &previewCount
+		newRS := newReplicaSetWithStatus(rollout, 3, 3) // Matches preview count
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.False(t, result, "Should not skip when PreviewReplicaCount matches and ReplicaSet is saturated")
+
+		// Test with unsaturated ReplicaSet
+		newRS2 := newReplicaSetWithStatus(rollout, 3, 2) // Doesn't match preview count
+		result2 := skipPrePromotionAnalysisRun(rollout, newRS2, nil)
+		assert.True(t, result2, "Should skip when PreviewReplicaCount doesn't match")
+	})
+
+	t.Run("should not skip when currentAr is not nil even with PreviewReplicaCount mismatch", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		previewCount := int32(3)
+		rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount = &previewCount
+		newRS := newReplicaSetWithStatus(rollout, 3, 2) // Doesn't match preview count
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+		currentAr := &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-ar",
+			},
+		}
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, currentAr)
+		assert.False(t, result, "Should not skip when currentAr is not nil, even with PreviewReplicaCount mismatch")
+	})
+}
+
+// TestSkipPostPromotionAnalysisRun tests the skipPostPromotionAnalysisRun function
+func TestSkipPostPromotionAnalysisRun(t *testing.T) {
+	t.Run("should skip when StableRS equals currentPodHash", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.StableRS = podHash
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when StableRS equals currentPodHash")
+	})
+
+	t.Run("should skip when activeSelector does not equal currentPodHash", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when activeSelector does not equal currentPodHash")
+	})
+
+	t.Run("should skip when currentPodHash is empty", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		newRS.Labels = nil // Remove labels to make podHash empty
+		rollout.Status.BlueGreen.ActiveSelector = "some-hash"
+		rollout.Status.StableRS = "some-hash"
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when currentPodHash is empty")
+	})
+
+	t.Run("should not skip when currentAr is not nil", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 1) // Unsaturated
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+		rollout.Status.StableRS = "different-hash"
+		currentAr := &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-ar",
+			},
+		}
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, currentAr)
+		assert.False(t, result, "Should not skip when currentAr is not nil, even if ReplicaSet is unsaturated")
+	})
+
+	t.Run("should skip when currentAr is nil and ReplicaSet is not saturated", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 1) // Unsaturated: 2 desired, 1 available
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+		rollout.Status.StableRS = "different-hash"
+		// Set up annotations for IsSaturated check
+		if newRS.Annotations == nil {
+			newRS.Annotations = make(map[string]string)
+		}
+		newRS.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when currentAr is nil and ReplicaSet is not saturated")
+	})
+
+	t.Run("should not skip when currentAr is nil and ReplicaSet is saturated", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2) // Saturated: 2 desired, 2 available
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+		rollout.Status.StableRS = "different-hash"
+		// Set up annotations for IsSaturated check
+		if newRS.Annotations == nil {
+			newRS.Annotations = make(map[string]string)
+		}
+		newRS.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, nil)
+		assert.False(t, result, "Should not skip when currentAr is nil and ReplicaSet is saturated")
+	})
+
+	t.Run("should not skip when currentAr is not nil even if ReplicaSet becomes unsaturated", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 1) // Unsaturated
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+		rollout.Status.StableRS = "different-hash"
+		currentAr := &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-ar",
+			},
+		}
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, currentAr)
+		assert.False(t, result, "Should not skip when currentAr is not nil, even if ReplicaSet becomes unsaturated")
+	})
 }

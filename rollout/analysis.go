@@ -237,7 +237,7 @@ func (c *rolloutContext) reconcilePrePromotionAnalysisRun() (*v1alpha1.AnalysisR
 	}
 	c.log.Info("Reconciling Pre Promotion Analysis")
 
-	if skipPrePromotionAnalysisRun(c.rollout, c.newRS) {
+	if skipPrePromotionAnalysisRun(c.rollout, c.newRS, currentAr) {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return currentAr, err
 	}
@@ -262,12 +262,19 @@ func (c *rolloutContext) reconcilePrePromotionAnalysisRun() (*v1alpha1.AnalysisR
 // skipPrePromotionAnalysisRun checks if the controller should skip creating a pre promotion
 // analysis run by checking if the rollout active promotion happened, the rollout was just created,
 // the newRS is not saturated
-func skipPrePromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+func skipPrePromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, currentAr *v1alpha1.AnalysisRun) bool {
 	currentPodHash := replicasetutil.GetPodTemplateHash(newRS)
 	activeSelector := rollout.Status.BlueGreen.ActiveSelector
 	if rollout.Status.StableRS == currentPodHash || activeSelector == "" || activeSelector == currentPodHash || currentPodHash == "" {
 		return true
 	}
+	// If we already started pre-promotion analysis, then we should not skip it.
+	// Otherwise, performing the saturation check below might cancel the analysis run
+	// prematurely if the newRS becomes unsaturated (e.g. due to natural pod churn)
+	if currentAr != nil {
+		return false
+	}
+	// Don't start pre-promotion analysis if the newRS is not saturated.
 	// Checking saturation is different if the previewReplicaCount feature is being used because
 	// annotations.IsSaturated() also looks at the desired annotation on the ReplicaSet, and the
 	// check using previewReplicaCount does not.
@@ -278,13 +285,23 @@ func skipPrePromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 	return !annotations.IsSaturated(rollout, newRS)
 }
 
-// skipPrePromotionAnalysisRun checks if the controller should skip creating a post promotion
+// skipPostPromotionAnalysisRun checks if the controller should skip creating a post promotion
 // analysis run by checking that the desired ReplicaSet is the stable ReplicaSet, the active
 // service promotion has not happened, the rollout was just created, or the newRS is not saturated
-func skipPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+func skipPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, currentAr *v1alpha1.AnalysisRun) bool {
 	currentPodHash := replicasetutil.GetPodTemplateHash(newRS)
 	activeSelector := rollout.Status.BlueGreen.ActiveSelector
-	return rollout.Status.StableRS == currentPodHash || activeSelector != currentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS)
+	if rollout.Status.StableRS == currentPodHash || activeSelector != currentPodHash || currentPodHash == "" {
+		return true
+	}
+	// If we already started post-promotion analysis, then we should not skip it.
+	// Otherwise, performing the saturation check below might cancel the analysis run
+	// prematurely if the newRS becomes unsaturated (e.g. due to natural pod churn)
+	if currentAr != nil {
+		return false
+	}
+	// Don't start post-promotion analysis if the newRS is not saturated.
+	return !annotations.IsSaturated(rollout, newRS)
 }
 
 func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.AnalysisRun, error) {
@@ -296,7 +313,7 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 
 	c.log.Info("Reconciling Post Promotion Analysis")
 	// don't start post-promotion if we are not ready to, or we are still waiting for target verification
-	if skipPostPromotionAnalysisRun(c.rollout, c.newRS) || !c.areTargetsVerified() {
+	if skipPostPromotionAnalysisRun(c.rollout, c.newRS, currentAr) || !c.areTargetsVerified() {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return currentAr, err
 	}
