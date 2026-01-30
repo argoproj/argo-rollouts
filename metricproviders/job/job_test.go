@@ -257,7 +257,7 @@ func TestTerminateMeasurement(t *testing.T) {
 
 		measurement := newRunningMeasurement(job.Name)
 		measurement = p.Terminate(run, run.Spec.Metrics[0], measurement)
-		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
 		assert.NotNil(t, measurement.FinishedAt)
 	}
 }
