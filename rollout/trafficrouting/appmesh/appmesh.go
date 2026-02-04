@@ -324,6 +324,11 @@ func (r *Reconciler) Type() string {
 	return Type
 }
 
+// CanScaleDown returns nil (not implemented) as AppMesh does not support scale-down checks
+func (r *Reconciler) CanScaleDown(podTemplateHash string) (*bool, error) {
+	return nil, nil
+}
+
 func getPodSelectorMatchLabels(vnode *unstructured.Unstructured) (map[string]any, error) {
 	m, found, err := unstructured.NestedMap(vnode.Object, "spec", "podSelector", "matchLabels")
 	if err != nil {

@@ -182,6 +182,9 @@ const (
 	// WeightVerifyErrorReason is emitted when there is an error verifying the set weight
 	WeightVerifyErrorReason  = "WeightVerifyError"
 	WeightVerifyErrorMessage = "Failed to verify weight: %s"
+	// ScaleDownCheckErrorReason is emitted when there is an error checking if scale-down is allowed
+	ScaleDownCheckErrorReason  = "ScaleDownCheckError"
+	ScaleDownCheckErrorMessage = "Failed to check scale-down: %s"
 	// LoadBalancerNotFoundReason is emitted when load balancer can not be found
 	LoadBalancerNotFoundReason  = "LoadBalancerNotFound"
 	LoadBalancerNotFoundMessage = "Failed to find load balancer: %s"

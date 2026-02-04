@@ -40,3 +40,7 @@ func (r *testRpcPlugin) RemoveManagedRoutes(ro *v1alpha1.Rollout) types.RpcError
 func (r *testRpcPlugin) Type() string {
 	return "TestRPCPlugin"
 }
+
+func (r *testRpcPlugin) CanScaleDown(ro *v1alpha1.Rollout, podTemplateHash string) (types.RpcScaleDownVerified, types.RpcError) {
+	return types.ScaleDownNotImplemented, types.RpcError{}
+}

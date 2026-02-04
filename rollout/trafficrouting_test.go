@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix"
 
@@ -24,6 +26,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	apisixMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix/mocks"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
@@ -51,6 +54,7 @@ func newFakeSingleTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
 	trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 	trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	trafficRoutingReconciler.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
+	trafficRoutingReconciler.On("CanScaleDown", mock.Anything).Return((*bool)(nil), nil)
 	return &trafficRoutingReconciler
 }
 
@@ -1917,5 +1921,432 @@ func TestTrafficRoutingErrorsWhenNewCanaryHasNoReplicas(t *testing.T) {
 
 			f.fakeTrafficRouting.AssertCalled(t, tc.expectedCall, mock.Anything, mock.Anything)
 		})
+	}
+}
+
+// TestCanScaleDownRS tests the canScaleDownRS function which checks if traffic routers
+// allow scale-down of a ReplicaSet
+func TestCanScaleDownRS(t *testing.T) {
+	tests := []struct {
+		name                string
+		hasTrafficRouting   bool
+		canScaleDownReturn  *bool
+		canScaleDownErr     error
+		expectedResult      *bool
+		expectedErrContains string
+	}{
+		{
+			name:               "No traffic routing configured",
+			hasTrafficRouting:  false,
+			canScaleDownReturn: nil,
+			canScaleDownErr:    nil,
+			expectedResult:     nil,
+		},
+		{
+			name:               "Traffic router returns not implemented (nil)",
+			hasTrafficRouting:  true,
+			canScaleDownReturn: nil,
+			canScaleDownErr:    nil,
+			expectedResult:     nil,
+		},
+		{
+			name:               "Traffic router allows scale-down",
+			hasTrafficRouting:  true,
+			canScaleDownReturn: ptr.To[bool](true),
+			canScaleDownErr:    nil,
+			expectedResult:     ptr.To[bool](true),
+		},
+		{
+			name:               "Traffic router blocks scale-down",
+			hasTrafficRouting:  true,
+			canScaleDownReturn: ptr.To[bool](false),
+			canScaleDownErr:    nil,
+			expectedResult:     ptr.To[bool](false),
+		},
+		{
+			name:                "Traffic router returns error",
+			hasTrafficRouting:   true,
+			canScaleDownReturn:  nil,
+			canScaleDownErr:     errors.New("connection error"),
+			expectedResult:      nil,
+			expectedErrContains: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			steps := []v1alpha1.CanaryStep{
+				{SetWeight: ptr.To[int32](10)},
+			}
+			r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+
+			if tc.hasTrafficRouting {
+				r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+					SMI: &v1alpha1.SMITrafficRouting{},
+				}
+				r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+				r1.Spec.Strategy.Canary.StableService = "stable-svc"
+			}
+
+			rs1 := newReplicaSetWithStatus(r1, 10, 10)
+			rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+			r1.Status.StableRS = rs1PodHash
+
+			f.kubeobjects = append(f.kubeobjects, rs1)
+			f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+			if tc.hasTrafficRouting {
+				stableSvc := newService("stable-svc", 80, nil, r1)
+				canarySvc := newService("canary-svc", 80, nil, r1)
+				f.kubeobjects = append(f.kubeobjects, stableSvc, canarySvc)
+				f.serviceLister = append(f.serviceLister, stableSvc, canarySvc)
+
+				f.expectPatchServiceAction(stableSvc, rs1PodHash)
+				f.expectPatchServiceAction(canarySvc, rs1PodHash)
+			}
+
+			f.rolloutLister = append(f.rolloutLister, r1)
+			f.objects = append(f.objects, r1)
+
+			f.expectPatchRolloutAction(r1)
+			c, i, k8sI := f.newController(noResyncPeriodFunc)
+			f.runController(getKey(r1, t), true, false, c, i, k8sI)
+
+			// Create the rollout context
+			roCtx, err := c.newRolloutContext(r1)
+			assert.NoError(t, err)
+
+			if tc.hasTrafficRouting {
+				f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+				f.fakeTrafficRouting.On("CanScaleDown", mock.Anything).Return(tc.canScaleDownReturn, tc.canScaleDownErr)
+
+				roCtx.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
+					return []trafficrouting.TrafficRoutingReconciler{f.fakeTrafficRouting}, nil
+				}
+			}
+
+			result, err := roCtx.canScaleDownRS(rs1PodHash)
+
+			if tc.expectedErrContains != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedErrContains)
+			} else {
+				// Note: errors from CanScaleDown are logged as warnings but don't fail the operation
+				if tc.canScaleDownErr != nil {
+					// When there's an error but we continue, result should be nil
+					assert.Nil(t, result)
+				} else if tc.expectedResult == nil {
+					assert.Nil(t, result)
+				} else {
+					assert.NotNil(t, result)
+					assert.Equal(t, *tc.expectedResult, *result)
+				}
+			}
+		})
+	}
+}
+
+// TestCanScaleDownRSMultipleReconcilers tests canScaleDownRS with multiple traffic reconcilers
+func TestCanScaleDownRSMultipleReconcilers(t *testing.T) {
+	tests := []struct {
+		name            string
+		reconciler1Resp *bool
+		reconciler2Resp *bool
+		expectedResult  *bool
+	}{
+		{
+			name:            "Both return not implemented",
+			reconciler1Resp: nil,
+			reconciler2Resp: nil,
+			expectedResult:  nil,
+		},
+		{
+			name:            "First allows, second not implemented",
+			reconciler1Resp: ptr.To[bool](true),
+			reconciler2Resp: nil,
+			expectedResult:  ptr.To[bool](true),
+		},
+		{
+			name:            "First not implemented, second allows",
+			reconciler1Resp: nil,
+			reconciler2Resp: ptr.To[bool](true),
+			expectedResult:  ptr.To[bool](true),
+		},
+		{
+			name:            "Both allow",
+			reconciler1Resp: ptr.To[bool](true),
+			reconciler2Resp: ptr.To[bool](true),
+			expectedResult:  ptr.To[bool](true),
+		},
+		{
+			name:            "First allows, second blocks",
+			reconciler1Resp: ptr.To[bool](true),
+			reconciler2Resp: ptr.To[bool](false),
+			expectedResult:  ptr.To[bool](false),
+		},
+		{
+			name:            "First blocks, second allows",
+			reconciler1Resp: ptr.To[bool](false),
+			reconciler2Resp: ptr.To[bool](true),
+			expectedResult:  ptr.To[bool](false),
+		},
+		{
+			name:            "First not implemented, second blocks",
+			reconciler1Resp: nil,
+			reconciler2Resp: ptr.To[bool](false),
+			expectedResult:  ptr.To[bool](false),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			steps := []v1alpha1.CanaryStep{
+				{SetWeight: ptr.To[int32](10)},
+			}
+			r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+			r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+				SMI: &v1alpha1.SMITrafficRouting{},
+			}
+			r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+			r1.Spec.Strategy.Canary.StableService = "stable-svc"
+
+			rs1 := newReplicaSetWithStatus(r1, 10, 10)
+			rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			r1.Status.StableRS = rs1PodHash
+
+			stableSvc := newService("stable-svc", 80, nil, r1)
+			canarySvc := newService("canary-svc", 80, nil, r1)
+			f.kubeobjects = append(f.kubeobjects, rs1, stableSvc, canarySvc)
+			f.replicaSetLister = append(f.replicaSetLister, rs1)
+			f.serviceLister = append(f.serviceLister, stableSvc, canarySvc)
+			f.rolloutLister = append(f.rolloutLister, r1)
+			f.objects = append(f.objects, r1)
+
+			f.expectPatchServiceAction(stableSvc, rs1PodHash)
+			f.expectPatchServiceAction(canarySvc, rs1PodHash)
+			f.expectPatchRolloutAction(r1)
+			c, i, k8sI := f.newController(noResyncPeriodFunc)
+			f.runController(getKey(r1, t), true, false, c, i, k8sI)
+
+			roCtx, err := c.newRolloutContext(r1)
+			assert.NoError(t, err)
+
+			// Create two mock reconcilers
+			reconciler1 := &mocks.TrafficRoutingReconciler{}
+			reconciler1.On("Type").Return("reconciler1")
+			reconciler1.On("CanScaleDown", mock.Anything).Return(tc.reconciler1Resp, nil)
+
+			reconciler2 := &mocks.TrafficRoutingReconciler{}
+			reconciler2.On("Type").Return("reconciler2")
+			reconciler2.On("CanScaleDown", mock.Anything).Return(tc.reconciler2Resp, nil)
+
+			roCtx.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
+				return []trafficrouting.TrafficRoutingReconciler{reconciler1, reconciler2}, nil
+			}
+
+			result, err := roCtx.canScaleDownRS(rs1PodHash)
+			assert.NoError(t, err)
+
+			if tc.expectedResult == nil {
+				assert.Nil(t, result)
+			} else {
+				assert.NotNil(t, result)
+				assert.Equal(t, *tc.expectedResult, *result)
+			}
+		})
+	}
+}
+
+// TestCanScaleDownBlocksIntermediateRSScaleDown tests that when a traffic router blocks scale-down
+// via CanScaleDown, the intermediate RS is not scaled down during an interrupted update (rainbow deployment)
+func TestCanScaleDownBlocksIntermediateRSScaleDown(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To[int32](100),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.StableService = "stable-svc"
+	r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+
+	stableSvc := newService("stable-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r1.Status.CurrentPodHash}, r1)
+	canarySvc := newService("canary-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r3.Status.CurrentPodHash}, r3)
+	r3.Status.StableRS = r1.Status.CurrentPodHash
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 5, 5) // This is the intermediate RS that should be blocked
+	rs3 := newReplicaSetWithStatus(r3, 5, 5)
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	// Mock traffic router to block scale-down
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything).Return(nil)
+	// Block scale-down for the intermediate RS
+	f.fakeTrafficRouting.On("CanScaleDown", mock.Anything).Return(ptr.To[bool](false), nil)
+
+	f.expectPatchRolloutAction(r3)
+	// We should NOT see an update to rs2 because CanScaleDown blocks it
+	f.run(getKey(r3, t))
+
+	// Verify rs2 was NOT scaled down (no ReplicaSet update action)
+	for _, action := range f.kubeclient.Actions() {
+		if action.GetVerb() == "update" && action.GetResource().Resource == "replicasets" {
+			updateAction := action.(k8stesting.UpdateAction)
+			rs := updateAction.GetObject().(*appsv1.ReplicaSet)
+			// If rs2 was updated, it should still have 5 replicas (not 0)
+			if rs.Name == rs2.Name {
+				assert.Equal(t, int32(5), *rs.Spec.Replicas, "rs2 should not be scaled down when CanScaleDown returns false")
+			}
+		}
+	}
+}
+
+// TestCanScaleDownAllowsIntermediateRSScaleDown tests that when a traffic router allows scale-down
+// via CanScaleDown, the intermediate RS is scaled down during an interrupted update
+func TestCanScaleDownAllowsIntermediateRSScaleDown(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To[int32](100),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.StableService = "stable-svc"
+	r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+
+	stableSvc := newService("stable-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r1.Status.CurrentPodHash}, r1)
+	canarySvc := newService("canary-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r3.Status.CurrentPodHash}, r3)
+	r3.Status.StableRS = r1.Status.CurrentPodHash
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 5, 5) // This is the intermediate RS that should be scaled down
+	rs3 := newReplicaSetWithStatus(r3, 5, 5)
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	// Mock traffic router to allow scale-down
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything).Return(nil)
+	// Allow scale-down
+	f.fakeTrafficRouting.On("CanScaleDown", mock.Anything).Return(ptr.To[bool](true), nil)
+
+	f.expectPatchRolloutAction(r3)
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
+	f.run(getKey(r3, t))
+
+	// Verify rs2 WAS scaled down to 0
+	updatedRs2 := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, int32(0), *updatedRs2.Spec.Replicas)
+}
+
+// TestCanScaleDownBlocksScaleDownAtRevisionLimit tests that when exceeding scaleDownDelayRevisionLimit,
+// the traffic router's CanScaleDown is still respected
+func TestCanScaleDownBlocksScaleDownAtRevisionLimit(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](100)},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.StableService = "stable-svc"
+	r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+	// Set revision limit to 1, so the second RS exceeds the limit
+	r1.Spec.Strategy.Canary.ScaleDownDelayRevisionLimit = ptr.To[int32](1)
+
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+
+	stableSvc := newService("stable-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r3.Status.CurrentPodHash}, r3)
+	canarySvc := newService("canary-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r3.Status.CurrentPodHash}, r3)
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 5, 5)
+	rs3 := newReplicaSetWithStatus(r3, 5, 5)
+
+	// Add scale-down deadline to both old RSs (they're waiting to be scaled down)
+	now := timeutil.MetaNow()
+	pastDeadline := now.Add(-1 * time.Minute).UTC().Format(time.RFC3339)
+	rs1.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: pastDeadline}
+	rs2.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: pastDeadline}
+
+	// Mark rollout as fully promoted (stable = canary = rs3)
+	r3.Status.StableRS = replicasetutil.GetPodTemplateHash(rs3)
+	r3.Status.CurrentPodHash = replicasetutil.GetPodTemplateHash(rs3)
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	// Mock traffic router to block scale-down
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything).Return(nil)
+	// Block scale-down
+	f.fakeTrafficRouting.On("CanScaleDown", mock.Anything).Return(ptr.To[bool](false), nil)
+
+	f.expectPatchRolloutAction(r3)
+	// We should NOT see any RS scaled down because CanScaleDown blocks it
+	f.run(getKey(r3, t))
+
+	// Verify neither rs1 nor rs2 was scaled down
+	for _, action := range f.kubeclient.Actions() {
+		if action.GetVerb() == "update" && action.GetResource().Resource == "replicasets" {
+			updateAction := action.(k8stesting.UpdateAction)
+			rs := updateAction.GetObject().(*appsv1.ReplicaSet)
+			if rs.Name == rs1.Name || rs.Name == rs2.Name {
+				assert.Equal(t, int32(5), *rs.Spec.Replicas, "RS should not be scaled down when CanScaleDown returns false")
+			}
+		}
 	}
 }

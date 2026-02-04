@@ -178,6 +178,14 @@ type TrafficRouterPlugin interface {
   RemoveManagedRoutes(ro *v1alpha1.Rollout) RpcError
   // Type returns the type of the traffic routing reconciler
   Type() string
+  // CanScaleDown checks if it is safe to scale down the ReplicaSet identified by the given pod template hash.
+  // This allows traffic routing plugins to delay scale-down until external systems (e.g., long-running
+  // connections, worker versioning, message queue consumers) have completed draining.
+  // Returns:
+  // - ScaleDownVerified: scale-down is safe
+  // - ScaleDownNotVerified: scale-down is NOT safe yet, controller should retry later
+  // - ScaleDownNotImplemented: plugin does not implement this check, default behavior applies
+  CanScaleDown(rollout *v1alpha1.Rollout, podTemplateHash string) (RpcScaleDownVerified, RpcError)
 }
 
 type StepPlugin interface {

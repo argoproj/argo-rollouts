@@ -701,6 +701,11 @@ func (r *Reconciler) Type() string {
 	return Type
 }
 
+// CanScaleDown returns nil (not implemented) as Istio does not support scale-down checks
+func (r *Reconciler) CanScaleDown(podTemplateHash string) (*bool, error) {
+	return nil, nil
+}
+
 // SetWeight modifies Istio resources to reach desired state
 func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 	ctx := context.TODO()
