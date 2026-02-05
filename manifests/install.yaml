@@ -14382,6 +14382,17 @@ spec:
                         type: integer
                       previewService:
                         type: string
+                      replicaProgressThreshold:
+                        properties:
+                          type:
+                            type: string
+                          value:
+                            format: int32
+                            type: integer
+                        required:
+                        - type
+                        - value
+                        type: object
                       scaleDownDelayRevisionLimit:
                         format: int32
                         type: integer
