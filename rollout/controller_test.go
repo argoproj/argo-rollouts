@@ -799,7 +799,8 @@ func filterInformerActions(actions []core.Action) []core.Action {
 			action.Matches("list", "services") ||
 			action.Matches("watch", "services") ||
 			action.Matches("list", "ingresses") ||
-			action.Matches("watch", "ingresses") {
+			action.Matches("watch", "ingresses") ||
+			action.Matches("list", "pods") {
 			continue
 		}
 		ret = append(ret, action)
@@ -846,18 +847,6 @@ func (f *fixture) expectPatchReplicaSetAction(rs *appsv1.ReplicaSet) int {
 func (f *fixture) expectUpdatePodAction(p *corev1.Pod) int {
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewUpdateAction(schema.GroupVersionResource{Resource: "pods"}, p.Namespace, p))
-	return len
-}
-
-func (f *fixture) expectListPodAction(namespace string) int {
-	len := len(f.kubeactions)
-	f.kubeactions = append(f.kubeactions, core.NewListAction(schema.GroupVersionResource{Resource: "pods"}, schema.GroupVersionKind{Kind: "Pod", Version: "v1"}, namespace, metav1.ListOptions{}))
-	return len
-}
-
-func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int { //nolint:unused
-	len := len(f.actions)
-	f.kubeactions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
 	return len
 }
 
