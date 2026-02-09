@@ -44,10 +44,12 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 		return nil, nil
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio != nil {
+		dynamicRollback, _ := isDynamicallyRollingBackToStable(rollout, roCtx.newRS)
+		shiftingToStable := roCtx.pauseContext.IsAborted() || dynamicRollback
 		if c.IstioController.VirtualServiceInformer.HasSynced() {
-			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, c.IstioController.VirtualServiceLister, c.IstioController.DestinationRuleLister, roCtx.allRSs))
+			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, c.IstioController.VirtualServiceLister, c.IstioController.DestinationRuleLister, roCtx.allRSs, shiftingToStable))
 		} else {
-			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, nil, nil, roCtx.allRSs))
+			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, nil, nil, roCtx.allRSs, shiftingToStable))
 		}
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
