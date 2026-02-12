@@ -158,8 +158,26 @@ func (c *Controller) syncIngress(ctx context.Context, key string) error {
 }
 
 func hasClass(classes []string, class string) bool {
-	for _, str := range classes {
-		if str == class {
+	for _, pattern := range classes {
+		// Exact wildcard matches everything
+		if pattern == "*" {
+			return true
+		}
+
+		// Suffix wildcard: something-*
+		if before, ok := strings.CutSuffix(pattern, "*"); ok {
+			prefix := before
+			if strings.HasPrefix(class, prefix) {
+				return true
+			}
+		} else if after, ok0 := strings.CutPrefix(pattern, "*"); ok0 {
+			// Prefix wildcard: *-something
+			suffix := after
+			if strings.HasSuffix(class, suffix) {
+				return true
+			}
+		} else if pattern == class {
+			// Exact match
 			return true
 		}
 	}

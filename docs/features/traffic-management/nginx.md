@@ -56,3 +56,23 @@ Starting with v1.5, argo rollouts supports multiple Nginx ingress controllers po
 As a default, the Argo Rollouts controller only operates on ingresses with the `kubernetes.io/ingress.class` annotation or `spec.ingressClassName` set to `nginx`. A user can configure the controller to operate on Ingresses with different class name by specifying the `--nginx-ingress-classes` flag. A user can list the `--nginx-ingress-classes` flag multiple times if the Argo Rollouts controller should operate on multiple values. This solves the case where a cluster has multiple Ingress controllers operating on different class values.
 
 If the user would like the controller to operate on any Ingress without the `kubernetes.io/ingress.class` annotation or `spec.ingressClassName`, a user should add the following `--nginx-ingress-classes ''`.
+
+### Wildcard Pattern Matching
+
+The `--nginx-ingress-classes` flag supports wildcard patterns to match multiple ingress classes:
+
+- `*` - Matches any ingress class
+- `prefix-*` - Matches any ingress class that starts with `prefix-` (e.g., `prefix-internal`, `prefix-external`)
+- `*-suffix` - Matches any ingress class that ends with `-suffix` (e.g., `internal-suffix`, `external-suffix`)
+
+Examples:
+```bash
+# Match all nginx-* classes
+--nginx-ingress-classes nginx-*
+
+# Match multiple patterns
+--nginx-ingress-classes nginx-* --nginx-ingress-classes custom-nginx
+
+# Match all ingress classes
+--nginx-ingress-classes '*'
+```

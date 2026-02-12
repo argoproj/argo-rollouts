@@ -441,3 +441,23 @@ Ingress controllers that operate on different `kubernetes.io/ingress.class` or `
 
 If the controller needs to operate on any Ingress without the `kubernetes.io/ingress.class`
 annotation or `spec.ingressClassName`, the flag can be specified with an empty string (e.g. `--alb-ingress-classes ''`).
+
+#### Wildcard Pattern Matching
+
+The `--alb-ingress-classes` flag supports wildcard patterns to match multiple ingress classes:
+
+- `*` - Matches any ingress class
+- `prefix-*` - Matches any ingress class that starts with `prefix-` (e.g., `prefix-internal`, `prefix-external`)
+- `*-suffix` - Matches any ingress class that ends with `-suffix` (e.g., `internal-suffix`, `external-suffix`)
+
+Examples:
+```bash
+# Match all alb-* classes
+--alb-ingress-classes alb-*
+
+# Match multiple patterns
+--alb-ingress-classes alb-* --alb-ingress-classes custom-alb
+
+# Match all ingress classes
+--alb-ingress-classes '*'
+```
