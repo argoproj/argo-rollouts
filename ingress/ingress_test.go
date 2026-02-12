@@ -378,3 +378,170 @@ func TestRun(t *testing.T) {
 	}()
 	c.Run(ctx, 1)
 }
+
+func TestHasClass(t *testing.T) {
+	tests := []struct {
+		name     string
+		classes  []string
+		class    string
+		expected bool
+	}{
+		// Exact match tests
+		{
+			name:     "exact match with single class",
+			classes:  []string{"nginx"},
+			class:    "nginx",
+			expected: true,
+		},
+		{
+			name:     "exact match in multiple classes",
+			classes:  []string{"alb", "nginx", "traefik"},
+			class:    "nginx",
+			expected: true,
+		},
+		{
+			name:     "no match",
+			classes:  []string{"alb", "traefik"},
+			class:    "nginx",
+			expected: false,
+		},
+		// Wildcard match tests
+		{
+			name:     "wildcard matches any class",
+			classes:  []string{"*"},
+			class:    "nginx",
+			expected: true,
+		},
+		{
+			name:     "wildcard matches empty string",
+			classes:  []string{"*"},
+			class:    "",
+			expected: true,
+		},
+		{
+			name:     "wildcard in list matches",
+			classes:  []string{"alb", "*", "traefik"},
+			class:    "anything",
+			expected: true,
+		},
+		// Prefix wildcard tests (*-something)
+		{
+			name:     "prefix wildcard matches suffix",
+			classes:  []string{"*-nginx"},
+			class:    "custom-nginx",
+			expected: true,
+		},
+		{
+			name:     "prefix wildcard does not match without suffix separator",
+			classes:  []string{"*-nginx"},
+			class:    "nginx",
+			expected: false,
+		},
+		{
+			name:     "prefix wildcard matches multiple dashes",
+			classes:  []string{"*-nginx"},
+			class:    "my-custom-nginx",
+			expected: true,
+		},
+		{
+			name:     "prefix wildcard no match",
+			classes:  []string{"*-nginx"},
+			class:    "nginx-controller",
+			expected: false,
+		},
+		{
+			name:     "prefix wildcard empty prefix matches",
+			classes:  []string{"*-nginx"},
+			class:    "-nginx",
+			expected: true,
+		},
+		// Suffix wildcard tests (something-*)
+		{
+			name:     "suffix wildcard matches prefix",
+			classes:  []string{"nginx-*"},
+			class:    "nginx-custom",
+			expected: true,
+		},
+		{
+			name:     "suffix wildcard matches exact prefix",
+			classes:  []string{"nginx-*"},
+			class:    "nginx-",
+			expected: true,
+		},
+		{
+			name:     "suffix wildcard matches multiple dashes",
+			classes:  []string{"nginx-*"},
+			class:    "nginx-my-custom",
+			expected: true,
+		},
+		{
+			name:     "suffix wildcard no match",
+			classes:  []string{"nginx-*"},
+			class:    "controller-nginx",
+			expected: false,
+		},
+		{
+			name:     "suffix wildcard empty suffix matches",
+			classes:  []string{"nginx-*"},
+			class:    "nginx-",
+			expected: true,
+		},
+		// Mixed patterns
+		{
+			name:     "mixed patterns first matches",
+			classes:  []string{"nginx-*", "alb", "*-traefik"},
+			class:    "nginx-custom",
+			expected: true,
+		},
+		{
+			name:     "mixed patterns second matches",
+			classes:  []string{"nginx-*", "alb", "*-traefik"},
+			class:    "alb",
+			expected: true,
+		},
+		{
+			name:     "mixed patterns third matches",
+			classes:  []string{"nginx-*", "alb", "*-traefik"},
+			class:    "custom-traefik",
+			expected: true,
+		},
+		{
+			name:     "mixed patterns no match",
+			classes:  []string{"nginx-*", "alb", "*-traefik"},
+			class:    "istio",
+			expected: false,
+		},
+		// Edge cases
+		{
+			name:     "empty classes list",
+			classes:  []string{},
+			class:    "nginx",
+			expected: false,
+		},
+		{
+			name:     "empty class string with exact pattern",
+			classes:  []string{"nginx"},
+			class:    "",
+			expected: false,
+		},
+		{
+			name:     "prefix wildcard with empty pattern",
+			classes:  []string{"*"},
+			class:    "nginx",
+			expected: true,
+		},
+		{
+			name:     "just asterisk suffix",
+			classes:  []string{"*"},
+			class:    "anything-here",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasClass(tt.classes, tt.class)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
