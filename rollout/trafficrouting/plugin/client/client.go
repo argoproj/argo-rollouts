@@ -14,6 +14,7 @@ import (
 
 type trafficPlugin struct {
 	pluginClient map[string]*goPlugin.Client
+	rpcClient    map[string]goPlugin.ClientProtocol
 	plugin       map[string]rpc.TrafficRouterPlugin
 }
 
@@ -38,6 +39,7 @@ func GetTrafficPlugin(pluginName string) (rpc.TrafficRouterPlugin, error) {
 	once.Do(func() {
 		pluginClients = &trafficPlugin{
 			pluginClient: make(map[string]*goPlugin.Client),
+			rpcClient:    make(map[string]goPlugin.ClientProtocol),
 			plugin:       make(map[string]rpc.TrafficRouterPlugin),
 		}
 	})
@@ -71,6 +73,9 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 			return nil, fmt.Errorf("unable to get plugin client (%s): %w", pluginName, err)
 		}
 
+		// Cache the RPC client to avoid calling Client() again
+		t.rpcClient[pluginName] = rpcClient
+
 		// Request the plugin
 		plugin, err := rpcClient.Dispense("RpcTrafficRouterPlugin")
 		if err != nil {
@@ -87,16 +92,36 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 		if resp.HasError() {
 			return nil, fmt.Errorf("unable to initialize plugin via rpc (%s): %w", pluginName, resp)
 		}
+
+		// Ping using the cached RPC client
+		if err := rpcClient.Ping(); err != nil {
+			t.pluginClient[pluginName].Kill()
+			t.pluginClient[pluginName] = nil
+			t.rpcClient[pluginName] = nil
+			t.plugin[pluginName] = nil
+			return nil, fmt.Errorf("could not ping plugin will cleanup process so we can restart it next reconcile (%w)", err)
+		}
+	} else {
+		// Plugin already initialized, use cached RPC client for ping
+		if t.rpcClient[pluginName] == nil || t.plugin[pluginName] == nil {
+			// RPC client or plugin was cleaned up, need to reinitialize
+			t.pluginClient[pluginName].Kill()
+			t.pluginClient[pluginName] = nil
+			// Recursively call to reinitialize
+			return t.startPlugin(pluginName)
+		}
+
+		if err := t.rpcClient[pluginName].Ping(); err != nil {
+			t.pluginClient[pluginName].Kill()
+			t.pluginClient[pluginName] = nil
+			t.rpcClient[pluginName] = nil
+			t.plugin[pluginName] = nil
+			return nil, fmt.Errorf("could not ping plugin will cleanup process so we can restart it next reconcile (%w)", err)
+		}
 	}
 
-	client, err := t.pluginClient[pluginName].Client()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get plugin client (%s) for ping: %w", pluginName, err)
-	}
-	if err := client.Ping(); err != nil {
-		t.pluginClient[pluginName].Kill()
-		t.pluginClient[pluginName] = nil
-		return nil, fmt.Errorf("could not ping plugin will cleanup process so we can restart it next reconcile (%w)", err)
+	if t.plugin[pluginName] == nil {
+		return nil, fmt.Errorf("plugin %s is not initialized", pluginName)
 	}
 
 	return t.plugin[pluginName], nil
