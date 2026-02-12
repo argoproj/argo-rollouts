@@ -36,29 +36,31 @@ const Type = "Istio"
 
 const SpecHttpNotFound = "spec.http not found"
 
-// NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
-func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister, replicaSets []*appsv1.ReplicaSet) *Reconciler {
+// NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state.
+// shiftingTrafficToStableOnly: when true (abort or dynamic rollback), only require stable RS availability.
+func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister, replicaSets []*appsv1.ReplicaSet, shiftingTrafficToStableOnly bool) *Reconciler {
 	return &Reconciler{
-		rollout: r,
-		log:     logutil.WithRollout(r),
-
-		client:                client,
-		recorder:              recorder,
-		virtualServiceLister:  virtualServiceLister,
-		destinationRuleLister: destinationRuleLister,
-		replicaSets:           replicaSets,
+		rollout:                     r,
+		log:                         logutil.WithRollout(r),
+		client:                      client,
+		recorder:                    recorder,
+		virtualServiceLister:        virtualServiceLister,
+		destinationRuleLister:       destinationRuleLister,
+		replicaSets:                 replicaSets,
+		shiftingTrafficToStableOnly: shiftingTrafficToStableOnly,
 	}
 }
 
 // Reconciler holds required fields to reconcile Istio resources
 type Reconciler struct {
-	rollout               *v1alpha1.Rollout
-	log                   *log.Entry
-	client                dynamic.Interface
-	recorder              record.EventRecorder
-	virtualServiceLister  dynamiclister.Lister
-	destinationRuleLister dynamiclister.Lister
-	replicaSets           []*appsv1.ReplicaSet
+	rollout                     *v1alpha1.Rollout
+	log                         *log.Entry
+	client                      dynamic.Interface
+	recorder                    record.EventRecorder
+	virtualServiceLister        dynamiclister.Lister
+	destinationRuleLister       dynamiclister.Lister
+	replicaSets                 []*appsv1.ReplicaSet
+	shiftingTrafficToStableOnly bool
 }
 
 type virtualServicePatch struct {
@@ -358,10 +360,11 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 		for _, rs := range r.replicaSets {
 			if *rs.Spec.Replicas > 0 {
 				rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-				// Only check availability for ReplicaSets that will receive traffic
-				if (rsHash == stableHash || rsHash == canaryHash) && rsHash != "" && !replicasetutil.IsReplicaSetAvailable(rs) {
+				if (rsHash == stableHash || rsHash == canaryHash) && rsHash != "" &&
+					!(r.shiftingTrafficToStableOnly && rsHash == canaryHash) &&
+					!replicasetutil.IsReplicaSetAvailable(rs) {
 					r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
-					return nil
+					return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
 				}
 			}
 		}

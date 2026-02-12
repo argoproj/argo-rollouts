@@ -580,8 +580,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 	{
 		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
 		assert.Nil(t, err)
@@ -591,8 +592,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
 		assert.Nil(t, err)
@@ -605,8 +607,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			Istio: &v1alpha1.IstioTrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -627,8 +630,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			Istio: &v1alpha1.IstioTrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -643,8 +647,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			Nginx: &v1alpha1.NginxTrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -659,8 +664,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			ALB: &v1alpha1.ALBTrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -676,8 +682,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			SMI: &v1alpha1.SMITrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -693,8 +700,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			AppMesh: &v1alpha1.AppMeshTrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -716,8 +724,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -741,8 +750,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -760,8 +770,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			SMI:   &v1alpha1.SMITrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for position, networkReconciler := range networkReconcilerList {
@@ -784,8 +795,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			SMI:   &v1alpha1.SMITrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for position, networkReconciler := range networkReconcilerList {
@@ -1615,8 +1627,9 @@ func TestCheckReplicasAvailableWithReplicaProgressThreshold(t *testing.T) {
 			r.Spec.Strategy.Canary.ReplicaProgressThreshold = tt.threshold
 
 			roCtx := &rolloutContext{
-				rollout: r,
-				log:     logutil.WithRollout(r),
+				rollout:      r,
+				log:          logutil.WithRollout(r),
+				pauseContext: &pauseContext{rollout: r},
 			}
 
 			// Create a ReplicaSet with specified available replicas out of 5
