@@ -342,6 +342,30 @@ const parseDuration = (duration: string): string => {
     }
     return `${duration}s`;
 };
+const timeRemaining = (duration: string, startTime: string): string => {
+    if (!startTime) return 'Pending...';
+
+    // 1. Convert duration (like "1m" or "60") to total seconds
+    let durationSeconds = parseInt(duration, 10);
+    const unit = duration.charAt(duration.length - 1);
+    if (unit === 'm') durationSeconds *= 60;
+    if (unit === 'h') durationSeconds *= 3600;
+
+    // 2. Calculate the end time
+    const startMs = new Date(startTime).getTime();
+    const endMs = startMs + (durationSeconds * 1000);
+    const nowMs = Date.now();
+
+    // 3. Calculate remaining seconds
+    const remainingTotalSeconds = Math.max(0, Math.floor((endMs - nowMs) / 1000));
+
+    // 4. Format the output (e.g., 1m 5s)
+    const m = Math.floor(remainingTotalSeconds / 60);
+    const s = remainingTotalSeconds % 60;
+    
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+};
 
 const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean}) => {
     const [openedTemplate, setOpenedTemplate] = React.useState('');
@@ -351,8 +375,19 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     const [openMirror, setOpenMirror] = React.useState(false);
     const [openPlugin, setOpenPlugin] = React.useState(false);
 
+    // --- ADDED: Timer logic to force re-render every second ---
+    const [, setTick] = React.useState(0);
+    React.useEffect(() => {
+        let interval: any;
+        if (props.current && !props.complete && props.step.pause?.duration) {
+            interval = setInterval(() => setTick(t => t + 1), 1000);
+        }
+        return () => clearInterval(interval);
+    }, [props.current, props.complete]);
+    // -------------------------------------------------------
+
     let icon: string;
-    let content = '';
+    let content: any = ''; // Changed to 'any' to allow React elements (JSX)
     let unit = '';
     if (props.step.setWeight || props.step.setWeight === 0) {
         icon = 'fa-weight';
@@ -362,7 +397,20 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     if (props.step.pause) {
         icon = 'fa-pause-circle';
         if (props.step.pause.duration) {
-            content = `Pause: ${parseDuration(`${props.step.pause.duration}`)}`;
+            content = `Pause: ${parseDuration(`${props.step.pause.duration}`)}, Time Remaining: ${timeRemaining(`${props.step.pause.duration}`,`${props.step.pause.startTime}`)}`;
+            // we Have to add the remainig time left to the duration if the step is current and not complete
+            
+            const durationStr = `${props.step.pause.duration}`;
+            const total = parseDuration(durationStr);
+            
+            // Only show "Remaining" if step is active (current) and not finished (complete)
+            if (props.current && !props.complete) {
+                // timeRemaining handles the 2m, 2s, 2h conversion internally
+                const remaining = timeRemaining(durationStr, (props.step.pause as any).startTime);                
+                content = `Pause: ${total}, Time Remaining: ${remaining}`;
+            } else {
+                content = `Pause: ${total}`;
+            }
         } else {
             content = 'Pause';
         }
