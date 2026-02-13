@@ -397,7 +397,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     if (props.step.pause) {
         icon = 'fa-pause-circle';
         if (props.step.pause.duration) {
-            content = `Pause: ${parseDuration(`${props.step.pause.duration}`)}, Time Remaining: ${timeRemaining(`${props.step.pause.duration}`,`${props.step.pause.startTime}`)}`;
+            // content = `Pause: ${parseDuration(`${props.step.pause.duration}`)}, Time Remaining: ${timeRemaining(`${props.step.pause.duration}`,`${props.step.pause.startTime}`)}`;
             // we Have to add the remainig time left to the duration if the step is current and not complete
             
             const durationStr = `${props.step.pause.duration}`;
