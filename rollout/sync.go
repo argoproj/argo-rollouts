@@ -944,9 +944,11 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.pauseContext.IsAborted() {
 			return ""
 		}
+		// Block promotion only when canary has fewer available than desired (e.g. still scaling up).
+		// When canary has >= desired (e.g. HPA scaled rollout down so desired=1 but canary still has 2),
+		// allow promotion so rollout can complete and then scale down to desired.
 		if c.newRS == nil ||
-			(c.newRS.Status.AvailableReplicas != defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) &&
-				// If the replica progress threshold is met, we can fully promote canary to stable.
+			(c.newRS.Status.AvailableReplicas < defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) &&
 				!replicasetutil.ReplicaProgressThresholdMet(c.rollout.Spec.Strategy.Canary.ReplicaProgressThreshold, c.newRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas))) {
 			return ""
 		}
