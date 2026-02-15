@@ -36,6 +36,10 @@ var pluginMap = map[string]goPlugin.Plugin{
 // getPluginInfo is a package-level function variable to allow test overrides.
 var getPluginInfo = plugin.GetPluginInfo
 
+// testBeforePing is a hook called right before Ping() in the if-branch of startPluginLocked.
+// It is nil in production and only set during tests to simulate ping failures.
+var testBeforePing func(pluginName string)
+
 // GetTrafficPlugin returns a singleton plugin client for the given traffic router plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the rollout object.
 func GetTrafficPlugin(pluginName string) (rpc.TrafficRouterPlugin, error) {
@@ -101,6 +105,9 @@ func (t *trafficPlugin) startPluginLocked(pluginName string) (rpc.TrafficRouterP
 		}
 
 		// Ping using the cached RPC client
+		if testBeforePing != nil {
+			testBeforePing(pluginName)
+		}
 		if err := rpcClient.Ping(); err != nil {
 			t.pluginClient[pluginName].Kill()
 			t.pluginClient[pluginName] = nil

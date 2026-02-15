@@ -1,16 +1,26 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	goPlugin "github.com/hashicorp/go-plugin"
 
-	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
 
-type testPlugin struct{}
+type testPlugin struct {
+	failInit bool
+}
 
-func (p *testPlugin) InitPlugin() types.RpcError                    { return types.RpcError{} }
+func (p *testPlugin) InitPlugin() types.RpcError {
+	if p.failInit {
+		return types.RpcError{ErrorString: fmt.Sprintf("init failed on purpose")}
+	}
+	return types.RpcError{}
+}
 func (p *testPlugin) SetWeight(_ *v1alpha1.Rollout, _ int32, _ []v1alpha1.WeightDestination) types.RpcError {
 	return types.RpcError{}
 }
@@ -32,6 +42,8 @@ func (p *testPlugin) RemoveManagedRoutes(_ *v1alpha1.Rollout) types.RpcError {
 func (p *testPlugin) Type() string { return "test" }
 
 func main() {
+	failInit := len(os.Args) > 1 && os.Args[1] == "--fail-init"
+
 	goPlugin.Serve(&goPlugin.ServeConfig{
 		HandshakeConfig: goPlugin.HandshakeConfig{
 			ProtocolVersion:  1,
@@ -39,7 +51,7 @@ func main() {
 			MagicCookieValue: "trafficrouter",
 		},
 		Plugins: map[string]goPlugin.Plugin{
-			"RpcTrafficRouterPlugin": &rolloutsPlugin.RpcTrafficRouterPlugin{Impl: &testPlugin{}},
+			"RpcTrafficRouterPlugin": &rolloutsPlugin.RpcTrafficRouterPlugin{Impl: &testPlugin{failInit: failInit}},
 		},
 	})
 }
