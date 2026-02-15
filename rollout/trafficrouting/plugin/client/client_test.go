@@ -17,7 +17,9 @@ import (
 
 type testRpcPlugin struct{}
 
-func (p *testRpcPlugin) InitPlugin() types.RpcError                    { return types.RpcError{} }
+func (p *testRpcPlugin) InitPlugin() types.RpcError {
+	return types.RpcError{}
+}
 func (r *testRpcPlugin) SetWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) types.RpcError {
 	return types.RpcError{}
 }
@@ -36,7 +38,9 @@ func (r *testRpcPlugin) SetMirrorRoute(ro *v1alpha1.Rollout, setMirrorRoute *v1a
 func (r *testRpcPlugin) RemoveManagedRoutes(ro *v1alpha1.Rollout) types.RpcError {
 	return types.RpcError{}
 }
-func (r *testRpcPlugin) Type() string { return "TestRPCPlugin" }
+func (r *testRpcPlugin) Type() string {
+	return "TestRPCPlugin"
+}
 
 func setupTestPlugin(t *testing.T) (*goPlugin.Client, goPlugin.ClientProtocol, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
