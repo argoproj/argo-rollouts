@@ -33,6 +33,9 @@ var pluginMap = map[string]goPlugin.Plugin{
 	"RpcTrafficRouterPlugin": &rpc.RpcTrafficRouterPlugin{},
 }
 
+// getPluginInfo is a package-level function variable to allow test overrides.
+var getPluginInfo = plugin.GetPluginInfo
+
 // GetTrafficPlugin returns a singleton plugin client for the given traffic router plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the rollout object.
 func GetTrafficPlugin(pluginName string) (rpc.TrafficRouterPlugin, error) {
@@ -53,10 +56,14 @@ func GetTrafficPlugin(pluginName string) (rpc.TrafficRouterPlugin, error) {
 func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
+	return t.startPluginLocked(pluginName)
+}
 
+// startPluginLocked contains the core logic and must be called with mutex held.
+func (t *trafficPlugin) startPluginLocked(pluginName string) (rpc.TrafficRouterPlugin, error) {
 	if t.pluginClient[pluginName] == nil || t.pluginClient[pluginName].Exited() {
 
-		pluginPath, args, err := plugin.GetPluginInfo(pluginName, types.PluginTypeTrafficRouter)
+		pluginPath, args, err := getPluginInfo(pluginName, types.PluginTypeTrafficRouter)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
@@ -107,8 +114,8 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 			// RPC client or plugin was cleaned up, need to reinitialize
 			t.pluginClient[pluginName].Kill()
 			t.pluginClient[pluginName] = nil
-			// Recursively call to reinitialize
-			return t.startPlugin(pluginName)
+			// Recursively call to reinitialize (mutex already held)
+			return t.startPluginLocked(pluginName)
 		}
 
 		if err := t.rpcClient[pluginName].Ping(); err != nil {
