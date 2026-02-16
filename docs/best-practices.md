@@ -188,3 +188,32 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-options: PruneLast=true
 ```
+
+## Rollout a Secret change
+
+The same technique can be applied to Secrets. If a Secret is mounted inside a Deployment and its content changes, the Deployment won't detect the change by default. To ensure a Rollout is triggered, you can append a hash of its content to the Secret name:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret-3f5c8a1b2
+type: Opaque
+```
+
+Just like with ConfigMaps, dynamically naming Secrets ensures that updates are reflected in the Deployment, but it also introduces the risk of old Secrets being deleted before a Rollout is fully completed.
+
+To prevent issues during progressive rollouts, you can configure your deployment tool to remove the Secret only after the Rollout has succeeded.
+
+Example with Argo CD:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret-3f5c8a1b2
+  annotations:
+    argocd.argoproj.io/sync-options: PruneLast=true
+```
+
+Tools such as Kustomize and Helm can automatically add a hash suffix to Secrets, just as they do for ConfigMaps, ensuring that updates trigger Rollouts seamlessly.
