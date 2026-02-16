@@ -2,7 +2,10 @@ package dashboard
 
 import (
 	"context"
+	"os"
+	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
@@ -29,6 +32,17 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 			namespace := o.Namespace()
 			kubeclientset := o.KubeClientset()
 			rolloutclientset := o.RolloutsClientset()
+			cacheTTLEnv := os.Getenv("KUBECTL_CACHE_TTL")
+			var cacheTTL time.Duration
+			if cacheTTLEnv != "" {
+				parsedTTL, err := time.ParseDuration(cacheTTLEnv)
+				if err != nil {
+					log.Errorf("Invalid value for KUBECTL_CACHE_TTL: %v", err)
+				} else {
+					cacheTTL = parsedTTL
+					log.Infof("Using cache TTL from environment variable: %s", cacheTTLEnv)
+				}
+			}
 
 			opts := server.ServerOptions{
 				Namespace:         namespace,
@@ -36,6 +50,7 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 				RolloutsClientset: rolloutclientset,
 				DynamicClientset:  o.DynamicClientset(),
 				RootPath:          rootPath,
+				CacheTTL:          cacheTTL,
 			}
 
 			for {

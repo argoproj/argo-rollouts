@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -57,6 +58,7 @@ type ServerOptions struct {
 	DynamicClientset  dynamic.Interface
 	Namespace         string
 	RootPath          string
+	CacheTTL          time.Duration
 }
 
 const (
@@ -64,10 +66,22 @@ const (
 	MaxGRPCMessageSize = 100 * 1024 * 1024
 )
 
+type ReplicaSetCacheItem struct {
+	Data      []*appsv1.ReplicaSet
+	ExpiresAt time.Time
+}
+
+type PodCacheItem struct {
+	Data      []*corev1.Pod
+	ExpiresAt time.Time
+}
+
 // ArgoRolloutsServer holds information about rollouts server
 type ArgoRolloutsServer struct {
-	Options ServerOptions
-	stopCh  chan struct{}
+	Options         ServerOptions
+	stopCh          chan struct{}
+	ReplicaSetCache sync.Map
+	PodCache        sync.Map
 }
 
 // NewServer creates an ArgoRolloutsServer
@@ -224,25 +238,119 @@ func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws ro
 
 func (s *ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context, namespace string) ([]*appsv1.ReplicaSet, []*corev1.Pod, error) {
 
-	allReplicaSets, err := s.Options.KubeClientset.AppsV1().ReplicaSets(namespace).List(ctx, v1.ListOptions{})
+	allReplicaSets, err := listAllReplicaSetsCached(ctx, namespace, s)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	allPods, err := s.Options.KubeClientset.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{})
+	allPods, err := listAllPodsCached(ctx, namespace, s)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	return allReplicaSets, allPods, nil
+}
+
+func listAllReplicaSetsCached(ctx context.Context, namespace string, s *ArgoRolloutsServer) ([]*appsv1.ReplicaSet, error) {
+	// If CacheTTL is 0, skip caching and fetch directly from the API
+	if s.Options.CacheTTL == 0 {
+		return fetchAllReplicaSets(ctx, namespace, s)
+	}
+
+	// Check if data exists in the cache
+	if item, ok := s.ReplicaSetCache.Load(namespace); ok {
+		cacheItem := item.(ReplicaSetCacheItem)
+		if time.Now().Before(cacheItem.ExpiresAt) {
+			log.Debugf("ReplicaSet Cache hit - api/v1/rollouts/%s/info", namespace)
+			return cacheItem.Data, nil
+		}
+		log.Debugf("ReplicaSet Cache expired - api/v1/rollouts/%s/info", namespace)
+	}
+
+	// Cache miss. Fetch from API and store in cache
+	return fetchAndCacheReplicaSets(ctx, namespace, s)
+}
+
+func fetchAllReplicaSets(ctx context.Context, namespace string, s *ArgoRolloutsServer) ([]*appsv1.ReplicaSet, error) {
+	log.Debug(fmt.Sprintf("Fetching replica sets directly - api/v1/rollouts/%s/info", namespace))
+	allReplicaSets, err := s.Options.KubeClientset.AppsV1().ReplicaSets(namespace).List(ctx, v1.ListOptions{})
+	if err != nil {
+		return nil, err
 	}
 
 	var allReplicaSetsP = make([]*appsv1.ReplicaSet, len(allReplicaSets.Items))
 	for i := range allReplicaSets.Items {
 		allReplicaSetsP[i] = &allReplicaSets.Items[i]
 	}
+
+	return allReplicaSetsP, nil
+}
+
+func fetchAndCacheReplicaSets(ctx context.Context, namespace string, s *ArgoRolloutsServer) ([]*appsv1.ReplicaSet, error) {
+	log.Debug(fmt.Sprintf("ReplicaSet Cache miss - api/v1/rollouts/%s/info", namespace))
+	allReplicaSets, err := fetchAllReplicaSets(ctx, namespace, s)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the data in the cache
+	s.ReplicaSetCache.Store(namespace, ReplicaSetCacheItem{
+		Data:      allReplicaSets,
+		ExpiresAt: time.Now().Add(s.Options.CacheTTL),
+	})
+
+	return allReplicaSets, nil
+}
+
+func listAllPodsCached(ctx context.Context, namespace string, s *ArgoRolloutsServer) ([]*corev1.Pod, error) {
+	// If CacheTTL is 0, skip caching and fetch directly from the API
+	if s.Options.CacheTTL == 0 {
+		return fetchAllPods(ctx, namespace, s)
+	}
+
+	// Check if data exists in the cache
+	if item, ok := s.PodCache.Load(namespace); ok {
+		cacheItem := item.(PodCacheItem)
+		if time.Now().Before(cacheItem.ExpiresAt) {
+			log.Debugf("Pod Cache hit - api/v1/rollouts/%s/info", namespace)
+			return cacheItem.Data, nil
+		}
+		log.Debugf("Pod Cache expired - api/v1/rollouts/%s/info", namespace)
+	}
+
+	// Cache miss. Fetch from API and store in cache
+	return fetchAndCachePods(ctx, namespace, s)
+}
+
+func fetchAllPods(ctx context.Context, namespace string, s *ArgoRolloutsServer) ([]*corev1.Pod, error) {
+	log.Debugf("Fetching pods directly - api/v1/rollouts/%s/info", namespace)
+	allPods, err := s.Options.KubeClientset.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
 	var allPodsP = make([]*corev1.Pod, len(allPods.Items))
 	for i := range allPods.Items {
 		allPodsP[i] = &allPods.Items[i]
 	}
-	return allReplicaSetsP, allPodsP, nil
+
+	return allPodsP, nil
+}
+
+func fetchAndCachePods(ctx context.Context, namespace string, s *ArgoRolloutsServer) ([]*corev1.Pod, error) {
+	log.Debugf("Pod Cache miss - api/v1/rollouts/%s/info", namespace)
+	allPods, err := fetchAllPods(ctx, namespace, s)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the data in the cache
+	s.PodCache.Store(namespace, PodCacheItem{
+		Data:      allPods,
+		ExpiresAt: time.Now().Add(s.Options.CacheTTL),
+	})
+
+	return allPods, nil
 }
 
 // ListRolloutInfos returns a list of all rollouts
