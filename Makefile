@@ -291,7 +291,7 @@ coverage: test ## run coverage tests
 
 .PHONY: manifests
 manifests: ## generate manifests e.g. CRD, RBAC etc.
-	./hack/update-manifests.sh
+	REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) ./hack/update-manifests.sh
 
 .PHONY: clean
 clean: ## clean up build artifacts
