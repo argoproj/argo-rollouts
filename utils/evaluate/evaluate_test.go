@@ -348,3 +348,31 @@ func TestEvalTimeWithInvalidExpression(t *testing.T) {
 	assert.Equal(t, time.Time{}, status)
 	assert.Error(t, err)
 }
+
+func TestEvalQueryFromValidExpression(t *testing.T) {
+	expectedEvaluatedQuery := `sum(rate(some_metric{filter1="filter1_value",filter2="filter2_value",filter3=~"filter3_value",filter4=~"filter4_value",filter5!~"filter5_value"}[5m])) by(some_value))`
+	evaluatedQuery, err := EvalQuery(`"some_arg" == "some_arg" ? 'sum(rate(some_metric{filter1="filter1_value",filter2="filter2_value",filter3=~"filter3_value",filter4=~"filter4_value",filter5!~"filter5_value"}[5m])) by(some_value))' : "query2"`)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedEvaluatedQuery, evaluatedQuery)
+}
+
+func TestEvalQueryFromValidButNestedExpression(t *testing.T) {
+	expectedEvaluatedQuery := `sum(rate(some_metric{filter1="filter1_value",filter2="filter2_value",filter3=~"filter3_value",filter4=~"filter4_value",filter5!~"filter5_value"}[5m])) by(some_value))`
+	evaluatedQuery, err := EvalQuery(`"some_arg" == "not_some_arg" ? "query1" : ( "some_arg" == "some_arg" ? 'sum(rate(some_metric{filter1="filter1_value",filter2="filter2_value",filter3=~"filter3_value",filter4=~"filter4_value",filter5!~"filter5_value"}[5m])) by(some_value))' : "query2")`)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedEvaluatedQuery, evaluatedQuery)
+}
+
+func TestEvalQueryFromInvalidExpression(t *testing.T) {
+	expectedEvaluatedQuery := ""
+	evaluatedQuery, err := EvalQuery(`"some_arg" == "not_some_arg" ? "query1"`)
+	assert.Error(t, err)
+	assert.Equal(t, expectedEvaluatedQuery, evaluatedQuery)
+}
+
+func TestEvalQueryWithOrOperatorInEachOption(t *testing.T) {
+	expectedEvaluatedQuery := `old_query or sum(rate(some_metric{filter1="filter1_value",filter2="filter2_value",filter3=~"filter3_value",filter4=~"filter4_value",filter5!~"filter5_value"}[5m])) by(some_value))`
+	evaluatedQuery, err := EvalQuery(`"some_arg" == "not_some_arg" ? "old_query or query1" : ( "some_arg" == "some_arg" ? 'old_query or sum(rate(some_metric{filter1="filter1_value",filter2="filter2_value",filter3=~"filter3_value",filter4=~"filter4_value",filter5!~"filter5_value"}[5m])) by(some_value))' : "old_query or query2")`)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedEvaluatedQuery, evaluatedQuery)
+}
