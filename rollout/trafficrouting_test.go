@@ -1,12 +1,15 @@
 package rollout
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -39,6 +42,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 // newFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with mocked success return values
@@ -1931,4 +1935,154 @@ func TestTrafficRoutingErrorsWhenNewCanaryHasNoReplicas(t *testing.T) {
 			f.fakeTrafficRouting.AssertCalled(t, tc.expectedCall, mock.Anything, mock.Anything)
 		})
 	}
+}
+
+// TestRollbackDestinationRuleBeforeSetWeight is a scenario test for PR 4612: on fast rollback
+// (within rollback window), the DestinationRule must be updated before SetWeight so traffic
+// does not hit the canary subset at final step weight (e.g. 70%) while still pointing at old subsets.
+// Uses subset-level Istio traffic routing (VirtualService + DestinationRule with canary/stable subsets).
+func TestRollbackDestinationRuleBeforeSetWeight(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	f.fakeTrafficRouting = nil // use real Istio reconciler so we see "delaying destination rule switch" log
+
+	pause5m := &v1alpha1.RolloutPause{Duration: v1alpha1.DurationFromInt(300)}
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](5)},
+		{Pause: pause5m},
+		{SetWeight: ptr.To[int32](10)},
+		{Pause: pause5m},
+		{SetWeight: ptr.To[int32](25)},
+		{Pause: pause5m},
+		{SetWeight: ptr.To[int32](50)},
+		{Pause: pause5m},
+		{SetWeight: ptr.To[int32](70)},
+	}
+
+	// Build 6 revisions: 5 previously successful + current canary (r6 = current rollout)
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.RollbackWindow = &v1alpha1.RollbackWindowSpec{Revisions: 3}
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+	r4 := bumpVersion(r3)
+	r5 := bumpVersion(r4)
+	r6 := bumpVersion(r5)
+
+	r6.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: &v1alpha1.IstioVirtualService{Name: "foo-vsvc"},
+			DestinationRule: &v1alpha1.IstioDestinationRule{
+				Name:             "foo-dr",
+				CanarySubsetName: "canary",
+				StableSubsetName: "stable",
+			},
+		},
+	}
+	// Empty canary/stable service names so UpdateHash runs the "subset-only" availability check (delaying destination rule switch when rs not fully available)
+	r6.Spec.Strategy.Canary.CanaryService = ""
+	r6.Spec.Strategy.Canary.StableService = ""
+
+	// ReplicaSets for all 6 revisions (stable = rs5, canary = rs6; rs3 is rollback target and must be active)
+	rs1 := newReplicaSetWithStatus(r1, 0, 0)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	rs3 := newReplicaSetWithStatus(r3, 10, 2) // rollback target, scaled to 10 but only 2 ready (not available yet)
+	rs4 := newReplicaSetWithStatus(r4, 0, 0)
+	rs5 := newReplicaSetWithStatus(r5, 10, 10) // stable, fully available
+	rs6 := newReplicaSetWithStatus(r6, 1, 1)   // canary, e.g. at 5% capacity
+
+	// Rollback to rs3: set spec template to r3 so controller treats rs3 as desired revision (after building RSs so rs6 keeps canary hash)
+	r6.Spec.Template = r3.Spec.Template
+
+	stableHash := rs5.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canaryHash := rs6.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r6.Status.StableRS = stableHash
+	r6.Status.CurrentPodHash = canaryHash
+	r6.Status.CurrentStepIndex = ptr.To[int32](0) // 5% step (index 0)
+	r6 = updateCanaryRolloutStatus(r6, stableHash, 11, 1, 11, false)
+
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: canaryHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: stableHash}
+	canarySvc := newService("canary", 80, canarySelector, r6)
+	stableSvc := newService("stable", 80, stableSelector, r6)
+
+	// VirtualService and DestinationRule for subset-level traffic routing (required when controller runs)
+	fooVsvc := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: foo-vsvc
+  namespace: default
+spec:
+  hosts:
+  - stable
+  http:
+  - route:
+    - destination:
+        host: stable
+        subset: stable
+      weight: 95
+    - destination:
+        host: stable
+        subset: canary
+      weight: 5
+`)
+	fooDR := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: foo-dr
+  namespace: default
+spec:
+  host: stable
+  subsets:
+  - name: stable
+    labels: {}
+  - name: canary
+    labels: {}
+`)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, rs4, rs5, rs6, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3, rs4, rs5, rs6)
+	f.rolloutLister = append(f.rolloutLister, r6)
+	f.objects = append(f.objects, r6)
+	f.dynamicOnlyObjects = append(f.dynamicOnlyObjects, fooVsvc, fooDR)
+	f.virtualServiceLister = append(f.virtualServiceLister, fooVsvc)
+
+	f.expectUpdateReplicaSetAction(rs3)
+	f.expectUpdateRolloutAction(r6)
+	f.expectPatchRolloutAction(r6)
+	f.expectGetRolloutAction(r6) // re-seed between syncs
+	// Sync 2 returns error "delaying destination rule switch" and does not complete, so we do NOT expect update rs6 or second patch.
+
+	assert.Nil(t, f.fakeTrafficRouting, "test must use real Istio reconciler (fakeTrafficRouting=nil)")
+
+	// When we roll back within the rollback window, the controller progresses to the last step (70%).
+	// Re-seed the rollout at the last step so the second sync will try to SetWeight(70); we assert we must NOT see that when delaying DR switch.
+	stepCount := int32(len(r6.Spec.Strategy.Canary.Steps))
+	f.reseedRolloutMutator = func(ro *v1alpha1.Rollout) {
+		ro.Status.CurrentStepIndex = &stepCount
+	}
+	f.allowErrorOnLastSync = true // sync 2 returns "delaying destination rule switch" and does not complete
+
+	prevLog := log.StandardLogger().Out
+	defer log.SetOutput(prevLog)
+	logBuf := bytes.NewBuffer(nil)
+	log.SetOutput(logBuf)
+
+	f.runWithSyncs(getKey(r6, t), 2)
+
+	logOut := logBuf.String()
+	assert.True(t, strings.Contains(logOut, "Reconciling TrafficRouting with type 'Istio'"),
+		"expected Istio reconciler (UpdateHash) to run on second sync; log: %s", logOut)
+	assert.True(t, strings.Contains(logOut, "delaying destination rule switch"),
+		"expected UpdateHash to log 'delaying destination rule switch' when rollback target rs3 is not fully available; log: %s", logOut)
+	assert.True(t, strings.Contains(logOut, rs3.Name),
+		"expected log to mention rollback target ReplicaSet %q; log: %s", rs3.Name, logOut)
+	// Production bug: when we delay destination rule switch, we must not call SetWeight (no "Updated VirtualService" event, no desiredWeight '70' in log).
+	eventsStr := strings.Join(f.events, " ")
+	assert.False(t, strings.Contains(eventsStr, "Updated VirtualService"),
+		"when delaying DR switch, must not emit Updated VirtualService event (SetWeight not called); events: %v", f.events)
+	assert.False(t, strings.Contains(logOut, "desiredWeight '70'"),
+		"when delaying destination rule switch, must not set weight to 70; log: %s", logOut)
 }
