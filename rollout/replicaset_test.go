@@ -17,6 +17,8 @@ import (
 	core "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
+	"encoding/json"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -305,9 +307,21 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 				t.Errorf("expected 1 action during scale, got: %v", fake.Actions())
 				return
 			}
-			updated := k8sfake.Actions()[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
-			if e, a := test.expectedNewReplicas, int(*(updated.Spec.Replicas)); e != a {
-				t.Errorf("expected update to %d replicas, got %d", e, a)
+			updated := k8sfake.Actions()[0].(core.PatchAction).GetPatch()
+			var patchMap map[string]interface{}
+			if err := json.Unmarshal(updated, &patchMap); err != nil {
+				t.Fatalf("failed to unmarshal patch: %v", err)
+			}
+			spec, ok := patchMap["spec"].(map[string]interface{})
+			if !ok {
+				t.Fatalf("patch does not contain spec")
+			}
+			replicas, ok := spec["replicas"].(float64) // JSON numbers are float64
+			if !ok {
+				t.Fatalf("patch does not contain replicas")
+			}
+			if e, a := test.expectedNewReplicas, int(replicas); e != a {
+				t.Errorf("expected patch to %d replicas, got %d", e, a)
 			}
 		})
 	}

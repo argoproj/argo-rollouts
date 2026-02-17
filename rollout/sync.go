@@ -82,7 +82,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
 		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
 
-		rs, err := c.updateReplicaSet(ctx, rsCopy)
+		rs, err := c.patchReplicaSet(ctx, rsCopy, *rsCopy.Spec.Replicas, rsCopy.Annotations, rsCopy.Labels)
 		if err != nil {
 			return nil, fmt.Errorf("failed to update replicaset revision on %s: %w", rsCopy.Name, err)
 		}
@@ -376,9 +376,10 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
 
-		rs, err = c.updateReplicaSet(ctx, rsCopy)
+		// Use patchReplicaSet for patching the replicas, annotations, and labels of a ReplicaSet
+		rs, err = c.patchReplicaSet(ctx, rsCopy, newScale, rsCopy.Annotations, rsCopy.Labels)
 		if err != nil {
-			return scaled, rs, fmt.Errorf("failed to updateReplicaSet in scaleReplicaSet: %w", err)
+			return scaled, rs, fmt.Errorf("failed to patchReplicaSet in scaleReplicaSet: %w", err)
 		}
 
 		if sizeNeedsUpdate {
