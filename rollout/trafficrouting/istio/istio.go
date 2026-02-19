@@ -27,6 +27,7 @@ import (
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 const Http = "http"
@@ -37,30 +38,27 @@ const Type = "Istio"
 const SpecHttpNotFound = "spec.http not found"
 
 // NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state.
-// shiftingTrafficToStableOnly: when true (abort or dynamic rollback), only require stable RS availability.
-func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister, replicaSets []*appsv1.ReplicaSet, shiftingTrafficToStableOnly bool) *Reconciler {
+func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister, replicaSets []*appsv1.ReplicaSet) *Reconciler {
 	return &Reconciler{
-		rollout:                     r,
-		log:                         logutil.WithRollout(r),
-		client:                      client,
-		recorder:                    recorder,
-		virtualServiceLister:        virtualServiceLister,
-		destinationRuleLister:       destinationRuleLister,
-		replicaSets:                 replicaSets,
-		shiftingTrafficToStableOnly: shiftingTrafficToStableOnly,
+		rollout:               r,
+		log:                   logutil.WithRollout(r),
+		client:                client,
+		recorder:              recorder,
+		virtualServiceLister:  virtualServiceLister,
+		destinationRuleLister: destinationRuleLister,
+		replicaSets:           replicaSets,
 	}
 }
 
 // Reconciler holds required fields to reconcile Istio resources
 type Reconciler struct {
-	rollout                     *v1alpha1.Rollout
-	log                         *log.Entry
-	client                      dynamic.Interface
-	recorder                    record.EventRecorder
-	virtualServiceLister        dynamiclister.Lister
-	destinationRuleLister       dynamiclister.Lister
-	replicaSets                 []*appsv1.ReplicaSet
-	shiftingTrafficToStableOnly bool
+	rollout               *v1alpha1.Rollout
+	log                   *log.Entry
+	client                dynamic.Interface
+	recorder              record.EventRecorder
+	virtualServiceLister  dynamiclister.Lister
+	destinationRuleLister dynamiclister.Lister
+	replicaSets           []*appsv1.ReplicaSet
 }
 
 type virtualServicePatch struct {
@@ -352,22 +350,36 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 	return newObj, len(patches) > 0, err
 }
 
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
-	// We need to check if the replicasets are ready here as well if we didn't define any services in the rollout
-	// See: https://github.com/argoproj/argo-rollouts/issues/2507
-	if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" {
-
-		for _, rs := range r.replicaSets {
-			if *rs.Spec.Replicas > 0 {
-				rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-				if (rsHash == stableHash || rsHash == canaryHash) && rsHash != "" &&
-					!(r.shiftingTrafficToStableOnly && rsHash == canaryHash) &&
-					!replicasetutil.IsReplicaSetAvailable(rs) {
-					r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
-					return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
-				}
-			}
+// shouldDelayDestinationRuleUpdate returns true if updating the DestinationRule should be
+// delayed because a traffic-receiving ReplicaSet is not yet fully available.
+// See: https://github.com/argoproj/argo-rollouts/issues/2507
+func (r *Reconciler) shouldDelayDestinationRuleUpdate(canaryHash, stableHash string) (bool, string) {
+	if r.rollout.Spec.Strategy.Canary.CanaryService != "" || r.rollout.Spec.Strategy.Canary.StableService != "" {
+		return false, ""
+	}
+	abortOrDynamicRollbackToStable := rolloututil.AbortOrDynamicRollbackToStable(r.rollout, r.replicaSets, stableHash)
+	for _, rs := range r.replicaSets {
+		if *rs.Spec.Replicas == 0 {
+			continue
 		}
+		rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		if rsHash == "" || (rsHash != stableHash && rsHash != canaryHash) {
+			continue
+		}
+		if abortOrDynamicRollbackToStable && rsHash == canaryHash {
+			continue
+		}
+		if !replicasetutil.IsReplicaSetAvailable(rs) {
+			return true, rs.Name
+		}
+	}
+	return false, ""
+}
+
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+	if shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(canaryHash, stableHash); shouldDelay {
+		r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
+		return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
 	}
 
 	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule

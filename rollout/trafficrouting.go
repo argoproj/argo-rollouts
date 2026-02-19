@@ -44,12 +44,10 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 		return nil, nil
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio != nil {
-		dynamicRollback, _ := isDynamicallyRollingBackToStable(rollout, roCtx.newRS)
-		shiftingToStable := roCtx.pauseContext.IsAborted() || dynamicRollback
 		if c.IstioController.VirtualServiceInformer.HasSynced() {
-			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, c.IstioController.VirtualServiceLister, c.IstioController.DestinationRuleLister, roCtx.allRSs, shiftingToStable))
+			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, c.IstioController.VirtualServiceLister, c.IstioController.DestinationRuleLister, roCtx.allRSs))
 		} else {
-			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, nil, nil, roCtx.allRSs, shiftingToStable))
+			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, nil, nil, roCtx.allRSs))
 		}
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
@@ -191,7 +189,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			canaryHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		}
 
-		if dynamicallyRollingBackToStable, prevDesiredHash := isDynamicallyRollingBackToStable(c.rollout, c.newRS); dynamicallyRollingBackToStable {
+		if dynamicallyRollingBackToStable, prevDesiredHash := rolloututil.IsDynamicallyRollingBackToStable(c.rollout, c.newRS); dynamicallyRollingBackToStable {
 			desiredWeight = c.calculateDesiredWeightOnAbortOrStableRollback()
 			// Since stableRS == desiredRS, we must balance traffic between the
 			// *previous desired* vs. stable (as opposed to current desired vs. stable).
