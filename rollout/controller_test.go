@@ -728,39 +728,49 @@ func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInf
 		defer close(stopCh)
 		i.Start(stopCh)
 		k8sI.Start(stopCh)
-
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
 	}
 
 	for n := 0; n < syncs; n++ {
 		err := c.syncHandler(context.Background(), rolloutName)
-		lastSync := n == syncs-1
-		allowErr := f.allowErrorOnLastSync && lastSync
-		if !expectError && err != nil && !allowErr {
-			f.t.Errorf("error syncing rollout (sync %d/%d): %v", n+1, syncs, err)
-		} else if expectError && err == nil {
-			f.t.Error("expected error syncing rollout, got nil")
-		}
-		// Re-seed rollout in informer so next sync sees typed Rollout (controller writes Unstructured via persistRolloutToInformer).
-		if syncs > 1 && n < syncs-1 {
-			namespace, name, err := cache.SplitMetaNamespaceKey(rolloutName)
-			if err != nil {
-				f.t.Fatalf("re-seed rollout: split key: %v", err)
-			}
-			ro, err := f.client.ArgoprojV1alpha1().Rollouts(namespace).Get(context.Background(), name, metav1.GetOptions{})
-			if err != nil {
-				f.t.Fatalf("re-seed rollout: get: %v", err)
-			}
-			if f.reseedRolloutMutator != nil {
-				f.reseedRolloutMutator(ro)
-			}
-			if err := c.rolloutsIndexer.Update(ro); err != nil {
-				f.t.Fatalf("re-seed rollout: update indexer: %v", err)
-			}
-		}
+		allowErr := f.allowErrorOnLastSync && (n == syncs-1)
+		f.assertSyncHandlerResult(n, syncs, err, expectError, allowErr)
+		f.reseedRolloutInInformerIfNeeded(c, rolloutName, n, syncs)
 	}
 
 	return f.verifyActionsAndReturn(c)
+}
+
+func (f *fixture) assertSyncHandlerResult(n, syncs int, err error, expectError, allowErr bool) {
+	if !expectError && err != nil && !allowErr {
+		f.t.Errorf("error syncing rollout (sync %d/%d): %v", n+1, syncs, err)
+		return
+	}
+	if expectError && err == nil {
+		f.t.Error("expected error syncing rollout, got nil")
+	}
+}
+
+// reseedRolloutInInformer re-seeds the rollout in the informer so the next sync sees a typed Rollout
+// (controller writes Unstructured via persistRolloutToInformer). No-op when syncs <= 1 or on the last sync.
+func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName string, n, syncs int) {
+	if syncs <= 1 || n >= syncs-1 {
+		return
+	}
+	namespace, name, err := cache.SplitMetaNamespaceKey(rolloutName)
+	if err != nil {
+		f.t.Fatalf("re-seed rollout: split key: %v", err)
+	}
+	ro, err := f.client.ArgoprojV1alpha1().Rollouts(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed rollout: get: %v", err)
+	}
+	if f.reseedRolloutMutator != nil {
+		f.reseedRolloutMutator(ro)
+	}
+	if err := c.rolloutsIndexer.Update(ro); err != nil {
+		f.t.Fatalf("re-seed rollout: update indexer: %v", err)
+	}
 }
 
 func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
