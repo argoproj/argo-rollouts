@@ -105,7 +105,7 @@ sudo mv ./kubectl_complete-argo-rollouts /usr/local/bin/
 
 To enable auto completion for the CLI run as a standalone binary, the CLI can export shell completion code for several shells.
 
-For bash, ensure you have bash completions installed and enabled. To access completions in your current shell, run $ `source <(kubectl-argo-rollouts completion bash)`. Alternatively, write it to a file and source in `.bash_profile`.
+For bash, ensure you have bash completions installed and enabled. To access completions in your current shell, run $ `source <(kubectl_complete-argo-rollouts completion bash)`. Alternatively, write it to a file and source in `.bash_profile`.
 
 The completion command supports bash, zsh, fish and powershell.
 
