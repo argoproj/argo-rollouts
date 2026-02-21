@@ -24,7 +24,7 @@ jobs:
       contents: read # for actions/checkout to fetch code
       pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
     name: Lint Go code
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
     steps:
       - name: Set up Go
         uses: actions/setup-go@v6.2.0
@@ -39,7 +39,7 @@ jobs:
           args: --timeout 6m
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
     steps:
       - name: Set up Go
         uses: actions/setup-go@v6.2.0
@@ -65,7 +65,7 @@ jobs:
 
   codegen:
     name: Verify Codegen
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
     env:
       GOPATH: /home/runner/go
     steps:
