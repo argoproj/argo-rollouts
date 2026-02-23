@@ -156,9 +156,10 @@ func (f *fixture) Close() {
 func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
 	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
-			UID:       uuid.NewUUID(),
-			Name:      name,
-			Namespace: metav1.NamespaceDefault,
+			UID:             uuid.NewUUID(),
+			ResourceVersion: "123",
+			Name:            name,
+			Namespace:       metav1.NamespaceDefault,
 			Annotations: map[string]string{
 				annotations.RevisionAnnotation: "1",
 			},
