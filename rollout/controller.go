@@ -446,10 +446,13 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.Info("Defaulting .spec.replica to 1")
 		r.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
 		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
-		if err == nil {
-			c.writeBackToInformer(newRollout)
+		if err != nil {
+			return err
 		}
-		return err
+		if err := c.writeBackToInformer(newRollout); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	err = roCtx.reconcile()
@@ -461,21 +464,23 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		// that newRollout can get updated while we get an error during reconciliation
 		return err
 	}
-	if roCtx.newRollout != nil {
-		c.writeBackToInformer(roCtx.newRollout)
+	if roCtx.newRollout == nil {
+		return nil
+	}
+	if err := c.writeBackToInformer(roCtx.newRollout); err != nil {
+		return err
 	}
 	return nil
 }
 
 // writeBackToInformer writes a just recently updated Rollout back into the informer cache.
 // This prevents the situation where the controller operates on a stale rollout and repeats work
-func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
+func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) error {
 	logCtx := logutil.WithRollout(ro)
 	logCtx = logutil.WithVersionFields(logCtx, ro)
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ro)
 	if err != nil {
-		logCtx.Errorf("failed to convert rollout to unstructured: %v", err)
-		return
+		return fmt.Errorf("converting rollout to unstructured: %w", err)
 	}
 	un := unstructured.Unstructured{Object: obj}
 	// With code-gen tools the argoclientset is generated and the update method here is removing typemetafields
@@ -491,12 +496,23 @@ func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 			Version: v1alpha1.SchemeGroupVersion.Version,
 		})
 	}
+	o, ok, err := c.rolloutsInformer.GetStore().Get(&un)
+	if err != nil {
+		return fmt.Errorf("getting rollout from informer: %w", err)
+	}
+	// Checking the resourceVersion and comparing them is technically not something that we should be doing with K8s resource versions; however,
+	// we do this check to avoid a much more common case where the controller writing back to the informer moves slower than the informer, causing
+	// us to write an older version of the rollbout back to the informer and often causing more discrete bugs
+	// See: https://github.com/argoproj/argo-rollouts/issues/3316#issuecomment-3802000786
+	if ok && o.(*v1alpha1.Rollout).ResourceVersion != ro.ResourceVersion {
+		return fmt.Errorf("informer resourceVersion %q is newer than the rollout resourceVersion %q", o.(*v1alpha1.Rollout).ResourceVersion, ro.ResourceVersion)
+	}
 	err = c.rolloutsInformer.GetStore().Update(&un)
 	if err != nil {
-		logCtx.Errorf("failed to update informer store: %v", err)
-		return
+		return fmt.Errorf("updating informer store: %w", err)
 	}
 	logCtx.Info("persisted to informer")
+	return nil
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {
