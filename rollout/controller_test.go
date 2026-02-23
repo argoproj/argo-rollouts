@@ -57,6 +57,7 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	"github.com/argoproj/argo-rollouts/utils/tolerantinformer"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -162,9 +163,10 @@ func (f *fixture) Close() {
 func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
 	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
-			UID:       uuid.NewUUID(),
-			Name:      name,
-			Namespace: metav1.NamespaceDefault,
+			UID:             uuid.NewUUID(),
+			ResourceVersion: "123",
+			Name:            name,
+			Namespace:       metav1.NamespaceDefault,
 			Annotations: map[string]string{
 				annotations.RevisionAnnotation: "1",
 			},
@@ -563,7 +565,16 @@ func getKey(rollout *v1alpha1.Rollout, t *testing.T) string {
 
 type resyncFunc func() time.Duration
 
-func (f *fixture) newController(resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
+// toUnstructured converts a typed runtime.Object to *unstructured.Unstructured for use in dynamic informer stores.
+func toUnstructured(obj runtime.Object) *unstructured.Unstructured {
+	m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		panic(err)
+	}
+	return &unstructured.Unstructured{Object: m}
+}
+
+func (f *fixture) newController(resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory, dynamicinformer.DynamicSharedInformerFactory) {
 	f.t.Helper()
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
@@ -616,14 +627,14 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		KubeClientSet:                   f.kubeclient,
 		ArgoProjClientset:               f.client,
 		DynamicClientSet:                dynamicClient,
-		ExperimentInformer:              i.Argoproj().V1alpha1().Experiments(),
-		AnalysisRunInformer:             i.Argoproj().V1alpha1().AnalysisRuns(),
-		AnalysisTemplateInformer:        i.Argoproj().V1alpha1().AnalysisTemplates(),
-		ClusterAnalysisTemplateInformer: i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
+		ExperimentInformer:              tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory),
+		AnalysisRunInformer:             tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
+		AnalysisTemplateInformer:        tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
+		ClusterAnalysisTemplateInformer: tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(dynamicInformerFactory),
 		ReplicaSetInformer:              k8sI.Apps().V1().ReplicaSets(),
 		ServicesInformer:                k8sI.Core().V1().Services(),
 		IngressWrapper:                  ingressWrapper,
-		RolloutsInformer:                i.Argoproj().V1alpha1().Rollouts(),
+		RolloutsInformer:                tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory),
 		IstioPrimaryDynamicClient:       dynamicClient,
 		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
 		IstioDestinationRuleInformer:    istioDestinationRuleInformer,
@@ -669,12 +680,13 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		}
 	}
 
+	// Controller uses Tolerant* informers backed by dynamicInformerFactory. Seed with unstructured so the dynamic listers don't panic on type assertion.
 	for _, r := range f.rolloutLister {
-		i.Argoproj().V1alpha1().Rollouts().Informer().GetIndexer().Add(r)
+		dynamicInformerFactory.ForResource(v1alpha1.RolloutGVR).Informer().GetIndexer().Add(toUnstructured(r))
 	}
 
 	for _, e := range f.experimentLister {
-		i.Argoproj().V1alpha1().Experiments().Informer().GetIndexer().Add(e)
+		dynamicInformerFactory.ForResource(v1alpha1.ExperimentGVR).Informer().GetIndexer().Add(toUnstructured(e))
 	}
 
 	for _, r := range f.replicaSetLister {
@@ -691,43 +703,44 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(ing)
 	}
 	for _, at := range f.analysisTemplateLister {
-		i.Argoproj().V1alpha1().AnalysisTemplates().Informer().GetIndexer().Add(at)
+		dynamicInformerFactory.ForResource(v1alpha1.AnalysisTemplateGVR).Informer().GetIndexer().Add(toUnstructured(at))
 	}
 	for _, cat := range f.clusterAnalysisTemplateLister {
-		i.Argoproj().V1alpha1().ClusterAnalysisTemplates().Informer().GetIndexer().Add(cat)
+		dynamicInformerFactory.ForResource(v1alpha1.ClusterAnalysisTemplateGVR).Informer().GetIndexer().Add(toUnstructured(cat))
 	}
 	for _, ar := range f.analysisRunLister {
-		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(ar)
+		dynamicInformerFactory.ForResource(v1alpha1.AnalysisRunGVR).Informer().GetIndexer().Add(toUnstructured(ar))
 	}
 	for _, vs := range f.virtualServiceLister {
 		c.IstioController.VirtualServiceInformer.GetIndexer().Add(vs)
 	}
 
-	return c, i, k8sI
+	return c, i, k8sI, dynamicInformerFactory
 }
 
 func (f *fixture) run(rolloutName string) {
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
-	f.runController(rolloutName, true, false, c, i, k8sI)
+	c, i, k8sI, dynamicI := f.newController(noResyncPeriodFunc)
+	f.runController(rolloutName, true, false, c, i, k8sI, dynamicI)
 }
 
 // runWithSyncs runs the controller syncHandler n times (e.g. 2 for two reconciliation loops) then verifies actions.
 func (f *fixture) runWithSyncs(rolloutName string, syncs int) {
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
-	f.runControllerWithSyncs(rolloutName, syncs, true, false, c, i, k8sI)
+	c, i, k8sI, dynamicI := f.newController(noResyncPeriodFunc)
+	f.runControllerWithSyncs(rolloutName, syncs, true, false, c, i, k8sI, dynamicI)
 }
 
 func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
-	f.runController(rolloutName, startInformers, true, c, i, k8sI)
+	c, i, k8sI, dynamicI := f.newController(noResyncPeriodFunc)
+	f.runController(rolloutName, startInformers, true, c, i, k8sI, dynamicI)
 }
 
-func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
+func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory, dynamicI dynamicinformer.DynamicSharedInformerFactory) *Controller {
 	if startInformers {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
 		i.Start(stopCh)
 		k8sI.Start(stopCh)
+		dynamicI.Start(stopCh)
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
 	}
 
@@ -768,17 +781,19 @@ func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName str
 	if f.reseedRolloutMutator != nil {
 		f.reseedRolloutMutator(ro)
 	}
-	if err := c.rolloutsIndexer.Update(ro); err != nil {
+	// Dynamic informer store must hold *unstructured.Unstructured (same as newController seeding).
+	if err := c.rolloutsIndexer.Update(toUnstructured(ro)); err != nil {
 		f.t.Fatalf("re-seed rollout: update indexer: %v", err)
 	}
 }
 
-func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
+func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory, dynamicI dynamicinformer.DynamicSharedInformerFactory) *Controller {
 	if startInformers {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
 		i.Start(stopCh)
 		k8sI.Start(stopCh)
+		dynamicI.Start(stopCh)
 
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
 	}
@@ -1414,7 +1429,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 			savedRollout := test.rollout.DeepCopy()
 			f := newFixture(t)
 			defer f.Close()
-			c, _, _ := f.newController(noResyncPeriodFunc)
+			c, _, _, _ := f.newController(noResyncPeriodFunc)
 			f.client.PrependReactor("*", "rollouts", func(action core.Action) (bool, runtime.Object, error) {
 				savedRollout.DeepCopyInto(test.rollout)
 				return true, savedRollout, nil
@@ -1769,7 +1784,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &rolloutAnalysisFail
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NotNil(t, err)
 		assert.Nil(t, roCtx)
@@ -1788,7 +1803,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		r.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &rolloutAnalysisFail
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NotNil(t, err)
 		assert.Nil(t, roCtx)
@@ -1809,7 +1824,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 		r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 			RolloutAnalysis: rolloutAnalysisFail,
 		}
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NotNil(t, err)
 		assert.Nil(t, roCtx)
@@ -1830,7 +1845,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NotNil(t, err)
 		assert.Nil(t, roCtx)
@@ -1857,7 +1872,7 @@ func TestGetReferencedClusterAnalysisTemplate(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
 	t.Run("get referenced analysisTemplate - fail", func(t *testing.T) {
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
@@ -1867,7 +1882,7 @@ func TestGetReferencedClusterAnalysisTemplate(t *testing.T) {
 
 	t.Run("get referenced analysisTemplate - success", func(t *testing.T) {
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name", "cluster-example"))
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
@@ -1894,7 +1909,7 @@ func TestGetInnerReferencedAnalysisTemplate(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 
 	t.Run("get inner referenced analysisTemplate - fail", func(t *testing.T) {
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
@@ -1906,7 +1921,7 @@ func TestGetInnerReferencedAnalysisTemplate(t *testing.T) {
 	t.Run("get inner referenced analysisTemplate second level - fail", func(t *testing.T) {
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("second-cluster-analysis-template-name", "cluster-example"))
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplateWithAnalysisRefs("third-cluster-analysis-template-name", "fourth-cluster-analysis-template-name"))
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
@@ -1919,7 +1934,7 @@ func TestGetInnerReferencedAnalysisTemplate(t *testing.T) {
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("second-cluster-analysis-template-name", "cluster-example"))
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplateWithAnalysisRefs("third-cluster-analysis-template-name", "fourth-cluster-analysis-template-name"))
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("fourth-cluster-analysis-template-name", "cluster-example"))
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
@@ -1947,7 +1962,7 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 
 	t.Run("get referenced ALB ingress - fail", func(t *testing.T) {
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		_, err := c.newRolloutContext(r)
 		assert.Error(t, err)
 	})
@@ -1985,7 +2000,7 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 			},
 		}
 		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		i, err := roCtx.getReferencedIngresses()
@@ -2053,7 +2068,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 			for _, ing := range test.ingresses {
 				f.ingressLister = append(f.ingressLister, ing)
 			}
-			c, _, _ := f.newController(noResyncPeriodFunc)
+			c, _, _, _ := f.newController(noResyncPeriodFunc)
 			_, err := c.newRolloutContext(r)
 			assert.Error(t, err)
 			//_, err = roCtx.getReferencedIngresses()
@@ -2141,7 +2156,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.objects = append(f.objects, r)
 
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		ingresses, err := roCtx.getReferencedIngresses()
@@ -2166,7 +2181,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 	t.Run("get referenced Nginx ingress - fail", func(t *testing.T) {
 		// clear fixture
 		f.ingressLister = []*ingressutil.Ingress{}
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		_, err := c.newRolloutContext(r)
 		assert.Error(t, err)
 	})
@@ -2219,7 +2234,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.objects = append(f.objects, r)
 
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
@@ -2284,7 +2299,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 			for _, ing := range test.ingresses {
 				f.ingressLister = append(f.ingressLister, ing)
 			}
-			c, _, _ := f.newController(noResyncPeriodFunc)
+			c, _, _, _ := f.newController(noResyncPeriodFunc)
 			_, err := c.newRolloutContext(r)
 			assert.Error(t, err)
 		})
@@ -2369,7 +2384,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 
 		f.objects = append(f.objects, r)
 
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		ingresses, err := roCtx.getReferencedIngresses()
@@ -2402,7 +2417,7 @@ func TestGetReferencedAppMeshResources(t *testing.T) {
 		f := newFixture(t)
 		defer f.Close()
 
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		rCopy := r.DeepCopy()
 		rCopy.Spec.Strategy.Canary.TrafficRouting.AppMesh.VirtualService = nil
 		_, err := c.newRolloutContext(rCopy)
@@ -2413,7 +2428,7 @@ func TestGetReferencedAppMeshResources(t *testing.T) {
 		f := newFixture(t)
 		defer f.Close()
 
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		_, err := c.newRolloutContext(r)
 		assert.Error(t, err)
 	})
@@ -2436,7 +2451,7 @@ spec:
 `
 		uVsvc := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
 		f.objects = append(f.objects, uVsvc)
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		_, err := c.newRolloutContext(r)
 		assert.Error(t, err)
 	})
@@ -2497,7 +2512,7 @@ spec:
 		f.objects = append(f.objects, uVsvc, uVrouter)
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.objects = append(f.objects, r)
-		c, _, _ := f.newController(noResyncPeriodFunc)
+		c, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		refRsources, err := roCtx.getRolloutReferencedResources()
@@ -2511,7 +2526,7 @@ spec:
 func TestGetAmbassadorMappings(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
-	c, _, _ := f.newController(noResyncPeriodFunc)
+	c, _, _, _ := f.newController(noResyncPeriodFunc)
 	schema := runtime.NewScheme()
 	c.dynamicclientset = dynamicfake.NewSimpleDynamicClient(schema)
 
@@ -2577,9 +2592,9 @@ func TestWriteBackToInformer(t *testing.T) {
 
 	f.expectPatchRolloutAction(r1)
 
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	c, i, k8sI, dynamicI := f.newController(noResyncPeriodFunc)
 	roKey := getKey(r1, t)
-	f.runController(roKey, true, false, c, i, k8sI)
+	f.runController(roKey, true, false, c, i, k8sI, dynamicI)
 
 	// Verify the informer was updated with the new unstructured object after reconciliation
 	obj, exists, err := c.rolloutsIndexer.GetByKey(roKey)
@@ -2601,7 +2616,7 @@ func TestRun(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 	// make sure we can start and top the controller
-	c, _, _ := f.newController(noResyncPeriodFunc)
+	c, _, _, _ := f.newController(noResyncPeriodFunc)
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 	go func() {

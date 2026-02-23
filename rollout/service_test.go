@@ -74,7 +74,7 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, rollout)
 	f.objects = append(f.objects, rollout)
 
-	c, _, _ := f.newController(noResyncPeriodFunc)
+	c, _, _, _ := f.newController(noResyncPeriodFunc)
 	t.Run("Get Both", func(t *testing.T) {
 		roCtx, err := c.newRolloutContext(rollout)
 		assert.NoError(t, err)
@@ -750,7 +750,7 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 
 	{
 		// first ensure we don't update service because new/stable are both not available
-		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		ctrl, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := ctrl.newRolloutContext(ro1)
 		assert.NoError(t, err)
 
@@ -766,7 +766,7 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 	}
 	{
 		// ensure we don't update service because new/stable are both partially available on an adoption of service reconcile
-		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		ctrl, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := ctrl.newRolloutContext(ro1)
 		assert.NoError(t, err)
 
@@ -782,7 +782,7 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 	}
 	{
 		// next ensure we do update service because new/stable are now available
-		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		ctrl, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := ctrl.newRolloutContext(ro1)
 		assert.NoError(t, err)
 
@@ -820,7 +820,7 @@ func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
 
 	t.Run("AdoptedService No Availability", func(t *testing.T) {
 		// first ensure we don't update service because new/stable are both not available
-		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		ctrl, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := ctrl.newRolloutContext(ro1)
 		assert.NoError(t, err)
 
@@ -838,7 +838,7 @@ func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
 	})
 	t.Run("AdoptedService Partial Availability", func(t *testing.T) {
 		// ensure we do change selector on partially available replica sets
-		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		ctrl, _, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := ctrl.newRolloutContext(ro1)
 		assert.NoError(t, err)
 
