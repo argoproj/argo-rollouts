@@ -227,6 +227,50 @@
         ]
       }
     },
+    "/api/v1/rollouts/{namespace}/{name}/pause": {
+      "put": {
+        "operationId": "RolloutService_PauseRollout",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/grpc.gateway.runtime.Error"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/rollout.PauseRolloutRequest"
+            }
+          }
+        ],
+        "tags": [
+          "RolloutService"
+        ]
+      }
+    },
     "/api/v1/rollouts/{namespace}/{name}/promote": {
       "put": {
         "operationId": "RolloutService_PromoteRollout",
@@ -6406,6 +6450,20 @@
         },
         "startedAt": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
+        }
+      }
+    },
+    "rollout.PauseRolloutRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "paused": {
+          "type": "boolean"
         }
       }
     },

@@ -7858,6 +7858,31 @@ export interface RolloutNonJobInfo {
 /**
  * 
  * @export
+ * @interface RolloutPauseRolloutRequest
+ */
+export interface RolloutPauseRolloutRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutPauseRolloutRequest
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutPauseRolloutRequest
+     */
+    namespace?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RolloutPauseRolloutRequest
+     */
+    paused?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface RolloutPodInfo
  */
 export interface RolloutPodInfo {
@@ -8477,6 +8502,49 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
         },
         /**
          * 
+         * @param {RolloutPauseRolloutRequest} body 
+         * @param {string} namespace 
+         * @param {string} name 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        rolloutServicePauseRollout(body: RolloutPauseRolloutRequest, namespace: string, name: string, options: any = {}): FetchArgs {
+            // verify required parameter 'body' is not null or undefined
+            if (body === null || body === undefined) {
+                throw new RequiredError('body','Required parameter body was null or undefined when calling rolloutServicePauseRollout.');
+            }
+            // verify required parameter 'namespace' is not null or undefined
+            if (namespace === null || namespace === undefined) {
+                throw new RequiredError('namespace','Required parameter namespace was null or undefined when calling rolloutServicePauseRollout.');
+            }
+            // verify required parameter 'name' is not null or undefined
+            if (name === null || name === undefined) {
+                throw new RequiredError('name','Required parameter name was null or undefined when calling rolloutServicePauseRollout.');
+            }
+            const localVarPath = `/api/v1/rollouts/{namespace}/{name}/pause`
+                .replace(`{${"namespace"}}`, encodeURIComponent(String(namespace)))
+                .replace(`{${"name"}}`, encodeURIComponent(String(name)));
+            const localVarUrlObj = url.parse(localVarPath, true);
+            const localVarRequestOptions = Object.assign({ method: 'PUT' }, options);
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
+            // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
+            localVarUrlObj.search = null;
+            localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
+            const needsSerialization = (<any>"RolloutPauseRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
+            localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
+
+            return {
+                url: url.format(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @param {RolloutPromoteRolloutRequest} body 
          * @param {string} namespace 
          * @param {string} name 
@@ -8883,6 +8951,26 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @param {RolloutPauseRolloutRequest} body 
+         * @param {string} namespace 
+         * @param {string} name 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        rolloutServicePauseRollout(body: RolloutPauseRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
+            const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServicePauseRollout(body, namespace, name, options);
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
+                return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
+                    if (response.status >= 200 && response.status < 300) {
+                        return response.json();
+                    } else {
+                        throw response;
+                    }
+                });
+            };
+        },
+        /**
+         * 
          * @param {RolloutPromoteRolloutRequest} body 
          * @param {string} namespace 
          * @param {string} name 
@@ -9088,6 +9176,17 @@ export const RolloutServiceApiFactory = function (configuration?: Configuration,
         },
         /**
          * 
+         * @param {RolloutPauseRolloutRequest} body 
+         * @param {string} namespace 
+         * @param {string} name 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        rolloutServicePauseRollout(body: RolloutPauseRolloutRequest, namespace: string, name: string, options?: any) {
+            return RolloutServiceApiFp(configuration).rolloutServicePauseRollout(body, namespace, name, options)(fetch, basePath);
+        },
+        /**
+         * 
          * @param {RolloutPromoteRolloutRequest} body 
          * @param {string} namespace 
          * @param {string} name 
@@ -9226,6 +9325,19 @@ export class RolloutServiceApi extends BaseAPI {
      */
     public rolloutServiceListRolloutInfos(namespace: string, options?: any) {
         return RolloutServiceApiFp(this.configuration).rolloutServiceListRolloutInfos(namespace, options)(this.fetch, this.basePath);
+    }
+
+    /**
+     * 
+     * @param {RolloutPauseRolloutRequest} body 
+     * @param {string} namespace 
+     * @param {string} name 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof RolloutServiceApi
+     */
+    public rolloutServicePauseRollout(body: RolloutPauseRolloutRequest, namespace: string, name: string, options?: any) {
+        return RolloutServiceApiFp(this.configuration).rolloutServicePauseRollout(body, namespace, name, options)(this.fetch, this.basePath);
     }
 
     /**
