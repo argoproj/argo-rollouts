@@ -82,17 +82,19 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
-	noScalingOccurred, err := c.reconcileCanaryReplicaSets()
+	// isReconciling if changes are made to canary or stable RS
+	isReconciling, err := c.reconcileCanaryReplicaSets()
 	if err != nil {
 		return err
 	}
-	if noScalingOccurred {
+	if isReconciling {
 		c.log.Info("Not finished reconciling ReplicaSets")
 		return c.syncRolloutStatusCanary()
 	}
 
-	stillReconciling := c.reconcileCanaryPause()
-	if stillReconciling {
+	// isReconciling if a new paused condition is added
+	isReconciling = c.reconcileCanaryPause()
+	if isReconciling {
 		c.log.Infof("Not finished reconciling Canary Pause")
 		return c.syncRolloutStatusCanary()
 	}
@@ -455,7 +457,7 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 		return false, err
 	}
 	if scaledStableRS {
-		c.log.Infof("Not finished reconciling stableRS")
+		c.log.Infof("Not finished reconciling stable ReplicaSet")
 		return true, nil
 	}
 
