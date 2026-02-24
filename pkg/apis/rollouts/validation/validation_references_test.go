@@ -1023,6 +1023,60 @@ func TestValidateService(t *testing.T) {
 		allErrs := ValidateService(svc, getAlbRollout("alb-ingress"))
 		assert.Empty(t, allErrs)
 	})
+
+	t.Run("validate service with CanaryMetadata labels - success", func(t *testing.T) {
+		svc := getServiceWithType()
+		svc.Type = CanaryService
+		svc.Service.Spec.Selector = map[string]string{"app": "match-metadata"}
+		rollout := getAlbRollout("alb-ingress")
+		rollout.Spec.Strategy.Canary.CanaryService = svc.Service.Name
+		rollout.Spec.Strategy.Canary.CanaryMetadata = &v1alpha1.PodTemplateMetadata{
+			Labels: map[string]string{"app": "match-metadata"},
+		}
+		allErrs := ValidateService(svc, rollout)
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("validate service with StableService label - success", func(t *testing.T) {
+		svc := getServiceWithType()
+		svc.Type = StableService
+		svc.Service.Spec.Selector = map[string]string{"app": "match-metadata"}
+		rollout := getAlbRollout("alb-ingress")
+		rollout.Spec.Strategy.Canary.StableService = svc.Service.Name
+		rollout.Spec.Strategy.Canary.StableMetadata = &v1alpha1.PodTemplateMetadata{
+			Labels: map[string]string{"app": "match-metadata"},
+		}
+		allErrs := ValidateService(svc, rollout)
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("validate service with ActiveService label - success", func(t *testing.T) {
+		svc := getServiceWithType()
+		svc.Type = ActiveService
+		svc.Service.Spec.Selector = map[string]string{"app": "match-metadata"}
+		rollout := getAlbRollout("alb-ingress")
+		rollout.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
+		rollout.Spec.Strategy.BlueGreen.ActiveService = svc.Service.Name
+		rollout.Spec.Strategy.BlueGreen.ActiveMetadata = &v1alpha1.PodTemplateMetadata{
+			Labels: map[string]string{"app": "match-metadata"},
+		}
+		allErrs := ValidateService(svc, rollout)
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("validate service with PreviewService label - success", func(t *testing.T) {
+		svc := getServiceWithType()
+		svc.Type = PreviewService
+		svc.Service.Spec.Selector = map[string]string{"app": "match-metadata"}
+		rollout := getAlbRollout("alb-ingress")
+		rollout.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
+		rollout.Spec.Strategy.BlueGreen.PreviewService = svc.Service.Name
+		rollout.Spec.Strategy.BlueGreen.PreviewMetadata = &v1alpha1.PodTemplateMetadata{
+			Labels: map[string]string{"app": "match-metadata"},
+		}
+		allErrs := ValidateService(svc, rollout)
+		assert.Empty(t, allErrs)
+	})
 }
 
 func TestValidateVirtualService(t *testing.T) {
