@@ -1,0 +1,70 @@
+---
+# Canary test with many steps for testing retry from specific step
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-sts-manysteps-svc
+spec:
+  clusterIP: None
+  selector:
+    app: test-sts-manysteps
+  ports:
+  - port: 80
+    name: web
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-sts-manysteps
+spec:
+  serviceName: test-sts-manysteps-svc
+  replicas: 5
+  selector:
+    matchLabels:
+      app: test-sts-manysteps
+  template:
+    metadata:
+      labels:
+        app: test-sts-manysteps
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: busybox
+        image: quay.io/prometheus/busybox:latest
+        command: ["sleep", "3600"]
+        ports:
+        - containerPort: 80
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 5
+---
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: test-sts-manysteps-rollout
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: test-sts-manysteps
+  plugin:
+    name: statefulset
+  strategy:
+    canary:
+      steps:
+      - setWeight: 10
+      - pause: {duration: 2s}
+      - setWeight: 20
+      - pause: {duration: 2s}
+      - setWeight: 30
+      - pause: {duration: 2s}
+      - setWeight: 40
+      - pause: {duration: 2s}
+      - setWeight: 50
+      - pause: {duration: 2s}
+      - setWeight: 60
+      - pause: {duration: 2s}
+      - setWeight: 80
+      - pause: {duration: 2s}
+      - setWeight: 100

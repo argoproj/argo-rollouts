@@ -1,0 +1,83 @@
+---
+# Inline (step) analysis with failing metrics
+# Used by: TestInlineAnalysisFailure
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: inline-analysis-fail
+spec:
+  metrics:
+  - name: step-fail-metric
+    count: 2
+    interval: 1s
+    failureLimit: 0
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+              - name: fail
+                image: quay.io/prometheus/busybox:latest
+                command: ["/bin/sh", "-c", "echo 'Step analysis failed' && exit 1"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inline-analysis-fail-svc
+spec:
+  clusterIP: None
+  selector:
+    app: inline-analysis-fail
+  ports:
+  - port: 80
+    name: web
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: inline-analysis-fail-sts
+spec:
+  serviceName: inline-analysis-fail-svc
+  replicas: 5
+  selector:
+    matchLabels:
+      app: inline-analysis-fail
+  template:
+    metadata:
+      labels:
+        app: inline-analysis-fail
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: busybox
+        image: quay.io/prometheus/busybox:latest
+        command: ["sleep", "3600"]
+        ports:
+        - containerPort: 80
+  updateStrategy:
+    type: RollingUpdate
+---
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: inline-analysis-fail-rp
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: inline-analysis-fail-sts
+  plugin:
+    name: statefulset
+  strategy:
+    canary:
+      steps:
+      - setWeight: 60
+      - analysis:
+          templates:
+          - templateName: inline-analysis-fail
+      - setWeight: 80
+      - pause: {duration: 10s}
+      - setWeight: 100

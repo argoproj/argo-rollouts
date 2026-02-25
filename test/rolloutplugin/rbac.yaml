@@ -1,0 +1,79 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rolloutplugin-controller
+  namespace: argo-rollouts
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rolloutplugin-controller
+  namespace: argo-rollouts
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rolloutplugins
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rolloutplugins/status
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rolloutplugins/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rolloutplugin-controller
+  namespace: argo-rollouts
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rolloutplugin-controller
+subjects:
+- kind: ServiceAccount
+  name: rolloutplugin-controller
+  namespace: argo-rollouts
