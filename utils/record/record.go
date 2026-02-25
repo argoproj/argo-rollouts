@@ -234,6 +234,10 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 		if kind == "Rollout" {
 			e.RolloutEventCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 		}
+		// Also increment for RolloutPlugin - reusing the same metric
+		if kind == "RolloutPlugin" {
+			e.RolloutEventCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
+		}
 
 		if e.apiFactory != nil {
 			apis, err := e.apiFactory.GetAPIsFromNamespace(namespace)
@@ -306,6 +310,58 @@ func getAnalysisRunsFilterWithLabels(ro v1alpha1.Rollout, arInformer argoinforme
 	return arsObj, nil
 }
 
+// getAnalysisRunsForRolloutPlugin retrieves and filters analysis runs for a RolloutPlugin
+// It returns analysis runs owned by the RolloutPlugin, sorted by creation timestamp (newest first)
+func getAnalysisRunsForRolloutPlugin(rp v1alpha1.RolloutPlugin, arInformer argoinformers.AnalysisRunInformer) (any, error) {
+	// Get all analysis runs in the namespace
+	ars, err := arInformer.Lister().AnalysisRuns(rp.Namespace).List(labels.Everything())
+	if err != nil {
+		return nil, fmt.Errorf("error getting analysisruns from informer for namespace: %s error: %w", rp.Namespace, err)
+	}
+	if len(ars) == 0 {
+		return nil, nil
+	}
+
+	// Filter for analysis runs owned by this RolloutPlugin
+	filteredArs := make([]*v1alpha1.AnalysisRun, 0)
+	for _, ar := range ars {
+		// Check if this analysis run is owned by the RolloutPlugin
+		for _, ownerRef := range ar.OwnerReferences {
+			if ownerRef.Kind == "RolloutPlugin" &&
+				ownerRef.Name == rp.Name &&
+				ownerRef.UID == rp.UID {
+				filteredArs = append(filteredArs, ar)
+				break
+			}
+		}
+	}
+
+	if len(filteredArs) == 0 {
+		return nil, nil
+	}
+
+	// Sort by creation timestamp (newest first)
+	sort.Slice(filteredArs, func(i, j int) bool {
+		ts1 := filteredArs[i].ObjectMeta.CreationTimestamp.Time
+		ts2 := filteredArs[j].ObjectMeta.CreationTimestamp.Time
+		return ts1.After(ts2)
+	})
+
+	// Marshal to any type for template usage
+	var arsObj any
+	arBytes, err := json.Marshal(filteredArs)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to marshal analysisRuns for rolloutPlugin %s: %w", rp.Name, err)
+	}
+
+	err = json.Unmarshal(arBytes, &arsObj)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal analysisRuns for rolloutPlugin %s: %w", rp.Name, err)
+	}
+
+	return arsObj, nil
+}
+
 func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Settings {
 	return api.Settings{
 		SecretName:    NotificationSecret,
@@ -346,6 +402,53 @@ func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Set
 					"analysisRuns": arsObj,
 					"time":         timeExprs,
 					"secrets":      secret.Data,
+				}
+				return vars
+			}, nil
+		},
+	}
+}
+
+// NewAPIFactorySettingsForRolloutPlugin creates API factory settings for RolloutPlugin notifications
+// This is similar to NewAPIFactorySettings but designed for RolloutPlugin resources
+func NewAPIFactorySettingsForRolloutPlugin(arInformer argoinformers.AnalysisRunInformer) api.Settings {
+	return api.Settings{
+		SecretName:    NotificationSecret,
+		ConfigMapName: NotificationConfigMap,
+		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
+			return func(obj map[string]any, dest services.Destination) map[string]any {
+				var vars = map[string]any{
+					"rolloutPlugin": obj,
+					"time":          timeExprs,
+					"secrets":       secret.Data,
+				}
+
+				if arInformer == nil {
+					log.Infof("Notification is not set for analysisRun Informer: %s", dest)
+					return vars
+				}
+
+				var rp v1alpha1.RolloutPlugin
+				err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, &rp)
+
+				if err != nil {
+					log.Errorf("unable to send notification: bad rolloutPlugin object: %v", err)
+					return vars
+				}
+
+				arsObj, err := getAnalysisRunsForRolloutPlugin(rp, arInformer)
+
+				if err != nil {
+					log.Errorf("Error calling getAnalysisRunsForRolloutPlugin for namespace: %s",
+						rp.Namespace)
+					return vars
+				}
+
+				vars = map[string]any{
+					"rolloutPlugin": obj,
+					"analysisRuns":  arsObj,
+					"time":          timeExprs,
+					"secrets":       secret.Data,
 				}
 				return vars
 			}, nil

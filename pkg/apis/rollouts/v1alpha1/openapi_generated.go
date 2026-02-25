@@ -95,6 +95,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ObjectRef":                                       schema_pkg_apis_rollouts_v1alpha1_ObjectRef(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition":                                  schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PingPongSpec":                                    schema_pkg_apis_rollouts_v1alpha1_PingPongSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginConfig":                                    schema_pkg_apis_rollouts_v1alpha1_PluginConfig(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginStep":                                      schema_pkg_apis_rollouts_v1alpha1_PluginStep(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":                             schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution": schema_pkg_apis_rollouts_v1alpha1_PreferredDuringSchedulingIgnoredDuringExecution(ref),
@@ -113,6 +114,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate":                       schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutList":                                     schema_pkg_apis_rollouts_v1alpha1_RolloutList(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause":                                    schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPlugin":                                   schema_pkg_apis_rollouts_v1alpha1_RolloutPlugin(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginCondition":                          schema_pkg_apis_rollouts_v1alpha1_RolloutPluginCondition(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginList":                               schema_pkg_apis_rollouts_v1alpha1_RolloutPluginList(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginSpec":                               schema_pkg_apis_rollouts_v1alpha1_RolloutPluginSpec(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginStatus":                             schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginStrategy":                           schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStrategy(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutSpec":                                     schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus":                                   schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":                                 schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
@@ -144,6 +151,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric":                                       schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader":                                 schema_pkg_apis_rollouts_v1alpha1_WebMetricHeader(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WeightDestination":                               schema_pkg_apis_rollouts_v1alpha1_WeightDestination(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WorkloadRef":                                     schema_pkg_apis_rollouts_v1alpha1_WorkloadRef(ref),
 	}
 }
 
@@ -3603,6 +3611,65 @@ func schema_pkg_apis_rollouts_v1alpha1_PingPongSpec(ref common.ReferenceCallback
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_PluginConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PluginConfig contains configuration for the resource plugin",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the plugin (e.g., \"statefulset\", \"daemonset\")",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"verify": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Verify enables plugin binary verification",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"sha256": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SHA256 is the expected checksum of the plugin binary",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"url": {
+						SchemaProps: spec.SchemaProps{
+							Description: "URL is the location to download the plugin binary",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"config": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Config contains plugin-specific configuration as key-value pairs",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_PluginStep(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4510,6 +4577,450 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPause(ref common.ReferenceCallback
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RolloutPlugin(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutPlugin is a specification for managing rollouts of various Kubernetes resource types through a plugin architecture",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginStatus"),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginSpec", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutPluginCondition describes a condition of the RolloutPlugin",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type of the condition (e.g., Progressing, Available, ReplicaFailure)",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status of the condition (True, False, Unknown)",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"lastUpdateTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastUpdateTime is the last time the condition was updated",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"lastTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastTransitionTime is the last time the condition transitioned from one status to another",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reason is a brief machine-readable explanation for the condition's last transition",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message is a human-readable explanation for the condition's last transition",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"type", "status"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutPluginList is a list of RolloutPlugin resources",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPlugin"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"metadata", "items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPlugin", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutPluginSpec is the spec for a RolloutPlugin resource",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"workloadRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "WorkloadRef is a reference to the workload (StatefulSet, DaemonSet, etc.) being managed",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WorkloadRef"),
+						},
+					},
+					"plugin": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Plugin contains the configuration for the resource-specific plugin",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginConfig"),
+						},
+					},
+					"strategy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Strategy defines the deployment strategy (canary or blueGreen)",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginStrategy"),
+						},
+					},
+					"analysis": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Analysis configuration for the analysis runs to retain",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStrategy"),
+						},
+					},
+					"paused": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Paused pauses the rollout at its current step.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"progressDeadlineSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProgressDeadlineSeconds The maximum time in seconds for a rollout to make progress before it is considered to be failed. Argo Rollouts will continue to process failed rollouts and a condition with a ProgressDeadlineExceeded reason will be surfaced in the rollout status. Note that progress will not be estimated during the time a rollout is paused. Defaults to 600s.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"progressDeadlineAbort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds is exceeded.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"workloadRef", "plugin", "strategy"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStrategy", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginConfig", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginStrategy", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WorkloadRef"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutPluginStatus is the status for a RolloutPlugin resource",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObservedGeneration is the most recent generation observed by the controller",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"initialized": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Initialized indicates whether the plugin has been initialized",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"phase": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Phase is the current phase of the rollout (Progressing, Paused, Successful, Failed, etc.)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message provides additional details about the current phase",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"currentRevision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentRevision is the hash/version of the current stable workload",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"updatedRevision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UpdatedRevision is the hash/version of the updated workload being rolled out",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"currentStepIndex": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentStepIndex is the index of the current step in the rollout",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"currentStepComplete": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentStepComplete indicates whether the current step has completed",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"rolloutInProgress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RolloutInProgress indicates whether a rollout is currently in progress",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"paused": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Paused indicates whether the rollout is currently paused",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"pauseStartTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PauseStartTime is the time when the rollout was paused",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"aborted": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Aborted indicates whether the rollout has been aborted",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"abortedRevision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AbortedRevision is the UpdatedRevision that was aborted This is used to prevent retrying the same failed revision without explicit user action",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"abort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Abort will stop the rollout and revert to the previous version when set to true. Similar to Rollout CRD's status.abort field, this allows manual abortion of a rollout.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"promoteFull": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PromoteFull when set to true will skip analysis, pause, and steps and promote the rollout immediately",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"conditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions is a list of conditions describing the current state",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginCondition"),
+									},
+								},
+							},
+						},
+					},
+					"pluginStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PluginStatus contains plugin-specific status information",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Replicas is the total number of replicas targeted by the workload",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"updatedReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UpdatedReplicas is the number of replicas that have been updated",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"readyReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReadyReplicas is the number of replicas that are ready",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"availableReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AvailableReplicas is the number of replicas that are available",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"canary": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Canary-specific status fields for canary strategy",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus"),
+						},
+					},
+					"restartCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RestartCount tracks the number of restart attempts for the current rollout Incremented each time Restart is processed Reset to 0 when a new rollout starts (UpdatedRevision changes)",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"restartedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RestartedAt indicates when the last restart occurred",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"restart": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Restart when set to true will restart the rollout from step 0. Similar to status.Abort and status.PromoteFull, this is a one-shot trigger field.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginCondition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutPluginStrategy defines the strategy for the rollout Only canary strategy is supported for RolloutPlugin",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"canary": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Canary strategy configuration (reuses existing CanaryStrategy type)",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy"},
 	}
 }
 
@@ -6042,6 +6553,51 @@ func schema_pkg_apis_rollouts_v1alpha1_WeightDestination(ref common.ReferenceCal
 					},
 				},
 				Required: []string{"weight"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_WorkloadRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkloadRef references a Kubernetes resource to be managed by the RolloutPlugin",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion of the referenced resource",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind of the referenced resource (e.g., StatefulSet, DaemonSet)",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the referenced resource",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace of the referenced resource (optional, defaults to the RolloutPlugin's namespace)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"apiVersion", "kind", "name"},
 			},
 		},
 	}

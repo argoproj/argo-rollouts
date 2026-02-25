@@ -5,25 +5,39 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/pkg/kubeclientmetrics"
+	"github.com/go-logr/logr"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/argoproj/argo-rollouts/metricproviders"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout"
+	"github.com/argoproj/argo-rollouts/rolloutplugin"
+	analysishelper "github.com/argoproj/argo-rollouts/rolloutplugin/analysis"
+	statefulset "github.com/argoproj/argo-rollouts/rolloutplugin/plugins/statefulset"
 	"github.com/argoproj/argo-rollouts/utils/errors"
 	"github.com/argoproj/argo-rollouts/utils/record"
 
@@ -48,9 +62,23 @@ const (
 	textFormat = "text"
 
 	controllerAnalysis = "analysis"
+	listenAddr         = "0.0.0.0:%d"
 )
 
 var supportedControllers = map[string]bool{controllerAnalysis: true}
+
+var (
+	scheme = k8sruntime.NewScheme()
+)
+
+func init() {
+	// Set controller-runtime logger to a null logger to suppress the warning
+	// We use logrus for our own logging
+	ctrl.SetLogger(logr.New(ctrllog.NullLogSink{}))
+
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+}
 
 func newCommand() *cobra.Command {
 	var (
@@ -225,10 +253,23 @@ func newCommand() *cobra.Command {
 				go func() { log.Println(http.ListenAndServe(pprofAddress, mux)) }()
 			}
 
-			var cm *controller.Manager
-
 			enabledControllers, err := getEnabledControllers(controllersEnabled)
 			errors.CheckError(err)
+
+			// Create shared MetricsServer that will be used by all controllers
+			log.Info("Creating shared metrics server")
+			metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+				Addr:                          fmt.Sprintf(listenAddr, metricsPort),
+				RolloutLister:                 tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory).Lister(),
+				AnalysisRunLister:             tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory).Lister(),
+				AnalysisTemplateLister:        tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory).Lister(),
+				ClusterAnalysisTemplateLister: tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory).Lister(),
+				ExperimentLister:              tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory).Lister(),
+				RolloutPluginLister:           tolerantinformer.NewTolerantRolloutPluginInformer(dynamicInformerFactory).Lister(),
+				K8SRequestProvider:            k8sRequestProvider,
+			})
+
+			var cm *controller.Manager
 
 			// currently only supports running analysis controller independently
 			if enabledControllers[controllerAnalysis] {
@@ -242,9 +283,8 @@ func newCommand() *cobra.Command {
 					tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
 					tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
 					resyncDuration,
-					metricsPort,
+					metricsServer,
 					healthzPort,
-					k8sRequestProvider,
 					dynamicInformerFactory,
 					clusterDynamicInformerFactory,
 					namespaced,
@@ -274,9 +314,8 @@ func newCommand() *cobra.Command {
 					notificationSecretInformerFactory,
 					resyncDuration,
 					instanceID,
-					metricsPort,
+					metricsServer,
 					healthzPort,
-					k8sRequestProvider,
 					nginxIngressClasses,
 					albIngressClasses,
 					dynamicInformerFactory,
@@ -288,9 +327,149 @@ func newCommand() *cobra.Command {
 					ephemeralMetadataThreads,
 					ephemeralMetadataPodRetries)
 			}
-			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
-				log.Fatalf("Error running controller: %s", err.Error())
+
+			// ========================================
+			// Setup RolloutPlugin Controller (controller-runtime)
+			// ========================================
+			log.Info("Setting up RolloutPlugin controller (controller-runtime)")
+
+			// Determine leader election namespace
+			leaderElectionNamespace := electOpts.LeaderElectionNamespace
+			if leaderElectionNamespace == "" {
+				if namespaced && namespace != metav1.NamespaceAll {
+					leaderElectionNamespace = namespace
+				} else {
+					leaderElectionNamespace = defaults.Namespace()
+				}
+				// Update electOpts with the computed namespace for standard controllers
+				electOpts.LeaderElectionNamespace = leaderElectionNamespace
 			}
+
+			mgrOpts := ctrl.Options{
+				Scheme: scheme,
+				Metrics: metricsserver.Options{
+					BindAddress: "0", // Disable metrics server, use standard controller's metrics
+				},
+				HealthProbeBindAddress:  "0",   // Disable health probe, use standard controller's healthz
+				LeaderElection:          false, // Integrated controller uses standard controller's leader election
+				LeaderElectionID:        controller.GetLeaderElectionLeaseLockName(),
+				LeaderElectionNamespace: leaderElectionNamespace,
+			}
+			// Configure namespace scoping
+			if namespaced && namespace != metav1.NamespaceAll {
+				log.WithField("namespace", namespace).Info("RolloutPlugin controller running in namespaced mode")
+				mgrOpts.Cache = cache.Options{
+					DefaultNamespaces: map[string]cache.Config{
+						namespace: {},
+					},
+				}
+			} else {
+				log.Info("RolloutPlugin controller running in cluster-scoped mode")
+			}
+
+			mgr, err := ctrl.NewManager(config, mgrOpts)
+			if err != nil {
+				log.Fatalf("Failed to create controller-runtime manager: %s", err.Error())
+			}
+
+			// Get the singleton plugin manager instance
+			// This ensures all RolloutPlugin CRs share the same plugin instances
+			pluginManager := rolloutplugin.GetGlobalPluginManager()
+
+			logrusCtx := log.WithField("plugin", "statefulset")
+			// Built-in plugins directly implement rolloutplugin.ResourcePlugin
+			// No wrapper needed - this is more efficient than RPC-based external plugins
+			// Plugin creates its own k8s client and cache in Init()
+			// Pass namespace to ensure plugin respects namespaced mode
+			statefulSetPlugin := statefulset.NewPlugin(logrusCtx, namespace)
+
+			if err := pluginManager.RegisterPlugin("statefulset", statefulSetPlugin); err != nil {
+				log.Fatalf("Failed to register statefulset plugin: %s", err.Error())
+			}
+			log.Info("Registered StatefulSet plugin")
+
+			// Create analysis helper to enable RolloutPlugin controller to reuse AnalysisRun logic
+			// The helper uses listers from the informer-based controller manager
+			analysisHelper := analysishelper.NewHelper(
+				argoprojClient,
+				tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory).Lister(),
+				tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory).Lister(),
+				tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory).Lister(),
+			)
+
+			// Create EventRecorder for RolloutPlugin notifications
+			// This is similar to the Rollout controller but uses RolloutPlugin-specific API factory settings
+			// Pass AnalysisRun informer to enable analysisRuns variable in notification templates
+			rolloutPluginApiFactory := notificationapi.NewFactory(
+				record.NewAPIFactorySettingsForRolloutPlugin(tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory)),
+				defaults.Namespace(),
+				notificationSecretInformerFactory.Core().V1().Secrets().Informer(),
+				notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer(),
+			)
+			rolloutPluginRecorder := record.NewEventRecorder(
+				kubeClient,
+				metrics.MetricRolloutEventsTotal,
+				metrics.MetricNotificationFailedTotal,
+				metrics.MetricNotificationSuccessTotal,
+				metrics.MetricNotificationSend,
+				rolloutPluginApiFactory,
+			)
+
+			// Set up the RolloutPlugin controller
+			if err = (&rolloutplugin.RolloutPluginReconciler{
+				Client:            mgr.GetClient(),
+				Scheme:            mgr.GetScheme(),
+				KubeClientset:     kubeClient,
+				ArgoProjClientset: argoprojClient,
+				DynamicClientset:  dynamicClient,
+				PluginManager:     pluginManager,
+				AnalysisHelper:    analysisHelper,
+				InstanceID:        instanceID,
+				MetricsServer:     metricsServer,
+				Recorder:          rolloutPluginRecorder,
+			}).SetupWithManager(mgr); err != nil {
+				log.Fatalf("Failed to setup RolloutPlugin controller: %s", err.Error())
+			}
+
+			// ========================================
+			// Run Both Controller Types Concurrently
+			// ========================================
+			var wg sync.WaitGroup
+
+			// Start standard Argo Rollouts controllers
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				log.Info("Starting standard Argo Rollouts controllers")
+				if err := cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
+					log.WithError(err).Error("Error running standard controllers")
+					os.Exit(1)
+				}
+				log.Info("Standard Argo Rollouts controllers stopped")
+			}()
+
+			// Start controller-runtime manager for RolloutPlugin
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				log.Info("Starting RolloutPlugin controller (controller-runtime)")
+				if err := mgr.Start(ctx); err != nil {
+					log.WithError(err).Error("Error running RolloutPlugin controller")
+					os.Exit(1)
+				}
+				log.Info("RolloutPlugin controller stopped")
+			}()
+
+			log.Info("All controllers started successfully")
+
+			// Wait for context cancellation
+			<-ctx.Done()
+			log.Info("Received shutdown signal, waiting for controllers to stop")
+
+			// Wait for all controllers to finish
+			wg.Wait()
+			log.Info("All controllers stopped gracefully")
+
 			return nil
 		},
 	}

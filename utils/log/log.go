@@ -22,6 +22,8 @@ const (
 	ExperimentKey = "experiment"
 	// AnalysisRunKey defines the key for the analysisrun field
 	AnalysisRunKey = "analysisrun"
+	// RolloutPluginKey defines the key for the rolloutplugin field
+	RolloutPluginKey = "rolloutplugin"
 	// ServiceKey defines the key for the service field
 	ServiceKey = "service"
 	// IngressKey defines the key for the ingress field

@@ -70,6 +70,12 @@ var (
 		Resource: "deployments",
 	}
 
+	statefulSetGVR = schema.GroupVersionResource{
+		Group:    "apps",
+		Version:  "v1",
+		Resource: "statefulsets",
+	}
+
 	serviceGVR = schema.GroupVersionResource{
 		Version:  "v1",
 		Resource: "services",
@@ -220,11 +226,13 @@ func (s *E2ESuite) deleteResources(req *labels.Requirement, propagationPolicy me
 	ctx := context.TODO()
 	resources := []schema.GroupVersionResource{
 		rov1.RolloutGVR,
+		rov1.RolloutPluginGVR, // RolloutPlugin cleanup
 		rov1.AnalysisRunGVR,
 		rov1.AnalysisTemplateGVR,
 		rov1.ClusterAnalysisTemplateGVR,
 		rov1.ExperimentGVR,
 		deploymentGVR,
+		statefulSetGVR, // StatefulSet cleanup
 		serviceGVR,
 		ingressGVR,
 		pdbGVR,
