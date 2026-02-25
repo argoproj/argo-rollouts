@@ -119,6 +119,11 @@ func NewLeaderElectionOptions() *LeaderElectionOptions {
 	}
 }
 
+// GetLeaderElectionLeaseLockName returns the lease lock name used for leader election
+func GetLeaderElectionLeaseLockName() string {
+	return defaultLeaderElectionLeaseLockName
+}
+
 // Manager is the controller implementation for Argo-Rollout resources
 type Manager struct {
 	wg                      *sync.WaitGroup
@@ -177,9 +182,8 @@ func NewAnalysisManager(
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
 	resyncPeriod time.Duration,
-	metricsPort int,
+	metricsServer *metrics.MetricsServer,
 	healthzPort int,
-	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	clusterDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	namespaced bool,
@@ -188,17 +192,6 @@ func NewAnalysisManager(
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
-
-	metricsAddr := fmt.Sprintf(listenAddr, metricsPort)
-	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr:                          metricsAddr,
-		RolloutLister:                 nil,
-		AnalysisRunLister:             analysisRunInformer.Lister(),
-		AnalysisTemplateLister:        analysisTemplateInformer.Lister(),
-		ClusterAnalysisTemplateLister: clusterAnalysisTemplateInformer.Lister(),
-		ExperimentLister:              nil,
-		K8SRequestProvider:            k8sRequestProvider,
-	})
 
 	healthzServer := NewHealthzServer(fmt.Sprintf(listenAddr, healthzPort))
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
@@ -271,9 +264,8 @@ func NewManager(
 	notificationSecretInformerFactory kubeinformers.SharedInformerFactory,
 	resyncPeriod time.Duration,
 	instanceID string,
-	metricsPort int,
+	metricsServer *metrics.MetricsServer,
 	healthzPort int,
-	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	nginxIngressClasses []string,
 	albIngressClasses []string,
 	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
@@ -287,17 +279,6 @@ func NewManager(
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
-
-	metricsAddr := fmt.Sprintf(listenAddr, metricsPort)
-	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr:                          metricsAddr,
-		RolloutLister:                 rolloutsInformer.Lister(),
-		AnalysisRunLister:             analysisRunInformer.Lister(),
-		AnalysisTemplateLister:        analysisTemplateInformer.Lister(),
-		ClusterAnalysisTemplateLister: clusterAnalysisTemplateInformer.Lister(),
-		ExperimentLister:              experimentsInformer.Lister(),
-		K8SRequestProvider:            k8sRequestProvider,
-	})
 
 	healthzServer := NewHealthzServer(fmt.Sprintf(listenAddr, healthzPort))
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")

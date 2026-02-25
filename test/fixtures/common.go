@@ -60,8 +60,10 @@ type Common struct {
 	rolloutClient  clientset.Interface
 	smiClient      smiclientset.Interface
 
-	rollout *unstructured.Unstructured
-	objects []*unstructured.Unstructured
+	rollout       *unstructured.Unstructured
+	rolloutPlugin *unstructured.Unstructured
+	statefulSet   *unstructured.Unstructured
+	objects       []*unstructured.Unstructured
 
 	events []corev1.Event
 }
@@ -238,6 +240,22 @@ func (c *Common) GetRolloutAnalysisRuns() rov1.AnalysisRunList {
 	return newAruns
 }
 
+// GetRolloutPluginAnalysisRuns returns analysis runs owned by the rolloutplugin
+func (c *Common) GetRolloutPluginAnalysisRuns() rov1.AnalysisRunList {
+	aruns, err := c.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(c.namespace).List(c.Context, metav1.ListOptions{})
+	c.CheckError(err)
+	// filter analysis runs by ones owned by rolloutplugin to allow test parallelism
+	var newAruns rov1.AnalysisRunList
+	for _, ar := range aruns.Items {
+		controllerRef := metav1.GetControllerOf(&ar)
+		if controllerRef != nil && c.RolloutPluginObj() != nil && controllerRef.Name == c.RolloutPluginObj().GetName() {
+			newAruns.Items = append(newAruns.Items, ar)
+		}
+	}
+	return newAruns
+}
+
+// GetBackgroundAnalysisRun returns the background analysis run for the Rollout
 func (c *Common) GetBackgroundAnalysisRun() *rov1.AnalysisRun {
 	aruns := c.GetRolloutAnalysisRuns()
 	var found *rov1.AnalysisRun
@@ -258,10 +276,25 @@ func (c *Common) GetBackgroundAnalysisRun() *rov1.AnalysisRun {
 	return found
 }
 
-func (c *Common) GetExperimentByName(name string) *rov1.Experiment {
-	ex, err := c.rolloutClient.ArgoprojV1alpha1().Experiments(c.namespace).Get(c.Context, name, metav1.GetOptions{})
-	c.CheckError(err)
-	return ex
+// GetRolloutPluginBackgroundAnalysisRun returns the background analysis run for the RolloutPlugin
+func (c *Common) GetRolloutPluginBackgroundAnalysisRun() *rov1.AnalysisRun {
+	aruns := c.GetRolloutPluginAnalysisRuns()
+	var found *rov1.AnalysisRun
+	for i, arun := range aruns.Items {
+		if arun.Labels[rov1.RolloutTypeLabel] != rov1.RolloutTypeBackgroundRunLabel {
+			continue
+		}
+		if found != nil {
+			c.log.Error("Found multiple background analysis runs")
+			c.t.FailNow()
+		}
+		found = &aruns.Items[i]
+	}
+	if found == nil {
+		c.log.Error("Background AnalysisRun not found")
+		c.t.FailNow()
+	}
+	return found
 }
 
 // GetInlineAnalysisRun returns the latest Step analysis run. This should generally be coupled with
@@ -269,6 +302,34 @@ func (c *Common) GetExperimentByName(name string) *rov1.Experiment {
 // the latest if the creationTimestamps are the same
 func (c *Common) GetInlineAnalysisRun() *rov1.AnalysisRun {
 	aruns := c.GetRolloutAnalysisRuns()
+	var latest *rov1.AnalysisRun
+	for i, arun := range aruns.Items {
+		if arun.Labels[rov1.RolloutTypeLabel] != rov1.RolloutTypeStepLabel {
+			continue
+		}
+		if latest == nil {
+			latest = &arun
+			continue
+		}
+		if arun.CreationTimestamp.After(latest.CreationTimestamp.Time) {
+			latest = &aruns.Items[i]
+		}
+		if arun.CreationTimestamp.Equal(&latest.CreationTimestamp) {
+			c.log.Warnf("Found multiple inline analysis runs with same creationTimestamp: %s, %s", arun.Name, latest.Name)
+		}
+	}
+	if latest == nil {
+		c.log.Error("Inline AnalysisRun not found")
+		c.t.FailNow()
+	}
+	return latest
+}
+
+// GetRolloutPluginInlineAnalysisRun returns the latest Step analysis run for the RolloutPlugin.
+// This should generally be coupled with a count check, to ensure we are not checking the previous one.
+// This may fail to accurately return the latest if the creationTimestamps are the same
+func (c *Common) GetRolloutPluginInlineAnalysisRun() *rov1.AnalysisRun {
+	aruns := c.GetRolloutPluginAnalysisRuns()
 	var latest *rov1.AnalysisRun
 	for i, arun := range aruns.Items {
 		if arun.Labels[rov1.RolloutTypeLabel] != rov1.RolloutTypeStepLabel {
@@ -724,4 +785,46 @@ func (c *Common) PrintObjectEvents(opts metav1.ListOptions) {
 	}
 	w.Flush()
 	fmt.Fprintln(logrus.StandardLogger().Out, buf.String())
+}
+
+// RolloutPluginObj returns the original rolloutplugin manifest used in the test
+func (c *Common) RolloutPluginObj() *rov1.RolloutPlugin {
+	if c.rolloutPlugin == nil {
+		return nil
+	}
+	var rp rov1.RolloutPlugin
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(c.rolloutPlugin.Object, &rp)
+	c.CheckError(err)
+	return &rp
+}
+
+// GetRolloutPlugin returns the live rolloutplugin object in the cluster
+func (c *Common) GetRolloutPlugin() *rov1.RolloutPlugin {
+	if c.rolloutPlugin == nil {
+		c.t.Fatal("RolloutPlugin not set")
+	}
+	rp, err := c.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(c.namespace).Get(c.Context, c.RolloutPluginObj().GetName(), metav1.GetOptions{})
+	c.CheckError(err)
+	return rp
+}
+
+// StatefulSetObj returns the original statefulset manifest used in the test
+func (c *Common) StatefulSetObj() *appsv1.StatefulSet {
+	if c.statefulSet == nil {
+		return nil
+	}
+	var sts appsv1.StatefulSet
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(c.statefulSet.Object, &sts)
+	c.CheckError(err)
+	return &sts
+}
+
+// GetStatefulSet returns the live statefulset object in the cluster
+func (c *Common) GetStatefulSet() *appsv1.StatefulSet {
+	if c.statefulSet == nil {
+		c.t.Fatal("StatefulSet not set")
+	}
+	sts, err := c.kubeClient.AppsV1().StatefulSets(c.namespace).Get(c.Context, c.StatefulSetObj().GetName(), metav1.GetOptions{})
+	c.CheckError(err)
+	return sts
 }
