@@ -128,6 +128,7 @@ message ReplicaSetInfo {
   bool ping = 15;
   bool pong = 16;
   repeated string initContainerImages = 17;
+  string description = 18;
 }
 
 message PodInfo {
