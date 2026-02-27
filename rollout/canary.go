@@ -44,7 +44,8 @@ func (c *rolloutContext) rolloutCanary() error {
 		// so that the *next* reconciliation will have an accurate availability count to calculate
 		// the safe number of pods to scale down for the update.
 		c.log.Infof("Finished reconciliation due to %d restarted pods", restarted)
-		return nil
+		// Persist status (including RestartedAt) before returning early
+		return c.syncRolloutStatusCanary()
 	}
 
 	err = c.reconcileEphemeralMetadata()
