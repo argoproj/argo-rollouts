@@ -5202,6 +5202,9 @@
                                                         },
                                                         "type": "object"
                                                     },
+                                                    "caPath": {
+                                                        "type": "string"
+                                                    },
                                                     "headers": {
                                                         "items": {
                                                             "properties": {
@@ -10593,6 +10596,9 @@
                                                             }
                                                         },
                                                         "type": "object"
+                                                    },
+                                                    "caPath": {
+                                                        "type": "string"
                                                     },
                                                     "headers": {
                                                         "items": {
@@ -15998,6 +16004,9 @@
                                                             }
                                                         },
                                                         "type": "object"
+                                                    },
+                                                    "caPath": {
+                                                        "type": "string"
                                                     },
                                                     "headers": {
                                                         "items": {

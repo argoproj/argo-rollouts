@@ -177,3 +177,23 @@ provider:
         istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
       ))
 ```
+
+## Custom CA certificates
+
+If your Prometheus endpoint uses a self-signed or private CA, set `caPath` to a PEM-encoded CA certificate file on the controller filesystem.
+
+```yaml
+provider:
+  prometheus:
+    address: https://prometheus.example.com
+    caPath: /etc/ssl/custom-ca/ca.pem
+    query: |
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+      )) /
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+      ))
+```
+
+If both `insecure` and `caPath` are set, `insecure` takes precedence and TLS verification is skipped entirely.

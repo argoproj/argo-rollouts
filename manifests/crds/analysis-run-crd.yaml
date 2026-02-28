@@ -3447,6 +3447,8 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            caPath:
+                              type: string
                             headers:
                               items:
                                 properties:

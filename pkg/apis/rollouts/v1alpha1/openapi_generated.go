@@ -3735,8 +3735,15 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 					},
 					"insecure": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Insecure skips host TLS verification",
+							Description: "Insecure skips TLS certificate verification when querying Prometheus",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"caPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CAPath is a path to a PEM-encoded CA certificate file on the controller filesystem",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
