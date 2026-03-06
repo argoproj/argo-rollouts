@@ -1,0 +1,66 @@
+---
+# Basic canary test with StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-sts-canary-svc
+  labels:
+    app: test-sts-canary
+spec:
+  clusterIP: None
+  selector:
+    app: test-sts-canary
+  ports:
+  - port: 80
+    name: web
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-sts-canary
+  labels:
+    app: test-sts-canary
+spec:
+  serviceName: test-sts-canary-svc
+  replicas: 5
+  selector:
+    matchLabels:
+      app: test-sts-canary
+  template:
+    metadata:
+      labels:
+        app: test-sts-canary
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: busybox
+        image: quay.io/prometheus/busybox:latest
+        command: ["sleep", "3600"]
+        ports:
+        - containerPort: 80
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 5
+---
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: test-sts-canary-rollout
+  labels:
+    app: test-sts-canary
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: test-sts-canary
+  plugin:
+    name: statefulset
+  strategy:
+    canary:
+      steps:
+      - setWeight: 20
+      - pause: {duration: 3s}
+      - setWeight: 40
+      - pause: {duration: 30s}
+      - setWeight: 100

@@ -1,0 +1,55 @@
+---
+# RolloutPlugin with valid spec - for testing fix of invalid spec
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-fix-invalid-svc
+spec:
+  clusterIP: None
+  selector:
+    app: test-fix-invalid
+  ports:
+  - port: 80
+    name: web
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-fix-invalid-sts
+spec:
+  serviceName: test-fix-invalid-svc
+  replicas: 2
+  selector:
+    matchLabels:
+      app: test-fix-invalid
+  template:
+    metadata:
+      labels:
+        app: test-fix-invalid
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: busybox
+        image: quay.io/prometheus/busybox:latest
+        command: ["sleep", "3600"]
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 2
+---
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: test-fix-invalid-rollout
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: test-fix-invalid-sts
+  plugin:
+    name: statefulset
+  strategy:
+    canary:
+      steps:
+      - setWeight: 50
+      - setWeight: 100

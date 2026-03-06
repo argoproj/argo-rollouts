@@ -214,8 +214,9 @@ plugin-windows: ui/dist  ## build plugin for windows
 ##@ Build
 
 .PHONY: controller
-controller: ## build controller binary
+controller: ## build controller binary (includes RolloutPlugin support)
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
+
 
 .PHONY: builder-image
 builder-image: ## build builder image
@@ -277,6 +278,10 @@ start-e2e: ## start e2e test environment
 .PHONY: test-e2e
 test-e2e: install-devtools-local
 	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-test.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e ${E2E_TEST_OPTIONS}
+
+.PHONY: test-e2e-rolloutplugin
+test-e2e-rolloutplugin: install-devtools-local ## run RolloutPlugin E2E tests only
+	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-rolloutplugin-test.xml --format=testname --packages="./test/e2e" --rerun-fails=0 -- -timeout 60m -count 1 --tags e2e -p 1 -parallel 1 -v --short ./test/e2e -run 'TestRolloutPluginSuite' ${E2E_TEST_OPTIONS}
 
 .PHONY: test-unit
  test-unit: install-devtools-local ## run unit tests

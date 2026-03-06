@@ -1214,6 +1214,29 @@ message PingPongSpec {
   optional string pongService = 2;
 }
 
+// TODOH is this needed?
+// PluginConfig contains configuration for the resource plugin
+message PluginConfig {
+  // Name of the plugin (e.g., "statefulset", "daemonset")
+  optional string name = 1;
+
+  // Verify enables plugin binary verification
+  // +optional
+  optional bool verify = 2;
+
+  // SHA256 is the expected checksum of the plugin binary
+  // +optional
+  optional string sha256 = 3;
+
+  // URL is the location to download the plugin binary
+  // +optional
+  optional string url = 4;
+
+  // Config contains plugin-specific configuration as key-value pairs
+  // +optional
+  map<string, string> config = 5;
+}
+
 message PluginStep {
   // Name of the hashicorp go-plugin step to query
   optional string name = 1;
@@ -1469,6 +1492,193 @@ message RolloutPause {
   // Duration the amount of time to wait before moving to the next step.
   // +optional
   optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString duration = 1;
+}
+
+// RolloutPlugin is a specification for managing rollouts of various Kubernetes resource types
+// through a plugin architecture
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=rolloutplugins,shortName=rp
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="RolloutPlugin status"
+// +kubebuilder:printcolumn:name="Step",type="integer",JSONPath=".status.currentStepIndex",description="Current step index"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time since resource was created"
+message RolloutPlugin {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional RolloutPluginSpec spec = 2;
+
+  optional RolloutPluginStatus status = 3;
+}
+
+// RolloutPluginCondition describes a condition of the RolloutPlugin
+message RolloutPluginCondition {
+  // Type of the condition (e.g., Progressing, Available, ReplicaFailure)
+  optional string type = 1;
+
+  // Status of the condition (True, False, Unknown)
+  optional string status = 2;
+
+  // LastUpdateTime is the last time the condition was updated
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastUpdateTime = 3;
+
+  // LastTransitionTime is the last time the condition transitioned from one status to another
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 4;
+
+  // Reason is a brief machine-readable explanation for the condition's last transition
+  optional string reason = 5;
+
+  // Message is a human-readable explanation for the condition's last transition
+  optional string message = 6;
+}
+
+// RolloutPluginList is a list of RolloutPlugin resources
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+message RolloutPluginList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated RolloutPlugin items = 2;
+}
+
+// RolloutPluginSpec is the spec for a RolloutPlugin resource
+message RolloutPluginSpec {
+  // WorkloadRef is a reference to the workload (StatefulSet, DaemonSet, etc.) being managed
+  optional WorkloadRef workloadRef = 1;
+
+  // Plugin contains the configuration for the resource-specific plugin
+  optional PluginConfig plugin = 2;
+
+  // Strategy defines the deployment strategy (canary or blueGreen)
+  optional RolloutPluginStrategy strategy = 3;
+
+  // Analysis configuration for the analysis runs to retain
+  // +optional
+  optional AnalysisRunStrategy analysis = 4;
+
+  // Paused pauses the rollout at its current step.
+  optional bool paused = 6;
+
+  // ProgressDeadlineSeconds The maximum time in seconds for a rollout to
+  // make progress before it is considered to be failed. Argo Rollouts will
+  // continue to process failed rollouts and a condition with a
+  // ProgressDeadlineExceeded reason will be surfaced in the rollout status.
+  // Note that progress will not be estimated during the time a rollout is paused.
+  // Defaults to 600s.
+  optional int32 progressDeadlineSeconds = 7;
+
+  // ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds
+  // is exceeded.
+  // +optional
+  optional bool progressDeadlineAbort = 8;
+}
+
+// RolloutPluginStatus is the status for a RolloutPlugin resource
+message RolloutPluginStatus {
+  // ObservedGeneration is the most recent generation observed by the controller
+  optional int64 observedGeneration = 1;
+
+  // Initialized indicates whether the plugin has been initialized
+  optional bool initialized = 2;
+
+  // Phase is the current phase of the rollout (Progressing, Paused, Successful, Failed, etc.)
+  optional string phase = 3;
+
+  // Message provides additional details about the current phase
+  // +optional
+  optional string message = 4;
+
+  // CurrentRevision is the hash/version of the current stable workload
+  // +optional
+  optional string currentRevision = 5;
+
+  // UpdatedRevision is the hash/version of the updated workload being rolled out
+  // +optional
+  optional string updatedRevision = 6;
+
+  // CurrentStepIndex is the index of the current step in the rollout
+  // +optional
+  optional int32 currentStepIndex = 7;
+
+  // CurrentStepComplete indicates whether the current step has completed
+  optional bool currentStepComplete = 8;
+
+  // RolloutInProgress indicates whether a rollout is currently in progress
+  optional bool rolloutInProgress = 9;
+
+  // Paused indicates whether the rollout is currently paused
+  optional bool paused = 10;
+
+  // PauseStartTime is the time when the rollout was paused
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time pauseStartTime = 11;
+
+  // Aborted indicates whether the rollout has been aborted
+  optional bool aborted = 12;
+
+  // AbortedRevision is the UpdatedRevision that was aborted
+  // This is used to prevent retrying the same failed revision without explicit user action
+  // +optional
+  optional string abortedRevision = 25;
+
+  // Abort will stop the rollout and revert to the previous version when set to true.
+  // Similar to Rollout CRD's status.abort field, this allows manual abortion of a rollout.
+  // +optional
+  optional bool abort = 21;
+
+  // PromoteFull when set to true will skip analysis, pause, and steps and promote the rollout immediately
+  // +optional
+  optional bool promoteFull = 20;
+
+  // Conditions is a list of conditions describing the current state
+  // +optional
+  repeated RolloutPluginCondition conditions = 13;
+
+  // PluginStatus contains plugin-specific status information
+  // +optional
+  map<string, string> pluginStatus = 14;
+
+  // Replicas is the total number of replicas targeted by the workload
+  // +optional
+  optional int32 replicas = 15;
+
+  // UpdatedReplicas is the number of replicas that have been updated
+  // +optional
+  optional int32 updatedReplicas = 16;
+
+  // ReadyReplicas is the number of replicas that are ready
+  // +optional
+  optional int32 readyReplicas = 17;
+
+  // AvailableReplicas is the number of replicas that are available
+  // +optional
+  optional int32 availableReplicas = 18;
+
+  // Canary-specific status fields for canary strategy
+  // +optional
+  optional CanaryStatus canary = 19;
+
+  // RestartCount tracks the number of restart attempts for the current rollout
+  // Incremented each time Restart is processed
+  // Reset to 0 when a new rollout starts (UpdatedRevision changes)
+  // +optional
+  optional int32 restartCount = 22;
+
+  // RestartedAt indicates when the last restart occurred
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time restartedAt = 23;
+
+  // Restart when set to true will restart the rollout from step 0.
+  // Similar to status.Abort and status.PromoteFull, this is a one-shot trigger field.
+  // +optional
+  optional bool restart = 24;
+}
+
+// RolloutPluginStrategy defines the strategy for the rollout
+// Only canary strategy is supported for RolloutPlugin
+message RolloutPluginStrategy {
+  // Canary strategy configuration (reuses existing CanaryStrategy type)
+  // +optional
+  optional CanaryStrategy canary = 2;
 }
 
 // RolloutSpec is the spec for a Rollout resource
@@ -2073,5 +2283,21 @@ message WeightDestination {
 
   // PodTemplateHash is the pod template hash label for this destination
   optional string podTemplateHash = 3;
+}
+
+// WorkloadRef references a Kubernetes resource to be managed by the RolloutPlugin
+message WorkloadRef {
+  // APIVersion of the referenced resource
+  optional string apiVersion = 1;
+
+  // Kind of the referenced resource (e.g., StatefulSet, DaemonSet)
+  optional string kind = 2;
+
+  // Name of the referenced resource
+  optional string name = 3;
+
+  // Namespace of the referenced resource (optional, defaults to the RolloutPlugin's namespace)
+  // +optional
+  optional string namespace = 4;
 }
 

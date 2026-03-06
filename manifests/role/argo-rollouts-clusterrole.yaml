@@ -22,6 +22,20 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
+  - rolloutplugins
+  - rolloutplugins/status
+  - rolloutplugins/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
   - analysisruns
   - analysisruns/finalizers
   - experiments
@@ -56,6 +70,17 @@ rules:
   - update
   - patch
   - delete
+# statefulset access needed for RolloutPlugin StatefulSet plugin
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
 # deployments and podtemplates read access needed for workload reference support
 - apiGroups:
   - ""

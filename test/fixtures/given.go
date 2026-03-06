@@ -72,6 +72,31 @@ func (g *Given) StartEventWatch(ctx context.Context) *Given {
 	return g
 }
 
+// RolloutPluginObjects sets up the rolloutplugin objects for the test environment given a YAML string or file path:
+// 1. A file name if it starts with "@"
+// 2. Raw YAML.
+func (g *Given) RolloutPluginObjects(text string) *Given {
+	g.t.Helper()
+	objs := g.parseTextToObjects(text)
+	for _, obj := range objs {
+		if obj.GetKind() == "RolloutPlugin" {
+			if g.rolloutPlugin != nil {
+				g.t.Fatal("multiple rolloutplugins specified")
+			}
+			g.log = g.log.WithField("rolloutplugin", obj.GetName())
+			g.rolloutPlugin = obj
+		}
+		if obj.GetKind() == "StatefulSet" {
+			if g.statefulSet != nil {
+				g.t.Fatal("multiple statefulsets specified")
+			}
+			g.statefulSet = obj
+		}
+		g.objects = append(g.objects, obj)
+	}
+	return g
+}
+
 func (g *Given) When() *When {
 	return &When{
 		Common: g.Common,
