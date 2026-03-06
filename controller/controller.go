@@ -573,7 +573,10 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 			}
 		}
 		c.wg.Add(1)
-		go func() { wait.Until(func() { c.analysisController.Run(ctx, analysisThreadiness) }, time.Second, ctx.Done()); c.wg.Done() }()
+		go func() {
+			wait.Until(func() { c.analysisController.Run(ctx, analysisThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
 	} else {
 
 		c.notificationConfigMapInformerFactory.Start(ctx.Done())
@@ -600,17 +603,35 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 		}
 
 		c.wg.Add(1)
-		go func() { wait.Until(func() { c.rolloutController.Run(ctx, rolloutThreadiness) }, time.Second, ctx.Done()); c.wg.Done() }()
+		go func() {
+			wait.Until(func() { c.rolloutController.Run(ctx, rolloutThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
 		c.wg.Add(1)
-		go func() { wait.Until(func() { c.serviceController.Run(ctx, serviceThreadiness) }, time.Second, ctx.Done()); c.wg.Done() }()
+		go func() {
+			wait.Until(func() { c.serviceController.Run(ctx, serviceThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
 		c.wg.Add(1)
-		go func() { wait.Until(func() { c.ingressController.Run(ctx, ingressThreadiness) }, time.Second, ctx.Done()); c.wg.Done() }()
+		go func() {
+			wait.Until(func() { c.ingressController.Run(ctx, ingressThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
 		c.wg.Add(1)
-		go func() { wait.Until(func() { c.experimentController.Run(ctx, experimentThreadiness) }, time.Second, ctx.Done()); c.wg.Done() }()
+		go func() {
+			wait.Until(func() { c.experimentController.Run(ctx, experimentThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
 		c.wg.Add(1)
-		go func() { wait.Until(func() { c.analysisController.Run(ctx, analysisThreadiness) }, time.Second, ctx.Done()); c.wg.Done() }()
+		go func() {
+			wait.Until(func() { c.analysisController.Run(ctx, analysisThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
 		c.wg.Add(1)
-		go func() { wait.Until(func() { c.notificationsController.Run(rolloutThreadiness, ctx.Done()) }, time.Second, ctx.Done()); c.wg.Done() }()
+		go func() {
+			wait.Until(func() { c.notificationsController.Run(rolloutThreadiness, ctx.Done()) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
 
 	}
 	log.Info("Started controller")
