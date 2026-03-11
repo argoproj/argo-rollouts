@@ -130,7 +130,7 @@ func (c *rolloutContext) areTargetsVerified() bool {
 // of the Service's Endpoint IPs and ports registered. Only valid for services which are reachable
 // by an ALB Ingress, which can be determined if there exists a TargetGroupBinding object in the
 // namespace that references the given service
-func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
+func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service, checkHealth bool) error {
 	if !shouldVerifyTargetGroup(c.rollout, c.newRS, svc) {
 		return nil
 	}
@@ -162,7 +162,7 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 	}
 
 	for _, tgb := range tgBindings {
-		verifyRes, err := aws.VerifyTargetGroupBinding(ctx, c.log, awsClnt, tgb, endpoints, svc)
+		verifyRes, err := aws.VerifyTargetGroupBinding(ctx, c.log, awsClnt, tgb, endpoints, svc, checkHealth)
 		if err != nil {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, svc.Name, tgb.Spec.TargetGroupARN, err)
 			return err
