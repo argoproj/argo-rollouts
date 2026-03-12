@@ -852,10 +852,10 @@ func TestCanaryDontScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 	f.run(getKey(r3, t))
 }
 
-// TestCanaryScaleDownOldRsDuringInterruptedUpdate tests that we proceed with scale down of an
-// intermediate V2 ReplicaSet when applying a V3 spec in the middle of updating a traffic routed
-// canary going from V1 -> V2 (i.e. after we have shifted traffic away from V2). This test is the
-// same as TestCanaryDontScaleDownOldRsDuringInterruptedUpdate but rs3 is fully available
+// TestCanaryScaleDownOldRsDuringInterruptedUpdate tests that we add a scale-down-deadline annotation
+// to an intermediate V2 ReplicaSet (instead of scaling down immediately) when applying a V3 spec in
+// the middle of updating a traffic routed canary going from V1 -> V2. This gives the traffic routing
+// layer (e.g. Istio) time to propagate configuration changes before pods are removed.
 func TestCanaryScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -884,6 +884,55 @@ func TestCanaryScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 	rs1 := newReplicaSetWithStatus(r1, 5, 5)
 	rs2 := newReplicaSetWithStatus(r2, 5, 5)
 	rs3 := newReplicaSetWithStatus(r3, 5, 5)
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	f.expectPatchRolloutAction(r3)
+	rs2PatchIndex := f.expectPatchReplicaSetAction(rs2) // scale-down-deadline annotation
+	f.run(getKey(r3, t))
+
+	// Verify the intermediate RS got a scale-down-deadline annotation (default 30s) instead of
+	// being scaled down immediately
+	f.verifyPatchedReplicaSet(rs2PatchIndex, 30)
+}
+
+// TestCanaryScaleDownOldRsDuringInterruptedUpdateAfterDeadline tests that the intermediate V2
+// ReplicaSet is scaled down after its scale-down-deadline has passed.
+func TestCanaryScaleDownOldRsDuringInterruptedUpdateAfterDeadline(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To[int32](100),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.StableService = "stable-svc"
+	r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+
+	stableSvc := newService("stable-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r1.Status.CurrentPodHash}, r1)
+	canarySvc := newService("canary-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r3.Status.CurrentPodHash}, r3)
+	r3.Status.StableRS = r1.Status.CurrentPodHash
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 5, 5)
+	rs3 := newReplicaSetWithStatus(r3, 5, 5)
+
+	// Set a scale-down-deadline in the past so it should be scaled down now
+	inThePast := timeutil.MetaNow().Add(-10 * time.Second).UTC().Format(time.RFC3339)
+	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
 
 	f.objects = append(f.objects, r3)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
