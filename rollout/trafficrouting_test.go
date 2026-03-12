@@ -1491,8 +1491,12 @@ func TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate(t *testing.T) {
 		},
 	}
 
-	f.expectUpdateReplicaSetAction(rs3)
+	rs2PatchIndex := f.expectPatchReplicaSetAction(rs2) // scale-down-deadline annotation on intermediate RS
 	f.run(getKey(r3, t))
+
+	// Verify the intermediate RS got a scale-down-deadline annotation (default 30s) instead of
+	// being scaled down immediately, giving Istio/ALB time to propagate routing changes
+	f.verifyPatchedReplicaSet(rs2PatchIndex, 30)
 
 	// Make sure that our weight is zero
 	assert.Equal(t, int32(0), r3.Status.Canary.Weights.Canary.Weight)
