@@ -13,9 +13,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	core "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -899,6 +901,21 @@ func TestCanaryScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 		f.run(getKey(r3, t))
 
 		f.verifyPatchedReplicaSet(rs2PatchIndex, 30)
+	})
+
+	t.Run("ErrorAddingScaleDownDeadline", func(t *testing.T) {
+		f, r3, rs2, _ := setup(t)
+		defer f.Close()
+
+		c, i, k8sI := f.newController(noResyncPeriodFunc)
+		f.kubeclient.PrependReactor("patch", "replicasets", func(action core.Action) (bool, runtime.Object, error) {
+			return true, nil, fmt.Errorf("fake patch error")
+		})
+		// When adding the scale-down-deadline annotation fails, the RS should not be scaled down.
+		// The patch on the RS (annotation) will fail, but no RS update (scale down) should happen.
+		f.expectPatchReplicaSetAction(rs2) // the failed annotation patch is still recorded as an action
+		f.expectPatchRolloutAction(r3)
+		f.runController(getKey(r3, t), true, false, c, i, k8sI)
 	})
 
 	t.Run("ScalesDownAfterDeadline", func(t *testing.T) {
