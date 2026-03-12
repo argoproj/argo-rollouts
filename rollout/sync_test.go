@@ -718,6 +718,76 @@ func TestShouldFullPromoteWithReplicaProgressThreshold(t *testing.T) {
 	}
 }
 
+// TestShouldFullPromoteCanaryAvailableVsDesired verifies that promotion is allowed when canary
+// has >= desired replicas (e.g. after HPA scales spec.replicas down), and blocked only when
+// canary has fewer available than desired.
+func TestShouldFullPromoteCanaryAvailableVsDesired(t *testing.T) {
+	tests := []struct {
+		name                     string
+		rolloutReplicas          int32
+		canaryAvailableReplicas  int32
+		expectedPromotionMessage string
+	}{
+		{
+			name:                     "block when canary has fewer available than desired",
+			rolloutReplicas:          10,
+			canaryAvailableReplicas:  5,
+			expectedPromotionMessage: "",
+		},
+		{
+			name:                     "promote when canary available equals desired",
+			rolloutReplicas:          10,
+			canaryAvailableReplicas:  10,
+			expectedPromotionMessage: "Completed all 1 canary steps",
+		},
+		{
+			name:                     "promote when canary has more available than desired (e.g. HPA scaled down)",
+			rolloutReplicas:          1,
+			canaryAvailableReplicas:  2,
+			expectedPromotionMessage: "Completed all 1 canary steps",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stableRS := &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{Name: "stable"},
+				Spec:       appsv1.ReplicaSetSpec{Replicas: &tt.rolloutReplicas},
+				Status:     v1.ReplicaSetStatus{AvailableReplicas: tt.rolloutReplicas},
+			}
+			newRS := &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{Name: "new"},
+				Spec:       appsv1.ReplicaSetSpec{Replicas: &tt.rolloutReplicas},
+				Status:     v1.ReplicaSetStatus{AvailableReplicas: tt.canaryAvailableReplicas},
+			}
+			replicaSets := []*appsv1.ReplicaSet{stableRS, newRS}
+
+			ctx := &rolloutContext{
+				allRSs:   replicaSets,
+				stableRS: stableRS,
+				newRS:    newRS,
+				rollout: &v1alpha1.Rollout{
+					ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+					Spec: v1alpha1.RolloutSpec{
+						Replicas: int32Ptr(tt.rolloutReplicas),
+						Strategy: v1alpha1.RolloutStrategy{
+							Canary: &v1alpha1.CanaryStrategy{
+								Steps: []v1alpha1.CanaryStep{{SetWeight: int32Ptr(100)}},
+							},
+						},
+					},
+				},
+			}
+			ctx.pauseContext = &pauseContext{rollout: ctx.rollout}
+			ctx.log = logutil.WithRollout(ctx.rollout)
+			ctx.rollout.Status.CurrentStepIndex = int32Ptr(1)
+
+			result := ctx.shouldFullPromote(v1alpha1.RolloutStatus{})
+			assert.Equal(t, tt.expectedPromotionMessage, result)
+		})
+	}
+}
+
 func TestScaleDownDeploymentOnSuccess(t *testing.T) {
 	ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
 	newStatus := &v1alpha1.RolloutStatus{
