@@ -933,6 +933,55 @@ func TestCanaryScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 		updatedRs2 := f.getUpdatedReplicaSet(updatedRSIndex)
 		assert.Equal(t, int32(0), *updatedRs2.Spec.Replicas)
 	})
+
+	// TestCanaryDynamicStableScaleHonorsScaleDownDeadline verifies that when DynamicStableScale
+	// is true and the rollout is fully promoted, an old RS with a future scale-down-deadline is
+	// NOT scaled down immediately. This reproduces the bug where the DynamicStableScale branch
+	// set desiredReplicaCount=0 without checking the deadline, causing Istio 503 UH errors
+	// because pods were removed before the data plane propagated routing changes.
+	t.Run("DynamicStableScaleHonorsScaleDownDeadline", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		steps := []v1alpha1.CanaryStep{
+			{SetWeight: ptr.To[int32](100)},
+			{Pause: &v1alpha1.RolloutPause{}},
+		}
+		r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(0))
+		r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			SMI: &v1alpha1.SMITrafficRouting{},
+		}
+		r1.Spec.Strategy.Canary.StableService = "stable-svc"
+		r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+		r1.Spec.Strategy.Canary.DynamicStableScale = true
+		r2 := bumpVersion(r1)
+		r3 := bumpVersion(r2)
+
+		// Simulate the state AFTER the first reconciliation promoted V3 to stable.
+		// StableRS == CurrentPodHash means IsFullyPromoted() is true.
+		r3.Status.StableRS = r3.Status.CurrentPodHash
+
+		stableSvc := newService("stable-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r3.Status.CurrentPodHash}, r3)
+		canarySvc := newService("canary-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r3.Status.CurrentPodHash}, r3)
+
+		rs1 := newReplicaSetWithStatus(r1, 0, 0)
+		rs2 := newReplicaSetWithStatus(r2, 5, 5)
+		rs3 := newReplicaSetWithStatus(r3, 5, 5)
+
+		// The intermediate RS (V2) has a scale-down-deadline 30s in the future (set by the
+		// first reconciliation). It should NOT be scaled down yet.
+		inTheFuture := timeutil.MetaNow().Add(30 * time.Second).UTC().Format(time.RFC3339)
+		rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
+
+		f.objects = append(f.objects, r3)
+		f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+		f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+		// Expect only the rollout status patch - NO RS update (scale down) should happen
+		f.expectPatchRolloutAction(r3)
+		f.run(getKey(r3, t))
+	})
 }
 
 func TestRollBackToStable(t *testing.T) {
