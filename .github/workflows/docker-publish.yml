@@ -71,7 +71,7 @@ jobs:
     with:
       quay_image_name: ${{ needs.set-vars.outputs.controller-meta-tags }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.24'
+      go-version: '1.26'
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: ${{ github.event_name != 'pull_request' }}
     secrets:
@@ -88,7 +88,7 @@ jobs:
     with:
       quay_image_name: ${{ needs.set-vars.outputs.plugin-meta-tags }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.24'
+      go-version: '1.26'
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: ${{ github.event_name != 'pull_request' }}
       target: kubectl-argo-rollouts
