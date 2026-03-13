@@ -1106,3 +1106,27 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		assert.Equal(t, 0, len(allErrs))
 	})
 }
+
+func TestCanaryRequiresAtLeastOneStep(t *testing.T) {
+	rollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					Steps: []v1alpha1.CanaryStep{}, // Nenhum step
+				},
+			},
+		},
+	}
+
+	errs := ValidateRolloutStrategyCanary(rollout, field.NewPath("spec").Child("strategy").Child("canary"))
+	found := false
+	for _, err := range errs {
+		if err.Type == field.ErrorTypeRequired && err.Field == "spec.strategy.canary.steps" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected error for missing canary steps, but did not find it")
+	}
+}
