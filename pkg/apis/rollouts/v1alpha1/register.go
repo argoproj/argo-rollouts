@@ -18,6 +18,7 @@ var (
 	AnalysisTemplateGVR        = SchemeGroupVersion.WithResource("analysistemplates")
 	ClusterAnalysisTemplateGVR = SchemeGroupVersion.WithResource("clusteranalysistemplates")
 	ExperimentGVR              = SchemeGroupVersion.WithResource("experiments")
+	RolloutPluginGVR           = SchemeGroupVersion.WithResource("rolloutplugins")
 )
 
 // Kind takes an unqualified kind and returns back a Group qualified GroupKind
@@ -48,6 +49,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ClusterAnalysisTemplateList{},
 		&AnalysisRun{},
 		&AnalysisRunList{},
+		&RolloutPlugin{},
+		&RolloutPluginList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

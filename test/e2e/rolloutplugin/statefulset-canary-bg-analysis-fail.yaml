@@ -1,0 +1,84 @@
+---
+# Background analysis with failing metrics
+# Used by: TestBackgroundAnalysisFailure
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: bg-analysis-fail
+spec:
+  metrics:
+  - name: fail-metric
+    count: 1
+    interval: 3s
+    failureLimit: 0
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+              - name: fail
+                image: quay.io/prometheus/busybox:latest
+                command: ["/bin/sh", "-c", "echo 'Analysis failed' && exit 1"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bg-analysis-fail-svc
+spec:
+  clusterIP: None
+  selector:
+    app: bg-analysis-fail
+  ports:
+  - port: 80
+    name: web
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bg-analysis-fail-sts
+spec:
+  serviceName: bg-analysis-fail-svc
+  replicas: 5
+  selector:
+    matchLabels:
+      app: bg-analysis-fail
+  template:
+    metadata:
+      labels:
+        app: bg-analysis-fail
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: busybox
+        image: quay.io/prometheus/busybox:latest
+        command: ["sleep", "3600"]
+        ports:
+        - containerPort: 80
+  updateStrategy:
+    type: RollingUpdate
+---
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: bg-analysis-fail-rp
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: bg-analysis-fail-sts
+  plugin:
+    name: statefulset
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: bg-analysis-fail
+      steps:
+      - setWeight: 60
+      - pause: {duration: 5s}
+      - setWeight: 80
+      - pause: {duration: 5s}
+      - setWeight: 100

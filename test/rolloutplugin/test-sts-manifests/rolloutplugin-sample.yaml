@@ -1,0 +1,94 @@
+---
+# AnalysisTemplate for background analysis - simple sleep job
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: sleep-job
+  namespace: argo-rollouts
+spec:
+  metrics:
+  - name: sleep-test
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: quay.io/prometheus/busybox:latest
+                command: [sh, -c]
+                args: ["sleep 60 && exit 0"]
+              restartPolicy: Never
+---
+# AnalysisTemplate for step-based analysis - quick sleep job
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: quick-sleep-job
+  namespace: argo-rollouts
+spec:
+  metrics:
+  - name: quick-test
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: quay.io/prometheus/busybox:latest
+                command: [sh, -c]
+                args: ["sleep 30 && exit 0"]
+              restartPolicy: Never
+---
+# RolloutPlugin with Canary Strategy and Job-based Analysis
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: test-statefulset-rollout
+  namespace: argo-rollouts
+spec:
+  # Reference to the StatefulSet being managed
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: test-sts
+    # namespace is optional, defaults to RolloutPlugin's namespace
+  
+  # Plugin configuration
+  plugin:
+    name: statefulset
+    # Optional: plugin-specific configuration
+    config:
+      # Any StatefulSet-specific settings
+      a: b
+  
+  # Analysis configuration for retaining analysis run history
+  analysis:
+    successfulRunHistoryLimit: 5
+    unsuccessfulRunHistoryLimit: 5
+  
+  # Canary rollout strategy
+  strategy:
+    canary:
+      # Background analysis runs continuously during the rollout (60s sleep job)
+      analysis:
+        templates:
+          - templateName: sleep-job
+      steps:
+        - setWeight: 20
+        - pause: {duration: 10s}
+        # Step-based analysis - runs at this specific step (30s sleep job)
+        - analysis:
+            templates:
+              - templateName: quick-sleep-job
+        - setWeight: 40
+        - pause: {duration: 10s}
+        - setWeight: 60
+        - pause: {duration: 10s}
+        - setWeight: 80
+        - pause: {duration: 10s}
+        - setWeight: 100
+

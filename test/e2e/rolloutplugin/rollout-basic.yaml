@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: basic
+spec:
+  strategy:
+    canary: 
+      steps:
+      - setWeight: 50
+      - pause: {}
+  selector:
+    matchLabels:
+      app: basic
+  template:
+    metadata:
+      labels:
+        app: basic
+    spec:
+      containers:
+      - name: basic
+        image: quay.io/nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 18Mi
+            cpu: 1m
