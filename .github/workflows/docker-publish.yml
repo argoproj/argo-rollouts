@@ -5,9 +5,10 @@ on:
     branches:
       - master
       - release-*
-
+  
   # Run tests for any PRs.
   pull_request:
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,12 +24,12 @@ jobs:
   set-vars:
     permissions:
       contents: read
+    
     runs-on: ubuntu-latest
     outputs:
       controller-meta-tags: ${{ steps.controller-meta.outputs.tags }}
       plugin-meta-tags: ${{ steps.plugin-meta.outputs.tags }}
       platforms: ${{ steps.platform-matrix.outputs.platform-matrix }}
-
     steps:
       - name: Docker meta (controller)
         id: controller-meta
@@ -38,6 +39,10 @@ jobs:
             quay.io/${{ env.REGISTRY_NAMESPACE }}/argo-rollouts
           tags: |
             type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
+            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
+            if [ "${{ contains(github.event.pull_request.labels.*.name, 'hot-fix') }}" = "true" ]; then
+             type=ref,value=pr-${{ github.event.pull_request.number }},enable=true
+            fi
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
       - name: Docker meta (plugin)
