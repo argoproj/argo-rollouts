@@ -146,7 +146,7 @@ func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWe
 	availableReplicas := rs.Status.AvailableReplicas
 	totalReplicas := *c.rollout.Spec.Replicas
 
-	desiredReplicas := (desiredWeight * totalReplicas) / 100
+	desiredReplicas := (desiredWeight * totalReplicas) / weightutil.MaxTrafficWeight(c.rollout)
 	if availableReplicas < desiredReplicas &&
 		!replicasetutil.ReplicaProgressThresholdMet(c.rollout.Spec.Strategy.Canary.ReplicaProgressThreshold, rs, desiredReplicas) {
 		c.log.Infof("ReplicaSet '%s' has %d available replicas, waiting for %d", rs.Name, availableReplicas, desiredReplicas)

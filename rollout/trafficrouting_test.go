@@ -1631,6 +1631,87 @@ func TestCheckReplicasAvailableWithReplicaProgressThreshold(t *testing.T) {
 	}
 }
 
+func TestCheckReplicasAvailableWithCustomMaxTrafficWeight(t *testing.T) {
+	tests := []struct {
+		name              string
+		totalReplicas     int32
+		availableReplicas int
+		desiredWeight     int32
+		maxTrafficWeight  int32
+		expectedResult    bool
+		description       string
+	}{
+		{
+			name:              "custom maxTrafficWeight - replicas available",
+			totalReplicas:     2,
+			availableReplicas: 1,
+			desiredWeight:     50000000,
+			maxTrafficWeight:  100000000,
+			expectedResult:    true,
+			description:       "With maxTrafficWeight=100000000, 50% weight on 2 replicas needs 1 replica (2*50000000/100000000=1)",
+		},
+		{
+			name:              "custom maxTrafficWeight - replicas not available",
+			totalReplicas:     2,
+			availableReplicas: 0,
+			desiredWeight:     50000000,
+			maxTrafficWeight:  100000000,
+			expectedResult:    false,
+			description:       "With maxTrafficWeight=100000000, 50% weight on 2 replicas needs 1 replica but 0 available",
+		},
+		{
+			name:              "custom maxTrafficWeight - high weight needs all replicas",
+			totalReplicas:     2,
+			availableReplicas: 2,
+			desiredWeight:     100000000,
+			maxTrafficWeight:  100000000,
+			expectedResult:    true,
+			description:       "With maxTrafficWeight=100000000, 100% weight on 2 replicas needs 2 replicas",
+		},
+		{
+			name:              "custom maxTrafficWeight - low weight needs zero replicas",
+			totalReplicas:     2,
+			availableReplicas: 0,
+			desiredWeight:     0,
+			maxTrafficWeight:  100000000,
+			expectedResult:    true,
+			description:       "With maxTrafficWeight=100000000, 0% weight needs 0 replicas",
+		},
+		{
+			name:              "default maxTrafficWeight - same behavior as before",
+			totalReplicas:     10,
+			availableReplicas: 5,
+			desiredWeight:     50,
+			maxTrafficWeight:  0, // 0 means use default (100)
+			expectedResult:    true,
+			description:       "With default maxTrafficWeight (100), 50% weight on 10 replicas needs 5 replicas",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newCanaryRollout("foo", int(tt.totalReplicas), nil, nil, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+			r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+				SMI: &v1alpha1.SMITrafficRouting{},
+			}
+			if tt.maxTrafficWeight > 0 {
+				r.Spec.Strategy.Canary.TrafficRouting.MaxTrafficWeight = ptr.To[int32](tt.maxTrafficWeight)
+			}
+
+			roCtx := &rolloutContext{
+				rollout: r,
+				log:     logutil.WithRollout(r),
+			}
+
+			rs := newReplicaSetWithStatus(r, int(tt.totalReplicas), tt.availableReplicas)
+
+			result := roCtx.checkReplicasAvailable(rs, tt.desiredWeight)
+
+			assert.Equal(t, tt.expectedResult, result, tt.description)
+		})
+	}
+}
+
 // TestDynamicScalingAbortWithZeroReplicas verifies we handle zero replicas gracefully during abort
 func TestDynamicScalingAbortWithZeroReplicas(t *testing.T) {
 	f := newFixture(t)
