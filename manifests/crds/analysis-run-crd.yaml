@@ -87,6 +87,8 @@ spec:
                             name:
                               description: Name is the name of the secret
                               type: string
+                            namespace:
+                              type: string
                           required:
                           - key
                           - name

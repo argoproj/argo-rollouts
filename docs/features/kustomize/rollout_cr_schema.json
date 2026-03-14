@@ -44,6 +44,9 @@
                                                     "name": {
                                                         "description": "Name is the name of the secret",
                                                         "type": "string"
+                                                    },
+                                                    "namespace": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
@@ -6494,6 +6497,9 @@
                                                     },
                                                     "name": {
                                                         "description": "Name is the name of the secret",
+                                                        "type": "string"
+                                                    },
+                                                    "namespace": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -12961,6 +12967,9 @@
                                                     },
                                                     "name": {
                                                         "description": "Name is the name of the secret",
+                                                        "type": "string"
+                                                    },
+                                                    "namespace": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -19432,6 +19441,9 @@
                                                                 },
                                                                 "name": {
                                                                     "description": "Name is the name of the secret",
+                                                                    "type": "string"
+                                                                },
+                                                                "namespace": {
                                                                     "type": "string"
                                                                 }
                                                             },
