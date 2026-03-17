@@ -69,7 +69,7 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make ${MAKE_TARGET}
 ####################################################################################################
 # Kubectl plugin image
 ####################################################################################################
-FROM gcr.io/distroless/static-debian11 AS kubectl-argo-rollouts
+FROM gcr.io/distroless/static-debian12 AS kubectl-argo-rollouts
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts /bin/kubectl-argo-rollouts
 
@@ -84,7 +84,7 @@ CMD ["dashboard"]
 ####################################################################################################
 # Final image
 ####################################################################################################
-FROM gcr.io/distroless/static-debian11
+FROM gcr.io/distroless/static-debian12
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
