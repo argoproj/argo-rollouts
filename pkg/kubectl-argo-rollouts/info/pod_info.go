@@ -63,8 +63,29 @@ func newPodInfo(pod *corev1.Pod) rollout.PodInfo {
 	readyContainers := 0
 
 	reason := string(pod.Status.Phase)
-	if pod.Status.Reason != "" {
+	if pod.Status.Reason != "" && pod.Status.Phase != corev1.PodUnknown {
 		reason = pod.Status.Reason
+	}
+
+	// If the pod phase is Unknown, the node is unreachable and all container
+	// statuses are stale. Return immediately rather than deriving a misleading
+	// reason from untrustworthy container state.
+	if pod.Status.Phase == corev1.PodUnknown {
+		podInfo.Status = reason
+		podInfo.Icon = podIcon(podInfo.Status)
+		podInfo.Ready = fmt.Sprintf("%d/%d", readyContainers, totalContainers)
+		podInfo.Restarts = int32(restarts)
+		return podInfo
+	}
+
+	// If the pod is being deleted, show "Terminating" immediately. Container
+	// state during a grace period is not meaningful for display purposes.
+	if pod.DeletionTimestamp != nil {
+		podInfo.Status = "Terminating"
+		podInfo.Icon = podIcon(podInfo.Status)
+		podInfo.Ready = fmt.Sprintf("%d/%d", readyContainers, totalContainers)
+		podInfo.Restarts = int32(restarts)
+		return podInfo
 	}
 
 	initializing := false
@@ -124,12 +145,6 @@ func newPodInfo(pod *corev1.Pod) rollout.PodInfo {
 		if reason == "Completed" && hasRunning {
 			reason = "Running"
 		}
-	}
-
-	if pod.DeletionTimestamp != nil && pod.Status.Phase == corev1.PodUnknown {
-		reason = "Unknown"
-	} else if pod.DeletionTimestamp != nil {
-		reason = "Terminating"
 	}
 
 	podInfo.Status = reason
