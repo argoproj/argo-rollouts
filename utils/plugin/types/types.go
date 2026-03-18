@@ -8,6 +8,7 @@ import (
 
 func init() {
 	gob.RegisterName("RpcError", new(RpcError))
+	gob.RegisterName("ResourceStatus", new(ResourceStatus))
 }
 
 // RpcError is a wrapper around the error type to allow for usage with net/rpc
@@ -23,6 +24,43 @@ func (e RpcError) Error() string {
 // HasError returns true if there is an error
 func (e RpcError) HasError() bool {
 	return e.ErrorString != ""
+}
+
+// ResourceStatus contains the status of a workload resource managed by a RolloutPlugin.
+// This struct is shared between the controller interface and RPC interface to avoid conversions.
+type ResourceStatus struct {
+	Replicas          int32
+	UpdatedReplicas   int32
+	ReadyReplicas     int32
+	AvailableReplicas int32
+	CurrentRevision   string
+	UpdatedRevision   string
+	Ready             bool
+}
+
+// RpcResourcePlugin is the RPC interface for resource plugins.
+// It's nearly identical to the controller's ResourcePlugin interface, but:
+// - Returns RpcError instead of error (for RPC serialization)
+// - No context.Context (can't be serialized over RPC)
+// Built-in plugins implement the controller interface directly.
+// External RPC plugins implement this interface.
+type RpcResourcePlugin interface {
+	// InitPlugin initializes the plugin
+	InitPlugin() RpcError
+	// GetResourceStatus gets the current status of the referenced workload
+	GetResourceStatus(workloadRef v1alpha1.WorkloadRef) (*ResourceStatus, RpcError)
+	// SetWeight updates the weight (percentage of pods updated)
+	SetWeight(workloadRef v1alpha1.WorkloadRef, weight int32) RpcError
+	// VerifyWeight checks if the desired weight has been achieved
+	VerifyWeight(workloadRef v1alpha1.WorkloadRef, weight int32) (bool, RpcError)
+	// Promote promotes the new version to stable
+	Promote(workloadRef v1alpha1.WorkloadRef) RpcError
+	// Abort aborts the rollout and reverts to the stable version
+	Abort(workloadRef v1alpha1.WorkloadRef) RpcError
+	// Restart returns the workload to baseline state for restart
+	Restart(workloadRef v1alpha1.WorkloadRef) RpcError
+	// Type returns the type of the resource plugin
+	Type() string
 }
 
 // RpcVerified is a wrapper around the *bool as used in VerifyWeight for traffic routers. This is needed because

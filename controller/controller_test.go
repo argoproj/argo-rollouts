@@ -235,6 +235,17 @@ func TestNewManager(t *testing.T) {
 	assert.NoError(t, err)
 
 	k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
+	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:                          fmt.Sprintf(listenAddr, 8090),
+		RolloutLister:                 i.Argoproj().V1alpha1().Rollouts().Lister(),
+		AnalysisRunLister:             i.Argoproj().V1alpha1().AnalysisRuns().Lister(),
+		AnalysisTemplateLister:        i.Argoproj().V1alpha1().AnalysisTemplates().Lister(),
+		ClusterAnalysisTemplateLister: i.Argoproj().V1alpha1().ClusterAnalysisTemplates().Lister(),
+		ExperimentLister:              i.Argoproj().V1alpha1().Experiments().Lister(),
+		RolloutPluginLister:           i.Argoproj().V1alpha1().RolloutPlugins().Lister(),
+		K8SRequestProvider:            k8sRequestProvider,
+	})
+
 	cm := NewManager(
 		"default",
 		f.kubeclient,
@@ -258,9 +269,8 @@ func TestNewManager(t *testing.T) {
 		k8sI,
 		noResyncPeriodFunc(),
 		"test",
-		8090,
+		metricsServer,
 		8080,
-		k8sRequestProvider,
 		nil,
 		nil,
 		dynamicInformerFactory,
@@ -288,6 +298,14 @@ func TestNewAnalysisManager(t *testing.T) {
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 
 	k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
+	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:                          fmt.Sprintf(listenAddr, 8090),
+		AnalysisRunLister:             i.Argoproj().V1alpha1().AnalysisRuns().Lister(),
+		AnalysisTemplateLister:        i.Argoproj().V1alpha1().AnalysisTemplates().Lister(),
+		ClusterAnalysisTemplateLister: i.Argoproj().V1alpha1().ClusterAnalysisTemplates().Lister(),
+		K8SRequestProvider:            k8sRequestProvider,
+	})
+
 	cm := NewAnalysisManager(
 		"default",
 		f.kubeclient,
@@ -297,9 +315,8 @@ func TestNewAnalysisManager(t *testing.T) {
 		i.Argoproj().V1alpha1().AnalysisTemplates(),
 		i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
 		noResyncPeriodFunc(),
-		8090,
+		metricsServer,
 		8080,
-		k8sRequestProvider,
 		nil,
 		dynamicInformerFactory,
 		false,
