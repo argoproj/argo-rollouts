@@ -244,8 +244,12 @@ type PrometheusMetric struct {
 	// Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,4,opt,name=timeout"`
-	// Insecure skips host TLS verification
+	// Insecure skips TLS certificate verification when querying Prometheus
+	// +optional
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// CAPath is a path to a PEM-encoded CA certificate file on the controller filesystem
+	// +optional
+	CAPath string `json:"caPath,omitempty" protobuf:"bytes,8,opt,name=caPath"`
 	// Headers are optional HTTP headers to use in the request
 	// +optional
 	// +patchMergeKey=key
