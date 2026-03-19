@@ -1648,6 +1648,87 @@ func TestCheckReplicasAvailableWithReplicaProgressThreshold(t *testing.T) {
 	}
 }
 
+func TestCheckReplicasAvailableWithCustomMaxTrafficWeight(t *testing.T) {
+	tests := []struct {
+		name              string
+		totalReplicas     int32
+		availableReplicas int
+		desiredWeight     int32
+		maxTrafficWeight  int32
+		expectedResult    bool
+		description       string
+	}{
+		{
+			name:              "custom maxTrafficWeight - replicas available",
+			totalReplicas:     2,
+			availableReplicas: 1,
+			desiredWeight:     50000000,
+			maxTrafficWeight:  100000000,
+			expectedResult:    true,
+			description:       "With maxTrafficWeight=100000000, 50% weight on 2 replicas needs 1 replica (2*50000000/100000000=1)",
+		},
+		{
+			name:              "custom maxTrafficWeight - replicas not available",
+			totalReplicas:     2,
+			availableReplicas: 0,
+			desiredWeight:     50000000,
+			maxTrafficWeight:  100000000,
+			expectedResult:    false,
+			description:       "With maxTrafficWeight=100000000, 50% weight on 2 replicas needs 1 replica but 0 available",
+		},
+		{
+			name:              "custom maxTrafficWeight - high weight needs all replicas",
+			totalReplicas:     2,
+			availableReplicas: 2,
+			desiredWeight:     100000000,
+			maxTrafficWeight:  100000000,
+			expectedResult:    true,
+			description:       "With maxTrafficWeight=100000000, 100% weight on 2 replicas needs 2 replicas",
+		},
+		{
+			name:              "custom maxTrafficWeight - low weight needs zero replicas",
+			totalReplicas:     2,
+			availableReplicas: 0,
+			desiredWeight:     0,
+			maxTrafficWeight:  100000000,
+			expectedResult:    true,
+			description:       "With maxTrafficWeight=100000000, 0% weight needs 0 replicas",
+		},
+		{
+			name:              "default maxTrafficWeight - same behavior as before",
+			totalReplicas:     10,
+			availableReplicas: 5,
+			desiredWeight:     50,
+			maxTrafficWeight:  0, // 0 means use default (100)
+			expectedResult:    true,
+			description:       "With default maxTrafficWeight (100), 50% weight on 10 replicas needs 5 replicas",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newCanaryRollout("foo", int(tt.totalReplicas), nil, nil, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+			r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+				SMI: &v1alpha1.SMITrafficRouting{},
+			}
+			if tt.maxTrafficWeight > 0 {
+				r.Spec.Strategy.Canary.TrafficRouting.MaxTrafficWeight = ptr.To[int32](tt.maxTrafficWeight)
+			}
+
+			roCtx := &rolloutContext{
+				rollout: r,
+				log:     logutil.WithRollout(r),
+			}
+
+			rs := newReplicaSetWithStatus(r, int(tt.totalReplicas), tt.availableReplicas)
+
+			result := roCtx.checkReplicasAvailable(rs, tt.desiredWeight)
+
+			assert.Equal(t, tt.expectedResult, result, tt.description)
+		})
+	}
+}
+
 // TestDynamicScalingAbortWithZeroReplicas verifies we handle zero replicas gracefully during abort
 func TestDynamicScalingAbortWithZeroReplicas(t *testing.T) {
 	f := newFixture(t)
@@ -2085,4 +2166,115 @@ spec:
 		"when delaying DR switch, must not emit Updated VirtualService event (SetWeight not called); events: %v", f.events)
 	assert.False(t, strings.Contains(logOut, "desiredWeight '70'"),
 		"when delaying destination rule switch, must not set weight to 70; log: %s", logOut)
+}
+
+// TestDynamicStableScaleNewCanarySupersedeShouldNotOverloadStable verifies that superseding an
+// in-progress rollout with dynamicStableScale enabled does NOT route 100% of traffic to a
+// stable RS that only has a fraction of its pods available.
+//
+// Scenario from https://github.com/argoproj/argo-rollouts/pull/4564#issuecomment-4015022647:
+//   - dynamicStableScale: true
+//   - Rolling A→B: stable (A) dynamically scaled to 1/10 pods, canary (B) at 9/10 pods, 90% traffic weight
+//   - New canary C triggered (superseding B): C has 0 replicas, 0% traffic
+//
+// The fix moves the early SetWeight(0) (needed to reset traffic before UpdateHash points the
+// destination rule to the new empty canary) so that it runs AFTER the checkReplicasAvailable
+// guard. This ensures:
+//  1. When stable lacks capacity (this test): checkReplicasAvailable returns early, and neither
+//     SetWeight(0) nor UpdateHash is called. Traffic stays on the old canary until stable scales up.
+//  2. When stable has capacity: SetWeight(0) runs before UpdateHash, preserving the ordering
+//     fix from PR #4564 that prevents Istio 503s.
+func TestDynamicStableScaleNewCanarySupersedeShouldNotOverloadStable(t *testing.T) {
+	const (
+		canaryService = "myservice-canary"
+		stableService = "myservice-stable"
+	)
+
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](90)},
+		{Pause: &v1alpha1.RolloutPause{}},
+	}
+
+	// r1 is the stable version (A)
+	r1 := newCanaryRollout("myservice", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.DynamicStableScale = true
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.CanaryService = canaryService
+	r1.Spec.Strategy.Canary.StableService = stableService
+
+	// r2 is the "previous canary" (B) — rollout in progress at 90% weight
+	r2 := bumpVersion(r1)
+
+	// r3 is the "new canary" (C) — superseding B, just triggered, 0 replicas
+	r3 := bumpVersion(r2)
+
+	// Stable (A): 1 of 10 replicas available — dynamically scaled down because
+	// 90% of traffic was being served by the canary (B).
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	// Old canary (B): 9 of 10 replicas — was carrying 90% of traffic.
+	rs2 := newReplicaSetWithStatus(r2, 9, 9)
+	// New canary (C): 0 replicas — just triggered, not yet scaled up.
+	rs3 := newReplicaSetWithStatus(r3, 0, 0)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs3PodHash := rs3.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService(canaryService, 80, canarySelector, r3)
+	stableSvc := newService(stableService, 80, stableSelector, r3)
+
+	// Status: C is the new active canary, A is stable.
+	// Weights still reflect the previous rollout state: 90% to B, 10% to A.
+	r3.Status.StableRS = rs1PodHash
+	r3.Status.CurrentPodHash = rs3PodHash
+	r3.Status.CurrentStepIndex = ptr.To[int32](0)
+	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			Weight:          90,
+			ServiceName:     canaryService,
+			PodTemplateHash: rs2PodHash, // Still pointing to old canary B
+		},
+		Stable: v1alpha1.WeightDestination{
+			Weight:          10,
+			ServiceName:     stableService,
+			PodTemplateHash: rs1PodHash,
+		},
+	}
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.rolloutLister = append(f.rolloutLister, r3)
+	f.objects = append(f.objects, r3)
+
+	var setWeightCalls []int32
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+		setWeightCalls = append(setWeightCalls, desiredWeight)
+		t.Logf("SetWeight called with weight=%d", desiredWeight)
+		return nil
+	})
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+
+	f.expectPatchRolloutAction(r3)
+	f.expectUpdateReplicaSetAction(rs3) // Scale up new canary C
+	f.run(getKey(r3, t))
+
+	// With dynamicStableScale=true, stable (A) only has 1/10 pods available.
+	// checkReplicasAvailable should return early, preventing both SetWeight and
+	// UpdateHash from being called. If SetWeight(0) were called, it would route
+	// 100% of traffic to a stable RS with only 10% of its pods.
+	assert.Empty(t, setWeightCalls,
+		"SetWeight should not be called when stable lacks capacity with dynamicStableScale; "+
+			"checkReplicasAvailable should return early. Calls observed: %v", setWeightCalls)
+	f.fakeTrafficRouting.AssertNotCalled(t, "UpdateHash", mock.Anything, mock.Anything, mock.Anything)
 }

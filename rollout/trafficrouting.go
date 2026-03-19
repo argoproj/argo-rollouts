@@ -146,7 +146,7 @@ func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWe
 	availableReplicas := rs.Status.AvailableReplicas
 	totalReplicas := *c.rollout.Spec.Replicas
 
-	desiredReplicas := (desiredWeight * totalReplicas) / 100
+	desiredReplicas := (desiredWeight * totalReplicas) / weightutil.MaxTrafficWeight(c.rollout)
 	if availableReplicas < desiredReplicas &&
 		!replicasetutil.ReplicaProgressThresholdMet(c.rollout.Spec.Strategy.Canary.ReplicaProgressThreshold, rs, desiredReplicas) {
 		c.log.Infof("ReplicaSet '%s' has %d available replicas, waiting for %d", rs.Name, availableReplicas, desiredReplicas)
@@ -227,15 +227,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			// During the V2 rollout, managed routes could have been setup and would continue
 			// to direct traffic to the canary service which is now in front of 0 available replicas.
 			// We want to remove these managed routes alongside the safety here of never weighting to the canary.
-			// Additionally, if there was previous canary weight > 0, we must reset the weight
-			// BEFORE updating the hash (done later) to avoid routing traffic to non-existent pods.
-			// Note: SetWeight is idempotent, so calling it twice is harmless.
-			if c.rollout.Status.Canary.Weights != nil && c.rollout.Status.Canary.Weights.Canary.Weight > 0 {
-				if err := reconciler.SetWeight(desiredWeight, weightDestinations...); err != nil {
-					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
-					return err
-				}
-			}
 			err := reconciler.RemoveManagedRoutes()
 			if err != nil {
 				return err
@@ -295,6 +286,20 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				if err = reconciler.SetMirrorRoute(currentStep.SetMirrorRoute); err != nil {
 					return err
 				}
+			}
+		}
+
+		// If there was a previous canary weight > 0 and the new canary has no available
+		// replicas, we must reset the weight to 0 BEFORE updating the hash. Otherwise,
+		// UpdateHash will point the destination rule to the new (empty) canary while the
+		// old weight is still in effect, routing traffic to non-existent pods.
+		// This runs after checkReplicasAvailable so we only reset when stable can handle
+		// the full traffic load.
+		if (c.newRS == nil || c.newRS.Status.AvailableReplicas == 0) &&
+			c.rollout.Status.Canary.Weights != nil && c.rollout.Status.Canary.Weights.Canary.Weight > 0 {
+			if err := reconciler.SetWeight(desiredWeight, weightDestinations...); err != nil {
+				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
+				return err
 			}
 		}
 
