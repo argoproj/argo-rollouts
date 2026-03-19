@@ -10,7 +10,7 @@ There are multiple steps available, the most basic ones are `setWeight` and `pau
 
 !!! important
 
-    If the canary Rollout does not use [traffic management](traffic-management/index.md), the Rollout makes a best effort attempt to achieve the percentage listed in the last `setWeight` step between the new and old version. For example, if a Rollout has 10 Replicas and 10% for the first `setWeight` step, the controller will scale the new desired ReplicaSet to 1 replicas and the old stable ReplicaSet to 9. In the case where the setWeight is 41%, the Rollout attempts to get there by finding the whole number with the smallest delta, rounding up the calculation if the deltas are equals (i.e. the new ReplicaSet has 4 pods since 41% of 10 is closer to 4/10 than 5/10, and the old ReplicaSet has 6 pods). If a user wants to have more fine-grained control of the percentages without a large number of Replicas, that user should use the [traffic management](#trafficrouting) functionality.
+    If the canary Rollout does not use [traffic management](../traffic-management/index.md), the Rollout makes a best effort attempt to achieve the percentage listed in the last `setWeight` step between the new and old version. For example, if a Rollout has 10 Replicas and 10% for the first `setWeight` step, the controller will scale the new desired ReplicaSet to 1 replicas and the old stable ReplicaSet to 9. In the case where the setWeight is 41%, the Rollout attempts to get there by finding the whole number with the smallest delta, rounding up the calculation if the deltas are equals (i.e. the new ReplicaSet has 4 pods since 41% of 10 is closer to 4/10 than 5/10, and the old ReplicaSet has 6 pods). If a user wants to have more fine-grained control of the percentages without a large number of Replicas, that user should use the [traffic management](#trafficrouting) functionality.
 
 ## Example
 
@@ -64,7 +64,7 @@ spec:
         - pause: {} # pause indefinitely
 ```
 
-If no `duration` is specified for a pause step, the rollout will be paused indefinitely. To unpause, use the [argo kubectl plugin](kubectl-plugin.md) `promote` command.
+If no `duration` is specified for a pause step, the rollout will be paused indefinitely. To unpause, use the [argo kubectl plugin](../kubectl-plugin.md) `promote` command.
 
 ```shell
 # promote to the next step
@@ -77,8 +77,7 @@ By default, the rollout controller will scale the canary to match the current tr
 current step. For example, if the current weight is 25%, and there are four replicas, then the
 canary will be scaled to 1, to match the traffic weight.
 
-It is possible to control the canary replica's scale during the steps such that it does not necessary
-match the traffic weight. Some use cases for this:
+It is possible to control the canary replica's scale during the steps such that it does not necessarily match the traffic weight. Some use cases for this are:
 
 1. The new version should not yet be exposed to the public (setWeight: 0), but you would like to
    scale the canary up for testing purposes.
@@ -132,7 +131,7 @@ spec:
         - pause: {}
 ```
 
-The above situation is caused by the changed behvaior of `setWeight` after `setCanaryScale`. To reset, set `matchTrafficWeight: true` and the `setWeight` behavior will be restored, i.e., subsequent `setWeight` will create canary replicas matching the traffic weight.
+The above situation is caused by the changed behavior of `setWeight` after `setCanaryScale`. To reset, set `matchTrafficWeight: true` and the `setWeight` behavior will be restored, i.e., subsequent `setWeight` will create canary replicas matching the traffic weight.
 
 ## Dynamic Stable Scale (with Traffic Routing)
 
@@ -174,6 +173,11 @@ spec:
 ```
 
 ## Mimicking Rolling Update
+
+!!! important
+    `maxSurge` and `maxUnavailable` control desired replica calculations for **basic canary** only (when `spec.strategy.canary.trafficRouting` is not set).
+    When `trafficRouting` is set, these fields are not used for stable/canary replica counts — the stable ReplicaSet stays at full scale, so total pods can exceed 2× `spec.replicas` (e.g. `spec.replicas: 10` with `setCanaryScale.replicas: 15` runs 25 pods). Use `dynamicStableScale` and `setCanaryScale` instead.
+    Note: even with `trafficRouting`, validation still rejects both values as `0`, and `maxUnavailable` may still throttle old ReplicaSet scale-down.
 
 If the `steps` field is omitted, the canary strategy will mimic the rolling update behavior. Similar to the deployment, the canary strategy has the `maxSurge` and `maxUnavailable` fields to configure how the Rollout should progress to the new version.
 
@@ -220,13 +224,17 @@ Defaults to an empty string
 
 ### maxSurge
 
-`maxSurge` defines the maximum number of replicas the rollout can create to move to the correct ratio set by the last setWeight. Max Surge can either be an integer or percentage as a string (i.e. "20%")
+`maxSurge` controls basic-canary desired replica math when `trafficRouting` is not set; it is not used for traffic-routed desired stable/canary replica counts.
+
+`maxSurge` defines the maximum number of replicas the rollout can create to move to the correct ratio set by the last `setWeight`. `maxSurge` can either be an integer or percentage as a string (i.e. "20%")
 
 Defaults to "25%".
 
 ### maxUnavailable
 
-The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
+`maxUnavailable` is used for basic-canary desired replica calculations when `trafficRouting` is not set. With traffic routing, it is not used for desired stable/canary replica counts, but may still throttle old ReplicaSet scale-down.
+
+The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if `maxSurge` is 0.
 
 Defaults to 25%
 

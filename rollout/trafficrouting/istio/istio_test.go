@@ -569,6 +569,31 @@ spec:
         subset: 'canary-subset'
       weight: 0`
 
+const singleRouteSubsetMultipleDestRuleVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - route:
+    - destination:
+        host: rollout-service
+        subset: stable
+      weight: 100
+    - destination:
+        host: rollout-service
+        subset: canary
+      weight: 0
+    - destination:
+        host: additional-service
+        subset: stable-subset
+      weight: 20`
+
 const singleRouteTlsVsvc = `apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -661,7 +686,19 @@ spec:
   hosts:
   - istio-rollout.dev.argoproj.io
   http:
-  - invalid`
+  - route:
+    - destination:
+        host: rollout-service
+        subset: stable
+      weight: 100
+    - destination:
+        host: rollout-service
+        subset: canary
+      weight: 0
+    - destination:
+        host: example-service
+        subset: stable
+      weight: 25`
 
 const invalidTlsVsvc = `apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -815,6 +852,67 @@ func TestHttpReconcileWeightsBaseCase(t *testing.T) {
 	}
 }
 
+func TestHttpReconcileMultipleDestRule(t *testing.T) {
+	additionalSubsetNames := []string{"stable-subset"}
+	ro := rolloutWithDestinationRule(additionalSubsetNames)
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "vsvc"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes = nil
+
+	dRule1 := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  host: rollout-service
+  subsets:
+  - name: stable
+  - name: canary
+`)
+
+	dRule2 := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: additional-istio-destrule
+  namespace: default
+spec:
+  host: additional-service
+  subsets:
+  - name: stable-subset
+`)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteSubsetMultipleDestRuleVsvc)
+	client := testutil.NewFakeDynamicClient(obj, dRule1, dRule2)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	vsvcRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes
+	vsvcTLSRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes
+	vsvcTCPRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TCPRoutes
+	modifiedObj, _, err := r.reconcileVirtualService(obj, vsvcRoutes, vsvcTLSRoutes, vsvcTCPRoutes, 10)
+	assert.Nil(t, err)
+	assert.NotNil(t, modifiedObj)
+
+	httpRoutes := extractHttpRoutes(t, modifiedObj)
+
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Route[0].Destination.Host, "rollout-service")
+	assert.Equal(t, httpRoutes[0].Route[1].Destination.Host, "rollout-service")
+	if httpRoutes[0].Route[0].Destination.Subset == "stable" || httpRoutes[0].Route[1].Destination.Subset == "canary" {
+		assert.Equal(t, httpRoutes[0].Route[0].Weight, int64(70))
+		assert.Equal(t, httpRoutes[0].Route[1].Weight, int64(10))
+	} else {
+		assert.Equal(t, httpRoutes[0].Route[0].Weight, int64(10))
+		assert.Equal(t, httpRoutes[0].Route[1].Weight, int64(90))
+	}
+
+	assert.Equal(t, httpRoutes[0].Route[2].Destination.Host, "additional-service")
+	assert.Equal(t, httpRoutes[0].Route[2].Destination.Subset, "stable-subset")
+	assert.Equal(t, httpRoutes[0].Route[2].Weight, int64(20))
+}
+
 func TestHttpReconcileHeaderRouteHostBased(t *testing.T) {
 	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
@@ -872,7 +970,7 @@ func TestHttpReconcileHeaderRouteHostBased(t *testing.T) {
 }
 
 func TestHttpReconcileHeaderRouteSubsetBased(t *testing.T) {
-	ro := rolloutWithDestinationRule()
+	ro := rolloutWithDestinationRule(nil)
 	const StableSubsetName = "stable-subset"
 	const CanarySubsetName = "canary-subset"
 	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "vsvc"
@@ -1974,7 +2072,7 @@ func TestValidateHTTPRoutesSubsets(t *testing.T) {
 	}
 }
 
-func rolloutWithDestinationRule() *v1alpha1.Rollout {
+func rolloutWithDestinationRule(additionalSubsetNames []string) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rollout",
@@ -1989,9 +2087,10 @@ func rolloutWithDestinationRule() *v1alpha1.Rollout {
 								Routes: []string{"primary"},
 							},
 							DestinationRule: &v1alpha1.IstioDestinationRule{
-								Name:             "istio-destrule",
-								CanarySubsetName: "canary",
-								StableSubsetName: "stable",
+								Name:                  "istio-destrule",
+								CanarySubsetName:      "canary",
+								StableSubsetName:      "stable",
+								AdditionalSubsetNames: additionalSubsetNames,
 							},
 						},
 					},
@@ -2003,7 +2102,7 @@ func rolloutWithDestinationRule() *v1alpha1.Rollout {
 
 // TestUpdateHashWithListers verifies behavior of UpdateHash when using informers/listers
 func TestUpdateHashAdditionalFieldsWithListers(t *testing.T) {
-	ro := rolloutWithDestinationRule()
+	ro := rolloutWithDestinationRule(nil)
 	obj := unstructuredutil.StrToUnstructuredUnsafe(`
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
@@ -2053,13 +2152,13 @@ spec:
 
 	jsonBytes, err := json.Marshal(dRule)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"metadata":{"name":"istio-destrule","namespace":"default","creationTimestamp":null,"annotations":{"argo-rollouts.argoproj.io/managed-by-rollouts":"rollout"}},"spec":{"host":"ratings.prod.svc.cluster.local","subsets":[{"name":"stable","labels":{"rollouts-pod-template-hash":"def456","version":"v3"}},{"name":"canary","labels":{"rollouts-pod-template-hash":"abc123"},"Extra":{"trafficPolicy":{"loadBalancer":{"simple":"ROUND_ROBIN"}}}}]}}`,
+	assert.Equal(t, `{"metadata":{"name":"istio-destrule","namespace":"default","annotations":{"argo-rollouts.argoproj.io/managed-by-rollouts":"rollout"}},"spec":{"host":"ratings.prod.svc.cluster.local","subsets":[{"name":"stable","labels":{"rollouts-pod-template-hash":"def456","version":"v3"}},{"name":"canary","labels":{"rollouts-pod-template-hash":"abc123"},"Extra":{"trafficPolicy":{"loadBalancer":{"simple":"ROUND_ROBIN"}}}}]}}`,
 		string(jsonBytes))
 }
 
 // TestUpdateHashWithListers verifies behavior of UpdateHash when using informers/listers
 func TestUpdateHashWithListers(t *testing.T) {
-	ro := rolloutWithDestinationRule()
+	ro := rolloutWithDestinationRule(nil)
 	obj := unstructuredutil.StrToUnstructuredUnsafe(`
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
@@ -2093,7 +2192,7 @@ spec:
 
 // TestUpdateHashNoChange verifies we don't make any API calls when there are no changes necessary to the destinationRule
 func TestUpdateHashNoChange(t *testing.T) {
-	ro := rolloutWithDestinationRule()
+	ro := rolloutWithDestinationRule(nil)
 	obj := unstructuredutil.StrToUnstructuredUnsafe(`
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
@@ -2125,7 +2224,7 @@ spec:
 
 // TestUpdateHashWithListers verifies behavior of UpdateHash when we do not yet have a lister/informer
 func TestUpdateHashWithoutListers(t *testing.T) {
-	ro := rolloutWithDestinationRule()
+	ro := rolloutWithDestinationRule(nil)
 	obj := unstructuredutil.StrToUnstructuredUnsafe(`
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
@@ -2158,7 +2257,7 @@ spec:
 }
 
 func TestUpdateHashDestinationRuleNotFound(t *testing.T) {
-	ro := rolloutWithDestinationRule()
+	ro := rolloutWithDestinationRule(nil)
 	client := testutil.NewFakeDynamicClient()
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
@@ -2171,7 +2270,7 @@ func TestUpdateHashDestinationRuleNotFound(t *testing.T) {
 }
 
 func TestUpdateHashWithAdditionalDestinations(t *testing.T) {
-	ro := rolloutWithDestinationRule()
+	ro := rolloutWithDestinationRule(nil)
 	obj := unstructuredutil.StrToUnstructuredUnsafe(`
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
@@ -2923,7 +3022,7 @@ func TestHttpReconcileMirrorRouteOrderSingleRouteNoName(t *testing.T) {
 
 func TestHttpReconcileMirrorRouteSubset(t *testing.T) {
 
-	ro := rolloutWithDestinationRule()
+	ro := rolloutWithDestinationRule(nil)
 	const RolloutService = "rollout-service"
 	const StableSubsetName = "stable-subset"
 	const CanarySubsetName = "canary-subset"
@@ -3074,15 +3173,28 @@ func TestReconcileHeaderRouteAvoidDuplicates(t *testing.T) {
 
 // TestUpdateHashNoReadyReplicaSets verifies we don't change rules when the destination ReplicaSets are not fully Ready yet
 func TestUpdateHashNoReadyReplicaSets(t *testing.T) {
-	ro := rolloutWithDestinationRule()
+	ro := rolloutWithDestinationRule(nil)
 
-	client := testutil.NewFakeDynamicClient()
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  host: ratings.prod.svc.cluster.local
+  subsets:
+  - name: stable
+  - name: canary
+`)
+	client := testutil.NewFakeDynamicClient(obj)
 	vsvcLister, druleLister := getIstioListers(client)
 
 	replicaSets := []*appsv1.ReplicaSet{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "ReplicaSetForTesting",
+				Labels:    map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abc123"},
 				UID:       uuid.NewUUID(),
 				Namespace: metav1.NamespaceDefault,
 			},
@@ -3101,14 +3213,15 @@ func TestUpdateHashNoReadyReplicaSets(t *testing.T) {
 	client.ClearActions()
 
 	err := r.UpdateHash("abc123", "def456")
-	assert.Error(t, err, "delaying destination rule switch: ReplicaSet ReplicaSetForTesting not fully available")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "delaying destination rule switch")
 	actions := client.Actions()
 	assert.Len(t, actions, 0)
 }
 
 // TestUpdateHashReadyReplicaSets verifies we do change rules when the destination ReplicaSets are fully Ready
 func TestUpdateHashReadyReplicaSets(t *testing.T) {
-	ro := rolloutWithDestinationRule()
+	ro := rolloutWithDestinationRule(nil)
 
 	obj := unstructuredutil.StrToUnstructuredUnsafe(`
 apiVersion: networking.istio.io/v1alpha3
@@ -3204,7 +3317,7 @@ func TestGetHttpRouteIndexesToPatch(t *testing.T) {
 // TestUpdateHashAbortScenarios tests both abort and non-abort scenarios for ReplicaSet availability checks
 func TestUpdateHashAbortScenarios(t *testing.T) {
 	createRollout := func(abort bool) *v1alpha1.Rollout {
-		ro := rolloutWithDestinationRule()
+		ro := rolloutWithDestinationRule(nil)
 		ro.Spec.Strategy.Canary.CanaryService = ""
 		ro.Spec.Strategy.Canary.StableService = ""
 		ro.Status.Abort = abort
@@ -3286,11 +3399,11 @@ spec:
 		rsList := []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
 		r := setupReconciler(ro, client, rsList)
 
-		// This should return nil (delaying update) because canary RS (which will receive traffic) is not available
+		// Should return error when delaying (so SetWeight is not called); canary RS is not available
 		err := r.UpdateHash("canary456", "stable123")
-		assert.NoError(t, err)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delaying destination rule switch")
 
-		// Verify no actions were taken because update was delayed
 		actions := client.Actions()
 		assert.Len(t, actions, 0)
 	})
@@ -3328,7 +3441,7 @@ spec:
 		otherRS := createUnavailableReplicaSet(ro, "other789")
 
 		rsList := []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
-		r := setupReconciler(ro, client, rsList)
+		r := setupReconciler(ro, client, rsList) // ro.Status.Abort=true => shifting traffic to stable only
 
 		// Since stable is available, this should succeed
 		err := r.UpdateHash("", "stable123") // Empty canary hash = no traffic to canary
@@ -3339,4 +3452,115 @@ spec:
 		assert.Len(t, actions, 1)
 		assert.Equal(t, "update", actions[0].GetVerb())
 	})
+}
+
+// TestShouldDelayDestinationRuleUpdate tests that only ReplicaSets matching canaryHash or
+// stableHash (the traffic targets) can cause a delay; other RSs in the rollout are ignored.
+func TestShouldDelayDestinationRuleUpdate(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	ro.Spec.Strategy.Canary.CanaryService = ""
+	ro.Spec.Strategy.Canary.StableService = ""
+
+	createUnavailableRS := func(hash string, replicas int32) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rs-" + hash,
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+				Labels:    map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: hash},
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: &replicas,
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{Replicas: replicas, AvailableReplicas: 0},
+		}
+	}
+	createAvailableRS := func(hash string, replicas int32) *appsv1.ReplicaSet {
+		rs := createUnavailableRS(hash, replicas)
+		rs.Status.AvailableReplicas = replicas
+		return rs
+	}
+
+	client := testutil.NewFakeDynamicClient()
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil, nil)
+
+	t.Run("only canary and stable RSs are considered - unavailable other RS does not delay", func(t *testing.T) {
+		stableRS := createAvailableRS("stable123", 1)
+		canaryRS := createAvailableRS("canary456", 1)
+		otherRS := createUnavailableRS("other789", 1) // Unavailable but not a traffic target
+		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
+
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		assert.False(t, shouldDelay, "unavailable RS with hash other789 should not delay; only canary and stable are targets")
+		assert.Empty(t, rsName)
+	})
+
+	t.Run("unavailable canary RS delays when not abort", func(t *testing.T) {
+		stableRS := createAvailableRS("stable123", 1)
+		canaryRS := createUnavailableRS("canary456", 1)
+		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
+
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		assert.True(t, shouldDelay)
+		assert.Equal(t, "rs-canary456", rsName)
+	})
+
+	t.Run("unavailable stable RS delays", func(t *testing.T) {
+		stableRS := createUnavailableRS("stable123", 1)
+		canaryRS := createAvailableRS("canary456", 1)
+		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
+
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		assert.True(t, shouldDelay)
+		assert.Equal(t, "rs-stable123", rsName)
+	})
+
+	t.Run("when CanaryService is set, never delay", func(t *testing.T) {
+		roWithSvc := rolloutWithDestinationRule(nil)
+		roWithSvc.Spec.Strategy.Canary.CanaryService = "canary-svc"
+		roWithSvc.Spec.Strategy.Canary.StableService = "stable-svc"
+		rSvc := NewReconciler(roWithSvc, client, record.NewFakeEventRecorder(), nil, nil, nil)
+		canaryRS := createUnavailableRS("canary456", 1)
+		stableRS := createAvailableRS("stable123", 1)
+		rSvc.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
+
+		shouldDelay, rsName := rSvc.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		assert.False(t, shouldDelay, "delay check is skipped when canary/stable services are set")
+		assert.Empty(t, rsName)
+	})
+
+	t.Run("ReplicaSet with 0 replicas is ignored", func(t *testing.T) {
+		stableRS := createAvailableRS("stable123", 1)
+		canaryRS := createUnavailableRS("canary456", 0) // Scaled down; "unavailable" but should not block
+		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
+
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		assert.False(t, shouldDelay, "RS with 0 replicas should be skipped")
+		assert.Empty(t, rsName)
+	})
+}
+
+func TestUpdateHashInvalidDestinationRule(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	// set to invalid destination rule
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule = &v1alpha1.IstioDestinationRule{
+		Name:             "invalid-destination-rule",
+		CanarySubsetName: "canary",
+		StableSubsetName: "stable",
+	}
+
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "vsvc"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes = nil
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteSubsetMultipleDestRuleVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	// Test UpdateHash since that's where DestinationRule validation occurs
+	err := r.UpdateHash("abc123", "def456")
+	assert.Error(t, err, "expected destination rule not found")
+	assert.Contains(t, err.Error(), "invalid-destination-rule")
 }

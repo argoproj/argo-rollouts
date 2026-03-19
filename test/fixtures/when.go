@@ -147,13 +147,51 @@ func (w *When) UpdateSpec(texts ...string) *When {
 	return w
 }
 
+// UpdateWorkloadRef updates the workload referenced by the rollout (e.g., deployment)
+func (w *When) UpdateWorkloadRef(deploymentName string, texts ...string) *When {
+	if w.rollout == nil {
+		w.t.Fatal("Rollout not set")
+	}
+
+	currentRo, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	if currentRo.Spec.WorkloadRef == nil {
+		w.t.Fatal("Rollout does not have workloadRef")
+	}
+
+	var patchBytes []byte
+	if len(texts) == 0 {
+		nowStr := time.Now().Format(time.RFC3339Nano)
+		patchBytes = []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, nowStr))
+		w.log.Infof("Updating workload ref deployment with timestamp: %s", nowStr)
+	} else {
+		var err error
+		patchBytes, err = yaml.YAMLToJSON([]byte(texts[0]))
+		w.CheckError(err)
+		w.log.Infof("Updating workload ref deployment: %s", string(patchBytes))
+	}
+
+	_, err = w.kubeClient.AppsV1().Deployments(w.namespace).Patch(
+		w.Context,
+		deploymentName,
+		types.MergePatchType,
+		patchBytes,
+		metav1.PatchOptions{},
+	)
+	w.CheckError(err)
+	w.log.Infof("Updated workload ref deployment: %s", deploymentName)
+	return w
+}
+
 func (w *When) PromoteRollout() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
 	}
+	w.waitForPauseConditionsSet()
 	_, err := promote.PromoteRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName(), false, false, false)
 	w.CheckError(err)
 	w.log.Info("Promoted rollout")
+	w.clearControllerPauseIfNeeded()
 	return w
 }
 
@@ -161,9 +199,11 @@ func (w *When) PromoteRolloutFull() *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
 	}
+	w.waitForPauseConditionsSet()
 	_, err := promote.PromoteRollout(w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace), w.rollout.GetName(), false, false, true)
 	w.CheckError(err)
 	w.log.Info("Promoted rollout fully")
+	w.clearControllerPauseIfNeeded()
 	return w
 }
 
@@ -215,6 +255,46 @@ func (w *When) ScaleRollout(scale int) *When {
 	_, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(w.Context, w.rollout.GetName(), types.MergePatchType, []byte(patchStr), metav1.PatchOptions{})
 	w.CheckError(err)
 	w.log.Infof("Scaled rollout to %d", scale)
+	return w
+}
+
+// ScaleRolloutWithWorkloadRef scales a rollout with workload reference using JSON patch
+// to ensure only the replicas field is modified and template remains untouched
+func (w *When) ScaleRolloutWithWorkloadRef(scale int) *When {
+	if w.rollout == nil {
+		w.t.Fatal("Rollout not set")
+	}
+
+	currentRo, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	w.log.Infof("Current rollout replicas: %d, workloadRef: %v", *currentRo.Spec.Replicas, currentRo.Spec.WorkloadRef != nil)
+
+	// Create JSON patch that only modifies replicas
+	patch := []map[string]interface{}{
+		{
+			"op":    "replace",
+			"path":  "/spec/replicas",
+			"value": scale,
+		},
+	}
+
+	patchBytes, err := json.Marshal(patch)
+	w.CheckError(err)
+
+	_, err = w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Patch(
+		w.Context,
+		w.rollout.GetName(),
+		types.JSONPatchType,
+		patchBytes,
+		metav1.PatchOptions{},
+	)
+	w.CheckError(err)
+
+	// Verify the patch was successful
+	updatedRo, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	w.log.Infof("Scaled rollout with workload ref to %d (actual: %d)", scale, *updatedRo.Spec.Replicas)
+
 	return w
 }
 
@@ -651,6 +731,109 @@ func (w *When) StopLoad() *When {
 	}
 	w.log.Info(string(out))
 	return w
+}
+
+// waitForPauseConditionsSet waits for the controller to finish setting up the pause state.
+// This ensures pauseConditions is populated when controllerPause is true, which indicates
+// the controller has completed its reconciliation and is ready for a promote.
+func (w *When) waitForPauseConditionsSet() {
+	rolloutIf := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace)
+	err := retryutil.OnError(retryutil.DefaultBackoff, func(err error) bool {
+		return true
+	}, func() error {
+		ro, err := rolloutIf.Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if ro.Status.ObservedGeneration != strconv.FormatInt(ro.Generation, 10) {
+			return fmt.Errorf("waiting for observedGeneration (%s) to match generation (%d)", ro.Status.ObservedGeneration, ro.Generation)
+		}
+		if ro.Status.ControllerPause && len(ro.Status.PauseConditions) == 0 {
+			return fmt.Errorf("waiting for pauseConditions to be set (controllerPause=true)")
+		}
+		return nil
+	})
+	w.CheckError(err)
+}
+
+// clearControllerPauseIfNeeded checks if the controller has processed the promote.
+// Due to the controller's writeBackToInformer function, watch events may be missed
+// after a reconciliation. If the controller hasn't processed the promote (indicated
+// by controllerPause=true with empty pauseConditions), we force a reconciliation
+// by scaling the rollout, which triggers ReplicaSet changes.
+// Note: This workaround is only applied to canary rollouts. Bluegreen rollouts have
+// different pause/promote semantics where the scale workaround causes the controller
+// to re-add the pause when reconciling with stale informer cache.
+func (w *When) clearControllerPauseIfNeeded() {
+	rolloutIf := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace)
+
+	// Poll until the controller processes the promote (clears controllerPause).
+	err := retryutil.OnError(retryutil.DefaultBackoff, func(err error) bool {
+		return true
+	}, func() error {
+		ro, err := rolloutIf.Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if len(ro.Status.PauseConditions) > 0 {
+			return nil
+		}
+		if !ro.Status.ControllerPause {
+			return nil
+		}
+		return fmt.Errorf("waiting for controller to process promote")
+	})
+
+	ro, getErr := rolloutIf.Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(getErr)
+
+	if len(ro.Status.PauseConditions) > 0 || !ro.Status.ControllerPause {
+		return
+	}
+
+	// Force a reconciliation to make the controller process the promote
+	if err != nil {
+		w.log.Info("Forcing reconciliation (controller race condition workaround)")
+
+		if ro.Spec.Strategy.Canary != nil {
+			currentReplicas := int32(1)
+			if ro.Spec.Replicas != nil {
+				currentReplicas = *ro.Spec.Replicas
+			}
+			scalePatch := []byte(fmt.Sprintf(`{"spec":{"replicas":%d}}`, currentReplicas+1))
+			_, scaleErr := rolloutIf.Patch(w.Context, w.rollout.GetName(), types.MergePatchType, scalePatch, metav1.PatchOptions{})
+			w.CheckError(scaleErr)
+
+			err = retryutil.OnError(retryutil.DefaultBackoff, func(err error) bool {
+				return true
+			}, func() error {
+				ro, err := rolloutIf.Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+
+				observedGen, err := strconv.Atoi(ro.Status.ObservedGeneration)
+				if err != nil {
+					return err
+				}
+
+				if int64(observedGen) >= ro.Generation {
+					return nil
+				}
+
+				return fmt.Errorf("waiting for controller to reconcile")
+			})
+			w.CheckError(err)
+
+			scalePatch = []byte(fmt.Sprintf(`{"spec":{"replicas":%d}}`, currentReplicas))
+			_, scaleErr = rolloutIf.Patch(w.Context, w.rollout.GetName(), types.MergePatchType, scalePatch, metav1.PatchOptions{})
+			w.CheckError(scaleErr)
+		} else if ro.Spec.Strategy.BlueGreen != nil {
+			annotationPatch := []byte(fmt.Sprintf(`{"metadata":{"annotations":{"e2e-reconcile-trigger":"%d"}}}`, time.Now().UnixNano()))
+			_, patchErr := rolloutIf.Patch(w.Context, w.rollout.GetName(), types.MergePatchType, annotationPatch, metav1.PatchOptions{})
+			w.CheckError(patchErr)
+		}
+	}
 }
 
 func (w *When) Then() *Then {

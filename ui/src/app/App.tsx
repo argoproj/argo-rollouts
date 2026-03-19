@@ -9,7 +9,7 @@ import {Modal} from './components/modal/modal';
 import {Rollout} from './components/rollout/rollout';
 import {RolloutsHome} from './components/rollouts-home/rollouts-home';
 import {Shortcut, Shortcuts} from './components/shortcuts/shortcuts';
-import {ConfigProvider} from 'antd';
+import {ConfigProvider, notification} from 'antd';
 import {theme} from '../config/theme';
 
 const bases = document.getElementsByTagName('base');
@@ -73,6 +73,13 @@ const App = () => {
                 });
         } catch (e) {
             setAvailableNamespaces([namespace]);
+            console.error('Error fetching namespaces:', e);
+            notification.error({
+                message: 'Error fetching namespaces',
+                description: e.message || 'An unexpected error occurred while fetching namespaces.',
+                duration: 8,
+                placement: 'bottomRight',
+            });
         }
     }, []);
     const changeNamespace = (val: string) => {

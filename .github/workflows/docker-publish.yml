@@ -15,6 +15,10 @@ concurrency:
 
 permissions: {}
 
+env:
+  # Registry namespace - defaults to 'argoproj', override via GitHub vars
+  REGISTRY_NAMESPACE: ${{ vars.REGISTRY_NAMESPACE || 'argoproj' }}
+
 jobs:
   set-vars:
     permissions:
@@ -31,7 +35,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            quay.io/argoproj/argo-rollouts
+            quay.io/${{ env.REGISTRY_NAMESPACE }}/argo-rollouts
           tags: |
             type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
@@ -41,7 +45,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            quay.io/argoproj/kubectl-argo-rollouts
+            quay.io/${{ env.REGISTRY_NAMESPACE }}/kubectl-argo-rollouts
           tags: |
             type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
@@ -67,7 +71,7 @@ jobs:
     with:
       quay_image_name: ${{ needs.set-vars.outputs.controller-meta-tags }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.23'
+      go-version: '1.26'
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: ${{ github.event_name != 'pull_request' }}
     secrets:
@@ -84,7 +88,7 @@ jobs:
     with:
       quay_image_name: ${{ needs.set-vars.outputs.plugin-meta-tags }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.23'
+      go-version: '1.26'
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: ${{ github.event_name != 'pull_request' }}
       target: kubectl-argo-rollouts

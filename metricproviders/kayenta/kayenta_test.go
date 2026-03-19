@@ -6,6 +6,9 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -139,8 +142,8 @@ const expectedBody = `{
 		"default":{
 			"controlScope": {
 				"scope":"app=guestbook and rollouts-pod-template-hash=xxxx",
-				"region":"us-=west-2",
-				"step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}	
+				"location":"us-=west-2",
+				"step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","location":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}	
 	},	
 	"thresholds" : {	
 		"pass": 90,	
@@ -291,7 +294,7 @@ func TestRunBadLookupResponse(t *testing.T) {
 			assert.Equal(t, string(body), `
 							{
 								"scopes": {
-										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
+										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","location":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","location":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
 								},
                                 "thresholds" : {
                                     "pass": 90,
@@ -356,7 +359,7 @@ func TestRunInvalidLookupResponse(t *testing.T) {
 			assert.Equal(t, string(body), `
 							{
 								"scopes": {
-										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","region":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
+										"default":{"controlScope": {"scope":"app=guestbook and rollouts-pod-template-hash=xxxx","location":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}, "experimentScope": {"scope":"app=guestbook and rollouts-pod-template-hash=yyyy","location":"us-=west-2","step":60,"start":"2019-03-29T01:08:34Z","end":"2019-03-29T01:38:34Z"}}
 								},
                                 "thresholds" : {
                                     "pass": 90,
@@ -721,7 +724,145 @@ func TestResumeMissingCompleteStatus(t *testing.T) {
 
 	measurement = p.Resume(newAnalysisRun(), metric, measurement)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
 
+func TestRunStartAndEndOmitted(t *testing.T) {
+	e := log.Entry{}
+	c := NewTestClient(func(req *http.Request) *http.Response {
+		if req.URL.String() == jobURL {
+			body, _ := io.ReadAll(req.Body)
+
+			bodyStr := string(body)
+			assert.Regexp(t, `"start"`, bodyStr)
+			assert.Regexp(t, `"end"`, bodyStr)
+
+			return &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewBufferString(`{"canaryExecutionId": "01DS50WVHAWSTAQACJKB1VKDQB"}`)),
+				Header:     make(http.Header),
+			}
+		}
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       io.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
+			Header:     make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(e, c)
+	metric := buildMetric()
+
+	metric.Provider.Kayenta.Scopes[0].ControlScope.Start = ""
+	metric.Provider.Kayenta.Scopes[0].ExperimentScope.Start = ""
+	metric.Interval = "5m"
+
+	run := newAnalysisRun()
+	startedAt := metav1.NewTime(time.Date(2019, 3, 29, 1, 8, 34, 0, time.UTC))
+	run.Status.StartedAt = &startedAt
+
+	measurement := p.Run(run, metric)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
+}
+
+func TestRunLookback(t *testing.T) {
+	e := log.Entry{}
+	c := NewTestClient(func(req *http.Request) *http.Response {
+		if req.URL.String() == jobURL {
+			body, _ := io.ReadAll(req.Body)
+
+			// With lookback=true, start time should be calculated from current time minus interval
+			bodyStr := string(body)
+			assert.Regexp(t, `"start":"2019-03-29T01:08:34Z"`, bodyStr)
+			assert.Regexp(t, `"end"`, bodyStr)
+
+			return &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewBufferString(`{"canaryExecutionId": "01DS50WVHAWSTAQACJKB1VKDQB"}`)),
+				Header:     make(http.Header),
+			}
+		}
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       io.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
+			Header:     make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(e, c)
+	metric := buildMetric()
+
+	metric.Provider.Kayenta.Lookback = true
+	metric.Provider.Kayenta.Scopes[0].ControlScope.Start = ""
+	metric.Provider.Kayenta.Scopes[0].ExperimentScope.Start = ""
+	metric.Interval = "5m"
+
+	run := newAnalysisRun()
+	startedAt := metav1.NewTime(time.Date(2019, 3, 29, 1, 8, 34, 0, time.UTC))
+	run.Status.StartedAt = &startedAt
+
+	measurement := p.Run(run, metric)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
+}
+
+func TestRunStartAndEndMismatched(t *testing.T) {
+	e := log.Entry{}
+	c := NewTestClient(func(req *http.Request) *http.Response {
+		if req.URL.String() == jobURL {
+			t.Fatal("HTTP request should not be made when validation fails")
+			return nil
+		}
+
+		return &http.Response{
+			StatusCode: 200,
+			Body:       io.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
+			Header:     make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(e, c)
+
+	// ControlScope.Start empty, ExperimentScope.Start provided
+	metric1 := buildMetric()
+	metric1.Provider.Kayenta.Scopes[0].ControlScope.Start = ""
+	metric1.Provider.Kayenta.Scopes[0].ExperimentScope.Start = "2019-03-29T01:08:34Z"
+
+	run := newAnalysisRun()
+	measurement1 := p.Run(run, metric1)
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement1.Phase)
+	assert.Contains(t, measurement1.Message, "controlScope.start and experimentScope.start must both be set or be empty")
+
+	// ControlScope.Start provided, ExperimentScope.Start empty
+	metric2 := buildMetric()
+	metric2.Provider.Kayenta.Scopes[0].ControlScope.Start = "2019-03-29T01:08:34Z"
+	metric2.Provider.Kayenta.Scopes[0].ExperimentScope.Start = ""
+
+	measurement2 := p.Run(run, metric2)
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement2.Phase)
+	assert.Contains(t, measurement2.Message, "controlScope.start and experimentScope.start must both be set or be empty")
+
+	// ControlScope.End empty, ExperimentScope.End provided
+	metric3 := buildMetric()
+	metric3.Provider.Kayenta.Scopes[0].ControlScope.End = ""
+	metric3.Provider.Kayenta.Scopes[0].ExperimentScope.End = "2019-03-29T01:08:34Z"
+
+	measurement3 := p.Run(run, metric3)
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement3.Phase)
+	assert.Contains(t, measurement3.Message, "controlScope.end and experimentScope.end must both be set or be empty")
+
+	// ControlScope.End provided, ExperimentScope.End empty
+	metric4 := buildMetric()
+	metric4.Provider.Kayenta.Scopes[0].ControlScope.End = "2019-03-29T01:08:34Z"
+	metric4.Provider.Kayenta.Scopes[0].ExperimentScope.End = ""
+
+	measurement4 := p.Run(run, metric4)
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement4.Phase)
+	assert.Contains(t, measurement4.Message, "controlScope.end and experimentScope.end must both be set or be empty")
 }
 
 // RoundTripFunc .

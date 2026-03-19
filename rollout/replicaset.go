@@ -6,17 +6,17 @@ import (
 	"sort"
 	"time"
 
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
-
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
@@ -176,11 +176,29 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	revision, _ := replicasetutil.Revision(c.newRS)
 
 	if revision == 1 && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownProgressively {
-		oldScale := defaults.GetReplicasOrDefault(c.newRS.Spec.Replicas)
-		// scale down the deployment when the rollout has ready replicas or scale up the deployment if rollout fails
-		if c.rollout.Spec.Replicas != nil && (c.rollout.Status.ReadyReplicas > 0 || oldScale > newReplicasCount) {
-			targetScale := *c.rollout.Spec.Replicas - c.rollout.Status.ReadyReplicas
+		// NOTE: Progressive deployment scaling is designed for one-time migration from Deployment to Rollout.
+		// It only triggers on revision == 1, which has a limitation: if the initial rollout (revision 1) fails
+		// and users fix the issue causing a new revision (revision 2+), the deployment will never be scaled down.
+		// This matches the behavior of scaleDown: onSuccess and may need to be addressed in a future enhancement.
+		//
+		// When healthy: Scale deployment to 0 to prevent external controllers (HPA/KEDA) from interfering
+		// When not healthy: Scale deployment based on rollout's ready replicas to maintain availability
+		if c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy {
+			var targetScale int32 = 0
 			err = c.scaleDeployment(&targetScale)
+			if err != nil {
+				c.log.Errorf("Failed to scale deployment to 0 during progressive migration: %v", err)
+			}
+		} else {
+			// scale down the deployment when the rollout has ready replicas or scale up the deployment if rollout fails
+			oldScale := defaults.GetReplicasOrDefault(c.newRS.Spec.Replicas)
+			if c.rollout.Spec.Replicas != nil && (c.rollout.Status.ReadyReplicas > 0 || oldScale > newReplicasCount) {
+				targetScale := *c.rollout.Spec.Replicas - c.rollout.Status.ReadyReplicas
+				err = c.scaleDeployment(&targetScale)
+				if err != nil {
+					c.log.Errorf("Failed to scale deployment during progressive migration: %v", err)
+				}
+			}
 		}
 	}
 
@@ -370,6 +388,72 @@ func (c *rolloutContext) isReplicaSetReferenced(rs *appsv1.ReplicaSet) bool {
 			return true
 		}
 		if serviceutil.GetRolloutSelectorLabel(svc) == rsPodHash {
+			return true
+		}
+	}
+
+	// Check if the ReplicaSet is still referenced by Istio DestinationRule subsets.
+	// This is important for subset-level traffic splitting where we don't use services.
+	if c.isReplicaSetReferencedByIstioDestinationRule(rsPodHash) {
+		return true
+	}
+
+	return false
+}
+
+// getIstioDestinationRuleSpec returns the Istio DestinationRule spec from the rollout if configured,
+// or nil if Istio traffic routing with a DestinationRule is not configured.
+func getIstioDestinationRuleSpec(ro *v1alpha1.Rollout) *v1alpha1.IstioDestinationRule {
+	if ro.Spec.Strategy.Canary == nil {
+		return nil
+	}
+	if ro.Spec.Strategy.Canary.TrafficRouting == nil {
+		return nil
+	}
+	if ro.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+		return nil
+	}
+	return ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
+}
+
+// subsetReferencesHash checks if a single subset's labels contain the given pod template hash.
+func subsetReferencesHash(subset map[string]interface{}, rsPodHash string) bool {
+	labels, found, err := unstructured.NestedStringMap(subset, "labels")
+	if err != nil || !found {
+		return false
+	}
+	hash, ok := labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	return ok && hash == rsPodHash
+}
+
+// isReplicaSetReferencedByIstioDestinationRule checks if the given pod template hash is still
+// referenced by any subset in the Istio DestinationRule. This prevents scaling down a ReplicaSet
+// that is still receiving traffic via Istio subset-level routing.
+func (c *rolloutContext) isReplicaSetReferencedByIstioDestinationRule(rsPodHash string) bool {
+	dRuleSpec := getIstioDestinationRuleSpec(c.rollout)
+	if dRuleSpec == nil || c.IstioController == nil || c.IstioController.DestinationRuleLister == nil {
+		return false
+	}
+
+	dRuleUn, err := c.IstioController.DestinationRuleLister.Namespace(c.rollout.Namespace).Get(dRuleSpec.Name)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return false
+		}
+		// For unexpected errors, err on the side of caution and assume it's still referenced.
+		c.log.Warnf("Failed to get DestinationRule %s: %v", dRuleSpec.Name, err)
+		return true
+	}
+
+	subsets, found, err := unstructured.NestedSlice(dRuleUn.UnstructuredContent(), "spec", "subsets")
+	if err != nil || !found {
+		return false
+	}
+
+	for _, subsetObj := range subsets {
+		subset, ok := subsetObj.(map[string]interface{})
+		if ok && subsetReferencesHash(subset, rsPodHash) {
+			c.log.Infof("ReplicaSet with hash %s is still referenced by DestinationRule %s", rsPodHash, dRuleSpec.Name)
 			return true
 		}
 	}

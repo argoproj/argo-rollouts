@@ -24,6 +24,7 @@ import {Fragment} from 'react';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faChevronCircleDown, faChevronCircleUp, faCircleNotch} from '@fortawesome/free-solid-svg-icons';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
+import { notification } from 'antd';
 
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 export interface ImageInfo {
@@ -163,7 +164,16 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                                     ? {
                                           editState: interactive.editState,
                                           setImage: (container, image, tag) => {
-                                              interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag);
+                                            void interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag)
+                                                .catch((e) => {
+                                                    console.error('Error setting image:', e);
+                                                    notification.error({
+                                                        message: 'Error setting image',
+                                                        description: e.message || 'An unexpected error occurred while setting the image.',
+                                                        duration: 8,
+                                                        placement: 'bottomRight',
+                                                    });
+                                                });
                                           },
                                       }
                                     : null
@@ -180,7 +190,16 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                                     ? {
                                           editState: initContainerEditState,
                                           setImage: (container, image, tag) => {
-                                              interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag);
+                                            void interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag)
+                                                .catch((e) => {
+                                                    console.error('Error setting image:', e);
+                                                    notification.error({
+                                                        message: 'Error setting image',
+                                                        description: e.message || 'An unexpected error occurred while setting the image.',
+                                                        duration: 8,
+                                                        placement: 'bottomRight',
+                                                    });
+                                                });
                                           },
                                       }
                                     : null
@@ -199,7 +218,19 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                                         key={i}
                                         revision={r}
                                         initCollapsed={false}
-                                        rollback={interactive ? (r) => interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`) : null}
+                                        rollback={interactive ? async (r) => {
+                                            try {
+                                                await interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`);
+                                            } catch (e) {
+                                                console.error('Error rolling back:', e);
+                                                notification.error({
+                                                    message: 'Error rolling back',
+                                                    description: e.message || 'An unexpected error occurred while rolling back the rollout.',
+                                                    duration: 8,
+                                                    placement: 'bottomRight',
+                                                });
+                                            }
+                                        } : null}
                                         current={i === 0}
                                     />
                                 ))}
@@ -323,7 +354,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     let icon: string;
     let content = '';
     let unit = '';
-    if (props.step.setWeight) {
+    if (props.step.setWeight || props.step.setWeight === 0) {
         icon = 'fa-weight';
         content = `Set Weight: ${props.step.setWeight}`;
         unit = '%';

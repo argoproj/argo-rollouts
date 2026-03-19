@@ -13,7 +13,7 @@ Argo Rollouts is a Kubernetes controller and set of CRDs which provide advanced 
 
 Argo Rollouts (optionally) integrates with ingress controllers and service meshes, leveraging their traffic shaping abilities to gradually shift traffic to the new version during an update. Additionally, Rollouts can query and interpret metrics from various providers to verify key KPIs and drive automated promotion or rollback during an update.
 
-[![Argo Rollotus Demo](https://img.youtube.com/vi/hIL0E2gLkf8/0.jpg)](https://youtu.be/hIL0E2gLkf8)
+[![Argo Rollouts Demo](https://img.youtube.com/vi/hIL0E2gLkf8/0.jpg)](https://youtu.be/hIL0E2gLkf8)
 
 ## Quick Start
 
@@ -57,7 +57,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 | Istio                             | :white_check_mark: (stable)  | :white_check_mark: (stable) | :white_check_mark: (alpha) | :white_check_mark: (alpha) |                             |
 | Nginx Ingress Controller          | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |                             |
 | SMI                               | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :x:                        |                             |
-| Traefik                           | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        |                             |
+| Traefik                           | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |                             |
 | Contour                           | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        | :heavy_check_mark:          |
 | Gateway API                       | :white_check_mark: (alpha)   | :x:                         | :x:                        | :x:                        | :heavy_check_mark:          |
 

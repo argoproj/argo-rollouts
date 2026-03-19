@@ -7,6 +7,7 @@ import {ConfirmButton} from '../confirm-button/confirm-button';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faArrowCircleUp, faChevronCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
 import {IconProp} from '@fortawesome/fontawesome-svg-core';
+import {notification} from 'antd';
 
 export enum RolloutAction {
     Restart = 'Restart',
@@ -38,7 +39,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'RESTART',
                 icon: faSync,
-                action: api.rolloutServiceRestartRollout,
+                action: api.rolloutServiceRestartRollout.bind(api),
                 tooltip: restartedAt === 'Never' ? 'Never restarted' : `Last restarted ${restartedAt}`,
                 shouldConfirm: true,
             },
@@ -48,7 +49,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'RETRY',
                 icon: faRedoAlt,
-                action: api.rolloutServiceRetryRollout,
+                action: api.rolloutServiceRetryRollout.bind(api),
                 disabled: props.rollout.status !== RolloutStatus.Degraded,
                 shouldConfirm: true,
             },
@@ -58,7 +59,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'ABORT',
                 icon: faExclamationCircle,
-                action: api.rolloutServiceAbortRollout,
+                action: api.rolloutServiceAbortRollout.bind(api),
                 disabled: !isDeploying,
                 shouldConfirm: true,
             },
@@ -68,7 +69,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'PROMOTE',
                 icon: faChevronCircleUp,
-                action: api.rolloutServicePromoteRollout,
+                action: api.rolloutServicePromoteRollout.bind(api),
                 body: {full: false},
                 disabled: !isDeploying,
                 shouldConfirm: true,
@@ -79,7 +80,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'PROMOTE-FULL',
                 icon: faArrowCircleUp,
-                action: api.rolloutServicePromoteRollout,
+                action: api.rolloutServicePromoteRollout.bind(api),
                 body: {full: true},
                 disabled: !isDeploying,
                 shouldConfirm: true,
@@ -91,6 +92,31 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
 
     const [loading, setLoading] = React.useState(false);
 
+    const handleActionError = (error: any, actionName: string) => {
+        console.error(`Error executing ${actionName}:`, error);
+        
+        let errorTitle = `Failed to ${actionName.toLowerCase()} rollout`;
+        let errorContent = '';
+        
+        if (error?.response?.status === 403) {
+            errorTitle = 'Permission Denied';
+            errorContent = `You don't have permission to ${actionName.toLowerCase()} this rollout. Please check your RBAC permissions.`;
+        } else if (error?.response?.data?.message) {
+            errorContent = error.response.data.message;
+        } else if (error?.message) {
+            errorContent = error.message;
+        } else {
+            errorContent = 'An unexpected error occurred. Please try again.';
+        }
+
+        notification.error({
+            message: errorTitle,
+            description: errorContent,
+            duration: 8,
+            placement: 'bottomRight',
+        });
+    };
+
     return (
         <ConfirmButton
             style={{margin: '0 5px'}}
@@ -98,11 +124,16 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             type='primary'
             onClick={async (e) => {
                 setLoading(true);
-                await ap.action(ap.body || {}, namespaceCtx.namespace, props.rollout.objectMeta?.name || '');
-                if (props.callback) {
-                    await props.callback();
+                try {
+                    await ap.action(ap.body || {}, namespaceCtx.namespace, props.rollout.objectMeta?.name || '');
+                    if (props.callback) {
+                        await props.callback();
+                    }
+                } catch (error) {
+                    handleActionError(error, props.action);
+                } finally {
+                    setLoading(false);
                 }
-                setLoading(false);
             }}
             disabled={ap.disabled}
             loading={loading}

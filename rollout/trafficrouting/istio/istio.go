@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -26,6 +27,7 @@ import (
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 const Http = "http"
@@ -35,12 +37,11 @@ const Type = "Istio"
 
 const SpecHttpNotFound = "spec.http not found"
 
-// NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
+// NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state.
 func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister, replicaSets []*appsv1.ReplicaSet) *Reconciler {
 	return &Reconciler{
-		rollout: r,
-		log:     logutil.WithRollout(r),
-
+		rollout:               r,
+		log:                   logutil.WithRollout(r),
 		client:                client,
 		recorder:              recorder,
 		virtualServiceLister:  virtualServiceLister,
@@ -72,10 +73,11 @@ type virtualServicePatch struct {
 type virtualServicePatches []virtualServicePatch
 
 type svcSubsets struct {
-	canarySvc    string
-	stableSvc    string
-	canarySubset string
-	stableSubset string
+	canarySvc             string
+	stableSvc             string
+	canarySubset          string
+	stableSubset          string
+	additionalSubsetNames []string
 }
 
 const (
@@ -134,9 +136,11 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout, false)
 	canarySubset := ""
 	stableSubset := ""
+	var additionalSubsetNames []string
 	if r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule != nil {
 		canarySubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.CanarySubsetName
 		stableSubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.StableSubsetName
+		additionalSubsetNames = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.AdditionalSubsetNames
 	}
 
 	// Go through all the routes on the Istio Virtual Service looking for routes that are Istio mirror routes as well as on the
@@ -161,10 +165,11 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 
 	patches := virtualServicePatches{}
 	svcSubsets := svcSubsets{
-		canarySvc:    canarySvc,
-		stableSvc:    stableSvc,
-		canarySubset: canarySubset,
-		stableSubset: stableSubset,
+		canarySvc:             canarySvc,
+		stableSvc:             stableSvc,
+		canarySubset:          canarySubset,
+		stableSubset:          stableSubset,
+		additionalSubsetNames: additionalSubsetNames,
 	}
 	// Process HTTP Routes
 	for _, routeIdx := range httpRouteIndexesToPatch {
@@ -190,13 +195,36 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 	return patches
 }
 
+func isAnAdditionalSubsetName(subset string, additionalSubsetNames []string) bool {
+	return subset != "" && additionalSubsetNames != nil && slices.Contains(additionalSubsetNames, subset)
+}
+
 func processRoutes(routeType string, routeIdx int, destinations []VirtualServiceRouteDestination, desiredWeight int64, svcSubsets svcSubsets, patches virtualServicePatches, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
 	svcToDest := map[string]v1alpha1.WeightDestination{}
 	stableWeight := 100 - desiredWeight
+
+	// handle additional destinations weight distribution
 	for _, dest := range additionalDestinations {
 		svcToDest[dest.ServiceName] = dest
 		stableWeight -= int64(dest.Weight)
 	}
+
+	// update stable weights when taking into account additional subset DestinationRule weights
+	if svcSubsets.additionalSubsetNames != nil {
+		log.Debugf("Additional subset names encountered within rollout spec")
+		for _, destination := range destinations {
+			subset := destination.Destination.Subset
+			if isAnAdditionalSubsetName(subset, svcSubsets.additionalSubsetNames) {
+				stableWeight -= destination.Weight
+			}
+		}
+	}
+
+	// In case of a negative stableWeight, set to 0. Istio does not allow negative weights
+	if stableWeight < 0 {
+		stableWeight = 0
+	}
+
 	for idx, destination := range destinations {
 		host := getHost(destination)
 		subset := destination.Destination.Subset
@@ -209,6 +237,8 @@ func processRoutes(routeType string, routeIdx int, destinations []VirtualService
 			} else if dest, ok := svcToDest[host]; ok { // Patch weight for existing experiment services
 				patches = appendPatch(routeIdx, routeType, weight, int64(dest.Weight), idx, host, false, patches)
 				delete(svcToDest, host)
+			} else if isAnAdditionalSubsetName(subset, svcSubsets.additionalSubsetNames) { // Keep weight for additional subset DestinationRules unchanged
+				patches = appendPatch(routeIdx, routeType, weight, weight, idx, host, false, patches)
 			} else {
 				patches = appendPatch(routeIdx, routeType, weight, 0, idx, host, true, patches)
 			}
@@ -320,21 +350,36 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 	return newObj, len(patches) > 0, err
 }
 
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
-	// We need to check if the replicasets are ready here as well if we didn't define any services in the rollout
-	// See: https://github.com/argoproj/argo-rollouts/issues/2507
-	if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" {
-
-		for _, rs := range r.replicaSets {
-			if *rs.Spec.Replicas > 0 {
-				rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-				// Only check availability for ReplicaSets that will receive traffic
-				if (rsHash == stableHash || rsHash == canaryHash) && rsHash != "" && !replicasetutil.IsReplicaSetAvailable(rs) {
-					r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
-					return nil
-				}
-			}
+// shouldDelayDestinationRuleUpdate returns true if updating the DestinationRule should be
+// delayed because a traffic-receiving ReplicaSet is not yet fully available.
+// See: https://github.com/argoproj/argo-rollouts/issues/2507
+func (r *Reconciler) shouldDelayDestinationRuleUpdate(canaryHash, stableHash string) (bool, string) {
+	if r.rollout.Spec.Strategy.Canary.CanaryService != "" || r.rollout.Spec.Strategy.Canary.StableService != "" {
+		return false, ""
+	}
+	abortOrDynamicRollbackToStable := rolloututil.AbortOrDynamicRollbackToStable(r.rollout, r.replicaSets, stableHash)
+	for _, rs := range r.replicaSets {
+		if *rs.Spec.Replicas == 0 {
+			continue
 		}
+		rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		if rsHash == "" || (rsHash != stableHash && rsHash != canaryHash) {
+			continue
+		}
+		if abortOrDynamicRollbackToStable && rsHash == canaryHash {
+			continue
+		}
+		if !replicasetutil.IsReplicaSetAvailable(rs) {
+			return true, rs.Name
+		}
+	}
+	return false, ""
+}
+
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+	if shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(canaryHash, stableHash); shouldDelay {
+		r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
+		return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
 	}
 
 	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule

@@ -115,6 +115,7 @@ type ControllerConfig struct {
 	MetricsServer                   *metrics.MetricsServer
 	Recorder                        record.EventRecorder
 	EphemeralMetadataThreads        int
+	EphemeralMetadataPodRetries     int
 }
 
 // reconcilerBase is a shared datastructure containing all clients and configuration necessary to
@@ -154,9 +155,10 @@ type reconcilerBase struct {
 	newTrafficRoutingReconciler func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
 
 	// recorder is an event recorder for recording Event resources to the Kubernetes API.
-	recorder                 record.EventRecorder
-	resyncPeriod             time.Duration
-	ephemeralMetadataThreads int
+	recorder                    record.EventRecorder
+	resyncPeriod                time.Duration
+	ephemeralMetadataThreads    int
+	ephemeralMetadataPodRetries int
 }
 
 type IngressWrapper interface {
@@ -208,6 +210,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		podRestarter:                  podRestarter,
 		refResolver:                   cfg.RefResolver,
 		ephemeralMetadataThreads:      cfg.EphemeralMetadataThreads,
+		ephemeralMetadataPodRetries:   cfg.EphemeralMetadataPodRetries,
 	}
 
 	controller := &Controller{
@@ -419,8 +422,6 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	resolveErr := c.refResolver.Resolve(r)
-	// We could maybe lose setting the error condition from the below if resolveErr != nil {}, and just log the error to clean up the logic
 	roCtx, err := c.newRolloutContext(r)
 	if roCtx == nil {
 		logCtx.Error("newRolloutContext returned nil")
@@ -437,15 +438,6 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		}
 		logCtx.Errorf("newRolloutContext err %v", err)
 		return err
-	}
-	// We should probably delete this if block and just log the error to clean up the logic, a bigger change would be to add a new
-	// field to the status maybe (reconcileErrMsg) and store the errors there from the processNextWorkItem function in controller/controller.go
-	if resolveErr != nil {
-		err := roCtx.createInvalidRolloutCondition(resolveErr, r)
-		if err != nil {
-			return fmt.Errorf("failed to create invalid rollout condition during resolving the rollout: %w", err)
-		}
-		return fmt.Errorf("failed to resolve rollout: %w", resolveErr)
 	}
 
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
@@ -508,6 +500,14 @@ func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {
+	// This needs to be run before replicasets are found/resolved below.
+	// Additionally, for whatever reason, the tests also have assertions that
+	// fail if we delay finding the replicasets, analysisruns and experiments
+	// until after the roll context is created. Thus any eventual error in
+	// resolving the workload ref will be handled immediately after the
+	// rollcontext is created.
+	resolveErr := c.refResolver.Resolve(rollout)
+
 	rsList, err := c.getReplicaSetsForRollouts(rollout)
 	if err != nil {
 		return nil, err
@@ -558,6 +558,15 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			log:      logCtx,
 		},
 		reconcilerBase: c.reconcilerBase,
+	}
+
+	if resolveErr != nil {
+		err := roCtx.createInvalidRolloutCondition(resolveErr, rollout)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create invalid rollout condition when resolving the rollout: %w", err)
+		}
+
+		return &roCtx, validation.InvalidWorkloadRef(roCtx.rollout, resolveErr)
 	}
 
 	// Get Rollout Validation errors
@@ -873,7 +882,7 @@ func (c *rolloutContext) getReferencedAnalysisTemplatesFromRef(templateRefs *[]v
 	templates := make([]*v1alpha1.AnalysisTemplate, 0)
 	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
 	for _, templateRef := range *templateRefs {
-		if templateRef.ClusterScope {
+		if templateRef.IsClusterScope() {
 			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
 			if err != nil {
 				if k8serrors.IsNotFound(err) {

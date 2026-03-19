@@ -846,6 +846,26 @@ func TestValidateAlbIngress(t *testing.T) {
 	})
 }
 
+func TestValidateIngressSimultaneousAlbNginx(t *testing.T) {
+	// Setup rollout with both ALB and NGINX traffic routing
+	rollout := getAlbRollout("alb-ingress")
+	rollout.Spec.Strategy.Canary.TrafficRouting.Nginx = &v1alpha1.NginxTrafficRouting{
+		StableIngresses: []string{"nginx-ingress-1"},
+	}
+
+	// Test ALB ingress validation
+	albIngressObj := getIngress()
+	albIngressObj.Name = "alb-ingress"
+	albIngress := ingressutil.NewLegacyIngress(albIngressObj)
+	assert.Empty(t, ValidateIngress(rollout, albIngress))
+
+	// Test NGINX ingress validation
+	nginxIngressObj := getIngress()
+	nginxIngressObj.Name = "nginx-ingress-1"
+	nginxIngress := ingressutil.NewLegacyIngress(nginxIngressObj)
+	assert.Empty(t, ValidateIngress(rollout, nginxIngress))
+}
+
 func TestValidateRolloutNginxIngressesConfig(t *testing.T) {
 	var emptyStableIngress string
 	var emptyStableIngresses []string

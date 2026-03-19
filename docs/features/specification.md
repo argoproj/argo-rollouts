@@ -27,7 +27,7 @@ spec:
     matchLabels:
       app: guestbook
 
-  # WorkloadRef holds a references to a workload that provides Pod template
+  # WorkloadRef holds a reference to a workload that provides Pod template
   # (e.g. Deployment). If used, then do not use Rollout template property.
   workloadRef:
     apiVersion: apps/v1
@@ -60,7 +60,7 @@ spec:
 
   # Pause allows a user to manually pause a rollout at any time. A rollout
   # will not advance through its steps while it is manually paused, but HPA
-  # auto-scaling will still occur. Typically not explicitly set the manifest,
+  # auto-scaling will still occur. Typically not explicitly set in the manifest,
   # but controlled via tools (e.g. kubectl argo rollouts pause). If true at
   # initial creation of Rollout, replicas are not scaled up automatically
   # from zero unless manually promoted.
@@ -230,7 +230,9 @@ spec:
 
       # The minimum number of pods that will be requested for each ReplicaSet
       # when using traffic routed canary. This is to ensure high availability
-      # of each ReplicaSet. Defaults to 1. +optional
+      # of each ReplicaSet. spec.replicas should be >= minPodsPerReplicaSet
+      # for it to take full effect; otherwise it is capped at the rollout
+      # replica count. Defaults to 1. +optional
       minPodsPerReplicaSet: 2
 
       # Limits the number of old RS that can run at one time before getting
@@ -290,6 +292,19 @@ spec:
         # set canary scale to match the canary traffic weight (default behavior)
         - setCanaryScale:
             matchTrafficWeight: true
+
+        # The percentage or number of replica pods within the applications ReplicaSet
+        # that are available and ready when a rollout is ready to be promoted. Useful if your application
+        # configured an HPA to help handle different loads of traffic, but you still want quick promotions.
+        # Defaults to 100% if replicaProgressThreshold is not specified.
+        # The 'type' field should be either "Percent" | "Pod"
+        # Current percentage that is checked against the input percent value is calculated by the following:
+        # CURRENT PERCENTAGE = available replicas / desired replicas for the current step
+        # +optional
+        - replicaProgressThreshold:
+            type: Percent
+            value: 90
+
 
         # executes the configured plugin by name with the provided configuration
         - plugin:
@@ -371,11 +386,11 @@ spec:
               - name: mann-whitney
                 templateName: mann-whitney
                 # Metadata which will be attached to the AnalysisRun.
-                analysisRunMetadata:
-                  labels:
-                    app.service.io/analysisType: smoke-test
-                  annotations:
-                    link.argocd.argoproj.io/external-link: http://my-loggin-platform.com/pre-generated-link
+            analysisRunMetadata:
+              labels:
+                app.service.io/analysisType: smoke-test
+              annotations:
+                link.argocd.argoproj.io/external-link: http://my-loggin-platform.com/pre-generated-link
 
       # Anti-affinity configuration between desired and previous ReplicaSet.
       # Only one must be specified.

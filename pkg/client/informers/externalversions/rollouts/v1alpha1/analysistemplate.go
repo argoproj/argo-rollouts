@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	apisrolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	versioned "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // AnalysisTemplates.
 type AnalysisTemplateInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.AnalysisTemplateLister
+	Lister() rolloutsv1alpha1.AnalysisTemplateLister
 }
 
 type analysisTemplateInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredAnalysisTemplateInformer(client versioned.Interface, namespace s
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().AnalysisTemplates(namespace).List(context.TODO(), options)
+				return client.ArgoprojV1alpha1().AnalysisTemplates(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().AnalysisTemplates(namespace).Watch(context.TODO(), options)
+				return client.ArgoprojV1alpha1().AnalysisTemplates(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ArgoprojV1alpha1().AnalysisTemplates(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ArgoprojV1alpha1().AnalysisTemplates(namespace).Watch(ctx, options)
 			},
 		},
-		&rolloutsv1alpha1.AnalysisTemplate{},
+		&apisrolloutsv1alpha1.AnalysisTemplate{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *analysisTemplateInformer) defaultInformer(client versioned.Interface, r
 }
 
 func (f *analysisTemplateInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&rolloutsv1alpha1.AnalysisTemplate{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisrolloutsv1alpha1.AnalysisTemplate{}, f.defaultInformer)
 }
 
-func (f *analysisTemplateInformer) Lister() v1alpha1.AnalysisTemplateLister {
-	return v1alpha1.NewAnalysisTemplateLister(f.Informer().GetIndexer())
+func (f *analysisTemplateInformer) Lister() rolloutsv1alpha1.AnalysisTemplateLister {
+	return rolloutsv1alpha1.NewAnalysisTemplateLister(f.Informer().GetIndexer())
 }

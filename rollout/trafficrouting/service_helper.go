@@ -10,7 +10,7 @@ import (
 
 // isPingpongPreferred is needed when Rollout uses both pingpong service and stable/canary service
 // for ALB trafficRouting, isPingpongPreferred is true. It uses pingpong service as priority
-// for other trafficRouting, isPingpongPrefrered is false. It uses stable/canary service
+// for other trafficRouting, isPingpongPreferred is false. It uses stable/canary service
 // This is to ensure it is compatible with previous release.
 
 func GetStableAndCanaryServices(ro *v1alpha1.Rollout, isPingpongPreferred bool) (string, string) {

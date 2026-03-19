@@ -123,7 +123,7 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// causing us to flap and scale up the stable 100 temporarily (before scaling down to 0 later).
 		// Therefore, we send c.rollout.Status.Canary.Weights so that the stable scaling happens in
 		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
-		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.rollout.Status.Canary.Weights)
+		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.newRS, c.stableRS, c.rollout.Status.Canary.Weights)
 	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
@@ -259,28 +259,6 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 	return totalScaledDown, nil
 }
 
-// isDynamicallyRollingBackToStable returns true if we were in the middle of an canary update with
-// dynamic stable scaling, but was interrupted and are now rolling back to stable RS. This is similar
-// to, but different than aborting. With abort, desired hash != stable hash and so we know the
-// two hashes to balance traffic against. But with dynamically rolling back to stable, the
-// desired hash == stable hash, and so we must use the *previous* desired hash and balance traffic
-// between previous desired vs. stable hash, in order to safely shift traffic back to stable.
-// This function also returns the previous desired hash (where we are weighted to)
-func isDynamicallyRollingBackToStable(ro *v1alpha1.Rollout, desiredRS *appsv1.ReplicaSet) (bool, string) {
-	if rolloututil.IsFullyPromoted(ro) && ro.Spec.Strategy.Canary.TrafficRouting != nil && ro.Spec.Strategy.Canary.DynamicStableScale {
-		if ro.Status.Canary.Weights != nil {
-			currSelector := ro.Status.Canary.Weights.Canary.PodTemplateHash
-			desiredSelector := replicasetutil.GetPodTemplateHash(desiredRS)
-			if currSelector != desiredSelector {
-				if desiredRS.Status.AvailableReplicas < *ro.Spec.Replicas {
-					return true, currSelector
-				}
-			}
-		}
-	}
-	return false, ""
-}
-
 // canProceedWithScaleDownAnnotation returns whether or not it is safe to proceed with annotating
 // old replicasets with the scale-down-deadline in the traffic-routed canary strategy.
 // This method only matters with ALB canary + the target group verification feature.
@@ -370,15 +348,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
-
-	if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && !c.rollout.Spec.Strategy.Canary.DynamicStableScale && c.stableRS != nil {
-		// When using traffic routed canary without scaling down the stable replicaset, the number of pods
-		// selected by the rollout selector will be up to twice the amount of desired spec.replicas.
-		// We update the selector to select the stable pods since the Scale subresource expects a
-		// label that queries over pods that should match the replicas count, because that is the number
-		// of pods that will be receiving traffic.
-		newStatus.Selector = metav1.FormatLabelSelector(c.stableRS.Spec.Selector)
-	}
 
 	newStatus.Canary.StablePingPong = c.rollout.Status.Canary.StablePingPong
 	newStatus.Canary.StepPluginStatuses = c.rollout.Status.Canary.StepPluginStatuses

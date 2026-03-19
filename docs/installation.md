@@ -20,7 +20,7 @@ This will create a new namespace, `argo-rollouts`, where Argo Rollouts controlle
 
 
 !!! tip
-    On GKE, you will need grant your account the ability to create new cluster roles:
+    On GKE, you will need to grant your account the ability to create new cluster roles:
 
     ```shell
     kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
@@ -49,6 +49,14 @@ command line.
 
 ```shell
 brew install argoproj/tap/kubectl-argo-rollouts
+```
+
+### Using mise
+
+If you are an enthusiast user of [mise](https://github.com/jdx/mise) polyglot tool version manager, you can use a command like this :
+
+```shell
+mise use -g argo-rollouts
 ```
 
 ### Manual
