@@ -88,6 +88,7 @@ func newCommand() *cobra.Command {
 		selfServiceNotificationEnabled bool
 		controllersEnabled             []string
 		pprofAddress                   string
+		rolloutsConfigMapName          string
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
@@ -119,6 +120,7 @@ func newCommand() *cobra.Command {
 			defaults.SetAppMeshCRDVersion(appmeshCRDVersion)
 			defaults.SetTraefikAPIGroup(traefikAPIGroup)
 			defaults.SetTraefikVersion(traefikVersion)
+			defaults.SetRolloutsConfigMapName(rolloutsConfigMapName)
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
@@ -340,6 +342,7 @@ func newCommand() *cobra.Command {
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", false, "Allows rollouts controller to pull notification config from the namespace that the rollout resource is in. This is useful for self-service notification.")
 	command.Flags().StringSliceVar(&controllersEnabled, "controllers", nil, "Explicitly specify the list of controllers to run, currently only supports 'analysis', eg. --controller=analysis. Default: all controllers are enabled")
 	command.Flags().StringVar(&pprofAddress, "enable-pprof-address", "", "Enable pprof profiling on controller by providing a server address.")
+	command.Flags().StringVar(&rolloutsConfigMapName, "configmap-name", defaults.DefaultRolloutsConfigMapName, "Name of the ConfigMap used to configure the controller.")
 	return &command
 }
 
