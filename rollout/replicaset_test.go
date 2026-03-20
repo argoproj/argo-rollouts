@@ -116,7 +116,7 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 				f.kubeobjects = append(f.kubeobjects, rs)
 			}
 
-			c, informers, _ := f.newController(noResyncPeriodFunc)
+			c, informers, _, _ := f.newController(noResyncPeriodFunc)
 			stopCh := make(chan struct{})
 			defer close(stopCh)
 			informers.Start(stopCh)
@@ -231,7 +231,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			f.objects = append(f.objects, rollout)
 			f.replicaSetLister = append(f.replicaSetLister, oldRS, newRS)
 			f.kubeobjects = append(f.kubeobjects, oldRS, newRS)
-			_, informers, k8sInformer := f.newController(noResyncPeriodFunc)
+			_, informers, k8sInformer, _ := f.newController(noResyncPeriodFunc)
 			stopCh := make(chan struct{})
 			informers.Start(stopCh)
 			informers.WaitForCacheSync(stopCh)
@@ -386,7 +386,7 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			f.replicaSetLister = append(f.replicaSetLister, oldRS, newRS)
 			f.serviceLister = append(f.serviceLister, activeService, previewService)
 			f.kubeobjects = append(f.kubeobjects, oldRS, newRS, activeService, previewService)
-			c, informers, _ := f.newController(noResyncPeriodFunc)
+			c, informers, _, _ := f.newController(noResyncPeriodFunc)
 			stopCh := make(chan struct{})
 			informers.Start(stopCh)
 			informers.WaitForCacheSync(stopCh)

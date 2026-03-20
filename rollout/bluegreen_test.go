@@ -955,7 +955,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
-	ctrl, _, _ := f.newController(noResyncPeriodFunc)
+	ctrl, _, _, _ := f.newController(noResyncPeriodFunc)
 	roCtx, err := ctrl.newRolloutContext(ro)
 	assert.NoError(t, err)
 

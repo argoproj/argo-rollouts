@@ -131,13 +131,13 @@ func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), nil)
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	c, i, k8sI, dynamicI := f.newController(noResyncPeriodFunc)
 	enqueued := false
 	c.enqueueRolloutAfter = func(obj any, duration time.Duration) {
 		enqueued = true
 	}
 	f.expectPatchRolloutAction(ro)
-	f.runController(getKey(ro, t), true, false, c, i, k8sI)
+	f.runController(getKey(ro, t), true, false, c, i, k8sI, dynamicI)
 	assert.True(t, enqueued)
 }
 

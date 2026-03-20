@@ -1160,8 +1160,8 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
-	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
-	f.runController(key, true, false, c, i, k8sI)
+	c, i, k8sI, dynamicI := f.newController(func() time.Duration { return 30 * time.Minute })
+	f.runController(key, true, false, c, i, k8sI, dynamicI)
 
 	// When the controller starts, it will enqueue the rollout while syncing the informer and during the reconciliation step
 	f.enqueuedObjectsLock.Lock()
@@ -1211,8 +1211,8 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
-	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
-	f.runController(key, true, false, c, i, k8sI)
+	c, i, k8sI, dynamicI := f.newController(func() time.Duration { return 30 * time.Minute })
+	f.runController(key, true, false, c, i, k8sI, dynamicI)
 	// When the controller starts, it will enqueue the rollout so we expect the rollout to enqueue at least once.
 	f.enqueuedObjectsLock.Lock()
 	defer f.enqueuedObjectsLock.Unlock()
