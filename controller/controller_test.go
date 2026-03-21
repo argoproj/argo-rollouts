@@ -269,6 +269,7 @@ func TestNewManager(t *testing.T) {
 		false,
 		nil,
 		nil,
+		nil,
 		rolloutController.DefaultEphemeralMetadataThreads,
 		rolloutController.DefaultEphemeralMetadataPodRetries,
 	)
