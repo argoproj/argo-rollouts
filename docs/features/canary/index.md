@@ -174,6 +174,11 @@ spec:
 
 ## Mimicking Rolling Update
 
+!!! important
+    `maxSurge` and `maxUnavailable` control desired replica calculations for **basic canary** only (when `spec.strategy.canary.trafficRouting` is not set).
+    When `trafficRouting` is set, these fields are not used for stable/canary replica counts — the stable ReplicaSet stays at full scale, so total pods can exceed 2× `spec.replicas` (e.g. `spec.replicas: 10` with `setCanaryScale.replicas: 15` runs 25 pods). Use `dynamicStableScale` and `setCanaryScale` instead.
+    Note: even with `trafficRouting`, validation still rejects both values as `0`, and `maxUnavailable` may still throttle old ReplicaSet scale-down.
+
 If the `steps` field is omitted, the canary strategy will mimic the rolling update behavior. Similar to the deployment, the canary strategy has the `maxSurge` and `maxUnavailable` fields to configure how the Rollout should progress to the new version.
 
 ## Other Configurable Features
@@ -219,13 +224,17 @@ Defaults to an empty string
 
 ### maxSurge
 
-`maxSurge` defines the maximum number of replicas the rollout can create to move to the correct ratio set by the last setWeight. Max Surge can either be an integer or percentage as a string (i.e. "20%")
+`maxSurge` controls basic-canary desired replica math when `trafficRouting` is not set; it is not used for traffic-routed desired stable/canary replica counts.
+
+`maxSurge` defines the maximum number of replicas the rollout can create to move to the correct ratio set by the last `setWeight`. `maxSurge` can either be an integer or percentage as a string (i.e. "20%")
 
 Defaults to "25%".
 
 ### maxUnavailable
 
-The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxSurge is 0.
+`maxUnavailable` is used for basic-canary desired replica calculations when `trafficRouting` is not set. With traffic routing, it is not used for desired stable/canary replica counts, but may still throttle old ReplicaSet scale-down.
+
+The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if `maxSurge` is 0.
 
 Defaults to 25%
 
