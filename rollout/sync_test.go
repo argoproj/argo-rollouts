@@ -875,3 +875,189 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	assert.Equal(t, int32(13), roStatus.Status.ReadyReplicas)
 	assert.Equal(t, int32(0), roStatus.Status.UpdatedReplicas)
 }
+
+// setupPromoteTestContext creates a test context for promotion tests
+func setupPromoteTestContext(f *fixture, r *v1alpha1.Rollout, readyReplicas int, services ...*corev1.Service) *rolloutContext {
+	rs := newReplicaSetWithStatus(r, readyReplicas, readyReplicas)
+	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	oldRS := newReplicaSetWithStatus(r, 0, 0)
+	oldRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "old-hash"
+	oldRS.Name = "old-rs"
+
+	r.Status.CurrentPodHash = rsPodHash
+	r.Status.StableRS = "old-hash"
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, rs, oldRS)
+	f.replicaSetLister = append(f.replicaSetLister, rs, oldRS)
+
+	for _, svc := range services {
+		f.kubeobjects = append(f.kubeobjects, svc)
+		f.serviceLister = append(f.serviceLister, svc)
+	}
+
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	roCtx, _ := c.newRolloutContext(r)
+	return roCtx
+}
+
+func TestShouldFullPromoteCanaryWithReplicaProgressThreshold(t *testing.T) {
+	tests := []struct {
+		name          string
+		threshold     *v1alpha1.ReplicaProgressThreshold
+		readyReplicas int
+		expectPromote bool
+		isNewRSNil    bool
+	}{
+		{
+			"PromoteWhenThresholdMet",
+			&v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			9,
+			true,
+			false,
+		},
+		{
+			"PromoteWhenThresholdNotMet",
+			&v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			8,
+			false,
+			false,
+		},
+		{
+			"PromoteDefaultWhenNoThreshold",
+			nil,
+			9,
+			false,
+			false,
+		},
+		{
+			"PromoteWithPodsThreshold",
+			&v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePods,
+				Value: 9,
+			},
+			9,
+			true,
+			false,
+		},
+		{
+			"NilNewRSReturnsFalse",
+			&v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			0,
+			false,
+			true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			r := newCanaryRollout("foo", 10, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+			r.Spec.Strategy.Canary.ReplicaProgressThreshold = tc.threshold
+			steps := int32(len(r.Spec.Strategy.Canary.Steps))
+			r.Status.CurrentStepIndex = &steps
+
+			roCtx := setupPromoteTestContext(f, r, tc.readyReplicas)
+			if tc.isNewRSNil {
+				roCtx.newRS = nil
+			}
+
+			newStatus := roCtx.calculateBaseStatus()
+			reason := roCtx.shouldFullPromote(newStatus)
+
+			if tc.expectPromote {
+				assert.NotEmpty(t, reason)
+				assert.Contains(t, reason, "Completed all")
+			} else {
+				assert.Empty(t, reason)
+			}
+		})
+	}
+}
+
+func TestShouldFullPromoteBlueGreenWithReplicaProgressThreshold(t *testing.T) {
+	tests := []struct {
+		name          string
+		threshold     *v1alpha1.ReplicaProgressThreshold
+		readyReplicas int
+		expectPromote bool
+		isNewRSNil    bool
+	}{
+		{
+			"PromoteWhenThresholdMet",
+			&v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			9,
+			true,
+			false,
+		},
+		{
+			"PromoteWhenThresholdNotMet",
+			&v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			8,
+			false,
+			false,
+		},
+		{
+			"NilNewRSReturnsFalse",
+			&v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			0,
+			false,
+			true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			r := newBlueGreenRollout("foo", 10, nil, "active", "preview")
+			r.Spec.Strategy.BlueGreen.ReplicaProgressThreshold = tc.threshold
+
+			rs := newReplicaSetWithStatus(r, tc.readyReplicas, tc.readyReplicas)
+			rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			r.Status.BlueGreen.ActiveSelector = rsPodHash
+
+			activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsPodHash}, r)
+			previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsPodHash}, r)
+
+			roCtx := setupPromoteTestContext(f, r, tc.readyReplicas, activeSvc, previewSvc)
+			if tc.isNewRSNil {
+				roCtx.newRS = nil
+			}
+
+			newStatus := roCtx.calculateBaseStatus()
+			newStatus.BlueGreen.ActiveSelector = rsPodHash
+			reason := roCtx.shouldFullPromote(newStatus)
+
+			if tc.expectPromote {
+				assert.NotEmpty(t, reason)
+				assert.Contains(t, reason, "Completed blue-green update")
+			} else {
+				assert.Empty(t, reason)
+			}
+		})
+	}
+}

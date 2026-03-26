@@ -674,6 +674,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BlueGreenSt
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BlueGreenStrategy
      */
     abortScaleDownDelaySeconds?: number;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BlueGreenStrategy
+     */
+    replicaProgressThreshold?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold;
 }
 /**
  * 
