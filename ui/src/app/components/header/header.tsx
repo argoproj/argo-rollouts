@@ -8,7 +8,8 @@ import './header.scss';
 import {Link, useHistory} from 'react-router-dom';
 import {AutoComplete, Button, Input, notification, Tooltip} from 'antd';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
+import {faBook, faKeyboard, faSignOutAlt} from '@fortawesome/free-solid-svg-icons';
+import {AuthContext} from '../../shared/context/auth';
 
 const Logo = () => <img src='assets/images/argo-icon-color-square.png' style={{width: '37px', height: '37px', margin: '0 12px'}} alt='Argo Logo' />;
 
@@ -17,6 +18,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
     const namespaceInfo = React.useContext(NamespaceContext);
     const {namespace} = useParams<{namespace: string}>();
     const api = React.useContext(RolloutAPIContext);
+    const {token, logout} = React.useContext(AuthContext);
     const [version, setVersion] = React.useState('v?');
     const [nsInput, setNsInput] = React.useState(namespaceInfo.namespace);
     const {useKeybinding} = React.useContext(KeybindingContext);
@@ -101,6 +103,11 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                         />
                     )}
                 </div>
+                {token && (
+                    <Tooltip title='Logout'>
+                        <Button onClick={logout} icon={<FontAwesomeIcon icon={faSignOutAlt} />} style={{marginLeft: '10px'}} />
+                    </Tooltip>
+                )}
             </div>
         </header>
     );

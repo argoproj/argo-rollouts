@@ -1,0 +1,76 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+.login {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: $argo-color-gray-3;
+    font-family: system-ui, sans-serif;
+
+    &__box {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+        padding: 40px;
+        width: 400px;
+        text-align: center;
+    }
+
+    &__logo {
+        margin-bottom: 16px;
+    }
+
+    &__title {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    &__subtitle {
+        color: $argo-color-gray-7;
+        font-size: 14px;
+        margin-bottom: 32px;
+    }
+
+    &__form {
+        text-align: left;
+    }
+
+    &__label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: $argo-color-gray-8;
+    }
+
+    &__input {
+        margin-bottom: 16px;
+        font-family: monospace;
+        font-size: 12px;
+    }
+
+    &__button {
+        height: 40px;
+        font-size: 15px;
+        background-color: #0f2733;
+        border-color: #0f2733;
+
+        &:hover {
+            background-color: #1a3a4a !important;
+            border-color: #1a3a4a !important;
+        }
+
+        &--sso {
+            background-color: #1890ff;
+            border-color: #1890ff;
+            margin-bottom: 0;
+
+            &:hover {
+                background-color: #40a9ff !important;
+                border-color: #40a9ff !important;
+            }
+        }
+    }
+}
