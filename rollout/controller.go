@@ -9,8 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
+	gocache "github.com/patrickmn/go-cache"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -18,7 +17,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -33,8 +31,6 @@ import (
 	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/ptr"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
@@ -87,6 +83,10 @@ type Controller struct {
 	rolloutWorkqueue workqueue.RateLimitingInterface
 	serviceWorkqueue workqueue.RateLimitingInterface
 	ingressWorkqueue workqueue.RateLimitingInterface
+	// rolloutVersionCache is used to track recently applied rollout resource versions
+	// by tracking these resource versions in memory, we can determine if the cache is stale
+	// relative to what we just applied and wait until the cache gets updated to a version that has the change
+	rolloutVersionCache *gocache.Cache
 }
 
 // ControllerConfig describes the data required to instantiate a new rollout controller
@@ -214,13 +214,14 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	controller := &Controller{
-		reconcilerBase:    base,
-		namespace:         cfg.Namespace,
-		replicaSetControl: replicaSetControl,
-		rolloutWorkqueue:  cfg.RolloutWorkQueue,
-		serviceWorkqueue:  cfg.ServiceWorkQueue,
-		ingressWorkqueue:  cfg.IngressWorkQueue,
-		metricsServer:     cfg.MetricsServer,
+		reconcilerBase:      base,
+		namespace:           cfg.Namespace,
+		replicaSetControl:   replicaSetControl,
+		rolloutWorkqueue:    cfg.RolloutWorkQueue,
+		serviceWorkqueue:    cfg.ServiceWorkQueue,
+		ingressWorkqueue:    cfg.IngressWorkQueue,
+		metricsServer:       cfg.MetricsServer,
+		rolloutVersionCache: gocache.New(time.Minute, time.Minute), // in the worst-case, the resourceVersion isn't monotonic and we just will retry after 1m
 	}
 	controller.enqueueRollout = func(obj any) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)
@@ -403,6 +404,22 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		return err
 	}
 
+	// If the resourceVersion of the rollout that we get from the informer cache is lower than the resourceVersion
+	// that we stored in our resourceVersionCache, requeue since we're working with stale data
+	if cachedResourceVersion, ok := c.rolloutVersionCache.Get(key); ok {
+		cachedValue, err := strconv.ParseInt(cachedResourceVersion.(string), 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse cached resource version: %w", err)
+		}
+		rolloutValue, err := strconv.ParseInt(rollout.ResourceVersion, 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse rollout resource version: %w", err)
+		}
+		if rolloutValue < cachedValue {
+			return controllerutil.StaleCacheError
+		}
+	}
+
 	// Remarshal the rollout to normalize all fields so that when we calculate hashes against the
 	// rollout spec and pod template spec, the hash will be consistent. See issue #70
 	// This also returns a copy of the rollout to prevent mutation of the informer cache.
@@ -447,7 +464,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		r.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
 		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
 		if err == nil {
-			c.writeBackToInformer(newRollout)
+			c.rolloutVersionCache.SetDefault(key, newRollout.ResourceVersion)
 		}
 		return err
 	}
@@ -462,41 +479,9 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		return err
 	}
 	if roCtx.newRollout != nil {
-		c.writeBackToInformer(roCtx.newRollout)
+		c.rolloutVersionCache.SetDefault(key, roCtx.newRollout.ResourceVersion)
 	}
 	return nil
-}
-
-// writeBackToInformer writes a just recently updated Rollout back into the informer cache.
-// This prevents the situation where the controller operates on a stale rollout and repeats work
-func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
-	logCtx := logutil.WithRollout(ro)
-	logCtx = logutil.WithVersionFields(logCtx, ro)
-	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ro)
-	if err != nil {
-		logCtx.Errorf("failed to convert rollout to unstructured: %v", err)
-		return
-	}
-	un := unstructured.Unstructured{Object: obj}
-	// With code-gen tools the argoclientset is generated and the update method here is removing typemetafields
-	// which the notification controller expects when it converts rolloutobject to toUnstructured and if not present
-	// and that throws an error "Failed to process: Object 'Kind' is missing in ..."
-	// Fixing this here as the informer is shared by notification controller by updating typemetafileds.
-	// TODO: Need to revisit this in the future and maybe we should have a dedicated informer for notification
-	gvk := un.GetObjectKind().GroupVersionKind()
-	if len(gvk.Version) == 0 || len(gvk.Group) == 0 || len(gvk.Kind) == 0 {
-		un.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   v1alpha1.SchemeGroupVersion.Group,
-			Kind:    rollouts.RolloutKind,
-			Version: v1alpha1.SchemeGroupVersion.Version,
-		})
-	}
-	err = c.rolloutsInformer.GetStore().Update(&un)
-	if err != nil {
-		logCtx.Errorf("failed to update informer store: %v", err)
-		return
-	}
-	logCtx.Info("persisted to informer")
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {
