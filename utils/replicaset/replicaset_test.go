@@ -22,6 +22,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/hash"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -674,6 +675,17 @@ func TestCheckPodSpecChange(t *testing.T) {
 
 	ro.Status.CurrentPodHash = "different-hash"
 	assert.True(t, CheckPodSpecChange(&ro, &rs))
+}
+
+func TestCheckStepHashChange(t *testing.T) {
+	ro := generateRollout("nginx")
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
+	assert.True(t, checkStepHashChange(&ro))
+	ro.Status.CurrentStepHash = conditions.ComputeStepHash(&ro)
+	assert.False(t, checkStepHashChange(&ro))
+
+	ro.Status.CurrentStepHash = "different-hash"
+	assert.True(t, checkStepHashChange(&ro))
 }
 
 func TestShouldSkipBlueGreenReconciliation(t *testing.T) {
