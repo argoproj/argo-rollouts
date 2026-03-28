@@ -222,7 +222,7 @@ func (p *JobProvider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metri
 	}
 	now := timeutil.MetaNow()
 	measurement.FinishedAt = &now
-	measurement.Phase = v1alpha1.AnalysisPhaseSuccessful
+	measurement.Phase = v1alpha1.AnalysisPhaseInconclusive
 	p.logCtx.Infof("job %s/%s terminated", jobName.Namespace, jobName.Name)
 	return measurement
 }

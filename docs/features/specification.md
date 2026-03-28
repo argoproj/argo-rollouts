@@ -230,7 +230,9 @@ spec:
 
       # The minimum number of pods that will be requested for each ReplicaSet
       # when using traffic routed canary. This is to ensure high availability
-      # of each ReplicaSet. Defaults to 1. +optional
+      # of each ReplicaSet. spec.replicas should be >= minPodsPerReplicaSet
+      # for it to take full effect; otherwise it is capped at the rollout
+      # replica count. Defaults to 1. +optional
       minPodsPerReplicaSet: 2
 
       # Limits the number of old RS that can run at one time before getting
@@ -384,11 +386,11 @@ spec:
               - name: mann-whitney
                 templateName: mann-whitney
                 # Metadata which will be attached to the AnalysisRun.
-                analysisRunMetadata:
-                  labels:
-                    app.service.io/analysisType: smoke-test
-                  annotations:
-                    link.argocd.argoproj.io/external-link: http://my-loggin-platform.com/pre-generated-link
+            analysisRunMetadata:
+              labels:
+                app.service.io/analysisType: smoke-test
+              annotations:
+                link.argocd.argoproj.io/external-link: http://my-loggin-platform.com/pre-generated-link
 
       # Anti-affinity configuration between desired and previous ReplicaSet.
       # Only one must be specified.
