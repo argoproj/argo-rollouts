@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/antonmedv/expr"
-	"github.com/antonmedv/expr/file"
+	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/file"
 	"github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"

@@ -2107,7 +2107,7 @@ func TestIsDynamicallyRollingBackToStable(t *testing.T) {
 				desiredRS.Status.AvailableReplicas = *tc.rsAvailableReplicas
 			}
 
-			rbToStable, _ := isDynamicallyRollingBackToStable(ro, desiredRS)
+			rbToStable, _ := rolloututil.IsDynamicallyRollingBackToStable(ro, desiredRS)
 
 			assert.Equal(t, tc.expectedResult, rbToStable)
 		})

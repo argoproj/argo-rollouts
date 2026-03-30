@@ -146,7 +146,7 @@ func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWe
 	availableReplicas := rs.Status.AvailableReplicas
 	totalReplicas := *c.rollout.Spec.Replicas
 
-	desiredReplicas := (desiredWeight * totalReplicas) / 100
+	desiredReplicas := (desiredWeight * totalReplicas) / weightutil.MaxTrafficWeight(c.rollout)
 	if availableReplicas < desiredReplicas &&
 		!replicasetutil.ReplicaProgressThresholdMet(c.rollout.Spec.Strategy.Canary.ReplicaProgressThreshold, rs, desiredReplicas) {
 		c.log.Infof("ReplicaSet '%s' has %d available replicas, waiting for %d", rs.Name, availableReplicas, desiredReplicas)
@@ -189,7 +189,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			canaryHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		}
 
-		if dynamicallyRollingBackToStable, prevDesiredHash := isDynamicallyRollingBackToStable(c.rollout, c.newRS); dynamicallyRollingBackToStable {
+		if dynamicallyRollingBackToStable, prevDesiredHash := rolloututil.IsDynamicallyRollingBackToStable(c.rollout, c.newRS); dynamicallyRollingBackToStable {
 			desiredWeight = c.calculateDesiredWeightOnAbortOrStableRollback()
 			// Since stableRS == desiredRS, we must balance traffic between the
 			// *previous desired* vs. stable (as opposed to current desired vs. stable).

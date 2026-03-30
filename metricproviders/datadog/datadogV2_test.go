@@ -192,7 +192,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage:    `invalid operation: < (mismatched types <nil> and float64)`,
+			expectedErrorMessage:    `invalid operation: < (mismatched types unknown and float64)`,
 			useEnvVarForKeys:        false,
 		},
 
