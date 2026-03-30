@@ -18,14 +18,30 @@ kubectl argo rollouts dashboard
 
 # Start UI dashboard on a specific port
 kubectl argo rollouts dashboard --port 8080
+
+# Start UI dashboard with token authentication
+kubectl argo rollouts dashboard --auth-mode token
+
+# Start UI dashboard with OIDC SSO (e.g., Okta, Google, Azure AD)
+kubectl argo rollouts dashboard --auth-mode token \
+--oidc-issuer-url https://accounts.google.com \
+--oidc-client-id my-client-id \
+--oidc-client-secret my-client-secret \
+--oidc-redirect-url http://localhost:3100/rollouts/auth/callback
 ```
 
 ## Options
 
 ```
-  -h, --help               help for dashboard
-  -p, --port int           port to listen on (default 3100)
-      --root-path string   changes the root path of the dashboard (default "rollouts")
+      --auth-mode string            authentication mode: 'server' (no auth) or 'token' (requires Kubernetes bearer token) (default "server")
+  -h, --help                        help for dashboard
+      --oidc-client-id string       OIDC client ID
+      --oidc-client-secret string   OIDC client secret
+      --oidc-issuer-url string      OIDC issuer URL for SSO login (e.g., https://accounts.google.com, https://your-org.okta.com)
+      --oidc-redirect-url string    OIDC redirect URL (default: http://localhost:<port>/<root-path>/auth/callback)
+      --oidc-scopes string          OIDC scopes as comma-separated list (default: openid,profile,email)
+  -p, --port int                    port to listen on (default 3100)
+      --root-path string            changes the root path of the dashboard (default "rollouts")
 ```
 
 ## Options inherited from parent commands
