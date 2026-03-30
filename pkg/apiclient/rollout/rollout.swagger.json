@@ -1871,7 +1871,11 @@
         },
         "insecure": {
           "type": "boolean",
-          "title": "Insecure skips host TLS verification"
+          "title": "Insecure skips TLS certificate verification when querying Prometheus\n+optional"
+        },
+        "caPath": {
+          "type": "string",
+          "title": "CAPath is a path to a PEM-encoded CA certificate file on the controller filesystem\n+optional"
         },
         "headers": {
           "type": "array",
