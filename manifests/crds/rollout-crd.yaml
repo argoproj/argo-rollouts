@@ -776,6 +776,7 @@ spec:
                               type: integer
                           type: object
                         type: array
+                        minItems: 1
                       trafficRouting:
                         properties:
                           alb:
