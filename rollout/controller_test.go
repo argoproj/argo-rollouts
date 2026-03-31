@@ -741,18 +741,9 @@ func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInf
 	return f.verifyActionsAndReturn(c)
 }
 
-func (f *fixture) assertSyncHandlerResult(n, syncs int, err error, expectError, allowErr bool) {
-	if !expectError && err != nil && !allowErr {
-		f.t.Errorf("error syncing rollout (sync %d/%d): %v", n+1, syncs, err)
-		return
-	}
-	if expectError && err == nil {
-		f.t.Error("expected error syncing rollout, got nil")
-	}
-}
-
-// reseedRolloutInInformer re-seeds the rollout in the informer so the next sync sees a typed Rollout
-// (controller writes Unstructured via persistRolloutToInformer). No-op when syncs <= 1 or on the last sync.
+// reseedRolloutInInformerIfNeeded re-seeds the rollout in the informer after a sync so the next sync
+// sees an updated typed Rollout (e.g. multi-sync tests that mutate status between reconciles).
+// No-op when syncs <= 1 or on the final sync index.
 func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName string, n, syncs int) {
 	if syncs <= 1 || n >= syncs-1 {
 		return
@@ -768,8 +759,19 @@ func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName str
 	if f.reseedRolloutMutator != nil {
 		f.reseedRolloutMutator(ro)
 	}
+	c.rolloutVersionCache.Delete(rolloutName)
 	if err := c.rolloutsIndexer.Update(ro); err != nil {
 		f.t.Fatalf("re-seed rollout: update indexer: %v", err)
+	}
+}
+
+func (f *fixture) assertSyncHandlerResult(n, syncs int, err error, expectError, allowErr bool) {
+	if !expectError && err != nil && !allowErr {
+		f.t.Errorf("error syncing rollout (sync %d/%d): %v", n+1, syncs, err)
+		return
+	}
+	if expectError && err == nil {
+		f.t.Error("expected error syncing rollout, got nil")
 	}
 }
 
@@ -2557,44 +2559,6 @@ func TestRolloutStrategyNotSet(t *testing.T) {
 	f.runExpectError(getKey(r, t), true)
 	patchedRollout := f.getPatchedRollout(patchIndex)
 	assert.Contains(t, patchedRollout, `Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'`)
-}
-
-// TestWriteBackToInformer verifies that after a rollout reconciles, the new version of the rollout
-// is written back to the informer
-func TestWriteBackToInformer(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	r1 := newCanaryRollout("foo", 10, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.StableRS = ""
-	rs1 := newReplicaSetWithStatus(r1, 10, 10)
-
-	f.rolloutLister = append(f.rolloutLister, r1)
-	f.objects = append(f.objects, r1)
-
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
-	f.expectPatchRolloutAction(r1)
-
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
-	roKey := getKey(r1, t)
-	f.runController(roKey, true, false, c, i, k8sI)
-
-	// Verify the informer was updated with the new unstructured object after reconciliation
-	obj, exists, err := c.rolloutsIndexer.GetByKey(roKey)
-	assert.NoError(t, err)
-	assert.True(t, exists)
-
-	// The type returned from c.rolloutsIndexer.GetByKey is not always the same type it switches between
-	// *unstructured.Unstructured and *v1alpha1.Rollout the underlying cause is not fully known. We use the
-	// runtime.DefaultUnstructuredConverter to account for this.
-	unObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	assert.NoError(t, err)
-
-	stableRS, _, _ := unstructured.NestedString(unObj, "status", "stableRS")
-	assert.NotEmpty(t, stableRS)
-	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
 }
 
 func TestRun(t *testing.T) {
