@@ -348,3 +348,57 @@ func TestEvalTimeWithInvalidExpression(t *testing.T) {
 	assert.Equal(t, time.Time{}, status)
 	assert.Error(t, err)
 }
+
+func TestEvaluateResultErrorMessageWithNilResult(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "result[0] >= 0.95",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult(nil, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "metric result is nil or empty")
+	assert.Contains(t, err.Error(), "successCondition")
+}
+
+func TestEvaluateResultErrorMessageWithEmptySlice(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "result[0] >= 0.95",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult([]float64{}, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "metric result is nil or empty")
+	assert.Contains(t, err.Error(), "successCondition")
+}
+
+func TestEvaluateResultErrorMessageWithInvalidExpression(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "a == true",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "could not evaluate successCondition")
+	assert.Contains(t, err.Error(), "a == true")
+}
+
+func TestEvaluateResultErrorMessageOnFailureCondition(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "true",
+		FailureCondition: "invalidVar == true",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "could not evaluate failureCondition")
+	assert.Contains(t, err.Error(), "invalidVar == true")
+}
+
+func TestIsNilOrEmpty(t *testing.T) {
+	assert.True(t, isNilOrEmpty(nil))
+	assert.True(t, isNilOrEmpty([]float64{}))
+	assert.True(t, isNilOrEmpty([]string{}))
+	assert.False(t, isNilOrEmpty([]float64{1.0}))
+	assert.False(t, isNilOrEmpty(42))
+	assert.False(t, isNilOrEmpty("hello"))
+}
