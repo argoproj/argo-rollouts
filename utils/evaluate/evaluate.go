@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
+
+var indexedResultPattern = regexp.MustCompile(`\bresult\s*\[`)
 
 func EvaluateResult(result any, metric v1alpha1.Metric, logCtx logrus.Entry) (v1alpha1.AnalysisPhase, error) {
 	successCondition := false
@@ -104,6 +107,10 @@ func EvalCondition(resultValue any, condition string) (bool, error) {
 		"default": defaultFunc(resultValue),
 	}
 
+	if err = validateIndexedResultAccess(resultValue, condition); err != nil {
+		return false, err
+	}
+
 	unwrapFileErr := func(e error) error {
 		if fileErr, ok := err.(*file.Error); ok {
 			e = errors.New(fileErr.Message)
@@ -126,6 +133,32 @@ func EvalCondition(resultValue any, condition string) (bool, error) {
 		return val, nil
 	default:
 		return false, fmt.Errorf("expected bool, but got %T", val)
+	}
+}
+
+func validateIndexedResultAccess(resultValue any, condition string) error {
+	if !indexedResultPattern.MatchString(condition) {
+		return nil
+	}
+
+	if !isEmptyIndexableResult(resultValue) {
+		return nil
+	}
+
+	return errors.New("metric result is empty or unavailable, and the condition cannot index into result; guard the condition with len(result) > 0")
+}
+
+func isEmptyIndexableResult(resultValue any) bool {
+	value := valueFromPointer(resultValue)
+	if value == nil {
+		return true
+	}
+
+	switch reflect.ValueOf(value).Kind() {
+	case reflect.Array, reflect.Slice, reflect.String:
+		return reflect.ValueOf(value).Len() == 0
+	default:
+		return false
 	}
 }
 

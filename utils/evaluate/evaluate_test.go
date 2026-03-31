@@ -102,6 +102,17 @@ func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestEvaluateResultWithIndexedEmptyResult(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "result[0] <= 10",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult([]float64{}, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.ErrorContains(t, err, "metric result is empty or unavailable")
+	assert.ErrorContains(t, err, "len(result) > 0")
+}
+
 func TestEvaluateConditionWithSuccess(t *testing.T) {
 	b, err := EvalCondition(true, "result == true")
 	assert.Nil(t, err)
@@ -112,6 +123,13 @@ func TestEvaluateConditionWithFailure(t *testing.T) {
 	b, err := EvalCondition(true, "result == false")
 	assert.Nil(t, err)
 	assert.False(t, b)
+}
+
+func TestEvaluateConditionWithIndexedEmptyResult(t *testing.T) {
+	b, err := EvalCondition([]float64{}, "result[0] <= 10")
+	assert.False(t, b)
+	assert.ErrorContains(t, err, "metric result is empty or unavailable")
+	assert.ErrorContains(t, err, "len(result) > 0")
 }
 
 func TestErrorWithNonBoolReturn(t *testing.T) {
