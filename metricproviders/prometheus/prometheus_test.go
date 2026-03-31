@@ -614,6 +614,22 @@ func TestProcessInvalidResponse(t *testing.T) {
 
 }
 
+func TestProcessResponseWithEmptyVectorIndexedCondition(t *testing.T) {
+	logCtx := log.WithField("test", "test")
+	p := Provider{
+		logCtx: *logCtx,
+	}
+	metric := v1alpha1.Metric{
+		SuccessCondition: "result[0] <= 10",
+	}
+
+	value, status, err := p.processResponse(metric, model.Vector{})
+	assert.Equal(t, "[]", value)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.ErrorContains(t, err, "metric result is empty or unavailable")
+	assert.ErrorContains(t, err, "len(result) > 0")
+}
+
 func TestNewPrometheusAPI(t *testing.T) {
 	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
 	address := ":invalid::url"
