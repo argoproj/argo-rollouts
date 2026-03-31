@@ -13,6 +13,8 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
+const invalidRefCondition = "a == true"
+
 func TestEvaluateResultWithSuccess(t *testing.T) {
 	metric := v1alpha1.Metric{
 		SuccessCondition: "true",
@@ -82,7 +84,7 @@ func TestEvaluateResultNoFailureConditionAndNoSuccessCondition(t *testing.T) {
 
 func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
 	metric := v1alpha1.Metric{
-		SuccessCondition: "a == true",
+		SuccessCondition: invalidRefCondition,
 		FailureCondition: "true",
 	}
 	logCtx := logrus.WithField("test", "test")
@@ -94,7 +96,7 @@ func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
 func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
 	metric := v1alpha1.Metric{
 		SuccessCondition: "true",
-		FailureCondition: "a == true",
+		FailureCondition: invalidRefCondition,
 	}
 	logCtx := logrus.WithField("test", "test")
 	status, err := EvaluateResult(true, metric, *logCtx)
@@ -373,13 +375,13 @@ func TestEvaluateResultErrorMessageWithEmptySlice(t *testing.T) {
 
 func TestEvaluateResultErrorMessageWithInvalidExpression(t *testing.T) {
 	metric := v1alpha1.Metric{
-		SuccessCondition: "a == true",
+		SuccessCondition: invalidRefCondition,
 	}
 	logCtx := logrus.WithField("test", "test")
 	status, err := EvaluateResult(true, metric, *logCtx)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
 	assert.Contains(t, err.Error(), "could not evaluate successCondition")
-	assert.Contains(t, err.Error(), "a == true")
+	assert.Contains(t, err.Error(), invalidRefCondition)
 }
 
 func TestEvaluateResultErrorMessageOnFailureCondition(t *testing.T) {
