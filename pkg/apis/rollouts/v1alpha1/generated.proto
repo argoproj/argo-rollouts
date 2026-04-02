@@ -1755,6 +1755,10 @@ message SecretKeyRef {
 
   // Key is the key of the secret to select from.
   optional string key = 2;
+
+  // Namespace is the namespace of the secret. If empty, the secret
+  // will be resolved from the namespace of the AnalysisRun/Rollout.
+  optional string namespace = 3;
 }
 
 message SecretRef {

@@ -269,15 +269,22 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 		//if secret specified in valueFrom, replace value with secret value
 		//error if arg has both value and valueFrom
 		if arg.ValueFrom != nil && arg.ValueFrom.SecretKeyRef != nil {
-			name := arg.ValueFrom.SecretKeyRef.Name
-			secret, err := c.kubeclientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			ref := arg.ValueFrom.SecretKeyRef
+			secretNamespace := namespace
+			if ref.Namespace != "" && ref.Namespace != namespace {
+				if err := c.validateSecretNamespace(arg, ref); err != nil {
+					return nil, nil, err
+				}
+				secretNamespace = ref.Namespace
+			}
+			secret, err := c.kubeclientset.CoreV1().Secrets(secretNamespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 			if err != nil {
 				return nil, nil, err
 			}
 
-			secretContentBytes, ok := secret.Data[arg.ValueFrom.SecretKeyRef.Key]
+			secretContentBytes, ok := secret.Data[ref.Key]
 			if !ok {
-				err := fmt.Errorf("key '%s' does not exist in secret '%s'", arg.ValueFrom.SecretKeyRef.Key, arg.ValueFrom.SecretKeyRef.Name)
+				err := fmt.Errorf("key '%s' does not exist in secret '%s'", ref.Key, ref.Name)
 				return nil, nil, err
 			}
 			secretContent := string(secretContentBytes)
@@ -306,6 +313,22 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 	}
 
 	return tasks, secrets, nil
+}
+
+func (c *Controller) validateSecretNamespace(arg v1alpha1.Argument, ref *v1alpha1.SecretKeyRef) error {
+	if !c.enableCrossNamespaceSecretRefs {
+		return fmt.Errorf(
+			"failed to resolve analysis argument %q: secretKeyRef.namespace is set to %q for secret %q, but cross-namespace secret references are disabled",
+			arg.Name, ref.Namespace, ref.Name,
+		)
+	}
+	if !c.allowedSecretRefNamespaces[ref.Namespace] {
+		return fmt.Errorf(
+			"failed to resolve analysis argument %q: secretKeyRef.namespace is set to %q for secret %q, but that namespace is not included in the allowed cross-namespace secret reference list",
+			arg.Name, ref.Namespace, ref.Name,
+		)
+	}
+	return nil
 }
 
 // runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements

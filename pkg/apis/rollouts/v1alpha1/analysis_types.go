@@ -444,6 +444,9 @@ type SecretKeyRef struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// Key is the key of the secret to select from.
 	Key string `json:"key" protobuf:"bytes,2,opt,name=key"`
+	// Namespace is the namespace of the secret. If empty, the secret
+	// will be resolved from the namespace of the AnalysisRun/Rollout.
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource

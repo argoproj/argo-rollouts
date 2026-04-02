@@ -33,6 +33,9 @@
                                                     },
                                                     "name": {
                                                         "type": "string"
+                                                    },
+                                                    "namespace": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
@@ -5424,6 +5427,9 @@
                                                         "type": "string"
                                                     },
                                                     "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "namespace": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -10829,6 +10835,9 @@
                                                         "type": "string"
                                                     },
                                                     "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "namespace": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -16237,6 +16246,9 @@
                                                                     "type": "string"
                                                                 },
                                                                 "name": {
+                                                                    "type": "string"
+                                                                },
+                                                                "namespace": {
                                                                     "type": "string"
                                                                 }
                                                             },
