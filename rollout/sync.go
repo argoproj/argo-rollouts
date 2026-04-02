@@ -1037,13 +1037,18 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
 	}
 
-	if revision == 1 && c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownOnSuccess {
-		var targetScale int32 = 0
-		err := c.scaleDeployment(&targetScale)
-		if err != nil {
-			return err
-		}
-	}
+	return nil
+}
 
+// scaleDownWorkloadRef scales down the referenced Deployment to 0 when the Rollout is Healthy
+// and workloadRef.scaleDown is set to "onsuccess". This check is decoupled from promoteStable
+// so that it fires based on the computed phase regardless of the promotion path taken.
+func (c *rolloutContext) scaleDownWorkloadRef(newStatus v1alpha1.RolloutStatus) error {
+	if newStatus.Phase == v1alpha1.RolloutPhaseHealthy &&
+		c.rollout.Spec.WorkloadRef != nil &&
+		c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownOnSuccess {
+		var targetScale int32 = 0
+		return c.scaleDeployment(&targetScale)
+	}
 	return nil
 }
