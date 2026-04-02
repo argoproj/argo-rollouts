@@ -272,7 +272,7 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 			ref := arg.ValueFrom.SecretKeyRef
 			secretNamespace := namespace
 			if ref.Namespace != "" && ref.Namespace != namespace {
-				if err := c.validateSecretNamespace(ref.Namespace); err != nil {
+				if err := c.validateSecretNamespace(arg, ref); err != nil {
 					return nil, nil, err
 				}
 				secretNamespace = ref.Namespace
@@ -315,12 +315,18 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 	return tasks, secrets, nil
 }
 
-func (c *Controller) validateSecretNamespace(namespace string) error {
+func (c *Controller) validateSecretNamespace(arg v1alpha1.Argument, ref *v1alpha1.SecretKeyRef) error {
 	if !c.enableCrossNamespaceSecretRefs {
-		return fmt.Errorf("cross-namespace secret references are disabled")
+		return fmt.Errorf(
+			"failed to resolve analysis argument %q: secretKeyRef.namespace is set to %q for secret %q, but cross-namespace secret references are disabled",
+			arg.Name, ref.Namespace, ref.Name,
+		)
 	}
-	if !c.allowedSecretRefNamespaces[namespace] {
-		return fmt.Errorf("cross-namespace secret references to namespace %q are not allowed", namespace)
+	if !c.allowedSecretRefNamespaces[ref.Namespace] {
+		return fmt.Errorf(
+			"failed to resolve analysis argument %q: secretKeyRef.namespace is set to %q for secret %q, but that namespace is not included in the allowed cross-namespace secret reference list",
+			arg.Name, ref.Namespace, ref.Name,
+		)
 	}
 	return nil
 }
