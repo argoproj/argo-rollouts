@@ -311,6 +311,9 @@ func (c *rolloutContext) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, 
 	}
 
 	newStatus = c.calculateRolloutConditions(newStatus)
+	if err := c.scaleDownWorkloadRef(newStatus); err != nil {
+		return err
+	}
 	return c.persistRolloutStatus(&newStatus)
 }
 

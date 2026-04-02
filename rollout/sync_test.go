@@ -788,29 +788,51 @@ func TestShouldFullPromoteCanaryAvailableVsDesired(t *testing.T) {
 	}
 }
 
-func TestScaleDownDeploymentOnSuccess(t *testing.T) {
+func TestScaleDownWorkloadRefOnSuccess(t *testing.T) {
+	// Test that scaleDownWorkloadRef scales down deployment when phase is Healthy and scaleDown is onsuccess
 	ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
-	newStatus := &v1alpha1.RolloutStatus{
-		CurrentPodHash: "2f646bf702",
-		StableRS:       "15fb5ffc01",
+	newStatus := v1alpha1.RolloutStatus{
+		Phase: v1alpha1.RolloutPhaseHealthy,
 	}
-	err := ctx.promoteStable(newStatus, "reason")
-
+	err := ctx.scaleDownWorkloadRef(newStatus)
 	assert.Nil(t, err)
 	k8sfakeClient := ctx.kubeclientset.(*k8sfake.Clientset)
 	updatedDeployment, err := k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, int32(0), *updatedDeployment.Spec.Replicas)
 
-	// test scale deployment error
-	ctx = createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, false, nil)
-	newStatus = &v1alpha1.RolloutStatus{
-		CurrentPodHash: "2f646bf702",
-		StableRS:       "15fb5ffc01",
+	// Test that scaleDownWorkloadRef does not scale down when phase is not Healthy
+	ctx = createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
+	newStatus = v1alpha1.RolloutStatus{
+		Phase: v1alpha1.RolloutPhaseProgressing,
 	}
-	err = ctx.promoteStable(newStatus, "reason")
+	err = ctx.scaleDownWorkloadRef(newStatus)
+	assert.Nil(t, err)
+	k8sfakeClient = ctx.kubeclientset.(*k8sfake.Clientset)
+	updatedDeployment, err = k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, int32(5), *updatedDeployment.Spec.Replicas)
 
+	// Test that scaleDownWorkloadRef returns error when deployment does not exist
+	ctx = createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, false, nil)
+	newStatus = v1alpha1.RolloutStatus{
+		Phase: v1alpha1.RolloutPhaseHealthy,
+	}
+	err = ctx.scaleDownWorkloadRef(newStatus)
 	assert.NotNil(t, err)
+
+	// Test that scaleDownWorkloadRef works regardless of revision (fixes revision==1 guard bug)
+	ctx = createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
+	ctx.rollout.Annotations["rollout.argoproj.io/revision"] = "3"
+	newStatus = v1alpha1.RolloutStatus{
+		Phase: v1alpha1.RolloutPhaseHealthy,
+	}
+	err = ctx.scaleDownWorkloadRef(newStatus)
+	assert.Nil(t, err)
+	k8sfakeClient = ctx.kubeclientset.(*k8sfake.Clientset)
+	updatedDeployment, err = k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, int32(0), *updatedDeployment.Spec.Replicas)
 }
 
 // This tests validates that when there are old replicasets that have miss matched desired-count annotations aka they do
