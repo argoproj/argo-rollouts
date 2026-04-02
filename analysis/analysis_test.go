@@ -2647,7 +2647,11 @@ func TestResolveArgsCrossNamespaceSecretRefDisabled(t *testing.T) {
 
 	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
 	assert.Error(t, err)
-	assert.Equal(t, "cross-namespace secret references are disabled", err.Error())
+
+	expected := fmt.Sprintf(
+		"failed to resolve analysis argument %q: secretKeyRef.namespace is set to %q for secret %q, but cross-namespace secret references are disabled",
+		args[0].Name, args[0].ValueFrom.SecretKeyRef.Namespace, args[0].ValueFrom.SecretKeyRef.Name)
+	assert.Equal(t, expected, err.Error())
 }
 
 func TestResolveArgsCrossNamespaceSecretRefNamespaceNotAllowed(t *testing.T) {
@@ -2694,7 +2698,11 @@ func TestResolveArgsCrossNamespaceSecretRefNamespaceNotAllowed(t *testing.T) {
 
 	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
 	assert.Error(t, err)
-	assert.Equal(t, `cross-namespace secret references to namespace "shared-secrets" are not allowed`, err.Error())
+
+	expected := fmt.Sprintf(
+		"failed to resolve analysis argument %q: secretKeyRef.namespace is set to %q for secret %q, but that namespace is not included in the allowed cross-namespace secret reference list",
+		args[0].Name, args[0].ValueFrom.SecretKeyRef.Namespace, args[0].ValueFrom.SecretKeyRef.Name)
+	assert.Equal(t, expected, err.Error())
 }
 
 func TestResolveArgsCrossNamespaceSecretRefAllowed(t *testing.T) {
