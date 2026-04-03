@@ -132,6 +132,101 @@ func TestEvaluateConditionWithIndexedEmptyResult(t *testing.T) {
 	assert.ErrorContains(t, err, "len(result) > 0")
 }
 
+func TestEvaluateConditionWithIndexedNonEmptyResult(t *testing.T) {
+	b, err := EvalCondition([]float64{5}, "result[0] <= 10")
+	assert.NoError(t, err)
+	assert.True(t, b)
+}
+
+func TestValidateIndexedResultAccess(t *testing.T) {
+	tests := []struct {
+		name       string
+		result     any
+		condition  string
+		wantErr    bool
+		errMessage string
+	}{
+		{
+			name:      "without indexed access",
+			result:    []float64{},
+			condition: "len(result) == 0",
+		},
+		{
+			name:      "with non-empty slice",
+			result:    []float64{1},
+			condition: "result[0] <= 10",
+		},
+		{
+			name:       "with nil result",
+			result:     nil,
+			condition:  "result[0] <= 10",
+			wantErr:    true,
+			errMessage: "metric result is empty or unavailable",
+		},
+		{
+			name:      "with non-indexable result",
+			result:    true,
+			condition: "result[0] <= 10",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateIndexedResultAccess(test.result, test.condition)
+			if test.wantErr {
+				assert.ErrorContains(t, err, test.errMessage)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestIsEmptyIndexableResult(t *testing.T) {
+	tests := []struct {
+		name   string
+		result any
+		want   bool
+	}{
+		{
+			name:   "nil",
+			result: nil,
+			want:   true,
+		},
+		{
+			name:   "empty slice",
+			result: []float64{},
+			want:   true,
+		},
+		{
+			name:   "non-empty slice",
+			result: []float64{1},
+			want:   false,
+		},
+		{
+			name:   "empty string",
+			result: "",
+			want:   true,
+		},
+		{
+			name:   "non-empty string",
+			result: "ok",
+			want:   false,
+		},
+		{
+			name:   "non-indexable type",
+			result: true,
+			want:   false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, isEmptyIndexableResult(test.result))
+		})
+	}
+}
+
 func TestErrorWithNonBoolReturn(t *testing.T) {
 	b, err := EvalCondition(true, "1")
 	assert.Equal(t, fmt.Errorf("expected bool, but got int"), err)
