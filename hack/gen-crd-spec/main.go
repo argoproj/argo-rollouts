@@ -80,7 +80,10 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
 		"controller-gen",
 		"paths=./pkg/apis/rollouts/...",
-		"crd:crdVersions=v1,maxDescLen=0",
+		// maxDescLen removed to preserve Go doc comments as CRD field descriptions,
+		// enabling kubectl explain to display meaningful schema info (fixes #4383).
+		// CRDs are applied with --server-side to bypass the 262KB annotation limit.
+		"crd:crdVersions=v1",
 		"output:crd:stdout",
 	).Output()
 	if err != nil {
