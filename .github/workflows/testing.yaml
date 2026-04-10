@@ -115,8 +115,9 @@ jobs:
         run: go mod download
       - name: Install CRDs
         run: |
-          kubectl apply -k  manifests/crds
-          kubectl apply -f  test/e2e/crds
+          # --server-side bypasses the 262KB annotation limit for large CRDs with field descriptions
+          kubectl apply --server-side --force-conflicts -k  manifests/crds
+          kubectl apply --server-side --force-conflicts -f  test/e2e/crds
       - name: Start controller
         run: make start-e2e 2>&1 | sed -r "s/[[:cntrl:]]\[[0-9]{1,3}m//g" > /tmp/e2e-controller.log &
       - name: Run e2e tests
