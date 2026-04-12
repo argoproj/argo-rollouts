@@ -875,3 +875,38 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	assert.Equal(t, int32(13), roStatus.Status.ReadyReplicas)
 	assert.Equal(t, int32(0), roStatus.Status.UpdatedReplicas)
 }
+
+// TestIsScalingEventCorrectsStalHPAAnnotation verifies that when an HPA is removed and
+// the Rollout switches to static spec.replicas, the stale desired-replicas annotation
+// is corrected during isScalingEvent detection. (#4407)
+func TestIsScalingEventCorrectedStaleHPAAnnotation(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: int32Ptr(10)},
+	}
+
+	// Rollout with 5 replicas (static, after HPA removal)
+	r := newCanaryRollout("foo", 5, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r.Annotations[annotations.RevisionAnnotation] = "1"
+
+	// Stable RS has stale annotation from when HPA had scaled to 20
+	stableRS := newReplicaSetWithStatus(r, 5, 5)
+	stableRS.Annotations[annotations.DesiredReplicasAnnotation] = "20"
+	r.Status.StableRS = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, stableRS)
+	f.replicaSetLister = append(f.replicaSetLister, stableRS)
+
+	// Expect the controller to update the RS annotation from 20 to 5
+	updatedRSIndex := f.expectUpdateReplicaSetAction(stableRS)
+	f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	// Verify the stale annotation was corrected
+	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, "5", updatedRS.Annotations[annotations.DesiredReplicasAnnotation])
+}
