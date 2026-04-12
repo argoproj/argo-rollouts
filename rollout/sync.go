@@ -336,15 +336,13 @@ func (c *rolloutContext) isScalingEvent() (bool, error) {
 		}
 		if desired != rolloutReplicas {
 			// Fix stale desired-replicas annotation left behind after HPA removal (#4407).
-			// Only correct the annotation when the RS already has the right replica count
-			// but a stale annotation — this is the HPA removal scenario where the RS
-			// won't be scaled (already at correct size) but the annotation is outdated.
-			if *(rs.Spec.Replicas) == rolloutReplicas {
-				if annotations.SetReplicasAnnotations(rs, rolloutReplicas) {
-					ctx := context.TODO()
-					if _, err := c.updateReplicaSet(ctx, rs); err != nil {
-						return false, fmt.Errorf("failed to update stale desired-replicas annotation on %s: %w", rs.Name, err)
-					}
+			// Only correct when RS already has the right replica count but stale annotation.
+			// If the update fails, syncReplicasOnly will retry on next reconciliation.
+			if *(rs.Spec.Replicas) == rolloutReplicas && annotations.SetReplicasAnnotations(rs, rolloutReplicas) {
+				ctx := context.TODO()
+				if _, err := c.updateReplicaSet(ctx, rs); err != nil {
+					c.log.Warnf("Failed to correct stale desired-replicas annotation on RS '%s': %v", rs.Name, err)
+				} else {
 					c.log.Infof("Corrected stale desired-replicas annotation on RS '%s' from %d to %d", rs.Name, desired, rolloutReplicas)
 				}
 			}
