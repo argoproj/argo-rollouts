@@ -18,11 +18,15 @@ kubectl argo rollouts dashboard
 
 # Start UI dashboard on a specific port
 kubectl argo rollouts dashboard --port 8080
+
+# Start UI dashboard with client auth mode (requires bearer token)
+kubectl argo rollouts dashboard --auth-mode client
 ```
 
 ## Options
 
 ```
+      --auth-mode string   authentication mode: "server" (default, uses server credentials) or "client" (requires bearer token from users) (default "server")
   -h, --help               help for dashboard
   -p, --port int           port to listen on (default 3100)
       --root-path string   changes the root path of the dashboard (default "rollouts")

@@ -1,10 +1,13 @@
 import {Header} from './components/header/header';
+import {Login} from './components/login/login';
 import {createBrowserHistory} from 'history';
 import * as React from 'react';
 import {KeybindingProvider} from 'react-keyhooks';
 import {Route, Router, Switch} from 'react-router-dom';
 import './App.scss';
 import {NamespaceContext, RolloutAPI} from './shared/context/api';
+import {AuthAwareAPIProvider} from './shared/context/api';
+import {AuthContext, AuthProvider} from './shared/context/auth';
 import {Modal} from './components/modal/modal';
 import {Rollout} from './components/rollout/rollout';
 import {RolloutsHome} from './components/rollouts-home/rollouts-home';
@@ -53,9 +56,11 @@ const Page = (props: {path: string; component: React.ReactNode; exact?: boolean;
 export const NAMESPACE_KEY = 'namespace';
 const init = window.localStorage.getItem(NAMESPACE_KEY);
 
-const App = () => {
+const AppContent = () => {
+    const {token, authRequired, setAuthRequired} = React.useContext(AuthContext);
     const [namespace, setNamespace] = React.useState(init);
     const [availableNamespaces, setAvailableNamespaces] = React.useState([]);
+
     React.useEffect(() => {
         try {
             RolloutAPI.rolloutServiceGetNamespace()
@@ -69,6 +74,10 @@ const App = () => {
                     setAvailableNamespaces(info.availableNamespaces);
                 })
                 .catch((e) => {
+                    if (e.status === 401 || (e instanceof Response && e.status === 401)) {
+                        setAuthRequired(true);
+                        return;
+                    }
                     setAvailableNamespaces([namespace]);
                 });
         } catch (e) {
@@ -81,11 +90,15 @@ const App = () => {
                 placement: 'bottomRight',
             });
         }
-    }, []);
+    }, [token]);
     const changeNamespace = (val: string) => {
         setNamespace(val);
         window.localStorage.setItem(NAMESPACE_KEY, val);
     };
+
+    if (authRequired) {
+        return <Login />;
+    }
 
     return (
         namespace && (
@@ -111,6 +124,16 @@ const App = () => {
                 </KeybindingProvider>
             </NamespaceContext.Provider>
         )
+    );
+};
+
+const App = () => {
+    return (
+        <AuthProvider>
+            <AuthAwareAPIProvider>
+                <AppContent />
+            </AuthAwareAPIProvider>
+        </AuthProvider>
     );
 };
 

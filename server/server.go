@@ -14,6 +14,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +26,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
@@ -51,12 +55,28 @@ var backoff = wait.Backoff{
 	Jitter:   0.1,
 }
 
+const (
+	// AuthModeServer uses the server's own kubeconfig credentials for all requests (default)
+	AuthModeServer = "server"
+	// AuthModeClient uses the client-provided bearer token to create per-request Kubernetes clients
+	AuthModeClient = "client"
+)
+
 type ServerOptions struct {
 	KubeClientset     kubernetes.Interface
 	RolloutsClientset rolloutclientset.Interface
 	DynamicClientset  dynamic.Interface
 	Namespace         string
 	RootPath          string
+	AuthMode          string
+	RESTConfig        *rest.Config
+}
+
+// serverClients groups the Kubernetes client interfaces used for API operations
+type serverClients struct {
+	kubeClientset     kubernetes.Interface
+	rolloutsClientset rolloutclientset.Interface
+	dynamicClientset  dynamic.Interface
 }
 
 const (
@@ -79,6 +99,140 @@ const (
 	listenAddr  = "0.0.0.0"
 	connectAddr = "localhost"
 )
+
+// extractBearerToken extracts the token from an "Authorization: Bearer <token>" header value
+func extractBearerToken(authHeader string) string {
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		return ""
+	}
+	return strings.TrimPrefix(authHeader, "Bearer ")
+}
+
+// tokenFromHTTPRequest extracts a bearer token from an HTTP request.
+// It checks the Authorization header first, then falls back to the "token" query parameter
+// (needed for EventSource/SSE which cannot set custom headers).
+func tokenFromHTTPRequest(r *http.Request) string {
+	token := extractBearerToken(r.Header.Get("Authorization"))
+	if token != "" {
+		return token
+	}
+	return r.URL.Query().Get("token")
+}
+
+// tokenFromGRPCContext extracts a bearer token from gRPC request metadata.
+func tokenFromGRPCContext(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ""
+	}
+	authHeaders := md.Get("authorization")
+	if len(authHeaders) == 0 {
+		return ""
+	}
+	return extractBearerToken(authHeaders[0])
+}
+
+// getClients returns the appropriate Kubernetes clients for the current request.
+// In server mode, it returns the shared server clients.
+// In client mode, it creates per-request clients using the user's bearer token.
+func (s *ArgoRolloutsServer) getClients(ctx context.Context) (*serverClients, error) {
+	if s.Options.AuthMode != AuthModeClient || s.Options.RESTConfig == nil {
+		return &serverClients{
+			kubeClientset:     s.Options.KubeClientset,
+			rolloutsClientset: s.Options.RolloutsClientset,
+			dynamicClientset:  s.Options.DynamicClientset,
+		}, nil
+	}
+	token := tokenFromGRPCContext(ctx)
+	if token == "" {
+		return nil, status.Error(codes.Unauthenticated, "missing bearer token")
+	}
+	return s.clientsFromToken(token)
+}
+
+// clientsFromToken creates new Kubernetes clients authenticated with the given bearer token.
+func (s *ArgoRolloutsServer) clientsFromToken(token string) (*serverClients, error) {
+	cfg := rest.CopyConfig(s.Options.RESTConfig)
+	cfg.BearerToken = token
+	cfg.BearerTokenFile = ""
+	cfg.Username = ""
+	cfg.Password = ""
+	cfg.CertData = nil
+	cfg.CertFile = ""
+	cfg.KeyData = nil
+	cfg.KeyFile = ""
+
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kube client: %w", err)
+	}
+	rolloutsClient, err := rolloutclientset.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create rollouts client: %w", err)
+	}
+	dynamicClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
+	}
+	return &serverClients{
+		kubeClientset:     kubeClient,
+		rolloutsClientset: rolloutsClient,
+		dynamicClientset:  dynamicClient,
+	}, nil
+}
+
+// newClientAuthMiddleware returns HTTP middleware that requires a bearer token for API routes
+// when running in client auth mode.
+func (s *ArgoRolloutsServer) newClientAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Only require auth for API routes
+		if s.Options.AuthMode == AuthModeClient && isAPIRoute(r.URL.Path, s.Options.RootPath) {
+			token := tokenFromHTTPRequest(r)
+			if token == "" {
+				http.Error(w, "missing bearer token", http.StatusUnauthorized)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// isAPIRoute checks if the given path is an API route that requires authentication.
+func isAPIRoute(urlPath string, rootPath string) bool {
+	if rootPath != "" {
+		apiPrefix := path.Join("/", rootPath, "api") + "/"
+		return strings.HasPrefix(urlPath, apiPrefix)
+	}
+	return strings.HasPrefix(urlPath, "/api/")
+}
+
+// newAuthUnaryInterceptor returns a gRPC unary interceptor that requires a bearer token
+// when running in client auth mode.
+func (s *ArgoRolloutsServer) newAuthUnaryInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		if s.Options.AuthMode == AuthModeClient {
+			token := tokenFromGRPCContext(ctx)
+			if token == "" {
+				return nil, status.Error(codes.Unauthenticated, "missing bearer token")
+			}
+		}
+		return handler(ctx, req)
+	}
+}
+
+// newAuthStreamInterceptor returns a gRPC stream interceptor that requires a bearer token
+// when running in client auth mode.
+func (s *ArgoRolloutsServer) newAuthStreamInterceptor() grpc.StreamServerInterceptor {
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		if s.Options.AuthMode == AuthModeClient {
+			token := tokenFromGRPCContext(ss.Context())
+			if token == "" {
+				return status.Error(codes.Unauthenticated, "missing bearer token")
+			}
+		}
+		return handler(srv, ss)
+	}
+}
 
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
 	mux := http.NewServeMux()
@@ -121,11 +275,23 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	mux.Handle(apiPath, apiHandler)
 	mux.HandleFunc("/", s.staticFileHttpHandler)
 
+	// Wrap the entire mux with auth middleware when in client mode
+	if s.Options.AuthMode == AuthModeClient {
+		httpS.Handler = s.newClientAuthMiddleware(mux)
+	}
+
 	return &httpS
 }
 
 func (s *ArgoRolloutsServer) newGRPCServer() *grpc.Server {
-	grpcS := grpc.NewServer()
+	var opts []grpc.ServerOption
+	if s.Options.AuthMode == AuthModeClient {
+		opts = append(opts,
+			grpc.UnaryInterceptor(s.newAuthUnaryInterceptor()),
+			grpc.StreamInterceptor(s.newAuthStreamInterceptor()),
+		)
+	}
+	grpcS := grpc.NewServer(opts...)
 	var rolloutsServer rollout.RolloutServiceServer = NewServer(s.Options)
 	rollout.RegisterRolloutServiceServer(grpcS, rolloutsServer)
 	return grpcS
@@ -186,17 +352,17 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 	errors.CheckError(conn.Close())
 }
 
-func (s *ArgoRolloutsServer) initRolloutViewController(namespace string, name string, ctx context.Context) *viewcontroller.RolloutViewController {
-	controller := viewcontroller.NewRolloutViewController(namespace, name, s.Options.KubeClientset, s.Options.RolloutsClientset)
+func (s *ArgoRolloutsServer) initRolloutViewController(namespace string, name string, ctx context.Context, clients *serverClients) *viewcontroller.RolloutViewController {
+	controller := viewcontroller.NewRolloutViewController(namespace, name, clients.kubeClientset, clients.rolloutsClientset)
 	controller.Start(ctx)
 	return controller
 }
 
-func (s *ArgoRolloutsServer) getRolloutInfo(namespace string, name string) (*rollout.RolloutInfo, error) {
+func (s *ArgoRolloutsServer) getRolloutInfo(namespace string, name string, clients *serverClients) (*rollout.RolloutInfo, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	controller := s.initRolloutViewController(namespace, name, ctx)
+	controller := s.initRolloutViewController(namespace, name, ctx, clients)
 	ri, err := controller.GetRolloutInfo()
 	if err != nil {
 		return nil, err
@@ -205,14 +371,22 @@ func (s *ArgoRolloutsServer) getRolloutInfo(namespace string, name string) (*rol
 }
 
 // GetRolloutInfo returns a rollout
-func (s *ArgoRolloutsServer) GetRolloutInfo(c context.Context, q *rollout.RolloutInfoQuery) (*rollout.RolloutInfo, error) {
-	return s.getRolloutInfo(q.GetNamespace(), q.GetName())
+func (s *ArgoRolloutsServer) GetRolloutInfo(ctx context.Context, q *rollout.RolloutInfoQuery) (*rollout.RolloutInfo, error) {
+	clients, err := s.getClients(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.getRolloutInfo(q.GetNamespace(), q.GetName(), clients)
 }
 
 // WatchRolloutInfo returns a rollout stream
 func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws rollout.RolloutService_WatchRolloutInfoServer) error {
 	ctx := ws.Context()
-	controller := s.initRolloutViewController(q.GetNamespace(), q.GetName(), ctx)
+	clients, err := s.getClients(ctx)
+	if err != nil {
+		return err
+	}
+	controller := s.initRolloutViewController(q.GetNamespace(), q.GetName(), ctx, clients)
 
 	rolloutUpdates := make(chan *rollout.RolloutInfo)
 	controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
@@ -227,14 +401,14 @@ func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws ro
 	return nil
 }
 
-func (s *ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context, namespace string) ([]*appsv1.ReplicaSet, []*corev1.Pod, error) {
+func (s *ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context, namespace string, kubeClientset kubernetes.Interface) ([]*appsv1.ReplicaSet, []*corev1.Pod, error) {
 
-	allReplicaSets, err := s.Options.KubeClientset.AppsV1().ReplicaSets(namespace).List(ctx, v1.ListOptions{})
+	allReplicaSets, err := kubeClientset.AppsV1().ReplicaSets(namespace).List(ctx, v1.ListOptions{})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	allPods, err := s.Options.KubeClientset.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{})
+	allPods, err := kubeClientset.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -252,14 +426,18 @@ func (s *ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context, namespa
 
 // ListRolloutInfos returns a list of all rollouts
 func (s *ArgoRolloutsServer) ListRolloutInfos(ctx context.Context, q *rollout.RolloutInfoListQuery) (*rollout.RolloutInfoList, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
+	clients, err := s.getClients(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rolloutIf := clients.rolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	rolloutList, err := rolloutIf.List(ctx, v1.ListOptions{})
 
 	if err != nil {
 		return nil, err
 	}
 
-	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx, q.GetNamespace())
+	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx, q.GetNamespace(), clients.kubeClientset)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +454,11 @@ func (s *ArgoRolloutsServer) ListRolloutInfos(ctx context.Context, q *rollout.Ro
 }
 
 func (s *ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.RestartRolloutRequest) (*v1alpha1.Rollout, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
+	clients, err := s.getClients(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rolloutIf := clients.rolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	restartAt := time.Now().UTC()
 	return restart.RestartRollout(rolloutIf, q.GetName(), &restartAt)
 }
@@ -293,12 +475,16 @@ func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, 
 		}
 	}
 	ctx := ws.Context()
+	clients, err := s.getClients(ctx)
+	if err != nil {
+		return err
+	}
 
-	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(q.Namespace))
+	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(clients.rolloutsClientset, 0, rolloutinformers.WithNamespace(q.Namespace))
 	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(q.Namespace)
 	rolloutInformer := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer()
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(s.Options.KubeClientset, 0, kubeinformers.WithNamespace(q.Namespace))
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(clients.kubeClientset, 0, kubeinformers.WithNamespace(q.Namespace))
 	podsLister := kubeInformerFactory.Core().V1().Pods().Lister().Pods(q.GetNamespace())
 	rsLister := kubeInformerFactory.Apps().V1().ReplicaSets().Lister().ReplicaSets(q.GetNamespace())
 	kubeInformerFactory.Start(ws.Context().Done())
@@ -352,7 +538,11 @@ func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, 
 
 func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollout.RolloutInfo, error) {
 	ctx := context.Background()
-	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx, ro.Namespace)
+	clients, err := s.getClients(ctx)
+	if err != nil {
+		return nil, err
+	}
+	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx, ro.Namespace, clients.kubeClientset)
 	if err != nil {
 		return nil, err
 	}
@@ -360,10 +550,14 @@ func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollou
 }
 
 func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (*rollout.NamespaceInfo, error) {
+	clients, err := s.getClients(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var m = make(map[string]bool)
 	var namespaces []string
 
-	rolloutList, err := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts("").List(ctx, v1.ListOptions{})
+	rolloutList, err := clients.rolloutsClientset.ArgoprojV1alpha1().Rollouts("").List(ctx, v1.ListOptions{})
 	if err == nil {
 		for _, r := range rolloutList.Items {
 			ns := r.Namespace
@@ -378,42 +572,62 @@ func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (
 }
 
 func (s *ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.PromoteRolloutRequest) (*v1alpha1.Rollout, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
+	clients, err := s.getClients(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rolloutIf := clients.rolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	return promote.PromoteRollout(rolloutIf, q.GetName(), false, false, q.GetFull())
 }
 
 func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortRolloutRequest) (*v1alpha1.Rollout, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
+	clients, err := s.getClients(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rolloutIf := clients.rolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	return abort.AbortRollout(rolloutIf, q.GetName())
 }
 
-func (s *ArgoRolloutsServer) getRollout(namespace string, name string) (*v1alpha1.Rollout, error) {
-	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(namespace))
+func (s *ArgoRolloutsServer) getRollout(namespace string, name string, clients *serverClients) (*v1alpha1.Rollout, error) {
+	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(clients.rolloutsClientset, 0, rolloutinformers.WithNamespace(namespace))
 	cache.WaitForCacheSync(s.stopCh, rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer().HasSynced)
 	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace)
 	return rolloutsLister.Get(name)
 }
 
 func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.SetImageRequest) (*v1alpha1.Rollout, error) {
-	imageString := fmt.Sprintf("%s:%s", q.GetImage(), q.GetTag())
-	_, err := set.SetImage(s.Options.DynamicClientset, q.GetNamespace(), q.GetRollout(), q.GetContainer(), imageString)
+	clients, err := s.getClients(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return s.getRollout(q.GetNamespace(), q.GetRollout())
+	imageString := fmt.Sprintf("%s:%s", q.GetImage(), q.GetTag())
+	_, err = set.SetImage(clients.dynamicClientset, q.GetNamespace(), q.GetRollout(), q.GetContainer(), imageString)
+	if err != nil {
+		return nil, err
+	}
+	return s.getRollout(q.GetNamespace(), q.GetRollout(), clients)
 }
 
 func (s *ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoRolloutRequest) (*v1alpha1.Rollout, error) {
-	rolloutIf := s.Options.DynamicClientset.Resource(v1alpha1.RolloutGVR).Namespace(q.GetNamespace())
-	_, err := undo.RunUndoRollout(rolloutIf, s.Options.KubeClientset, q.GetRollout(), q.GetRevision())
+	clients, err := s.getClients(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return s.getRollout(q.GetNamespace(), q.GetRollout())
+	rolloutIf := clients.dynamicClientset.Resource(v1alpha1.RolloutGVR).Namespace(q.GetNamespace())
+	_, err = undo.RunUndoRollout(rolloutIf, clients.kubeClientset, q.GetRollout(), q.GetRevision())
+	if err != nil {
+		return nil, err
+	}
+	return s.getRollout(q.GetNamespace(), q.GetRollout(), clients)
 }
 
 func (s *ArgoRolloutsServer) RetryRollout(ctx context.Context, q *rollout.RetryRolloutRequest) (*v1alpha1.Rollout, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
+	clients, err := s.getClients(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rolloutIf := clients.rolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	ro, err := retry.RetryRollout(rolloutIf, q.GetName())
 	if err != nil {
 		return nil, err
