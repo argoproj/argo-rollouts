@@ -1,7 +1,9 @@
 package rollout
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -12,6 +14,7 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	testclient "k8s.io/client-go/testing"
@@ -25,8 +28,6 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
-
-	"context"
 )
 
 func rs(name string, replicas int, selector map[string]string, timestamp metav1.Time, ownerRef *metav1.OwnerReference) *appsv1.ReplicaSet {
@@ -909,4 +910,47 @@ func TestIsScalingEventCorrectedStaleHPAAnnotation(t *testing.T) {
 	// Verify the stale annotation was corrected
 	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, "5", updatedRS.Annotations[annotations.DesiredReplicasAnnotation])
+}
+
+// TestIsScalingEventStaleHPAAnnotationUpdateFailure verifies that when the RS update
+// to correct a stale desired-replicas annotation fails, the controller logs a warning
+// and continues without error. (#4407)
+func TestIsScalingEventStaleHPAAnnotationUpdateFailure(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: int32Ptr(10)},
+	}
+
+	// Rollout with 5 replicas (static, after HPA removal)
+	r := newCanaryRollout("foo", 5, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r.Annotations[annotations.RevisionAnnotation] = "1"
+
+	// Stable RS has stale annotation from when HPA had scaled to 20
+	stableRS := newReplicaSetWithStatus(r, 5, 5)
+	stableRS.Annotations[annotations.DesiredReplicasAnnotation] = "20"
+	r.Status.StableRS = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, stableRS)
+	f.replicaSetLister = append(f.replicaSetLister, stableRS)
+
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+
+	// Fail only the first RS update (annotation correction in isScalingEvent);
+	// let subsequent updates from syncReplicasOnly succeed normally.
+	calls := 0
+	f.kubeclient.PrependReactor("update", "replicasets", func(action testclient.Action) (bool, runtime.Object, error) {
+		calls++
+		if calls == 1 {
+			return true, nil, fmt.Errorf("simulated update failure")
+		}
+		return false, nil, nil
+	})
+
+	f.expectUpdateReplicaSetAction(stableRS)
+	f.expectPatchRolloutAction(r)
+	f.runController(getKey(r, t), true, false, c, i, k8sI)
 }
