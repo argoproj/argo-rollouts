@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -181,6 +184,8 @@ func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1a
 		JobNameKey:      createdJob.Name,
 		JobNamespaceKey: createdJob.Namespace,
 	}
+	// activates the Resume function immediately to capture short-lived rollouts
+	measurement.ResumeAt = &now
 	p.logCtx.Infof("job %s/%s created", createdJob.Namespace, createdJob.Name)
 	return measurement
 }
@@ -207,7 +212,30 @@ func (p *JobProvider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, 
 	}
 	if measurement.Phase.Completed() {
 		p.logCtx.Infof("job %s/%s completed: %s", job.Namespace, job.Name, measurement.Phase)
+		return measurement
 	}
+
+	labelSelector := metav1.FormatLabelSelector(job.Spec.Selector)
+	if labelSelector != "" && labelSelector != "<none>" {
+		podList, err := p.kubeclientset.CoreV1().Pods(jobName.Namespace).List(context.TODO(), metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+		if err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
+		err = processJobPods(podList)
+		if err != nil {
+			measurement.FinishedAt = &now
+			measurement.Message = err.Error()
+			measurement.Phase = v1alpha1.AnalysisPhaseInconclusive
+		}
+	}
+	elapsed := timeutil.MetaNow().Sub(measurement.StartedAt.Time)
+	// growing delay with respect to the elapsed time since the job started
+	delay := time.Duration(math.Sqrt(2*elapsed.Seconds()) * float64(time.Second))
+	resumeTime := metav1.Time{Time: timeutil.MetaNow().Add(delay)}
+	measurement.ResumeAt = &resumeTime
+	p.logCtx.Infof("job %s/%s resumed", job.Namespace, job.Name)
 	return measurement
 }
 
@@ -225,6 +253,33 @@ func (p *JobProvider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metri
 	measurement.Phase = v1alpha1.AnalysisPhaseInconclusive
 	p.logCtx.Infof("job %s/%s terminated", jobName.Namespace, jobName.Name)
 	return measurement
+}
+
+var terminalWaitingReasons = map[string]bool{
+	"ErrImagePull":     true,
+	"ImagePullBackOff": true,
+	"InvalidImageName": true,
+}
+
+// processJobPods checks if the job should be considered as failed
+// this can happen because of any terminal condition that stops the container from starting
+// such as ErrImagePull in one of the pod containers
+func processJobPods(pods *v1.PodList) error {
+	for _, pod := range pods.Items {
+		for _, cs := range pod.Status.InitContainerStatuses {
+			if cs.State.Waiting != nil && terminalWaitingReasons[cs.State.Waiting.Reason] {
+				return fmt.Errorf("Pod %s, container %s has terminal error (%s): %s\n",
+					pod.Name, cs.Name, cs.State.Waiting.Reason, cs.State.Waiting.Message)
+			}
+		}
+		for _, cs := range pod.Status.ContainerStatuses {
+			if cs.State.Waiting != nil && terminalWaitingReasons[cs.State.Waiting.Reason] {
+				return fmt.Errorf("Pod %s, container %s has terminal error (%s): %s\n",
+					pod.Name, cs.Name, cs.State.Waiting.Reason, cs.State.Waiting.Message)
+			}
+		}
+	}
+	return nil
 }
 
 func getJobNamespacedName(measurement v1alpha1.Measurement, defaultNS string) (types.NamespacedName, error) {

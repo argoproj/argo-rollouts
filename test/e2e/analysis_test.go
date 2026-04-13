@@ -34,7 +34,6 @@ func (s *AnalysisSuite) SetupSuite() {
 	s.ApplyManifests("@functional/analysistemplate-fail-multiple-job.yaml")
 	s.ApplyManifests("@functional/analysistemplate-long-running-job.yaml")
 	s.ApplyManifests("@functional/analysistemplate-invalid-image-job.yaml")
-	s.ApplyManifests("@functional/analysistemplate-invalid-image-job-deadline.yaml")
 }
 
 // convenience to generate a new service with a given name
@@ -249,10 +248,10 @@ spec:
 		ExpectPreviewRevision("2").
 		When().
 		ApplyManifests(original). // perform a rollback and make sure we skip pause/analysis
-		Sleep(2 * time.Second).   // checking too early may not catch the bug where we create analysis unnecessarily
+		Sleep(2 * time.Second). // checking too early may not catch the bug where we create analysis unnecessarily
 		Then().
 		ExpectRolloutStatus("Healthy"). // rollout is healthy immediately
-		ExpectAnalysisRunCount(2).      // no new analysis runs created
+		ExpectAnalysisRunCount(2). // no new analysis runs created
 		ExpectStableRevision("3").
 		ExpectActiveRevision("3").
 		ExpectPreviewRevision("3")
@@ -798,22 +797,22 @@ func (s *AnalysisSuite) TestCanaryInlineAnalysisInvalidImageJob() {
 		ExpectAnalysisRunCount(0).
 		When().
 		UpdateSpec().
-		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Paused"). // paused because of inconclusive rollout/analysis status, not inline pause
 		Then().
 		ExpectAnalysisRunCount(1).
-		When().
-		WaitForInlineAnalysisRunPhase("Failed").
-		Then().
+		ExpectInlineAnalysisRunPhase("Inconclusive").
 		Assert(func(t *fixtures.Then) {
 			ar := t.GetRolloutAnalysisRuns().Items[0]
-			assert.Equal(s.T(), v1alpha1.AnalysisPhaseFailed, ar.Status.Phase)
+			assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, ar.Status.Phase)
 			if len(ar.Status.MetricResults) > 0 {
 				metricResult := ar.Status.MetricResults[0]
-				assert.Equal(s.T(), v1alpha1.AnalysisPhaseFailed, metricResult.Phase)
+				assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, metricResult.Phase)
 				if len(metricResult.Measurements) > 0 {
 					measurement := metricResult.Measurements[len(metricResult.Measurements)-1]
-					// The job that was terminated due to deadline should be Failed
-					assert.Equal(s.T(), v1alpha1.AnalysisPhaseFailed, measurement.Phase)
+					// A job pod stuck in ErrImagePull/ImagePullBackOff/InvalidImageName
+					// (without a deadline) should produce an Inconclusive measurement, which
+					// pauses the rollout with reason InconclusiveAnalysisRun instead of failing it.
+					assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
 				}
 			}
 		})
@@ -831,13 +830,9 @@ func (s *AnalysisSuite) TestCanaryBackgroundAnalysisInvalidImageJob() {
 		UpdateSpec().
 		WaitForRolloutStatus("Paused").
 		Then().
-		ExpectAnalysisRunCount(1).
-		ExpectBackgroundAnalysisRunPhase("Running").
-		When().
-		PromoteRollout().
-		WaitForRolloutStatus("Healthy").
-		WaitForBackgroundAnalysisRunPhase("Inconclusive").
-		Then().
+		ExpectAnalysisRunCount(2).
+		ExpectInlineAnalysisRunPhase("Running").
+		ExpectBackgroundAnalysisRunPhase("Inconclusive").
 		Assert(func(t *fixtures.Then) {
 			ar := t.GetBackgroundAnalysisRun()
 			assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, ar.Status.Phase)
@@ -846,7 +841,6 @@ func (s *AnalysisSuite) TestCanaryBackgroundAnalysisInvalidImageJob() {
 				assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, metricResult.Phase)
 				if len(metricResult.Measurements) > 0 {
 					measurement := metricResult.Measurements[len(metricResult.Measurements)-1]
-					// The job that failed to start should be Inconclusive, not Successful as it never run at all
 					assert.Equal(s.T(), v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
 				}
 			}
