@@ -1,0 +1,31 @@
+# Rollout with an inline analysis that runs a long-running nginx job
+# constrained by activeDeadlineSeconds. The job is terminated by the deadline,
+# which should mark the analysis as Inconclusive and pause the rollout.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-inline-long-running-job-deadline
+spec:
+  strategy:
+    canary:
+      steps:
+      - setWeight: 10
+      - analysis:
+          templates:
+          - templateName: long-running-job-deadline
+  selector:
+    matchLabels:
+      app: rollout-inline-long-running-job-deadline
+  template:
+    metadata:
+      labels:
+        app: rollout-inline-long-running-job-deadline
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
