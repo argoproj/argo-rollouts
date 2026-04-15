@@ -1,12 +1,15 @@
 package rollout
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -39,6 +42,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 // newFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with mocked success return values
@@ -580,8 +584,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 	{
 		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
 		assert.Nil(t, err)
@@ -591,8 +596,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
 		assert.Nil(t, err)
@@ -605,8 +611,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			Istio: &v1alpha1.IstioTrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -627,8 +634,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			Istio: &v1alpha1.IstioTrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -643,8 +651,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			Nginx: &v1alpha1.NginxTrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -659,8 +668,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			ALB: &v1alpha1.ALBTrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -676,8 +686,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			SMI: &v1alpha1.SMITrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -693,8 +704,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			AppMesh: &v1alpha1.AppMeshTrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -716,8 +728,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -741,8 +754,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for _, networkReconciler := range networkReconcilerList {
@@ -760,8 +774,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			SMI:   &v1alpha1.SMITrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for position, networkReconciler := range networkReconcilerList {
@@ -784,8 +799,9 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			SMI:   &v1alpha1.SMITrafficRouting{},
 		}
 		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
+			rollout:      r,
+			log:          logutil.WithRollout(r),
+			pauseContext: &pauseContext{rollout: r},
 		}
 		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
 		for position, networkReconciler := range networkReconcilerList {
@@ -1615,8 +1631,9 @@ func TestCheckReplicasAvailableWithReplicaProgressThreshold(t *testing.T) {
 			r.Spec.Strategy.Canary.ReplicaProgressThreshold = tt.threshold
 
 			roCtx := &rolloutContext{
-				rollout: r,
-				log:     logutil.WithRollout(r),
+				rollout:      r,
+				log:          logutil.WithRollout(r),
+				pauseContext: &pauseContext{rollout: r},
 			}
 
 			// Create a ReplicaSet with specified available replicas out of 5
@@ -1625,6 +1642,87 @@ func TestCheckReplicasAvailableWithReplicaProgressThreshold(t *testing.T) {
 
 			// Check if replicas are available for 50% weight
 			result := roCtx.checkReplicasAvailable(rs, 50)
+
+			assert.Equal(t, tt.expectedResult, result, tt.description)
+		})
+	}
+}
+
+func TestCheckReplicasAvailableWithCustomMaxTrafficWeight(t *testing.T) {
+	tests := []struct {
+		name              string
+		totalReplicas     int32
+		availableReplicas int
+		desiredWeight     int32
+		maxTrafficWeight  int32
+		expectedResult    bool
+		description       string
+	}{
+		{
+			name:              "custom maxTrafficWeight - replicas available",
+			totalReplicas:     2,
+			availableReplicas: 1,
+			desiredWeight:     50000000,
+			maxTrafficWeight:  100000000,
+			expectedResult:    true,
+			description:       "With maxTrafficWeight=100000000, 50% weight on 2 replicas needs 1 replica (2*50000000/100000000=1)",
+		},
+		{
+			name:              "custom maxTrafficWeight - replicas not available",
+			totalReplicas:     2,
+			availableReplicas: 0,
+			desiredWeight:     50000000,
+			maxTrafficWeight:  100000000,
+			expectedResult:    false,
+			description:       "With maxTrafficWeight=100000000, 50% weight on 2 replicas needs 1 replica but 0 available",
+		},
+		{
+			name:              "custom maxTrafficWeight - high weight needs all replicas",
+			totalReplicas:     2,
+			availableReplicas: 2,
+			desiredWeight:     100000000,
+			maxTrafficWeight:  100000000,
+			expectedResult:    true,
+			description:       "With maxTrafficWeight=100000000, 100% weight on 2 replicas needs 2 replicas",
+		},
+		{
+			name:              "custom maxTrafficWeight - low weight needs zero replicas",
+			totalReplicas:     2,
+			availableReplicas: 0,
+			desiredWeight:     0,
+			maxTrafficWeight:  100000000,
+			expectedResult:    true,
+			description:       "With maxTrafficWeight=100000000, 0% weight needs 0 replicas",
+		},
+		{
+			name:              "default maxTrafficWeight - same behavior as before",
+			totalReplicas:     10,
+			availableReplicas: 5,
+			desiredWeight:     50,
+			maxTrafficWeight:  0, // 0 means use default (100)
+			expectedResult:    true,
+			description:       "With default maxTrafficWeight (100), 50% weight on 10 replicas needs 5 replicas",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newCanaryRollout("foo", int(tt.totalReplicas), nil, nil, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+			r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+				SMI: &v1alpha1.SMITrafficRouting{},
+			}
+			if tt.maxTrafficWeight > 0 {
+				r.Spec.Strategy.Canary.TrafficRouting.MaxTrafficWeight = ptr.To[int32](tt.maxTrafficWeight)
+			}
+
+			roCtx := &rolloutContext{
+				rollout: r,
+				log:     logutil.WithRollout(r),
+			}
+
+			rs := newReplicaSetWithStatus(r, int(tt.totalReplicas), tt.availableReplicas)
+
+			result := roCtx.checkReplicasAvailable(rs, tt.desiredWeight)
 
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
@@ -1918,4 +2016,265 @@ func TestTrafficRoutingErrorsWhenNewCanaryHasNoReplicas(t *testing.T) {
 			f.fakeTrafficRouting.AssertCalled(t, tc.expectedCall, mock.Anything, mock.Anything)
 		})
 	}
+}
+
+// TestRollbackDestinationRuleBeforeSetWeight is a scenario test for PR 4612: on fast rollback
+// (within rollback window), the DestinationRule must be updated before SetWeight so traffic
+// does not hit the canary subset at final step weight (e.g. 70%) while still pointing at old subsets.
+// Uses subset-level Istio traffic routing (VirtualService + DestinationRule with canary/stable subsets).
+func TestRollbackDestinationRuleBeforeSetWeight(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	f.fakeTrafficRouting = nil // use real Istio reconciler so we see "delaying destination rule switch" log
+
+	pause5m := &v1alpha1.RolloutPause{Duration: v1alpha1.DurationFromInt(300)}
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](5)},
+		{Pause: pause5m},
+		{SetWeight: ptr.To[int32](10)},
+		{Pause: pause5m},
+		{SetWeight: ptr.To[int32](25)},
+		{Pause: pause5m},
+		{SetWeight: ptr.To[int32](50)},
+		{Pause: pause5m},
+		{SetWeight: ptr.To[int32](70)},
+	}
+
+	// Build 6 revisions: 5 previously successful + current canary (r6 = current rollout)
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.RollbackWindow = &v1alpha1.RollbackWindowSpec{Revisions: 3}
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+	r4 := bumpVersion(r3)
+	r5 := bumpVersion(r4)
+	r6 := bumpVersion(r5)
+
+	r6.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: &v1alpha1.IstioVirtualService{Name: "foo-vsvc"},
+			DestinationRule: &v1alpha1.IstioDestinationRule{
+				Name:             "foo-dr",
+				CanarySubsetName: "canary",
+				StableSubsetName: "stable",
+			},
+		},
+	}
+	// Empty canary/stable service names so UpdateHash runs the "subset-only" availability check (delaying destination rule switch when rs not fully available)
+	r6.Spec.Strategy.Canary.CanaryService = ""
+	r6.Spec.Strategy.Canary.StableService = ""
+
+	// ReplicaSets for all 6 revisions (stable = rs5, canary = rs6; rs3 is rollback target and must be active)
+	rs1 := newReplicaSetWithStatus(r1, 0, 0)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	rs3 := newReplicaSetWithStatus(r3, 10, 2) // rollback target, scaled to 10 but only 2 ready (not available yet)
+	rs4 := newReplicaSetWithStatus(r4, 0, 0)
+	rs5 := newReplicaSetWithStatus(r5, 10, 10) // stable, fully available
+	rs6 := newReplicaSetWithStatus(r6, 1, 1)   // canary, e.g. at 5% capacity
+
+	// Rollback to rs3: set spec template to r3 so controller treats rs3 as desired revision (after building RSs so rs6 keeps canary hash)
+	r6.Spec.Template = r3.Spec.Template
+
+	stableHash := rs5.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canaryHash := rs6.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r6.Status.StableRS = stableHash
+	r6.Status.CurrentPodHash = canaryHash
+	r6.Status.CurrentStepIndex = ptr.To[int32](0) // 5% step (index 0)
+	r6 = updateCanaryRolloutStatus(r6, stableHash, 11, 1, 11, false)
+
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: canaryHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: stableHash}
+	canarySvc := newService("canary", 80, canarySelector, r6)
+	stableSvc := newService("stable", 80, stableSelector, r6)
+
+	// VirtualService and DestinationRule for subset-level traffic routing (required when controller runs)
+	fooVsvc := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: foo-vsvc
+  namespace: default
+spec:
+  hosts:
+  - stable
+  http:
+  - route:
+    - destination:
+        host: stable
+        subset: stable
+      weight: 95
+    - destination:
+        host: stable
+        subset: canary
+      weight: 5
+`)
+	fooDR := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: foo-dr
+  namespace: default
+spec:
+  host: stable
+  subsets:
+  - name: stable
+    labels: {}
+  - name: canary
+    labels: {}
+`)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, rs4, rs5, rs6, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3, rs4, rs5, rs6)
+	f.rolloutLister = append(f.rolloutLister, r6)
+	f.objects = append(f.objects, r6)
+	f.dynamicOnlyObjects = append(f.dynamicOnlyObjects, fooVsvc, fooDR)
+	f.virtualServiceLister = append(f.virtualServiceLister, fooVsvc)
+
+	f.expectUpdateReplicaSetAction(rs3)
+	f.expectUpdateRolloutAction(r6)
+	f.expectPatchRolloutAction(r6)
+	f.expectGetRolloutAction(r6) // re-seed between syncs
+	// Sync 2 returns error "delaying destination rule switch" and does not complete, so we do NOT expect update rs6 or second patch.
+
+	assert.Nil(t, f.fakeTrafficRouting, "test must use real Istio reconciler (fakeTrafficRouting=nil)")
+
+	// When we roll back within the rollback window, the controller progresses to the last step (70%).
+	// Re-seed the rollout at the last step so the second sync will try to SetWeight(70); we assert we must NOT see that when delaying DR switch.
+	stepCount := int32(len(r6.Spec.Strategy.Canary.Steps))
+	f.reseedRolloutMutator = func(ro *v1alpha1.Rollout) {
+		ro.Status.CurrentStepIndex = &stepCount
+	}
+	f.allowErrorOnLastSync = true // sync 2 returns "delaying destination rule switch" and does not complete
+
+	prevLog := log.StandardLogger().Out
+	defer log.SetOutput(prevLog)
+	logBuf := bytes.NewBuffer(nil)
+	log.SetOutput(logBuf)
+
+	f.runWithSyncs(getKey(r6, t), 2)
+
+	logOut := logBuf.String()
+	assert.True(t, strings.Contains(logOut, "Reconciling TrafficRouting with type 'Istio'"),
+		"expected Istio reconciler (UpdateHash) to run on second sync; log: %s", logOut)
+	assert.True(t, strings.Contains(logOut, "delaying destination rule switch"),
+		"expected UpdateHash to log 'delaying destination rule switch' when rollback target rs3 is not fully available; log: %s", logOut)
+	assert.True(t, strings.Contains(logOut, rs3.Name),
+		"expected log to mention rollback target ReplicaSet %q; log: %s", rs3.Name, logOut)
+	// Production bug: when we delay destination rule switch, we must not call SetWeight (no "Updated VirtualService" event, no desiredWeight '70' in log).
+	eventsStr := strings.Join(f.events, " ")
+	assert.False(t, strings.Contains(eventsStr, "Updated VirtualService"),
+		"when delaying DR switch, must not emit Updated VirtualService event (SetWeight not called); events: %v", f.events)
+	assert.False(t, strings.Contains(logOut, "desiredWeight '70'"),
+		"when delaying destination rule switch, must not set weight to 70; log: %s", logOut)
+}
+
+// TestDynamicStableScaleNewCanarySupersedeShouldNotOverloadStable verifies that superseding an
+// in-progress rollout with dynamicStableScale enabled does NOT route 100% of traffic to a
+// stable RS that only has a fraction of its pods available.
+//
+// Scenario from https://github.com/argoproj/argo-rollouts/pull/4564#issuecomment-4015022647:
+//   - dynamicStableScale: true
+//   - Rolling A→B: stable (A) dynamically scaled to 1/10 pods, canary (B) at 9/10 pods, 90% traffic weight
+//   - New canary C triggered (superseding B): C has 0 replicas, 0% traffic
+//
+// The fix moves the early SetWeight(0) (needed to reset traffic before UpdateHash points the
+// destination rule to the new empty canary) so that it runs AFTER the checkReplicasAvailable
+// guard. This ensures:
+//  1. When stable lacks capacity (this test): checkReplicasAvailable returns early, and neither
+//     SetWeight(0) nor UpdateHash is called. Traffic stays on the old canary until stable scales up.
+//  2. When stable has capacity: SetWeight(0) runs before UpdateHash, preserving the ordering
+//     fix from PR #4564 that prevents Istio 503s.
+func TestDynamicStableScaleNewCanarySupersedeShouldNotOverloadStable(t *testing.T) {
+	const (
+		canaryService = "myservice-canary"
+		stableService = "myservice-stable"
+	)
+
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](90)},
+		{Pause: &v1alpha1.RolloutPause{}},
+	}
+
+	// r1 is the stable version (A)
+	r1 := newCanaryRollout("myservice", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.DynamicStableScale = true
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.CanaryService = canaryService
+	r1.Spec.Strategy.Canary.StableService = stableService
+
+	// r2 is the "previous canary" (B) — rollout in progress at 90% weight
+	r2 := bumpVersion(r1)
+
+	// r3 is the "new canary" (C) — superseding B, just triggered, 0 replicas
+	r3 := bumpVersion(r2)
+
+	// Stable (A): 1 of 10 replicas available — dynamically scaled down because
+	// 90% of traffic was being served by the canary (B).
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	// Old canary (B): 9 of 10 replicas — was carrying 90% of traffic.
+	rs2 := newReplicaSetWithStatus(r2, 9, 9)
+	// New canary (C): 0 replicas — just triggered, not yet scaled up.
+	rs3 := newReplicaSetWithStatus(r3, 0, 0)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs3PodHash := rs3.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService(canaryService, 80, canarySelector, r3)
+	stableSvc := newService(stableService, 80, stableSelector, r3)
+
+	// Status: C is the new active canary, A is stable.
+	// Weights still reflect the previous rollout state: 90% to B, 10% to A.
+	r3.Status.StableRS = rs1PodHash
+	r3.Status.CurrentPodHash = rs3PodHash
+	r3.Status.CurrentStepIndex = ptr.To[int32](0)
+	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			Weight:          90,
+			ServiceName:     canaryService,
+			PodTemplateHash: rs2PodHash, // Still pointing to old canary B
+		},
+		Stable: v1alpha1.WeightDestination{
+			Weight:          10,
+			ServiceName:     stableService,
+			PodTemplateHash: rs1PodHash,
+		},
+	}
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.rolloutLister = append(f.rolloutLister, r3)
+	f.objects = append(f.objects, r3)
+
+	var setWeightCalls []int32
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+		setWeightCalls = append(setWeightCalls, desiredWeight)
+		t.Logf("SetWeight called with weight=%d", desiredWeight)
+		return nil
+	})
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+
+	f.expectPatchRolloutAction(r3)
+	f.expectUpdateReplicaSetAction(rs3) // Scale up new canary C
+	f.run(getKey(r3, t))
+
+	// With dynamicStableScale=true, stable (A) only has 1/10 pods available.
+	// checkReplicasAvailable should return early, preventing both SetWeight and
+	// UpdateHash from being called. If SetWeight(0) were called, it would route
+	// 100% of traffic to a stable RS with only 10% of its pods.
+	assert.Empty(t, setWeightCalls,
+		"SetWeight should not be called when stable lacks capacity with dynamicStableScale; "+
+			"checkReplicasAvailable should return early. Calls observed: %v", setWeightCalls)
+	f.fakeTrafficRouting.AssertNotCalled(t, "UpdateHash", mock.Anything, mock.Anything, mock.Anything)
 }
