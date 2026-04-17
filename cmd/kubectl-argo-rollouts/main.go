@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -18,6 +19,9 @@ import (
 
 func main() {
 	klog.InitFlags(nil)
+	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
+	_ = flag.Set("legacy_stderr_threshold_behavior", "false")
+	_ = flag.Set("stderrthreshold", "INFO")
 	logutil.SetKLogLogger(log.New())
 	streams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 	o := options.NewArgoRolloutsOptions(streams)
