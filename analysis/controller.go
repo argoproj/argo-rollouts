@@ -69,45 +69,34 @@ type Controller struct {
 	analysisRunWorkQueue workqueue.RateLimitingInterface
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
-	recorder                       record.EventRecorder
-	resyncPeriod                   time.Duration
-	enableCrossNamespaceSecretRefs bool
-	allowedSecretRefNamespaces     map[string]bool
+	recorder     record.EventRecorder
+	resyncPeriod time.Duration
 }
 
 // ControllerConfig describes the data required to instantiate a new analysis controller
 type ControllerConfig struct {
-	KubeClientSet                  kubernetes.Interface
-	ArgoProjClientset              clientset.Interface
-	AnalysisRunInformer            informers.AnalysisRunInformer
-	JobInformer                    batchinformers.JobInformer
-	ResyncPeriod                   time.Duration
-	AnalysisRunWorkQueue           workqueue.RateLimitingInterface
-	MetricsServer                  *metrics.MetricsServer
-	Recorder                       record.EventRecorder
-	EnableCrossNamespaceSecretRefs bool
-	AllowedSecretRefNamespaces     []string
+	KubeClientSet        kubernetes.Interface
+	ArgoProjClientset    clientset.Interface
+	AnalysisRunInformer  informers.AnalysisRunInformer
+	JobInformer          batchinformers.JobInformer
+	ResyncPeriod         time.Duration
+	AnalysisRunWorkQueue workqueue.RateLimitingInterface
+	MetricsServer        *metrics.MetricsServer
+	Recorder             record.EventRecorder
 }
 
 // NewController returns a new analysis controller
 func NewController(cfg ControllerConfig) *Controller {
-	allowed := map[string]bool{}
-	for _, ns := range cfg.AllowedSecretRefNamespaces {
-		allowed[ns] = true
-	}
-
 	controller := &Controller{
-		kubeclientset:                  cfg.KubeClientSet,
-		argoProjClientset:              cfg.ArgoProjClientset,
-		analysisRunLister:              cfg.AnalysisRunInformer.Lister(),
-		metricsServer:                  cfg.MetricsServer,
-		analysisRunWorkQueue:           cfg.AnalysisRunWorkQueue,
-		jobInformer:                    cfg.JobInformer,
-		analysisRunSynced:              cfg.AnalysisRunInformer.Informer().HasSynced,
-		recorder:                       cfg.Recorder,
-		resyncPeriod:                   cfg.ResyncPeriod,
-		enableCrossNamespaceSecretRefs: cfg.EnableCrossNamespaceSecretRefs,
-		allowedSecretRefNamespaces:     allowed,
+		kubeclientset:        cfg.KubeClientSet,
+		argoProjClientset:    cfg.ArgoProjClientset,
+		analysisRunLister:    cfg.AnalysisRunInformer.Lister(),
+		metricsServer:        cfg.MetricsServer,
+		analysisRunWorkQueue: cfg.AnalysisRunWorkQueue,
+		jobInformer:          cfg.JobInformer,
+		analysisRunSynced:    cfg.AnalysisRunInformer.Informer().HasSynced,
+		recorder:             cfg.Recorder,
+		resyncPeriod:         cfg.ResyncPeriod,
 	}
 
 	controller.enqueueAnalysis = func(obj any) {
