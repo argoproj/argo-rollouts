@@ -580,7 +580,7 @@ spec:
         jsonPath: "{$.results.ok}"
 ```
 
-Cross-namespace secret references: `secretKeyRef` also supports an optional `namespace` field:
+`secretKeyRef` also supports an optional `controllerNamespace` field:
 
 ```yaml
 args:
@@ -588,28 +588,11 @@ args:
   valueFrom:
     secretKeyRef:
       name: token-secret
-      namespace: shared-secrets
       key: apiToken
+      controllerNamespace: true
 ```
 
-By default, secrets are resolved from the same namespace as the AnalysisRun. When namespace is specified, Argo Rollouts can resolve the secret from that namespace.
-
-Cross-namespace secret references are disabled by default and must be explicitly enabled on the controller by admin:
-
-* `--enable-cross-namespace-secret-refs`
-* `--allowed-secret-ref-namespaces`
-
-Only namespaces included in `--allowed-secret-ref-namespaces` are permitted.
-
-!!! Warning
-    Enabling cross-namespace secret references has security implications.
-
-    This allows Analysis arguments to consume secrets from other namespaces. If the allowlist is too broad or misconfigured, workloads may gain access to secrets that were not intended for them, weakening namespace isolation.
-
-    Only enable this feature for tightly controlled namespaces and when the security implications are understood.
-
-
-If cross-namespace secret references are disabled, or if the namespace is not in the allowlist, the analysis will fail during argument resolution.
+By default, `controllerNamespace` is `false` and secrets are resolved from the same namespace as the AnalysisRun. When `controllerNamespace` is `true`, Argo Rollouts can resolve the secret from that controller namespace.
 
 Analysis arguments defined in a Rollout are merged with the args from the AnalysisTemplate when the AnalysisRun is created.
 
@@ -1258,7 +1241,7 @@ spec:
 
 AnalysisTemplates and AnalysisRuns can reference secret objects in `.spec.args`. This allows users to securely pass authentication information to Metric Providers, like login credentials or API tokens.
 
-By default, an AnalysisRun resolves secrets from the same namespace as it is running in. Optionally, a secret may be referenced from another namespace by setting `secretKeyRef.namespace`, but only when cross-namespace secret references are enabled on the controller and the namespace is included in the allowed list. This is only relevant for AnalysisRuns, since AnalysisTemplates do not resolve the secret.
+By default, an AnalysisRun resolves secrets from the same namespace in which it is running. Optionally, a secret can be referenced from the controller’s namespace by setting `secretKeyRef.controllerNamespace: true`. If `controllerNamespace` is not set or is false, the existing behavior is preserved, and the secret is resolved from the AnalysisRun’s namespace. This behavior applies only to AnalysisRuns, as AnalysisTemplates do not resolve secrets.
 
 In the following example, an AnalysisTemplate references an API token and passes it to a Web metric provider.
 
