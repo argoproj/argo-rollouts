@@ -185,8 +185,6 @@ func NewAnalysisManager(
 	namespaced bool,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	jobInformerFactory kubeinformers.SharedInformerFactory,
-	enableCrossNamespaceSecretRefs bool,
-	allowedSecretRefNamespaces []string,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -206,16 +204,14 @@ func NewAnalysisManager(
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
 	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, nil)
 	analysisController := analysis.NewController(analysis.ControllerConfig{
-		KubeClientSet:                  kubeclientset,
-		ArgoProjClientset:              argoprojclientset,
-		AnalysisRunInformer:            analysisRunInformer,
-		JobInformer:                    jobInformer,
-		ResyncPeriod:                   resyncPeriod,
-		AnalysisRunWorkQueue:           analysisRunWorkqueue,
-		MetricsServer:                  metricsServer,
-		Recorder:                       recorder,
-		EnableCrossNamespaceSecretRefs: enableCrossNamespaceSecretRefs,
-		AllowedSecretRefNamespaces:     allowedSecretRefNamespaces,
+		KubeClientSet:        kubeclientset,
+		ArgoProjClientset:    argoprojclientset,
+		AnalysisRunInformer:  analysisRunInformer,
+		JobInformer:          jobInformer,
+		ResyncPeriod:         resyncPeriod,
+		AnalysisRunWorkQueue: analysisRunWorkqueue,
+		MetricsServer:        metricsServer,
+		Recorder:             recorder,
 	})
 
 	cm := &Manager{
@@ -288,8 +284,6 @@ func NewManager(
 	jobInformerFactory kubeinformers.SharedInformerFactory,
 	ephemeralMetadataThreads int,
 	ephemeralMetadataPodRetries int,
-	enableCrossNamespaceSecretRefs bool,
-	allowedSecretRefNamespaces []string,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -375,16 +369,14 @@ func NewManager(
 	})
 
 	analysisController := analysis.NewController(analysis.ControllerConfig{
-		KubeClientSet:                  kubeclientset,
-		ArgoProjClientset:              argoprojclientset,
-		AnalysisRunInformer:            analysisRunInformer,
-		JobInformer:                    jobInformer,
-		ResyncPeriod:                   resyncPeriod,
-		AnalysisRunWorkQueue:           analysisRunWorkqueue,
-		MetricsServer:                  metricsServer,
-		Recorder:                       recorder,
-		EnableCrossNamespaceSecretRefs: enableCrossNamespaceSecretRefs,
-		AllowedSecretRefNamespaces:     allowedSecretRefNamespaces,
+		KubeClientSet:        kubeclientset,
+		ArgoProjClientset:    argoprojclientset,
+		AnalysisRunInformer:  analysisRunInformer,
+		JobInformer:          jobInformer,
+		ResyncPeriod:         resyncPeriod,
+		AnalysisRunWorkQueue: analysisRunWorkqueue,
+		MetricsServer:        metricsServer,
+		Recorder:             recorder,
 	})
 
 	serviceController := service.NewController(service.ControllerConfig{

@@ -55,6 +55,8 @@ spec:
                           type: object
                         secretKeyRef:
                           properties:
+                            controllerNamespace:
+                              type: boolean
                             key:
                               type: string
                             name:
@@ -3753,6 +3755,8 @@ spec:
                           type: object
                         secretKeyRef:
                           properties:
+                            controllerNamespace:
+                              type: boolean
                             key:
                               type: string
                             name:
@@ -7326,6 +7330,8 @@ spec:
                           type: object
                         secretKeyRef:
                           properties:
+                            controllerNamespace:
+                              type: boolean
                             key:
                               type: string
                             name:
@@ -10906,6 +10912,8 @@ spec:
                                 type: object
                               secretKeyRef:
                                 properties:
+                                  controllerNamespace:
+                                    type: boolean
                                   key:
                                     type: string
                                   name:

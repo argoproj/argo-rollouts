@@ -28,13 +28,13 @@
                                             },
                                             "secretKeyRef": {
                                                 "properties": {
+                                                    "controllerNamespace": {
+                                                        "type": "boolean"
+                                                    },
                                                     "key": {
                                                         "type": "string"
                                                     },
                                                     "name": {
-                                                        "type": "string"
-                                                    },
-                                                    "namespace": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -5423,13 +5423,13 @@
                                             },
                                             "secretKeyRef": {
                                                 "properties": {
+                                                    "controllerNamespace": {
+                                                        "type": "boolean"
+                                                    },
                                                     "key": {
                                                         "type": "string"
                                                     },
                                                     "name": {
-                                                        "type": "string"
-                                                    },
-                                                    "namespace": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -10831,13 +10831,13 @@
                                             },
                                             "secretKeyRef": {
                                                 "properties": {
+                                                    "controllerNamespace": {
+                                                        "type": "boolean"
+                                                    },
                                                     "key": {
                                                         "type": "string"
                                                     },
                                                     "name": {
-                                                        "type": "string"
-                                                    },
-                                                    "namespace": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -16242,13 +16242,13 @@
                                                         },
                                                         "secretKeyRef": {
                                                             "properties": {
+                                                                "controllerNamespace": {
+                                                                    "type": "boolean"
+                                                                },
                                                                 "key": {
                                                                     "type": "string"
                                                                 },
                                                                 "name": {
-                                                                    "type": "string"
-                                                                },
-                                                                "namespace": {
                                                                     "type": "string"
                                                                 }
                                                             },

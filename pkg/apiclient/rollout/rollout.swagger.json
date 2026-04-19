@@ -2514,9 +2514,9 @@
           "type": "string",
           "description": "Key is the key of the secret to select from."
         },
-        "namespace": {
-          "type": "string",
-          "description": "Namespace is the namespace of the secret. If empty, the secret\nwill be resolved from the namespace of the AnalysisRun/Rollout."
+        "controllerNamespace": {
+          "type": "boolean",
+          "description": "ControllerNamespace indicates the secret should be read from the namespace\nwhere the argo-rollouts controller is deployed."
         }
       }
     },

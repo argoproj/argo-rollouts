@@ -57,11 +57,11 @@ spec:
                                 type: object
                               secretKeyRef:
                                 properties:
+                                  controllerNamespace:
+                                    type: boolean
                                   key:
                                     type: string
                                   name:
-                                    type: string
-                                  namespace:
                                     type: string
                                 required:
                                 - key
