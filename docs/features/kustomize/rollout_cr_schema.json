@@ -37,15 +37,15 @@
                                             "secretKeyRef": {
                                                 "description": "Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom",
                                                 "properties": {
+                                                    "controllerNamespace": {
+                                                        "type": "boolean"
+                                                    },
                                                     "key": {
                                                         "description": "Key is the key of the secret to select from.",
                                                         "type": "string"
                                                     },
                                                     "name": {
                                                         "description": "Name is the name of the secret",
-                                                        "type": "string"
-                                                    },
-                                                    "namespace": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -6491,15 +6491,15 @@
                                             "secretKeyRef": {
                                                 "description": "Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom",
                                                 "properties": {
+                                                    "controllerNamespace": {
+                                                        "type": "boolean"
+                                                    },
                                                     "key": {
                                                         "description": "Key is the key of the secret to select from.",
                                                         "type": "string"
                                                     },
                                                     "name": {
                                                         "description": "Name is the name of the secret",
-                                                        "type": "string"
-                                                    },
-                                                    "namespace": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -12961,15 +12961,15 @@
                                             "secretKeyRef": {
                                                 "description": "Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom",
                                                 "properties": {
+                                                    "controllerNamespace": {
+                                                        "type": "boolean"
+                                                    },
                                                     "key": {
                                                         "description": "Key is the key of the secret to select from.",
                                                         "type": "string"
                                                     },
                                                     "name": {
                                                         "description": "Name is the name of the secret",
-                                                        "type": "string"
-                                                    },
-                                                    "namespace": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -19435,15 +19435,15 @@
                                                         "secretKeyRef": {
                                                             "description": "Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom",
                                                             "properties": {
+                                                                "controllerNamespace": {
+                                                                    "type": "boolean"
+                                                                },
                                                                 "key": {
                                                                     "description": "Key is the key of the secret to select from.",
                                                                     "type": "string"
                                                                 },
                                                                 "name": {
                                                                     "description": "Name is the name of the secret",
-                                                                    "type": "string"
-                                                                },
-                                                                "namespace": {
                                                                     "type": "string"
                                                                 }
                                                             },

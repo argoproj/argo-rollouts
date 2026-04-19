@@ -10000,6 +10000,14 @@ func (m *SecretKeyRef) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i--
+	if m.ControllerNamespace {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x18
 	i -= len(m.Key)
 	copy(dAtA[i:], m.Key)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Key)))
@@ -13222,6 +13230,7 @@ func (m *SecretKeyRef) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Key)
 	n += 1 + l + sovGenerated(uint64(l))
+	n += 2
 	return n
 }
 
@@ -15249,6 +15258,7 @@ func (this *SecretKeyRef) String() string {
 	s := strings.Join([]string{`&SecretKeyRef{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
 		`Key:` + fmt.Sprintf("%v", this.Key) + `,`,
+		`ControllerNamespace:` + fmt.Sprintf("%v", this.ControllerNamespace) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -34419,6 +34429,26 @@ func (m *SecretKeyRef) Unmarshal(dAtA []byte) error {
 			}
 			m.Key = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ControllerNamespace", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.ControllerNamespace = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

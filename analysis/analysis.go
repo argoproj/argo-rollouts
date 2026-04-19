@@ -19,6 +19,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -271,14 +272,15 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 		if arg.ValueFrom != nil && arg.ValueFrom.SecretKeyRef != nil {
 			ref := arg.ValueFrom.SecretKeyRef
 			secretNamespace := namespace
-			if ref.Namespace != "" && ref.Namespace != namespace {
-				if err := c.validateSecretNamespace(arg, ref); err != nil {
-					return nil, nil, err
-				}
-				secretNamespace = ref.Namespace
+			if ref.ControllerNamespace {
+				secretNamespace = defaults.Namespace()
 			}
+
 			secret, err := c.kubeclientset.CoreV1().Secrets(secretNamespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return nil, nil, fmt.Errorf("secret %s not found in namespace %s (controllerNamespace=%t)", ref.Name, secretNamespace, ref.ControllerNamespace)
+				}
 				return nil, nil, err
 			}
 
@@ -313,22 +315,6 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 	}
 
 	return tasks, secrets, nil
-}
-
-func (c *Controller) validateSecretNamespace(arg v1alpha1.Argument, ref *v1alpha1.SecretKeyRef) error {
-	if !c.enableCrossNamespaceSecretRefs {
-		return fmt.Errorf(
-			"failed to resolve analysis argument %q: secretKeyRef.namespace is set to %q for secret %q, but cross-namespace secret references are disabled",
-			arg.Name, ref.Namespace, ref.Name,
-		)
-	}
-	if !c.allowedSecretRefNamespaces[ref.Namespace] {
-		return fmt.Errorf(
-			"failed to resolve analysis argument %q: secretKeyRef.namespace is set to %q for secret %q, but that namespace is not included in the allowed cross-namespace secret reference list",
-			arg.Name, ref.Namespace, ref.Name,
-		)
-	}
-	return nil
 }
 
 // runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements
