@@ -282,8 +282,6 @@ func TestNewManager(t *testing.T) {
 				rolloutController.DefaultEphemeralMetadataThreads,
 				rolloutController.DefaultEphemeralMetadataPodRetries,
 				selfService,
-				false,
-				nil,
 			)
 			assert.NotNil(t, cm)
 			assert.NotNil(t, cm.notificationsController)
@@ -334,8 +332,6 @@ func TestNewAnalysisManager(t *testing.T) {
 		dynamicInformerFactory,
 		false,
 		nil,
-		nil,
-		false,
 		nil,
 	)
 

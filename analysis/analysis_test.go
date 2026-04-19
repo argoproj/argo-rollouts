@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1666,7 +1667,9 @@ func TestSecretNotFound(t *testing.T) {
 		incompleteMeasurement: nil,
 	}}
 	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	assert.Equal(t, "secrets \"secret-does-not-exist\" not found", err.Error())
+	expectedErr := fmt.Sprintf("secret %s not found in namespace %s (controllerNamespace=%t)",
+		args[0].ValueFrom.SecretKeyRef.Name, metav1.NamespaceDefault, args[0].ValueFrom.SecretKeyRef.ControllerNamespace)
+	assert.Equal(t, expectedErr, err.Error())
 }
 
 func TestKeyNotInSecret(t *testing.T) {
@@ -2604,34 +2607,31 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfNoCompletedAt(t *testing.T) {
 	assert.Empty(t, f.client.Fake.Actions())
 }
 
-func TestResolveArgsCrossNamespaceSecretRefDisabled(t *testing.T) {
+func TestResolveArgsUsesRunNamespaceByDefault(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	secret := &corev1.Secret{
+	runSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "token-secret",
-			Namespace: "shared-secrets",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Data: map[string][]byte{
-			"apiToken": []byte("shared-token"),
+			"apiToken": []byte("run-token"),
 		},
 	}
 
 	c, _, _ := f.newController(noResyncPeriodFunc)
-	f.kubeclient.CoreV1().Secrets("shared-secrets").Create(context.TODO(), secret, metav1.CreateOptions{})
-
-	c.enableCrossNamespaceSecretRefs = false
-	c.allowedSecretRefNamespaces = map[string]bool{}
+	_, err := f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), runSecret, metav1.CreateOptions{})
 
 	args := []v1alpha1.Argument{
 		{
 			Name: "api-token",
 			ValueFrom: &v1alpha1.ValueFrom{
 				SecretKeyRef: &v1alpha1.SecretKeyRef{
-					Name:      "token-secret",
-					Key:       "apiToken",
-					Namespace: "shared-secrets",
+					Name: "token-secret",
+					Key:  "apiToken",
+					//controllerNamespace=false(default)
 				},
 			},
 		},
@@ -2641,127 +2641,95 @@ func TestResolveArgsCrossNamespaceSecretRefDisabled(t *testing.T) {
 		{
 			metric: v1alpha1.Metric{
 				Name: "webmetric",
-			},
-		},
-	}
-
-	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	assert.Error(t, err)
-
-	expected := fmt.Sprintf(
-		"failed to resolve analysis argument %q: secretKeyRef.namespace is set to %q for secret %q, but cross-namespace secret references are disabled",
-		args[0].Name, args[0].ValueFrom.SecretKeyRef.Namespace, args[0].ValueFrom.SecretKeyRef.Name)
-	assert.Equal(t, expected, err.Error())
-}
-
-func TestResolveArgsCrossNamespaceSecretRefNamespaceNotAllowed(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "token-secret",
-			Namespace: "shared-secrets",
-		},
-		Data: map[string][]byte{
-			"apiToken": []byte("shared-token"),
-		},
-	}
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	f.kubeclient.CoreV1().Secrets("shared-secrets").Create(context.TODO(), secret, metav1.CreateOptions{})
-
-	c.enableCrossNamespaceSecretRefs = true
-	c.allowedSecretRefNamespaces = map[string]bool{
-		"other-namespace": true,
-	}
-
-	args := []v1alpha1.Argument{
-		{
-			Name: "api-token",
-			ValueFrom: &v1alpha1.ValueFrom{
-				SecretKeyRef: &v1alpha1.SecretKeyRef{
-					Name:      "token-secret",
-					Key:       "apiToken",
-					Namespace: "shared-secrets",
-				},
-			},
-		},
-	}
-
-	tasks := []metricTask{
-		{
-			metric: v1alpha1.Metric{
-				Name: "webmetric",
-			},
-		},
-	}
-
-	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	assert.Error(t, err)
-
-	expected := fmt.Sprintf(
-		"failed to resolve analysis argument %q: secretKeyRef.namespace is set to %q for secret %q, but that namespace is not included in the allowed cross-namespace secret reference list",
-		args[0].Name, args[0].ValueFrom.SecretKeyRef.Namespace, args[0].ValueFrom.SecretKeyRef.Name)
-	assert.Equal(t, expected, err.Error())
-}
-
-func TestResolveArgsCrossNamespaceSecretRefAllowed(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "token-secret",
-			Namespace: "shared-secrets",
-		},
-		Data: map[string][]byte{
-			"apiToken": []byte("shared-token"),
-		},
-	}
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	f.kubeclient.CoreV1().Secrets("shared-secrets").Create(context.TODO(), secret, metav1.CreateOptions{})
-
-	c.enableCrossNamespaceSecretRefs = true
-	c.allowedSecretRefNamespaces = map[string]bool{
-		"shared-secrets": true,
-	}
-
-	args := []v1alpha1.Argument{
-		{
-			Name: "api-token",
-			ValueFrom: &v1alpha1.ValueFrom{
-				SecretKeyRef: &v1alpha1.SecretKeyRef{
-					Name:      "token-secret",
-					Key:       "apiToken",
-					Namespace: "shared-secrets",
-				},
-			},
-		},
-	}
-
-	tasks := []metricTask{
-		{
-			metric: v1alpha1.Metric{
-				Name: "webmetric",
-				Provider: v1alpha1.MetricProvider{
-					Web: &v1alpha1.WebMetric{
-						URL: "https://example.com",
-						Headers: []v1alpha1.WebMetricHeader{
-							{
-								Key:   "Authorization",
-								Value: "Bearer {{args.api-token}}",
-							},
-						},
-					},
-				},
 			},
 		},
 	}
 
 	resolvedTasks, secrets, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	assert.NoError(t, err)
-	assert.Len(t, resolvedTasks, 1)
-	assert.Len(t, secrets, 1)
-	assert.Equal(t, "shared-token", secrets[0])
-	assert.Equal(t, "Bearer shared-token", resolvedTasks[0].metric.Provider.Web.Headers[0].Value)
+	require.NoError(t, err)
+	require.NotNil(t, resolvedTasks)
+	assert.Contains(t, secrets, "run-token")
+	assert.Equal(t, "run-token", *args[0].Value)
+}
+
+func TestResolveArgsUsesControllerNamespaceWhenEnabled(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	t.Setenv("POD_NAMESPACE", "argo-rollouts")
+
+	controllerSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "token-secret",
+			Namespace: "argo-rollouts",
+		},
+		Data: map[string][]byte{
+			"apiToken": []byte("controller-token"),
+		},
+	}
+
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	_, err := f.kubeclient.CoreV1().Secrets("argo-rollouts").Create(context.TODO(), controllerSecret, metav1.CreateOptions{})
+
+	args := []v1alpha1.Argument{
+		{
+			Name: "api-token",
+			ValueFrom: &v1alpha1.ValueFrom{
+				SecretKeyRef: &v1alpha1.SecretKeyRef{
+					Name:                "token-secret",
+					Key:                 "apiToken",
+					ControllerNamespace: true,
+				},
+			},
+		},
+	}
+
+	tasks := []metricTask{
+		{
+			metric: v1alpha1.Metric{
+				Name: "webmetric",
+			},
+		},
+	}
+
+	resolvedTasks, secrets, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+	require.NoError(t, err)
+	require.NotNil(t, resolvedTasks)
+	assert.Contains(t, secrets, "controller-token")
+	assert.Equal(t, "controller-token", *args[0].Value)
+}
+
+func TestResolveArgsReturnsErrorWhenControllerNamespaceSecretMissing(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	t.Setenv("POD_NAMESPACE", "argo-rollouts")
+
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	args := []v1alpha1.Argument{
+		{
+			Name: "api-token",
+			ValueFrom: &v1alpha1.ValueFrom{
+				SecretKeyRef: &v1alpha1.SecretKeyRef{
+					Name:                "token-secret",
+					Key:                 "apiToken",
+					ControllerNamespace: true,
+				},
+			},
+		},
+	}
+
+	tasks := []metricTask{
+		{
+			metric: v1alpha1.Metric{
+				Name: "webmetric",
+			},
+		},
+	}
+
+	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+	assert.Error(t, err)
+	expected := fmt.Sprintf("secret %s not found in namespace %s (controllerNamespace=%t)", "token-secret", "argo-rollouts", true)
+	assert.Equal(t, expected, err.Error())
 }
