@@ -293,6 +293,11 @@ func newCommand() *cobra.Command {
 			}
 			return nil
 		},
+		FParseErrWhitelist: cobra.FParseErrWhitelist{
+			// Allow unknown flags for backward-compatibility.
+			UnknownFlags: true,
+		},
+		DisableAutoGenTag: true,
 	}
 
 	defaultALBIngressClass := []string{"alb"}
