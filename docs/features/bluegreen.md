@@ -104,7 +104,7 @@ Setting a positive non-zero value here would make the rollout automatically prom
 Defaults to nil
 
 ### antiAffinity
-Check out the [Anti Affinity document](anti-affinity/anti-affinity.md) for more information.
+Check out the [Anti Affinity document](anti-affinity/anti-affinity/) for more information.
 
 Defaults to nil
 
