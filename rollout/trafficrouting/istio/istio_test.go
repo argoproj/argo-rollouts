@@ -3921,3 +3921,128 @@ spec:
 	}
 	assert.Equal(t, 1, updateCount)
 }
+
+func TestRemoveManagedRoutesWithInvalidStepRouteEntriesAndNoManagedRoutes(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
+		{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: "header-route",
+			},
+		},
+		{
+			SetMirrorRoute: &v1alpha1.SetMirrorRoute{
+				Name: "mirror-route",
+			},
+		},
+	}
+
+	invalidVsvc := `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  http:
+  - not-a-route
+`
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(invalidVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.NoError(t, err)
+
+	updatedVsvc, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), "vsvc", metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	httpRoutes, found, err := unstructured.NestedSlice(updatedVsvc.Object, "spec", Http)
+	assert.NoError(t, err)
+	assert.True(t, found)
+	assert.Len(t, httpRoutes, 1)
+
+	updateCount := 0
+	for _, action := range client.Actions() {
+		if action.GetVerb() == "update" {
+			updateCount++
+		}
+	}
+	assert.Equal(t, 0, updateCount)
+}
+
+func TestRemoveManagedRoutesWithoutManagedRoutesOrStepRoutes(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.NoError(t, err)
+
+	updateCount := 0
+	for _, action := range client.Actions() {
+		if action.GetVerb() == "update" {
+			updateCount++
+		}
+	}
+	assert.Equal(t, 0, updateCount)
+}
+
+func TestRemoveManagedRoutesWithInvalidHTTPRoutes(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+
+	invalidVsvc := `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  http: invalid
+`
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(invalidVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get http routes from virtual service")
+}
+
+func TestRemoveManagedRoutesWithInvalidManagedRouteEntries(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "primary"},
+	}
+
+	invalidVsvc := `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  http:
+  - not-a-route
+`
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(invalidVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to split managed and non-managed routes")
+}
