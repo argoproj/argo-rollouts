@@ -1634,9 +1634,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 					nonManagedRoutesI = append(nonManagedRoutesI, route)
 				}
 
-				if err := unstructured.SetNestedSlice(istioVirtualService.Object, nonManagedRoutesI, "spec", Http); err != nil {
-					return fmt.Errorf("[RemoveManagedRoutes] failed to set nested slice on virtual service to remove managed routes: %w", err)
-				}
+				istioVirtualService.Object["spec"].(map[string]any)[Http] = nonManagedRoutesI
 				modified = true
 			}
 		}
