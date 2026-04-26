@@ -12,11 +12,13 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/dynamiclister"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -4045,4 +4047,59 @@ spec:
 	err := r.RemoveManagedRoutes()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to split managed and non-managed routes")
+}
+
+func TestRemoveManagedRoutesReturnsGetError(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	client := testutil.NewFakeDynamicClient()
+	client.PrependReactor("get", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("boom")
+	})
+
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil, nil)
+
+	err := r.RemoveManagedRoutes()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get virtual service")
+}
+
+func TestRemoveManagedRoutesReturnsUpdateError(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "managed-route"},
+	}
+
+	vsvcWithRoutes := `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  http:
+  - name: managed-route
+    route:
+    - destination:
+        host: stable
+      weight: 100
+  - name: primary
+    route:
+    - destination:
+        host: stable
+      weight: 100
+`
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(vsvcWithRoutes)
+	client := testutil.NewFakeDynamicClient(obj)
+	client.PrependReactor("update", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("update failed")
+	})
+
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update kubernetes virtual service")
 }
