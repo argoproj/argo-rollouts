@@ -1619,15 +1619,9 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 		}
 
 		if len(managedRoutes) > 0 {
-			// Refresh httpRouteI after potential header route removals
-			httpRouteI, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
-			if err != nil {
-				return fmt.Errorf("[RemoveManagedRoutes] failed to get http routes from virtual service: %w", err)
-			}
-			if !found {
-				log.Debugf("[RemoveManagedRoutes] %s: not removing any routes", SpecHttpNotFound)
-				return nil
-			}
+			// Refresh httpRouteI after potential header route removals. At this point spec.http has already
+			// been validated and only local route mutations are applied, so the refreshed value remains a slice.
+			httpRouteI, _, _ := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
 
 			httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes, err := splitManagedRoutesAndNonManagedRoutes(managedRoutes, httpRouteI)
 			if err != nil {
@@ -1635,13 +1629,9 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 			}
 
 			if len(httpRoutesWithinManagedRoutes) > 0 {
-				jsonNonManagedRoutes, err := json.Marshal(httpRoutesNotWithinManagedRoutes)
-				if err != nil {
-					return fmt.Errorf("[RemoveManagedRoutes] failed to marshal non-managed routes: %w", err)
-				}
-				var nonManagedRoutesI []any
-				if err := json.Unmarshal(jsonNonManagedRoutes, &nonManagedRoutesI); err != nil {
-					return fmt.Errorf("[RemoveManagedRoutes] failed to split managaed and non-managed routes: %w", err)
+				nonManagedRoutesI := make([]any, 0, len(httpRoutesNotWithinManagedRoutes))
+				for _, route := range httpRoutesNotWithinManagedRoutes {
+					nonManagedRoutesI = append(nonManagedRoutesI, route)
 				}
 
 				if err := unstructured.SetNestedSlice(istioVirtualService.Object, nonManagedRoutesI, "spec", Http); err != nil {
