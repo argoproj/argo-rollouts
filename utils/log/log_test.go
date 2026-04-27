@@ -218,8 +218,6 @@ func TestWithAnalysis(t *testing.T) {
 // TestWithRedactor verifies that WithRedactor redacts secrets in logger
 func TestWithRedactor(t *testing.T) {
 	buf := bytes.NewBufferString("")
-	logger := log.New()
-	logger.SetOutput(buf)
 	run := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -227,7 +225,7 @@ func TestWithRedactor(t *testing.T) {
 		},
 	}
 	entry := WithAnalysisRun(&run)
-	entry.Logger = logger
+	entry.Logger.SetOutput(buf)
 	secrets := []string{"test-name", "test-ns"}
 	logCtx := WithRedactor(*entry, secrets)
 	logCtx.Info("Test")
@@ -240,8 +238,6 @@ func TestWithRedactor(t *testing.T) {
 // TestWithRedactor verifies that WithRedactor ignores secrets that are empty strings (to prevent injection at every character in logger)
 func TestWithRedactorWithEmptySecret(t *testing.T) {
 	buf := bytes.NewBufferString("")
-	logger := log.New()
-	logger.SetOutput(buf)
 	run := v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -249,12 +245,35 @@ func TestWithRedactorWithEmptySecret(t *testing.T) {
 		},
 	}
 	entry := WithAnalysisRun(&run)
-	entry.Logger = logger
+	entry.Logger.SetOutput(buf)
 	secrets := []string{""}
 	logCtx := WithRedactor(*entry, secrets)
 	logCtx.Info("Test")
 	logMessage := buf.String()
 	assert.False(t, strings.Contains(logMessage, "*****"))
+}
+
+// TestWithRedactorNoFormatterChain verifies that repeated calls to WithRedactor do not
+// grow the formatter chain on the global logger (regression test for the original bug
+// where SetFormatter was called on the shared logger, causing O(N) nesting).
+func TestWithRedactorNoFormatterChain(t *testing.T) {
+	run := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "test-ns",
+		},
+	}
+	originalFormatter := log.StandardLogger().Formatter
+
+	// Call WithRedactor many times, simulating repeated AnalysisRun metric executions
+	for i := 0; i < 100; i++ {
+		entry := WithAnalysisRun(&run)
+		_ = WithRedactor(*entry, []string{"secret"})
+	}
+
+	// The global logger's formatter must not have changed
+	assert.Equal(t, originalFormatter, log.StandardLogger().Formatter,
+		"WithRedactor must not mutate the global logger's formatter")
 }
 
 func TestWithVersionFields(t *testing.T) {
