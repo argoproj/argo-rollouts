@@ -264,7 +264,7 @@ test-kustomize: ## run kustomize tests
 	./test/kustomize/test.sh
 
 setup-e2e:
-	@kubectl apply --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rollout-crd.yaml
+	@kubectl apply --server-side --force-conflicts --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rollout-crd.yaml
 	@kubectl apply --context='${E2E_K8S_CONTEXT}' -n argo-rollouts -f test/e2e/step-plugin/argo-rollouts-config.yaml
 	@rm -rf plugin-bin
 	@go build -gcflags="all=-N -l" -o plugin-bin/e2e-step-plugin test/cmd/step-plugin-e2e/main.go

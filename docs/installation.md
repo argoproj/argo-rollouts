@@ -34,7 +34,7 @@ on the same cluster.
   > and have to be installed separately. The CRD manifests are located in [manifests/crds](https://github.com/argoproj/argo-rollouts/blob/master/manifests/crds) directory.
   > Use the following command to install them:
   > ```bash
-  > kubectl apply -k https://github.com/argoproj/argo-rollouts/manifests/crds\?ref\=stable
+  > kubectl apply --server-side -k https://github.com/argoproj/argo-rollouts/manifests/crds\?ref\=stable
   > ```
 
 You can find released container images of the controller at [Quay.io](https://quay.io/repository/argoproj/argo-rollouts?tab=tags). There are also old releases

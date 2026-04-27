@@ -119,6 +119,8 @@ type fixture struct {
 	// Objects from here preloaded into NewSimpleFake.
 	kubeobjects []runtime.Object
 	objects     []runtime.Object
+	// dynamicOnlyObjects: added to dynamic client only (not Argo client). Use for Istio VS/DR so listers don't see unstructured as rollout.
+	dynamicOnlyObjects []runtime.Object
 	// Acquire 'enqueuedObjectsLock' before accessing enqueuedObjects
 	enqueuedObjects     map[string]int
 	enqueuedObjectsLock sync.Mutex
@@ -127,6 +129,10 @@ type fixture struct {
 	// events holds all the K8s Event Reasons emitted during the run
 	events             []string
 	fakeTrafficRouting *mocks.TrafficRoutingReconciler
+	// reseedRolloutMutator, if set, is applied to the rollout when re-seeding between syncs (for multi-sync tests).
+	reseedRolloutMutator func(*v1alpha1.Rollout)
+	// allowErrorOnLastSync, if set, do not fail the test when the final sync returns an error (e.g. "delaying destination rule switch").
+	allowErrorOnLastSync bool
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -562,6 +568,11 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 
+	dynamicClientObjects := f.objects
+	if len(f.dynamicOnlyObjects) > 0 {
+		dynamicClientObjects = append(append([]runtime.Object{}, f.objects...), f.dynamicOnlyObjects...)
+	}
+
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
@@ -581,7 +592,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		destGVR: destGVR.Resource + "List",
 	}
 
-	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, f.objects...)
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, dynamicClientObjects...)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
 	istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
@@ -647,13 +658,15 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	c.enqueueRolloutAfter = func(obj any, duration time.Duration) {
 		c.enqueueRollout(obj)
 	}
-	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
-		if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
-			return nil, nil
+	if f.fakeTrafficRouting != nil {
+		c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
+			if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+				return nil, nil
+			}
+			var reconcilers = []trafficrouting.TrafficRoutingReconciler{}
+			reconcilers = append(reconcilers, f.fakeTrafficRouting)
+			return reconcilers, nil
 		}
-		var reconcilers = []trafficrouting.TrafficRoutingReconciler{}
-		reconcilers = append(reconcilers, f.fakeTrafficRouting)
-		return reconcilers, nil
 	}
 
 	for _, r := range f.rolloutLister {
@@ -698,9 +711,66 @@ func (f *fixture) run(rolloutName string) {
 	f.runController(rolloutName, true, false, c, i, k8sI)
 }
 
+// runWithSyncs runs the controller syncHandler n times (e.g. 2 for two reconciliation loops) then verifies actions.
+func (f *fixture) runWithSyncs(rolloutName string, syncs int) {
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.runControllerWithSyncs(rolloutName, syncs, true, false, c, i, k8sI)
+}
+
 func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(rolloutName, startInformers, true, c, i, k8sI)
+}
+
+func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
+	if startInformers {
+		stopCh := make(chan struct{})
+		defer close(stopCh)
+		i.Start(stopCh)
+		k8sI.Start(stopCh)
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
+	}
+
+	for n := 0; n < syncs; n++ {
+		err := c.syncHandler(context.Background(), rolloutName)
+		allowErr := f.allowErrorOnLastSync && (n == syncs-1)
+		f.assertSyncHandlerResult(n, syncs, err, expectError, allowErr)
+		f.reseedRolloutInInformerIfNeeded(c, rolloutName, n, syncs)
+	}
+
+	return f.verifyActionsAndReturn(c)
+}
+
+func (f *fixture) assertSyncHandlerResult(n, syncs int, err error, expectError, allowErr bool) {
+	if !expectError && err != nil && !allowErr {
+		f.t.Errorf("error syncing rollout (sync %d/%d): %v", n+1, syncs, err)
+		return
+	}
+	if expectError && err == nil {
+		f.t.Error("expected error syncing rollout, got nil")
+	}
+}
+
+// reseedRolloutInInformer re-seeds the rollout in the informer so the next sync sees a typed Rollout
+// (controller writes Unstructured via persistRolloutToInformer). No-op when syncs <= 1 or on the last sync.
+func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName string, n, syncs int) {
+	if syncs <= 1 || n >= syncs-1 {
+		return
+	}
+	namespace, name, err := cache.SplitMetaNamespaceKey(rolloutName)
+	if err != nil {
+		f.t.Fatalf("re-seed rollout: split key: %v", err)
+	}
+	ro, err := f.client.ArgoprojV1alpha1().Rollouts(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed rollout: get: %v", err)
+	}
+	if f.reseedRolloutMutator != nil {
+		f.reseedRolloutMutator(ro)
+	}
+	if err := c.rolloutsIndexer.Update(ro); err != nil {
+		f.t.Fatalf("re-seed rollout: update indexer: %v", err)
+	}
 }
 
 func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
@@ -720,6 +790,10 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		f.t.Error("expected error syncing rollout, got nil")
 	}
 
+	return f.verifyActionsAndReturn(c)
+}
+
+func (f *fixture) verifyActionsAndReturn(c *Controller) *Controller {
 	actions := filterInformerActions(f.client.Actions())
 	for i, action := range actions {
 		if len(f.actions) < i+1 {
@@ -752,7 +826,6 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		f.t.Errorf("%d expected actions did not happen:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
 	}
 	fakeRecorder := c.recorder.(*record.FakeEventRecorder)
-
 	f.events = fakeRecorder.Events()
 	return c
 }
@@ -850,6 +923,11 @@ func (f *fixture) expectUpdatePodAction(p *corev1.Pod) int {
 	return len
 }
 
+func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewGetAction(v1alpha1.RolloutGVR, rollout.Namespace, rollout.Name))
+	return len
+}
 func (f *fixture) expectCreateExperimentAction(ex *v1alpha1.Experiment) int {
 	action := core.NewCreateAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex)
 	len := len(f.actions)
