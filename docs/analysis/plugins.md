@@ -103,7 +103,7 @@ If you have created a plugin, please submit a PR to add it to this list.
 
 ### [rollouts-plugin-metric-honeycomb](https://github.com/argoproj-labs/rollouts-plugin-metric-honeycomb)
 
-- A metric plugin that integrates [Honeycomb](https://www.honeycomb.io/) as an analysis provider for Argo Rollouts.
+- A metric plugin that integrates Honeycomb as an analysis provider for Argo Rollouts.
 
 ### [rollouts-plugin-metric-opensearch](https://github.com/argoproj-labs/rollouts-plugin-metric-opensearch)
 
@@ -111,7 +111,7 @@ If you have created a plugin, please submit a PR to add it to this list.
 
 ### [rollouts-opsmx-metric-plugin](https://github.com/argoproj-labs/rollouts-opsmx-metric-plugin)
 
-- An [OpsMx](https://www.opsmx.com/) plugin that performs logs and metrics analysis for Argo Rollouts.
+- An OpsMx plugin that performs logs and metrics analysis for Argo Rollouts.
 
 ### [rollouts-plugin-metric-sample-prometheus](https://github.com/argoproj-labs/rollouts-plugin-metric-sample-prometheus)
 
