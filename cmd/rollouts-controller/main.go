@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-rollouts/controller"
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	jobprovider "github.com/argoproj/argo-rollouts/metricproviders/job"
+	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
@@ -156,6 +157,16 @@ func newCommand() *cobra.Command {
 				kubeClient,
 				resyncDuration,
 				kubeinformers.WithNamespace(namespace))
+			// replicaSetInformerFactory uses a label selector to limit the ReplicaSets cached to only
+			// those managed by Rollouts. This reduces memory usage significantly on clusters with large
+			// numbers of ReplicaSets from Deployments or other controllers.
+			replicaSetInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+				kubeClient,
+				resyncDuration,
+				kubeinformers.WithNamespace(namespace),
+				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
+					options.LabelSelector = v1alpha1.DefaultRolloutUniqueLabelKey
+				}))
 			instanceIDSelector := controllerutil.InstanceIDRequirement(instanceID)
 			instanceIDTweakListFunc := func(options *metav1.ListOptions) {
 				options.LabelSelector = instanceIDSelector.String()
@@ -258,7 +269,7 @@ func newCommand() *cobra.Command {
 					dynamicClient,
 					smiClient,
 					discoveryClient,
-					kubeInformerFactory.Apps().V1().ReplicaSets(),
+					replicaSetInformerFactory.Apps().V1().ReplicaSets(),
 					kubeInformerFactory.Core().V1().Services(),
 					ingressWrapper,
 					jobInformerFactory.Batch().V1().Jobs(),
@@ -284,6 +295,7 @@ func newCommand() *cobra.Command {
 					istioDynamicInformerFactory,
 					namespaced,
 					kubeInformerFactory,
+					replicaSetInformerFactory,
 					jobInformerFactory,
 					ephemeralMetadataThreads,
 					ephemeralMetadataPodRetries)
