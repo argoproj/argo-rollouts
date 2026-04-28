@@ -97,6 +97,10 @@ responsibility of the Argo Rollouts administrator to define the plugin installat
 
 If you have created a plugin, please submit a PR to add it to this list.
 
+### [rollouts-plugin-metric-ai](https://github.com/argoproj-labs/rollouts-plugin-metric-ai)
+
+- An AI-powered metric plugin that delegates analysis to an A2A (Agent-to-Agent) agent. The agent autonomously fetches stable/canary pod logs and returns structured analysis, enabling LLM-driven canary evaluation during rollouts.
+
 ### [rollouts-plugin-metric-opensearch](https://github.com/argoproj-labs/rollouts-plugin-metric-opensearch)
 
 - The application is an OpenSearch plugin designed for use with the Argo Rollouts plugin system. This plugin enables the integration of OpenSearch metrics into Argo Rollouts, allowing for advanced metric analysis and monitoring during application rollouts.
