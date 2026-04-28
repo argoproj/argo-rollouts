@@ -205,6 +205,88 @@ func TestRunCreateCollision(t *testing.T) {
 	assert.Nil(t, measurement.FinishedAt)
 }
 
+func TestResumeRunningJob(t *testing.T) {
+	run := newRunWithJobMetric()
+	job := newJob(run, "")
+	p := newTestJobProvider(job)
+	measurement := newRunningMeasurement(job.Name)
+	measurement = p.Resume(run, run.Spec.Metrics[0], measurement)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
+	assert.NotNil(t, measurement.ResumeAt)
+	assert.Nil(t, measurement.FinishedAt)
+}
+
+func TestResumeRunningJobWithFailedPods(t *testing.T) {
+	run := newRunWithJobMetric()
+	job := newJob(run, "")
+
+	job.Spec.Selector = &metav1.LabelSelector{
+		MatchLabels: map[string]string{"job-name": job.Name},
+	}
+	// A pod owned by that job, stuck in ErrImagePull
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "failed-pod",
+			Namespace: job.Namespace,
+			Labels:    map[string]string{"job-name": job.Name},
+		},
+		Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{
+				{
+					Name: "dummy",
+					State: corev1.ContainerState{
+						Waiting: &corev1.ContainerStateWaiting{
+							Reason:  "ErrImagePull",
+							Message: "failed to pull image: not found",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	p := newTestJobProvider(job, pod)
+	measurement := newRunningMeasurement(job.Name)
+	measurement = p.Resume(run, run.Spec.Metrics[0], measurement)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
+	assert.NotNil(t, measurement.FinishedAt)
+}
+
+func TestResumeRunningJobWithFailedInitContainer(t *testing.T) {
+	run := newRunWithJobMetric()
+	job := newJob(run, "")
+
+	job.Spec.Selector = &metav1.LabelSelector{
+		MatchLabels: map[string]string{"job-name": job.Name},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "failed-init-pod",
+			Namespace: job.Namespace,
+			Labels:    map[string]string{"job-name": job.Name},
+		},
+		Status: corev1.PodStatus{
+			InitContainerStatuses: []corev1.ContainerStatus{
+				{
+					Name: "init-dummy",
+					State: corev1.ContainerState{
+						Waiting: &corev1.ContainerStateWaiting{
+							Reason:  "ImagePullBackOff",
+							Message: "back-off pulling image: not found",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	p := newTestJobProvider(job, pod)
+	measurement := newRunningMeasurement(job.Name)
+	measurement = p.Resume(run, run.Spec.Metrics[0], measurement)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
+	assert.NotNil(t, measurement.FinishedAt)
+}
+
 func TestResumeCompletedJob(t *testing.T) {
 	run := newRunWithJobMetric()
 	job := newJob(run, batchv1.JobComplete)
