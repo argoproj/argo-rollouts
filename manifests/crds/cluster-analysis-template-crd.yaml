@@ -7632,6 +7632,13 @@ spec:
                             authentication:
                               description: Authentication details
                               properties:
+                                basicAuth:
+                                  properties:
+                                    password:
+                                      type: string
+                                    username:
+                                      type: string
+                                  type: object
                                 oauth2:
                                   description: OAuth2 config
                                   properties:
@@ -7743,6 +7750,13 @@ spec:
                             authentication:
                               description: Authentication details
                               properties:
+                                basicAuth:
+                                  properties:
+                                    password:
+                                      type: string
+                                    username:
+                                      type: string
+                                  type: object
                                 oauth2:
                                   description: OAuth2 config
                                   properties:
