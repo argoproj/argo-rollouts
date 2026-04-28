@@ -3,6 +3,7 @@ package prometheus
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -224,6 +225,30 @@ func newHTTPTransport(insecureSkipVerify bool) *http.Transport {
 var secureTransport *http.Transport = newHTTPTransport(false)
 var insecureTransport *http.Transport = newHTTPTransport(true)
 
+func buildRoundTripper(metric v1alpha1.PrometheusMetric) (http.RoundTripper, error) {
+	if metric.Insecure {
+		return insecureTransport, nil
+	}
+
+	if metric.CAPath == "" {
+		return secureTransport, nil
+	}
+
+	caCert, err := os.ReadFile(metric.CAPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CA certificate from %s: %w", metric.CAPath, err)
+	}
+
+	caCertPool := x509.NewCertPool()
+	if !caCertPool.AppendCertsFromPEM(caCert) {
+		return nil, fmt.Errorf("failed to parse CA certificate from %s", metric.CAPath)
+	}
+
+	transport := newHTTPTransport(false)
+	transport.TLSClientConfig.RootCAs = caCertPool
+	return transport, nil
+}
+
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	envValuesByKey := make(map[string]string)
@@ -246,11 +271,9 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		return nil, errors.New("prometheus address is not configured")
 	}
 
-	var roundTripper http.RoundTripper
-	if metric.Provider.Prometheus.Insecure {
-		roundTripper = insecureTransport
-	} else {
-		roundTripper = secureTransport
+	roundTripper, err := buildRoundTripper(*metric.Provider.Prometheus)
+	if err != nil {
+		return nil, err
 	}
 
 	// attach custom headers to api requests, if specified
