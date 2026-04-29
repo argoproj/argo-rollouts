@@ -216,6 +216,14 @@ spec:
                         description: Name of the service that the rollout modifies
                           as the active service.
                         type: string
+                      additionalActiveServices:
+                        items:
+                          type: string
+                        type: array
+                      additionalPreviewServices:
+                        items:
+                          type: string
+                        type: array
                       antiAffinity:
                         description: AntiAffinity enables anti-affinity rules for
                           Blue Green deployment

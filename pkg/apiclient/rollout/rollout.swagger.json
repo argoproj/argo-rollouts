@@ -952,6 +952,20 @@
           "type": "integer",
           "format": "int32",
           "title": "AbortScaleDownDelaySeconds adds a delay in second before scaling down the preview replicaset\nif update is aborted. 0 means not to scale down.\nDefault is 30 second\n+optional"
+        },
+        "additionalActiveServices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "AdditionalActiveServices is a list of additional Services that the\nrollout modifies during reconciliation. These will always be updated\nafter the primary active Service.\n+optional"
+        },
+        "additionalPreviewServices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "AdditionalPreviewServices is a list of additional Services that the\nrollout modifies during reconciliation. These will always be updated\nafter the primary one.\n+optional"
         }
       },
       "title": "BlueGreenStrategy defines parameters for Blue Green deployment"
