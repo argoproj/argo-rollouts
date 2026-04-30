@@ -952,6 +952,10 @@
           "type": "integer",
           "format": "int32",
           "title": "AbortScaleDownDelaySeconds adds a delay in second before scaling down the preview replicaset\nif update is aborted. 0 means not to scale down.\nDefault is 30 second\n+optional"
+        },
+        "replicaProgressThreshold": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaProgressThreshold",
+          "title": "ReplicaProgressThreshold defines the minimum percentage or count of available replicas\nrequired to consider the rollout as progressing\n+optional"
         }
       },
       "title": "BlueGreenStrategy defines parameters for Blue Green deployment"
