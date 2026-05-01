@@ -87,7 +87,6 @@ type ControllerConfig struct {
 
 // NewController returns a new analysis controller
 func NewController(cfg ControllerConfig) *Controller {
-
 	controller := &Controller{
 		kubeclientset:        cfg.KubeClientSet,
 		argoProjClientset:    cfg.ArgoProjClientset,

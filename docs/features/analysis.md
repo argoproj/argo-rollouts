@@ -580,6 +580,20 @@ spec:
         jsonPath: "{$.results.ok}"
 ```
 
+`secretKeyRef` also supports an optional `controllerNamespace` field:
+
+```yaml
+args:
+- name: api-token
+  valueFrom:
+    secretKeyRef:
+      name: token-secret
+      key: apiToken
+      controllerNamespace: true
+```
+
+By default, `controllerNamespace` is `false` and secrets are resolved from the same namespace as the AnalysisRun. When `controllerNamespace` is `true`, Argo Rollouts can resolve the secret from that controller namespace.
+
 Analysis arguments defined in a Rollout are merged with the args from the AnalysisTemplate when the AnalysisRun is created.
 
 ```yaml
@@ -1227,7 +1241,7 @@ spec:
 
 AnalysisTemplates and AnalysisRuns can reference secret objects in `.spec.args`. This allows users to securely pass authentication information to Metric Providers, like login credentials or API tokens.
 
-An AnalysisRun can only reference secrets from the same namespace as it's running in. This is only relevant for AnalysisRuns, since AnalysisTemplates do not resolve the secret.
+By default, an AnalysisRun resolves secrets from the same namespace in which it is running. Optionally, a secret can be referenced from the controller’s namespace by setting `secretKeyRef.controllerNamespace: true`. If `controllerNamespace` is not set or is false, the existing behavior is preserved, and the secret is resolved from the AnalysisRun’s namespace. This behavior applies only to AnalysisRuns, as AnalysisTemplates do not resolve secrets.
 
 In the following example, an AnalysisTemplate references an API token and passes it to a Web metric provider.
 

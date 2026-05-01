@@ -2513,6 +2513,10 @@
         "key": {
           "type": "string",
           "description": "Key is the key of the secret to select from."
+        },
+        "controllerNamespace": {
+          "type": "boolean",
+          "description": "ControllerNamespace indicates the secret should be read from the namespace\nwhere the argo-rollouts controller is deployed."
         }
       }
     },
