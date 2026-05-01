@@ -133,17 +133,19 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version.md
+- Developer Guide:
+  - Code Quality and Security Scanning: developer-guide/code-quality-and-security-scanning.md
+  - Contributing:
+    - Contribution Guide: CONTRIBUTING.md
+    - Environment Setup: getting-started/setup/index.md
+    - Releasing: releasing.md
+    - Plugins: plugins.md
 - Best Practices: best-practices.md
 - Migrating: migrating.md
 - FAQ: FAQ.md
 - Security:
   - Security Policy: security/security.md
   - Verify Release Artifacts: security/signed-release-assets.md
-- Contributing:
-  - Contribution Guide: CONTRIBUTING.md
-  - Environment Setup: getting-started/setup/index.md
-  - Releasing: releasing.md
-  - Plugins: plugins.md
 - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
 - Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
 - Blog ⧉: https://blog.argoproj.io/
