@@ -19,7 +19,6 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -278,7 +277,7 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 
 			secret, err := c.kubeclientset.CoreV1().Secrets(secretNamespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 			if err != nil {
-				if apierrors.IsNotFound(err) {
+				if k8serrors.IsNotFound(err) {
 					return nil, nil, fmt.Errorf("secret %s not found in namespace %s (controllerNamespace=%t)", ref.Name, secretNamespace, ref.ControllerNamespace)
 				}
 				return nil, nil, err
