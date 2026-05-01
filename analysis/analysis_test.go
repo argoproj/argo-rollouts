@@ -2622,7 +2622,7 @@ func TestResolveArgsUsesRunNamespaceByDefault(t *testing.T) {
 	}
 
 	c, _, _ := f.newController(noResyncPeriodFunc)
-	_, err := f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), runSecret, metav1.CreateOptions{})
+	_, _ = f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), runSecret, metav1.CreateOptions{})
 
 	args := []v1alpha1.Argument{
 		{
@@ -2669,7 +2669,7 @@ func TestResolveArgsUsesControllerNamespaceWhenEnabled(t *testing.T) {
 	}
 
 	c, _, _ := f.newController(noResyncPeriodFunc)
-	_, err := f.kubeclient.CoreV1().Secrets("argo-rollouts").Create(context.TODO(), controllerSecret, metav1.CreateOptions{})
+	_, _ = f.kubeclient.CoreV1().Secrets("argo-rollouts").Create(context.TODO(), controllerSecret, metav1.CreateOptions{})
 
 	args := []v1alpha1.Argument{
 		{

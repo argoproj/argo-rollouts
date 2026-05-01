@@ -82,6 +82,9 @@ spec:
                             stored. This field is one of the fields with valueFrom
                           properties:
                             controllerNamespace:
+                              description: |-
+                                ControllerNamespace indicates the secret should be read from the namespace
+                                where the argo-rollouts controller is deployed.
                               type: boolean
                             key:
                               description: Key is the key of the secret to select
@@ -8181,6 +8184,9 @@ spec:
                             stored. This field is one of the fields with valueFrom
                           properties:
                             controllerNamespace:
+                              description: |-
+                                ControllerNamespace indicates the secret should be read from the namespace
+                                where the argo-rollouts controller is deployed.
                               type: boolean
                             key:
                               description: Key is the key of the secret to select
@@ -16075,6 +16081,9 @@ spec:
                             stored. This field is one of the fields with valueFrom
                           properties:
                             controllerNamespace:
+                              description: |-
+                                ControllerNamespace indicates the secret should be read from the namespace
+                                where the argo-rollouts controller is deployed.
                               type: boolean
                             key:
                               description: Key is the key of the secret to select
@@ -23978,6 +23987,9 @@ spec:
                                   valueFrom
                                 properties:
                                   controllerNamespace:
+                                    description: |-
+                                      ControllerNamespace indicates the secret should be read from the namespace
+                                      where the argo-rollouts controller is deployed.
                                     type: boolean
                                   key:
                                     description: Key is the key of the secret to select
