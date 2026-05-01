@@ -21,7 +21,7 @@ Argo Rollout additionally uses the following tools
 
 - `golangci-lint` to lint the project.
 - `protoc` and `swagger-codegen` to generate proto related files
-- `yarn` to build the UI
+- `pnpm` to build the UI ([install via Corepack](https://nodejs.org/api/corepack.html): `corepack enable`)
 
 Run the following commands to install them:
 
@@ -153,8 +153,8 @@ In another terminal, run the following to start the UI:
 
 ```bash
 cd ui
-yarn install
-yarn start
+pnpm install
+pnpm start
 ```
 
 ## Getting your feature accepted 
