@@ -24,21 +24,37 @@ const config = {
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
         alias: {react: require.resolve('react')},
+        fallback: {
+            fs: false
+        },
     },
 
     module: {
         rules: [
             {
                 test: /\.tsx?$/,
-                loaders: [`ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./tsconfig.json')}`],
+                use: `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./tsconfig.json')}`,
             },
             {
                 test: /\.scss$/,
-                loader: 'style-loader!raw-loader!sass-loader',
+                use: [
+                    'style-loader',
+                    'raw-loader',
+                    {
+                        loader: 'sass-loader',
+                        options: {
+                            sassOptions: {
+                                includePaths: ['node_modules'],
+                                quietDeps: true,
+                                silenceDeprecations: ['import', 'legacy-js-api', 'global-builtin', 'color-functions', 'mixed-decls']
+                            }
+                        }
+                    }
+                ]
             },
             {
                 test: /\.css$/,
-                loader: 'style-loader!raw-loader',
+                use: ['style-loader','raw-loader'],
             },
             // https://github.com/fkhadra/react-toastify/issues/775#issuecomment-1149569290
             {
@@ -47,9 +63,6 @@ const config = {
                 type: "javascript/auto"
             },
         ],
-    },
-    node: {
-        fs: 'empty',
     },
     plugins: [
         new webpack.DefinePlugin({
