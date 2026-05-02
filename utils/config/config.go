@@ -70,10 +70,18 @@ func InitializeConfig(k8sClientset kubernetes.Interface, configMapName string) (
 		stepPlugins[i].Type = types.PluginTypeStep
 	}
 
+	var resourcePlugins []types.PluginItem
+	if err = yaml.Unmarshal([]byte(configMapCluster.Data["rolloutPlugins"]), &resourcePlugins); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal rollout plugins while initializing: %w", err)
+	}
+	for i := range resourcePlugins {
+		resourcePlugins[i].Type = types.PluginTypeResourcePlugin
+	}
+
 	mutex.Lock()
 	configMemoryCache = &Config{
 		configMap: configMapCluster,
-		plugins:   slices.Concat(trafficRouterPlugins, metricProviderPlugins, stepPlugins),
+		plugins:   slices.Concat(trafficRouterPlugins, metricProviderPlugins, stepPlugins, resourcePlugins),
 		lock:      &sync.RWMutex{},
 	}
 	mutex.Unlock()

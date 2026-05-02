@@ -366,3 +366,10 @@ func GetDescribeTagsLimit() int {
 func SetDescribeTagsLimit(limit int) {
 	defaultDescribeTagsLimit = limit
 }
+
+func GetRolloutPluginProgressDeadlineSecondsOrDefault(rolloutPlugin *v1alpha1.RolloutPlugin) int32 {
+	if rolloutPlugin.Spec.ProgressDeadlineSeconds != nil {
+		return *rolloutPlugin.Spec.ProgressDeadlineSeconds
+	}
+	return DefaultProgressDeadlineSeconds
+}

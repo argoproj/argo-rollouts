@@ -39578,6 +39578,20 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
+  - rolloutplugins
+  - rolloutplugins/status
+  - rolloutplugins/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
   - analysisruns
   - analysisruns/finalizers
   - experiments
@@ -39611,6 +39625,16 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
 - apiGroups:
   - ""
   - apps
@@ -39655,9 +39679,11 @@ rules:
   resources:
   - pods
   verbs:
+  - get
   - list
   - update
   - watch
+  - delete
 - apiGroups:
   - ""
   resources:
