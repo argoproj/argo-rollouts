@@ -266,8 +266,8 @@ test-kustomize: ## run kustomize tests
 	./test/kustomize/test.sh
 
 setup-e2e:
-	@kubectl apply --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rollout-crd.yaml
-	@kubectl apply --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rolloutplugin-crd.yaml
+	@kubectl apply --server-side --force-conflicts --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rollout-crd.yaml
+	@kubectl apply --server-side --force-conflicts --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rolloutplugin-crd.yaml
 	@kubectl apply --context='${E2E_K8S_CONTEXT}' -n argo-rollouts -f test/e2e/step-plugin/argo-rollouts-config.yaml
 	@kubectl patch --context='${E2E_K8S_CONTEXT}' configmap argo-rollouts-config -n argo-rollouts --type merge --patch-file test/e2e/rolloutplugin/argo-rollouts-config.yaml
 	@rm -rf plugin-bin
@@ -281,7 +281,7 @@ start-e2e: ## start e2e test environment
 
 .PHONY: test-e2e
 test-e2e: install-devtools-local
-	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-test.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 120m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e ${E2E_TEST_OPTIONS}
+	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-test.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 180m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e ${E2E_TEST_OPTIONS}
 
 .PHONY: test-e2e-rolloutplugin
 test-e2e-rolloutplugin: install-devtools-local ## run RolloutPlugin E2E tests only

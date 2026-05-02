@@ -83,19 +83,21 @@ type PluginConfig struct {
 	// Name of the plugin (e.g., "statefulset", "daemonset")
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 
-	// Verify enables plugin binary verification
+	// Verify enables plugin binary verification. Not yet implemented.
 	// +optional
 	Verify bool `json:"verify,omitempty" protobuf:"varint,2,opt,name=verify"`
 
-	// SHA256 is the expected checksum of the plugin binary
+	// SHA256 is the expected checksum of the plugin binary. Not yet implemented.
 	// +optional
 	SHA256 string `json:"sha256,omitempty" protobuf:"bytes,3,opt,name=sha256"`
 
-	// URL is the location to download the plugin binary
+	// URL is reserved for future use. Plugin binary location is configured via the
+	// argo-rollouts-config ConfigMap under the 'rolloutPlugins' key, not here.
 	// +optional
 	URL string `json:"url,omitempty" protobuf:"bytes,4,opt,name=url"`
 
-	// Config contains plugin-specific configuration as key-value pairs
+	// Config is reserved for future use as plugin-specific configuration key-value pairs.
+	// Not implemented.
 	// +optional
 	Config map[string]string `json:"config,omitempty" protobuf:"bytes,5,rep,name=config"`
 }
@@ -103,7 +105,12 @@ type PluginConfig struct {
 // RolloutPluginStrategy defines the strategy for the rollout
 // Only canary strategy is supported for RolloutPlugin
 type RolloutPluginStrategy struct {
-	// Canary strategy configuration (reuses existing CanaryStrategy type)
+	// Canary strategy configuration. Uses the shared CanaryStrategy type, but only the
+	// following fields are observed by the RolloutPlugin controller:
+	//   - steps (setWeight, pause, analysis)
+	//   - analysis (background analysis)
+	// All other CanaryStrategy fields (traffic routing, service names, ReplicaSet scaling, etc.)
+	// are ignored and have no effect on RolloutPlugin behaviour.
 	// +optional
 	Canary *CanaryStrategy `json:"canary,omitempty" protobuf:"bytes,2,opt,name=canary"`
 }
@@ -181,7 +188,8 @@ type RolloutPluginStatus struct {
 	// +optional
 	Conditions []RolloutPluginCondition `json:"conditions,omitempty" protobuf:"bytes,13,rep,name=conditions"`
 
-	// PluginStatus contains plugin-specific status information
+	// PluginStatus is reserved for future use as plugin-specific status key-value pairs.
+	// Not implemented.
 	// +optional
 	PluginStatus map[string]string `json:"pluginStatus,omitempty" protobuf:"bytes,14,rep,name=pluginStatus"`
 

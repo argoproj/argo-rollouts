@@ -82,6 +82,7 @@ nav:
     - generated/notification-services/googlechat.md
     - generated/notification-services/grafana.md
     - generated/notification-services/mattermost.md
+    - generated/notification-services/nats.md
     - generated/notification-services/newrelic.md
     - generated/notification-services/opsgenie.md
     - generated/notification-services/overview.md
@@ -90,6 +91,7 @@ nav:
     - generated/notification-services/pushover.md
     - generated/notification-services/rocketchat.md
     - generated/notification-services/slack.md
+    - generated/notification-services/teams-workflows.md
     - generated/notification-services/teams.md
     - generated/notification-services/telegram.md
     - generated/notification-services/webex.md

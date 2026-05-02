@@ -3628,28 +3628,28 @@ func schema_pkg_apis_rollouts_v1alpha1_PluginConfig(ref common.ReferenceCallback
 					},
 					"verify": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Verify enables plugin binary verification",
+							Description: "Verify enables plugin binary verification. Not yet implemented.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"sha256": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SHA256 is the expected checksum of the plugin binary",
+							Description: "SHA256 is the expected checksum of the plugin binary. Not yet implemented.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"url": {
 						SchemaProps: spec.SchemaProps{
-							Description: "URL is the location to download the plugin binary",
+							Description: "URL is reserved for future use. Plugin binary location is configured via the argo-rollouts-config ConfigMap under the 'rolloutPlugins' key, not here.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Config contains plugin-specific configuration as key-value pairs",
+							Description: "Config is reserved for future use as plugin-specific configuration key-value pairs. Not implemented.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
@@ -4913,7 +4913,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStatus(ref common.ReferenceC
 					},
 					"pluginStatus": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PluginStatus contains plugin-specific status information",
+							Description: "PluginStatus is reserved for future use as plugin-specific status key-value pairs. Not implemented.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
@@ -5005,7 +5005,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStrategy(ref common.Referenc
 				Properties: map[string]spec.Schema{
 					"canary": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Canary strategy configuration (reuses existing CanaryStrategy type)",
+							Description: "Canary strategy configuration. Uses the shared CanaryStrategy type, but only the following fields are observed by the RolloutPlugin controller:\n  - steps (setWeight, pause, analysis)\n  - analysis (background analysis)\nAll other CanaryStrategy fields (traffic routing, service names, ReplicaSet scaling, etc.) are ignored and have no effect on RolloutPlugin behaviour.",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy"),
 						},
 					},

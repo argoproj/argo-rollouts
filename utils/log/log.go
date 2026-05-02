@@ -111,12 +111,15 @@ func WithAnalysisRun(ar *v1alpha1.AnalysisRun) *log.Entry {
 
 // WithRedactor returns a log entry with the inputted secret values redacted
 func WithRedactor(entry log.Entry, secrets []string) *log.Entry {
-	newFormatter := RedactorFormatter{
-		entry.Logger.Formatter,
-		secrets,
-	}
-	entry.Logger.SetFormatter(&newFormatter)
-	return &entry
+	newLogger := log.New()
+	newLogger.SetOutput(entry.Logger.Out)
+	newLogger.SetLevel(entry.Logger.Level)
+	newLogger.SetFormatter(&RedactorFormatter{
+		formatter: entry.Logger.Formatter,
+		secrets:   secrets,
+	})
+	newEntry := newLogger.WithFields(entry.Data)
+	return newEntry
 }
 
 func WithVersionFields(entry *log.Entry, r *v1alpha1.Rollout) *log.Entry {
