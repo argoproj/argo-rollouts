@@ -1219,19 +1219,21 @@ message PluginConfig {
   // Name of the plugin (e.g., "statefulset", "daemonset")
   optional string name = 1;
 
-  // Verify enables plugin binary verification
+  // Verify enables plugin binary verification. Not yet implemented.
   // +optional
   optional bool verify = 2;
 
-  // SHA256 is the expected checksum of the plugin binary
+  // SHA256 is the expected checksum of the plugin binary. Not yet implemented.
   // +optional
   optional string sha256 = 3;
 
-  // URL is the location to download the plugin binary
+  // URL is reserved for future use. Plugin binary location is configured via the
+  // argo-rollouts-config ConfigMap under the 'rolloutPlugins' key, not here.
   // +optional
   optional string url = 4;
 
-  // Config contains plugin-specific configuration as key-value pairs
+  // Config is reserved for future use as plugin-specific configuration key-value pairs.
+  // Not implemented.
   // +optional
   map<string, string> config = 5;
 }
@@ -1630,7 +1632,8 @@ message RolloutPluginStatus {
   // +optional
   repeated RolloutPluginCondition conditions = 13;
 
-  // PluginStatus contains plugin-specific status information
+  // PluginStatus is reserved for future use as plugin-specific status key-value pairs.
+  // Not implemented.
   // +optional
   map<string, string> pluginStatus = 14;
 
@@ -1677,7 +1680,12 @@ message RolloutPluginStatus {
 // RolloutPluginStrategy defines the strategy for the rollout
 // Only canary strategy is supported for RolloutPlugin
 message RolloutPluginStrategy {
-  // Canary strategy configuration (reuses existing CanaryStrategy type)
+  // Canary strategy configuration. Uses the shared CanaryStrategy type, but only the
+  // following fields are observed by the RolloutPlugin controller:
+  //   - steps (setWeight, pause, analysis)
+  //   - analysis (background analysis)
+  // All other CanaryStrategy fields (traffic routing, service names, ReplicaSet scaling, etc.)
+  // are ignored and have no effect on RolloutPlugin behaviour.
   // +optional
   optional CanaryStrategy canary = 2;
 }

@@ -92,8 +92,8 @@ Start and prepare your cluster for e2e tests:
 ```
 k3d cluster create
 kubectl create ns argo-rollouts
-kubectl apply -k manifests/crds
-kubectl apply -f test/e2e/crds
+kubectl apply --server-side -k manifests/crds
+kubectl apply --server-side -f test/e2e/crds
 ```
 
 The rollout controller can be started with the command:
