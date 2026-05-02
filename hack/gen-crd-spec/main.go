@@ -41,6 +41,7 @@ var crdPaths = map[string]string{
 	"AnalysisTemplate":        "manifests/crds/analysis-template-crd.yaml",
 	"ClusterAnalysisTemplate": "manifests/crds/cluster-analysis-template-crd.yaml",
 	"AnalysisRun":             "manifests/crds/analysis-run-crd.yaml",
+	"RolloutPlugin":           "manifests/crds/rollout-plugin-crd.yaml",
 }
 
 func setValidationOverride(un *unstructured.Unstructured, fieldOverride map[string]any, path string) {
@@ -216,6 +217,8 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 			analysisJobValidated = append(analysisJobValidated, v)
 		}
 		unstructured.SetNestedSlice(un.Object, analysisJobValidated, prePath...)
+	case "RolloutPlugin":
+		// RolloutPlugin doesn't have embedded pod specs, so no metadata validation overrides needed
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}
@@ -254,6 +257,8 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 		// Replace this with "spec.metrics[].provider.job.spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
 		// when it's ok to only support k8s 1.17+
 		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.volumes")
+	case "RolloutPlugin":
+		// RolloutPlugin references workloads but doesn't embed pod specs, so no resource overrides needed
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}
