@@ -217,6 +217,16 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		newStatus.ControllerPause = false
 		pCtx.ClearPauseConditions()
 		newStatus.Message = "Full promotion in progress"
+		// Clear manual pause (spec.paused) if set, so the rollout can proceed
+		if rolloutPlugin.Spec.Paused {
+			logCtx.Info("Clearing spec.paused as part of PromoteFull")
+			patch := client.MergeFrom(rolloutPlugin.DeepCopy())
+			rolloutPlugin.Spec.Paused = false
+			if err := r.Patch(ctx, rolloutPlugin, patch); err != nil {
+				logCtx.WithError(err).Error("Failed to clear spec.paused during PromoteFull")
+				return ctrl.Result{}, err
+			}
+		}
 	} else if rolloutPlugin.Spec.Paused {
 		// Check if spec.paused is set (manual pause)
 		if newStatus.Phase != v1alpha1.RolloutPluginPhasePaused {
