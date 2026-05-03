@@ -121,15 +121,14 @@ metadata:
 spec:
   args:
   - name: url-val
-    value: "https://kubernetes.default.svc/version"
+    value: "https://dns.google/resolve?name=google.com"
   metrics:
   - name: web
     interval: 5s
-    successCondition: result.major == '1'
+    successCondition: result.Status == 0
     provider:
       web:
         url: "{{args.url-val}}"
-        insecure: true
 `)
 	s.ApplyManifests(`
 apiVersion: argoproj.io/v1alpha1
@@ -139,16 +138,16 @@ metadata:
 spec:
   args:
   - name: url-val
-    value: "https://kubernetes.default.svc/version"
+    value: "https://dns.google/resolve?name=google.com"
   metrics:
   - name: web
     interval: 5s
     failureLimit: 0
-    successCondition: result.major == '999'
+    successCondition: result.Status == 999
+    failureCondition: result.Status == 0
     provider:
       web:
         url: "{{args.url-val}}"
-        insecure: true
 `)
 	s.ApplyManifests(`
 apiVersion: argoproj.io/v1alpha1
@@ -186,16 +185,17 @@ metadata:
 spec:
   args:
   - name: url-val
-    value: "https://kubernetes.default.svc/version"
+    value: "https://dns.google/resolve?name=google.com"
   metrics:
   - name: web
-    count: 1
-    successCondition: result.major == '999'
-    failureCondition: result.major == '998'
+    count: 2
+    interval: 5s
+    inconclusiveLimit: 1
+    successCondition: result.Status == 999
+    failureCondition: result.Status == -1
     provider:
       web:
         url: "{{args.url-val}}"
-        insecure: true
 `)
 }
 
@@ -1021,7 +1021,7 @@ spec:
         startingStep: 0
         args:
         - name: url-val
-          value: "https://kubernetes.default.svc/version"
+          value: "https://dns.google/resolve?name=google.com"
       steps:
       - setWeight: 50
       - pause: {}
@@ -1096,7 +1096,7 @@ spec:
         startingStep: 0
         args:
         - name: url-val
-          value: "https://kubernetes.default.svc/version"
+          value: "https://dns.google/resolve?name=google.com"
       steps:
       - setWeight: 50
       - pause: {duration: 300s}
@@ -1297,7 +1297,7 @@ spec:
         startingStep: 0
         args:
         - name: url-val
-          value: "https://kubernetes.default.svc/version"
+          value: "https://dns.google/resolve?name=google.com"
       steps:
       - setWeight: 50
       - pause: {}
@@ -1371,7 +1371,7 @@ spec:
           - templateName: rp-web-background-inconclusive
           args:
           - name: url-val
-            value: "https://kubernetes.default.svc/version"
+            value: "https://dns.google/resolve?name=google.com"
       - pause: {}
 ---
 apiVersion: apps/v1
