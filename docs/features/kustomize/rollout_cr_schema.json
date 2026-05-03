@@ -30436,6 +30436,155 @@
                     "version": "v1alpha1"
                 }
             ]
+        },
+        "io.argoproj.v1alpha1.RolloutPlugin": {
+            "properties": {
+                "spec": {
+                    "description": "RolloutPluginSpec is the spec for a RolloutPlugin resource",
+                    "properties": {
+                        "strategy": {
+                            "description": "Strategy defines the deployment strategy",
+                            "properties": {
+                                "canary": {
+                                    "description": "Canary strategy configuration. Uses the shared CanaryStrategy type, but only the\nfollowing fields are observed by the RolloutPlugin controller:\n  - steps (setWeight, pause, analysis)\n  - analysis (background analysis)\nAll other CanaryStrategy fields (traffic routing, service names, ReplicaSet scaling, etc.)\nare ignored and have no effect on RolloutPlugin behaviour.",
+                                    "properties": {
+                                        "analysis": {
+                                            "description": "Analysis runs a separate analysisRun while all the steps execute. This is intended to be a continuous validation of the new ReplicaSet",
+                                            "properties": {
+                                                "args": {
+                                                    "description": "Args the arguments that will be added to the AnalysisRuns",
+                                                    "items": {
+                                                        "description": "AnalysisRunArgument argument to add to analysisRun",
+                                                        "properties": {
+                                                            "name": {
+                                                                "description": "Name argument name",
+                                                                "type": "string"
+                                                            },
+                                                            "value": {
+                                                                "description": "Value a hardcoded value for the argument. This field is a one of field with valueFrom",
+                                                                "type": "string"
+                                                            },
+                                                            "valueFrom": {
+                                                                "description": "ValueFrom A reference to where the value is stored. This field is a one of field with valueFrom",
+                                                                "properties": {
+                                                                    "fieldRef": {
+                                                                        "description": "FieldRef",
+                                                                        "properties": {
+                                                                            "fieldPath": {
+                                                                                "description": "Required: Path of the field to select in the specified API version",
+                                                                                "type": "string"
+                                                                            }
+                                                                        },
+                                                                        "required": [
+                                                                            "fieldPath"
+                                                                        ],
+                                                                        "type": "object"
+                                                                    },
+                                                                    "podTemplateHashValue": {
+                                                                        "description": "PodTemplateHashValue gets the value from one of the children ReplicaSet's Pod Template Hash",
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "name",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "dryRun": {
+                                                    "description": "DryRun object contains the settings for running the analysis in Dry-Run mode",
+                                                    "items": {
+                                                        "description": "DryRun defines the settings for running the analysis in Dry-Run mode.",
+                                                        "properties": {
+                                                            "metricName": {
+                                                                "description": "Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all\nthe available metrics.",
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "measurementRetention": {
+                                                    "description": "MeasurementRetention object contains the settings for retaining the number of measurements during the analysis",
+                                                    "items": {
+                                                        "description": "MeasurementRetention defines the settings for retaining the number of measurements during the analysis.",
+                                                        "properties": {
+                                                            "limit": {
+                                                                "description": "Limit is the maximum number of measurements to be retained for this given metric.",
+                                                                "format": "int32",
+                                                                "type": "integer"
+                                                            },
+                                                            "metricName": {
+                                                                "description": "MetricName is the name of the metric on which this retention policy should be applied.",
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "limit",
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "templates": {
+                                                    "description": "Templates reference to a list of analysis templates to combine for an AnalysisRun",
+                                                    "items": {
+                                                        "properties": {
+                                                            "clusterScope": {
+                                                                "description": "Whether to look for the templateName at cluster scope or namespace scope",
+                                                                "type": "boolean"
+                                                            },
+                                                            "templateName": {
+                                                                "description": "TemplateName name of template to use in AnalysisRun",
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "templateName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "required": [
+                        "plugin",
+                        "strategy",
+                        "workloadRef"
+                    ],
+                    "type": "object"
+                }
+            },
+            "x-kubernetes-group-version-kind": [
+                {
+                    "group": "argoproj.io",
+                    "kind": "RolloutPlugin",
+                    "version": "v1alpha1"
+                }
+            ]
         }
     }
 }

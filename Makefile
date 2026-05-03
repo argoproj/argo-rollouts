@@ -217,6 +217,7 @@ plugin-windows: ui/dist  ## build plugin for windows
 controller: ## build controller binary
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
 
+
 .PHONY: builder-image
 builder-image: ## build builder image
 	DOCKER_BUILDKIT=1 docker build  -t $(IMAGE_PREFIX)argo-rollouts-ci-builder:$(IMAGE_TAG) --target builder .
@@ -226,6 +227,7 @@ builder-image: ## build builder image
 image:
 ifeq ($(DEV_IMAGE), true)
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/step-plugin-e2e-linux-amd64 ./test/cmd/step-plugin-e2e
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/resource-plugin-e2e-linux-amd64 ./test/cmd/resource-plugin-e2e
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller-linux-amd64 ./cmd/rollouts-controller
 	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) -f Dockerfile.dev ${DIST_DIR}
 else
@@ -265,18 +267,25 @@ test-kustomize: ## run kustomize tests
 
 setup-e2e:
 	@kubectl apply --server-side --force-conflicts --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rollout-crd.yaml
+	@kubectl apply --server-side --force-conflicts --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rolloutplugin-crd.yaml
 	@kubectl apply --context='${E2E_K8S_CONTEXT}' -n argo-rollouts -f test/e2e/step-plugin/argo-rollouts-config.yaml
+	@kubectl patch --context='${E2E_K8S_CONTEXT}' configmap argo-rollouts-config -n argo-rollouts --type merge --patch-file test/e2e/rolloutplugin/argo-rollouts-config.yaml
 	@rm -rf plugin-bin
 	@go build -gcflags="all=-N -l" -o plugin-bin/e2e-step-plugin test/cmd/step-plugin-e2e/main.go
+	@go build -gcflags="all=-N -l" -o plugin-bin/e2e-resource-plugin test/cmd/resource-plugin-e2e/main.go
 
 .PHONY: start-e2e
 start-e2e: ## start e2e test environment
 	mkdir -p coverage-output-e2e
-	GOCOVERDIR=coverage-output-e2e go run -cover ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6
+	GOCOVERDIR=coverage-output-e2e go run -cover ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6 --controllers=rolloutplugin
 
 .PHONY: test-e2e
 test-e2e: install-devtools-local
-	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-test.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e ${E2E_TEST_OPTIONS}
+	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-test.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 180m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e ${E2E_TEST_OPTIONS}
+
+.PHONY: test-e2e-rolloutplugin
+test-e2e-rolloutplugin: install-devtools-local ## run RolloutPlugin E2E tests only
+	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-rolloutplugin-test.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e -run 'TestRolloutPluginSuite' $${E2E_TEST_OPTIONS}
 
 .PHONY: test-unit
  test-unit: install-devtools-local ## run unit tests

@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/cache"
@@ -46,8 +47,8 @@ type When struct {
 func (w *When) ApplyManifests(yaml ...string) *When {
 	var objects []*unstructured.Unstructured
 	if len(yaml) == 0 {
-		if w.rollout == nil {
-			w.t.Fatal("No rollout to create")
+		if w.rollout == nil && w.rolloutPlugin == nil {
+			w.t.Fatal("No rollout or rolloutplugin to create")
 		}
 		objects = w.objects
 	} else {
@@ -55,6 +56,10 @@ func (w *When) ApplyManifests(yaml ...string) *When {
 	}
 	for _, obj := range objects {
 		if obj.GetKind() == "Rollout" {
+			w.injectDelays(obj)
+			w.injectImagePrefix(obj)
+		}
+		if obj.GetKind() == "StatefulSet" {
 			w.injectDelays(obj)
 			w.injectImagePrefix(obj)
 		}
@@ -846,4 +851,390 @@ func (w *When) Given() *Given {
 	return &Given{
 		Common: w.Common,
 	}
+}
+
+// RolloutPlugin Methods
+
+// UpdateStatefulSetImage updates the StatefulSet's container image to trigger a rollout
+func (w *When) UpdateStatefulSetImage(image string) *When {
+	if w.statefulSet == nil {
+		w.t.Fatal("StatefulSet not set")
+	}
+	patchBytes := []byte(fmt.Sprintf(`{"spec":{"template":{"spec":{"containers":[{"name":"busybox","image":"%s"}]}}}}`, image))
+	_, err := w.kubeClient.AppsV1().StatefulSets(w.namespace).Patch(w.Context, w.statefulSet.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	w.CheckError(err)
+	w.log.Infof("Updated StatefulSet image to: %s", image)
+	return w
+}
+
+// SetStatefulSetAnnotation sets an annotation on the StatefulSet
+func (w *When) SetStatefulSetAnnotation(key, value string) *When {
+	if w.statefulSet == nil {
+		w.t.Fatal("StatefulSet not set")
+	}
+	patchBytes := []byte(fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%s"}}}`, key, value))
+	_, err := w.kubeClient.AppsV1().StatefulSets(w.namespace).Patch(w.Context, w.statefulSet.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	w.CheckError(err)
+	w.log.Infof("Set StatefulSet annotation %s=%s", key, value)
+	return w
+}
+
+// WaitForStatefulSetReady waits for all StatefulSet pods to be ready
+func (w *When) WaitForStatefulSetReady(timeouts ...time.Duration) *When {
+	if w.statefulSet == nil {
+		w.t.Fatal("StatefulSet not set")
+	}
+	timeout := E2EWaitTimeout
+	if len(timeouts) > 0 {
+		timeout = timeouts[0]
+	}
+	start := time.Now()
+	w.log.Infof("Waiting for StatefulSet %s to be ready", w.statefulSet.GetName())
+
+	err := wait.PollUntilContextTimeout(w.Context, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		sts, err := w.kubeClient.AppsV1().StatefulSets(w.namespace).Get(ctx, w.statefulSet.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+		desired := int32(1)
+		if sts.Spec.Replicas != nil {
+			desired = *sts.Spec.Replicas
+		}
+		ready := sts.Status.ReadyReplicas >= desired
+		if !ready {
+			w.log.Infof("StatefulSet %s: %d/%d pods ready", w.statefulSet.GetName(), sts.Status.ReadyReplicas, desired)
+		}
+		return ready, nil
+	})
+	if err != nil {
+		w.t.Fatalf("Timeout waiting for StatefulSet %s to be ready after %v", w.statefulSet.GetName(), timeout)
+	}
+	w.log.Infof("StatefulSet %s is ready (took %v)", w.statefulSet.GetName(), time.Since(start))
+	return w
+}
+
+// WaitForStatefulSetPartition waits for the StatefulSet's partition to reach the expected value
+func (w *When) WaitForStatefulSetPartition(expectedPartition int32, timeouts ...time.Duration) *When {
+	if w.statefulSet == nil {
+		w.t.Fatal("StatefulSet not set")
+	}
+	timeout := E2EWaitTimeout
+	if len(timeouts) > 0 {
+		timeout = timeouts[0]
+	}
+	start := time.Now()
+	w.log.Infof("Waiting for StatefulSet %s partition to be %d", w.statefulSet.GetName(), expectedPartition)
+
+	err := wait.PollUntilContextTimeout(w.Context, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		sts, err := w.kubeClient.AppsV1().StatefulSets(w.namespace).Get(ctx, w.statefulSet.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+		var actualPartition int32 = 0
+		if sts.Spec.UpdateStrategy.RollingUpdate != nil && sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
+			actualPartition = *sts.Spec.UpdateStrategy.RollingUpdate.Partition
+		}
+		if actualPartition != expectedPartition {
+			w.log.Infof("StatefulSet %s: partition %d (waiting for %d)", w.statefulSet.GetName(), actualPartition, expectedPartition)
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		w.t.Fatalf("Timeout waiting for StatefulSet %s partition to be %d after %v", w.statefulSet.GetName(), expectedPartition, timeout)
+	}
+	w.log.Infof("StatefulSet %s partition is %d (took %v)", w.statefulSet.GetName(), expectedPartition, time.Since(start))
+	return w
+}
+
+// WaitForRolloutPluginStatus waits for RolloutPlugin to reach the specified status/phase
+func (w *When) WaitForRolloutPluginStatus(status rov1.RolloutPluginPhase, timeouts ...time.Duration) *When {
+	checkStatus := func(rp *rov1.RolloutPlugin) bool {
+		return rp.Status.Phase == status
+	}
+	return w.WaitForRolloutPluginCondition(checkStatus, fmt.Sprintf("status=%s", status), timeouts...)
+}
+
+// WaitForRolloutPluginCanaryStepIndex waits for RolloutPlugin to reach the specified step index.
+func (w *When) WaitForRolloutPluginCanaryStepIndex(index int32, timeouts ...time.Duration) *When {
+	checkStatus := func(rp *rov1.RolloutPlugin) bool {
+		if rp.Status.CurrentStepIndex == nil || *rp.Status.CurrentStepIndex != index {
+			return false
+		}
+		//if this step is a pause step, also wait for Paused phase
+		if rp.Spec.Strategy.Canary != nil && int(*rp.Status.CurrentStepIndex) < len(rp.Spec.Strategy.Canary.Steps) {
+			step := rp.Spec.Strategy.Canary.Steps[*rp.Status.CurrentStepIndex]
+			if step.Pause != nil {
+				return rp.Status.Phase == rov1.RolloutPluginPhasePaused
+			}
+		}
+		return true
+	}
+	// Store reference to get actual step index on failure
+	var actualIndex *int32
+	timeout := E2EWaitTimeout
+	if len(timeouts) > 0 {
+		timeout = timeouts[0]
+	}
+
+	start := time.Now()
+	w.log.Infof("Waiting for RolloutPlugin condition: status.currentStepIndex=%d", index)
+
+	// Using a single typed Get for both the initial check AND the watch resourceVersion.
+	// This eliminates the race where a second Get returns a newer resourceVersion,
+	// causing the watch to miss events that occurred between the two Gets.
+	currentRP, err := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Get(w.Context, w.rolloutPlugin.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	if checkStatus(currentRP) {
+		w.log.Infof("RolloutPlugin condition 'status.currentStepIndex=%d' already met (no watch needed)", index)
+		return w
+	}
+	actualIndex = currentRP.Status.CurrentStepIndex
+
+	retryWatcher, err := watchutil.NewRetryWatcher(currentRP.ResourceVersion, &cache.ListWatch{
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", w.rolloutPlugin.GetName())).String()}
+			return w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Watch(w.Context, opts)
+		},
+	})
+	w.CheckError(err)
+	defer retryWatcher.Stop()
+
+	timeoutCh := make(chan bool, 1)
+	go func() {
+		time.Sleep(timeout)
+		timeoutCh <- true
+	}()
+	for {
+		select {
+		case event := <-retryWatcher.ResultChan():
+			rp, ok := event.Object.(*rov1.RolloutPlugin)
+			if ok {
+				actualIndex = rp.Status.CurrentStepIndex
+				if checkStatus(rp) {
+					w.log.Infof("RolloutPlugin condition 'status.currentStepIndex=%d' met after %v", index, time.Since(start).Truncate(time.Second))
+					return w
+				}
+			} else {
+				w.t.Fatal("not ok")
+			}
+		case <-timeoutCh:
+			if actualIndex != nil {
+				w.t.Fatalf("timeout after %v waiting for RolloutPlugin condition status.currentStepIndex=%d (actual: %d)", timeout, index, *actualIndex)
+			} else {
+				w.t.Fatalf("timeout after %v waiting for RolloutPlugin condition status.currentStepIndex=%d (actual: nil)", timeout, index)
+			}
+		}
+	}
+}
+
+// WaitForRolloutPluginCondition waits for a condition to be met on the RolloutPlugin
+func (w *When) WaitForRolloutPluginCondition(test func(rp *rov1.RolloutPlugin) bool, condition string, timeouts ...time.Duration) *When {
+	start := time.Now()
+	w.log.Infof("Waiting for RolloutPlugin condition: %s", condition)
+
+	// Using a single typed Get for both the initial check AND the watch resourceVersion.
+	// This eliminates the race where a second Get returns a newer resourceVersion,
+	// causing the watch to miss events that occurred between the two Gets.
+	currentRP, err := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Get(w.Context, w.rolloutPlugin.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	if test(currentRP) {
+		w.log.Infof("RolloutPlugin condition '%s' already met (no watch needed)", condition)
+		return w
+	}
+
+	retryWatcher, err := watchutil.NewRetryWatcher(currentRP.ResourceVersion, &cache.ListWatch{
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", w.rolloutPlugin.GetName())).String()}
+			return w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Watch(w.Context, opts)
+		},
+	})
+	w.CheckError(err)
+	defer retryWatcher.Stop()
+	timeout := E2EWaitTimeout
+	if len(timeouts) > 0 {
+		timeout = timeouts[0]
+	}
+	timeoutCh := make(chan bool, 1)
+	go func() {
+		time.Sleep(timeout)
+		timeoutCh <- true
+	}()
+	for {
+		select {
+		case event := <-retryWatcher.ResultChan():
+			rp, ok := event.Object.(*rov1.RolloutPlugin)
+			if ok {
+				if test(rp) {
+					w.log.Infof("RolloutPlugin condition '%s' met after %v", condition, time.Since(start).Truncate(time.Second))
+					return w
+				}
+			} else {
+				w.t.Fatal("not ok")
+			}
+		case <-timeoutCh:
+			w.t.Fatalf("timeout after %v waiting for RolloutPlugin condition %s", timeout, condition)
+		}
+	}
+}
+
+// AbortRolloutPlugin aborts the RolloutPlugin by setting status.abort=true
+func (w *When) AbortRolloutPlugin() *When {
+	if w.rolloutPlugin == nil {
+		w.t.Fatal("RolloutPlugin not set")
+	}
+	patchBytes := []byte(`{"status":{"abort":true}}`)
+	_, err := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	w.CheckError(err)
+	w.log.Info("Aborted RolloutPlugin")
+	return w
+}
+
+// RestartRolloutPlugin triggers a restart of the RolloutPlugin by setting status.restart=true
+func (w *When) RestartRolloutPlugin() *When {
+	if w.rolloutPlugin == nil {
+		w.t.Fatal("RolloutPlugin not set")
+	}
+	patchBytes := []byte(`{"status":{"restart":true}}`)
+	_, err := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	w.CheckError(err)
+	w.log.Info("Triggered restart for RolloutPlugin")
+	return w
+}
+
+// PromoteRolloutPlugin promotes the RolloutPlugin (advances past current step pause)
+// Clears pauseConditions via status subresource so controller detects
+// controllerPause=true && pauseConditions=nil → step completed.
+func (w *When) PromoteRolloutPlugin() *When {
+	if w.rolloutPlugin == nil {
+		w.t.Fatal("RolloutPlugin not set")
+	}
+	w.waitForRolloutPluginPauseConditionsSet()
+	patchBytes := []byte(`{"status":{"pauseConditions":null}}`)
+	_, err := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	w.CheckError(err)
+	w.log.Info("Promoted RolloutPlugin")
+	return w
+}
+
+// PromoteRolloutPluginFull promotes the RolloutPlugin to full (skips remaining steps)
+func (w *When) PromoteRolloutPluginFull() *When {
+	if w.rolloutPlugin == nil {
+		w.t.Fatal("RolloutPlugin not set")
+	}
+	w.waitForRolloutPluginPauseConditionsSet()
+	patchBytes := []byte(`{"status":{"promoteFull":true}}`)
+	_, err := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+	w.CheckError(err)
+	w.log.Info("Promoted RolloutPlugin to full")
+	return w
+}
+
+// PauseRolloutPlugin pauses the RolloutPlugin
+func (w *When) PauseRolloutPlugin() *When {
+	if w.rolloutPlugin == nil {
+		w.t.Fatal("RolloutPlugin not set")
+	}
+	patchBytes := []byte(`{"spec":{"paused":true}}`)
+	_, err := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	w.CheckError(err)
+	w.log.Info("Paused RolloutPlugin")
+	return w
+}
+
+func (w *When) ResumeRolloutPlugin() *When {
+	if w.rolloutPlugin == nil {
+		w.t.Fatal("RolloutPlugin not set")
+	}
+	// Clear spec.paused (for manual pause)
+	specPatchBytes := []byte(`{"spec":{"paused":false}}`)
+	_, err := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, specPatchBytes, metav1.PatchOptions{})
+	w.CheckError(err)
+	// Clear pauseConditions (for step pauses)
+	statusPatchBytes := []byte(`{"status":{"pauseConditions":null}}`)
+	_, err = w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, statusPatchBytes, metav1.PatchOptions{}, "status")
+	w.CheckError(err)
+	w.log.Info("Resumed RolloutPlugin")
+	return w
+}
+
+// waitForRolloutPluginPauseConditionsSet waits for the controller to finish setting up the pause state.
+// This ensures pauseConditions is populated when controllerPause is true, which indicates
+// the controller has completed its reconciliation and is ready for a promote.
+func (w *When) waitForRolloutPluginPauseConditionsSet() {
+	rpIf := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace)
+	ctx, cancel := context.WithTimeout(w.Context, 30*time.Second)
+	defer cancel()
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (bool, error) {
+		rp, err := rpIf.Get(ctx, w.rolloutPlugin.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+		if rp.Status.ControllerPause && len(rp.Status.PauseConditions) == 0 {
+			return false, nil
+		}
+		return true, nil
+	})
+	w.CheckError(err)
+}
+
+// WaitForRolloutPluginBackgroundAnalysisRunPhase waits for RolloutPlugin background analysis run to reach a phase
+func (w *When) WaitForRolloutPluginBackgroundAnalysisRunPhase(phase string) *When {
+	var arun *rov1.AnalysisRun
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		aruns := w.GetRolloutPluginAnalysisRuns()
+		for i, ar := range aruns.Items {
+			if ar.Labels[rov1.RolloutTypeLabel] == rov1.RolloutTypeBackgroundRunLabel {
+				arun = &aruns.Items[i]
+				break
+			}
+		}
+		if arun != nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			w.t.Fatal("RolloutPlugin background AnalysisRun not found")
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+}
+
+// WaitForRolloutPluginInlineAnalysisRunPhase waits for RolloutPlugin inline (step) analysis run to reach a phase
+func (w *When) WaitForRolloutPluginInlineAnalysisRunPhase(phase string) *When {
+	// Poll for the AR to appear since there can be a race between step index advancement and AR creation
+	var arun *rov1.AnalysisRun
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		aruns := w.GetRolloutPluginAnalysisRuns()
+		for i, ar := range aruns.Items {
+			if ar.Labels[rov1.RolloutTypeLabel] == rov1.RolloutTypeStepLabel {
+				if arun == nil || ar.CreationTimestamp.After(arun.CreationTimestamp.Time) {
+					arun = &aruns.Items[i]
+				}
+			}
+		}
+		if arun != nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			w.t.Fatal("RolloutPlugin inline AnalysisRun not found")
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+}
+
+// PatchRolloutPluginSpec patches the RolloutPlugin spec using a YAML merge patch.
+func (w *When) PatchRolloutPluginSpec(patchYaml string) *When {
+	if w.rolloutPlugin == nil {
+		w.t.Fatal("RolloutPlugin not set")
+	}
+	patchJSON, err := yaml.YAMLToJSON([]byte(patchYaml))
+	w.CheckError(err)
+	_, err = w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, patchJSON, metav1.PatchOptions{})
+	w.CheckError(err)
+	w.log.Infof("Patched RolloutPlugin spec")
+	return w
 }
