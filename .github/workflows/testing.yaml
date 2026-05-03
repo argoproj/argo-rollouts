@@ -45,11 +45,13 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v6
 
-      - name: Restore go build cache
+      - name: Restore go build and module cache
         uses: actions/cache@v5
         with:
-          path: ~/.cache/go-build
-          key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
 
       - name: Download all Go modules
         run: |
