@@ -315,7 +315,7 @@ spec:
         # Sets header based route with specified header values
         # Setting header based route will send all traffic to the canary for the requests
         # with a specified header, in this case request header "version":"2"
-        # (supported only with trafficRouting, for Istio only at the moment)
+        # (supported only with trafficRouting, for Istio only at the moment and any supported Gateway API providers via the plugin)
         - setHeaderRoute:
             # Name of the route that will be created by argo rollouts this must also be configured
             # in spec.strategy.canary.trafficRouting.managedRoutes
