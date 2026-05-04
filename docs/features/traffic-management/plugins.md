@@ -98,3 +98,15 @@ If you have created a plugin, please submit a PR to add it to this list.
 ### [Gateway API](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/)
 
 - Provide support for Gateway API, which includes Kuma, Traefix, cilium, Contour, GloodMesh, HAProxy, and [many others](https://gateway-api.sigs.k8s.io/implementations/#implementation-status).
+
+### [Gloo Edge](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-glooedge)
+
+- A plugin that enables canary rollouts via Gloo Edge by updating route weights on Gloo `VirtualService` resources.
+
+### [Gloo Platform](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-glooplatform)
+
+- A plugin that enables canary rollouts via Gloo Platform.
+
+### [OpenShift Route](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-openshift)
+
+- A plugin that allows argo-rollouts to manage traffic shaping using OpenShift Routes.
