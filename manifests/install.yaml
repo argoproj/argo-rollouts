@@ -7672,6 +7672,8 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            caPath:
+                              type: string
                             headers:
                               description: Headers are optional HTTP headers to use
                                 in the request
@@ -15741,6 +15743,8 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            caPath:
+                              type: string
                             headers:
                               description: Headers are optional HTTP headers to use
                                 in the request
@@ -23605,6 +23609,8 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            caPath:
+                              type: string
                             headers:
                               description: Headers are optional HTTP headers to use
                                 in the request
