@@ -27,15 +27,16 @@ RUN cd ${GOPATH}/src/dummy && \
 FROM --platform=$BUILDPLATFORM docker.io/library/node:18 AS argo-rollouts-ui
 
 WORKDIR /src
-ADD ["ui/package.json", "ui/yarn.lock", "./"]
+RUN corepack enable
+ADD ["ui/package.json", "ui/pnpm-lock.yaml", "./"]
 
-RUN yarn install --network-timeout 300000
+RUN pnpm install --frozen-lockfile
 
 ADD ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
-RUN NODE_ENV='production' yarn build
+RUN NODE_ENV='production' pnpm run build
 
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
@@ -55,7 +56,7 @@ COPY --from=argo-rollouts-ui /src/dist/app ./ui/dist/app
 # Perform the build
 COPY . .
 
-# stop make from trying to re-build this without yarn installed
+# stop make from trying to re-build this without node_modules present
 RUN touch ui/dist/node_modules.marker && \
     mkdir -p ui/dist/app && \
     touch ui/dist/app/index.html && \
