@@ -76,6 +76,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [Ubie](https://ubie.life/)
 1. [UiPath](https://uipath.com)
+1. [Unity](https://unity.com)
 1. [Verkada](https://verkada.com)
 1. [VGS](https://www.vgs.io)
 1. [VISITS Technologies](https://visits.world/en)
