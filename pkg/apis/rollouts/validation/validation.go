@@ -309,6 +309,11 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		}
 	}
 
+	if canary.Steps == nil || len(canary.Steps) == 0 {
+		message := "Canary strategy requires at least one step in spec.strategy.canary.steps"
+		allErrs = append(allErrs, field.Required(fldPath.Child("steps"), message))
+	}
+
 	for i, step := range canary.Steps {
 		stepFldPath := fldPath.Child("steps").Index(i)
 		allErrs = append(allErrs, hasMultipleStepsType(step, stepFldPath)...)
