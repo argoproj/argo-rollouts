@@ -269,15 +269,23 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 		//if secret specified in valueFrom, replace value with secret value
 		//error if arg has both value and valueFrom
 		if arg.ValueFrom != nil && arg.ValueFrom.SecretKeyRef != nil {
-			name := arg.ValueFrom.SecretKeyRef.Name
-			secret, err := c.kubeclientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			ref := arg.ValueFrom.SecretKeyRef
+			secretNamespace := namespace
+			if ref.ControllerNamespace {
+				secretNamespace = defaults.Namespace()
+			}
+
+			secret, err := c.kubeclientset.CoreV1().Secrets(secretNamespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, nil, fmt.Errorf("secret %s not found in namespace %s (controllerNamespace=%t)", ref.Name, secretNamespace, ref.ControllerNamespace)
+				}
 				return nil, nil, err
 			}
 
-			secretContentBytes, ok := secret.Data[arg.ValueFrom.SecretKeyRef.Key]
+			secretContentBytes, ok := secret.Data[ref.Key]
 			if !ok {
-				err := fmt.Errorf("key '%s' does not exist in secret '%s'", arg.ValueFrom.SecretKeyRef.Key, arg.ValueFrom.SecretKeyRef.Name)
+				err := fmt.Errorf("key '%s' does not exist in secret '%s'", ref.Key, ref.Name)
 				return nil, nil, err
 			}
 			secretContent := string(secretContentBytes)

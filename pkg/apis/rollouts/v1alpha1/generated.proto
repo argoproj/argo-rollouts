@@ -1755,6 +1755,10 @@ message SecretKeyRef {
 
   // Key is the key of the secret to select from.
   optional string key = 2;
+
+  // ControllerNamespace indicates the secret should be read from the namespace
+  // where the argo-rollouts controller is deployed.
+  optional bool controllerNamespace = 3;
 }
 
 message SecretRef {
