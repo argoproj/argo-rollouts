@@ -160,6 +160,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
+	defer response.Body.Close()
 
 	value, status, err := p.parseResponse(metric, response, dd.ApiVersion)
 	if err != nil {
