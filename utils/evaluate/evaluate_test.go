@@ -104,6 +104,17 @@ func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestEvaluateResultWithIndexedEmptyResult(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "result[0] <= 10",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult([]float64{}, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.ErrorContains(t, err, "metric result is empty or unavailable")
+	assert.ErrorContains(t, err, "len(result) > 0")
+}
+
 func TestEvaluateConditionWithSuccess(t *testing.T) {
 	b, err := EvalCondition(true, "result == true")
 	assert.Nil(t, err)
@@ -114,6 +125,108 @@ func TestEvaluateConditionWithFailure(t *testing.T) {
 	b, err := EvalCondition(true, "result == false")
 	assert.Nil(t, err)
 	assert.False(t, b)
+}
+
+func TestEvaluateConditionWithIndexedEmptyResult(t *testing.T) {
+	b, err := EvalCondition([]float64{}, "result[0] <= 10")
+	assert.False(t, b)
+	assert.ErrorContains(t, err, "metric result is empty or unavailable")
+	assert.ErrorContains(t, err, "len(result) > 0")
+}
+
+func TestEvaluateConditionWithIndexedNonEmptyResult(t *testing.T) {
+	b, err := EvalCondition([]float64{5}, "result[0] <= 10")
+	assert.NoError(t, err)
+	assert.True(t, b)
+}
+
+func TestValidateIndexedResultAccess(t *testing.T) {
+	tests := []struct {
+		name       string
+		result     any
+		condition  string
+		wantErr    bool
+		errMessage string
+	}{
+		{
+			name:      "without indexed access",
+			result:    []float64{},
+			condition: "len(result) == 0",
+		},
+		{
+			name:      "with non-empty slice",
+			result:    []float64{1},
+			condition: "result[0] <= 10",
+		},
+		{
+			name:       "with nil result",
+			result:     nil,
+			condition:  "result[0] <= 10",
+			wantErr:    true,
+			errMessage: "metric result is empty or unavailable",
+		},
+		{
+			name:      "with non-indexable result",
+			result:    true,
+			condition: "result[0] <= 10",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateIndexedResultAccess(test.result, test.condition)
+			if test.wantErr {
+				assert.ErrorContains(t, err, test.errMessage)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestIsEmptyIndexableResult(t *testing.T) {
+	tests := []struct {
+		name   string
+		result any
+		want   bool
+	}{
+		{
+			name:   "nil",
+			result: nil,
+			want:   true,
+		},
+		{
+			name:   "empty slice",
+			result: []float64{},
+			want:   true,
+		},
+		{
+			name:   "non-empty slice",
+			result: []float64{1},
+			want:   false,
+		},
+		{
+			name:   "empty string",
+			result: "",
+			want:   true,
+		},
+		{
+			name:   "non-empty string",
+			result: "ok",
+			want:   false,
+		},
+		{
+			name:   "non-indexable type",
+			result: true,
+			want:   false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, isEmptyIndexableResult(test.result))
+		})
+	}
 }
 
 func TestErrorWithNonBoolReturn(t *testing.T) {
