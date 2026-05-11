@@ -206,7 +206,7 @@ Defaults to nil
 
 ### antiAffinity
 
-Check out the [Anti Affinity](../anti-affinity/anti-affinity.md) document for more information.
+Check out the [Anti Affinity](../anti-affinity/anti-affinity/) document for more information.
 
 Defaults to nil
 
