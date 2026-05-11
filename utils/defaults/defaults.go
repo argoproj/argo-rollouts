@@ -20,10 +20,13 @@ const (
 	DefaultAnalysisRunSuccessfulHistoryLimit = int32(5)
 	// DefaultAnalysisRunUnsuccessfulHistoryLimit default number of unsuccessful AnalysisRuns to keep if .Spec.Analysis.UnsuccessfulRunHistoryLimit is nil
 	DefaultAnalysisRunUnsuccessfulHistoryLimit = int32(5)
-	// DefaultMaxSurge default number for the max number of additional pods that can be brought up during a rollout
-	DefaultMaxSurge = "25"
-	// DefaultMaxUnavailable default number for the max number of unavailable pods during a rollout
-	DefaultMaxUnavailable = "25"
+	// DefaultMaxSurge default number for the max number of additional pods that can be brought up during a rollout.
+	// Carries an explicit "%" suffix so GetScaledValueFromIntOrPercent treats it as a percentage instead of
+	// rejecting it as an integer-or-percent parse error (see k8s.io/apimachinery/pkg/util/intstr).
+	DefaultMaxSurge = "25%"
+	// DefaultMaxUnavailable default number for the max number of unavailable pods during a rollout.
+	// See DefaultMaxSurge, same percentage-suffix requirement.
+	DefaultMaxUnavailable = "25%"
 	// DefaultProgressDeadlineSeconds default number of seconds for the rollout to be making progress
 	DefaultProgressDeadlineSeconds = int32(600)
 	// DefaultScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
