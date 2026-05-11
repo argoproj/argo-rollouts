@@ -25,7 +25,7 @@ const (
 	// rejecting it as an integer-or-percent parse error (see k8s.io/apimachinery/pkg/util/intstr).
 	DefaultMaxSurge = "25%"
 	// DefaultMaxUnavailable default number for the max number of unavailable pods during a rollout.
-	// See DefaultMaxSurge — same percentage-suffix requirement.
+	// See DefaultMaxSurge, same percentage-suffix requirement.
 	DefaultMaxUnavailable = "25%"
 	// DefaultProgressDeadlineSeconds default number of seconds for the rollout to be making progress
 	DefaultProgressDeadlineSeconds = int32(600)
