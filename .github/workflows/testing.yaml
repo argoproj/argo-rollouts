@@ -85,10 +85,8 @@ jobs:
             k3s_version: '1.35.1+k3s1'
             latest: false
           - version: '1.36'
-            k3s_version: '1.36.1+k3s1'
+            k3s_version: '1.36.0+k3s1'
             latest: true
-          
-          
     name: Run end-to-end tests (${{ matrix.kubernetes.version }}, ${{ matrix.kubernetes.latest }})
     runs-on: ubuntu-latest
     steps:
