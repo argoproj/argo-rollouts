@@ -309,6 +309,13 @@ func (c *rolloutContext) syncReplicasOnly() error {
 		}
 		newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
+	} else if c.rollout.Spec.Strategy.BlueGreen == nil {
+		// No strategy specified: treat scaling like basic canary
+		if _, err := c.reconcileCanaryReplicaSets(); err != nil {
+			return fmt.Errorf("failed to reconcileCanaryReplicaSets in syncReplicasOnly (no strategy): %w", err)
+		}
+		newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
+		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	}
 	return c.persistRolloutStatus(newStatus)
 }

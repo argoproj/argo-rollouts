@@ -200,10 +200,7 @@ func removeSecurityContextPrivileged(template *core.PodTemplateSpec) {
 func ValidateRolloutStrategy(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
 	strategy := rollout.Spec.Strategy
 	allErrs := field.ErrorList{}
-	if strategy.BlueGreen == nil && strategy.Canary == nil {
-		message := fmt.Sprintf(MissingFieldMessage, ".spec.strategy.canary or .spec.strategy.blueGreen")
-		allErrs = append(allErrs, field.Required(fldPath.Child("strategy"), message))
-	} else if strategy.BlueGreen != nil && strategy.Canary != nil {
+	if strategy.BlueGreen != nil && strategy.Canary != nil {
 		errVal := fmt.Sprintf("blueGreen: %t canary: %t", rollout.Spec.Strategy.BlueGreen != nil, rollout.Spec.Strategy.Canary != nil)
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy"), errVal, InvalidStrategyMessage))
 	} else if strategy.BlueGreen != nil {

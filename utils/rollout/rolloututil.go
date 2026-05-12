@@ -185,6 +185,14 @@ func CalculateRolloutPhase(spec v1alpha1.RolloutSpec, status v1alpha1.RolloutSta
 		if ro.Status.StableRS == "" || !IsFullyPromoted(&ro) {
 			return v1alpha1.RolloutPhaseProgressing, "waiting for all steps to complete"
 		}
+	} else {
+		// No strategy specified (basic rolling update): check if replicas are up to date
+		if ro.Status.Replicas > ro.Status.UpdatedReplicas {
+			return v1alpha1.RolloutPhaseProgressing, "old replicas are pending termination"
+		}
+		if ro.Status.AvailableReplicas < ro.Status.UpdatedReplicas {
+			return v1alpha1.RolloutPhaseProgressing, "updated replicas are still becoming available"
+		}
 	}
 	return v1alpha1.RolloutPhaseHealthy, ""
 }

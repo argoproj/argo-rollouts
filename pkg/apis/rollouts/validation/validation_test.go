@@ -97,9 +97,9 @@ func TestValidateRolloutStrategy(t *testing.T) {
 		},
 	}
 
+	// No strategy specified should be valid (basic rolling update)
 	allErrs := ValidateRolloutStrategy(&rollout, field.NewPath(""))
-	message := fmt.Sprintf(MissingFieldMessage, ".spec.strategy.canary or .spec.strategy.blueGreen")
-	assert.Equal(t, message, allErrs[0].Detail)
+	assert.Empty(t, allErrs)
 
 	rollout.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
 	rollout.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}

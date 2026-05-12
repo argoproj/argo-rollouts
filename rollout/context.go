@@ -1,6 +1,8 @@
 package rollout
 
 import (
+	"fmt"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 
@@ -67,9 +69,42 @@ func (c *rolloutContext) reconcile() error {
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
 		return c.rolloutBlueGreen()
 	}
+	if c.rollout.Spec.Strategy.Canary != nil {
+		return c.rolloutCanary()
+	}
 
-	// Due to the rollout validation before this, when we get here strategy is canary
-	return c.rolloutCanary()
+	// No strategy specified: treat as a basic rolling update (no canary/blue-green logic)
+	return c.syncRolloutNoStrategy()
+}
+
+// syncRolloutNoStrategy handles reconciliation when neither canary nor blueGreen strategy is specified.
+// This behaves like a basic rolling update: scale up the new ReplicaSet, scale down old ones,
+// and promote the new RS as stable once it's available.
+func (c *rolloutContext) syncRolloutNoStrategy() error {
+	var err error
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
+	if err != nil {
+		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in syncRolloutNoStrategy: %w", err)
+	}
+
+	restarted, err := c.podRestarter.Reconcile(c)
+	if err != nil {
+		return err
+	}
+	if restarted > 0 {
+		c.log.Infof("Finished reconciliation due to %d restarted pods", restarted)
+		return nil
+	}
+
+	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
+		return err
+	}
+
+	if _, err := c.reconcileCanaryReplicaSets(); err != nil {
+		return fmt.Errorf("failed to reconcileCanaryReplicaSets in syncRolloutNoStrategy: %w", err)
+	}
+
+	return c.syncRolloutStatusCanary()
 }
 
 func (c *rolloutContext) SetRestartedAt() {
