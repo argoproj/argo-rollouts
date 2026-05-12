@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
 - rollout-crd.yaml
+- rollout-plugin-crd.yaml
 - experiment-crd.yaml
 - analysis-run-crd.yaml
 - analysis-template-crd.yaml

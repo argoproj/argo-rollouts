@@ -30765,6 +30765,1710 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
+  name: rolloutplugins.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: RolloutPlugin
+    listKind: RolloutPluginList
+    plural: rolloutplugins
+    shortNames:
+    - rp
+    singular: rolloutplugin
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: RolloutPlugin status
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    - description: Plugin name
+      jsonPath: .spec.plugin.name
+      name: Plugin
+      type: string
+    - description: Time since resource was created
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          RolloutPlugin is a specification for managing rollouts of various Kubernetes resource types
+          through a plugin architecture
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RolloutPluginSpec is the spec for a RolloutPlugin resource
+            properties:
+              analysis:
+                description: Analysis configuration for the analysis runs to retain
+                properties:
+                  successfulRunHistoryLimit:
+                    description: SuccessfulRunHistoryLimit limits the number of old
+                      successful analysis runs and experiments to be retained in a
+                      history
+                    format: int32
+                    type: integer
+                  unsuccessfulRunHistoryLimit:
+                    description: |-
+                      UnsuccessfulRunHistoryLimit limits the number of old unsuccessful analysis runs and experiments to be retained in a history.
+                      Stages for unsuccessful: "Error", "Failed", "Inconclusive"
+                    format: int32
+                    type: integer
+                type: object
+              paused:
+                description: Paused pauses the rollout at its current step.
+                type: boolean
+              plugin:
+                description: Plugin contains the configuration for the resource-specific
+                  plugin
+                properties:
+                  config:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      Config is reserved for future use as plugin-specific configuration key-value pairs.
+                      Not implemented.
+                    type: object
+                  name:
+                    description: Name of the plugin (e.g., "statefulset", "daemonset")
+                    type: string
+                  sha256:
+                    description: SHA256 is the expected checksum of the plugin binary.
+                      Not yet implemented.
+                    type: string
+                  url:
+                    description: |-
+                      URL is reserved for future use. Plugin binary location is configured via the
+                      argo-rollouts-config ConfigMap under the 'rolloutPlugins' key, not here.
+                    type: string
+                  verify:
+                    description: Verify enables plugin binary verification. Not yet
+                      implemented.
+                    type: boolean
+                required:
+                - name
+                type: object
+              progressDeadlineAbort:
+                description: |-
+                  ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds
+                  is exceeded.
+                type: boolean
+              progressDeadlineSeconds:
+                description: |-
+                  ProgressDeadlineSeconds The maximum time in seconds for a rollout to
+                  make progress before it is considered to be failed. Argo Rollouts will
+                  continue to process failed rollouts and a condition with a
+                  ProgressDeadlineExceeded reason will be surfaced in the rollout status.
+                  Note that progress will not be estimated during the time a rollout is paused.
+                  Defaults to 600s.
+                format: int32
+                type: integer
+              strategy:
+                description: Strategy defines the deployment strategy
+                properties:
+                  canary:
+                    description: |-
+                      Canary strategy configuration. Uses the shared CanaryStrategy type, but only the
+                      following fields are observed by the RolloutPlugin controller:
+                        - steps (setWeight, pause, analysis)
+                        - analysis (background analysis)
+                      All other CanaryStrategy fields (traffic routing, service names, ReplicaSet scaling, etc.)
+                      are ignored and have no effect on RolloutPlugin behaviour.
+                    properties:
+                      abortScaleDownDelaySeconds:
+                        description: |-
+                          AbortScaleDownDelaySeconds adds a delay in second before scaling down the canary pods when update
+                          is aborted for canary strategy with traffic routing (not applicable for basic canary).
+                          0 means canary pods are not scaled down.
+                          Default is 30 seconds.
+                        format: int32
+                        type: integer
+                      analysis:
+                        description: Analysis runs a separate analysisRun while all
+                          the steps execute. This is intended to be a continuous validation
+                          of the new ReplicaSet
+                        properties:
+                          analysisRunMetadata:
+                            description: AnalysisRunMetadata labels and annotations
+                              that will be added to the AnalysisRuns
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                description: Annotations additional annotations to
+                                  add to the AnalysisRun
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                description: Labels Additional labels to add to the
+                                  AnalysisRun
+                                type: object
+                            type: object
+                          args:
+                            description: Args the arguments that will be added to
+                              the AnalysisRuns
+                            items:
+                              description: AnalysisRunArgument argument to add to
+                                analysisRun
+                              properties:
+                                name:
+                                  description: Name argument name
+                                  type: string
+                                value:
+                                  description: Value a hardcoded value for the argument.
+                                    This field is a one of field with valueFrom
+                                  type: string
+                                valueFrom:
+                                  description: ValueFrom A reference to where the
+                                    value is stored. This field is a one of field
+                                    with valueFrom
+                                  properties:
+                                    fieldRef:
+                                      description: FieldRef
+                                      properties:
+                                        fieldPath:
+                                          description: 'Required: Path of the field
+                                            to select in the specified API version'
+                                          type: string
+                                      required:
+                                      - fieldPath
+                                      type: object
+                                    podTemplateHashValue:
+                                      description: PodTemplateHashValue gets the value
+                                        from one of the children ReplicaSet's Pod
+                                        Template Hash
+                                      type: string
+                                  type: object
+                              required:
+                              - name
+                              type: object
+                            type: array
+                          dryRun:
+                            description: DryRun object contains the settings for running
+                              the analysis in Dry-Run mode
+                            items:
+                              description: DryRun defines the settings for running
+                                the analysis in Dry-Run mode.
+                              properties:
+                                metricName:
+                                  description: |-
+                                    Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all
+                                    the available metrics.
+                                  type: string
+                              required:
+                              - metricName
+                              type: object
+                            type: array
+                          measurementRetention:
+                            description: MeasurementRetention object contains the
+                              settings for retaining the number of measurements during
+                              the analysis
+                            items:
+                              description: MeasurementRetention defines the settings
+                                for retaining the number of measurements during the
+                                analysis.
+                              properties:
+                                limit:
+                                  description: Limit is the maximum number of measurements
+                                    to be retained for this given metric.
+                                  format: int32
+                                  type: integer
+                                metricName:
+                                  description: MetricName is the name of the metric
+                                    on which this retention policy should be applied.
+                                  type: string
+                              required:
+                              - limit
+                              - metricName
+                              type: object
+                            type: array
+                          startingStep:
+                            description: |-
+                              StartingStep indicates which step the background analysis should start on
+                              If not listed, controller defaults to 0
+                            format: int32
+                            type: integer
+                          templates:
+                            description: Templates reference to a list of analysis
+                              templates to combine for an AnalysisRun
+                            items:
+                              properties:
+                                clusterScope:
+                                  description: Whether to look for the templateName
+                                    at cluster scope or namespace scope
+                                  type: boolean
+                                templateName:
+                                  description: TemplateName name of template to use
+                                    in AnalysisRun
+                                  type: string
+                              type: object
+                            type: array
+                        type: object
+                      antiAffinity:
+                        description: AntiAffinity enables anti-affinity rules for
+                          Canary deployment
+                        properties:
+                          preferredDuringSchedulingIgnoredDuringExecution:
+                            description: PreferredDuringSchedulingIgnoredDuringExecution
+                              defines the weight of the anti-affinity injection
+                            properties:
+                              weight:
+                                description: Weight associated with matching the corresponding
+                                  podAffinityTerm, in the range 1-100.
+                                format: int32
+                                type: integer
+                            required:
+                            - weight
+                            type: object
+                          requiredDuringSchedulingIgnoredDuringExecution:
+                            description: RequiredDuringSchedulingIgnoredDuringExecution
+                              defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
+                            type: object
+                        type: object
+                      canaryMetadata:
+                        description: |-
+                          CanaryMetadata specify labels and annotations which will be attached to the canary pods for
+                          the duration which they act as a canary, and will be removed after
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            description: Annotations additional annotations to add
+                              to the experiment
+                            type: object
+                          labels:
+                            additionalProperties:
+                              type: string
+                            description: Labels Additional labels to add to the experiment
+                            type: object
+                        type: object
+                      canaryService:
+                        description: CanaryService holds the name of a service which
+                          selects pods with canary version and don't select any pods
+                          with stable version.
+                        type: string
+                      dynamicStableScale:
+                        description: |-
+                          DynamicStableScale is a traffic routing feature which dynamically scales the stable
+                          ReplicaSet to minimize total pods which are running during an update. This is calculated by
+                          scaling down the stable as traffic is increased to canary. When disabled (the default behavior)
+                          the stable ReplicaSet remains fully scaled to support instantaneous aborts.
+                        type: boolean
+                      maxSurge:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: |-
+                          MaxSurge The maximum number of pods that can be scheduled above the original number of
+                          pods.
+                          Value can be an absolute number (ex: 5) or a percentage of total pods at
+                          the start of the update (ex: 10%). This can not be 0 if MaxUnavailable is 0.
+                          Absolute number is calculated from percentage by rounding up.
+                          By default, a value of 25% is used.
+                          Example: when this is set to 30%, the new RC can be scaled up by 30%
+                          immediately when the rolling update starts. Once old pods have been killed,
+                          new RC can be scaled up further, ensuring that total number of pods running
+                          at any time during the update is at most 130% of original pods.
+                        x-kubernetes-int-or-string: true
+                      maxUnavailable:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: |-
+                          MaxUnavailable The maximum number of pods that can be unavailable during the update.
+                          Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
+                          Absolute number is calculated from percentage by rounding down.
+                          This can not be 0 if MaxSurge is 0.
+                          By default, a fixed value of 25% is used.
+                          Example: when this is set to 30%, the old RC can be scaled down by 30%
+                          immediately when the rolling update starts. Once new pods are ready, old RC
+                          can be scaled down further, followed by scaling up the new RC, ensuring
+                          that at least 70% of original number of pods are available at all times
+                          during the update.
+                        x-kubernetes-int-or-string: true
+                      minPodsPerReplicaSet:
+                        description: |-
+                          Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
+                          MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
+                        format: int32
+                        type: integer
+                      pingPong:
+                        description: PingPongSpec holds the ping and pong services
+                        properties:
+                          pingService:
+                            description: name of the ping service
+                            type: string
+                          pongService:
+                            description: name of the pong service
+                            type: string
+                        required:
+                        - pingService
+                        - pongService
+                        type: object
+                      replicaProgressThreshold:
+                        description: |-
+                          ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.
+                          Defaults to 100% of total replicas.
+                        properties:
+                          type:
+                            description: Type is used to specify whether the replica
+                              progress threshold is a percentage or a number. Required
+                              if replicaProgressThreshold is specified.
+                            type: string
+                          value:
+                            description: |-
+                              Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step.
+                              If not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step.
+                              Value must also be greater than 0. Required.
+                            format: int32
+                            type: integer
+                        required:
+                        - type
+                        - value
+                        type: object
+                      scaleDownDelayRevisionLimit:
+                        description: ScaleDownDelayRevisionLimit limits the number
+                          of old RS that can run at one time before getting scaled
+                          down
+                        format: int32
+                        type: integer
+                      scaleDownDelaySeconds:
+                        description: |-
+                          ScaleDownDelaySeconds adds a delay before scaling down the previous ReplicaSet when the
+                          canary strategy is used with traffic routing (default 30 seconds). A delay in scaling down
+                          the previous ReplicaSet is needed after switching the stable service selector to point to
+                          the new ReplicaSet, in order to give time for traffic providers to re-target the new pods.
+                          This value is ignored with basic, replica-weighted canary without traffic routing.
+                        format: int32
+                        type: integer
+                      stableMetadata:
+                        description: |-
+                          StableMetadata specify labels and annotations which will be attached to the stable pods for
+                          the duration which they act as a canary, and will be removed after
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            description: Annotations additional annotations to add
+                              to the experiment
+                            type: object
+                          labels:
+                            additionalProperties:
+                              type: string
+                            description: Labels Additional labels to add to the experiment
+                            type: object
+                        type: object
+                      stableService:
+                        description: StableService holds the name of a service which
+                          selects pods with stable version and don't select any pods
+                          with canary version.
+                        type: string
+                      steps:
+                        description: Steps define the order of phases to execute the
+                          canary deployment
+                        items:
+                          description: CanaryStep defines a step of a canary deployment.
+                          properties:
+                            analysis:
+                              description: Analysis defines the AnalysisRun that will
+                                run for a step
+                              properties:
+                                analysisRunMetadata:
+                                  description: AnalysisRunMetadata labels and annotations
+                                    that will be added to the AnalysisRuns
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      description: Annotations additional annotations
+                                        to add to the AnalysisRun
+                                      type: object
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      description: Labels Additional labels to add
+                                        to the AnalysisRun
+                                      type: object
+                                  type: object
+                                args:
+                                  description: Args the arguments that will be added
+                                    to the AnalysisRuns
+                                  items:
+                                    description: AnalysisRunArgument argument to add
+                                      to analysisRun
+                                    properties:
+                                      name:
+                                        description: Name argument name
+                                        type: string
+                                      value:
+                                        description: Value a hardcoded value for the
+                                          argument. This field is a one of field with
+                                          valueFrom
+                                        type: string
+                                      valueFrom:
+                                        description: ValueFrom A reference to where
+                                          the value is stored. This field is a one
+                                          of field with valueFrom
+                                        properties:
+                                          fieldRef:
+                                            description: FieldRef
+                                            properties:
+                                              fieldPath:
+                                                description: 'Required: Path of the
+                                                  field to select in the specified
+                                                  API version'
+                                                type: string
+                                            required:
+                                            - fieldPath
+                                            type: object
+                                          podTemplateHashValue:
+                                            description: PodTemplateHashValue gets
+                                              the value from one of the children ReplicaSet's
+                                              Pod Template Hash
+                                            type: string
+                                        type: object
+                                    required:
+                                    - name
+                                    type: object
+                                  type: array
+                                dryRun:
+                                  description: DryRun object contains the settings
+                                    for running the analysis in Dry-Run mode
+                                  items:
+                                    description: DryRun defines the settings for running
+                                      the analysis in Dry-Run mode.
+                                    properties:
+                                      metricName:
+                                        description: |-
+                                          Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all
+                                          the available metrics.
+                                        type: string
+                                    required:
+                                    - metricName
+                                    type: object
+                                  type: array
+                                measurementRetention:
+                                  description: MeasurementRetention object contains
+                                    the settings for retaining the number of measurements
+                                    during the analysis
+                                  items:
+                                    description: MeasurementRetention defines the
+                                      settings for retaining the number of measurements
+                                      during the analysis.
+                                    properties:
+                                      limit:
+                                        description: Limit is the maximum number of
+                                          measurements to be retained for this given
+                                          metric.
+                                        format: int32
+                                        type: integer
+                                      metricName:
+                                        description: MetricName is the name of the
+                                          metric on which this retention policy should
+                                          be applied.
+                                        type: string
+                                    required:
+                                    - limit
+                                    - metricName
+                                    type: object
+                                  type: array
+                                templates:
+                                  description: Templates reference to a list of analysis
+                                    templates to combine for an AnalysisRun
+                                  items:
+                                    properties:
+                                      clusterScope:
+                                        description: Whether to look for the templateName
+                                          at cluster scope or namespace scope
+                                        type: boolean
+                                      templateName:
+                                        description: TemplateName name of template
+                                          to use in AnalysisRun
+                                        type: string
+                                    type: object
+                                  type: array
+                              type: object
+                            experiment:
+                              description: Experiment defines the experiment object
+                                that should be created
+                              properties:
+                                analyses:
+                                  description: Analyses reference which analysis templates
+                                    to run with the experiment
+                                  items:
+                                    properties:
+                                      args:
+                                        description: Args the arguments that will
+                                          be added to the AnalysisRuns
+                                        items:
+                                          description: AnalysisRunArgument argument
+                                            to add to analysisRun
+                                          properties:
+                                            name:
+                                              description: Name argument name
+                                              type: string
+                                            value:
+                                              description: Value a hardcoded value
+                                                for the argument. This field is a
+                                                one of field with valueFrom
+                                              type: string
+                                            valueFrom:
+                                              description: ValueFrom A reference to
+                                                where the value is stored. This field
+                                                is a one of field with valueFrom
+                                              properties:
+                                                fieldRef:
+                                                  description: FieldRef
+                                                  properties:
+                                                    fieldPath:
+                                                      description: 'Required: Path
+                                                        of the field to select in
+                                                        the specified API version'
+                                                      type: string
+                                                  required:
+                                                  - fieldPath
+                                                  type: object
+                                                podTemplateHashValue:
+                                                  description: PodTemplateHashValue
+                                                    gets the value from one of the
+                                                    children ReplicaSet's Pod Template
+                                                    Hash
+                                                  type: string
+                                              type: object
+                                          required:
+                                          - name
+                                          type: object
+                                        type: array
+                                      clusterScope:
+                                        description: Whether to look for the templateName
+                                          at cluster scope or namespace scope
+                                        type: boolean
+                                      name:
+                                        description: Name is a name for this analysis
+                                          template invocation
+                                        type: string
+                                      requiredForCompletion:
+                                        description: RequiredForCompletion blocks
+                                          the Experiment from completing until the
+                                          analysis has completed
+                                        type: boolean
+                                      templateName:
+                                        description: TemplateName reference of the
+                                          AnalysisTemplate name used by the Experiment
+                                          to create the run
+                                        type: string
+                                    required:
+                                    - name
+                                    - templateName
+                                    type: object
+                                  type: array
+                                analysisRunMetadata:
+                                  description: AnalysisRunMetadata labels and annotations
+                                    that will be added to the AnalysisRuns
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      description: Annotations additional annotations
+                                        to add to the AnalysisRun
+                                      type: object
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      description: Labels Additional labels to add
+                                        to the AnalysisRun
+                                      type: object
+                                  type: object
+                                dryRun:
+                                  description: DryRun object contains the settings
+                                    for running the analysis in Dry-Run mode
+                                  items:
+                                    description: DryRun defines the settings for running
+                                      the analysis in Dry-Run mode.
+                                    properties:
+                                      metricName:
+                                        description: |-
+                                          Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all
+                                          the available metrics.
+                                        type: string
+                                    required:
+                                    - metricName
+                                    type: object
+                                  type: array
+                                duration:
+                                  description: Duration is a duration string (e.g.
+                                    30s, 5m, 1h) that the experiment should run for
+                                  type: string
+                                scaleDownDelaySeconds:
+                                  description: ScaleDownDelaySeconds is the number
+                                    of seconds to wait before scaling down the old
+                                    ReplicaSet
+                                  format: int32
+                                  type: integer
+                                templates:
+                                  description: Templates what templates that should
+                                    be added to the experiment. Should be non-nil
+                                  items:
+                                    description: RolloutExperimentTemplate defines
+                                      the template used to create experiments for
+                                      the Rollout's experiment canary step
+                                    properties:
+                                      metadata:
+                                        description: Metadata sets labels and annotations
+                                          to use for the RS created from the template
+                                        properties:
+                                          annotations:
+                                            additionalProperties:
+                                              type: string
+                                            description: Annotations additional annotations
+                                              to add to the experiment
+                                            type: object
+                                          labels:
+                                            additionalProperties:
+                                              type: string
+                                            description: Labels Additional labels
+                                              to add to the experiment
+                                            type: object
+                                        type: object
+                                      name:
+                                        description: Name description of template
+                                          that passed to the template
+                                        type: string
+                                      replicas:
+                                        description: Replicas replica count for the
+                                          template
+                                        format: int32
+                                        type: integer
+                                      selector:
+                                        description: |-
+                                          Selector overrides the selector to be used for the template's ReplicaSet. If omitted, will
+                                          use the same selector as the Rollout
+                                        properties:
+                                          matchExpressions:
+                                            description: matchExpressions is a list
+                                              of label selector requirements. The
+                                              requirements are ANDed.
+                                            items:
+                                              description: |-
+                                                A label selector requirement is a selector that contains values, a key, and an operator that
+                                                relates the key and values.
+                                              properties:
+                                                key:
+                                                  description: key is the label key
+                                                    that the selector applies to.
+                                                  type: string
+                                                operator:
+                                                  description: |-
+                                                    operator represents a key's relationship to a set of values.
+                                                    Valid operators are In, NotIn, Exists and DoesNotExist.
+                                                  type: string
+                                                values:
+                                                  description: |-
+                                                    values is an array of string values. If the operator is In or NotIn,
+                                                    the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                                    the values array must be empty. This array is replaced during a strategic
+                                                    merge patch.
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            description: |-
+                                              matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                                              map is equivalent to an element of matchExpressions, whose key field is "key", the
+                                              operator is "In", and the values array contains only "value". The requirements are ANDed.
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                      service:
+                                        description: Service controls the optionally
+                                          generated service
+                                        properties:
+                                          name:
+                                            description: Name of the service generated
+                                              by the experiment
+                                            type: string
+                                        type: object
+                                      specRef:
+                                        description: SpecRef indicates where the rollout
+                                          should get the RS template from
+                                        type: string
+                                      weight:
+                                        description: Weight sets the percentage of
+                                          traffic the template's replicas should receive
+                                        format: int32
+                                        type: integer
+                                    required:
+                                    - name
+                                    - specRef
+                                    type: object
+                                  type: array
+                              required:
+                              - templates
+                              type: object
+                            pause:
+                              description: |-
+                                Pause freezes the rollout by setting spec.Paused to true.
+                                A Rollout will resume when spec.Paused is reset to false.
+                              properties:
+                                duration:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  description: Duration the amount of time to wait
+                                    before moving to the next step.
+                                  x-kubernetes-int-or-string: true
+                              type: object
+                            plugin:
+                              description: Plugin defines a plugin to execute for
+                                a step
+                              properties:
+                                config:
+                                  description: Config is the configuration object
+                                    for the specified plugin
+                                  type: object
+                                  x-kubernetes-preserve-unknown-fields: true
+                                name:
+                                  description: Name of the hashicorp go-plugin step
+                                    to query
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            setCanaryScale:
+                              description: SetCanaryScale defines how to scale the
+                                newRS without changing traffic weight
+                              properties:
+                                matchTrafficWeight:
+                                  description: MatchTrafficWeight cancels out previously
+                                    set Replicas or Weight, effectively activating
+                                    SetWeight
+                                  type: boolean
+                                replicas:
+                                  description: Replicas sets the number of replicas
+                                    the newRS should have
+                                  format: int32
+                                  type: integer
+                                weight:
+                                  description: Weight sets the percentage of replicas
+                                    the newRS should have
+                                  format: int32
+                                  type: integer
+                              type: object
+                            setHeaderRoute:
+                              description: SetHeaderRoute defines the route with specified
+                                header name to send 100% of traffic to the canary
+                                service
+                              properties:
+                                match:
+                                  items:
+                                    properties:
+                                      headerName:
+                                        description: HeaderName the name of the request
+                                          header
+                                        type: string
+                                      headerValue:
+                                        description: HeaderValue the value of the
+                                          header
+                                        properties:
+                                          exact:
+                                            description: Exact The string must match
+                                              exactly
+                                            type: string
+                                          prefix:
+                                            description: Prefix The string will be
+                                              prefixed matched
+                                            type: string
+                                          regex:
+                                            description: Regex The string will be
+                                              regular expression matched
+                                            type: string
+                                        type: object
+                                    required:
+                                    - headerName
+                                    - headerValue
+                                    type: object
+                                  type: array
+                                name:
+                                  description: |-
+                                    Name this is the name of the route to use for the mirroring of traffic this also needs
+                                    to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field
+                                  type: string
+                              type: object
+                            setMirrorRoute:
+                              description: SetMirrorRoutes Mirrors traffic that matches
+                                rules to a particular destination
+                              properties:
+                                match:
+                                  description: Match Contains a list of rules that
+                                    if mated will mirror the traffic to the services
+                                  items:
+                                    properties:
+                                      headers:
+                                        additionalProperties:
+                                          description: StringMatch Used to define
+                                            what type of matching we will use exact,
+                                            prefix, or regular expression
+                                          properties:
+                                            exact:
+                                              description: Exact The string must match
+                                                exactly
+                                              type: string
+                                            prefix:
+                                              description: Prefix The string will
+                                                be prefixed matched
+                                              type: string
+                                            regex:
+                                              description: Regex The string will be
+                                                regular expression matched
+                                              type: string
+                                          type: object
+                                        description: Headers What request with matching
+                                          headers should be mirrored
+                                        type: object
+                                      method:
+                                        description: Method What http methods should
+                                          be mirrored
+                                        properties:
+                                          exact:
+                                            description: Exact The string must match
+                                              exactly
+                                            type: string
+                                          prefix:
+                                            description: Prefix The string will be
+                                              prefixed matched
+                                            type: string
+                                          regex:
+                                            description: Regex The string will be
+                                              regular expression matched
+                                            type: string
+                                        type: object
+                                      path:
+                                        description: Path What url paths should be
+                                          mirrored
+                                        properties:
+                                          exact:
+                                            description: Exact The string must match
+                                              exactly
+                                            type: string
+                                          prefix:
+                                            description: Prefix The string will be
+                                              prefixed matched
+                                            type: string
+                                          regex:
+                                            description: Regex The string will be
+                                              regular expression matched
+                                            type: string
+                                        type: object
+                                    type: object
+                                  type: array
+                                name:
+                                  description: |-
+                                    Name this is the name of the route to use for the mirroring of traffic this also needs
+                                    to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field
+                                  type: string
+                                percentage:
+                                  description: |-
+                                    Services The list of services to mirror the traffic to if the method, path, headers match
+                                    Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
+                                    Percentage What percent of the traffic that matched the rules should be mirrored
+                                  format: int32
+                                  type: integer
+                              required:
+                              - name
+                              type: object
+                            setWeight:
+                              description: SetWeight sets what percentage of the newRS
+                                should receive
+                              format: int32
+                              type: integer
+                          type: object
+                        type: array
+                      trafficRouting:
+                        description: TrafficRouting hosts all the supported service
+                          meshes supported to enable more fine-grained traffic routing
+                        properties:
+                          alb:
+                            description: Nginx holds ALB Ingress specific configuration
+                              to route traffic
+                            properties:
+                              annotationPrefix:
+                                description: AnnotationPrefix has to match the configured
+                                  annotation prefix on the alb ingress controller
+                                type: string
+                              ingress:
+                                description: Ingress refers to the name of an `Ingress`
+                                  resource in the same namespace as the `Rollout`
+                                type: string
+                              ingresses:
+                                description: Ingresses refers to the name of an `Ingress`
+                                  resource in the same namespace as the `Rollout`
+                                  in a multi ingress scenario
+                                items:
+                                  type: string
+                                type: array
+                              rootService:
+                                description: RootService references the service in
+                                  the ingress to the controller should add the action
+                                  to
+                                type: string
+                              servicePort:
+                                description: ServicePort refers to the port that the
+                                  Ingress action should route traffic to
+                                format: int32
+                                type: integer
+                              stickinessConfig:
+                                description: StickinessConfig refers to the duration-based
+                                  stickiness of the target groups associated with
+                                  an `Ingress`
+                                properties:
+                                  durationSeconds:
+                                    format: int64
+                                    type: integer
+                                  enabled:
+                                    type: boolean
+                                required:
+                                - durationSeconds
+                                - enabled
+                                type: object
+                            required:
+                            - servicePort
+                            type: object
+                          ambassador:
+                            description: Ambassador holds specific configuration to
+                              use Ambassador to route traffic
+                            properties:
+                              mappings:
+                                description: |-
+                                  Mappings refer to the name of the Ambassador Mappings used to route traffic to the
+                                  service
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - mappings
+                            type: object
+                          apisix:
+                            description: Apisix holds specific configuration to use
+                              Apisix to route traffic
+                            properties:
+                              route:
+                                description: Route references an Apisix Route to modify
+                                  to shape traffic
+                                properties:
+                                  name:
+                                    description: Name refer to the name of the APISIX
+                                      Route used to route traffic to the service
+                                    type: string
+                                  rules:
+                                    description: RuleRef a list of the APISIX Route
+                                      HTTP Rules used to route traffic to the service
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - name
+                                type: object
+                            type: object
+                          appMesh:
+                            description: AppMesh holds specific configuration to use
+                              AppMesh to route traffic
+                            properties:
+                              virtualNodeGroup:
+                                description: VirtualNodeGroup references an AppMesh
+                                  Route targets that are formed by a set of VirtualNodes
+                                  that are used to shape traffic
+                                properties:
+                                  canaryVirtualNodeRef:
+                                    description: CanaryVirtualNodeRef is the virtual
+                                      node ref to modify labels with canary ReplicaSet
+                                      pod template hash value
+                                    properties:
+                                      name:
+                                        description: Name is the name of VirtualNode
+                                          CR
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  stableVirtualNodeRef:
+                                    description: StableVirtualNodeRef is the virtual
+                                      node name to modify labels with stable ReplicaSet
+                                      pod template hash value
+                                    properties:
+                                      name:
+                                        description: Name is the name of VirtualNode
+                                          CR
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                required:
+                                - canaryVirtualNodeRef
+                                - stableVirtualNodeRef
+                                type: object
+                              virtualService:
+                                description: VirtualService references an AppMesh
+                                  VirtualService and VirtualRouter to modify to shape
+                                  traffic
+                                properties:
+                                  name:
+                                    description: Name is the name of virtual service
+                                    type: string
+                                  routes:
+                                    description: Routes is list of HTTP routes within
+                                      virtual router associated with virtual service
+                                      to edit. If omitted, virtual service must have
+                                      a single route of this type.
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - name
+                                type: object
+                            type: object
+                          istio:
+                            description: Istio holds Istio specific configuration
+                              to route traffic
+                            properties:
+                              destinationRule:
+                                description: DestinationRule references an Istio DestinationRule
+                                  to modify to shape traffic
+                                properties:
+                                  additionalSubsetNames:
+                                    description: AdditionalSubsetNames contains a
+                                      list of additional names for subset DestinationRules
+                                      that are not controlled by Argo Rollouts
+                                    items:
+                                      type: string
+                                    type: array
+                                  canarySubsetName:
+                                    description: CanarySubsetName is the subset name
+                                      to modify labels with canary ReplicaSet pod
+                                      template hash value
+                                    type: string
+                                  name:
+                                    description: Name holds the name of the DestinationRule
+                                    type: string
+                                  stableSubsetName:
+                                    description: StableSubsetName is the subset name
+                                      to modify labels with stable ReplicaSet pod
+                                      template hash value
+                                    type: string
+                                required:
+                                - canarySubsetName
+                                - name
+                                - stableSubsetName
+                                type: object
+                              virtualService:
+                                description: VirtualService references an Istio VirtualService
+                                  to modify to shape traffic
+                                properties:
+                                  name:
+                                    description: Name holds the name of the VirtualService
+                                    type: string
+                                  routes:
+                                    description: A list of HTTP routes within VirtualService
+                                      to edit. If omitted, VirtualService must have
+                                      a single route of this type.
+                                    items:
+                                      type: string
+                                    type: array
+                                  tcpRoutes:
+                                    description: A list of TCP routes within VirtualService
+                                      to edit. If omitted, VirtualService must have
+                                      a single route of this type.
+                                    items:
+                                      description: TCPRoute holds the information
+                                        on the virtual service's TCP routes that are
+                                        desired to be matched for changing weights.
+                                      properties:
+                                        port:
+                                          description: Port number of the TCP Route
+                                            desired to be matched in the given Istio
+                                            VirtualService.
+                                          format: int64
+                                          type: integer
+                                      type: object
+                                    type: array
+                                  tlsRoutes:
+                                    description: A list of TLS/HTTPS routes within
+                                      VirtualService to edit. If omitted, VirtualService
+                                      must have a single route of this type.
+                                    items:
+                                      description: TLSRoute holds the information
+                                        on the virtual service's TLS/HTTPS routes
+                                        that are desired to be matched for changing
+                                        weights.
+                                      properties:
+                                        port:
+                                          description: Port number of the TLS Route
+                                            desired to be matched in the given Istio
+                                            VirtualService.
+                                          format: int64
+                                          type: integer
+                                        sniHosts:
+                                          description: A list of all the SNI Hosts
+                                            of the TLS Route desired to be matched
+                                            in the given Istio VirtualService.
+                                          items:
+                                            type: string
+                                          type: array
+                                      type: object
+                                    type: array
+                                required:
+                                - name
+                                type: object
+                              virtualServices:
+                                description: VirtualServices references a list of
+                                  Istio VirtualService to modify to shape traffic
+                                items:
+                                  description: IstioVirtualService holds information
+                                    on the virtual service the rollout needs to modify
+                                  properties:
+                                    name:
+                                      description: Name holds the name of the VirtualService
+                                      type: string
+                                    routes:
+                                      description: A list of HTTP routes within VirtualService
+                                        to edit. If omitted, VirtualService must have
+                                        a single route of this type.
+                                      items:
+                                        type: string
+                                      type: array
+                                    tcpRoutes:
+                                      description: A list of TCP routes within VirtualService
+                                        to edit. If omitted, VirtualService must have
+                                        a single route of this type.
+                                      items:
+                                        description: TCPRoute holds the information
+                                          on the virtual service's TCP routes that
+                                          are desired to be matched for changing weights.
+                                        properties:
+                                          port:
+                                            description: Port number of the TCP Route
+                                              desired to be matched in the given Istio
+                                              VirtualService.
+                                            format: int64
+                                            type: integer
+                                        type: object
+                                      type: array
+                                    tlsRoutes:
+                                      description: A list of TLS/HTTPS routes within
+                                        VirtualService to edit. If omitted, VirtualService
+                                        must have a single route of this type.
+                                      items:
+                                        description: TLSRoute holds the information
+                                          on the virtual service's TLS/HTTPS routes
+                                          that are desired to be matched for changing
+                                          weights.
+                                        properties:
+                                          port:
+                                            description: Port number of the TLS Route
+                                              desired to be matched in the given Istio
+                                              VirtualService.
+                                            format: int64
+                                            type: integer
+                                          sniHosts:
+                                            description: A list of all the SNI Hosts
+                                              of the TLS Route desired to be matched
+                                              in the given Istio VirtualService.
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                            type: object
+                          managedRoutes:
+                            description: |-
+                              ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
+                              traffic router.
+                            items:
+                              properties:
+                                name:
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                          maxTrafficWeight:
+                            description: MaxTrafficWeight The total weight of traffic.
+                              If unspecified, it defaults to 100
+                            format: int32
+                            type: integer
+                          nginx:
+                            description: Nginx holds Nginx Ingress specific configuration
+                              to route traffic
+                            properties:
+                              additionalIngressAnnotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              annotationPrefix:
+                                description: AnnotationPrefix has to match the configured
+                                  annotation prefix on the nginx ingress controller
+                                type: string
+                              canaryIngressAnnotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              stableIngress:
+                                description: StableIngress refers to the name of an
+                                  `Ingress` resource in the same namespace as the
+                                  `Rollout`
+                                type: string
+                              stableIngresses:
+                                description: StableIngresses refers to the names of
+                                  `Ingress` resources in the same namespace as the
+                                  `Rollout` in a multi ingress scenario
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          plugins:
+                            description: Plugins holds specific configuration that
+                              traffic router plugins can use for routing traffic
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          smi:
+                            description: SMI holds TrafficSplit specific configuration
+                              to route traffic
+                            properties:
+                              rootService:
+                                description: RootService holds the name of that clients
+                                  use to communicate.
+                                type: string
+                              trafficSplitName:
+                                description: TrafficSplitName holds the name of the
+                                  TrafficSplit.
+                                type: string
+                            type: object
+                          traefik:
+                            description: Traefik holds specific configuration to use
+                              Traefik to route traffic
+                            properties:
+                              weightedTraefikServiceName:
+                                description: TraefikServiceName refer to the name
+                                  of the Traefik service used to route traffic to
+                                  the service
+                                type: string
+                            required:
+                            - weightedTraefikServiceName
+                            type: object
+                        type: object
+                    type: object
+                type: object
+              workloadRef:
+                description: WorkloadRef is a reference to the workload (StatefulSet,
+                  DaemonSet, etc.) being managed
+                properties:
+                  apiVersion:
+                    description: APIVersion of the referenced resource
+                    type: string
+                  kind:
+                    description: Kind of the referenced resource (e.g., StatefulSet,
+                      DaemonSet)
+                    type: string
+                  name:
+                    description: Name of the referenced resource
+                    type: string
+                  namespace:
+                    description: Namespace of the referenced resource (optional, defaults
+                      to the RolloutPlugin's namespace)
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+            required:
+            - plugin
+            - strategy
+            - workloadRef
+            type: object
+          status:
+            description: RolloutPluginStatus is the status for a RolloutPlugin resource
+            properties:
+              abort:
+                description: Abort will stop the rolloutplugin and revert to the previous
+                  version when set to true.
+                type: boolean
+              aborted:
+                description: Aborted indicates whether the rolloutplugin has been
+                  aborted
+                type: boolean
+              abortedAt:
+                description: AbortedAt indicates when the rollout was aborted
+                format: date-time
+                type: string
+              abortedRevision:
+                description: |-
+                  AbortedRevision is the UpdatedRevision that was aborted
+                  This is used to prevent retrying the same failed revision without explicit user action
+                type: string
+              availableReplicas:
+                description: AvailableReplicas is the number of replicas that are
+                  available
+                format: int32
+                type: integer
+              canary:
+                description: Canary-specific status fields for canary strategy
+                properties:
+                  currentBackgroundAnalysisRunStatus:
+                    description: CurrentBackgroundAnalysisRunStatus indicates the
+                      status of the current background analysis run
+                    properties:
+                      message:
+                        type: string
+                      name:
+                        type: string
+                      status:
+                        description: AnalysisPhase is the overall phase of an AnalysisRun,
+                          MetricResult, or Measurement
+                        type: string
+                    required:
+                    - name
+                    - status
+                    type: object
+                  currentExperiment:
+                    description: CurrentExperiment indicates the running experiment
+                    type: string
+                  currentStepAnalysisRunStatus:
+                    description: CurrentStepAnalysisRunStatus indicates the status
+                      of the current step analysis run
+                    properties:
+                      message:
+                        type: string
+                      name:
+                        type: string
+                      status:
+                        description: AnalysisPhase is the overall phase of an AnalysisRun,
+                          MetricResult, or Measurement
+                        type: string
+                    required:
+                    - name
+                    - status
+                    type: object
+                  stablePingPong:
+                    description: StablePingPong For the ping-pong feature holds the
+                      current stable service, ping or pong
+                    type: string
+                  stepPluginStatuses:
+                    description: StepPluginStatuses holds the status of the step plugins
+                      executed
+                    items:
+                      properties:
+                        backoff:
+                          description: Backoff is a duration to wait before trying
+                            to execute the operation again if it was not completed
+                          type: string
+                        disabled:
+                          description: Disabled indicates if the plugin is globally
+                            disabled
+                          type: boolean
+                        executions:
+                          description: Executions is the number of time the operation
+                            was executed
+                          format: int32
+                          type: integer
+                        finishedAt:
+                          description: FinishedAt indicates when the operation was
+                            completed
+                          format: date-time
+                          type: string
+                        index:
+                          description: Index is the matching step index of the executed
+                            plugin
+                          format: int32
+                          type: integer
+                        message:
+                          description: Message provides details on why the plugin
+                            is in its current phase
+                          type: string
+                        name:
+                          description: Name is the matching step name of the executed
+                            plugin
+                          type: string
+                        operation:
+                          description: Operation is the name of the operation that
+                            produced this status
+                          type: string
+                        phase:
+                          description: Phase is the resulting phase of the operation
+                          type: string
+                        startedAt:
+                          description: StartedAt indicates when the plugin was first
+                            called for the operation
+                          format: date-time
+                          type: string
+                        status:
+                          description: Status holds the internal status of the plugin
+                            for this operation
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        updatedAt:
+                          description: UpdatedAt indicates when the plugin was last
+                            called for the operation
+                          format: date-time
+                          type: string
+                      required:
+                      - index
+                      - name
+                      - operation
+                      type: object
+                    type: array
+                  weights:
+                    description: Weights records the weights which have been set on
+                      traffic provider. Only valid when using traffic routing
+                    properties:
+                      additional:
+                        description: Additional holds the weights split to additional
+                          ReplicaSets such as experiment ReplicaSets
+                        items:
+                          properties:
+                            podTemplateHash:
+                              description: PodTemplateHash is the pod template hash
+                                label for this destination
+                              type: string
+                            serviceName:
+                              description: ServiceName is the Kubernetes service name
+                                traffic is being sent to
+                              type: string
+                            weight:
+                              description: Weight is an percentage of traffic being
+                                sent to this destination
+                              format: int32
+                              type: integer
+                          required:
+                          - weight
+                          type: object
+                        type: array
+                      canary:
+                        description: Canary is the current traffic weight split to
+                          canary ReplicaSet
+                        properties:
+                          podTemplateHash:
+                            description: PodTemplateHash is the pod template hash
+                              label for this destination
+                            type: string
+                          serviceName:
+                            description: ServiceName is the Kubernetes service name
+                              traffic is being sent to
+                            type: string
+                          weight:
+                            description: Weight is an percentage of traffic being
+                              sent to this destination
+                            format: int32
+                            type: integer
+                        required:
+                        - weight
+                        type: object
+                      stable:
+                        description: Stable is the current traffic weight split to
+                          stable ReplicaSet
+                        properties:
+                          podTemplateHash:
+                            description: PodTemplateHash is the pod template hash
+                              label for this destination
+                            type: string
+                          serviceName:
+                            description: ServiceName is the Kubernetes service name
+                              traffic is being sent to
+                            type: string
+                          weight:
+                            description: Weight is an percentage of traffic being
+                              sent to this destination
+                            format: int32
+                            type: integer
+                        required:
+                        - weight
+                        type: object
+                      verified:
+                        description: |-
+                          Verified is an optional indicator that the weight has been verified to have taken effect.
+                          This is currently only applicable to ALB traffic router
+                        type: boolean
+                    required:
+                    - canary
+                    - stable
+                    type: object
+                type: object
+              conditions:
+                description: Conditions is a list of conditions describing the current
+                  state
+                items:
+                  description: RolloutPluginCondition describes a condition of the
+                    RolloutPlugin
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time the condition
+                        transitioned from one status to another
+                      format: date-time
+                      type: string
+                    lastUpdateTime:
+                      description: LastUpdateTime is the last time the condition was
+                        updated
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message is a human-readable explanation for the
+                        condition's last transition
+                      type: string
+                    reason:
+                      description: Reason is a brief explanation for the condition's
+                        last transition
+                      type: string
+                    status:
+                      description: Status of the condition
+                      type: string
+                    type:
+                      description: Type of the condition
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              controllerPause:
+                description: |-
+                  ControllerPause indicates the controller has paused the rolloutplugin. It is set to true when
+                  the controller adds a pause condition. This field helps to discern the scenario where a
+                  rolloutplugin was resumed after being paused by the controller (e.g. via ArgoCD resume action).
+                  In that situation, the pauseConditions would have been cleared, but controllerPause would
+                  still be set to true.
+                type: boolean
+              currentRevision:
+                description: CurrentRevision is the hash/version of the current stable
+                  workload
+                type: string
+              currentStepIndex:
+                description: CurrentStepIndex is the index of the current step in
+                  the rollout
+                format: int32
+                type: integer
+              message:
+                description: Message provides additional details about the current
+                  phase
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  by the controller
+                format: int64
+                type: integer
+              pauseConditions:
+                description: |-
+                  PauseConditions is a list of reasons why rolloutplugin became automatically paused (e.g.
+                  CanaryPauseStep). The items in this list are populated by the controller but are cleared
+                  by the user (e.g. ArgoCD resume action, kubectl patch) when they wish to unpause.
+                  If pause conditions is empty, but controllerPause is true, it indicates
+                  the user manually unpaused the RolloutPlugin
+                items:
+                  description: PauseCondition the reason for a pause and when it started
+                  properties:
+                    reason:
+                      description: PauseReason reasons that the rollout can pause
+                      type: string
+                    startTime:
+                      format: date-time
+                      type: string
+                  required:
+                  - reason
+                  - startTime
+                  type: object
+                type: array
+              phase:
+                description: Phase is the current phase of the rollout
+                type: string
+              pluginStatus:
+                additionalProperties:
+                  type: string
+                description: |-
+                  PluginStatus is reserved for future use as plugin-specific status key-value pairs.
+                  Not implemented.
+                type: object
+              promoteFull:
+                description: PromoteFull when set to true will skip analysis, pause,
+                  and steps and promote the rollout immediately
+                type: boolean
+              readyReplicas:
+                description: ReadyReplicas is the number of replicas that are ready
+                format: int32
+                type: integer
+              replicas:
+                description: Replicas is the total number of replicas targeted by
+                  the workload
+                format: int32
+                type: integer
+              restart:
+                description: |-
+                  Restart when set to true will restart the rollout from step 0.
+                  Similar to status.Abort and status.PromoteFull, this is a one-shot trigger field.
+                type: boolean
+              restartCount:
+                description: |-
+                  RestartCount tracks the number of restart attempts for the current rollout
+                  Incremented each time Restart is processed
+                  Reset to 0 when a new rollout starts
+                format: int32
+                type: integer
+              restartedAt:
+                description: RestartedAt indicates when the last restart occurred
+                format: date-time
+                type: string
+              updatedReplicas:
+                description: UpdatedReplicas is the number of replicas that have been
+                  updated
+                format: int32
+                type: integer
+              updatedRevision:
+                description: UpdatedRevision is the hash/version of the updated workload
+                  being rolled out
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: rollouts.argoproj.io
 spec:
   group: argoproj.io
@@ -39494,6 +41198,20 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
+  - rolloutplugins
+  - rolloutplugins/status
+  - rolloutplugins/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
   - analysisruns
   - analysisruns/finalizers
   - experiments
@@ -39527,6 +41245,16 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
 - apiGroups:
   - ""
   - apps
@@ -39571,9 +41299,11 @@ rules:
   resources:
   - pods
   verbs:
+  - get
   - list
   - update
   - watch
+  - delete
 - apiGroups:
   - ""
   resources:
