@@ -539,9 +539,9 @@ func TestValidateRolloutStrategyCanarySetHeaderRoutePlugins(t *testing.T) {
 	}
 
 	t.Run("using SetHeaderRoute step with plugins", func(t *testing.T) {
-		invalidRo := ro.DeepCopy()
+		validRo := ro.DeepCopy()
 		routeName := "test"
-		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+		validRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
 			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
 				Name: routeName,
 				Match: []v1alpha1.HeaderRoutingMatch{
@@ -552,7 +552,7 @@ func TestValidateRolloutStrategyCanarySetHeaderRoutePlugins(t *testing.T) {
 				},
 			},
 		}}
-		invalidRo.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		validRo.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			ManagedRoutes: []v1alpha1.MangedRoutes{
 				{
 					Name: routeName,
@@ -562,7 +562,67 @@ func TestValidateRolloutStrategyCanarySetHeaderRoutePlugins(t *testing.T) {
 				"anyplugin": []byte(`{"key": "value"}`),
 			},
 		}
+		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
+		assert.Equal(t, 0, len(allErrs))
+	})
+}
+
+func TestValidateRolloutStrategyCanarySetMirrorRoute(t *testing.T) {
+	ro := &v1alpha1.Rollout{}
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		CanaryService: "canary",
+		StableService: "stable",
+	}
+
+	t.Run("using SetMirrorRoute step without the traffic routing", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetMirrorRoute: &v1alpha1.SetMirrorRoute{
+				Name:       "test-mirror-1",
+				Match:      nil,
+				Percentage: nil,
+			},
+		}}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidSetMirrorRouteTrafficPolicy, allErrs[0].Detail)
+	})
+}
+
+func TestValidateRolloutStrategyCanarySetMirrorRoutePlugins(t *testing.T) {
+	ro := &v1alpha1.Rollout{}
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		CanaryService: "canary",
+		StableService: "stable",
+	}
+
+	t.Run("using SetMirrorRoute step with plugins", func(t *testing.T) {
+		validRo := ro.DeepCopy()
+		routeName := "test-mirror-1"
+		validRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetMirrorRoute: &v1alpha1.SetMirrorRoute{
+				Name: routeName,
+				Match: []v1alpha1.RouteMatch{{
+					Method: &v1alpha1.StringMatch{
+						Exact: "GET",
+					},
+					Path: &v1alpha1.StringMatch{
+						Prefix: "/api",
+					},
+				}},
+				Percentage: ptr.To[int32](50),
+			},
+		}}
+		validRo.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			ManagedRoutes: []v1alpha1.MangedRoutes{
+				{
+					Name: routeName,
+				},
+			},
+			Plugins: map[string]json.RawMessage{
+				"anyplugin": []byte(`{"key": "value"}`),
+			},
+		}
+		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
 		assert.Equal(t, 0, len(allErrs))
 	})
 }
