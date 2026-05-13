@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/hash"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -1191,6 +1192,46 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		f.expectPatchRolloutAction(r2)
 		f.run(getKey(r2, t))
 	})
+}
+
+// TestCalculateScaleUpPreviewCheckPointHonorsReset is a regression test for
+// https://github.com/argoproj/argo-rollouts/issues/<TBD>.
+//
+// When a new pod template arrives while the previous revision had already completed
+// prePromotionAnalysis, syncRolloutStatusBlueGreen calls resetRolloutStatus(&newStatus),
+// which sets newStatus.BlueGreen.ScaleUpPreviewCheckPoint=false. The subsequent call to
+// calculateScaleUpPreviewCheckPoint must honor that reset — i.e. read prevValue from
+// newStatus, not from c.rollout.Status — otherwise the new revision inherits the
+// previous revision's scaleUpPreviewCheckPoint=true and skips its own prePromotionAnalysis.
+func TestCalculateScaleUpPreviewCheckPointHonorsReset(t *testing.T) {
+	r := newBlueGreenRollout("foo", 5, nil, "active", "")
+	r.Spec.Strategy.BlueGreen.PreviewReplicaCount = ptr.To[int32](3)
+	r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
+		Templates: []v1alpha1.AnalysisTemplateRef{{TemplateName: "test"}},
+	}
+	// The previous revision's status carried ScaleUpPreviewCheckPoint=true (its
+	// prePromotionAnalysis had succeeded). c.rollout.Status still reflects that value
+	// at the start of this reconcile.
+	r.Status.BlueGreen.ScaleUpPreviewCheckPoint = true
+	newRS := newReplicaSetWithStatus(r, 0, 0)
+
+	c := &rolloutContext{
+		rollout:      r,
+		newRS:        newRS,
+		log:          logutil.WithRollout(r),
+		pauseContext: &pauseContext{rollout: r},
+	}
+
+	// resetRolloutStatus has already cleared the checkpoint on newStatus for this
+	// reconcile. With no AnalysisRun yet for the new revision (currentArs is empty),
+	// completedPrePromotionAnalysis() is false, so prePromotion must run before the
+	// checkpoint can flip. The function must read prevValue from newStatus rather than
+	// the stale c.rollout.Status, then fall through and return false.
+	newStatus := v1alpha1.RolloutStatus{}
+	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
+
+	assert.False(t, c.calculateScaleUpPreviewCheckPoint(newStatus),
+		"scaleUpPreviewCheckPoint must be reset on pod template change so the new revision's prePromotionAnalysis runs")
 }
 
 func TestBlueGreenRolloutIgnoringScalingUsePreviewRSCount(t *testing.T) {
