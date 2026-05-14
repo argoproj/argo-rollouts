@@ -53,7 +53,7 @@ brew install argoproj/tap/kubectl-argo-rollouts
 
 ### Using mise
 
-If you are an enthusiast user of [mise](https://github.com/jdx/mise) polyglot tool version manager, you can use a command like this :
+If you are an enthusiast user of [mise](https://github.com/jdx/mise) polyglot tool version manager, you can use a command like this:
 
 ```shell
 mise use -g argo-rollouts
@@ -63,25 +63,32 @@ mise use -g argo-rollouts
 
 1. Install [Argo Rollouts Kubectl plugin](https://github.com/argoproj/argo-rollouts/releases) with curl.
     ```shell
-    curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-darwin-amd64
+    os=$(uname -s | tr '[A-Z]' '[a-z]')
+    arch=$(uname -m | sed -e 's/aarch64/arm64/')
+    curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-${os}-${arch}
     ```
-
-    !!! tip ""
-        For Linux dist, replace `darwin` with `linux`
 
 1. Make the kubectl-argo-rollouts binary executable.
 
     ```shell
-    chmod +x ./kubectl-argo-rollouts-darwin-amd64
+    chmod +x ./kubectl-argo-rollouts-${os}-${arch}
     ```
 
-1. Move the binary into your PATH.
-
+1. Move the binary into your `$PATH`. 
     ```shell
-    sudo mv ./kubectl-argo-rollouts-darwin-amd64 /usr/local/bin/kubectl-argo-rollouts
+    mv ./kubectl-argo-rollouts-${os}-${arch} ~/.local/bin/kubectl-argo-rollouts
     ```
 
-Test to ensure the version you installed is up-to-date:
+    !!! tip ""
+        We assume for this example that `~/.local/bin` is in your `$PATH`. If there are multiple users on the system,
+        you may prefer a shared directory such as `/usr/local/bin`.
+
+1. If you're on a Mac, remove the executable from quarantine:
+    ```shell
+    [[ $os = "darwin" ]] && xattr -d com.apple.quarantine ~/.local/bin/kubectl-argo-rollouts
+    ```
+
+Ensure it has been installed correctly:
 
 ```shell
 kubectl argo rollouts version
@@ -100,7 +107,7 @@ kubectl argo rollouts __complete "\$@"
 EOF
 
 chmod +x kubectl_complete-argo-rollouts
-sudo mv ./kubectl_complete-argo-rollouts /usr/local/bin/
+mv ./kubectl_complete-argo-rollouts ~/.local/bin
 ```
 
 To enable auto completion for the CLI run as a standalone binary, the CLI can export shell completion code for several shells.
