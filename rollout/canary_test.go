@@ -928,6 +928,11 @@ func TestRollBackToStable(t *testing.T) {
 	expectedRS1 := rs1.DeepCopy()
 	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
 	expectedRS1.Annotations[annotations.RevisionHistoryAnnotation] = "1"
+	// Expect revision annotation on pod template for downward API access
+	if expectedRS1.Spec.Template.Annotations == nil {
+		expectedRS1.Spec.Template.Annotations = make(map[string]string)
+	}
+	expectedRS1.Spec.Template.Annotations[annotations.RevisionAnnotation] = "3"
 	firstUpdatedRS1 := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, expectedRS1, firstUpdatedRS1)
 
