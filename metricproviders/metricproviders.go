@@ -13,6 +13,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
 	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
+	"github.com/argoproj/argo-rollouts/metricproviders/gcp"
 	"github.com/argoproj/argo-rollouts/metricproviders/graphite"
 	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
 	"github.com/argoproj/argo-rollouts/metricproviders/newrelic"
@@ -98,6 +99,12 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, namespace string, metric
 			return nil, err
 		}
 		return cloudwatch.NewCloudWatchProvider(client, logCtx), nil
+	case gcp.ProviderType:
+		client, err := gcp.NewGCPAPIClient(metric)
+		if err != nil {
+			return nil, err
+		}
+		return gcp.NewGCPProvider(client, logCtx), nil
 	case influxdb.ProviderType:
 		client, err := influxdb.NewInfluxdbAPI(metric, f.KubeClient)
 		if err != nil {
@@ -138,6 +145,8 @@ func Type(metric v1alpha1.Metric) string {
 		return newrelic.ProviderType
 	} else if metric.Provider.CloudWatch != nil {
 		return cloudwatch.ProviderType
+	} else if metric.Provider.GCP != nil {
+		return gcp.ProviderType
 	} else if metric.Provider.Graphite != nil {
 		return graphite.ProviderType
 	} else if metric.Provider.Influxdb != nil {

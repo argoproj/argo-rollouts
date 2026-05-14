@@ -385,6 +385,20 @@ func TestValidateMetrics(t *testing.T) {
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: no provider specified")
 	})
+	t.Run("Ensure GCP counts as a valid provider", func(t *testing.T) {
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+					Provider: v1alpha1.MetricProvider{
+						GCP: &v1alpha1.GCPMetric{},
+					},
+				},
+			},
+		}
+		err := ValidateMetrics(spec.Metrics)
+		assert.NoError(t, err)
+	})
 	t.Run("Ensure metric does not have more than 1 provider", func(t *testing.T) {
 		spec := v1alpha1.AnalysisTemplateSpec{
 			Metrics: []v1alpha1.Metric{
@@ -401,6 +415,8 @@ func TestValidateMetrics(t *testing.T) {
 						CloudWatch: &v1alpha1.CloudWatchMetric{},
 						Graphite:   &v1alpha1.GraphiteMetric{},
 						Influxdb:   &v1alpha1.InfluxdbMetric{},
+						SkyWalking: &v1alpha1.SkyWalkingMetric{},
+						GCP:        &v1alpha1.GCPMetric{},
 					},
 				},
 			},

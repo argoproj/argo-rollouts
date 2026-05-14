@@ -198,6 +198,8 @@ type MetricProvider struct {
 	// +kubebuilder:validation:Type=object
 	// Plugin specifies the hashicorp go-plugin metric to query
 	Plugin map[string]json.RawMessage `json:"plugin,omitempty" protobuf:"bytes,12,opt,name=plugin"`
+	// GCP specifies the Google Cloud Monitoring metric to query
+	GCP *GCPMetric `json:"gcp,omitempty" protobuf:"bytes,13,opt,name=gcp"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -360,6 +362,57 @@ type CloudWatchMetricStatMetric struct {
 type CloudWatchMetricStatMetricDimension struct {
 	Name  string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+}
+
+// GCPMetric defines a Google Cloud Monitoring query to perform canary analysis.
+// Exactly one of Query or Filter must be specified.
+type GCPMetric struct {
+	// Project is the GCP project ID to query metrics from. Required.
+	// +kubebuilder:validation:Required
+	Project string `json:"project" protobuf:"bytes,1,opt,name=project"`
+	// Interval is the lookback window for the query. Defaults to 5m.
+	// +optional
+	Interval DurationString `json:"interval,omitempty" protobuf:"bytes,2,opt,name=interval,casttype=DurationString"`
+	// Query is a PromQL expression evaluated against native Cloud Monitoring
+	// (Stackdriver) metrics via the Cloud Monitoring API's PromQL-compatible
+	// frontend. No Prometheus server is involved; PromQL is used here purely
+	// as a query language over Cloud Monitoring data.
+	// +optional
+	Query string `json:"query,omitempty" protobuf:"bytes,3,opt,name=query"`
+	// Filter is a Cloud Monitoring metric filter passed to the ListTimeSeries
+	// API. Use when PromQL is not suitable. Example:
+	// metric.type="compute.googleapis.com/instance/cpu/utilization"
+	// +optional
+	Filter string `json:"filter,omitempty" protobuf:"bytes,4,opt,name=filter"`
+	// Aggregation is the alignment/reduction applied to time series returned
+	// by Filter. Ignored when Query is set.
+	// +optional
+	Aggregation *GCPAggregation `json:"aggregation,omitempty" protobuf:"bytes,5,opt,name=aggregation"`
+	// Timeout bounds a single Cloud Monitoring API call, in seconds. Defaults
+	// to 30 if unset. Must be non-negative.
+	// +optional
+	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,6,opt,name=timeout"`
+}
+
+// GCPAggregation mirrors the subset of google.monitoring.v3.Aggregation
+// used to align and reduce time series.
+type GCPAggregation struct {
+	// AlignmentPeriod is the bucket width used to align points within each
+	// time series. Example: "60s".
+	AlignmentPeriod DurationString `json:"alignmentPeriod,omitempty" protobuf:"bytes,1,opt,name=alignmentPeriod,casttype=DurationString"`
+	// PerSeriesAligner is the alignment function applied within each time
+	// series. Example: "ALIGN_MEAN".
+	// +kubebuilder:validation:Enum=ALIGN_NONE;ALIGN_DELTA;ALIGN_RATE;ALIGN_INTERPOLATE;ALIGN_NEXT_OLDER;ALIGN_MIN;ALIGN_MAX;ALIGN_MEAN;ALIGN_COUNT;ALIGN_SUM;ALIGN_STDDEV;ALIGN_COUNT_TRUE;ALIGN_COUNT_FALSE;ALIGN_FRACTION_TRUE;ALIGN_PERCENTILE_99;ALIGN_PERCENTILE_95;ALIGN_PERCENTILE_50;ALIGN_PERCENTILE_05;ALIGN_PERCENT_CHANGE
+	PerSeriesAligner string `json:"perSeriesAligner,omitempty" protobuf:"bytes,2,opt,name=perSeriesAligner"`
+	// CrossSeriesReducer combines aligned points across series.
+	// Example: "REDUCE_MEAN".
+	// +optional
+	// +kubebuilder:validation:Enum=REDUCE_NONE;REDUCE_MEAN;REDUCE_MIN;REDUCE_MAX;REDUCE_SUM;REDUCE_STDDEV;REDUCE_COUNT;REDUCE_COUNT_TRUE;REDUCE_COUNT_FALSE;REDUCE_FRACTION_TRUE;REDUCE_PERCENTILE_99;REDUCE_PERCENTILE_95;REDUCE_PERCENTILE_50;REDUCE_PERCENTILE_05
+	CrossSeriesReducer string `json:"crossSeriesReducer,omitempty" protobuf:"bytes,3,opt,name=crossSeriesReducer"`
+	// GroupByFields preserves the listed label dimensions when reducing
+	// across series. Ignored unless CrossSeriesReducer is set.
+	// +optional
+	GroupByFields []string `json:"groupByFields,omitempty" protobuf:"bytes,4,rep,name=groupByFields"`
 }
 
 // AnalysisRun is an instantiation of an AnalysisTemplate
