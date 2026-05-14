@@ -42,8 +42,12 @@ type DRRef struct {
 }
 
 // Phase names a single VirtualService HTTP route to be ramped.
+// Weight is the fraction of total traffic (0–100) handled by this route; phases must sum to 100.
+// When weight is omitted on all phases the plugin falls back to legacy mode (first incomplete
+// phase receives desiredWeight directly).
 type Phase struct {
-	Route string `json:"route"`
+	Route  string `json:"route"`
+	Weight int32  `json:"weight,omitempty"`
 }
 
 type RpcPlugin struct {
@@ -91,6 +95,35 @@ func (p *RpcPlugin) getVS(ctx context.Context, namespace, name string) (*unstruc
 		return nil, pluginTypes.RpcError{ErrorString: fmt.Sprintf("failed to get VirtualService %s/%s: %v", namespace, name, err)}
 	}
 	return vs, pluginTypes.RpcError{}
+}
+
+// cumulativeRanges returns the [start, end] range in desiredWeight space for each phase, and
+// reports whether any phase has an explicit weight (proportional mode). When the second return
+// value is false, the ranges are meaningless and proportional logic should not be used.
+func cumulativeRanges(phases []Phase) ([][2]int32, bool) {
+	ranges := make([][2]int32, len(phases))
+	var cum int32
+	proportional := false
+	for i, p := range phases {
+		if p.Weight > 0 {
+			proportional = true
+		}
+		ranges[i] = [2]int32{cum, cum + p.Weight}
+		cum += p.Weight
+	}
+	return ranges, proportional
+}
+
+// phaseRouteWeight maps a global desiredWeight to a per-route canary weight [0, 100].
+// start and end are the phase's cumulative range boundaries in desiredWeight space.
+func phaseRouteWeight(desiredWeight, start, end int32) int32 {
+	if desiredWeight >= end {
+		return 100
+	}
+	if desiredWeight <= start {
+		return 0
+	}
+	return (desiredWeight - start) * 100 / (end - start)
 }
 
 func findHTTPRoute(httpRoutes []interface{}, routeName string) (map[string]interface{}, bool) {
@@ -186,7 +219,14 @@ func (p *RpcPlugin) SetWeight(ro *v1alpha1.Rollout, desiredWeight int32, additio
 	canary := cfg.DestinationRule.CanarySubsetName
 	stable := cfg.DestinationRule.StableSubsetName
 
-	if desiredWeight == 0 {
+	if ranges, proportional := cumulativeRanges(cfg.Phases); proportional {
+		for i, phase := range cfg.Phases {
+			rw := phaseRouteWeight(desiredWeight, ranges[i][0], ranges[i][1])
+			if err := applyRouteWeights(httpRoutes, phase.Route, canary, stable, rw); err != nil {
+				p.LogCtx.Warnf("could not set route %s: %v", phase.Route, err)
+			}
+		}
+	} else if desiredWeight == 0 {
 		for _, phase := range cfg.Phases {
 			if err := applyRouteWeights(httpRoutes, phase.Route, canary, stable, 0); err != nil {
 				p.LogCtx.Warnf("could not reset route %s: %v", phase.Route, err)
@@ -297,6 +337,17 @@ func (p *RpcPlugin) VerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32, addi
 	}
 
 	canary := cfg.DestinationRule.CanarySubsetName
+
+	if ranges, proportional := cumulativeRanges(cfg.Phases); proportional {
+		for i, phase := range cfg.Phases {
+			expected := phaseRouteWeight(desiredWeight, ranges[i][0], ranges[i][1])
+			if routeCanaryWeight(httpRoutes, phase.Route, canary) != int64(expected) {
+				return pluginTypes.NotVerified, pluginTypes.RpcError{}
+			}
+		}
+		return pluginTypes.Verified, pluginTypes.RpcError{}
+	}
+
 	for _, phase := range cfg.Phases {
 		w := routeCanaryWeight(httpRoutes, phase.Route, canary)
 		if w < 100 {

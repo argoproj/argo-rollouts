@@ -6,21 +6,40 @@ A custom Argo Rollouts traffic router plugin that advances multiple Istio Virtua
 
 The built-in Istio traffic router applies a single `desiredWeight` to every route listed in `trafficRouting.istio.virtualService.routes` at the same time. There is no way to express "ramp route A to 100% before touching route B."
 
-This plugin solves that by introducing **phases**: an ordered list of VirtualService HTTP routes. Each `setWeight` step advances only the first phase whose canary weight is still below 100. Once a phase reaches 100%, the next phase becomes active automatically.
+This plugin solves that by introducing **phases**: an ordered list of VirtualService HTTP routes that are ramped sequentially.
 
-## How phase detection works
+## Modes
 
-On every `SetWeight(N)` call the plugin:
+### Proportional mode (recommended)
 
-1. Reads the current VirtualService from the cluster.
-2. Walks the configured phases in order.
-3. The first phase whose named route has a canary weight **below 100** is the active phase.
-4. Applies `desiredWeight` to that route (`canary = N`, `stable = 100 - N`).
-5. All other routes are left unchanged.
+Each phase carries a `weight` representing its fraction of total traffic (0–100, phases must sum to 100). The Rollout's `desiredWeight` then maps directly to the fraction of total traffic served by canary pods, keeping ReplicaSet counts proportional to actual traffic at every step.
 
-When `desiredWeight` is 0, all managed routes are reset to `stable = 100, canary = 0` (used during rollback / `RemoveManagedRoutes`).
+On every `SetWeight(N)` call the plugin computes each phase's target route weight from `N` and its position in the cumulative weight range:
 
-Because the active phase is determined by reading live cluster state, the plugin is naturally resilient to `pause`, `analysis`, and any other non-`setWeight` step types — they don't call `SetWeight`, so the VirtualService is untouched until the rollout continues.
+```
+phase 1 range:  [0,  w1]       → route weight = N / w1 * 100  (clamped to [0, 100])
+phase 2 range:  [w1, w1+w2]    → route weight = (N - w1) / w2 * 100
+...
+```
+
+All routes are updated in a single VirtualService write.
+
+### Legacy mode
+
+When no phase specifies a `weight`, the plugin uses the original sequential algorithm:
+
+1. Reads the current VirtualService.
+2. Walks phases in order; the first whose route has canary weight **below 100** is active.
+3. Applies `desiredWeight` directly to that route's canary weight.
+4. All other routes are left unchanged.
+
+Legacy mode is preserved for backward compatibility. Existing configurations without `weight` fields continue to work unchanged.
+
+---
+
+When `desiredWeight` is 0 (either mode), all managed routes are reset to `stable = 100, canary = 0`.
+
+`pause`, `analysis`, and other non-`setWeight` steps do not call the plugin — the VirtualService is untouched until the rollout continues.
 
 ## Installation
 
@@ -75,7 +94,9 @@ type DRRef struct {
 }
 
 type Phase struct {
-    Route string // .spec.http[].name in the VirtualService
+    Route  string // .spec.http[].name in the VirtualService
+    Weight int32  // fraction of total traffic (0-100); phases must sum to 100 (proportional mode)
+                  // omit on all phases to use legacy mode
 }
 ```
 
@@ -175,39 +196,43 @@ spec:
               canarySubsetName: canary
               stableSubsetName: stable
             phases:
+              # latest-route (catch-all) handles ~70% of traffic
               - route: latest-route
+                weight: 70
+              # stable-route (enterprise header-matched) handles ~30% of traffic
               - route: stable-route
+                weight: 30
       steps:
-      # Phase 1 — ramp catch-all traffic (latest-route)
-      - setWeight: 10
+      # desiredWeight = % of total traffic going to canary (= canary RS size / spec.Replicas).
+      # Phase 1 (latest-route) spans desiredWeight 0–70.
+      - setWeight: 14    # latest-route canary = 20%,  stable-route canary = 0%
       - pause: {duration: 10m}
-      - setWeight: 50
+      - setWeight: 35    # latest-route canary = 50%,  stable-route canary = 0%
       - pause: {duration: 10m}
-      - setWeight: 80
+      - setWeight: 70    # latest-route canary = 100%, stable-route canary = 0%  (phase 1 complete)
       - pause: {duration: 10m}
-      - setWeight: 100
-      # Phase 2 — ramp enterprise header-matched traffic (stable-route)
-      - setWeight: 5
+      # Phase 2 (stable-route) spans desiredWeight 70–100.
+      - setWeight: 80    # latest-route canary = 100%, stable-route canary = 33%
       - pause: {duration: 10m}
-      - setWeight: 25
+      - setWeight: 90    # latest-route canary = 100%, stable-route canary = 67%
       - pause: {duration: 10m}
-      - setWeight: 75
-      - pause: {duration: 10m}
-      - setWeight: 100
+      - setWeight: 100   # latest-route canary = 100%, stable-route canary = 100%
 ```
 
 ## Weight progression walkthrough
 
-| Step | `desiredWeight` | Active phase | `latest-route` canary | `stable-route` canary |
-|------|-----------------|--------------|-----------------------|-----------------------|
-| 1    | 10              | latest-route | **10**                | 0                     |
-| 2    | 50              | latest-route | **50**                | 0                     |
-| 3    | 80              | latest-route | **80**                | 0                     |
-| 4    | 100             | latest-route | **100**               | 0                     |
-| 5    | 5               | stable-route | 100                   | **5**                 |
-| 6    | 25              | stable-route | 100                   | **25**                |
-| 7    | 75              | stable-route | 100                   | **75**                |
-| 8    | 100             | stable-route | 100                   | **100**               |
+Phases: `latest-route` weight=70, `stable-route` weight=30. `spec.replicas: 10`.
+
+| Step | `desiredWeight` | canary RS pods | `latest-route` canary | `stable-route` canary |
+|------|-----------------|----------------|-----------------------|-----------------------|
+| 1    | 14              | ~1             | **20%**               | 0%                    |
+| 2    | 35              | 3–4            | **50%**               | 0%                    |
+| 3    | 70              | 7              | **100%**              | 0%                    |
+| 4    | 80              | 8              | 100%                  | **33%**               |
+| 5    | 90              | 9              | 100%                  | **67%**               |
+| 6    | 100             | 10             | 100%                  | **100%**              |
+
+At every step, `canary RS pods ≈ desiredWeight / 100 × spec.replicas` — proportional to actual traffic.
 
 `pause` steps between `setWeight` steps do not call the plugin — the VirtualService remains unchanged until the rollout continues.
 
