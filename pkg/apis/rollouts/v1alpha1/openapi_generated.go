@@ -73,6 +73,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":                                  schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":                                schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.FieldRef":                                        schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GCPAggregation":                                  schema_pkg_apis_rollouts_v1alpha1_GCPAggregation(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GCPMetric":                                       schema_pkg_apis_rollouts_v1alpha1_GCPMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric":                                  schema_pkg_apis_rollouts_v1alpha1_GraphiteMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.HeaderRoutingMatch":                              schema_pkg_apis_rollouts_v1alpha1_HeaderRoutingMatch(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric":                                  schema_pkg_apis_rollouts_v1alpha1_InfluxdbMetric(ref),
@@ -2501,6 +2503,113 @@ func schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref common.ReferenceCallback) co
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_GCPAggregation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "GCPAggregation mirrors the subset of google.monitoring.v3.Aggregation used to align and reduce time series.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"alignmentPeriod": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AlignmentPeriod is the bucket width used to align points within each time series. Example: \"60s\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"perSeriesAligner": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PerSeriesAligner is the alignment function applied within each time series. Example: \"ALIGN_MEAN\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"crossSeriesReducer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CrossSeriesReducer combines aligned points across series. Example: \"REDUCE_MEAN\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"groupByFields": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GroupByFields preserves the listed label dimensions when reducing across series. Ignored unless CrossSeriesReducer is set.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_GCPMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "GCPMetric defines a Google Cloud Monitoring query to perform canary analysis. Exactly one of Query or Filter must be specified.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"project": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Project is the GCP project ID to query metrics from. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"interval": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Interval is the lookback window for the query. Defaults to 5m.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"query": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Query is a PromQL expression evaluated against native Cloud Monitoring (Stackdriver) metrics via the Cloud Monitoring API's PromQL-compatible frontend. No Prometheus server is involved; PromQL is used here purely as a query language over Cloud Monitoring data.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"filter": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Filter is a Cloud Monitoring metric filter passed to the ListTimeSeries API. Use when PromQL is not suitable. Example: metric.type=\"compute.googleapis.com/instance/cpu/utilization\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"aggregation": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Aggregation is the alignment/reduction applied to time series returned by Filter. Ignored when Query is set.",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GCPAggregation"),
+						},
+					},
+					"timeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Timeout bounds a single Cloud Monitoring API call, in seconds. Defaults to 30 if unset. Must be non-negative.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+				Required: []string{"project"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GCPAggregation"},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_GraphiteMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3215,11 +3324,17 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 							},
 						},
 					},
+					"gcp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GCP specifies the Google Cloud Monitoring metric to query",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GCPMetric"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CloudWatchMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DatadogMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SkyWalkingMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CloudWatchMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DatadogMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GCPMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SkyWalkingMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric"},
 	}
 }
 

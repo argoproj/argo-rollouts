@@ -348,6 +348,98 @@
                                                 },
                                                 "type": "object"
                                             },
+                                            "gcp": {
+                                                "description": "GCP specifies the Google Cloud Monitoring metric to query",
+                                                "properties": {
+                                                    "aggregation": {
+                                                        "description": "Aggregation is the alignment/reduction applied to time series returned\nby Filter. Ignored when Query is set.",
+                                                        "properties": {
+                                                            "alignmentPeriod": {
+                                                                "description": "AlignmentPeriod is the bucket width used to align points within each\ntime series. Example: \"60s\".",
+                                                                "type": "string"
+                                                            },
+                                                            "crossSeriesReducer": {
+                                                                "description": "CrossSeriesReducer combines aligned points across series.\nExample: \"REDUCE_MEAN\".",
+                                                                "enum": [
+                                                                    "REDUCE_NONE",
+                                                                    "REDUCE_MEAN",
+                                                                    "REDUCE_MIN",
+                                                                    "REDUCE_MAX",
+                                                                    "REDUCE_SUM",
+                                                                    "REDUCE_STDDEV",
+                                                                    "REDUCE_COUNT",
+                                                                    "REDUCE_COUNT_TRUE",
+                                                                    "REDUCE_COUNT_FALSE",
+                                                                    "REDUCE_FRACTION_TRUE",
+                                                                    "REDUCE_PERCENTILE_99",
+                                                                    "REDUCE_PERCENTILE_95",
+                                                                    "REDUCE_PERCENTILE_50",
+                                                                    "REDUCE_PERCENTILE_05"
+                                                                ],
+                                                                "type": "string"
+                                                            },
+                                                            "groupByFields": {
+                                                                "description": "GroupByFields preserves the listed label dimensions when reducing\nacross series. Ignored unless CrossSeriesReducer is set.",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            "perSeriesAligner": {
+                                                                "description": "PerSeriesAligner is the alignment function applied within each time\nseries. Example: \"ALIGN_MEAN\".",
+                                                                "enum": [
+                                                                    "ALIGN_NONE",
+                                                                    "ALIGN_DELTA",
+                                                                    "ALIGN_RATE",
+                                                                    "ALIGN_INTERPOLATE",
+                                                                    "ALIGN_NEXT_OLDER",
+                                                                    "ALIGN_MIN",
+                                                                    "ALIGN_MAX",
+                                                                    "ALIGN_MEAN",
+                                                                    "ALIGN_COUNT",
+                                                                    "ALIGN_SUM",
+                                                                    "ALIGN_STDDEV",
+                                                                    "ALIGN_COUNT_TRUE",
+                                                                    "ALIGN_COUNT_FALSE",
+                                                                    "ALIGN_FRACTION_TRUE",
+                                                                    "ALIGN_PERCENTILE_99",
+                                                                    "ALIGN_PERCENTILE_95",
+                                                                    "ALIGN_PERCENTILE_50",
+                                                                    "ALIGN_PERCENTILE_05",
+                                                                    "ALIGN_PERCENT_CHANGE"
+                                                                ],
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "filter": {
+                                                        "description": "Filter is a Cloud Monitoring metric filter passed to the ListTimeSeries\nAPI. Use when PromQL is not suitable. Example:\nmetric.type=\"compute.googleapis.com/instance/cpu/utilization\"",
+                                                        "type": "string"
+                                                    },
+                                                    "interval": {
+                                                        "description": "Interval is the lookback window for the query. Defaults to 5m.",
+                                                        "type": "string"
+                                                    },
+                                                    "project": {
+                                                        "description": "Project is the GCP project ID to query metrics from. Required.",
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "description": "Query is a PromQL expression evaluated against native Cloud Monitoring\n(Stackdriver) metrics via the Cloud Monitoring API's PromQL-compatible\nfrontend. No Prometheus server is involved; PromQL is used here purely\nas a query language over Cloud Monitoring data.",
+                                                        "type": "string"
+                                                    },
+                                                    "timeout": {
+                                                        "description": "Timeout bounds a single Cloud Monitoring API call, in seconds. Defaults\nto 30 if unset. Must be non-negative.",
+                                                        "format": "int64",
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "project"
+                                                ],
+                                                "type": "object"
+                                            },
                                             "graphite": {
                                                 "description": "Graphite specifies the Graphite metric to query",
                                                 "properties": {
@@ -6764,6 +6856,98 @@
                                                         "type": "object"
                                                     }
                                                 },
+                                                "type": "object"
+                                            },
+                                            "gcp": {
+                                                "description": "GCP specifies the Google Cloud Monitoring metric to query",
+                                                "properties": {
+                                                    "aggregation": {
+                                                        "description": "Aggregation is the alignment/reduction applied to time series returned\nby Filter. Ignored when Query is set.",
+                                                        "properties": {
+                                                            "alignmentPeriod": {
+                                                                "description": "AlignmentPeriod is the bucket width used to align points within each\ntime series. Example: \"60s\".",
+                                                                "type": "string"
+                                                            },
+                                                            "crossSeriesReducer": {
+                                                                "description": "CrossSeriesReducer combines aligned points across series.\nExample: \"REDUCE_MEAN\".",
+                                                                "enum": [
+                                                                    "REDUCE_NONE",
+                                                                    "REDUCE_MEAN",
+                                                                    "REDUCE_MIN",
+                                                                    "REDUCE_MAX",
+                                                                    "REDUCE_SUM",
+                                                                    "REDUCE_STDDEV",
+                                                                    "REDUCE_COUNT",
+                                                                    "REDUCE_COUNT_TRUE",
+                                                                    "REDUCE_COUNT_FALSE",
+                                                                    "REDUCE_FRACTION_TRUE",
+                                                                    "REDUCE_PERCENTILE_99",
+                                                                    "REDUCE_PERCENTILE_95",
+                                                                    "REDUCE_PERCENTILE_50",
+                                                                    "REDUCE_PERCENTILE_05"
+                                                                ],
+                                                                "type": "string"
+                                                            },
+                                                            "groupByFields": {
+                                                                "description": "GroupByFields preserves the listed label dimensions when reducing\nacross series. Ignored unless CrossSeriesReducer is set.",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            "perSeriesAligner": {
+                                                                "description": "PerSeriesAligner is the alignment function applied within each time\nseries. Example: \"ALIGN_MEAN\".",
+                                                                "enum": [
+                                                                    "ALIGN_NONE",
+                                                                    "ALIGN_DELTA",
+                                                                    "ALIGN_RATE",
+                                                                    "ALIGN_INTERPOLATE",
+                                                                    "ALIGN_NEXT_OLDER",
+                                                                    "ALIGN_MIN",
+                                                                    "ALIGN_MAX",
+                                                                    "ALIGN_MEAN",
+                                                                    "ALIGN_COUNT",
+                                                                    "ALIGN_SUM",
+                                                                    "ALIGN_STDDEV",
+                                                                    "ALIGN_COUNT_TRUE",
+                                                                    "ALIGN_COUNT_FALSE",
+                                                                    "ALIGN_FRACTION_TRUE",
+                                                                    "ALIGN_PERCENTILE_99",
+                                                                    "ALIGN_PERCENTILE_95",
+                                                                    "ALIGN_PERCENTILE_50",
+                                                                    "ALIGN_PERCENTILE_05",
+                                                                    "ALIGN_PERCENT_CHANGE"
+                                                                ],
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "filter": {
+                                                        "description": "Filter is a Cloud Monitoring metric filter passed to the ListTimeSeries\nAPI. Use when PromQL is not suitable. Example:\nmetric.type=\"compute.googleapis.com/instance/cpu/utilization\"",
+                                                        "type": "string"
+                                                    },
+                                                    "interval": {
+                                                        "description": "Interval is the lookback window for the query. Defaults to 5m.",
+                                                        "type": "string"
+                                                    },
+                                                    "project": {
+                                                        "description": "Project is the GCP project ID to query metrics from. Required.",
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "description": "Query is a PromQL expression evaluated against native Cloud Monitoring\n(Stackdriver) metrics via the Cloud Monitoring API's PromQL-compatible\nfrontend. No Prometheus server is involved; PromQL is used here purely\nas a query language over Cloud Monitoring data.",
+                                                        "type": "string"
+                                                    },
+                                                    "timeout": {
+                                                        "description": "Timeout bounds a single Cloud Monitoring API call, in seconds. Defaults\nto 30 if unset. Must be non-negative.",
+                                                        "format": "int64",
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "project"
+                                                ],
                                                 "type": "object"
                                             },
                                             "graphite": {
@@ -13198,6 +13382,98 @@
                                                         "type": "object"
                                                     }
                                                 },
+                                                "type": "object"
+                                            },
+                                            "gcp": {
+                                                "description": "GCP specifies the Google Cloud Monitoring metric to query",
+                                                "properties": {
+                                                    "aggregation": {
+                                                        "description": "Aggregation is the alignment/reduction applied to time series returned\nby Filter. Ignored when Query is set.",
+                                                        "properties": {
+                                                            "alignmentPeriod": {
+                                                                "description": "AlignmentPeriod is the bucket width used to align points within each\ntime series. Example: \"60s\".",
+                                                                "type": "string"
+                                                            },
+                                                            "crossSeriesReducer": {
+                                                                "description": "CrossSeriesReducer combines aligned points across series.\nExample: \"REDUCE_MEAN\".",
+                                                                "enum": [
+                                                                    "REDUCE_NONE",
+                                                                    "REDUCE_MEAN",
+                                                                    "REDUCE_MIN",
+                                                                    "REDUCE_MAX",
+                                                                    "REDUCE_SUM",
+                                                                    "REDUCE_STDDEV",
+                                                                    "REDUCE_COUNT",
+                                                                    "REDUCE_COUNT_TRUE",
+                                                                    "REDUCE_COUNT_FALSE",
+                                                                    "REDUCE_FRACTION_TRUE",
+                                                                    "REDUCE_PERCENTILE_99",
+                                                                    "REDUCE_PERCENTILE_95",
+                                                                    "REDUCE_PERCENTILE_50",
+                                                                    "REDUCE_PERCENTILE_05"
+                                                                ],
+                                                                "type": "string"
+                                                            },
+                                                            "groupByFields": {
+                                                                "description": "GroupByFields preserves the listed label dimensions when reducing\nacross series. Ignored unless CrossSeriesReducer is set.",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            "perSeriesAligner": {
+                                                                "description": "PerSeriesAligner is the alignment function applied within each time\nseries. Example: \"ALIGN_MEAN\".",
+                                                                "enum": [
+                                                                    "ALIGN_NONE",
+                                                                    "ALIGN_DELTA",
+                                                                    "ALIGN_RATE",
+                                                                    "ALIGN_INTERPOLATE",
+                                                                    "ALIGN_NEXT_OLDER",
+                                                                    "ALIGN_MIN",
+                                                                    "ALIGN_MAX",
+                                                                    "ALIGN_MEAN",
+                                                                    "ALIGN_COUNT",
+                                                                    "ALIGN_SUM",
+                                                                    "ALIGN_STDDEV",
+                                                                    "ALIGN_COUNT_TRUE",
+                                                                    "ALIGN_COUNT_FALSE",
+                                                                    "ALIGN_FRACTION_TRUE",
+                                                                    "ALIGN_PERCENTILE_99",
+                                                                    "ALIGN_PERCENTILE_95",
+                                                                    "ALIGN_PERCENTILE_50",
+                                                                    "ALIGN_PERCENTILE_05",
+                                                                    "ALIGN_PERCENT_CHANGE"
+                                                                ],
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "filter": {
+                                                        "description": "Filter is a Cloud Monitoring metric filter passed to the ListTimeSeries\nAPI. Use when PromQL is not suitable. Example:\nmetric.type=\"compute.googleapis.com/instance/cpu/utilization\"",
+                                                        "type": "string"
+                                                    },
+                                                    "interval": {
+                                                        "description": "Interval is the lookback window for the query. Defaults to 5m.",
+                                                        "type": "string"
+                                                    },
+                                                    "project": {
+                                                        "description": "Project is the GCP project ID to query metrics from. Required.",
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "description": "Query is a PromQL expression evaluated against native Cloud Monitoring\n(Stackdriver) metrics via the Cloud Monitoring API's PromQL-compatible\nfrontend. No Prometheus server is involved; PromQL is used here purely\nas a query language over Cloud Monitoring data.",
+                                                        "type": "string"
+                                                    },
+                                                    "timeout": {
+                                                        "description": "Timeout bounds a single Cloud Monitoring API call, in seconds. Defaults\nto 30 if unset. Must be non-negative.",
+                                                        "format": "int64",
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "project"
+                                                ],
                                                 "type": "object"
                                             },
                                             "graphite": {

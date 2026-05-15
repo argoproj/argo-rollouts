@@ -30,7 +30,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 * Ingress controller integration: NGINX, ALB, Apache APISIX
 * Service Mesh integration: Istio, Linkerd, SMI
 * Simultaneous usage of multiple providers: SMI + NGINX, Istio + ALB, etc.
-* Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, Graphite, InfluxDB
+* Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, CloudWatch, Graphite, InfluxDB, Apache SkyWalking, Google Cloud Monitoring
 
 ## Quick Start
 

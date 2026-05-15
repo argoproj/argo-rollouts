@@ -1095,6 +1095,80 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef {
     fieldPath?: string;
 }
 /**
+ * GCPAggregation mirrors the subset of google.monitoring.v3.Aggregation used to align and reduce time series.
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPAggregation
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPAggregation {
+    /**
+     * AlignmentPeriod is the bucket width used to align points within each time series. Example: \"60s\".
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPAggregation
+     */
+    alignmentPeriod?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPAggregation
+     */
+    perSeriesAligner?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPAggregation
+     */
+    crossSeriesReducer?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPAggregation
+     */
+    groupByFields?: Array<string>;
+}
+/**
+ * GCPMetric defines a Google Cloud Monitoring query to perform canary analysis. Exactly one of Query or Filter must be specified.
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPMetric
+     */
+    project?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPMetric
+     */
+    interval?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPMetric
+     */
+    query?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPMetric
+     */
+    filter?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPAggregation}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPMetric
+     */
+    aggregation?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPAggregation;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPMetric
+     */
+    timeout?: string;
+}
+/**
  * 
  * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric
@@ -1594,6 +1668,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvi
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
      */
     plugin?: { [key: string]: string; };
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    gcp?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GCPMetric;
 }
 /**
  * 

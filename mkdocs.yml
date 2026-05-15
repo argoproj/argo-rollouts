@@ -71,6 +71,7 @@ nav:
   - Graphite: analysis/graphite.md
   - InfluxDB: analysis/influxdb.md
   - Apache SkyWalking: analysis/skywalking.md
+  - Google Cloud Monitoring: analysis/gcp.md
 - Experiments: features/experiment.md
 - Notifications:
   - Overview: features/notifications.md

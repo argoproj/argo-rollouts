@@ -1247,6 +1247,62 @@
         }
       }
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GCPAggregation": {
+      "type": "object",
+      "properties": {
+        "alignmentPeriod": {
+          "type": "string",
+          "description": "AlignmentPeriod is the bucket width used to align points within each\ntime series. Example: \"60s\"."
+        },
+        "perSeriesAligner": {
+          "type": "string",
+          "title": "PerSeriesAligner is the alignment function applied within each time\nseries. Example: \"ALIGN_MEAN\".\n+kubebuilder:validation:Enum=ALIGN_NONE;ALIGN_DELTA;ALIGN_RATE;ALIGN_INTERPOLATE;ALIGN_NEXT_OLDER;ALIGN_MIN;ALIGN_MAX;ALIGN_MEAN;ALIGN_COUNT;ALIGN_SUM;ALIGN_STDDEV;ALIGN_COUNT_TRUE;ALIGN_COUNT_FALSE;ALIGN_FRACTION_TRUE;ALIGN_PERCENTILE_99;ALIGN_PERCENTILE_95;ALIGN_PERCENTILE_50;ALIGN_PERCENTILE_05;ALIGN_PERCENT_CHANGE"
+        },
+        "crossSeriesReducer": {
+          "type": "string",
+          "title": "CrossSeriesReducer combines aligned points across series.\nExample: \"REDUCE_MEAN\".\n+optional\n+kubebuilder:validation:Enum=REDUCE_NONE;REDUCE_MEAN;REDUCE_MIN;REDUCE_MAX;REDUCE_SUM;REDUCE_STDDEV;REDUCE_COUNT;REDUCE_COUNT_TRUE;REDUCE_COUNT_FALSE;REDUCE_FRACTION_TRUE;REDUCE_PERCENTILE_99;REDUCE_PERCENTILE_95;REDUCE_PERCENTILE_50;REDUCE_PERCENTILE_05"
+        },
+        "groupByFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "GroupByFields preserves the listed label dimensions when reducing\nacross series. Ignored unless CrossSeriesReducer is set.\n+optional"
+        }
+      },
+      "description": "GCPAggregation mirrors the subset of google.monitoring.v3.Aggregation\nused to align and reduce time series."
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GCPMetric": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "title": "Project is the GCP project ID to query metrics from. Required.\n+kubebuilder:validation:Required"
+        },
+        "interval": {
+          "type": "string",
+          "title": "Interval is the lookback window for the query. Defaults to 5m.\n+optional"
+        },
+        "query": {
+          "type": "string",
+          "title": "Query is a PromQL expression evaluated against native Cloud Monitoring\n(Stackdriver) metrics via the Cloud Monitoring API's PromQL-compatible\nfrontend. No Prometheus server is involved; PromQL is used here purely\nas a query language over Cloud Monitoring data.\n+optional"
+        },
+        "filter": {
+          "type": "string",
+          "title": "Filter is a Cloud Monitoring metric filter passed to the ListTimeSeries\nAPI. Use when PromQL is not suitable. Example:\nmetric.type=\"compute.googleapis.com/instance/cpu/utilization\"\n+optional"
+        },
+        "aggregation": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GCPAggregation",
+          "title": "Aggregation is the alignment/reduction applied to time series returned\nby Filter. Ignored when Query is set.\n+optional"
+        },
+        "timeout": {
+          "type": "string",
+          "format": "int64",
+          "title": "Timeout bounds a single Cloud Monitoring API call, in seconds. Defaults\nto 30 if unset. Must be non-negative.\n+optional"
+        }
+      },
+      "description": "GCPMetric defines a Google Cloud Monitoring query to perform canary analysis.\nExactly one of Query or Filter must be specified."
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GraphiteMetric": {
       "type": "object",
       "properties": {
@@ -1603,6 +1659,10 @@
             "format": "byte"
           },
           "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nPlugin specifies the hashicorp go-plugin metric to query"
+        },
+        "gcp": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GCPMetric",
+          "title": "GCP specifies the Google Cloud Monitoring metric to query"
         }
       },
       "title": "MetricProvider which external system to use to verify the analysis\nOnly one of the fields in this struct should be non-nil"
