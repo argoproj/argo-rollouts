@@ -138,6 +138,7 @@ type Manager struct {
 	serviceSynced                 cache.InformerSynced
 	ingressSynced                 cache.InformerSynced
 	jobSynced                     cache.InformerSynced
+	jobPodsSynced                 cache.InformerSynced
 	replicasSetSynced             cache.InformerSynced
 	configMapSynced               cache.InformerSynced
 	secretSynced                  cache.InformerSynced
@@ -172,6 +173,7 @@ func NewAnalysisManager(
 	kubeclientset kubernetes.Interface,
 	argoprojclientset clientset.Interface,
 	jobInformer batchinformers.JobInformer,
+	jobPodsInformer coreinformers.PodInformer,
 	analysisRunInformer informers.AnalysisRunInformer,
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
@@ -207,6 +209,7 @@ func NewAnalysisManager(
 		ArgoProjClientset:    argoprojclientset,
 		AnalysisRunInformer:  analysisRunInformer,
 		JobInformer:          jobInformer,
+		JobPodsInformer:      jobPodsInformer,
 		ResyncPeriod:         resyncPeriod,
 		AnalysisRunWorkQueue: analysisRunWorkqueue,
 		MetricsServer:        metricsServer,
@@ -218,6 +221,7 @@ func NewAnalysisManager(
 		metricsServer:                 metricsServer,
 		healthzServer:                 healthzServer,
 		jobSynced:                     jobInformer.Informer().HasSynced,
+		jobPodsSynced:                 jobPodsInformer.Informer().HasSynced,
 		analysisRunSynced:             analysisRunInformer.Informer().HasSynced,
 		analysisTemplateSynced:        analysisTemplateInformer.Informer().HasSynced,
 		clusterAnalysisTemplateSynced: clusterAnalysisTemplateInformer.Informer().HasSynced,
@@ -258,6 +262,7 @@ func NewManager(
 	servicesInformer coreinformers.ServiceInformer,
 	ingressWrap *ingressutil.IngressWrap,
 	jobInformer batchinformers.JobInformer,
+	jobPodsInformer coreinformers.PodInformer,
 	rolloutsInformer informers.RolloutInformer,
 	experimentsInformer informers.ExperimentInformer,
 	analysisRunInformer informers.AnalysisRunInformer,
@@ -372,6 +377,7 @@ func NewManager(
 		ArgoProjClientset:    argoprojclientset,
 		AnalysisRunInformer:  analysisRunInformer,
 		JobInformer:          jobInformer,
+		JobPodsInformer:      jobPodsInformer,
 		ResyncPeriod:         resyncPeriod,
 		AnalysisRunWorkQueue: analysisRunWorkqueue,
 		MetricsServer:        metricsServer,
@@ -411,6 +417,7 @@ func NewManager(
 		serviceSynced:                        servicesInformer.Informer().HasSynced,
 		ingressSynced:                        ingressWrap.HasSynced,
 		jobSynced:                            jobInformer.Informer().HasSynced,
+		jobPodsSynced:                        jobPodsInformer.Informer().HasSynced,
 		experimentSynced:                     experimentsInformer.Informer().HasSynced,
 		analysisRunSynced:                    analysisRunInformer.Informer().HasSynced,
 		analysisTemplateSynced:               analysisTemplateInformer.Informer().HasSynced,
@@ -561,7 +568,7 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 
 	if c.onlyAnalysisMode {
 		log.Info("Waiting for controller's informer caches to sync")
-		if ok := cache.WaitForCacheSync(ctx.Done(), c.analysisRunSynced, c.analysisTemplateSynced, c.jobSynced); !ok {
+		if ok := cache.WaitForCacheSync(ctx.Done(), c.analysisRunSynced, c.analysisTemplateSynced, c.jobSynced, c.jobPodsSynced); !ok {
 			log.Fatalf("failed to wait for caches to sync, exiting")
 		}
 		// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
@@ -590,7 +597,7 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 
 		// Wait for the caches to be synced before starting workers
 		log.Info("Waiting for controller's informer caches to sync")
-		if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
+		if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.jobPodsSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
 			log.Fatalf("failed to wait for caches to sync, exiting")
 		}
 		// only wait for cluster scoped informers to sync if we are running in cluster-wide mode

@@ -27,10 +27,10 @@ metrics:
 
 The possible outcomes of a job metric are:
 
-1. Jobs starts, runs and ends succesffully with exit 0. Analysis has passed
+1. Jobs starts, runs and ends successfully with exit 0. Analysis has passed
 1. Jobs starts, runs and end with exit code non-zero. Analysis has failed
-1. Job cannot start because of infrastructure error (e.g. image not found). Analysis is inconclusive
-1. Job was still running but was terminated because it is not needed anymore.  Analysis is inconclusive
+1. Job cannot start because one of its pods is stuck in a terminal waiting state such as `ErrImagePull`, `ImagePullBackOff`, or `InvalidImageName` The metric short-circuits to **Inconclusive** without waiting for the Job to time out, and the rollout transitions to **Paused**
+1. Job was still running at the end of the rollout steps but was terminated because it is not needed anymore. Analysis is inconclusive with no effect on the Rollout
 
 The last case can happen either when another metric has already failed or when the job is running as a background
 analysis and the canary/blue-green process has finished.

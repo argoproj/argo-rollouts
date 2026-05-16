@@ -186,7 +186,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement != nil && lastMeasurement.FinishedAt == nil {
 			now := timeutil.MetaNow()
-			if lastMeasurement.ResumeAt != nil && lastMeasurement.ResumeAt.After(now.Time) {
+			if !terminating && lastMeasurement.ResumeAt != nil && lastMeasurement.ResumeAt.After(now.Time) {
 				continue
 			}
 			// last measurement is still in-progress. need to complete it
