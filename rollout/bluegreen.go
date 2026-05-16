@@ -326,8 +326,11 @@ func (c *rolloutContext) calculateScaleUpPreviewCheckPoint(newStatus v1alpha1.Ro
 	}
 
 	// Once the ScaleUpPreviewCheckPoint is set to true, the rollout should keep that value until
-	// the newRS becomes the new stableRS or there is a template change.
-	prevValue := c.rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint
+	// the newRS becomes the new stableRS or there is a template change. Read from newStatus rather
+	// than c.rollout.Status so that a reset applied earlier in this reconcile (e.g. by
+	// resetRolloutStatus on a pod template change) is honored instead of being clobbered by the
+	// pre-reset value.
+	prevValue := newStatus.BlueGreen.ScaleUpPreviewCheckPoint
 	if prevValue {
 		return true
 	}
