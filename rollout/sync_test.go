@@ -875,3 +875,22 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	assert.Equal(t, int32(13), roStatus.Status.ReadyReplicas)
 	assert.Equal(t, int32(0), roStatus.Status.UpdatedReplicas)
 }
+
+// TestScaleDownDeploymentOnSuccessRevision2 verifies that scaleDown: onsuccess
+// triggers scale-down even when revision > 1 (previously gated by revision==1).
+func TestScaleDownDeploymentOnSuccessRevision2(t *testing.T) {
+	ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
+	// Override the revision annotation to simulate a second rollout revision
+	ctx.rollout.Annotations[annotations.RevisionAnnotation] = "2"
+	newStatus := &v1alpha1.RolloutStatus{
+		CurrentPodHash: "2f646bf702",
+		StableRS:       "15fb5ffc01",
+	}
+	err := ctx.promoteStable(newStatus, "reason")
+
+	assert.Nil(t, err)
+	k8sfakeClient := ctx.kubeclientset.(*k8sfake.Clientset)
+	updatedDeployment, err := k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, int32(0), *updatedDeployment.Spec.Replicas)
+}

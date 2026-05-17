@@ -1037,7 +1037,7 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
 	}
 
-	if revision == 1 && c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownOnSuccess {
+	if c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownOnSuccess {
 		var targetScale int32 = 0
 		err := c.scaleDeployment(&targetScale)
 		if err != nil {
