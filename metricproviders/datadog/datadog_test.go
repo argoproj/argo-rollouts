@@ -4,6 +4,9 @@ package datadog
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
 	"os"
 	"testing"
 
@@ -18,6 +21,23 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
+
+// errReader is an io.Reader that always returns an error - used to simulate
+// a torn-down HTTP response body in tests.
+type errReader struct{}
+
+func (*errReader) Read([]byte) (int, error) { return 0, errors.New("forced read error") }
+
+func TestParseResponseV2BodyReadError(t *testing.T) {
+	p := &Provider{logCtx: *log.WithField("test", "test")}
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(&errReader{}),
+	}
+	_, phase, _, err := p.parseResponseV2(v1alpha1.Metric{}, resp)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, phase)
+	assert.ErrorContains(t, err, "Received no bytes in response")
+}
 
 func TestDatadogSpecDefaults(t *testing.T) {
 	_ = apiextv1.AddToScheme(scheme.Scheme)

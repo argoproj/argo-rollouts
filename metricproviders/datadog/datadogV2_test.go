@@ -494,6 +494,17 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
+
+		// Datadog explicitly returns errors in the response body.
+		{
+			webServerStatus:         200,
+			webServerResponse:       `{"data": {"errors": "query exceeded the maximum allowed time range"}}`,
+			metric:                  v1alpha1.Metric{Name: "datadog returns errors", Provider: newQueryDefaultProvider()},
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    "There were errors in your query: query exceeded the maximum allowed time range",
+			useEnvVarForKeys:        false,
+		},
 	}
 
 	// Run
