@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -66,12 +67,59 @@ type datadogResponseV1 struct {
 type datadogResponseV2 struct {
 	Data struct {
 		Attributes struct {
-			Columns []struct {
-				Values []*float64
-			}
+			Columns []datadogV2Column
 		}
 		Errors string
 	}
+}
+
+// datadogV2Column is a single column of a v2 scalar response. Values are kept
+// as raw JSON because group columns contain strings and number columns contain
+// floats (or null); callers pick the interpretation via the Numeric and Strings
+// helpers based on Type.
+type datadogV2Column struct {
+	Name   string            `json:"name"`
+	Type   string            `json:"type"`
+	Values []json.RawMessage `json:"values"`
+}
+
+// Numeric returns the column's values as floats, skipping nulls and any entries
+// that don't parse as a number (e.g. when called on a group column).
+func (c datadogV2Column) Numeric() []float64 {
+	out := make([]float64, 0, len(c.Values))
+	for _, r := range c.Values {
+		if isJSONNull(r) {
+			continue
+		}
+		var f float64
+		if err := json.Unmarshal(r, &f); err != nil {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
+// Strings returns the column's values as strings, skipping nulls and any
+// entries that don't parse as a string. Used to read tag values out of a
+// "group" column.
+func (c datadogV2Column) Strings() []string {
+	out := make([]string, 0, len(c.Values))
+	for _, r := range c.Values {
+		if isJSONNull(r) {
+			continue
+		}
+		var s string
+		if err := json.Unmarshal(r, &s); err != nil {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+func isJSONNull(r json.RawMessage) bool {
+	return string(bytes.TrimSpace(r)) == "null"
 }
 
 type datadogConfig struct {
@@ -161,13 +209,19 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	value, status, err := p.parseResponse(metric, response, dd.ApiVersion)
+	value, status, failingGroups, err := p.parseResponse(metric, response, dd.ApiVersion)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
 	measurement.Value = value
 	measurement.Phase = status
+	if len(failingGroups) > 0 {
+		measurement.Metadata = map[string]string{
+			"failing-groups": strings.Join(failingGroups, ","),
+		}
+		measurement.Message = fmt.Sprintf("reducer=%s applied; %d failing group(s): %s", dd.Reducer, len(failingGroups), strings.Join(failingGroups, ", "))
+	}
 	finishedTime := timeutil.MetaNow()
 	measurement.FinishedAt = &finishedTime
 
@@ -247,9 +301,10 @@ func (p *Provider) createRequestV2(queries map[string]string, formula string, no
 	return request, nil
 }
 
-func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response, apiVersion string) (string, v1alpha1.AnalysisPhase, error) {
+func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response, apiVersion string) (string, v1alpha1.AnalysisPhase, []string, error) {
 	if apiVersion == "v1" {
-		return p.parseResponseV1(metric, response)
+		value, phase, err := p.parseResponseV1(metric, response)
+		return value, phase, nil, err
 	}
 	return p.parseResponseV2(metric, response)
 }
@@ -296,31 +351,48 @@ func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Respon
 	return strconv.FormatFloat(value, 'f', -1, 64), status, err
 }
 
-func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
+func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, []string, error) {
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
+		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("Received no bytes in response: %v", err)
 	}
 
 	if response.StatusCode == http.StatusForbidden || response.StatusCode == http.StatusUnauthorized {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("received authentication error response code: %v %s", response.StatusCode, string(bodyBytes))
+		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("received authentication error response code: %v %s", response.StatusCode, string(bodyBytes))
 	} else if response.StatusCode != http.StatusOK {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("received non 2xx response code: %v %s", response.StatusCode, string(bodyBytes))
+		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("received non 2xx response code: %v %s", response.StatusCode, string(bodyBytes))
 	}
 
 	var res datadogResponseV2
 	err = json.Unmarshal(bodyBytes, &res)
 	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %v", err)
+		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("Could not parse JSON body: %v", err)
 	}
 
 	// Handle an error returned by Datadog
 	if res.Data.Errors != "" {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("There were errors in your query: %v", res.Data.Errors)
+		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("There were errors in your query: %v", res.Data.Errors)
+	}
+
+	// Locate the numeric column. Grouped queries (`by {tag}`) return additional
+	// columns of type "group" holding the tag values; we only evaluate numbers.
+	// Legacy responses omit the type field, so empty type is treated as numeric
+	// for backward compatibility with the previous behavior of picking column 0.
+	numColIdx := -1
+	for i, c := range res.Data.Attributes.Columns {
+		if c.Type == "" || c.Type == "number" {
+			numColIdx = i
+			break
+		}
+	}
+
+	var values []float64
+	if numColIdx != -1 {
+		values = res.Data.Attributes.Columns[numColIdx].Numeric()
 	}
 
 	// Handle an empty query result
-	if reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Columns) == 0 || len(res.Data.Attributes.Columns[0].Values) == 0 || res.Data.Attributes.Columns[0].Values[0] == nil {
+	if reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Columns) == 0 || numColIdx == -1 || len(values) == 0 {
 		var nilFloat64 *float64
 		status, err := evaluate.EvaluateResult(nilFloat64, metric, p.logCtx)
 
@@ -335,17 +407,102 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 		}
 
 		if jsonErr != nil {
-			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Failed to marshall JSON empty Values: %v", jsonErr)
+			return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("Failed to marshall JSON empty Values: %v", jsonErr)
 		}
 
-		return string(attributesBytes), status, err
+		return string(attributesBytes), status, nil, err
 	}
 
-	// Handle a populated query result
-	column := res.Data.Attributes.Columns[0]
-	value := *column.Values[0]
+	value, err := reduceValues(values, metric.Provider.Datadog.Reducer)
+	if err != nil {
+		return "", v1alpha1.AnalysisPhaseError, nil, err
+	}
+
 	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
-	return strconv.FormatFloat(value, 'f', -1, 64), status, err
+
+	// Per-group failure attribution: when the query was grouped (`by {tag}`),
+	// run the same condition against each group's value so we can surface which
+	// groups individually failed. This is informational - the phase above is
+	// still driven by the reduced scalar.
+	var failingGroups []string
+	if len(values) > 1 {
+		groupNames := findGroupValues(res.Data.Attributes.Columns)
+		if len(groupNames) > 0 {
+			failingGroups = identifyFailingGroups(metric, values, groupNames, p.logCtx)
+		}
+	}
+
+	return strconv.FormatFloat(value, 'f', -1, 64), status, failingGroups, err
+}
+
+func findGroupValues(columns []datadogV2Column) []string {
+	for _, c := range columns {
+		if c.Type == "group" {
+			return c.Strings()
+		}
+	}
+	return nil
+}
+
+func identifyFailingGroups(metric v1alpha1.Metric, values []float64, groupNames []string, logCtx log.Entry) []string {
+	var failing []string
+	for i, v := range values {
+		if i >= len(groupNames) {
+			break
+		}
+		phase, err := evaluate.EvaluateResult(v, metric, logCtx)
+		if err != nil {
+			continue
+		}
+		if phase == v1alpha1.AnalysisPhaseFailed {
+			failing = append(failing, fmt.Sprintf("%s=%s", groupNames[i], strconv.FormatFloat(v, 'f', -1, 64)))
+		}
+	}
+	return failing
+}
+
+func reduceValues(values []float64, reducer string) (float64, error) {
+	if len(values) == 1 {
+		return values[0], nil
+	}
+	if reducer == "" {
+		return 0, errors.New("Datadog query returned multiple values but no reducer was set. Set `reducer` (avg, min, max, sum, or last) when using grouped queries.")
+	}
+
+	switch reducer {
+	case "avg":
+		sum := 0.0
+		for _, v := range values {
+			sum += v
+		}
+		return sum / float64(len(values)), nil
+	case "min":
+		m := values[0]
+		for _, v := range values[1:] {
+			if v < m {
+				m = v
+			}
+		}
+		return m, nil
+	case "max":
+		m := values[0]
+		for _, v := range values[1:] {
+			if v > m {
+				m = v
+			}
+		}
+		return m, nil
+	case "sum":
+		sum := 0.0
+		for _, v := range values {
+			sum += v
+		}
+		return sum, nil
+	case "last":
+		return values[len(values)-1], nil
+	default:
+		return 0, fmt.Errorf("Unsupported reducer: %s. Valid values are avg, min, max, sum, last.", reducer)
+	}
 }
 
 // Resume should not be used the Datadog provider since all the work should occur in the Run method
@@ -401,6 +558,10 @@ func validateIncomingProps(dd *v1alpha1.DatadogMetric) error {
 
 	if dd.ApiVersion == "v1" && dd.Aggregator != "" {
 		return errors.New("Aggregator is not supported in v1. Please review the Analysis Template.")
+	}
+
+	if dd.ApiVersion == "v1" && dd.Reducer != "" {
+		return errors.New("Reducer is not supported in v1. Please review the Analysis Template.")
 	}
 
 	return nil

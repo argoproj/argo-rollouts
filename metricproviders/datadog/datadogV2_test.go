@@ -64,6 +64,17 @@ func newQueryProviderSumAggregator() v1alpha1.MetricProvider {
 	}
 }
 
+func newQueryProviderWithReducer(reducer string) v1alpha1.MetricProvider {
+	return v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query:      "avg:kubernetes.cpu.user.total{*}",
+			Interval:   "5m",
+			ApiVersion: "v2",
+			Reducer:    reducer,
+		},
+	}
+}
+
 func newNamespacedSecretProvider() v1alpha1.MetricProvider {
 	return v1alpha1.MetricProvider{
 		Datadog: &v1alpha1.DatadogMetric{
@@ -95,6 +106,7 @@ func TestRunSuiteV2(t *testing.T) {
 		expectedPhase           v1alpha1.AnalysisPhase
 		expectedErrorMessage    string
 		expectedAggregator      string
+		expectedFailingGroups   string
 		useEnvVarForKeys        bool
 	}{
 		{
@@ -249,7 +261,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field .Data.Attributes.Columns.Values of type []*float64",
+			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field datadogV2Column.Data.Attributes.Columns.values of type []json.RawMessage",
 			useEnvVarForKeys:        false,
 		},
 
@@ -306,6 +318,180 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedValue:           "0.006121378742186943",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			expectedAggregator:      "sum",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query: reducer=max picks the worst group, and the offending
+		// group is surfaced in measurement.Metadata["failing-groups"].
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["GET /a", "GET /b", "GET /c"]},
+				{"name": "query1", "type": "number", "values": [1, 5, 3]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query reduced by max",
+				SuccessCondition: "result < 4",
+				FailureCondition: "result >= 4",
+				Provider:         newQueryProviderWithReducer("max"),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "5",
+			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			expectedFailingGroups:   "GET /b=5",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query with multiple failing groups: all are surfaced.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["GET /a", "GET /b", "GET /c"]},
+				{"name": "query1", "type": "number", "values": [1, 8, 6]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query multiple failing groups",
+				SuccessCondition: "result < 4",
+				FailureCondition: "result >= 4",
+				Provider:         newQueryProviderWithReducer("max"),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "8",
+			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			expectedFailingGroups:   "GET /b=8,GET /c=6",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query: reducer=avg passes overall but the bad group is still
+		// reported in metadata so operators can investigate.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["a", "b", "c"]},
+				{"name": "query1", "type": "number", "values": [1, 9, 2]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query avg passes but reports outliers",
+				SuccessCondition: "result < 5",
+				Provider:         newQueryProviderWithReducer("avg"),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "4",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedFailingGroups:   "b=9",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query: reducer=min
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["GET /a", "GET /b", "GET /c"]},
+				{"name": "query1", "type": "number", "values": [4, 7, 2]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query reduced by min",
+				SuccessCondition: "result < 3",
+				FailureCondition: "result >= 3",
+				Provider:         newQueryProviderWithReducer("min"),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "2",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedFailingGroups:   "GET /a=4,GET /b=7",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query: reducer=avg
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["a", "b", "c", "d"]},
+				{"name": "query1", "type": "number", "values": [1, 2, 3, 4]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query reduced by avg",
+				SuccessCondition: "result == 2.5",
+				Provider:         newQueryProviderWithReducer("avg"),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "2.5",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedFailingGroups:   "a=1,b=2,c=3,d=4",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query: reducer=sum
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["a", "b"]},
+				{"name": "query1", "type": "number", "values": [10, 20]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query reduced by sum",
+				SuccessCondition: "result == 30",
+				Provider:         newQueryProviderWithReducer("sum"),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "30",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedFailingGroups:   "a=10,b=20",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query: reducer=last
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["a", "b", "c"]},
+				{"name": "query1", "type": "number", "values": [1, 2, 9]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query reduced by last",
+				SuccessCondition: "result == 9",
+				Provider:         newQueryProviderWithReducer("last"),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "9",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedFailingGroups:   "a=1,b=2",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query without reducer: must error rather than silently picking one value
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["a", "b"]},
+				{"name": "query1", "type": "number", "values": [1, 2]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query without reducer errors",
+				SuccessCondition: "result < 1",
+				Provider:         newQueryDefaultProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    "Datadog query returned multiple values but no reducer was set. Set `reducer` (avg, min, max, sum, or last) when using grouped queries.",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query with a single null value still treated as empty (no usable values)
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["a"]},
+				{"name": "query1", "type": "number", "values": [null]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query all null treated as empty",
+				SuccessCondition: "default(result, 0) < 1",
+				Provider:         newQueryProviderWithReducer("max"),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           `{"Columns":[{"name":"resource_name","type":"group","values":["a"]},{"name":"query1","type":"number","values":[null]}]}`,
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
 	}
@@ -457,6 +643,12 @@ func TestRunSuiteV2(t *testing.T) {
 			assert.NotNil(t, measurement.FinishedAt)
 		case v1alpha1.AnalysisPhaseError:
 			assert.Contains(t, measurement.Message, test.expectedErrorMessage)
+		}
+
+		if test.expectedFailingGroups != "" {
+			assert.Equal(t, test.expectedFailingGroups, measurement.Metadata["failing-groups"])
+		} else {
+			assert.Empty(t, measurement.Metadata["failing-groups"])
 		}
 
 	}

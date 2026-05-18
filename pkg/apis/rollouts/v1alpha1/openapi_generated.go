@@ -1976,6 +1976,13 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SecretRef"),
 						},
 					},
+					"reducer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reducer reduces multiple values returned by a grouped Datadog query (e.g. `by {tag}`) to a single scalar for evaluation. Required when the query returns more than one value. Used for v2.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

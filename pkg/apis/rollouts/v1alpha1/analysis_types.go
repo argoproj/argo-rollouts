@@ -632,6 +632,10 @@ type DatadogMetric struct {
 	// Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
 	// +optional
 	SecretRef SecretRef `json:"secretRef,omitempty" protobuf:"bytes,7,opt,name=secretRef"`
+	// +kubebuilder:validation:Enum=avg;min;max;sum;last
+	// Reducer reduces multiple values returned by a grouped Datadog query (e.g. `by {tag}`) to a
+	// single scalar for evaluation. Required when the query returns more than one value. Used for v2.
+	Reducer string `json:"reducer,omitempty" protobuf:"bytes,8,opt,name=reducer"`
 }
 
 type SecretRef struct {

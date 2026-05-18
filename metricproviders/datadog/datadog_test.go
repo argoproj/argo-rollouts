@@ -170,6 +170,24 @@ func TestValidateIncomingProps(t *testing.T) {
 			},
 			expectedErrorMessage: "",
 		},
+		{
+			name: "v1 query with reducer",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion: "v1",
+				Query:      "foo",
+				Reducer:    "max",
+			},
+			expectedErrorMessage: "Reducer is not supported in v1. Please review the Analysis Template.",
+		},
+		{
+			name: "valid v2 query with reducer",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion: "v2",
+				Query:      "sum:errors{*} by {resource_name}",
+				Reducer:    "max",
+			},
+			expectedErrorMessage: "",
+		},
 	}
 
 	for _, test := range tests {

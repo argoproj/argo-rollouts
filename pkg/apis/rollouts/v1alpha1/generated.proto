@@ -673,6 +673,11 @@ message DatadogMetric {
   // Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
   // +optional
   optional SecretRef secretRef = 7;
+
+  // +kubebuilder:validation:Enum=avg;min;max;sum;last
+  // Reducer reduces multiple values returned by a grouped Datadog query (e.g. `by {tag}`) to a
+  // single scalar for evaluation. Required when the query returns more than one value. Used for v2.
+  optional string reducer = 8;
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.

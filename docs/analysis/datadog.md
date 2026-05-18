@@ -215,6 +215,31 @@ For example, using count-based distribution metric (`count:metric{*}.as_count()`
         formula: "moving_rollup(a, 300, 'sum') / moving_rollup(b, 300, 'sum') * 100" # percentage of requests with errors
 ```
 
+#### Grouped queries with `by {tag}` (v2 only)
+
+Datadog queries that use a `by {tag}` clause return one scalar per group rather than a single value. To evaluate these, set a `reducer` to collapse the grouped values into a single scalar for the success/failure condition. Supported reducers: `avg`, `min`, `max`, `sum`, `last`.
+
+This is useful for detecting regressions in a subset of entities (e.g. a specific `resource_name`) that would otherwise be diluted by a global aggregate:
+
+```yaml
+...<snip>
+  metrics:
+  - name: per-endpoint-error-rate
+    interval: 30s
+    successCondition: result < 0.05
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
+        interval: 5m
+        reducer: max # fail if ANY endpoint exceeds the threshold
+        query: "sum:trace.http.request.errors{service:my-service} by {resource_name}.as_count()"
+```
+
+If a grouped query returns more than one value and no `reducer` is set, the analysis run errors out rather than silently picking the first value.
+
+When a grouped query is used, the measurement also surfaces which individual groups would have failed the success/failure condition via `measurement.Metadata["failing-groups"]` (as a comma-separated `name=value` list) and a human-readable summary in `measurement.Message`. This makes it possible to use `reducer: avg` for the overall go/no-go decision while still seeing the worst offenders for follow-up. Visible in `kubectl describe analysisrun`, the rollouts dashboard, and notification templates.
+
 #### Templates and Helm
 
 Helm and Argo Rollouts both try to parse things between `{{ ... }}` when rendering templates. If you use Helm to deliver your manifests, you will need to escape `{{ args.whatever }}`. Using the example above, here it is set up for Helm:

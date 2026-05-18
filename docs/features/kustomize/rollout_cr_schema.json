@@ -331,6 +331,17 @@
                                                     "query": {
                                                         "type": "string"
                                                     },
+                                                    "reducer": {
+                                                        "description": "Reducer reduces multiple values returned by a grouped Datadog query (e.g. `by {tag}`) to a\nsingle scalar for evaluation. Required when the query returns more than one value. Used for v2.",
+                                                        "enum": [
+                                                            "avg",
+                                                            "min",
+                                                            "max",
+                                                            "sum",
+                                                            "last"
+                                                        ],
+                                                        "type": "string"
+                                                    },
                                                     "secretRef": {
                                                         "description": "Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.",
                                                         "properties": {
@@ -6747,6 +6758,17 @@
                                                         "type": "object"
                                                     },
                                                     "query": {
+                                                        "type": "string"
+                                                    },
+                                                    "reducer": {
+                                                        "description": "Reducer reduces multiple values returned by a grouped Datadog query (e.g. `by {tag}`) to a\nsingle scalar for evaluation. Required when the query returns more than one value. Used for v2.",
+                                                        "enum": [
+                                                            "avg",
+                                                            "min",
+                                                            "max",
+                                                            "sum",
+                                                            "last"
+                                                        ],
                                                         "type": "string"
                                                     },
                                                     "secretRef": {
@@ -13181,6 +13203,17 @@
                                                         "type": "object"
                                                     },
                                                     "query": {
+                                                        "type": "string"
+                                                    },
+                                                    "reducer": {
+                                                        "description": "Reducer reduces multiple values returned by a grouped Datadog query (e.g. `by {tag}`) to a\nsingle scalar for evaluation. Required when the query returns more than one value. Used for v2.",
+                                                        "enum": [
+                                                            "avg",
+                                                            "min",
+                                                            "max",
+                                                            "sum",
+                                                            "last"
+                                                        ],
                                                         "type": "string"
                                                     },
                                                     "secretRef": {
