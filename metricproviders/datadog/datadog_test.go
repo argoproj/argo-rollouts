@@ -3,6 +3,7 @@
 package datadog
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -275,5 +276,108 @@ func newMetric(name string, namespaced bool) v1alpha1.Metric {
 				},
 			},
 		},
+	}
+}
+
+func rawJSON(values ...string) []json.RawMessage {
+	out := make([]json.RawMessage, 0, len(values))
+	for _, v := range values {
+		out = append(out, json.RawMessage(v))
+	}
+	return out
+}
+
+func TestDatadogV2ColumnNumeric(t *testing.T) {
+	// Mix of valid numbers, null, and a stray non-numeric value. Numeric()
+	// should keep only the parseable floats.
+	col := datadogV2Column{
+		Type:   "number",
+		Values: rawJSON(`1.5`, `null`, `"not-a-number"`, `2`),
+	}
+	assert.Equal(t, []float64{1.5, 2}, col.Numeric())
+}
+
+func TestDatadogV2ColumnStrings(t *testing.T) {
+	// Mix of strings, null, and a stray number. Strings() should keep only the
+	// real strings - this is what protects us from a group column that has a
+	// null tag value or a malformed entry.
+	col := datadogV2Column{
+		Type:   "group",
+		Values: rawJSON(`"alpha"`, `null`, `42`, `"beta"`),
+	}
+	assert.Equal(t, []string{"alpha", "beta"}, col.Strings())
+}
+
+func TestFindGroupValues(t *testing.T) {
+	// Returns the strings from the group column when present.
+	cols := []datadogV2Column{
+		{Type: "number", Values: rawJSON(`1`, `2`)},
+		{Type: "group", Values: rawJSON(`"a"`, `"b"`)},
+	}
+	assert.Equal(t, []string{"a", "b"}, findGroupValues(cols))
+
+	// Returns nil when no group column is present - the ungrouped case.
+	cols = []datadogV2Column{
+		{Type: "number", Values: rawJSON(`1`)},
+	}
+	assert.Nil(t, findGroupValues(cols))
+}
+
+func TestIdentifyFailingGroups(t *testing.T) {
+	logCtx := log.WithField("test", "test")
+	metric := v1alpha1.Metric{
+		Name:             "test",
+		SuccessCondition: "result < 5",
+		FailureCondition: "result >= 5",
+	}
+
+	// Straight path: values 1 and 7 against `result < 5` - only 7 fails.
+	failing := identifyFailingGroups(metric, []float64{1, 7}, []string{"ok", "bad"}, *logCtx)
+	assert.Equal(t, []string{"bad=7"}, failing)
+
+	// Mismatched lengths (more values than group names): we break out of the
+	// loop rather than indexing past the slice. This guards against malformed
+	// Datadog responses.
+	failing = identifyFailingGroups(metric, []float64{1, 7, 9}, []string{"a"}, *logCtx)
+	assert.Equal(t, 0, len(failing))
+
+	// Bad condition expression: EvaluateResult returns an error per group and
+	// we skip it without aborting the whole attribution.
+	bad := v1alpha1.Metric{
+		Name:             "bad",
+		SuccessCondition: "this is not valid expr (",
+	}
+	failing = identifyFailingGroups(bad, []float64{1, 2}, []string{"a", "b"}, *logCtx)
+	assert.Equal(t, 0, len(failing))
+}
+
+func TestReduceValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		values   []float64
+		reducer  string
+		expected float64
+		errMsg   string
+	}{
+		{name: "single value short-circuits", values: []float64{42}, reducer: "", expected: 42},
+		{name: "avg", values: []float64{1, 2, 3, 4}, reducer: "avg", expected: 2.5},
+		{name: "min", values: []float64{3, 1, 2}, reducer: "min", expected: 1},
+		{name: "max", values: []float64{3, 1, 7, 2}, reducer: "max", expected: 7},
+		{name: "sum", values: []float64{1, 2, 3}, reducer: "sum", expected: 6},
+		{name: "last", values: []float64{1, 2, 9}, reducer: "last", expected: 9},
+		{name: "multiple values require reducer", values: []float64{1, 2}, reducer: "", errMsg: "no reducer was set"},
+		{name: "unknown reducer is rejected", values: []float64{1, 2}, reducer: "median", errMsg: "Unsupported reducer"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := reduceValues(tt.values, tt.reducer)
+			if tt.errMsg != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, got)
+		})
 	}
 }
