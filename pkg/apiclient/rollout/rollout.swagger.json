@@ -1225,6 +1225,10 @@
         "secretRef": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SecretRef",
           "title": "Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.\n+optional"
+        },
+        "reducer": {
+          "type": "string",
+          "description": "+kubebuilder:validation:Enum=avg;min;max;sum;last\nReducer reduces multiple values returned by a grouped Datadog query (e.g. `by {tag}`) to a\nsingle scalar for evaluation. Required when the query returns more than one value. Used for v2."
         }
       }
     },

@@ -1067,6 +1067,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetr
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
      */
     secretRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef;
+    /**
+     * +kubebuilder:validation:Enum=avg;min;max;sum;last Reducer reduces multiple values returned by a grouped Datadog query (e.g. `by {tag}`) to a single scalar for evaluation. Required when the query returns more than one value. Used for v2.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    reducer?: string;
 }
 /**
  * DryRun defines the settings for running the analysis in Dry-Run mode.
