@@ -28,6 +28,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Factorial](https://factorialhr.com)
 1. [Farfetch](https://www.farfetch.com/)
 1. [Flipkart](https://flipkart.com)
+1. [Fresha](https://www.fresha.com/)
 1. [GetYourGuide](https://www.getyourguide.com)
 1. [Gllue](https://gllue.com)
 1. [Groww](https://groww.in/)
