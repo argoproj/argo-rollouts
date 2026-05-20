@@ -34,6 +34,10 @@ type MetricsServer struct {
 	errorNotificationCounter      *prometheus.CounterVec
 	sendNotificationRunHistogram  *prometheus.HistogramVec
 	k8sRequestsCounter            *K8sRequestsCountProvider
+
+	rolloutDurationTotal       *prometheus.HistogramVec
+	rolloutDurationProgression *prometheus.HistogramVec
+	rolloutDurationManualPause *prometheus.HistogramVec
 }
 
 const (
@@ -87,6 +91,9 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	reg.MustRegister(MetricNotificationSend)
 	reg.MustRegister(MetricVersionGauge)
 	reg.MustRegister(buildInfo)
+	reg.MustRegister(MetricRolloutDurationTotal)
+	reg.MustRegister(MetricRolloutDurationProgression)
+	reg.MustRegister(MetricRolloutDurationManualPause)
 
 	recordBuildInfo()
 
@@ -114,6 +121,10 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 		sendNotificationRunHistogram:  MetricNotificationSend,
 
 		k8sRequestsCounter: cfg.K8SRequestProvider,
+
+		rolloutDurationTotal:       MetricRolloutDurationTotal,
+		rolloutDurationProgression: MetricRolloutDurationProgression,
+		rolloutDurationManualPause: MetricRolloutDurationManualPause,
 	}
 }
 
@@ -142,6 +153,39 @@ func (m *MetricsServer) IncError(namespace, name string, kind string) {
 	case log.ExperimentKey:
 		m.errorExperimentCounter.WithLabelValues(namespace, name).Inc()
 	}
+}
+
+// EmitRolloutDuration emits duration metrics from RolloutDurationStatus
+// Only emits if FinishedAt is set (indicating the rollout has completed)
+// Uses the CompletionStatus field for the metric status label
+func (m *MetricsServer) EmitRolloutDuration(rollout *v1alpha1.Rollout) {
+	ds := rollout.Status.Duration
+	if ds == nil || ds.RolloutStartedAt == nil || ds.FinishedAt == nil {
+		return
+	}
+
+	// Get the completion status from the object
+	status := ds.GetCompletionStatus()
+	if status == "" {
+		return
+	}
+
+	// Calculate total duration from start to finish
+	total := ds.FinishedAt.Sub(ds.RolloutStartedAt.Time)
+
+	// Calculate manual pause time from accumulated duration
+	manualPause := time.Duration(0)
+	if ds.TotalManualPauseDuration != nil {
+		manualPause = time.Duration(*ds.TotalManualPauseDuration) * time.Second
+	}
+
+	// Progression = total - manual pause
+	progression := total - manualPause
+
+	// Emit metrics with status label
+	m.rolloutDurationTotal.WithLabelValues(status).Observe(total.Seconds())
+	m.rolloutDurationProgression.WithLabelValues(status).Observe(progression.Seconds())
+	m.rolloutDurationManualPause.WithLabelValues(status).Observe(manualPause.Seconds())
 }
 
 // Remove removes the metrics server from the registry

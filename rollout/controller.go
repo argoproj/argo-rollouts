@@ -77,8 +77,6 @@ type Controller struct {
 	// rsControl is used for adopting/releasing replica sets.
 	replicaSetControl controller.RSControlInterface
 
-	metricsServer *metrics.MetricsServer
-
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
 	// means we can ensure we only process a fixed amount of resources at a
@@ -159,6 +157,9 @@ type reconcilerBase struct {
 	resyncPeriod                time.Duration
 	ephemeralMetadataThreads    int
 	ephemeralMetadataPodRetries int
+
+	// metricsServer is used to emit metrics for the rollout
+	metricsServer *metrics.MetricsServer
 }
 
 type IngressWrapper interface {
@@ -211,6 +212,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		refResolver:                   cfg.RefResolver,
 		ephemeralMetadataThreads:      cfg.EphemeralMetadataThreads,
 		ephemeralMetadataPodRetries:   cfg.EphemeralMetadataPodRetries,
+		metricsServer:                 cfg.MetricsServer,
 	}
 
 	controller := &Controller{
@@ -220,7 +222,6 @@ func NewController(cfg ControllerConfig) *Controller {
 		rolloutWorkqueue:  cfg.RolloutWorkQueue,
 		serviceWorkqueue:  cfg.ServiceWorkQueue,
 		ingressWorkqueue:  cfg.IngressWorkQueue,
-		metricsServer:     cfg.MetricsServer,
 	}
 	controller.enqueueRollout = func(obj any) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)
