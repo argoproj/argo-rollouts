@@ -1,0 +1,16 @@
+# All
+** @argoproj/argo-rollouts-approvers
+
+# Docs
+/docs/**     @argoproj/argo-rollouts-approvers @argoproj/argo-rollouts-approvers-docs
+/USERS.md    @argoproj/argo-rollouts-approvers @argoproj/argo-rollouts-approvers-docs
+/README.md   @argoproj/argo-rollouts-approvers @argoproj/argo-rollouts-approvers-docs
+/mkdocs.yml  @argoproj/argo-rollouts-approvers @argoproj/argo-rollouts-approvers-docs
+
+# CI
+/.codecov.yml             @argoproj/argo-rollouts-approvers @argoproj/argo-rollouts-approvers-ci
+/.github/**               @argoproj/argo-rollouts-approvers @argoproj/argo-rollouts-approvers-ci
+/.golangci.yml            @argoproj/argo-rollouts-approvers @argoproj/argo-rollouts-approvers-ci
+/sonar-project.properties @argoproj/argo-rollouts-approvers @argoproj/argo-rollouts-approvers-ci
+
+
