@@ -150,7 +150,7 @@ func TestEmitRolloutDuration_Promoted(t *testing.T) {
 		},
 	}
 
-	metricsServ.EmitRolloutDuration(rollout)
+	metricsServ.EmitRolloutDuration(rollout.Status.Duration)
 
 	// Verify all three metrics are emitted with correct sum values
 	// Total: 5 minutes = 300 seconds
@@ -190,7 +190,7 @@ func TestEmitRolloutDuration_ManuallyPromoted(t *testing.T) {
 		},
 	}
 
-	metricsServ.EmitRolloutDuration(rollout)
+	metricsServ.EmitRolloutDuration(rollout.Status.Duration)
 
 	// Verify all three metrics are emitted with correct sum values
 	// Total: 3 minutes = 180 seconds
@@ -230,7 +230,7 @@ func TestEmitRolloutDuration_Aborted(t *testing.T) {
 		},
 	}
 
-	metricsServ.EmitRolloutDuration(rollout)
+	metricsServ.EmitRolloutDuration(rollout.Status.Duration)
 
 	// Verify all three metrics are emitted with correct sum values
 	// Total: 2 minutes = 120 seconds
@@ -270,7 +270,7 @@ func TestEmitRolloutDuration_Superseded(t *testing.T) {
 		},
 	}
 
-	metricsServ.EmitRolloutDuration(rollout)
+	metricsServ.EmitRolloutDuration(rollout.Status.Duration)
 
 	// Verify all three metrics are emitted with correct sum values
 	// Total: 1 minute = 60 seconds
@@ -312,7 +312,7 @@ func TestEmitRolloutDuration_WithManualPause(t *testing.T) {
 		},
 	}
 
-	metricsServ.EmitRolloutDuration(rollout)
+	metricsServ.EmitRolloutDuration(rollout.Status.Duration)
 
 	// Verify all three metrics are emitted with correct sum values
 	// Total: 10 minutes = 600 seconds
@@ -344,7 +344,7 @@ func TestEmitRolloutDuration_NilDurationStatus(t *testing.T) {
 	}
 
 	// Should not panic and should not emit metrics
-	metricsServ.EmitRolloutDuration(rollout)
+	metricsServ.EmitRolloutDuration(rollout.Status.Duration)
 	testHttpResponse(t, metricsServ.Handler, `rollout_duration`, assert.NotContains)
 }
 
@@ -365,7 +365,7 @@ func TestEmitRolloutDuration_NilRolloutStartedAt(t *testing.T) {
 	}
 
 	// Should not panic and should not emit metrics
-	metricsServ.EmitRolloutDuration(rollout)
+	metricsServ.EmitRolloutDuration(rollout.Status.Duration)
 	testHttpResponse(t, metricsServ.Handler, `rollout_duration`, assert.NotContains)
 }
 
@@ -390,6 +390,6 @@ func TestEmitRolloutDuration_NilFinishedAt(t *testing.T) {
 	}
 
 	// Should not panic and should not emit metrics
-	metricsServ.EmitRolloutDuration(rollout)
+	metricsServ.EmitRolloutDuration(rollout.Status.Duration)
 	testHttpResponse(t, metricsServ.Handler, `rollout_duration`, assert.NotContains)
 }

@@ -27,8 +27,8 @@ func TestRolloutPauseDuration(t *testing.T) {
 	assert.Equal(t, int32(-1), rp.DurationSeconds())
 }
 
-// TestRolloutDurationStatus_IsAlreadyCompleted tests the IsAlreadyCompleted helper method
-func TestRolloutDurationStatus_IsAlreadyCompleted(t *testing.T) {
+// TestRolloutDurationStatus_IsCompleted tests the IsCompleted helper method
+func TestRolloutDurationStatus_IsCompleted(t *testing.T) {
 	tests := []struct {
 		name           string
 		durationStatus *RolloutDurationStatus
@@ -57,7 +57,7 @@ func TestRolloutDurationStatus_IsAlreadyCompleted(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.durationStatus.IsAlreadyCompleted()
+			result := tt.durationStatus.IsCompleted()
 			assert.Equal(t, tt.expected, result)
 		})
 	}
