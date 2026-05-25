@@ -158,8 +158,7 @@ func (m *MetricsServer) IncError(namespace, name string, kind string) {
 // EmitRolloutDuration emits duration metrics from RolloutDurationStatus
 // Only emits if FinishedAt is set (indicating the rollout has completed)
 // Uses the CompletionStatus field for the metric status label
-func (m *MetricsServer) EmitRolloutDuration(rollout *v1alpha1.Rollout) {
-	ds := rollout.Status.Duration
+func (m *MetricsServer) EmitRolloutDuration(ds *v1alpha1.RolloutDurationStatus) {
 	if ds == nil || ds.RolloutStartedAt == nil || ds.FinishedAt == nil {
 		return
 	}

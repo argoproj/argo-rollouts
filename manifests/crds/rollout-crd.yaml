@@ -8619,9 +8619,9 @@ spec:
                   controller will execute the rollout.
                 format: int32
                 type: integer
-              durationStatus:
-                description: DurationStatus tracks timing information for the current
-                  rollout attempt
+              duration:
+                description: Duration tracks timing information for the current rollout
+                  attempt
                 properties:
                   completionStatus:
                     description: |-

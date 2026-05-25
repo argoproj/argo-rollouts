@@ -1046,8 +1046,8 @@ type RolloutDurationStatus struct {
 
 // IsAlreadyCompleted returns true if completion metrics have been emitted for this rollout attempt
 // Determined by checking if FinishedAt timestamp is set (metrics published)
-func (d *RolloutDurationStatus) IsAlreadyCompleted() bool {
-	return d != nil && d.FinishedAt != nil
+func (d *RolloutDurationStatus) IsCompleted() bool {
+	return d != nil && d.RolloutStartedAt != nil && d.FinishedAt != nil
 }
 
 // GetCompletionStatus returns the completion status (outcome that was or will be emitted), empty string if not set

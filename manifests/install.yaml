@@ -39381,6 +39381,40 @@ spec:
                   controller will execute the rollout.
                 format: int32
                 type: integer
+              duration:
+                description: Duration tracks timing information for the current rollout
+                  attempt
+                properties:
+                  completionStatus:
+                    description: |-
+                      CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)
+                      Possible values: "promoted", "manually-promoted", "aborted", "superseded"
+                      Set when: (1) promoteStable() called, OR (2) abort detected, OR (3) superseded
+                      Used to determine which status to emit when FinishedAt is set
+                    type: string
+                  finishedAt:
+                    description: |-
+                      FinishedAt is when the rollout reached its final stable state and metrics were emitted
+                      Set after: (1) rollout promoted and stable, OR (2) aborted, OR (3) superseded
+                      Nil means rollout is in-progress or just promoted but metrics not yet emitted
+                    format: date-time
+                    type: string
+                  manualPauseStartedAt:
+                    description: ManualPauseStartedAt is when the current manual pause
+                      began (nil if not in manual pause)
+                    format: date-time
+                    type: string
+                  rolloutStartedAt:
+                    description: RolloutStartedAt is when the current rollout attempt
+                      started (StableRS diverged from CurrentPodHash)
+                    format: date-time
+                    type: string
+                  totalManualPauseDuration:
+                    description: TotalManualPauseDuration is the accumulated time
+                      spent in manual pauses (in seconds)
+                    format: int64
+                    type: integer
+                type: object
               message:
                 description: Message provides details on why the rollout is in its
                   current phase
