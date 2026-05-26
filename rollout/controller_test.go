@@ -445,14 +445,26 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
 	completeCond, _ := newCompletedCondition(isCompleted)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, completeCond)
+	now := timeutil.MetaNow()
 	if pause {
-		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{
 			Reason:    v1alpha1.PauseReasonBlueGreenPause,
 			StartTime: now,
 		}
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+		if requiresManualAction(cond.Reason, newRollout) {
+			previousTime := metav1.Time{Time: now.Time.Add(time.Second * -5)}
+			newRollout.Status.Duration.ManualPauseStartedAt = &previousTime
+		}
+	} else {
+		newRollout.Status.Duration.ManualPauseStartedAt = nil
+	}
+	if isCompleted {
+		newRollout.Status.Duration.CompletionStatus = ptr.To("promoted")
+		if available {
+			newRollout.Status.Duration.FinishedAt = &now
+		}
 	}
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
 	return newRollout
@@ -468,8 +480,9 @@ func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableRe
 		}
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
-		if requiresManualAction(v1alpha1.PauseReasonCanaryPauseStep, newRollout) {
-			newRollout.Status.Duration.ManualPauseStartedAt = &now
+		if requiresManualAction(cond.Reason, newRollout) {
+			previousTime := metav1.Time{Time: now.Time.Add(time.Second * -5)}
+			newRollout.Status.Duration.ManualPauseStartedAt = &previousTime
 		}
 	}
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)

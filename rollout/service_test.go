@@ -393,8 +393,20 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
-	expectedPatch := fmt.Sprintf(`{"status":{"message":null,"phase":"Healthy","stableRS":"%s"}}`, rs2PodHash)
-	assert.Equal(t, expectedPatch, patch)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	expectedPatch := fmt.Sprintf(`
+	{
+		"status":{
+			"message":null,
+			"phase":"Healthy",
+			"stableRS":"%s",
+			"duration": {
+				"completionStatus": "promoted",
+				"finishedAt": "%s"
+			}
+		}
+	}`, rs2PodHash, now)
+	assert.Equal(t, cleanPatch(expectedPatch), patch)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
 		conditions.RolloutCompletedReason,

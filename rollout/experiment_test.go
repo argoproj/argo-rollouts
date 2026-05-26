@@ -310,12 +310,16 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 				"currentExperiment": null
 			},
 			"phase": "Degraded",
-			"message": "%s: %s"
+			"message": "%s: %s",
+			"duration": {
+				"completionStatus": "aborted",
+				"finishedAt": "%s"
+			}
 		}
 	}`
 	now := timeutil.Now().UTC().Format(time.RFC3339)
 	generatedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "Experiment analysis phase is error/failed", false)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": Experiment analysis phase is error/failed")), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": Experiment analysis phase is error/failed", now)), patch)
 }
 
 func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {

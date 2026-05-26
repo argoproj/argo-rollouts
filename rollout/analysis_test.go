@@ -1475,12 +1475,15 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 			}],
 			"controllerPause": true,
 			"phase": "Paused",
-			"message": "%s"
+			"message": "%s",
+			"duration": {
+				"manualPauseStartedAt": "%s"
+			}
 		}
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis, now)), patch)
 }
 
 func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
@@ -1539,11 +1542,14 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 			}],
 			"controllerPause": true,
 			"phase": "Paused",
-			"message": "%s"
+			"message": "%s",
+			"duration": {
+				"manualPauseStartedAt": "%s"
+			}
 		}
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis, now)), patch)
 }
 
 func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
@@ -1603,13 +1609,17 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 			"abort": true,
 			"abortedAt": "%s",
 			"phase": "Degraded",
-			"message": "RolloutAborted: %s"
+			"message": "RolloutAborted: %s",
+			"duration": {
+				"completionStatus": "aborted",
+				"finishedAt": "%s"
+			}
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	errmsg := "Step-based analysis phase error/failed: " + ar.Status.Message
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, errmsg, false)
-	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": "+errmsg)
+	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": "+errmsg, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -1679,14 +1689,18 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 			"abortedAt": "%s",
 			"abort": true,
 			"phase": "Degraded",
-			"message": "RolloutAborted: %s"
+			"message": "RolloutAborted: %s",
+			"duration": {
+				"completionStatus": "aborted",
+				"finishedAt": "%s"
+			}
 		}
 	}`
 	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2) + ": Background analysis phase error/failed"
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "Background analysis phase error/failed", false)
 
 	now := timeutil.Now().UTC().Format(time.RFC3339)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg, now)), patch)
 }
 
 func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
@@ -1742,12 +1756,16 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 			"conditions": %s,
 			"abortedAt": "%s",
 			"phase": "Degraded",
-			"message": "RolloutAborted: %s"
+			"message": "RolloutAborted: %s",
+			"duration": {
+				"completionStatus": "aborted",
+				"finishedAt": "%s"
+			}
 		}
 	}`
 	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
 	now := timeutil.Now().UTC().Format(time.RFC3339)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, now, errmsg)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, now, errmsg, now)), patch)
 }
 
 func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
@@ -1827,6 +1845,7 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
 		StartTime: timeutil.MetaNow(),
 	}}
+	r2.Status.Duration.ManualPauseStartedAt = ptr.To(timeutil.MetaNow())
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
@@ -2259,6 +2278,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
@@ -2270,9 +2290,13 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 			"controllerPause": null,
 			"selector":"foo=bar,rollouts-pod-template-hash=%s",
 			"phase": "Healthy",
-			"message": null
+			"message": null,
+			"duration": {
+				"completionStatus": "promoted",
+				"finishedAt": "%s"
+			}
 		}
-	}`, rs2PodHash, rs2PodHash, rs2PodHash)
+	}`, rs2PodHash, rs2PodHash, rs2PodHash, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -2303,8 +2327,8 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
-	now := metav1.NewTime(timeutil.MetaNow().Add(-10 * time.Second))
-	r2.Status.PauseConditions[0].StartTime = now
+	before := metav1.NewTime(timeutil.MetaNow().Add(-10 * time.Second))
+	r2.Status.PauseConditions[0].StartTime = before
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
@@ -2326,6 +2350,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
@@ -2336,9 +2361,13 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 			"controllerPause": null,
 			"selector":"foo=bar,rollouts-pod-template-hash=%s",
 			"phase": "Healthy",
-			"message": null
+			"message": null,
+			"duration": {
+				"completionStatus": "promoted",
+				"finishedAt": "%s"
+			}
 		}
-	}`, rs2PodHash, rs2PodHash, rs2PodHash)
+	}`, rs2PodHash, rs2PodHash, rs2PodHash, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -2458,13 +2487,19 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 				}
 			},
 			"phase": "Degraded",
-			"message": "%s: %s"
+			"message": "%s: %s",
+			"duration": {
+				"completionStatus": "aborted",
+				"finishedAt": "%s",
+				"manualPauseStartedAt": null,
+				"totalManualPauseDuration": 5
+			}
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "Blue/green pre-promotion analysis phase error/failed")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message, now)), patch)
 }
 
 func TestCreatePostPromotionAnalysisRun(t *testing.T) {
@@ -2505,7 +2540,7 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 		"status": {
 			"blueGreen": {
 				"postPromotionAnalysisRunStatus":{
-					"name": "%s", 
+					"name": "%s",
 					"status": ""
 				}
 			}
@@ -2557,6 +2592,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"replicas":2,
@@ -2565,9 +2601,13 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 				"postPromotionAnalysisRunStatus":{"status":"Successful"}
 			},
 			"phase": "Healthy",
-			"message": null
+			"message": null,
+			"duration": {
+				"completionStatus": "promoted",
+				"finishedAt": "%s"
+			}
 		}
-	}`, rs2PodHash)
+	}`, rs2PodHash, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -2624,16 +2664,20 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	expectedPatch := fmt.Sprint(`{
+	expectedPatch := `{
 		"status": {
 			"blueGreen": {
 				"postPromotionAnalysisRunStatus": {"status":"Inconclusive"}
 			},
 			"phase": "Paused",
-			"message": "InconclusiveAnalysisRun"
+			"message": "InconclusiveAnalysisRun",
+			"duration": {
+				"manualPauseStartedAt": "%s"
+			}
 		}
-	}`)
-	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	}`
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now)), patch)
 }
 
 func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
@@ -2697,13 +2741,17 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 				}
 			},
 			"phase": "Degraded",
-			"message": "%s: %s"
+			"message": "%s: %s",
+			"duration": {
+				"completionStatus": "aborted",
+				"finishedAt": "%s"
+			}
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "Blue/green post-promotion analysis phase error/failed")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message, now)), patch)
 }
 
 func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testing.T) {
