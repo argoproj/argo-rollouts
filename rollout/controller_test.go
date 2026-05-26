@@ -461,13 +461,16 @@ func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableRe
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas)
 	newRollout.Status.StableRS = stableRS
 	if pause {
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{
 			Reason:    v1alpha1.PauseReasonCanaryPauseStep,
 			StartTime: now,
 		}
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+		if requiresManualAction(v1alpha1.PauseReasonCanaryPauseStep, newRollout) {
+			newRollout.Status.Duration.ManualPauseStartedAt = &now
+		}
 	}
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
 	return newRollout
@@ -1600,6 +1603,8 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	r.Status.ReadyReplicas = 1
 	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
 	r.Status.ObservedGeneration = "122"
+	r.Status.Duration.CompletionStatus = ptr.To("promoted")
+	r.Status.Duration.FinishedAt = ptr.To(timeutil.MetaNow())
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
@@ -1655,6 +1660,8 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.ObservedGeneration = "122"
+	r.Status.Duration.CompletionStatus = ptr.To("promoted")
+	r.Status.Duration.FinishedAt = ptr.To(timeutil.MetaNow())
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
@@ -1712,6 +1719,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	patch := f.getPatchedRollout(i)
 
 	addedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "", true)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := fmt.Sprintf(`{
 			"status": {
 				"blueGreen": {
@@ -1720,9 +1728,12 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 				"conditions": %s,
 				"currentStepIndex": 1,
 				"currentStepHash": "%s",
-				"selector": "foo=bar"
+				"selector": "foo=bar",
+				"duration": {
+					"rolloutStartedAt": "%s"
+				}
 			}
-		}`, addedConditions, conditions.ComputeStepHash(r))
+		}`, addedConditions, conditions.ComputeStepHash(r), now)
 	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 

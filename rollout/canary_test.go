@@ -45,6 +45,10 @@ func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, st
 	rollout.Status.CurrentStepHash = conditions.ComputeStepHash(rollout)
 	rollout.Status.CurrentPodHash = hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	rollout.Status.Selector = metav1.FormatLabelSelector(rollout.Spec.Selector)
+	pastTime := metav1.Time{Time: timeutil.MetaNow().Time.Add(time.Second * -10)}
+	rollout.Status.Duration = &v1alpha1.RolloutDurationStatus{
+		RolloutStartedAt: &pastTime,
+	}
 	rollout.Status.Phase, rollout.Status.Message = rolloututil.CalculateRolloutPhase(rollout.Spec, rollout.Status)
 	return rollout
 }
@@ -178,13 +182,16 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 			"conditions": %s,
 			"controllerPause": true,
 			"phase": "Paused",
-			"message": "%s"
+			"message": "%s",
+			"duration": {
+				"manualPauseStartedAt": "%s"
+			}
 		}
 	}`
 
 	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, v1alpha1.PauseReasonCanaryPauseStep, now, conditions, v1alpha1.PauseReasonCanaryPauseStep)
+	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, v1alpha1.PauseReasonCanaryPauseStep, now, conditions, v1alpha1.PauseReasonCanaryPauseStep, now)
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
 	assert.JSONEq(t, expectedPatch, patch)
 }
@@ -382,11 +389,15 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 			"stableRS": "%s",
 			"conditions": %s,
 			"phase": "Healthy",
-			"message": null
+			"message": null,
+			"duration": {
+				"completionStatus": "promoted",
+				"finishedAt": "%s"
+			}
 		}
 	}`
-
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, generateConditionsPatchWithCompleted(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", true))
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, generateConditionsPatchWithCompleted(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", true), now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -428,11 +439,15 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 			"currentStepIndex":0,
 			"currentPodHash": "%s",
 			"currentStepHash": "%s",
-			"conditions": %s
+			"conditions": %s,
+			"duration": {
+				"rolloutStartedAt": "%s"
+			}
 		}
 	}`
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, createdRS, false, "", false)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, expectedCurrentStepHash, newConditions)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, expectedCurrentStepHash, newConditions, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -473,12 +488,15 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 		"status": {
 			"currentStepIndex":0,
 			"currentPodHash": "%s",
-			"conditions": %s
+			"conditions": %s,
+			"duration": {
+				"rolloutStartedAt": "%s"
+			}
 		}
 	}`
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, updatedRS, false, "", false)
-
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, newConditions)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, newConditions, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -511,10 +529,12 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 		"status":{
 			"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
 			"currentPodHash":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
-			"conditions": %s
+			"conditions": %s,
+			"duration": {
+				"completionStatus": "promoted"
+			}
 		}
 	}`
-
 	newConditions := generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true)
 
 	assert.JSONEq(t, calculatePatch(r, fmt.Sprintf(expectedPatch, newConditions)), patch)
@@ -552,7 +572,10 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 			"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
 			"currentStepIndex":1,
 			"currentPodHash":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
-			"conditions": %s
+			"conditions": %s,
+			"duration": {
+				"completionStatus": "promoted"
+			}
 		}
 	}`
 	expectedPatch := fmt.Sprintf(expectedPatchWithSub, generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true))
@@ -935,11 +958,15 @@ func TestRollBackToStable(t *testing.T) {
 		"status":{
 			"currentPodHash": "%s",
 			"currentStepIndex":1,
-			"conditions": %s
+			"conditions": %s,
+			"duration": {
+				"rolloutStartedAt": "%s"
+			}
 		}
 	}`
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions, now)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
@@ -1073,13 +1100,17 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 			"currentPodHash": "%s",
 			"currentStepHash": "%s",
 			"currentStepIndex":1,
-			"conditions": %s
+			"conditions": %s,
+			"duration": {
+				"rolloutStartedAt": "%s"
+			}
 		}
 	}`
 	newPodHash := hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount)
 	newStepHash := conditions.ComputeStepHash(r2)
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newPodHash, newStepHash, newConditions)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newPodHash, newStepHash, newConditions, now)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
@@ -1853,9 +1884,14 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := `{
 		"status": {
-			"message": "manually paused"
+			"message": "manually paused",
+			"duration": {
+				"manualPauseStartedAt": "%s"
+			}
 		}
 	}`
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	expectedPatch = fmt.Sprintf(expectedPatch, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -1935,6 +1971,8 @@ func TestHandleCanaryAbort(t *testing.T) {
 		r2.Status.Abort = true
 		now := timeutil.MetaNow()
 		r2.Status.AbortedAt = &now
+		r2.Status.Duration.FinishedAt = &now
+		r2.Status.Duration.CompletionStatus = ptr.To("aborted")
 		f.rolloutLister = append(f.rolloutLister, r2)
 		f.objects = append(f.objects, r2)
 
@@ -1989,11 +2027,15 @@ func TestHandleCanaryAbort(t *testing.T) {
 			"status":{
 				"abort": null,
 				"abortedAt": null,
-				"conditions": %s
+				"conditions": %s,
+				"duration": {
+					"completionStatus": "promoted",
+					"finishedAt": "%s"
+				}
 			}
 		}`
 		newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r1, false, "", true)
-		assert.JSONEq(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions)), patch)
+		assert.JSONEq(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions, now.UTC().Format(time.RFC3339))), patch)
 	})
 }
 

@@ -29,6 +29,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 // getAllReplicaSetsAndSyncRevision returns all the replica sets for the provided rollout (new and all old), with new RS's and rollout's revision updated.
@@ -440,7 +441,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 	}
 	durationStatus := newStatus.Duration.DeepCopy()
 	prevStatus := c.rollout.Status
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 
 	// Determine if pod spec changed (for superseded rollout detection)
 	var podSpecChanged bool
@@ -482,7 +483,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 				return durationStatus
 			} else {
 				// Rollout was interrupted mid-execution
-				durationStatus.CompleteRollout(metav1.Now(), "superseded")
+				durationStatus.CompleteRollout(now, "superseded")
 				c.metricsServer.EmitRolloutDuration(durationStatus)
 
 				completionReason := "Pod template changed mid-rollout"
@@ -505,7 +506,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 			if completionStatus == "" {
 				completionStatus = "promoted"
 			}
-			durationStatus.CompleteRollout(metav1.Now(), completionStatus)
+			durationStatus.CompleteRollout(now, completionStatus)
 			c.metricsServer.EmitRolloutDuration(durationStatus)
 			c.log.WithFields(durationStatus.GetCompletionLogFields()).
 				WithField("event", "rollout_completed").

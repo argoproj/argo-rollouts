@@ -533,6 +533,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	currentArs, otherArs := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, rollout)
 
 	logCtx := logutil.WithRollout(rollout)
+	rolloutStatus := rollout.Status.DeepCopy()
 	roCtx := rolloutContext{
 		rollout:    rollout,
 		log:        logCtx,
@@ -546,10 +547,10 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		currentEx:  currentEx,
 		otherExs:   otherExs,
 		newStatus: v1alpha1.RolloutStatus{
-			RestartedAt: rollout.Status.RestartedAt,
-			ALB:         rollout.Status.ALB,
-			ALBs:        rollout.Status.ALBs,
-			Duration:    rollout.Status.Duration,
+			RestartedAt: rolloutStatus.RestartedAt,
+			ALB:         rolloutStatus.ALB,
+			ALBs:        rolloutStatus.ALBs,
+			Duration:    rolloutStatus.Duration,
 		},
 		pauseContext: &pauseContext{
 			rollout: rollout,

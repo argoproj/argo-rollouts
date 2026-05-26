@@ -36,6 +36,10 @@ func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32,
 		PreviewService:             previewSvc,
 		AbortScaleDownDelaySeconds: &abortScaleDownDelaySeconds,
 	}
+	pastTime := metav1.Time{Time: timeutil.MetaNow().Time.Add(time.Second * -10)}
+	rollout.Status.Duration = &v1alpha1.RolloutDurationStatus{
+		RolloutStartedAt: &pastTime,
+	}
 	rollout.Status.CurrentStepHash = conditions.ComputeStepHash(rollout)
 	rollout.Status.CurrentPodHash = hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	return rollout
@@ -1541,7 +1545,7 @@ func TestBlueGreenAbort(t *testing.T) {
 			"selector": "foo=bar,rollouts-pod-template-hash=%s",
 			"phase": "Degraded",
 			"message": "%s: %s"
-		}	
+		}
 	}`, rs1PodHash, expectedConditions, rs1PodHash, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))
 	patch := f.getPatchedRollout(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
