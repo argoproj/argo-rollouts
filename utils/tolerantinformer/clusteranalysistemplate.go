@@ -1,6 +1,7 @@
 package tolerantinformer
 
 import (
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -27,5 +28,31 @@ func (i *tolerantClusterAnalysisTemplateInformer) Informer() cache.SharedIndexIn
 }
 
 func (i *tolerantClusterAnalysisTemplateInformer) Lister() rolloutlisters.ClusterAnalysisTemplateLister {
-	return rolloutlisters.NewClusterAnalysisTemplateLister(i.delegate.Informer().GetIndexer())
+	return &tolerantClusterAnalysisTemplateLister{
+		delegate: rolloutlisters.NewClusterAnalysisTemplateLister(i.delegate.Informer().GetIndexer()),
+	}
+}
+
+type tolerantClusterAnalysisTemplateLister struct {
+	delegate rolloutlisters.ClusterAnalysisTemplateLister
+}
+
+func (t *tolerantClusterAnalysisTemplateLister) List(selector labels.Selector) ([]*v1alpha1.ClusterAnalysisTemplate, error) {
+	items, err := t.delegate.List(selector)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*v1alpha1.ClusterAnalysisTemplate, len(items))
+	for i, cat := range items {
+		out[i] = cat.DeepCopy()
+	}
+	return out, nil
+}
+
+func (t *tolerantClusterAnalysisTemplateLister) Get(name string) (*v1alpha1.ClusterAnalysisTemplate, error) {
+	cat, err := t.delegate.Get(name)
+	if err != nil {
+		return nil, err
+	}
+	return cat.DeepCopy(), nil
 }

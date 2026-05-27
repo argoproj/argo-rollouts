@@ -280,3 +280,31 @@ func TestMalformedExperiment(t *testing.T) {
 	assert.Len(t, list, 1)
 	verify(obj)
 }
+
+// TestListerReturnsIsolatedCopies guards the contract that objects returned from
+// the tolerant listers can be mutated by callers without corrupting the shared
+// informer cache. Real consumers (e.g. validation_references.go's
+// setArgValuePlaceHolder / validateAnalysisMetrics) mutate the returned spec
+// in-place; the lister must shield the cached object from those mutations.
+func TestListerReturnsIsolatedCopies(t *testing.T) {
+	at := testutil.ObjectFromPath("test/e2e/expectedfailures/malformed-analysistemplate.yaml")
+	at.SetNamespace(dummyNamespace)
+	fi := newFakeDynamicInformer(at)
+	lister := fi.analysisTemplate.Lister().AnalysisTemplates(dummyNamespace)
+
+	first, err := lister.Get("malformed-analysis")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, first.Spec.Metrics, "fixture should have metrics to mutate")
+	originalMetricName := first.Spec.Metrics[0].Name
+
+	// Simulate the in-place mutations performed by validation_references.go and
+	// other reconcile paths.
+	dummy := "mutated"
+	first.Spec.Args = append(first.Spec.Args, v1alpha1.Argument{Name: "synthetic", Value: &dummy})
+	first.Spec.Metrics[0].Name = "mutated-metric-name"
+
+	second, err := lister.Get("malformed-analysis")
+	assert.NoError(t, err)
+	assert.Empty(t, second.Spec.Args, "cached object should not see appended arg")
+	assert.Equal(t, originalMetricName, second.Spec.Metrics[0].Name, "cached object should not see metric rename")
+}
