@@ -13,7 +13,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	appsv1 "k8s.io/api/apps/v1"
@@ -447,130 +446,6 @@ func updateConditionsPatch(r v1alpha1.Rollout, newCondition v1alpha1.RolloutCond
 	return string(conditionsBytes)
 }
 
-// assertDurationStarted verifies duration tracking has started at expected time
-func assertDurationStarted(t *testing.T, status *v1alpha1.RolloutStatus, expectedStartTime time.Time) {
-	assert.NotNil(t, status.Duration)
-	assert.NotNil(t, status.Duration.RolloutStartedAt)
-	assert.Nil(t, status.Duration.FinishedAt)
-	assert.Equal(t, expectedStartTime, status.Duration.RolloutStartedAt.Time)
-}
-
-// assertDurationCompleted verifies duration tracking completed with expected status and times
-func assertDurationCompleted(t *testing.T, status *v1alpha1.RolloutStatus, expectedStatus string,
-	expectedStartTime, expectedFinishTime time.Time) {
-	assert.NotNil(t, status.Duration)
-	assert.NotNil(t, status.Duration.RolloutStartedAt)
-	assert.NotNil(t, status.Duration.FinishedAt)
-	assert.Equal(t, expectedStatus, *status.Duration.CompletionStatus)
-	assert.Equal(t, expectedStartTime, status.Duration.RolloutStartedAt.Time)
-	assert.Equal(t, expectedFinishTime, status.Duration.FinishedAt.Time)
-}
-
-// assertDurationMetrics validates that EmitRolloutDuration was called with valid arguments
-// It verifies the mock was called and that required fields are never nil
-// After validation, it clears the mock call history to allow subsequent assertions
-func assertDurationMetrics(t *testing.T, mockMetrics *metricsmocks.MetricsRecorder, expectedStatus string) {
-	t.Helper()
-
-	// Find the call with matching status
-	calls := mockMetrics.Calls
-	found := false
-
-	for _, call := range calls {
-		if call.Method == "EmitRolloutDuration" {
-			ds := call.Arguments.Get(0).(*v1alpha1.RolloutDurationStatus)
-
-			// Validate the argument is never nil and has required fields
-			assert.NotNil(t, ds, "EmitRolloutDuration called with nil argument")
-			assert.NotNil(t, ds.RolloutStartedAt, "RolloutStartedAt must not be nil")
-			assert.NotNil(t, ds.FinishedAt, "FinishedAt must not be nil when emitting metrics")
-			assert.NotNil(t, ds.CompletionStatus, "CompletionStatus must not be nil when emitting metrics")
-
-			// Check if this is the call we're looking for
-			if *ds.CompletionStatus != expectedStatus {
-				continue
-			}
-
-			found = true
-			break
-		}
-	}
-	// Clear the call history to allow subsequent assertions
-	if found {
-		mockMetrics.Calls = []mock.Call{}
-	}
-
-	assert.True(t, found, "EmitRolloutDuration was not called with status=%s", expectedStatus)
-}
-
-// assertDurationTotals validates the exact duration values from EmitRolloutDuration calls
-func assertDurationTotals(t *testing.T, mockMetrics *metricsmocks.MetricsRecorder,
-	expectedStatus string, expectedTotal, expectedProgression, expectedPause float64) {
-	t.Helper()
-
-	// Find the call with matching status
-	calls := mockMetrics.Calls
-	found := false
-
-	for _, call := range calls {
-		if call.Method == "EmitRolloutDuration" {
-			ds := call.Arguments.Get(0).(*v1alpha1.RolloutDurationStatus)
-
-			if ds == nil || ds.CompletionStatus == nil || *ds.CompletionStatus != expectedStatus {
-				continue
-			}
-
-			found = true
-
-			// Calculate actual durations from the status
-			actualTotal := ds.FinishedAt.Time.Sub(ds.RolloutStartedAt.Time).Seconds()
-
-			actualPause := 0.0
-			if ds.TotalManualPauseDuration != nil {
-				actualPause = float64(*ds.TotalManualPauseDuration)
-			}
-
-			actualProgression := actualTotal - actualPause
-
-			// Validate durations (allow 1 second tolerance for timing)
-			assert.InDelta(t, expectedTotal, actualTotal, 1.0,
-				"Total duration mismatch for status=%s", expectedStatus)
-			assert.InDelta(t, expectedProgression, actualProgression, 1.0,
-				"Progression duration mismatch for status=%s", expectedStatus)
-			assert.InDelta(t, expectedPause, actualPause, 1.0,
-				"Manual pause duration mismatch for status=%s", expectedStatus)
-
-			break
-		}
-	}
-
-	assert.True(t, found, "EmitRolloutDuration was not called with status=%s for duration totals validation", expectedStatus)
-}
-
-// assertLogEntry validates that a log entry with specific fields exists
-func assertLogEntry(t *testing.T, hook *test.Hook, expectedEvent string, expectedLevel log.Level, expectedFields map[string]interface{}) {
-	entries := hook.AllEntries()
-	found := false
-	for _, entry := range entries {
-		if entry.Data["event"] == expectedEvent && entry.Level == expectedLevel {
-			// Check all expected fields match
-			allMatch := true
-			for key, expectedValue := range expectedFields {
-				if entry.Data[key] != expectedValue {
-					allMatch = false
-					break
-				}
-			}
-			if allMatch {
-				found = true
-				break
-			}
-		}
-	}
-	assert.True(t, found, fmt.Sprintf("Expected log entry with event=%s, level=%s, fields=%v",
-		expectedEvent, expectedLevel, expectedFields))
-}
-
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
 func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool, isCompleted bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas)
@@ -602,7 +477,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 		newRollout.Status.Duration.ManualPauseStartedAt = nil
 	}
 	if isCompleted {
-		newRollout.Status.Duration.CompletionStatus = ptr.To("promoted")
+		newRollout.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
 		if available {
 			newRollout.Status.Duration.FinishedAt = &now
 		}
@@ -1752,7 +1627,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	r.Status.ReadyReplicas = 1
 	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
 	r.Status.ObservedGeneration = "122"
-	r.Status.Duration.CompletionStatus = ptr.To("promoted")
+	r.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
 	r.Status.Duration.FinishedAt = ptr.To(timeutil.MetaNow())
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"
@@ -1809,7 +1684,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.ObservedGeneration = "122"
-	r.Status.Duration.CompletionStatus = ptr.To("promoted")
+	r.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
 	r.Status.Duration.FinishedAt = ptr.To(timeutil.MetaNow())
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"

@@ -49,7 +49,8 @@ func TestRolloutDurationStatus_IsCompleted(t *testing.T) {
 		{
 			name: "finishedAt set",
 			durationStatus: &RolloutDurationStatus{
-				FinishedAt: &metav1.Time{Time: time.Now()},
+				RolloutStartedAt: &metav1.Time{Time: time.Now()},
+				FinishedAt:       &metav1.Time{Time: time.Now()},
 			},
 			expected: true,
 		},
@@ -74,12 +75,12 @@ func TestRolloutDurationStatus_CompleteRollout(t *testing.T) {
 		}
 
 		completeTime := metav1.NewTime(now.Add(1 * time.Minute))
-		ds.CompleteRollout(completeTime, "promoted")
+		ds.CompleteRollout(completeTime, CompletionStatusPromoted)
 
 		assert.NotNil(t, ds.FinishedAt)
 		assert.Equal(t, completeTime, *ds.FinishedAt)
 		assert.NotNil(t, ds.CompletionStatus)
-		assert.Equal(t, "promoted", *ds.CompletionStatus)
+		assert.Equal(t, CompletionStatusPromoted, *ds.CompletionStatus)
 	})
 
 	t.Run("CompleteRollout finalizes active manual pause", func(t *testing.T) {
@@ -94,7 +95,7 @@ func TestRolloutDurationStatus_CompleteRollout(t *testing.T) {
 			TotalManualPauseDuration: &previousPause,
 		}
 
-		ds.CompleteRollout(now, "promoted")
+		ds.CompleteRollout(now, CompletionStatusPromoted)
 
 		// ManualPauseStartedAt should be cleared
 		assert.Nil(t, ds.ManualPauseStartedAt)
@@ -115,7 +116,7 @@ func TestRolloutDurationStatus_CompleteRollout(t *testing.T) {
 			ManualPauseStartedAt: &pauseStartTime,
 		}
 
-		ds.CompleteRollout(now, "promoted")
+		ds.CompleteRollout(now, CompletionStatusPromoted)
 
 		// ManualPauseStartedAt should be cleared
 		assert.Nil(t, ds.ManualPauseStartedAt)
@@ -131,7 +132,7 @@ func TestRolloutDurationStatus_CompleteRollout(t *testing.T) {
 		now := metav1.Now()
 
 		// Should not panic
-		ds.CompleteRollout(now, "promoted")
+		ds.CompleteRollout(now, CompletionStatusPromoted)
 	})
 }
 
@@ -140,7 +141,7 @@ func TestRolloutDurationStatus_GetCompletionStatus(t *testing.T) {
 	tests := []struct {
 		name           string
 		durationStatus *RolloutDurationStatus
-		expected       string
+		expected       CompletionStatus
 	}{
 		{
 			name:           "nil durationStatus",
@@ -157,30 +158,30 @@ func TestRolloutDurationStatus_GetCompletionStatus(t *testing.T) {
 		{
 			name: "promoted",
 			durationStatus: &RolloutDurationStatus{
-				CompletionStatus: func() *string { s := "promoted"; return &s }(),
+				CompletionStatus: func() *CompletionStatus { s := CompletionStatusPromoted; return &s }(),
 			},
-			expected: "promoted",
+			expected: CompletionStatusPromoted,
 		},
 		{
 			name: "fast-promoted",
 			durationStatus: &RolloutDurationStatus{
-				CompletionStatus: func() *string { s := "fast-promoted"; return &s }(),
+				CompletionStatus: func() *CompletionStatus { s := CompletionStatusFastPromoted; return &s }(),
 			},
-			expected: "fast-promoted",
+			expected: CompletionStatusFastPromoted,
 		},
 		{
 			name: "aborted",
 			durationStatus: &RolloutDurationStatus{
-				CompletionStatus: func() *string { s := "aborted"; return &s }(),
+				CompletionStatus: func() *CompletionStatus { s := CompletionStatusAborted; return &s }(),
 			},
-			expected: "aborted",
+			expected: CompletionStatusAborted,
 		},
 		{
 			name: "superseded",
 			durationStatus: &RolloutDurationStatus{
-				CompletionStatus: func() *string { s := "superseded"; return &s }(),
+				CompletionStatus: func() *CompletionStatus { s := CompletionStatusSuperseded; return &s }(),
 			},
-			expected: "superseded",
+			expected: CompletionStatusSuperseded,
 		},
 	}
 
@@ -197,7 +198,7 @@ func TestRolloutDurationStatus_GetCompletionLogFields(t *testing.T) {
 		now := metav1.Now()
 		startTime := metav1.NewTime(now.Add(-5 * time.Minute))
 		totalManualPauseDuration := int64(60) // 1 minute
-		completionStatus := "promoted"
+		completionStatus := CompletionStatusPromoted
 
 		status := &RolloutDurationStatus{
 			RolloutStartedAt:         &startTime,
@@ -209,7 +210,7 @@ func TestRolloutDurationStatus_GetCompletionLogFields(t *testing.T) {
 		fields := status.GetCompletionLogFields()
 
 		assert.NotEmpty(t, fields)
-		assert.Equal(t, "promoted", fields["status"])
+		assert.Equal(t, string(CompletionStatusPromoted), fields["status"])
 		assert.Equal(t, 300.0, fields["duration_total_seconds"])
 		assert.Equal(t, 240.0, fields["duration_progression_seconds"])
 		assert.Equal(t, 60.0, fields["duration_manual_pause_seconds"])
@@ -218,7 +219,7 @@ func TestRolloutDurationStatus_GetCompletionLogFields(t *testing.T) {
 	t.Run("returns empty map if FinishedAt is nil", func(t *testing.T) {
 		now := metav1.Now()
 		startTime := metav1.NewTime(now.Add(-5 * time.Minute))
-		completionStatus := "promoted"
+		completionStatus := CompletionStatusPromoted
 
 		status := &RolloutDurationStatus{
 			RolloutStartedAt: &startTime,
@@ -231,7 +232,7 @@ func TestRolloutDurationStatus_GetCompletionLogFields(t *testing.T) {
 
 	t.Run("returns empty map if RolloutStartedAt is nil", func(t *testing.T) {
 		now := metav1.Now()
-		completionStatus := "promoted"
+		completionStatus := CompletionStatusPromoted
 
 		status := &RolloutDurationStatus{
 			FinishedAt:       &now,
@@ -264,7 +265,7 @@ func TestRolloutDurationStatus_GetCompletionLogFields(t *testing.T) {
 	t.Run("handles zero manual pause duration", func(t *testing.T) {
 		now := metav1.Now()
 		startTime := metav1.NewTime(now.Add(-2 * time.Minute))
-		completionStatus := "promoted"
+		completionStatus := CompletionStatusPromoted
 
 		status := &RolloutDurationStatus{
 			RolloutStartedAt: &startTime,
@@ -275,7 +276,7 @@ func TestRolloutDurationStatus_GetCompletionLogFields(t *testing.T) {
 		fields := status.GetCompletionLogFields()
 
 		assert.NotEmpty(t, fields)
-		assert.Equal(t, "promoted", fields["status"])
+		assert.Equal(t, string(CompletionStatusPromoted), fields["status"])
 		assert.Equal(t, 120.0, fields["duration_total_seconds"])
 		assert.Equal(t, 120.0, fields["duration_progression_seconds"])
 		assert.Equal(t, 0.0, fields["duration_manual_pause_seconds"])

@@ -4251,7 +4251,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutDurationStatus(ref common.Referenc
 					},
 					"completionStatus": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CompletionStatus is the rollout outcome (set when final state reached, persists for visibility) Possible values: \"promoted\", \"fast-promoted\", \"aborted\", \"superseded\" Set when: (1) promoteStable() called, OR (2) abort detected, OR (3) superseded Used to determine which status to emit when FinishedAt is set",
+							Description: "CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)",
 							Type:        []string{"string"},
 							Format:      "",
 						},

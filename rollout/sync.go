@@ -469,11 +469,11 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 			if c.isRollback() {
 				// If the rollout is a rollback, we keep the the current duration
 				// The user explicitly reverted the rollout to the previous pod spec
-				status := "rollbacked"
+				status := v1alpha1.CompletionStatusRollbacked
 				if c.isRollbackWithinWindow() {
 					// If the rollout is within rollback window, we consider it a fast rollback
 					// since it will be fully-promoted immediately
-					status = "fast-rollbacked"
+					status = v1alpha1.CompletionStatusFastRollbacked
 				}
 				// The user explicitly reverted the rollout to the previous pod spec
 				durationStatus.CompletionStatus = &status
@@ -483,7 +483,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 				return durationStatus
 			} else {
 				// Rollout was interrupted mid-execution
-				durationStatus.CompleteRollout(now, "superseded")
+				durationStatus.CompleteRollout(now, v1alpha1.CompletionStatusSuperseded)
 				c.metricsServer.EmitRolloutDuration(durationStatus)
 
 				completionReason := "Pod template changed mid-rollout"
@@ -504,7 +504,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 			// Rollout is now completed
 			completionStatus := durationStatus.GetCompletionStatus()
 			if completionStatus == "" {
-				completionStatus = "promoted"
+				completionStatus = v1alpha1.CompletionStatusPromoted
 			}
 			durationStatus.CompleteRollout(now, completionStatus)
 			c.metricsServer.EmitRolloutDuration(durationStatus)
@@ -517,7 +517,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 			// Rolout was just aborted
 			completionStatus := durationStatus.GetCompletionStatus()
 			if completionStatus == "" {
-				completionStatus = "aborted"
+				completionStatus = v1alpha1.CompletionStatusAborted
 			}
 			durationStatus.CompleteRollout(now, completionStatus)
 			c.metricsServer.EmitRolloutDuration(durationStatus)
@@ -1220,9 +1220,9 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 
 		// Set CompletionStatus for duration tracking (metrics will be emitted when stable)
 		if newStatus.Duration != nil && newStatus.Duration.CompletionStatus == nil {
-			completionStatus := "promoted"
+			completionStatus := v1alpha1.CompletionStatusPromoted
 			if c.rollout.Status.PromoteFull {
-				completionStatus = "fast-promoted"
+				completionStatus = v1alpha1.CompletionStatusFastPromoted
 			}
 			newStatus.Duration.CompletionStatus = &completionStatus
 			// FinishedAt remains nil until rollout is stable

@@ -39386,11 +39386,8 @@ spec:
                   attempt
                 properties:
                   completionStatus:
-                    description: |-
-                      CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)
-                      Possible values: "promoted", "fast-promoted", "aborted", "superseded"
-                      Set when: (1) promoteStable() called, OR (2) abort detected, OR (3) superseded
-                      Used to determine which status to emit when FinishedAt is set
+                    description: CompletionStatus is the rollout outcome (set when
+                      final state reached, persists for visibility)
                     type: string
                   finishedAt:
                     description: |-

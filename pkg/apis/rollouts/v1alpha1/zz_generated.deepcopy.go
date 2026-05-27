@@ -2297,7 +2297,7 @@ func (in *RolloutDurationStatus) DeepCopyInto(out *RolloutDurationStatus) {
 	}
 	if in.CompletionStatus != nil {
 		in, out := &in.CompletionStatus, &out.CompletionStatus
-		*out = new(string)
+		*out = new(CompletionStatus)
 		**out = **in
 	}
 	return

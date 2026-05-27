@@ -1037,10 +1037,27 @@ type RolloutDurationStatus struct {
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,4,opt,name=finishedAt"`
 
 	// CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)
-	// Possible values: "promoted", "fast-promoted", "aborted", "superseded", "rollbacked", "fast-rollbacked"
 	// +optional
-	CompletionStatus *string `json:"completionStatus,omitempty" protobuf:"bytes,5,opt,name=completionStatus"`
+	CompletionStatus *CompletionStatus `json:"completionStatus,omitempty" protobuf:"bytes,5,opt,name=completionStatus"`
 }
+
+// CompletionStatus is a label for the outcome of a rollout (used in metrics and status)
+type CompletionStatus string
+
+const (
+	// CompletionStatusPromoted indicates the rollout completed successfully through normal progression
+	CompletionStatusPromoted CompletionStatus = "promoted"
+	// CompletionStatusFastPromoted indicates the rollout was manually promoted (skipping remaining steps)
+	CompletionStatusFastPromoted CompletionStatus = "fast-promoted"
+	// CompletionStatusAborted indicates the rollout was aborted before completion
+	CompletionStatusAborted CompletionStatus = "aborted"
+	// CompletionStatusSuperseded indicates the rollout was superseded by a new rollout
+	CompletionStatusSuperseded CompletionStatus = "superseded"
+	// CompletionStatusRollbacked indicates the rollout was explicitly rolled back to a previous version
+	CompletionStatusRollbacked CompletionStatus = "rollbacked"
+	// CompletionStatusFastRollbacked indicates rollback within the rollback window (immediate promotion)
+	CompletionStatusFastRollbacked CompletionStatus = "fast-rollbacked"
+)
 
 // IsAlreadyCompleted returns true if completion metrics have been emitted for this rollout attempt
 // Determined by checking if FinishedAt timestamp is set (metrics published)
@@ -1049,7 +1066,7 @@ func (d *RolloutDurationStatus) IsCompleted() bool {
 }
 
 // GetCompletionStatus returns the completion status (outcome that was or will be emitted), empty string if not set
-func (d *RolloutDurationStatus) GetCompletionStatus() string {
+func (d *RolloutDurationStatus) GetCompletionStatus() CompletionStatus {
 	if d != nil && d.CompletionStatus != nil {
 		return *d.CompletionStatus
 	}
@@ -1059,7 +1076,7 @@ func (d *RolloutDurationStatus) GetCompletionStatus() string {
 // CompleteRollout finalizes the rollout by setting FinishedAt and CompletionStatus.
 // It also finalizes any active manual pause by accumulating the current pause duration.
 // This should be called before emitting completion metrics.
-func (d *RolloutDurationStatus) CompleteRollout(now metav1.Time, status string) {
+func (d *RolloutDurationStatus) CompleteRollout(now metav1.Time, status CompletionStatus) {
 	if d == nil {
 		return
 	}
@@ -1109,7 +1126,7 @@ func (d *RolloutDurationStatus) GetCompletionLogFields() map[string]interface{} 
 	progression := total - manualPause
 
 	return map[string]interface{}{
-		"status":                        status,
+		"status":                        string(status),
 		"duration_total_seconds":        total.Seconds(),
 		"duration_progression_seconds":  progression.Seconds(),
 		"duration_manual_pause_seconds": manualPause.Seconds(),

@@ -1980,7 +1980,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 		now := timeutil.MetaNow()
 		r2.Status.AbortedAt = &now
 		r2.Status.Duration.FinishedAt = &now
-		r2.Status.Duration.CompletionStatus = ptr.To("aborted")
+		r2.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusAborted)
 		f.rolloutLister = append(f.rolloutLister, r2)
 		f.objects = append(f.objects, r2)
 

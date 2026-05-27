@@ -133,7 +133,7 @@ func TestEmitRolloutDuration_Promoted(t *testing.T) {
 	startTime := metav1.NewTime(now.Add(-5 * time.Minute))
 	finishedAt := now
 	totalManualPauseDuration := int64(60) // 1 minute
-	completionStatus := "promoted"
+	completionStatus := v1alpha1.CompletionStatusPromoted
 
 	rollout := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -174,7 +174,7 @@ func TestEmitRolloutDuration_ManuallyPromoted(t *testing.T) {
 	now := metav1.Now()
 	startTime := metav1.NewTime(now.Add(-3 * time.Minute))
 	finishedAt := now
-	completionStatus := "fast-promoted"
+	completionStatus := v1alpha1.CompletionStatusFastPromoted
 
 	rollout := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -214,7 +214,7 @@ func TestEmitRolloutDuration_Aborted(t *testing.T) {
 	now := metav1.Now()
 	startTime := metav1.NewTime(now.Add(-2 * time.Minute))
 	finishedAt := now
-	completionStatus := "aborted"
+	completionStatus := v1alpha1.CompletionStatusAborted
 
 	rollout := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -254,7 +254,7 @@ func TestEmitRolloutDuration_Superseded(t *testing.T) {
 	now := metav1.Now()
 	startTime := metav1.NewTime(now.Add(-1 * time.Minute))
 	finishedAt := now
-	completionStatus := "superseded"
+	completionStatus := v1alpha1.CompletionStatusSuperseded
 
 	rollout := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -295,7 +295,7 @@ func TestEmitRolloutDuration_WithManualPause(t *testing.T) {
 	startTime := metav1.NewTime(now.Add(-10 * time.Minute))
 	finishedAt := now
 	totalManualPauseDuration := int64(300) // 5 minutes
-	completionStatus := "promoted"
+	completionStatus := v1alpha1.CompletionStatusPromoted
 
 	rollout := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{

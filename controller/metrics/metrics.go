@@ -182,9 +182,10 @@ func (m *MetricsServer) EmitRolloutDuration(ds *v1alpha1.RolloutDurationStatus) 
 	progression := total - manualPause
 
 	// Emit metrics with status label
-	m.rolloutDurationTotal.WithLabelValues(status).Observe(total.Seconds())
-	m.rolloutDurationProgression.WithLabelValues(status).Observe(progression.Seconds())
-	m.rolloutDurationManualPause.WithLabelValues(status).Observe(manualPause.Seconds())
+	statusLabel := string(status)
+	m.rolloutDurationTotal.WithLabelValues(statusLabel).Observe(total.Seconds())
+	m.rolloutDurationProgression.WithLabelValues(statusLabel).Observe(progression.Seconds())
+	m.rolloutDurationManualPause.WithLabelValues(statusLabel).Observe(manualPause.Seconds())
 }
 
 // Remove removes the metrics server from the registry

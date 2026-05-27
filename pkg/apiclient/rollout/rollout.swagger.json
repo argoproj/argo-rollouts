@@ -4,8 +4,12 @@
     "title": "pkg/apiclient/rollout/rollout.proto",
     "version": "version not set"
   },
-  "consumes": ["application/json"],
-  "produces": ["application/json"],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
   "paths": {
     "/api/v1/namespace": {
       "get": {
@@ -24,7 +28,9 @@
             }
           }
         },
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/info": {
@@ -52,7 +58,9 @@
             "type": "string"
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/info/watch": {
@@ -89,7 +97,9 @@
             "type": "string"
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/abort": {
@@ -131,7 +141,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/info": {
@@ -165,7 +177,9 @@
             "type": "string"
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/info/watch": {
@@ -208,7 +222,9 @@
             "type": "string"
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/promote": {
@@ -250,7 +266,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/restart": {
@@ -292,7 +310,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/retry": {
@@ -334,7 +354,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{rollout}/set/{container}/{image}/{tag}": {
@@ -394,7 +416,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{rollout}/undo/{revision}": {
@@ -443,7 +467,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/version": {
@@ -463,7 +489,9 @@
             }
           }
         },
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     }
   },
@@ -2037,7 +2065,7 @@
         },
         "completionStatus": {
           "type": "string",
-          "title": "CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)\nPossible values: \"promoted\", \"fast-promoted\", \"aborted\", \"superseded\"\nSet when: (1) promoteStable() called, OR (2) abort detected, OR (3) superseded\nUsed to determine which status to emit when FinishedAt is set\n+optional"
+          "title": "CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)\n+optional"
         }
       },
       "title": "RolloutDurationStatus tracks timing for a rollout attempt"
