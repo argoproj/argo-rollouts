@@ -56,10 +56,13 @@ const TooltipContent = ({active, conditionKeys, payload, valueFormatter}: Toolti
     if (data.phase === AnalysisStatus.Error) {
         label = data.message ?? 'Measurement error';
     } else if (conditionKeys.length > 0) {
-        const sublabels = conditionKeys.map((cKey) => (conditionKeys.length > 1 ? `${valueFormatter(data.chartValue[cKey])} (${cKey})` : valueFormatter(data.chartValue[cKey])));
+        const sublabels = conditionKeys.map((cKey) => {
+            const v = data.chartValue?.[cKey] ?? null;
+            return conditionKeys.length > 1 ? `${valueFormatter(v)} (${cKey})` : valueFormatter(v);
+        });
         label = sublabels.join(' , ');
     } else {
-        label = valueFormatter(data.chartValue);
+        label = valueFormatter(data.chartValue ?? null);
     }
 
     return (
