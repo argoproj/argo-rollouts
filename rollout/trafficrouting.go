@@ -269,7 +269,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		}
 
 		// SetHeaderRoute / SetMirrorRoute do not affect the weight split, so apply them before the replica guardrail.
-		//
 		// We need to check for revision > 1 because when we first install the rollout we run step 0 this prevents that.
 		// There is a bigger fix needed for the reasons on why we run step 0 on rollout install, that needs to be explored.
 		revision, revisionFound := annotations.GetRevisionAnnotation(c.rollout)
