@@ -26,6 +26,7 @@ import {
     metricSubstatus,
     printableCloudWatchQuery,
     printableDatadogQuery,
+    transformMeasurementValue,
     transformMeasurements,
 } from './transforms';
 import {AnalysisStatus, FunctionalStatus} from './types';
@@ -546,6 +547,33 @@ describe('analysis modal transforms', () => {
             chartValue: {latency: null, cpuUsage: null},
             tableValue: {latency: null, cpuUsage: null},
         });
+    });
+    test('transformMeasurementValue() for undefined value', () => {
+        expect(transformMeasurementValue(['0'], undefined)).toEqual({canChart: true, chartValue: null, tableValue: null});
+    });
+    test('transformMeasurementValue() for empty string value', () => {
+        expect(transformMeasurementValue(['0'], '')).toEqual({canChart: true, chartValue: null, tableValue: null});
+    });
+    test('transformMeasurementValue() for [NaN] single-item array', () => {
+        expect(transformMeasurementValue(['0'], '[NaN]')).toEqual({canChart: true, chartValue: null, tableValue: null});
+    });
+    test('transformMeasurementValue() for bare NaN', () => {
+        expect(transformMeasurementValue(['0'], 'NaN')).toEqual({canChart: true, chartValue: null, tableValue: null});
+    });
+    test('transformMeasurementValue() for [NaN, 5] multi-item array', () => {
+        expect(transformMeasurementValue(['0', '1'], '[NaN, 5]')).toEqual({canChart: true, chartValue: null, tableValue: null});
+    });
+    test('transformMeasurementValue() for [Infinity] single-item array', () => {
+        expect(transformMeasurementValue(['0'], '[Infinity]')).toEqual({canChart: true, chartValue: null, tableValue: null});
+    });
+    test('transformMeasurementValue() for [-Infinity] single-item array', () => {
+        expect(transformMeasurementValue(['0'], '[-Infinity]')).toEqual({canChart: true, chartValue: null, tableValue: null});
+    });
+    test('transformMeasurementValue() for bare Infinity', () => {
+        expect(transformMeasurementValue(['0'], 'Infinity')).toEqual({canChart: true, chartValue: null, tableValue: null});
+    });
+    test('transformMeasurementValue() for malformed JSON value', () => {
+        expect(transformMeasurementValue(['0'], 'not-json')).toEqual({canChart: true, chartValue: null, tableValue: null});
     });
     const MOCK_MEASUREMENTS: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement[] = [{value: '[5]'}, {value: '[10]'}, {value: '[15]'}];
     const MOCK_MEASUREMENTS_WITH_NAN: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement[] = [{value: '[NaN]'}, {value: '[10]'}, {value: '[15]'}];
