@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
 )
 
@@ -17,23 +18,39 @@ const (
 	dummyNamespace = "dummy-namespace"
 )
 
-func newFakeDynamicInformer(objs ...runtime.Object) dynamicinformer.DynamicSharedInformerFactory {
-	dynamicClient := testutil.NewFakeDynamicClient(objs...)
-	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
+// fakeInformers holds the pre-wired tolerant informers and the underlying dynamic
+// factory. Wrappers are constructed before factory.Start so SetTransform installs
+// cleanly on the shared informers; tests reuse these instead of re-constructing.
+type fakeInformers struct {
+	factory                 dynamicinformer.DynamicSharedInformerFactory
+	rollout                 rolloutinformers.RolloutInformer
+	analysisTemplate        rolloutinformers.AnalysisTemplateInformer
+	analysisRun             rolloutinformers.AnalysisRunInformer
+	experiment              rolloutinformers.ExperimentInformer
+	clusterAnalysisTemplate rolloutinformers.ClusterAnalysisTemplateInformer
+}
 
-	// The dynamic informer factory relies on calling ForResource on any GVR which wish to be
-	// monitored *before* calling .Start(), in order to work properly.
-	dynamicInformerFactory.ForResource(v1alpha1.RolloutGVR)
-	dynamicInformerFactory.ForResource(v1alpha1.AnalysisTemplateGVR)
-	dynamicInformerFactory.ForResource(v1alpha1.AnalysisRunGVR)
-	dynamicInformerFactory.ForResource(v1alpha1.ExperimentGVR)
-	dynamicInformerFactory.ForResource(v1alpha1.ClusterAnalysisTemplateGVR)
+func newFakeDynamicInformer(objs ...runtime.Object) *fakeInformers {
+	dynamicClient := testutil.NewFakeDynamicClient(objs...)
+	factory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
+
+	// Construct tolerant wrappers BEFORE Start: each constructor calls
+	// SharedIndexInformer.SetTransform, which is rejected once the informer has
+	// started.
+	fi := &fakeInformers{
+		factory:                 factory,
+		rollout:                 NewTolerantRolloutInformer(factory),
+		analysisTemplate:        NewTolerantAnalysisTemplateInformer(factory),
+		analysisRun:             NewTolerantAnalysisRunInformer(factory),
+		experiment:              NewTolerantExperimentInformer(factory),
+		clusterAnalysisTemplate: NewTolerantClusterAnalysisTemplateInformer(factory),
+	}
 
 	// Start then stop the informer. We just want the informer to be filled in with the fake objects
 	// and not really be running in the background.
 	stopCh := make(chan struct{})
-	dynamicInformerFactory.Start(stopCh)
-	synced := dynamicInformerFactory.WaitForCacheSync(stopCh)
+	factory.Start(stopCh)
+	synced := factory.WaitForCacheSync(stopCh)
 	close(stopCh)
 	if len(synced) != 5 {
 		panic("could not sync fake informer")
@@ -43,7 +60,7 @@ func newFakeDynamicInformer(objs ...runtime.Object) dynamicinformer.DynamicShare
 			panic(fmt.Sprintf("could not sync %v", gvr))
 		}
 	}
-	return dynamicInformerFactory
+	return fi
 }
 
 func TestMalformedRollout(t *testing.T) {
@@ -51,8 +68,8 @@ func TestMalformedRollout(t *testing.T) {
 	good.SetNamespace("default")
 	bad := testutil.ObjectFromPath("test/e2e/expectedfailures/malformed-rollout.yaml")
 	bad.SetNamespace(dummyNamespace)
-	dynInformerFactory := newFakeDynamicInformer(good, bad)
-	informer := NewTolerantRolloutInformer(dynInformerFactory)
+	fi := newFakeDynamicInformer(good, bad)
+	informer := fi.rollout
 
 	verify := func(ro *v1alpha1.Rollout) {
 		assert.True(t, ro.Spec.Strategy.Canary != nil)
@@ -86,8 +103,8 @@ func TestMalformedRolloutEphemeralCtr(t *testing.T) {
 	good.SetNamespace("default")
 	bad := testutil.ObjectFromPath("test/e2e/expectedfailures/malformed-rollout-ephemeral.yaml")
 	bad.SetNamespace(dummyNamespace)
-	dynInformerFactory := newFakeDynamicInformer(good, bad)
-	informer := NewTolerantRolloutInformer(dynInformerFactory)
+	fi := newFakeDynamicInformer(good, bad)
+	informer := fi.rollout
 
 	verify := func(ro *v1alpha1.Rollout) {
 		assert.True(t, ro.Spec.Strategy.Canary != nil)
@@ -149,8 +166,8 @@ func TestMalformedAnalysisRun(t *testing.T) {
 	good.SetNamespace("default")
 	bad := testutil.ObjectFromPath("test/e2e/expectedfailures/malformed-analysisrun.yaml")
 	bad.SetNamespace(dummyNamespace)
-	dynInformerFactory := newFakeDynamicInformer(good, bad)
-	informer := NewTolerantAnalysisRunInformer(dynInformerFactory)
+	fi := newFakeDynamicInformer(good, bad)
+	informer := fi.analysisRun
 
 	// test cluster scoped list
 	list, err := informer.Lister().List(labels.NewSelector())
@@ -180,8 +197,8 @@ func TestMalformedAnalysisTemplate(t *testing.T) {
 	good.SetKind("AnalysisTemplate")
 	bad := testutil.ObjectFromPath("test/e2e/expectedfailures/malformed-analysistemplate.yaml")
 	bad.SetNamespace(dummyNamespace)
-	dynInformerFactory := newFakeDynamicInformer(good, bad)
-	informer := NewTolerantAnalysisTemplateInformer(dynInformerFactory)
+	fi := newFakeDynamicInformer(good, bad)
+	informer := fi.analysisTemplate
 
 	// test cluster scoped list
 	list, err := informer.Lister().List(labels.NewSelector())
@@ -209,8 +226,8 @@ func TestMalformedClusterAnalysisTemplate(t *testing.T) {
 	good := testutil.ObjectFromPath("test/e2e/functional/analysis-run-job.yaml")
 	good.SetKind("ClusterAnalysisTemplate")
 	bad := testutil.ObjectFromPath("test/e2e/expectedfailures/malformed-clusteranalysistemplate.yaml")
-	dynInformerFactory := newFakeDynamicInformer(good, bad)
-	informer := NewTolerantClusterAnalysisTemplateInformer(dynInformerFactory)
+	fi := newFakeDynamicInformer(good, bad)
+	informer := fi.clusterAnalysisTemplate
 
 	// test cluster scoped list
 	list, err := informer.Lister().List(labels.NewSelector())
@@ -235,8 +252,8 @@ func TestMalformedExperiment(t *testing.T) {
 	good.SetName("good-experiment")
 	bad := testutil.ObjectFromPath("test/e2e/expectedfailures/malformed-experiment.yaml")
 	bad.SetNamespace(dummyNamespace)
-	dynInformerFactory := newFakeDynamicInformer(good, bad)
-	informer := NewTolerantExperimentInformer(dynInformerFactory)
+	fi := newFakeDynamicInformer(good, bad)
+	informer := fi.experiment
 
 	verify := func(ex *v1alpha1.Experiment) {
 		assert.Len(t, ex.Spec.Templates[0].Template.Spec.Containers[0].Resources.Requests, 0)
