@@ -1621,6 +1621,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, errmsg, false)
 	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": "+errmsg, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
@@ -1701,6 +1702,7 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 
 	now := timeutil.Now().UTC().Format(time.RFC3339)
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg, now)), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
@@ -1766,6 +1768,7 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
 	now := timeutil.Now().UTC().Format(time.RFC3339)
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, now, errmsg, now)), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
@@ -2298,6 +2301,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 		}
 	}`, rs2PodHash, rs2PodHash, rs2PodHash, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
@@ -2369,6 +2373,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 		}
 	}`, rs2PodHash, rs2PodHash, rs2PodHash, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T) {
@@ -2500,6 +2505,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "Blue/green pre-promotion analysis phase error/failed")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message, now)), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestCreatePostPromotionAnalysisRun(t *testing.T) {
@@ -2609,6 +2615,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 		}
 	}`, rs2PodHash, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 // TestPostPromotionAnalysisRunHandleInconclusive ensures that the Rollout does not scale down a old ReplicaSet if
@@ -2752,6 +2759,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "Blue/green post-promotion analysis phase error/failed")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message, now)), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testing.T) {

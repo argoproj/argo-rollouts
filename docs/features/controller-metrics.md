@@ -101,10 +101,10 @@ Three complementary histograms track rollout performance with status labels:
 **Status label values:**
 
 - `promoted` - Normal successful completion, all steps completed
-- `manually-promoted` - User triggered full promotion (`spec.promoteFull` or `kubectl promote --full`), skipping remaining steps
+- `fast-promoted` - User triggered full promotion (`spec.promoteFull` or `kubectl promote --full`), skipping remaining steps
 - `aborted` - Rollout was aborted (timeout, failed analysis, manual abort)
-- `superseded` - Template/steps changed **while rollout was in-progress** (`StableRS != CurrentPodHash`), this incomplete attempt was replaced by a new one. Note: Template changes after completion do NOT emit superseded metrics.
+- `superseded` - Template/steps changed **while rollout was in-progress** to a new revision. The rollout was stopped and a new one started. Note: Template changes after completion do NOT emit superseded metrics.
+- `rollbacked` - Template/steps changed **while rollout was in-progress** to a previous revision and successfully rollbacked to that revision.
+- `fast-rollbacked` - Template/steps changed **while rollout was in-progress** to a previous revision within the rollback window and successfully expedited the rollback to that revision.
 
-**Relationship**: `total = progression + manual_pause` (for all statuses)
-
-**Implementation**: Duration tracking state is persisted in `status.durationStatus` fields on the Rollout CR, making it resilient to controller restarts. The fields are automatically managed by the controller and preserved after rollout completion to provide operational visibility into the last rollout's timing.
+- **Relationship**: `total = progression + manual_pause` (for all statuses)

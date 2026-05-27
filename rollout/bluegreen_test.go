@@ -11,6 +11,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	core "k8s.io/client-go/testing"
@@ -102,6 +103,7 @@ func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 
 	patch := f.getPatchedRollout(patchRolloutIndex)
 	assert.Equal(t, expectedPatch, patch)
+	f.metricsRecorder.AssertNotCalled(t, "EmitRolloutDuration", mock.Anything)
 }
 
 func TestBlueGreenCreatesReplicaSet(t *testing.T) {
@@ -155,6 +157,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 
 	patch := f.getPatchedRollout(patchRolloutIndex)
 	assert.Equal(t, expectedPatch, patch)
+	f.metricsRecorder.AssertNotCalled(t, "EmitRolloutDuration", mock.Anything)
 }
 
 // TestBlueGreenSetPreviewService ensures the preview service is set to the desired ReplicaSet
@@ -589,6 +592,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		rolloutPatch := f.getPatchedRolloutWithoutConditions(patchRolloutIndex)
 		assert.Equal(t, expectedPatch, rolloutPatch)
+		f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 	})
 
 	t.Run("NoAutoPromoteAfterDelayTimePassesIfUserPaused", func(t *testing.T) {
@@ -694,6 +698,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		rolloutPatch := f.getPatchedRollout(patchIndex)
 		assert.Equal(t, expectedPatch, rolloutPatch)
+		f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 	})
 
 	t.Run("PauseWhenAutoPromotionEnabledIsFalse", func(t *testing.T) {
@@ -798,6 +803,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
 		assert.Equal(t, expectedPatch, rolloutPatch)
+		f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 	})
 
 	t.Run("ContinueAfterUnpaused", func(t *testing.T) {
@@ -877,6 +883,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		expected2ndPatch := calculatePatch(r2, fmt.Sprintf(expected2ndPatchWithoutSubs, rs2PodHash, rs2PodHash, generatedConditions, newSelector, pausedDuration, now))
 		rollout2ndPatch := f.getPatchedRollout(patchRolloutIndex)
 		assert.Equal(t, expected2ndPatch, rollout2ndPatch)
+		f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 	})
 }
 
@@ -929,6 +936,7 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 	expectedCondition := generateConditionsPatchWithCompleted(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash, expectedCondition, newSelector, now))
 	assert.Equal(t, expectedPatch, patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {

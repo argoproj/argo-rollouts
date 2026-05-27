@@ -1399,7 +1399,7 @@ message RolloutDurationStatus {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 4;
 
   // CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)
-  // Possible values: "promoted", "manually-promoted", "aborted", "superseded"
+  // Possible values: "promoted", "fast-promoted", "aborted", "superseded"
   // Set when: (1) promoteStable() called, OR (2) abort detected, OR (3) superseded
   // Used to determine which status to emit when FinishedAt is set
   // +optional
@@ -2106,4 +2106,3 @@ message WeightDestination {
   // PodTemplateHash is the pod template hash label for this destination
   optional string podTemplateHash = 3;
 }
-

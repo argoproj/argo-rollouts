@@ -174,7 +174,7 @@ func TestEmitRolloutDuration_ManuallyPromoted(t *testing.T) {
 	now := metav1.Now()
 	startTime := metav1.NewTime(now.Add(-3 * time.Minute))
 	finishedAt := now
-	completionStatus := "manually-promoted"
+	completionStatus := "fast-promoted"
 
 	rollout := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -197,14 +197,14 @@ func TestEmitRolloutDuration_ManuallyPromoted(t *testing.T) {
 	// Progression: 3 minutes (no pause) = 180 seconds
 	// Manual pause: 0 seconds
 
-	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_total_sum{status="manually-promoted"} 180`, assert.Contains)
-	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_total_count{status="manually-promoted"} 1`, assert.Contains)
+	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_total_sum{status="fast-promoted"} 180`, assert.Contains)
+	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_total_count{status="fast-promoted"} 1`, assert.Contains)
 
-	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_progression_sum{status="manually-promoted"} 180`, assert.Contains)
-	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_progression_count{status="manually-promoted"} 1`, assert.Contains)
+	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_progression_sum{status="fast-promoted"} 180`, assert.Contains)
+	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_progression_count{status="fast-promoted"} 1`, assert.Contains)
 
-	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_manual_pause_sum{status="manually-promoted"} 0`, assert.Contains)
-	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_manual_pause_count{status="manually-promoted"} 1`, assert.Contains)
+	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_manual_pause_sum{status="fast-promoted"} 0`, assert.Contains)
+	testHttpResponse(t, metricsServ.Handler, `rollout_duration_seconds_manual_pause_count{status="fast-promoted"} 1`, assert.Contains)
 }
 
 // TestEmitRolloutDuration_Aborted tests metric emission for aborted rollouts

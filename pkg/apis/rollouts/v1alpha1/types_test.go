@@ -162,11 +162,11 @@ func TestRolloutDurationStatus_GetCompletionStatus(t *testing.T) {
 			expected: "promoted",
 		},
 		{
-			name: "manually-promoted",
+			name: "fast-promoted",
 			durationStatus: &RolloutDurationStatus{
-				CompletionStatus: func() *string { s := "manually-promoted"; return &s }(),
+				CompletionStatus: func() *string { s := "fast-promoted"; return &s }(),
 			},
-			expected: "manually-promoted",
+			expected: "fast-promoted",
 		},
 		{
 			name: "aborted",

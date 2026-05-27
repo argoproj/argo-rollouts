@@ -110,7 +110,7 @@ type ControllerConfig struct {
 	RolloutWorkQueue                workqueue.RateLimitingInterface
 	ServiceWorkQueue                workqueue.RateLimitingInterface
 	IngressWorkQueue                workqueue.RateLimitingInterface
-	MetricsServer                   *metrics.MetricsServer
+	MetricsServer                   metrics.MetricsRecorder
 	Recorder                        record.EventRecorder
 	EphemeralMetadataThreads        int
 	EphemeralMetadataPodRetries     int
@@ -159,7 +159,7 @@ type reconcilerBase struct {
 	ephemeralMetadataPodRetries int
 
 	// metricsServer is used to emit metrics for the rollout
-	metricsServer *metrics.MetricsServer
+	metricsServer metrics.MetricsRecorder
 }
 
 type IngressWrapper interface {

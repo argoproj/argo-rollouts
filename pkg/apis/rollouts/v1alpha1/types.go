@@ -1037,9 +1037,7 @@ type RolloutDurationStatus struct {
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,4,opt,name=finishedAt"`
 
 	// CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)
-	// Possible values: "promoted", "manually-promoted", "aborted", "superseded"
-	// Set when: (1) promoteStable() called, OR (2) abort detected, OR (3) superseded
-	// Used to determine which status to emit when FinishedAt is set
+	// Possible values: "promoted", "fast-promoted", "aborted", "superseded", "rollbacked", "fast-rollbacked"
 	// +optional
 	CompletionStatus *string `json:"completionStatus,omitempty" protobuf:"bytes,5,opt,name=completionStatus"`
 }

@@ -1222,7 +1222,7 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 		if newStatus.Duration != nil && newStatus.Duration.CompletionStatus == nil {
 			completionStatus := "promoted"
 			if c.rollout.Status.PromoteFull {
-				completionStatus = "manually-promoted"
+				completionStatus = "fast-promoted"
 			}
 			newStatus.Duration.CompletionStatus = &completionStatus
 			// FinishedAt remains nil until rollout is stable

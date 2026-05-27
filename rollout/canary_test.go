@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -399,6 +400,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, generateConditionsPatchWithCompleted(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", true), now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
@@ -449,6 +451,7 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, createdRS, false, "", false)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, expectedCurrentStepHash, newConditions, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
@@ -498,6 +501,7 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, newConditions, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
@@ -538,6 +542,7 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	newConditions := generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true)
 
 	assert.JSONEq(t, calculatePatch(r, fmt.Sprintf(expectedPatch, newConditions)), patch)
+	f.metricsRecorder.AssertNotCalled(t, "EmitRolloutDuration", mock.Anything)
 }
 
 func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
@@ -581,6 +586,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	expectedPatch := fmt.Sprintf(expectedPatchWithSub, generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true))
 
 	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
+	f.metricsRecorder.AssertNotCalled(t, "EmitRolloutDuration", mock.Anything)
 }
 
 func TestCanaryRolloutWithMaxWeightInTrafficRouting(t *testing.T) {
@@ -969,6 +975,7 @@ func TestRollBackToStable(t *testing.T) {
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions, now)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestRollBackToActiveReplicaSetWithinWindow(t *testing.T) {
@@ -1113,6 +1120,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newPodHash, newStepHash, newConditions, now)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
@@ -2036,6 +2044,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 		}`
 		newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r1, false, "", true)
 		assert.JSONEq(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions, now.UTC().Format(time.RFC3339))), patch)
+		f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 	})
 }
 

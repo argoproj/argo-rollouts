@@ -411,6 +411,7 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 		conditions.TargetGroupVerifiedReason,
 		conditions.RolloutCompletedReason,
 	})
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 // TestCanaryAWSVerifyTargetGroupsNotYetReady verifies we don't proceed with scale down of old

@@ -102,14 +102,14 @@ func WatchResourceWithExponentialBackoff(stopCh <-chan struct{}, client dynamic.
 // RunWorker is a long-running function that will continually call the
 // processNextWorkItem function in order to read and process a message on the
 // workqueue.
-func RunWorker(ctx context.Context, workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(context.Context, string) error, metricServer *metrics.MetricsServer) {
+func RunWorker(ctx context.Context, workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(context.Context, string) error, metricServer metrics.MetricsRecorder) {
 	for processNextWorkItem(ctx, workqueue, objType, syncHandler, metricServer) {
 	}
 }
 
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
-func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(context.Context, string) error, metricsServer *metrics.MetricsServer) bool {
+func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(context.Context, string) error, metricsServer metrics.MetricsRecorder) bool {
 	obj, shutdown := workqueue.Get()
 
 	if shutdown {
