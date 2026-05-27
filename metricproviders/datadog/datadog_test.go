@@ -30,40 +30,82 @@ func rawJSON(values ...string) []json.RawMessage {
 	return out
 }
 
-func TestDatadogV2ColumnNumeric(t *testing.T) {
-	col := datadogV2Column{
-		Type:   "number",
-		Values: rawJSON(`1.5`, `null`, `"not-a-number"`, `2`),
-	}
-	assert.Equal(t, []float64{1.5, 2}, col.Numeric())
-}
+func TestExtractValues(t *testing.T) {
+	t.Run("ungrouped numeric column", func(t *testing.T) {
+		cols := []datadogV2Column{
+			{Type: "number", Name: "q", Values: rawJSON(`1.5`, `2`)},
+		}
+		values, groups, err := extractValues(cols)
+		assert.NoError(t, err)
+		assert.Equal(t, []float64{1.5, 2}, values)
+		assert.Nil(t, groups)
+	})
 
-func TestDatadogV2ColumnStrings(t *testing.T) {
-	col := datadogV2Column{
-		Type:   "group",
-		Values: rawJSON(`"alpha"`, `null`, `42`, `"beta"`),
-	}
-	assert.Equal(t, []string{"alpha", "beta"}, col.Strings())
-}
+	t.Run("legacy column with no type field is treated as numeric", func(t *testing.T) {
+		cols := []datadogV2Column{
+			{Type: "", Values: rawJSON(`0.5`)},
+		}
+		values, groups, err := extractValues(cols)
+		assert.NoError(t, err)
+		assert.Equal(t, []float64{0.5}, values)
+		assert.Nil(t, groups)
+	})
 
-func TestLabelGroups(t *testing.T) {
-	cols := []datadogV2Column{
-		{Type: "group", Values: rawJSON(`"a"`, `"b"`)},
-		{Type: "number", Values: rawJSON(`1`, `2`)},
-	}
-	assert.Equal(t, []string{"a=1", "b=2"}, labelGroups(cols, []float64{1, 2}))
+	t.Run("grouped query pairs numeric values with group names", func(t *testing.T) {
+		cols := []datadogV2Column{
+			{Type: "group", Values: rawJSON(`"a"`, `"b"`)},
+			{Type: "number", Values: rawJSON(`1`, `2`)},
+		}
+		values, groups, err := extractValues(cols)
+		assert.NoError(t, err)
+		assert.Equal(t, []float64{1, 2}, values)
+		assert.Equal(t, []groupedValue{{Name: "a", Value: 1}, {Name: "b", Value: 2}}, groups)
+	})
 
-	// No group column → nothing to label.
-	cols = []datadogV2Column{{Type: "number", Values: rawJSON(`1`)}}
-	assert.Nil(t, labelGroups(cols, []float64{1}))
+	t.Run("null entries skip their group entry to keep pairing aligned", func(t *testing.T) {
+		// values[0] is null → first group ("a") must also be dropped, NOT
+		// shifted onto values[1]. Previous implementation got this wrong.
+		cols := []datadogV2Column{
+			{Type: "group", Values: rawJSON(`"a"`, `"b"`, `"c"`)},
+			{Type: "number", Values: rawJSON(`null`, `0.02`, `0.03`)},
+		}
+		values, groups, err := extractValues(cols)
+		assert.NoError(t, err)
+		assert.Equal(t, []float64{0.02, 0.03}, values)
+		assert.Equal(t, []groupedValue{{Name: "b", Value: 0.02}, {Name: "c", Value: 0.03}}, groups)
+	})
 
-	// More values than group names (malformed response): break rather than
-	// indexing past the slice.
-	cols = []datadogV2Column{
-		{Type: "group", Values: rawJSON(`"a"`)},
-		{Type: "number", Values: rawJSON(`1`, `2`)},
-	}
-	assert.Equal(t, []string{"a=1"}, labelGroups(cols, []float64{1, 2}))
+	t.Run("non-numeric entry in number column errors loudly", func(t *testing.T) {
+		// Datadog shouldn't return a string in a number column, but if it
+		// does we'd rather fail the analysis than silently drop the value
+		// and ship a rollout against incomplete data.
+		cols := []datadogV2Column{
+			{Type: "number", Name: "q", Values: rawJSON(`1`, `"oops"`)},
+		}
+		_, _, err := extractValues(cols)
+		assert.ErrorContains(t, err, "could not parse numeric value")
+	})
+
+	t.Run("group-only response (no number column) returns no values", func(t *testing.T) {
+		cols := []datadogV2Column{
+			{Type: "group", Values: rawJSON(`"a"`, `"b"`)},
+		}
+		values, groups, err := extractValues(cols)
+		assert.NoError(t, err)
+		assert.Empty(t, values)
+		assert.Empty(t, groups)
+	})
+
+	t.Run("group column placed after number column still works", func(t *testing.T) {
+		cols := []datadogV2Column{
+			{Type: "number", Values: rawJSON(`1`, `2`)},
+			{Type: "group", Values: rawJSON(`"a"`, `"b"`)},
+		}
+		values, groups, err := extractValues(cols)
+		assert.NoError(t, err)
+		assert.Equal(t, []float64{1, 2}, values)
+		assert.Equal(t, []groupedValue{{Name: "a", Value: 1}, {Name: "b", Value: 2}}, groups)
+	})
 }
 
 // errReader is an io.Reader that always returns an error - used to simulate

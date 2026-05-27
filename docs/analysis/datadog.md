@@ -235,7 +235,7 @@ This is useful for detecting regressions in a subset of entities (e.g. a specifi
         query: "sum:trace.http.request.errors{service:my-service} by {resource_name}.as_count()"
 ```
 
-When the query is grouped, the measurement's `metadata.groups` field is populated with a comma-separated list of `tag=value` pairs, so the operator can map an outlier in `result` back to the entity that produced it. Visible in `kubectl describe analysisrun`, the rollouts dashboard, and notification templates.
+When the query is grouped, the measurement's `metadata.groups` field is populated with a JSON array of `{"name": "...", "value": ...}` pairs, so the operator can map an outlier in `result` back to the entity that produced it. JSON is used so tag values containing `,` or `=` survive without escaping. Visible in `kubectl describe analysisrun`, the rollouts dashboard, and notification templates (which can parse it via `fromJson`).
 
 #### Templates and Helm
 

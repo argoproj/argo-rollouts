@@ -326,7 +326,7 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           "[0.01,0.087,0.04]",
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
-			expectedGroups:          "GET /a=0.01,GET /b=0.087,GET /c=0.04",
+			expectedGroups:          `[{"name":"GET /a","value":0.01},{"name":"GET /b","value":0.087},{"name":"GET /c","value":0.04}]`,
 			useEnvVarForKeys:        false,
 		},
 
@@ -345,27 +345,7 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           "[0.01,0.02,0.03]",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
-			expectedGroups:          "a=0.01,b=0.02,c=0.03",
-			useEnvVarForKeys:        false,
-		},
-
-		// Grouped query with null entries in the number column: nulls are
-		// dropped, the remaining values are evaluated, group names line up
-		// with the surviving indices.
-		{
-			webServerStatus: 200,
-			webServerResponse: `{"data": {"attributes": {"columns": [
-				{"name": "resource_name", "type": "group", "values": ["a", "b"]},
-				{"name": "query1", "type": "number", "values": [null, 0.02]}
-			]}}}`,
-			metric: v1alpha1.Metric{
-				Name:             "grouped query with one null value",
-				SuccessCondition: "default(result, 0) < 0.05",
-				Provider:         newQueryDefaultProvider(),
-			},
-			expectedIntervalSeconds: 300,
-			expectedValue:           "0.02",
-			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedGroups:          `[{"name":"a","value":0.01},{"name":"b","value":0.02},{"name":"c","value":0.03}]`,
 			useEnvVarForKeys:        false,
 		},
 
@@ -377,6 +357,45 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "There were errors in your query: query exceeded the maximum allowed time range",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query with a leading null in the number column: surviving
+		// values must be paired with the matching tag names, not shifted by
+		// one. Exercises the alignment fix end-to-end.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["a", "b", "c"]},
+				{"name": "query1", "type": "number", "values": [null, 0.02, 0.03]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query with leading null",
+				SuccessCondition: "max(result) < 0.05",
+				Provider:         newQueryDefaultProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "[0.02,0.03]",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedGroups:          `[{"name":"b","value":0.02},{"name":"c","value":0.03}]`,
+			useEnvVarForKeys:        false,
+		},
+
+		// Non-numeric entry in a number column must error rather than silently
+		// shrink the result.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "query1", "type": "number", "values": [1, "oops"]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "non-numeric value in number column errors",
+				SuccessCondition: "max(result) < 5",
+				Provider:         newQueryDefaultProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    `could not parse numeric value "\"oops\"" in column "query1"`,
 			useEnvVarForKeys:        false,
 		},
 	}
