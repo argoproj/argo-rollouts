@@ -95,6 +95,7 @@ func TestRunSuiteV2(t *testing.T) {
 		expectedPhase           v1alpha1.AnalysisPhase
 		expectedErrorMessage    string
 		expectedAggregator      string
+		expectedGroups          string
 		useEnvVarForKeys        bool
 	}{
 		{
@@ -249,7 +250,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field .Data.Attributes.Columns.Values of type []*float64",
+			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field datadogV2Column.Data.Attributes.Columns.values of type []json.RawMessage",
 			useEnvVarForKeys:        false,
 		},
 
@@ -306,6 +307,76 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedValue:           "0.006121378742186943",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			expectedAggregator:      "sum",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query: `by {tag}` returns multiple values that the user
+		// evaluates with an Expr function in the success condition.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["GET /a", "GET /b", "GET /c"]},
+				{"name": "query1", "type": "number", "values": [0.01, 0.087, 0.04]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query evaluated with max",
+				SuccessCondition: "max(result) < 0.05",
+				Provider:         newQueryDefaultProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "[0.01,0.087,0.04]",
+			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			expectedGroups:          "GET /a=0.01,GET /b=0.087,GET /c=0.04",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query: same shape, condition that passes.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["a", "b", "c"]},
+				{"name": "query1", "type": "number", "values": [0.01, 0.02, 0.03]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query passes with all",
+				SuccessCondition: "all(result, # < 0.05)",
+				Provider:         newQueryDefaultProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "[0.01,0.02,0.03]",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedGroups:          "a=0.01,b=0.02,c=0.03",
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query with null entries in the number column: nulls are
+		// dropped, the remaining values are evaluated, group names line up
+		// with the surviving indices.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": ["a", "b"]},
+				{"name": "query1", "type": "number", "values": [null, 0.02]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "grouped query with one null value",
+				SuccessCondition: "default(result, 0) < 0.05",
+				Provider:         newQueryDefaultProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "0.02",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
+
+		// Datadog returns a populated errors field: surface a clear error.
+		{
+			webServerStatus:         200,
+			webServerResponse:       `{"data": {"errors": "query exceeded the maximum allowed time range"}}`,
+			metric:                  v1alpha1.Metric{Name: "datadog returns errors", Provider: newQueryDefaultProvider()},
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    "There were errors in your query: query exceeded the maximum allowed time range",
 			useEnvVarForKeys:        false,
 		},
 	}
@@ -459,5 +530,10 @@ func TestRunSuiteV2(t *testing.T) {
 			assert.Contains(t, measurement.Message, test.expectedErrorMessage)
 		}
 
+		if test.expectedGroups != "" {
+			assert.Equal(t, test.expectedGroups, measurement.Metadata["groups"])
+		} else {
+			assert.Empty(t, measurement.Metadata["groups"])
+		}
 	}
 }

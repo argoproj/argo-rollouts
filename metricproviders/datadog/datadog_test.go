@@ -3,6 +3,10 @@
 package datadog
 
 import (
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
 	"os"
 	"testing"
 
@@ -17,6 +21,67 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
+
+func rawJSON(values ...string) []json.RawMessage {
+	out := make([]json.RawMessage, 0, len(values))
+	for _, v := range values {
+		out = append(out, json.RawMessage(v))
+	}
+	return out
+}
+
+func TestDatadogV2ColumnNumeric(t *testing.T) {
+	col := datadogV2Column{
+		Type:   "number",
+		Values: rawJSON(`1.5`, `null`, `"not-a-number"`, `2`),
+	}
+	assert.Equal(t, []float64{1.5, 2}, col.Numeric())
+}
+
+func TestDatadogV2ColumnStrings(t *testing.T) {
+	col := datadogV2Column{
+		Type:   "group",
+		Values: rawJSON(`"alpha"`, `null`, `42`, `"beta"`),
+	}
+	assert.Equal(t, []string{"alpha", "beta"}, col.Strings())
+}
+
+func TestLabelGroups(t *testing.T) {
+	cols := []datadogV2Column{
+		{Type: "group", Values: rawJSON(`"a"`, `"b"`)},
+		{Type: "number", Values: rawJSON(`1`, `2`)},
+	}
+	assert.Equal(t, []string{"a=1", "b=2"}, labelGroups(cols, []float64{1, 2}))
+
+	// No group column → nothing to label.
+	cols = []datadogV2Column{{Type: "number", Values: rawJSON(`1`)}}
+	assert.Nil(t, labelGroups(cols, []float64{1}))
+
+	// More values than group names (malformed response): break rather than
+	// indexing past the slice.
+	cols = []datadogV2Column{
+		{Type: "group", Values: rawJSON(`"a"`)},
+		{Type: "number", Values: rawJSON(`1`, `2`)},
+	}
+	assert.Equal(t, []string{"a=1"}, labelGroups(cols, []float64{1, 2}))
+}
+
+// errReader is an io.Reader that always returns an error - used to simulate
+// a torn-down HTTP response body in tests.
+type errReader struct{}
+
+func (*errReader) Read([]byte) (int, error) { return 0, errors.New("forced read error") }
+
+func TestParseResponseV2BodyReadError(t *testing.T) {
+	p := &Provider{logCtx: *log.WithField("test", "test")}
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(&errReader{}),
+	}
+	_, phase, _, err := p.parseResponseV2(v1alpha1.Metric{}, resp)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, phase)
+	assert.ErrorContains(t, err, "Received no bytes in response")
+}
 
 func TestDatadogSpecDefaults(t *testing.T) {
 	_ = apiextv1.AddToScheme(scheme.Scheme)

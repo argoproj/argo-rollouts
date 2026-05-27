@@ -215,6 +215,28 @@ For example, using count-based distribution metric (`count:metric{*}.as_count()`
         formula: "moving_rollup(a, 300, 'sum') / moving_rollup(b, 300, 'sum') * 100" # percentage of requests with errors
 ```
 
+#### Grouped queries with `by {tag}` (v2 only)
+
+Datadog queries that use a `by {tag}` clause return one scalar per group rather than a single value. The Datadog provider exposes these as a `result` slice, matching how the Prometheus provider surfaces vector results. Use any of the standard [Expr](https://expr-lang.org/docs/language-definition) functions in the success or failure condition to reduce the slice — for example `max(result)`, `mean(result)`, `sum(result)`, `all(result, # < X)`, or `any(result, # >= X)`.
+
+This is useful for detecting regressions in a subset of entities (e.g. a specific `resource_name`) that would otherwise be diluted by a global aggregate:
+
+```yaml
+...<snip>
+  metrics:
+  - name: per-endpoint-error-rate
+    interval: 30s
+    successCondition: max(result) < 0.05 # fail if ANY endpoint exceeds the threshold
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
+        interval: 5m
+        query: "sum:trace.http.request.errors{service:my-service} by {resource_name}.as_count()"
+```
+
+When the query is grouped, the measurement's `metadata.groups` field is populated with a comma-separated list of `tag=value` pairs, so the operator can map an outlier in `result` back to the entity that produced it. Visible in `kubectl describe analysisrun`, the rollouts dashboard, and notification templates.
+
 #### Templates and Helm
 
 Helm and Argo Rollouts both try to parse things between `{{ ... }}` when rendering templates. If you use Helm to deliver your manifests, you will need to escape `{{ args.whatever }}`. Using the example above, here it is set up for Helm:
