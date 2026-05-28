@@ -571,7 +571,7 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
 		WaitForRolloutStatus("Degraded").
 		Then().
 		// Expect that the canary service selector has been moved back to stable
-		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "674d8cf959"}, false).
+		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "66597877b7"}, false).
 		When().
 		Sleep(3*time.Second).
 		Then().
@@ -588,7 +588,7 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbortNoTrafficRouting() {
 		WaitForRolloutStatus("Degraded").
 		Then().
 		// Expect that the canary service selector has been moved back to stable
-		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "674d8cf959"}, false).
+		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "66597877b7"}, false).
 		When().
 		Sleep(3*time.Second).
 		Then().
@@ -668,7 +668,7 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		Then().
 		// Expect that the canary service selector is now set to stable because of dynamic stable scale is over and we have all pods up on stable rs
 		// NOTE: This must be updated for every k8s version upgrade
-		ExpectServiceSelector("dynamic-stable-scale-canary", map[string]string{"app": "dynamic-stable-scale", "rollouts-pod-template-hash": "6b56c8cdb4"}, false).
+		ExpectServiceSelector("dynamic-stable-scale-canary", map[string]string{"app": "dynamic-stable-scale", "rollouts-pod-template-hash": "868d98995b"}, false).
 		ExpectRevisionPodCount("1", 4)
 }
 
