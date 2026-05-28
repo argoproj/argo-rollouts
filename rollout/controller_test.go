@@ -1527,8 +1527,6 @@ func TestInvalidWorkloadRef(t *testing.T) {
 // variations made to the pod template in equivalent ways.
 func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
-	// NOTE: This test will fail on every k8s library upgrade.
-	// To fix it, update expectedReplicaSetName to match the new hash.
 	expectedReplicaSetName := "guestbook-6c5667f666"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
