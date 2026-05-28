@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"testing"
 
@@ -4102,4 +4103,340 @@ spec:
 	err := r.RemoveManagedRoutes()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to update kubernetes virtual service")
+}
+
+// TestUpdateHashWritesWeightUpdateDeadlineOnCanaryHashChange verifies that when
+// canary.weightUpdateDelaySeconds > 0 and UpdateHash changes the canary subset's
+// pod-template-hash, the DestinationRule receives a weight-update-deadline
+// annotation in the same patch.
+func TestUpdateHashWritesWeightUpdateDeadlineOnCanaryHashChange(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	ro.Spec.Strategy.Canary.WeightUpdateDelaySeconds = ptr.To[int32](60)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  subsets:
+  - name: stable
+    labels:
+      rollouts-pod-template-hash: def456
+  - name: canary
+    labels:
+      rollouts-pod-template-hash: oldhash
+`)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+	before := time.Now()
+
+	err := r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+
+	dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
+	assert.NoError(t, err)
+
+	// canary subset is updated to the new hash, stable is unchanged
+	assert.Equal(t, "def456", dRule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	assert.Equal(t, "abc123", dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+
+	// weight-update-deadline annotation is set to now+60s in RFC3339 form
+	deadlineStr := dRule.Annotations[v1alpha1.DefaultWeightUpdateDeadlineAnnotationKey]
+	assert.NotEmpty(t, deadlineStr)
+	deadline, err := time.Parse(time.RFC3339, deadlineStr)
+	assert.NoError(t, err)
+	assert.True(t, deadline.After(before.Add(59*time.Second)), "deadline %s should be at least 59s after %s", deadline, before)
+	assert.True(t, deadline.Before(before.Add(120*time.Second)), "deadline %s should be within 120s of %s", deadline, before)
+}
+
+// TestUpdateHashWritesWeightUpdateDeadlineOnStableHashChange verifies that when
+// the stable subset hash is changed at promotion, the annotation is written.
+func TestUpdateHashWritesWeightUpdateDeadlineOnStableHashChange(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	ro.Spec.Strategy.Canary.WeightUpdateDelaySeconds = ptr.To[int32](60)
+	// Simulate the state right before promotion: canary subset already has the
+	// new hash, stable subset still has the old hash.
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  subsets:
+  - name: stable
+    labels:
+      rollouts-pod-template-hash: oldstable
+  - name: canary
+    labels:
+      rollouts-pod-template-hash: newhash
+`)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	// Promotion: both subsets now point to the new hash.
+	err := r.UpdateHash("newhash", "newhash")
+	assert.NoError(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+
+	dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
+	assert.NoError(t, err)
+	assert.Equal(t, "newhash", dRule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	assert.Equal(t, "newhash", dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	assert.NotEmpty(t, dRule.Annotations[v1alpha1.DefaultWeightUpdateDeadlineAnnotationKey])
+}
+
+// TestUpdateHashSkipsWeightUpdateDeadlineWhenHashUnchanged verifies that when
+// neither canary nor stable subset hash changes (intermediate setWeight step
+// during canary), no annotation is written and no API call is made.
+func TestUpdateHashSkipsWeightUpdateDeadlineWhenHashUnchanged(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	ro.Spec.Strategy.Canary.WeightUpdateDelaySeconds = ptr.To[int32](60)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+  annotations:
+    argo-rollouts.argoproj.io/managed-by-rollouts: rollout
+spec:
+  host: ratings.prod.svc.cluster.local
+  subsets:
+  - name: stable
+    labels:
+      rollouts-pod-template-hash: def456
+  - name: canary
+    labels:
+      rollouts-pod-template-hash: abc123
+`)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	// Same hashes as what's already in the DR - no change.
+	err := r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err)
+	// No API call should be made - merge patch is empty.
+	assert.Len(t, client.Actions(), 0)
+}
+
+// TestUpdateHashSkipsWeightUpdateDeadlineWhenDisabled verifies that when
+// canary.weightUpdateDelaySeconds is unset (or 0), no annotation is written
+// even if the hash changes - existing behavior is preserved.
+func TestUpdateHashSkipsWeightUpdateDeadlineWhenDisabled(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	// WeightUpdateDelaySeconds is nil (not set) - feature disabled.
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  subsets:
+  - name: stable
+    labels:
+      rollouts-pod-template-hash: def456
+  - name: canary
+    labels:
+      rollouts-pod-template-hash: oldhash
+`)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err)
+	// Hash is updated but no annotation should be added.
+	dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
+	assert.NoError(t, err)
+	assert.Equal(t, "abc123", dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	_, hasAnnotation := dRule.Annotations[v1alpha1.DefaultWeightUpdateDeadlineAnnotationKey]
+	assert.False(t, hasAnnotation, "annotation should not be added when feature is disabled")
+}
+
+// TestGetWeightUpdateDeadline_NotConfigured verifies that the reconciler returns
+// (nil, nil) when the rollout does not use Istio subset-level traffic routing.
+func TestGetWeightUpdateDeadline_NotConfigured(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "rollout", Namespace: metav1.NamespaceDefault},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Istio: &v1alpha1.IstioTrafficRouting{
+							VirtualService: &v1alpha1.IstioVirtualService{Name: "vs"},
+							// no DestinationRule
+						},
+					},
+				},
+			},
+		},
+	}
+	client := testutil.NewFakeDynamicClient()
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+
+	deadline, err := r.GetWeightUpdateDeadline()
+	assert.NoError(t, err)
+	assert.Nil(t, deadline)
+}
+
+// TestGetWeightUpdateDeadline_NoAnnotation verifies that the reconciler returns
+// (nil, nil) when the DestinationRule has no deadline annotation.
+func TestGetWeightUpdateDeadline_NoAnnotation(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  subsets:
+  - name: stable
+  - name: canary
+`)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+
+	deadline, err := r.GetWeightUpdateDeadline()
+	assert.NoError(t, err)
+	assert.Nil(t, deadline)
+}
+
+// TestGetWeightUpdateDeadline_AnnotationPresent verifies that the reconciler
+// returns the parsed deadline when the annotation is set.
+func TestGetWeightUpdateDeadline_AnnotationPresent(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	expectedTime := time.Now().Add(2 * time.Minute).UTC().Truncate(time.Second)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(fmt.Sprintf(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+  annotations:
+    %s: %q
+spec:
+  subsets:
+  - name: stable
+  - name: canary
+`, v1alpha1.DefaultWeightUpdateDeadlineAnnotationKey, expectedTime.Format(time.RFC3339)))
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+
+	deadline, err := r.GetWeightUpdateDeadline()
+	assert.NoError(t, err)
+	assert.NotNil(t, deadline)
+	if deadline != nil {
+		assert.True(t, deadline.Equal(expectedTime), "got %s, want %s", deadline, expectedTime)
+	}
+}
+
+// TestGetWeightUpdateDeadline_InvalidAnnotation verifies that the reconciler
+// returns an error when the annotation value is not a valid RFC3339 timestamp.
+func TestGetWeightUpdateDeadline_InvalidAnnotation(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(fmt.Sprintf(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+  annotations:
+    %s: not-a-timestamp
+spec:
+  subsets:
+  - name: stable
+  - name: canary
+`, v1alpha1.DefaultWeightUpdateDeadlineAnnotationKey))
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+
+	deadline, err := r.GetWeightUpdateDeadline()
+	assert.Error(t, err)
+	assert.Nil(t, deadline)
+}
+
+// TestClearWeightUpdateDeadline_NotConfigured verifies that the reconciler is a
+// no-op when the rollout does not use Istio subset-level traffic routing.
+func TestClearWeightUpdateDeadline_NotConfigured(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "rollout", Namespace: metav1.NamespaceDefault},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Istio: &v1alpha1.IstioTrafficRouting{
+							VirtualService: &v1alpha1.IstioVirtualService{Name: "vs"},
+						},
+					},
+				},
+			},
+		},
+	}
+	client := testutil.NewFakeDynamicClient()
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.ClearWeightUpdateDeadline()
+	assert.NoError(t, err)
+	assert.Len(t, client.Actions(), 0, "no API call should be made when DestinationRule is not configured")
+}
+
+// TestClearWeightUpdateDeadline_RemovesAnnotation verifies that the reconciler
+// patches away the deadline annotation while preserving other annotations.
+func TestClearWeightUpdateDeadline_RemovesAnnotation(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(fmt.Sprintf(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+  annotations:
+    %s: "2026-05-29T10:32:18Z"
+    keep-me: "yes"
+spec:
+  subsets:
+  - name: stable
+  - name: canary
+`, v1alpha1.DefaultWeightUpdateDeadlineAnnotationKey))
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.ClearWeightUpdateDeadline()
+	assert.NoError(t, err)
+
+	updated, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(metav1.NamespaceDefault).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	annotations := updated.GetAnnotations()
+	_, hasDeadline := annotations[v1alpha1.DefaultWeightUpdateDeadlineAnnotationKey]
+	assert.False(t, hasDeadline, "deadline annotation should be removed")
+	assert.Equal(t, "yes", annotations["keep-me"], "unrelated annotations should be preserved")
 }
