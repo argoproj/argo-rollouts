@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 
@@ -306,6 +307,27 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
 		if err != nil {
 			return err
+		}
+
+		// Weight-update delay gate: hold SetWeight until the deadline written by
+		// UpdateHash has elapsed, giving the data plane time to absorb the destination
+		// change.
+		if defaults.GetWeightUpdateDelaySecondsOrDefault(c.rollout) > 0 {
+			deadline, derr := reconciler.GetWeightUpdateDeadline()
+			if derr != nil {
+				c.log.Warnf("failed to read weight-update deadline: %v", derr)
+			} else if deadline != nil {
+				if remaining := time.Until(*deadline); remaining > 0 {
+					c.log.Infof("weight-update delay in progress, %s remaining", remaining)
+					c.enqueueRolloutAfter(c.rollout, remaining)
+					return nil // Skip SetWeight until the deadline has elapsed
+				}
+				if cerr := reconciler.ClearWeightUpdateDeadline(); cerr != nil {
+					c.log.Warnf("failed to clear weight-update deadline: %v", cerr)
+				} else {
+					c.log.Info("weight-update delay elapsed, proceeding with SetWeight")
+				}
+			}
 		}
 
 		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
