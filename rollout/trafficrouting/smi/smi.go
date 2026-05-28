@@ -3,6 +3,7 @@ package smi
 import (
 	"context"
 	"fmt"
+	"time"
 
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 	smiv1alpha2 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha2"
@@ -357,5 +358,13 @@ func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) err
 }
 
 func (r *Reconciler) RemoveManagedRoutes() error {
+	return nil
+}
+
+func (r *Reconciler) GetWeightUpdateDeadline() (*time.Time, error) {
+	return nil, nil
+}
+
+func (r *Reconciler) ClearWeightUpdateDeadline() error {
 	return nil
 }

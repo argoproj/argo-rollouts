@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 
@@ -615,5 +616,13 @@ func (r *Reconciler) RemoveManagedRoutesPerIngress(ingresses []string) error {
 			return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
 		}
 	}
+	return nil
+}
+
+func (r *Reconciler) GetWeightUpdateDeadline() (*time.Time, error) {
+	return nil, nil
+}
+
+func (r *Reconciler) ClearWeightUpdateDeadline() error {
 	return nil
 }
