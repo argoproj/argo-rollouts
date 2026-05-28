@@ -160,7 +160,7 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 		},
 	}
 	// NOTE: The hash must be updated for every k8s library upgrade
-	assert.Equal(t, "foo-template-658c46c486", ReplicasetNameFromExperiment(e, template))
+	assert.Equal(t, "foo-template-76bbb58f74", ReplicasetNameFromExperiment(e, template))
 
 	newTemplateStatus := v1alpha1.TemplateStatus{
 		Name:           templateName,
@@ -168,7 +168,7 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 	}
 	e.Status.TemplateStatuses = append(e.Status.TemplateStatuses, newTemplateStatus)
 	// NOTE: The hash must be updated for every k8s library upgrade
-	assert.Equal(t, "foo-template-6746d5bbc", ReplicasetNameFromExperiment(e, template))
+	assert.Equal(t, "foo-template-688c48b575", ReplicasetNameFromExperiment(e, template))
 }
 
 func TestExperimentByCreationTimestamp(t *testing.T) {
