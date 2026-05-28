@@ -50,6 +50,12 @@ func (r *testRpcPlugin) SetMirrorRoute(ro *v1alpha1.Rollout, setMirrorRoute *v1a
 func (r *testRpcPlugin) RemoveManagedRoutes(ro *v1alpha1.Rollout) types.RpcError {
 	return types.RpcError{}
 }
+func (r *testRpcPlugin) GetWeightUpdateDeadline(ro *v1alpha1.Rollout) (*time.Time, types.RpcError) {
+	return nil, types.RpcError{}
+}
+func (r *testRpcPlugin) ClearWeightUpdateDeadline(ro *v1alpha1.Rollout) types.RpcError {
+	return types.RpcError{}
+}
 func (r *testRpcPlugin) Type() string {
 	return "TestRPCPlugin"
 }

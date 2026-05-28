@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	goPlugin "github.com/hashicorp/go-plugin"
 
@@ -37,6 +38,12 @@ func (p *testPlugin) SetMirrorRoute(_ *v1alpha1.Rollout, _ *v1alpha1.SetMirrorRo
 	return types.RpcError{}
 }
 func (p *testPlugin) RemoveManagedRoutes(_ *v1alpha1.Rollout) types.RpcError {
+	return types.RpcError{}
+}
+func (p *testPlugin) GetWeightUpdateDeadline(_ *v1alpha1.Rollout) (*time.Time, types.RpcError) {
+	return nil, types.RpcError{}
+}
+func (p *testPlugin) ClearWeightUpdateDeadline(_ *v1alpha1.Rollout) types.RpcError {
 	return types.RpcError{}
 }
 func (p *testPlugin) Type() string { return "test" }
