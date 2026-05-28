@@ -108,6 +108,31 @@ func TestExtractValues(t *testing.T) {
 	})
 }
 
+func TestGroupNameAt(t *testing.T) {
+	col := &datadogV2Column{Type: "group", Values: rawJSON(`"a"`, `42`, `null`)}
+
+	t.Run("nil column returns false", func(t *testing.T) {
+		_, ok := groupNameAt(nil, 0)
+		assert.False(t, ok)
+	})
+
+	t.Run("index past end returns false", func(t *testing.T) {
+		_, ok := groupNameAt(col, 99)
+		assert.False(t, ok)
+	})
+
+	t.Run("string entry returns the name", func(t *testing.T) {
+		name, ok := groupNameAt(col, 0)
+		assert.True(t, ok)
+		assert.Equal(t, "a", name)
+	})
+
+	t.Run("non-string entry returns false rather than corrupting the label", func(t *testing.T) {
+		_, ok := groupNameAt(col, 1)
+		assert.False(t, ok)
+	})
+}
+
 // errReader is an io.Reader that always returns an error - used to simulate
 // a torn-down HTTP response body in tests.
 type errReader struct{}

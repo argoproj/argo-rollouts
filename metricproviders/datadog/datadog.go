@@ -93,14 +93,11 @@ func isJSONNull(r json.RawMessage) bool {
 	return string(bytes.TrimSpace(r)) == "null"
 }
 
-// extractValues walks the v2 scalar response and returns the numeric values
-// paired with their group tag values (if any). Null entries in the number
-// column are skipped along with their corresponding group entry, so the
-// returned slices stay aligned. A non-numeric, non-null entry in the number
-// column is treated as an error rather than silently dropped — for a
-// production rollout gate we'd rather surface bad data loudly.
-func extractValues(columns []datadogV2Column) (values []float64, groups []groupedValue, err error) {
-	var numCol, groupCol *datadogV2Column
+// findColumns locates the first numeric column and the first group column in
+// a v2 scalar response. Legacy responses omit the type field, so an empty
+// type is treated as numeric for backward compatibility with the previous
+// behavior of picking column 0.
+func findColumns(columns []datadogV2Column) (numCol, groupCol *datadogV2Column) {
 	for i, c := range columns {
 		if numCol == nil && (c.Type == "" || c.Type == "number") {
 			numCol = &columns[i]
@@ -109,6 +106,30 @@ func extractValues(columns []datadogV2Column) (values []float64, groups []groupe
 			groupCol = &columns[i]
 		}
 	}
+	return
+}
+
+// groupNameAt returns the tag name at idx in a group column, or "", false if
+// no group column was provided or the entry isn't a usable string.
+func groupNameAt(col *datadogV2Column, idx int) (string, bool) {
+	if col == nil || idx >= len(col.Values) {
+		return "", false
+	}
+	var name string
+	if err := json.Unmarshal(col.Values[idx], &name); err != nil {
+		return "", false
+	}
+	return name, true
+}
+
+// extractValues walks the v2 scalar response and returns the numeric values
+// paired with their group tag values (if any). Null entries in the number
+// column are skipped along with their corresponding group entry, so the
+// returned slices stay aligned. A non-numeric, non-null entry in the number
+// column is treated as an error rather than silently dropped — for a
+// production rollout gate we'd rather surface bad data loudly.
+func extractValues(columns []datadogV2Column) (values []float64, groups []groupedValue, err error) {
+	numCol, groupCol := findColumns(columns)
 	if numCol == nil {
 		return nil, nil, nil
 	}
@@ -118,15 +139,12 @@ func extractValues(columns []datadogV2Column) (values []float64, groups []groupe
 			continue
 		}
 		var f float64
-		if jsonErr := json.Unmarshal(r, &f); jsonErr != nil {
-			return nil, nil, fmt.Errorf("could not parse numeric value %q in column %q: %v", string(r), numCol.Name, jsonErr)
+		if err := json.Unmarshal(r, &f); err != nil {
+			return nil, nil, fmt.Errorf("could not parse numeric value %q in column %q: %v", string(r), numCol.Name, err)
 		}
 		values = append(values, f)
-		if groupCol != nil && i < len(groupCol.Values) {
-			var name string
-			if jsonErr := json.Unmarshal(groupCol.Values[i], &name); jsonErr == nil {
-				groups = append(groups, groupedValue{Name: name, Value: f})
-			}
+		if name, ok := groupNameAt(groupCol, i); ok {
+			groups = append(groups, groupedValue{Name: name, Value: f})
 		}
 	}
 	return values, groups, nil
