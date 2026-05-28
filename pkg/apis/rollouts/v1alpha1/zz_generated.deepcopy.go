@@ -952,6 +952,11 @@ func (in *CanaryStrategy) DeepCopyInto(out *CanaryStrategy) {
 		*out = new(ReplicaProgressThreshold)
 		**out = **in
 	}
+	if in.WeightUpdateDelaySeconds != nil {
+		in, out := &in.WeightUpdateDelaySeconds, &out.WeightUpdateDelaySeconds
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 

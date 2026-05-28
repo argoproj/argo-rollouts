@@ -1730,6 +1730,16 @@ spec:
                             - weightedTraefikServiceName
                             type: object
                         type: object
+                      weightUpdateDelaySeconds:
+                        description: |-
+                          WeightUpdateDelaySeconds adds a delay before applying a new traffic weight to the
+                          underlying routing resource (e.g. an Istio VirtualService) when the destination's
+                          pod-template hash has just changed — that is, at canary start (DestinationRule canary
+                          subset relabeled to the new ReplicaSet) and at promotion (stable subset relabeled).
+                          The delay gives the data plane time to absorb the destination change before traffic
+                          actually shifts.
+                        format: int32
+                        type: integer
                     type: object
                 type: object
               template:
