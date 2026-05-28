@@ -459,7 +459,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 	wasAborted := progCond != nil && progCond.Reason == conditions.RolloutAbortedReason
 	isRetry := !isAborted && wasAborted
 
-	durationPaused := prevStatus.Duration != nil && durationStatus.ManualPauseStartedAt != nil
+	durationPaused := prevStatus.Duration != nil && prevStatus.Duration.ManualPauseStartedAt != nil
 	durationInProgress := prevStatus.Duration != nil && prevStatus.Duration.RolloutStartedAt != nil && !prevStatus.Duration.IsCompleted()
 
 	if durationInProgress {
@@ -470,9 +470,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 				// If the rollout is a rollback, we keep the the current duration
 				// The user explicitly reverted the rollout to the previous pod spec
 				status := v1alpha1.CompletionStatusRollbacked
-				if c.isRollbackWithinWindow() {
-					// If the rollout is within rollback window, we consider it a fast rollback
-					// since it will be fully-promoted immediately
+				if c.isFastRollback() {
 					status = v1alpha1.CompletionStatusFastRollbacked
 				}
 				// The user explicitly reverted the rollout to the previous pod spec
@@ -480,7 +478,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 				c.log.WithField("event", "rollout_rollback").
 					WithField("reason", "reverted to previous revision causing "+status+" rollout").
 					Info("Rollout rollback")
-				return durationStatus
+
 			} else {
 				// Rollout was interrupted mid-execution
 				durationStatus.CompleteRollout(now, v1alpha1.CompletionStatusSuperseded)
@@ -496,9 +494,6 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 					WithField("event", "rollout_completed").
 					WithField("completion_reason", completionReason).
 					Info("Rollout completed")
-
-				// Do not return here since we want to evaluate the new status
-				// for a starting rollout
 			}
 		} else if isPromoted && hasReachedDesiredReplicas {
 			// Rollout is now completed
@@ -512,7 +507,6 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 				WithField("event", "rollout_completed").
 				WithField("reason", "rollout reached desired replicas").
 				Info("Rollout completed")
-			return durationStatus
 		} else if isAborted {
 			// Rolout was just aborted
 			completionStatus := durationStatus.GetCompletionStatus()
@@ -525,39 +519,39 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 				WithField("event", "rollout_completed").
 				WithField("completion_reason", c.pauseContext.abortMessage).
 				Warn("Rollout completed")
-
-			return durationStatus
 		}
 	}
 
-	if podSpecChanged {
+	if durationStatus == nil || durationStatus.IsCompleted() {
 		// First rollout or Starting new rollout from a completed state
-		durationStatus = &v1alpha1.RolloutDurationStatus{
-			RolloutStartedAt: &now,
-		}
-		c.log.WithField("event", "rollout_started").
-			WithField("reason", "new revision detected").
-			Info("Rollout started")
-		return durationStatus
-	}
+		durationPaused = false
 
-	if isRetry {
-		// Rolout retried after being aborted, start a new rollout
-		durationStatus = &v1alpha1.RolloutDurationStatus{
-			RolloutStartedAt: &now,
+		if podSpecChanged {
+			durationStatus = &v1alpha1.RolloutDurationStatus{
+				RolloutStartedAt: &now,
+			}
+			c.log.WithField("event", "rollout_started").
+				WithField("reason", "new revision detected").
+				Info("Rollout started")
+		} else if isRetry {
+			// Rolout retried after being aborted, start a new rollout
+			durationStatus = &v1alpha1.RolloutDurationStatus{
+				RolloutStartedAt: &now,
+			}
+			c.log.WithField("event", "rollout_started").
+				WithField("reason", "rety after abort").
+				Info("Rollout retried")
 		}
-		c.log.WithField("event", "rollout_started").
-			WithField("reason", "rety after abort").
-			Info("Rollout retried")
-		return durationStatus
 	}
 
 	if durationStatus == nil {
+		// This might happen if the CRD is not up to date and duration cannot be persisted
 		c.log.Debug("Duration is nil, skipping duration tracking")
 		return nil
 	}
+
 	if durationStatus.IsCompleted() {
-		c.log.Debug("Duration is completed, skipping duration tracking")
+		// Usual no-op during a completed rollout reconciliation
 		return durationStatus
 	}
 
@@ -708,8 +702,13 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 	for _, condition := range conditionList {
 		conditions.SetRolloutCondition(newStatus, *condition)
 	}
+
+	// While this function is called "PatchConditions", it also calculate the phase and
+	// all other status fields that need to be consistent with the conditions.
+	// This should most likely be replaced by persistRolloutStatus to avoid discrepancies.
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(r.Spec, *newStatus)
+	newStatus.Duration = c.calculateStatusDuration(newStatus)
 
 	logCtx := logutil.WithVersionFields(c.log, r)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
@@ -1085,15 +1084,35 @@ func (c *rolloutContext) resetRolloutStatus(newStatus *v1alpha1.RolloutStatus) {
 	newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(c.rollout)
 }
 
+// isRollback returns true if we are deploying to a previous revision.
 func (c *rolloutContext) isRollback() bool {
 	if c.newRS == nil || c.stableRS == nil {
 		return false
 	}
-	return c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp)
+	newRSHash := replicasetutil.GetPodTemplateHash(c.newRS)
+	isAlreadyPromoted := c.rollout.Status.CurrentPodHash == newRSHash
+	rollbackToStable := c.rollout.Status.StableRS == newRSHash
+	rollbackToPreviousRevision := c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp)
+	return !isAlreadyPromoted && (rollbackToStable || rollbackToPreviousRevision)
+}
+
+func (c *rolloutContext) isFastRollback() bool {
+	if !c.isRollback() {
+		return false
+	}
+	newRSHash := replicasetutil.GetPodTemplateHash(c.newRS)
+	isWithinWindow := c.isRollbackWithinWindow()
+	rollbackToStable := c.rollout.Status.StableRS == newRSHash
+	isWitinScaleDownDelay := replicasetutil.HasScaleDownDeadline(c.newRS)
+	return isWithinWindow || isWitinScaleDownDelay || rollbackToStable
+
 }
 
 func (c *rolloutContext) isRollbackWithinWindow() bool {
-	if !c.isRollback() {
+	if c.newRS == nil || c.stableRS == nil {
+		return false
+	}
+	if !c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) {
 		return false
 	}
 	if c.rollout.Spec.RollbackWindow != nil {

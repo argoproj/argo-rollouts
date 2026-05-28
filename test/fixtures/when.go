@@ -147,6 +147,12 @@ func (w *When) UpdateSpec(texts ...string) *When {
 	return w
 }
 
+func (w *When) UpdateVersion(version string) *When {
+	patchBytes := []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"version":"%s"}}}}}`, version))
+	w.log.Infof("Updated rollout to version: %s", version)
+	return w.UpdateSpec(string(patchBytes))
+}
+
 // UpdateWorkloadRef updates the workload referenced by the rollout (e.g., deployment)
 func (w *When) UpdateWorkloadRef(deploymentName string, texts ...string) *When {
 	if w.rollout == nil {
