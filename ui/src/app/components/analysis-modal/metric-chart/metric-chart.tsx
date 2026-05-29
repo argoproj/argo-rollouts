@@ -8,6 +8,7 @@ import {Typography} from 'antd';
 import {AnalysisStatus, FunctionalStatus, TransformedMeasurement} from '../types';
 import {ANALYSIS_STATUS_THEME_MAP} from '../constants';
 import {isValidDate} from '../transforms';
+import {getTooltipLabel} from './tooltip-label';
 
 import StatusIndicator from '../status-indicator/status-indicator';
 
@@ -52,18 +53,7 @@ const TooltipContent = ({active, conditionKeys, payload, valueFormatter}: Toolti
     }
 
     const data = payload[0].payload;
-    let label;
-    if (data.phase === AnalysisStatus.Error) {
-        label = data.message ?? 'Measurement error';
-    } else if (conditionKeys.length > 0) {
-        const sublabels = conditionKeys.map((cKey) => {
-            const v = data.chartValue?.[cKey] ?? null;
-            return conditionKeys.length > 1 ? `${valueFormatter(v)} (${cKey})` : valueFormatter(v);
-        });
-        label = sublabels.join(' , ');
-    } else {
-        label = valueFormatter(data.chartValue ?? null);
-    }
+    const label = getTooltipLabel(data, conditionKeys, valueFormatter);
 
     return (
         <div className={cx('metric-chart-tooltip')}>
