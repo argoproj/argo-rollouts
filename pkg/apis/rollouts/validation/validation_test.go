@@ -386,6 +386,19 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		assert.Equal(t, PingPongWithRouterOnlyMessage, allErrs[0].Detail)
 	})
 
+	t.Run("ping-pong feature with plugin-based traffic routing is valid", func(t *testing.T) {
+		validRo := ro.DeepCopy()
+		validRo.Spec.Strategy.Canary.Steps[0].SetWeight = ptr.To[int32](10)
+		validRo.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: "ping", PongService: "pong"}
+		validRo.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Plugins: map[string]json.RawMessage{
+				"my-org/my-plugin": []byte(`{}`),
+			},
+		}
+		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
+		assert.Empty(t, allErrs)
+	})
+
 	t.Run("invalid traffic routing", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		invalidRo.Spec.Strategy.Canary.CanaryService = ""
