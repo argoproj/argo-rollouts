@@ -104,7 +104,10 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	response, err := p.client.Do(request)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
-	} else if response.StatusCode < 200 || response.StatusCode >= 300 {
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return metricutil.MarkMeasurementError(measurement, fmt.Errorf("received non 2xx response code: %v", response.StatusCode))
 	}
 
