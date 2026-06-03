@@ -609,7 +609,7 @@ export const formatKeyValueMeasurement = (value: {[key: string]: FormattedMeasur
  * @param value measurement value returned by provider
  * @returns chart and table data along with a flag indicating whether the measurement value can be charted
  */
-const transformMeasurementValue = (conditionKeys: string[], value?: string): MeasurementValueInfo => {
+export const transformMeasurementValue = (conditionKeys: string[], value?: string): MeasurementValueInfo => {
     if (value === undefined || value === '') {
         return {
             canChart: true,
