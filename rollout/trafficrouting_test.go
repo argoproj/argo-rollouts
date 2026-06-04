@@ -480,16 +480,35 @@ func TestRolloutCapWeightToAvailableCanaryReplicas(t *testing.T) {
 
 	f.expectPatchRolloutAction(r2)
 
+	setWeightCalled := false
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 		// 2 of 10 canary replicas available -> at most 20% may shift to the canary, not 100%.
+		setWeightCalled = true
 		assert.Equal(t, int32(20), desiredWeight)
 		return nil
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
 	f.run(getKey(r2, t))
+	assert.True(t, setWeightCalled, "SetWeight was never invoked; cap assertion did not run")
+}
+
+func TestWeightFromAvailableReplicasZeroReplicas(t *testing.T) {
+	cases := map[string]*int32{
+		"nil":  nil,
+		"zero": ptr.To[int32](0),
+	}
+	for name, replicas := range cases {
+		t.Run(name, func(t *testing.T) {
+			ro := newCanaryRollout("foo", 1, nil, nil, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+			rs := newReplicaSetWithStatus(ro, 3, 3)
+			ro.Spec.Replicas = replicas
+			c := &rolloutContext{rollout: ro}
+			assert.Equal(t, int32(0), c.weightFromAvailableReplicas(rs))
+		})
+	}
 }
 
 func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {

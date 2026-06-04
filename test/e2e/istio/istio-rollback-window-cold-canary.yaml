@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-rollback-window-canary
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: istio-rollback-window
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-rollback-window-stable
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: istio-rollback-window
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-rollback-window-vsvc
+spec:
+  hosts:
+  - istio-rollback-window
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: istio-rollback-window-stable
+      weight: 100
+    - destination:
+        host: istio-rollback-window-canary
+      weight: 0
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: istio-rollback-window
+spec:
+  replicas: 4
+  revisionHistoryLimit: 5
+  # A redeploy of a recent prior revision is fast-tracked as a "rollback within window".
+  rollbackWindow:
+    revisions: 3
+  strategy:
+    canary:
+      canaryService: istio-rollback-window-canary
+      stableService: istio-rollback-window-stable
+      scaleDownDelaySeconds: 3 # scale the rolled-back RS cold quickly (default is 30s)
+      trafficRouting:
+        istio:
+          virtualService:
+            name: istio-rollback-window-vsvc
+            routes:
+            - primary
+      # Single setWeight:100 step: the rollback fast-forward resolves the weight to this value.
+      steps:
+      - setWeight: 100
+  selector:
+    matchLabels:
+      app: istio-rollback-window
+  template:
+    metadata:
+      labels:
+        app: istio-rollback-window
+        rev: one # distinct pod-template-hash per revision; rollback re-applies an earlier rev
+    spec:
+      # Readiness controlled by the harness (MarkPodsReady) so the canary can be held partial.
+      readinessGates:
+      - conditionType: argoproj.io/e2e-readiness
+      containers:
+      - name: istio-rollback-window
+        image: nginx:1.19-alpine
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
