@@ -164,15 +164,29 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 				}
 			}
 		} else if abortScaleDownDelaySeconds != nil {
-			// Don't annotate until the stable RS is fully scaled, i.e. able to serve 100%
-			// of traffic, since the deadline scales the canary to zero unconditionally.
-			// With dynamicStableScale this holds once the abort weight has stepped down to
-			// zero (see GetDesiredCanaryWeight). >= tolerates stable transiently exceeding
-			// spec.Replicas (e.g. HPA scale-in).
+			// Don't annotate the abort scale-down-delay until the stable RS is fully scaled
+			// AND traffic has shifted off the canary; else the delay can expire (and scale the
+			// canary to 0) while the canary is still in the traffic path. `>=` tolerates stable
+			// transiently exceeding spec.Replicas (e.g. HPA scale-in); with dynamicStableScale,
+			// this holds once the abort weight has stepped down to zero (see #4900 /
+			// GetDesiredCanaryWeight). If a wedged router never drives the weight to 0, the
+			// safety valve fires after progressDeadlineSeconds so the abort still terminates.
 			if c.stableRS.Status.AvailableReplicas >= *c.rollout.Spec.Replicas {
-				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
-				if err != nil {
-					return false, err
+				grace := c.abortScaleDownGraceRemaining()
+				switch {
+				case c.canaryTrafficShiftedAway():
+					if err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds); err != nil {
+						return false, err
+					}
+				case grace <= 0:
+					c.log.Warn("Canary traffic has not shifted away within progressDeadlineSeconds; scaling down on abort anyway")
+					if err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds); err != nil {
+						return false, err
+					}
+				case grace < c.resyncPeriod:
+					// Normal resync would eventually fire; re-enqueue so the valve fires on the
+					// deadline instead of at most one resync period past it.
+					c.enqueueRolloutAfter(c.rollout, grace)
 				}
 			}
 			// leave newRS scaled up until we annotate
@@ -243,6 +257,34 @@ func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
 		return false
 	}
 	return true
+}
+
+// canaryTrafficShiftedAway reports whether traffic has moved off the canary ReplicaSet: true when
+// there is no traffic router (selector-based canary) or the canary weight has reached 0 (and, for
+// routers that verify weights, has been verified). Nil weights mean no canary traffic was ever
+// shifted (e.g. an abort before the first setWeight step), so there is nothing to wait for; the
+// caller runs alongside `reconcileTrafficRouting`, which reprograms the router to 0 in the same
+// reconcile if a weight had been shifted, so a "true" return here is safe.
+func (c *rolloutContext) canaryTrafficShiftedAway() bool {
+	if c.rollout.Spec.Strategy.Canary == nil || c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		return true
+	}
+	weights := c.rollout.Status.Canary.Weights
+	if weights == nil {
+		return true
+	}
+	return weights.Canary.Weight == 0 && (weights.Verified == nil || *weights.Verified)
+}
+
+// abortScaleDownGraceRemaining returns the time left before a wedged abort (whose canary traffic
+// never shifted away) may scale the canary down regardless: progressDeadlineSeconds after
+// AbortedAt. A non-positive result means that grace period has elapsed.
+func (c *rolloutContext) abortScaleDownGraceRemaining() time.Duration {
+	delay := time.Duration(defaults.GetProgressDeadlineSecondsOrDefault(c.rollout)) * time.Second
+	if c.rollout.Status.AbortedAt == nil {
+		return delay
+	}
+	return c.rollout.Status.AbortedAt.Add(delay).Sub(timeutil.Now())
 }
 
 // reconcileOtherReplicaSets reconciles "other" ReplicaSets.
