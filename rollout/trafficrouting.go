@@ -157,6 +157,12 @@ func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWe
 
 }
 
+// canaryWeightFromAvailableReplicas returns the canary weight the canary ReplicaSet's
+// currently-available replicas can serve without routing to not-ready pods.
+func (c *rolloutContext) canaryWeightFromAvailableReplicas() int32 {
+	return (weightutil.MaxTrafficWeight(c.rollout) * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+}
+
 // this currently only be used in the canary strategy
 func (c *rolloutContext) reconcileTrafficRouting() error {
 	reconcilers, err := c.newTrafficRoutingReconciler(c)
@@ -236,7 +242,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			// But we can only increase canary weight according to available replica counts of the canary.
 			// we will need to set the desiredWeight to 0 when the newRS is not available.
 			if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-				desiredWeight = (weightutil.MaxTrafficWeight(c.rollout) * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+				desiredWeight = c.canaryWeightFromAvailableReplicas()
 			} else if c.rollout.Status.Canary.Weights != nil {
 				desiredWeight = c.rollout.Status.Canary.Weights.Canary.Weight
 			}
@@ -265,6 +271,11 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
 			} else {
 				desiredWeight = weightutil.MaxTrafficWeight(c.rollout)
+			}
+			// Rollback within the rollback window fast-forwards `index` past the last step, at
+			// 100% weight, while the canary may still be scaling up. Cap to what it can serve.
+			if *index == int32(len(c.rollout.Spec.Strategy.Canary.Steps)) && !c.checkReplicasAvailable(c.newRS, desiredWeight) {
+				desiredWeight = c.canaryWeightFromAvailableReplicas()
 			}
 		}
 
