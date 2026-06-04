@@ -681,18 +681,21 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
 			condChanged := conditions.SetRolloutCondition(&newStatus, *condition)
 
-			// If condition is changed and ProgressDeadlineAbort is set, abort the update
+			// If condition is changed and ProgressDeadlineAbort is set, abort the update.
+			// We only record the abort here, we do not emit a RolloutAborted event. The
+			// abort handler above emits a single RolloutAborted event on the following
+			// reconcile (once the abort is persisted), which matches the behavior of a
+			// manual abort. Emitting it here as well produced two RolloutAborted events
+			// per deadline abort and therefore duplicate notifications (#4764).
 			if condChanged {
 				if c.rollout.Spec.ProgressDeadlineAbort {
 					c.pauseContext.AddAbort(msg)
-					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
 				}
 			} else {
 				// Although condition is unchanged, ProgressDeadlineAbort can be set after
 				// an existing update timeout. In this case if update is not aborted, we need to abort.
 				if c.rollout.Spec.ProgressDeadlineAbort && c.pauseContext != nil && !c.pauseContext.IsAborted() {
 					c.pauseContext.AddAbort(msg)
-					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
 				}
 			}
 		}

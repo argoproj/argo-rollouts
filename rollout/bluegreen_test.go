@@ -228,11 +228,30 @@ func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 		f.run(getKey(r, t))
 
 		f.verifyPatchedRolloutAborted(patchIndex, "foo-"+rsPodHash)
+
+		// The progress-deadline timeout reconcile sets the abort via AddAbort but
+		// must not emit its own RolloutAborted event. The RolloutAborted event is
+		// emitted by the abort handler on the following reconcile, the same single
+		// event a manual abort produces. Emitting it here too caused two
+		// RolloutAborted events (and two notifications) per deadline abort (#4764).
+		assert.Equal(f.t, 0, countEvents(f.events, conditions.RolloutAbortedReason),
+			"progress-deadline timeout reconcile must not emit a RolloutAborted event")
 	}
 
 	for _, tc := range tests {
 		runRolloutProgressDeadlineAbort(tc)
 	}
+}
+
+// countEvents returns how many recorded events match the given EventReason.
+func countEvents(events []string, reason string) int {
+	count := 0
+	for _, e := range events {
+		if e == reason {
+			count++
+		}
+	}
+	return count
 }
 
 // TestSetServiceManagedBy ensures the managed by annotation is set in the service is set
@@ -1545,6 +1564,10 @@ func TestBlueGreenAbort(t *testing.T) {
 	}`, rs1PodHash, expectedConditions, rs1PodHash, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))
 	patch := f.getPatchedRollout(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	// A manual abort emits exactly one RolloutAborted event. The progress-deadline
+	// abort path must match this and not double-emit (see #4764).
+	assert.Equal(t, 1, countEvents(f.events, conditions.RolloutAbortedReason),
+		"a manual abort must emit exactly one RolloutAborted event")
 }
 
 func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
