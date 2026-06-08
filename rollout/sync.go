@@ -109,7 +109,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 			return nil, err
 		}
 		c.rollout = updatedRollout
-		c.newRollout = updatedRollout
+		c.newRollout = updatedRollout.DeepCopy()
 		c.log.Infof("Initialized Progressing condition: %v", condition)
 	}
 	return rsCopy, nil
@@ -122,11 +122,11 @@ func (c *rolloutContext) setRolloutRevision(revision string) error {
 			c.log.WithError(err).Error("Error: updating rollout revision")
 			return err
 		}
-		c.rollout = updatedRollout.DeepCopy()
+		c.newRollout = updatedRollout.DeepCopy()
+		c.rollout = updatedRollout
 		if err := c.refResolver.Resolve(c.rollout); err != nil {
 			return err
 		}
-		c.newRollout = updatedRollout
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutUpdatedReason}, conditions.RolloutUpdatedMessage, revision)
 	}
 	return nil
@@ -259,11 +259,11 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		if err != nil {
 			return nil, err
 		}
-		c.rollout = updatedRollout.DeepCopy()
+		c.newRollout = updatedRollout.DeepCopy()
+		c.rollout = updatedRollout
 		if err := c.refResolver.Resolve(c.rollout); err != nil {
 			return nil, err
 		}
-		c.newRollout = updatedRollout
 		c.log.Infof("Set rollout condition: %v", condition)
 	}
 	return createdRS, err
@@ -443,12 +443,13 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 	prevStatus := c.rollout.Status
 	now := timeutil.MetaNow()
 
-	// Determine if pod spec changed (for superseded rollout detection)
-	var podSpecChanged bool
+	// Determine if spec changed (for superseded rollout detection) or if it's the initial rollout
+	// CurrentPodHash == "" allows use to know that it is the initial rollout
+	podSpecChanged := c.rollout.Status.CurrentPodHash == ""
 	if c.rollout.Spec.Strategy.Canary != nil {
-		podSpecChanged = replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS)
+		podSpecChanged = podSpecChanged || replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS)
 	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
-		podSpecChanged = replicasetutil.CheckPodSpecChange(c.rollout, c.newRS)
+		podSpecChanged = podSpecChanged || replicasetutil.CheckPodSpecChange(c.rollout, c.newRS)
 	}
 
 	isPromoted := newStatus.StableRS == newStatus.CurrentPodHash
@@ -723,7 +724,7 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 		return err
 	}
 	if !modified {
-		logCtx.Info("No status changes. Skipping patch")
+		logCtx.Info("No status changes. Skipping patch conditions")
 		return nil
 	}
 	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
