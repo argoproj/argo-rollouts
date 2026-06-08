@@ -251,6 +251,13 @@ func filterOutCondition(conditions []v1alpha1.RolloutCondition, condType v1alpha
 // when new pods are scaled up, become ready or available, old pods are scaled down, or we modify the
 // services, then we consider the rollout is progressing.
 func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
+	return RolloutScalingProgress(rollout, newStatus) || RolloutReadinessProgress(rollout, newStatus)
+}
+
+// RolloutScalingProgress returns true when there is structural progress: replicas being scaled
+// up/down, strategy-specific changes (step advancement, selector switches, stable RS changes).
+// This type of progress unconditionally resets the progress deadline.
+func RolloutScalingProgress(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
 	oldStatus := rollout.Status
 
 	strategySpecificProgress := false
@@ -276,9 +283,16 @@ func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutSt
 
 	return (newStatus.UpdatedReplicas != oldStatus.UpdatedReplicas) ||
 		(newStatusOldReplicas < oldStatusOldReplicas) ||
-		newStatus.ReadyReplicas > rollout.Status.ReadyReplicas ||
-		newStatus.AvailableReplicas > rollout.Status.AvailableReplicas ||
 		strategySpecificProgress
+}
+
+// RolloutReadinessProgress returns true when pods have become ready or available compared to
+// the last observed status. This type of progress does NOT reset the progress deadline when
+// the Progressing condition already exists, to prevent crash-looping pods from indefinitely
+// resetting the deadline through ReadyReplicas/AvailableReplicas oscillation.
+func RolloutReadinessProgress(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
+	return newStatus.ReadyReplicas > rollout.Status.ReadyReplicas ||
+		newStatus.AvailableReplicas > rollout.Status.AvailableReplicas
 }
 
 // RolloutHealthy considers a rollout to be healthy once all of its desired replicas
