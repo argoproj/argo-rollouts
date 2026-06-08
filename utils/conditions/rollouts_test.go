@@ -350,6 +350,106 @@ func TestRolloutProgressing(t *testing.T) {
 
 }
 
+func TestRolloutProgressSplit(t *testing.T) {
+	canaryRollout := func(current, updated, ready, available int32, stableRS string, index int32, stepHash string) *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{},
+				},
+			},
+			Status: v1alpha1.RolloutStatus{
+				Replicas:         current,
+				UpdatedReplicas:  updated,
+				ReadyReplicas:    ready,
+				AvailableReplicas: available,
+				StableRS:         stableRS,
+				CurrentStepIndex: &index,
+				CurrentStepHash:  stepHash,
+			},
+		}
+	}
+
+	t.Run("ReadyReplicas oscillation is readiness-only progress", func(t *testing.T) {
+		// Simulate crash-loop: ReadyReplicas goes from 9 to 10 (pod restarted and briefly ready)
+		rollout := canaryRollout(10, 1, 9, 9, "stable", 1, "abc")
+		newStatus := v1alpha1.RolloutStatus{
+			Replicas:         10,
+			UpdatedReplicas:  1,
+			ReadyReplicas:    10,
+			AvailableReplicas: 9,
+			StableRS:         "stable",
+			CurrentStepIndex: ptr.To[int32](1),
+			CurrentStepHash:  "abc",
+		}
+		assert.True(t, RolloutProgressing(rollout, &newStatus))
+		assert.False(t, RolloutScalingProgress(rollout, &newStatus))
+		assert.True(t, RolloutReadinessProgress(rollout, &newStatus))
+	})
+
+	t.Run("UpdatedReplicas change is scaling progress", func(t *testing.T) {
+		rollout := canaryRollout(10, 1, 10, 10, "stable", 1, "abc")
+		newStatus := v1alpha1.RolloutStatus{
+			Replicas:         10,
+			UpdatedReplicas:  2,
+			ReadyReplicas:    10,
+			AvailableReplicas: 10,
+			StableRS:         "stable",
+			CurrentStepIndex: ptr.To[int32](1),
+			CurrentStepHash:  "abc",
+		}
+		assert.True(t, RolloutProgressing(rollout, &newStatus))
+		assert.True(t, RolloutScalingProgress(rollout, &newStatus))
+	})
+
+	t.Run("Step index change is scaling progress", func(t *testing.T) {
+		rollout := canaryRollout(10, 1, 10, 10, "stable", 1, "abc")
+		newStatus := v1alpha1.RolloutStatus{
+			Replicas:         10,
+			UpdatedReplicas:  1,
+			ReadyReplicas:    10,
+			AvailableReplicas: 10,
+			StableRS:         "stable",
+			CurrentStepIndex: ptr.To[int32](2),
+			CurrentStepHash:  "abc",
+		}
+		assert.True(t, RolloutProgressing(rollout, &newStatus))
+		assert.True(t, RolloutScalingProgress(rollout, &newStatus))
+	})
+
+	t.Run("No change means no progress", func(t *testing.T) {
+		rollout := canaryRollout(10, 1, 10, 10, "stable", 1, "abc")
+		newStatus := v1alpha1.RolloutStatus{
+			Replicas:         10,
+			UpdatedReplicas:  1,
+			ReadyReplicas:    10,
+			AvailableReplicas: 10,
+			StableRS:         "stable",
+			CurrentStepIndex: ptr.To[int32](1),
+			CurrentStepHash:  "abc",
+		}
+		assert.False(t, RolloutProgressing(rollout, &newStatus))
+		assert.False(t, RolloutScalingProgress(rollout, &newStatus))
+		assert.False(t, RolloutReadinessProgress(rollout, &newStatus))
+	})
+
+	t.Run("AvailableReplicas oscillation is readiness-only progress", func(t *testing.T) {
+		rollout := canaryRollout(10, 1, 9, 9, "stable", 1, "abc")
+		newStatus := v1alpha1.RolloutStatus{
+			Replicas:         10,
+			UpdatedReplicas:  1,
+			ReadyReplicas:    9,
+			AvailableReplicas: 10,
+			StableRS:         "stable",
+			CurrentStepIndex: ptr.To[int32](1),
+			CurrentStepHash:  "abc",
+		}
+		assert.True(t, RolloutProgressing(rollout, &newStatus))
+		assert.False(t, RolloutScalingProgress(rollout, &newStatus))
+		assert.True(t, RolloutReadinessProgress(rollout, &newStatus))
+	})
+}
+
 func TestRolloutHealthy(t *testing.T) {
 	rollout := func(desired, current, updated, available int32, correctObservedGeneration bool) *v1alpha1.Rollout {
 		r := &v1alpha1.Rollout{
