@@ -359,13 +359,13 @@ func TestRolloutProgressSplit(t *testing.T) {
 				},
 			},
 			Status: v1alpha1.RolloutStatus{
-				Replicas:         current,
-				UpdatedReplicas:  updated,
-				ReadyReplicas:    ready,
+				Replicas:          current,
+				UpdatedReplicas:   updated,
+				ReadyReplicas:     ready,
 				AvailableReplicas: available,
-				StableRS:         stableRS,
-				CurrentStepIndex: &index,
-				CurrentStepHash:  stepHash,
+				StableRS:          stableRS,
+				CurrentStepIndex:  &index,
+				CurrentStepHash:   stepHash,
 			},
 		}
 	}
@@ -374,13 +374,13 @@ func TestRolloutProgressSplit(t *testing.T) {
 		// Simulate crash-loop: ReadyReplicas goes from 9 to 10 (pod restarted and briefly ready)
 		rollout := canaryRollout(10, 1, 9, 9, "stable", 1, "abc")
 		newStatus := v1alpha1.RolloutStatus{
-			Replicas:         10,
-			UpdatedReplicas:  1,
-			ReadyReplicas:    10,
+			Replicas:          10,
+			UpdatedReplicas:   1,
+			ReadyReplicas:     10,
 			AvailableReplicas: 9,
-			StableRS:         "stable",
-			CurrentStepIndex: ptr.To[int32](1),
-			CurrentStepHash:  "abc",
+			StableRS:          "stable",
+			CurrentStepIndex:  ptr.To[int32](1),
+			CurrentStepHash:   "abc",
 		}
 		assert.True(t, RolloutProgressing(rollout, &newStatus))
 		assert.False(t, RolloutScalingProgress(rollout, &newStatus))
@@ -390,13 +390,13 @@ func TestRolloutProgressSplit(t *testing.T) {
 	t.Run("UpdatedReplicas change is scaling progress", func(t *testing.T) {
 		rollout := canaryRollout(10, 1, 10, 10, "stable", 1, "abc")
 		newStatus := v1alpha1.RolloutStatus{
-			Replicas:         10,
-			UpdatedReplicas:  2,
-			ReadyReplicas:    10,
+			Replicas:          10,
+			UpdatedReplicas:   2,
+			ReadyReplicas:     10,
 			AvailableReplicas: 10,
-			StableRS:         "stable",
-			CurrentStepIndex: ptr.To[int32](1),
-			CurrentStepHash:  "abc",
+			StableRS:          "stable",
+			CurrentStepIndex:  ptr.To[int32](1),
+			CurrentStepHash:   "abc",
 		}
 		assert.True(t, RolloutProgressing(rollout, &newStatus))
 		assert.True(t, RolloutScalingProgress(rollout, &newStatus))
@@ -405,13 +405,13 @@ func TestRolloutProgressSplit(t *testing.T) {
 	t.Run("Step index change is scaling progress", func(t *testing.T) {
 		rollout := canaryRollout(10, 1, 10, 10, "stable", 1, "abc")
 		newStatus := v1alpha1.RolloutStatus{
-			Replicas:         10,
-			UpdatedReplicas:  1,
-			ReadyReplicas:    10,
+			Replicas:          10,
+			UpdatedReplicas:   1,
+			ReadyReplicas:     10,
 			AvailableReplicas: 10,
-			StableRS:         "stable",
-			CurrentStepIndex: ptr.To[int32](2),
-			CurrentStepHash:  "abc",
+			StableRS:          "stable",
+			CurrentStepIndex:  ptr.To[int32](2),
+			CurrentStepHash:   "abc",
 		}
 		assert.True(t, RolloutProgressing(rollout, &newStatus))
 		assert.True(t, RolloutScalingProgress(rollout, &newStatus))
@@ -420,13 +420,13 @@ func TestRolloutProgressSplit(t *testing.T) {
 	t.Run("No change means no progress", func(t *testing.T) {
 		rollout := canaryRollout(10, 1, 10, 10, "stable", 1, "abc")
 		newStatus := v1alpha1.RolloutStatus{
-			Replicas:         10,
-			UpdatedReplicas:  1,
-			ReadyReplicas:    10,
+			Replicas:          10,
+			UpdatedReplicas:   1,
+			ReadyReplicas:     10,
 			AvailableReplicas: 10,
-			StableRS:         "stable",
-			CurrentStepIndex: ptr.To[int32](1),
-			CurrentStepHash:  "abc",
+			StableRS:          "stable",
+			CurrentStepIndex:  ptr.To[int32](1),
+			CurrentStepHash:   "abc",
 		}
 		assert.False(t, RolloutProgressing(rollout, &newStatus))
 		assert.False(t, RolloutScalingProgress(rollout, &newStatus))
@@ -436,13 +436,13 @@ func TestRolloutProgressSplit(t *testing.T) {
 	t.Run("AvailableReplicas oscillation is readiness-only progress", func(t *testing.T) {
 		rollout := canaryRollout(10, 1, 9, 9, "stable", 1, "abc")
 		newStatus := v1alpha1.RolloutStatus{
-			Replicas:         10,
-			UpdatedReplicas:  1,
-			ReadyReplicas:    9,
+			Replicas:          10,
+			UpdatedReplicas:   1,
+			ReadyReplicas:     9,
 			AvailableReplicas: 10,
-			StableRS:         "stable",
-			CurrentStepIndex: ptr.To[int32](1),
-			CurrentStepHash:  "abc",
+			StableRS:          "stable",
+			CurrentStepIndex:  ptr.To[int32](1),
+			CurrentStepHash:   "abc",
 		}
 		assert.True(t, RolloutProgressing(rollout, &newStatus))
 		assert.False(t, RolloutScalingProgress(rollout, &newStatus))
