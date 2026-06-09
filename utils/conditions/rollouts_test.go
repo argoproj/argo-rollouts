@@ -410,14 +410,26 @@ func TestRolloutHealthy(t *testing.T) {
 	}{
 		{
 			name: "BlueGreen complete",
-			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 5, 5, 5, true, "76bbb58f74", "76bbb58f74"),
+			r: func() *v1alpha1.Rollout {
+				r := blueGreenRollout(5, 5, 5, 5, true, "", "")
+				h := r.Status.CurrentPodHash
+				r.Status.BlueGreen.ActiveSelector = h
+				r.Status.BlueGreen.PreviewSelector = h
+				r.Status.StableRS = h
+				return r
+			}(),
 			expected: true,
 		},
 		{
 			name: "BlueGreen complete with extra old replicas",
-			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 6, 5, 5, true, "76bbb58f74", "76bbb58f74"),
+			r: func() *v1alpha1.Rollout {
+				r := blueGreenRollout(5, 6, 5, 5, true, "", "")
+				h := r.Status.CurrentPodHash
+				r.Status.BlueGreen.ActiveSelector = h
+				r.Status.BlueGreen.PreviewSelector = h
+				r.Status.StableRS = h
+				return r
+			}(),
 			expected: true,
 		},
 		{
@@ -427,8 +439,12 @@ func TestRolloutHealthy(t *testing.T) {
 		},
 		{
 			name: "BlueGreen not completed: preview service does not point at updated rs",
-			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(1, 1, 1, 1, true, "6cb88c6bcf", ""),
+			r: func() *v1alpha1.Rollout {
+				r := blueGreenRollout(1, 1, 1, 1, true, "", "")
+				r.Status.BlueGreen.ActiveSelector = r.Status.CurrentPodHash
+				r.Status.BlueGreen.PreviewSelector = "wrong-hash"
+				return r
+			}(),
 			expected: false,
 		},
 		{

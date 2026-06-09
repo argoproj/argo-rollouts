@@ -85,17 +85,50 @@ func TestFindNewReplicaSet(t *testing.T) {
 	rs1.Labels["name"] = "red"
 	*(rs1.Spec.Replicas) = 1
 
-	t.Run("FindNewReplicaSet by hash", func(t *testing.T) {
-		// rs has the current hash
-		rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = hash.ComputePodTemplateHash(&ro.Spec.Template, ro.Status.CollisionCount)
+	t.Run("FindNewReplicaSet by matching template", func(t *testing.T) {
 		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs1})
 		assert.Equal(t, &rs1, actual)
 	})
-	t.Run("FindNewReplicaSet by deprecated hash", func(t *testing.T) {
-		// rs has the deprecated hash
-		rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = controller.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
+	t.Run("FindNewReplicaSet ignores stale hash label", func(t *testing.T) {
+		rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "stalehash00"
 		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs1})
 		assert.Equal(t, &rs1, actual)
+	})
+}
+
+// TestFindNewReplicaSetAcrossHashChange exercises the controller-upgrade scenario where the pod
+// template hashing changed (e.g. due to a Kubernetes library bump), so an existing ReplicaSet's
+// hash label no longer matches any value the current algorithm produces. The desired pod template
+// is unchanged, so the existing ReplicaSet must be adopted (no new revision). A genuine pod spec
+// change, by contrast, must NOT be adopted so that a new revision is created.
+func TestFindNewReplicaSetAcrossHashChange(t *testing.T) {
+	const staleHash = "stalehash00"
+
+	newStaleRS := func(ro v1alpha1.Rollout) appsv1.ReplicaSet {
+		rs := generateRS(ro)
+		*(rs.Spec.Replicas) = 1
+		rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = staleHash
+		rs.Spec.Template.Labels = map[string]string{
+			"name":                                ro.Spec.Template.Labels["name"],
+			v1alpha1.DefaultRolloutUniqueLabelKey: staleHash,
+		}
+		rs.Spec.Template.Spec.Containers[0].TerminationMessagePath = ""
+		return rs
+	}
+
+	t.Run("adopts existing ReplicaSet when only the hash algorithm changed", func(t *testing.T) {
+		ro := generateRollout("upgrade")
+		rs := newStaleRS(ro)
+		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs})
+		assert.Equal(t, &rs, actual)
+	})
+
+	t.Run("does not adopt on a real pod spec change", func(t *testing.T) {
+		ro := generateRollout("upgrade")
+		rs := newStaleRS(ro)
+		ro.Spec.Template.Spec.Containers[0].Image = "upgrade:v2"
+		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs})
+		assert.Nil(t, actual)
 	})
 }
 
@@ -850,8 +883,10 @@ func TestGetRolloutAffinity(t *testing.T) {
 
 func TestGenerateReplicaSetAffinity(t *testing.T) {
 	ro := generateRollout("nginx")
+	// podHash is the pod-template-hash label of the ReplicaSet the affinity is generated for.
+	const podHash = "current"
 	// Anti-Affinity not enabled
-	assert.Nil(t, GenerateReplicaSetAffinity(ro))
+	assert.Nil(t, GenerateReplicaSetAffinity(ro, podHash))
 	// StableRS is nil
 	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
 		AntiAffinity: &v1alpha1.AntiAffinity{
@@ -859,14 +894,14 @@ func TestGenerateReplicaSetAffinity(t *testing.T) {
 		},
 	}
 	assert.Equal(t, "", ro.Status.StableRS)
-	assert.Nil(t, GenerateReplicaSetAffinity(ro))
-	// StableRS is equal to CurrentPodHash
-	ro.Status.StableRS = hash.ComputePodTemplateHash(&ro.Spec.Template, nil)
-	assert.Nil(t, GenerateReplicaSetAffinity(ro))
+	assert.Nil(t, GenerateReplicaSetAffinity(ro, podHash))
+	// StableRS equals the ReplicaSet's pod hash (rollout complete) -> no injection
+	ro.Status.StableRS = podHash
+	assert.Nil(t, GenerateReplicaSetAffinity(ro, podHash))
 
 	// Injects anti-affinity rule with RequiredDuringSchedulingIgnoredDuringExecution into empty RS Affinity object
 	ro.Status.StableRS = "test"
-	affinity := GenerateReplicaSetAffinity(ro)
+	affinity := GenerateReplicaSetAffinity(ro, podHash)
 	assert.Len(t, affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, 1)
 
 	// Tests that anti-affinity injection for RequiredDuringSchedulingIgnoredDuringExecution does not override existing RS Affinity rules
@@ -885,7 +920,7 @@ func TestGenerateReplicaSetAffinity(t *testing.T) {
 			RequiredDuringSchedulingIgnoredDuringExecution: podAffinityTerm,
 		},
 	}
-	affinity = GenerateReplicaSetAffinity(ro)
+	affinity = GenerateReplicaSetAffinity(ro, podHash)
 	assert.Len(t, affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution, 1)
 	assert.Len(t, affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, 2)
 	assert.Nil(t, affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
@@ -907,8 +942,30 @@ func TestGenerateReplicaSetAffinity(t *testing.T) {
 			}},
 		},
 	}
-	affinity = GenerateReplicaSetAffinity(ro)
+	affinity = GenerateReplicaSetAffinity(ro, podHash)
 	assert.Len(t, affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution, 2)
+}
+
+// TestGenerateReplicaSetAffinityStableAcrossHashChange verifies the upgrade edge case: a fully-stable
+// rollout that uses anti-affinity must not have an anti-affinity rule injected just because the stored
+// stable hash predates a hashing-algorithm change. Because the comparison uses the ReplicaSet's stored
+// pod-template-hash label (equal to status.StableRS for the stable RS) rather than a freshly computed
+// hash, no spurious injection occurs even though the recomputed hash would differ.
+func TestGenerateReplicaSetAffinityStableAcrossHashChange(t *testing.T) {
+	ro := generateRollout("nginx")
+	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+		AntiAffinity: &v1alpha1.AntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution{},
+		},
+	}
+	// The stable ReplicaSet was labeled by an older controller; its hash differs in format from what
+	// the current algorithm would compute, but it is still the stable RS we are reconciling.
+	const staleStableHash = "stalehash00"
+	ro.Status.StableRS = staleStableHash
+	assert.NotEqual(t, staleStableHash, hash.ComputePodTemplateHash(&ro.Spec.Template, ro.Status.CollisionCount))
+
+	assert.Nil(t, GenerateReplicaSetAffinity(ro, staleStableHash),
+		"a stable rollout must not inject anti-affinity when reconciling its own stable ReplicaSet")
 }
 
 func TestCreateInjectedAntiAffinityRule(t *testing.T) {
@@ -977,7 +1034,7 @@ func TestRemoveInjectedAntiAffinityRule(t *testing.T) {
 			RequiredDuringSchedulingIgnoredDuringExecution: &v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution{},
 		},
 	}
-	rsAffinity := GenerateReplicaSetAffinity(ro)
+	rsAffinity := GenerateReplicaSetAffinity(ro, "current")
 	i, _ := HasInjectedAntiAffinityRule(rsAffinity, ro)
 	assert.NotEqual(t, -1, i)
 	affinity := RemoveInjectedAntiAffinityRule(rsAffinity, ro)
@@ -995,7 +1052,7 @@ func TestRemoveInjectedAntiAffinityRule(t *testing.T) {
 			RequiredDuringSchedulingIgnoredDuringExecution: podAffinityTerm,
 		},
 	}
-	rsAffinity = GenerateReplicaSetAffinity(ro)
+	rsAffinity = GenerateReplicaSetAffinity(ro, "current")
 	affinity = RemoveInjectedAntiAffinityRule(rsAffinity, ro)
 	assert.Nil(t, affinity.PodAntiAffinity)
 	assert.NotNil(t, affinity.PodAffinity)
@@ -1008,7 +1065,7 @@ func TestRemoveInjectedAntiAffinityRule(t *testing.T) {
 			}},
 		},
 	}
-	rsAffinity = GenerateReplicaSetAffinity(ro)
+	rsAffinity = GenerateReplicaSetAffinity(ro, "current")
 	affinity = RemoveInjectedAntiAffinityRule(rsAffinity, ro)
 	assert.Nil(t, affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
 	assert.NotNil(t, affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
@@ -1024,7 +1081,9 @@ func TestIfInjectedAntiAffinityRuleNeedsUpdate(t *testing.T) {
 			RequiredDuringSchedulingIgnoredDuringExecution: &v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution{},
 		},
 	}
-	assert.False(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinity, ro))
+	// podHash is the pod-template-hash of the (non-stable) ReplicaSet being evaluated.
+	const podHash = "current"
+	assert.False(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinity, ro, podHash))
 
 	rsAffinity = &corev1.Affinity{
 		PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -1038,7 +1097,7 @@ func TestIfInjectedAntiAffinityRuleNeedsUpdate(t *testing.T) {
 			}},
 		}}
 
-	assert.True(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinity, ro))
+	assert.True(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinity, ro, podHash))
 }
 
 func TestNeedsRestart(t *testing.T) {
@@ -1236,6 +1295,25 @@ spec:
 	var live corev1.PodTemplateSpec
 	err = yaml.Unmarshal([]byte(liveTemplate), &live)
 	assert.NoError(t, err)
+
+	assert.True(t, PodTemplateEqualIgnoreHash(&live, &desired))
+}
+
+func TestPodTemplateEqualIgnoreHashAcrossLibraryDefaulting(t *testing.T) {
+	desired := corev1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{"app": "demo"},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name:  "app",
+				Image: "nginx:1.19-alpine",
+			}},
+		},
+	}
+
+	live := *desired.DeepCopy()
+	live.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "stalehash00"
 
 	assert.True(t, PodTemplateEqualIgnoreHash(&live, &desired))
 }

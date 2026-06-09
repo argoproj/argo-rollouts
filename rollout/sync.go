@@ -75,12 +75,12 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	// Set existing new replica set's annotation
 	annotationsUpdated := annotations.SetNewReplicaSetAnnotations(c.rollout, rsCopy, newRevision, true)
 	minReadySecondsNeedsUpdate := rsCopy.Spec.MinReadySeconds != c.rollout.Spec.MinReadySeconds
-	affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout)
+	affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout, replicasetutil.GetPodTemplateHash(c.newRS))
 
 	if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
 
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
-		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
+		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout, replicasetutil.GetPodTemplateHash(c.newRS))
 
 		rs, err := c.updateReplicaSet(ctx, rsCopy)
 		if err != nil {
@@ -140,9 +140,9 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 
 	// new ReplicaSet does not exist, create one.
 	newRSTemplate := *c.rollout.Spec.Template.DeepCopy()
-	// Add default anti-affinity rule if antiAffinity bool set and RSTemplate meets requirements
-	newRSTemplate.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
 	podTemplateSpecHash := hash.ComputePodTemplateHash(&c.rollout.Spec.Template, c.rollout.Status.CollisionCount)
+	// Add default anti-affinity rule if antiAffinity bool set and RSTemplate meets requirements
+	newRSTemplate.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout, podTemplateSpecHash)
 	newRSTemplate.Labels = labelsutil.CloneAndAddLabel(c.rollout.Spec.Template.Labels, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
 	// Add podTemplateHash label to selector.
 	newRSSelector := labelsutil.CloneSelectorAndAddLabel(c.rollout.Spec.Selector, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)

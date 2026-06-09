@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/ptr"
 )
 
@@ -22,12 +23,8 @@ func TestHashUtils(t *testing.T) {
 		podHash := ComputePodTemplateHash(&template, ptr.To[int32](1))
 		assert.NotEqual(t, hashRed, podHash)
 	})
-	// Ensures the pod-template-hash stays stable across the apimachinery bump that
-	// added the `omitzero` tag to ObjectMeta.CreationTimestamp (k8s >= v0.31).
-	// 7bb4fbc896 is the value produced by controller versions <= 1.8.x. A change
-	// here would silently re-trigger a rollout for every Rollout on upgrade.
-	t.Run("HashStableAcrossCreationTimestampOmitzero", func(t *testing.T) {
-		assert.Equal(t, "7bb4fbc896", hashRed)
+	t.Run("MatchesDeploymentControllerComputeHash", func(t *testing.T) {
+		assert.Equal(t, controller.ComputeHash(&template, nil), hashRed)
 	})
 }
 
