@@ -522,6 +522,7 @@ func (w *When) WaitForRolloutStepPluginRunning(timeout ...time.Duration) *When {
 }
 
 func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeouts ...time.Duration) *When {
+	w.t.Helper()
 	start := time.Now()
 	w.log.Infof("Waiting for condition: %s", condition)
 	rolloutIf := w.dynamicClient.Resource(rov1.RolloutGVR).Namespace(w.namespace)
