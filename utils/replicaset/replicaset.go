@@ -31,11 +31,6 @@ import (
 
 // FindNewReplicaSet returns the new RS this given rollout targets from the given list.
 // Returns nil if the ReplicaSet does not exist in the list.
-//
-// Like the upstream Deployment controller, this matches by pod template semantics
-// (PodTemplateEqualIgnoreHash) rather than by pod-template-hash label. Hash labels
-// can change when hashing algorithms or Kubernetes libraries change, but the
-// underlying template may be unchanged.
 func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *appsv1.ReplicaSet {
 	var newRSList []*appsv1.ReplicaSet
 	for _, rs := range rsList {
@@ -45,19 +40,48 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	}
 	rsList = newRSList
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(rsList))
+	// First, attempt to find the ReplicaSet by pod-template-hash label. The label was computed
+	// from the same desired template by this controller, so a match is authoritative even if the
+	// live template has since diverged from the desired one (e.g. apiserver defaulting of fields
+	// unknown to our vendored Kubernetes libraries, or mutating admission on ReplicaSets).
+	podHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	if rs := searchRsByHash(rsList, podHash); rs != nil {
+		return rs
+	}
+	// Otherwise, fall back to semantic pod template equality, like the upstream Deployment
+	// controller. This covers ReplicaSets whose hash label was written by a different hashing
+	// algorithm (e.g. after an upgrade of the controller or its Kubernetes libraries); adopting
+	// them avoids an unwarranted redeploy.
 	for _, rs := range rsList {
-		// Remove injected canary/stable metadata from spec.template.metadata before comparing
-		rsCopy, _ := SyncReplicaSetEphemeralPodMetadata(rs, nil)
-		// Remove anti-affinity from template.Spec.Affinity before comparing
-		live := &rsCopy.Spec.Template
-		live.Spec.Affinity = RemoveInjectedAntiAffinityRule(live.Spec.Affinity, *rollout)
-
-		desired := rollout.Spec.Template.DeepCopy()
-		if PodTemplateEqualIgnoreHash(live, desired) {
+		if ReplicaSetTemplateMatchesRollout(rollout, rs) {
+			logCtx := logutil.WithRollout(rollout)
+			logCtx.Infof("Adopted ReplicaSet %s by pod template equality (hash label: %s, computed hash: %s)", rs.Name, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], podHash)
 			return rs
 		}
 	}
 	return nil
+}
+
+func searchRsByHash(rsList []*appsv1.ReplicaSet, hash string) *appsv1.ReplicaSet {
+	for _, rs := range rsList {
+		if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == hash {
+			return rs
+		}
+	}
+	return nil
+}
+
+// ReplicaSetTemplateMatchesRollout returns whether the live ReplicaSet's pod template is
+// semantically equal to the rollout's desired pod template, after stripping the fields this
+// controller injects into ReplicaSet templates (ephemeral canary/stable metadata and the
+// injected anti-affinity rule) from the live template.
+func ReplicaSetTemplateMatchesRollout(rollout *v1alpha1.Rollout, rs *appsv1.ReplicaSet) bool {
+	// Remove injected canary/stable metadata from spec.template.metadata before comparing
+	rsCopy, _ := SyncReplicaSetEphemeralPodMetadata(rs, nil)
+	// Remove anti-affinity from template.Spec.Affinity before comparing
+	live := &rsCopy.Spec.Template
+	live.Spec.Affinity = RemoveInjectedAntiAffinityRule(live.Spec.Affinity, *rollout)
+	return PodTemplateEqualIgnoreHash(live, &rollout.Spec.Template)
 }
 
 func GetRolloutAffinity(rollout v1alpha1.Rollout) *v1alpha1.AntiAffinity {

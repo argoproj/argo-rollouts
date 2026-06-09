@@ -205,11 +205,13 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		}
 
 		// If the Rollout owns the ReplicaSet and the ReplicaSet's PodTemplateSpec is semantically
-		// deep equal to the PodTemplateSpec of the Rollout, it's the Rollout's new ReplicaSet.
-		// Otherwise, this is a hash collision and we need to increment the collisionCount field in
-		// the status of the Rollout and requeue to try the creation in the next sync.
+		// deep equal to the PodTemplateSpec of the Rollout (ignoring fields this controller
+		// injects, such as ephemeral metadata and the anti-affinity rule), it's the Rollout's new
+		// ReplicaSet. Otherwise, this is a hash collision and we need to increment the
+		// collisionCount field in the status of the Rollout and requeue to try the creation in
+		// the next sync.
 		controllerRef := metav1.GetControllerOf(rs)
-		if controllerRef != nil && controllerRef.UID == c.rollout.UID && replicasetutil.PodTemplateEqualIgnoreHash(&rs.Spec.Template, &c.rollout.Spec.Template) {
+		if controllerRef != nil && controllerRef.UID == c.rollout.UID && replicasetutil.ReplicaSetTemplateMatchesRollout(c.rollout, rs) {
 			createdRS = rs
 			err = nil
 			break

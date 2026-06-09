@@ -1529,8 +1529,9 @@ func TestInvalidWorkloadRef(t *testing.T) {
 // The controller adopts an existing ReplicaSet by semantic template equality (PodTemplateEqualIgnoreHash,
 // like the upstream Deployment controller), so equivalent specs never create a new revision. We assert the
 // equality property directly because it is what protects users from churn — note that the raw
-// pod-template-hash itself is spew-based and need not be byte-identical for equivalent quantity formatting,
-// since the apiserver canonicalizes quantities before the controller observes them.
+// pod-template-hash itself is spew-based and need not be byte-identical for equivalent quantity formatting;
+// adoption relies on semantic equality (apiequality.Semantic compares quantities by value), not on hash
+// stability.
 func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 

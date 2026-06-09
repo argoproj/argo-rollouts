@@ -132,6 +132,23 @@ func TestFindNewReplicaSetAcrossHashChange(t *testing.T) {
 	})
 }
 
+// TestFindNewReplicaSetWithDivergedLiveTemplate verifies that a ReplicaSet whose live pod template
+// has diverged from the rollout's desired template — e.g. a mutating admission webhook injected
+// metadata into the template, or a newer apiserver defaulted a field unknown to our vendored
+// Kubernetes libraries — is still found via its pod-template-hash label. The label was computed
+// from the desired template at creation time, so it is authoritative even when semantic template
+// comparison would fail, preventing an unwarranted redeploy (and collisionCount churn).
+func TestFindNewReplicaSetWithDivergedLiveTemplate(t *testing.T) {
+	ro := generateRollout("webhook")
+	rs := generateRS(ro)
+	*(rs.Spec.Replicas) = 1
+	// Simulate a third-party mutating webhook injecting an annotation into the live pod template
+	rs.Spec.Template.Annotations = map[string]string{"sidecar.example.com/injected": "true"}
+
+	actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs})
+	assert.Equal(t, &rs, actual)
+}
+
 func TestFindOldReplicaSets(t *testing.T) {
 	now := metav1.Now()
 	before := metav1.Time{Time: now.Add(-time.Minute)}

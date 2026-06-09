@@ -26,7 +26,13 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	if step == nil {
 		return nil, nil
 	}
-	podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
+	// Prefer the new ReplicaSet's stored pod-template-hash label so the experiment's name and
+	// hash label stay consistent with the ReplicaSet it runs against, even if the ReplicaSet was
+	// adopted with a label written by an older hashing algorithm.
+	podHash := replicasetutil.GetPodTemplateHash(newRS)
+	if podHash == "" {
+		podHash = hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
+	}
 	currentStep := int32(0)
 	if r.Status.CurrentStepIndex != nil {
 		currentStep = *r.Status.CurrentStepIndex
