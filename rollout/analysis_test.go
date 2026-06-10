@@ -2116,11 +2116,12 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 
 	rs := newReplicaSet(r, 1)
 
-	f.expectCreateReplicaSetAction(rs)
-	f.expectUpdateRolloutStatusAction(r)
-	f.expectUpdateReplicaSetAction(rs) // scale RS
-	f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.expectCreateReplicaSetAction(rs)   // create replica set
+	f.expectUpdateRolloutStatusAction(r) // update rollout conditions
+	f.expectGetRolloutAction(r)          // second reconciliation
+	f.expectUpdateReplicaSetAction(rs)   // scale RS
+	f.expectPatchRolloutAction(r)        // patch status
+	f.runWithSyncs(getKey(r, t), 2)
 }
 
 // TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
