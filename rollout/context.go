@@ -48,7 +48,7 @@ type rolloutContext struct {
 	// since we do not want to continually verify weight in case it could incur rate-limiting or other expenses.
 	targetsVerified *bool
 
-	// newRSWithinDelay indicates if the newRS has a valid (non-expired) scale-down-deadline 
+	// newRSWithinDelay indicates if the newRS has a valid (non-expired) scale-down-deadline
 	// annotation at the start of reconciliation (before it may be removed).
 	// Used to detect fast rollbacks where we skip pause/analysis steps.
 	newRSWithinDelay bool

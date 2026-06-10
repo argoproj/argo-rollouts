@@ -70,7 +70,7 @@ func (g *Given) ScaleDownDelaySeconds(seconds int) *Given {
 	if !found {
 		g.t.Fatal("strategy not found")
 	}
-	
+
 	// Check if it's canary or blueGreen
 	if _, ok := strategy["canary"]; ok {
 		err = unstructured.SetNestedField(g.rollout.Object, int64(seconds), "spec", "strategy", "canary", "scaleDownDelaySeconds")
