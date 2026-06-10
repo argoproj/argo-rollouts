@@ -1122,7 +1122,6 @@ func (c *rolloutContext) isRollback() bool {
 		isAlreadyPromoted = isAlreadyPromoted &&
 			c.rollout.Status.BlueGreen.ActiveSelector == newRSHash
 	}
-
 	rollbackToStable := c.rollout.Status.StableRS == newRSHash
 	rollbackToPreviousRevision := c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp)
 	return !isAlreadyPromoted && (rollbackToStable || rollbackToPreviousRevision)
@@ -1133,9 +1132,10 @@ func (c *rolloutContext) isFastRollback() bool {
 		return false
 	}
 	newRSHash := replicasetutil.GetPodTemplateHash(c.newRS)
+	isWithinScaleDownDelay := (c.newRSWithinDelay && c.rollout.Spec.Strategy.BlueGreen != nil)
 	isWithinWindow := c.isRollbackWithinWindow()
 	rollbackToStable := c.rollout.Status.StableRS == newRSHash
-	return isWithinWindow || c.newRSWithinDelay || rollbackToStable
+	return isWithinWindow || isWithinScaleDownDelay || rollbackToStable
 
 }
 

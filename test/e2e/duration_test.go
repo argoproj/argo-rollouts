@@ -606,7 +606,7 @@ func (s *DurationSuite) TestBlueGreenDuration_Retry() {
 func (s *DurationSuite) TestBlueGreenDuration_SupersededRollout() {
 	initialStartedAt := metav1.Time{}
 	s.Given().
-		RolloutTemplate("@functional/bluegreen-duration-template.yaml", map[string]string{"ROLLOUT_NAME": "bluegreen-duration-superseded-rollback"}).
+		RolloutTemplate("@functional/bluegreen-duration-template.yaml", map[string]string{"ROLLOUT_NAME": "bluegreen-duration-superseded-rollout"}).
 		AutoPromotionEnabled(false).
 		SetVersion("1").
 		When().
@@ -634,12 +634,13 @@ func (s *DurationSuite) TestBlueGreenDuration_SupersededRollout() {
 		})
 }
 
-func (s *DurationSuite) TestBlueGreenDuration_SupersededRollback() {
+func (s *DurationSuite) TestBlueGreenDuration_SupersededRollbackToStable() {
 	initialStartedAt := metav1.Time{}
 	s.Given().
-		RolloutTemplate("@functional/bluegreen-duration-template.yaml", map[string]string{"ROLLOUT_NAME": "bluegreen-duration-superseded-forward"}).
+		RolloutTemplate("@functional/bluegreen-duration-template.yaml", map[string]string{"ROLLOUT_NAME": "bluegreen-duration-superseded-rollback-stable"}).
 		AutoPromotionEnabled(false).
 		SetVersion("1").
+		ScaleDownDelaySeconds(0). // No scale-down delay so we know we ecaluate a rollback to stable
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
@@ -668,6 +669,37 @@ func (s *DurationSuite) TestBlueGreenDuration_SupersededRollback() {
 		})
 }
 
+func (s *DurationSuite) TestBlueGreenDuration_SupersededRollback() {
+
+	s.Given().
+		RolloutTemplate("@functional/bluegreen-duration-template.yaml", map[string]string{"ROLLOUT_NAME": "bluegreen-duration-superseded-rollback"}).
+		AutoPromotionEnabled(false).
+		SetVersion("1").
+		ScaleDownDelaySeconds(30). // Explicitly set scale down delay since we are testing it
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		// Complete a rollout to revision 2
+		UpdateVersion("2").
+		WaitForRolloutStatus("Paused").
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		// Complete a rollout to revision 3
+		UpdateVersion("3").
+		WaitForRolloutStatus("Paused").
+		// Rollback to revision 1 (inside scaledown delay)
+		UpdateVersion("1").
+		WaitForRolloutStatus("Healthy", 10*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			ro := t.GetRollout()
+			// Should be completed with rollbacked status
+			assertDurationFieldsConsistency(s.T(), ro)
+			assert.Equal(s.T(), v1alpha1.CompletionStatusFastRollbacked, *ro.Status.Duration.CompletionStatus)
+			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
+		})
+}
+
 func (s *DurationSuite) TestBlueGreenDuration_RollbackOutsideWindow() {
 
 	s.Given().
@@ -676,6 +708,7 @@ func (s *DurationSuite) TestBlueGreenDuration_RollbackOutsideWindow() {
 		SetVersion("1").
 		RevisionHistoryLimit(5).
 		SetRollbackWindow(1).
+		ScaleDownDelaySeconds(0). // No scale-down delay so we know that windows are used for rollback
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
@@ -694,7 +727,7 @@ func (s *DurationSuite) TestBlueGreenDuration_RollbackOutsideWindow() {
 		WaitForRolloutStatus("Paused").
 		// Rollback to revision 1 (outside scaledown window)
 		UpdateVersion("1").
-		WaitForRolloutStatus("Paused").
+		WaitForRolloutStatus("Paused", 10*time.Second).
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy", 10*time.Second).
 		Then().
@@ -715,6 +748,7 @@ func (s *DurationSuite) TestBlueGreenDuration_RollbackInsideWindow() {
 		SetVersion("1").
 		RevisionHistoryLimit(5).
 		SetRollbackWindow(1).
+		ScaleDownDelaySeconds(0). // No scale-down delay so we know that windows are used for rollback
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
