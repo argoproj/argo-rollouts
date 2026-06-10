@@ -1125,8 +1125,7 @@ func (c *rolloutContext) isFastRollback() bool {
 	newRSHash := replicasetutil.GetPodTemplateHash(c.newRS)
 	isWithinWindow := c.isRollbackWithinWindow()
 	rollbackToStable := c.rollout.Status.StableRS == newRSHash
-	isWitinScaleDownDelay := replicasetutil.HasScaleDownDeadline(c.newRS)
-	return isWithinWindow || isWitinScaleDownDelay || rollbackToStable
+	return isWithinWindow || c.newRSWithinDelay || rollbackToStable
 
 }
 
@@ -1182,8 +1181,11 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
 		}
-		if c.isRollbackWithinWindow() {
-			return "Rollback within window"
+		if c.isFastRollback() {
+			if c.isRollbackWithinWindow() {
+				return "Rollback within window"
+			}
+			return "Fast rollback"
 		}
 		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 		stepCount := len(c.rollout.Spec.Strategy.Canary.Steps)
@@ -1209,17 +1211,20 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
 		}
-		if c.isRollbackWithinWindow() {
-			return "Rollback within window"
+		if c.isFastRollback() {
+			if c.isRollbackWithinWindow() {
+				return "Rollback within window"
+			}
+			return "Fast rollback"
 		}
 		if c.pauseContext.IsAborted() {
 			return ""
 		}
 		if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
 			// corner case - we fast-track the StableRS to be updated to CurrentPodHash when we are
-			// moving to a ReplicaSet within scaleDownDelay and wish to skip analysis.
-			if replicasetutil.HasScaleDownDeadline(c.newRS) {
-				return fmt.Sprintf("Rollback to '%s' within scaleDownDelay", c.newRS.Name)
+			// moving to a ReplicaSet during a fast rollback and wish to skip analysis.
+			if c.isFastRollback() {
+				return fmt.Sprintf("Rollback to '%s'", c.newRS.Name)
 			}
 			currentPostPromotionAnalysisRun := c.currentArs.BlueGreenPostPromotion
 			if currentPostPromotionAnalysisRun == nil || currentPostPromotionAnalysisRun.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
