@@ -440,6 +440,11 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.Errorf("newRolloutContext err %v", err)
 		return err
 	}
+	if roCtx.newRollout != nil {
+		// We modified the rollout object already. Let the next reconciliation process the update.
+		c.writeBackToInformer(roCtx.newRollout)
+		return nil
+	}
 
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
