@@ -1742,6 +1742,9 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 			"conditions": %s,
 			"abortedAt": "%s",
 			"phase": "Degraded",
+			"canary": {
+				"currentStepAnalysisRunStatus": null
+			},
 			"message": "RolloutAborted: %s"
 		}
 	}`
@@ -1789,7 +1792,8 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
-	patchIndex := f.expectPatchRolloutAction(r2)
+	f.expectPatchAnalysisRunAction(ar)           // terminate the AR
+	patchIndex := f.expectPatchRolloutAction(r2) // patch status
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)

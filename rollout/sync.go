@@ -902,6 +902,37 @@ func (c *rolloutContext) resetRolloutStatus(newStatus *v1alpha1.RolloutStatus) {
 	newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(c.rollout)
 }
 
+// isRollback returns true if we are deploying to a previous revision.
+func (c *rolloutContext) isRollback() bool {
+	if c.newRS == nil || c.stableRS == nil {
+		return false
+	}
+	newRSHash := replicasetutil.GetPodTemplateHash(c.newRS)
+
+	// rollbackToStable is also true when the rollout is already promoted
+	// since newRS is the stable RS. After it is completed, we cannot know if the rollout reached
+	// the stable state via a rollback or via a normal promotion.
+	rollbackToStable := c.rollout.Status.StableRS == newRSHash
+
+	rollbackToPreviousRevision := c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp)
+	return rollbackToStable || rollbackToPreviousRevision
+}
+
+// isFastRollback returns true if we are fast-rolling back to a previous revision.
+// In this case, steps might be skipped to accelerate the rollback.
+// When a rollout is promoted, this function will always return true
+func (c *rolloutContext) isFastRollback() bool {
+	if !c.isRollback() {
+		return false
+	}
+	newRSHash := replicasetutil.GetPodTemplateHash(c.newRS)
+	isWithinScaleDownDelay := c.newRSWithinDelay && c.rollout.Spec.Strategy.BlueGreen != nil
+	isWithinWindow := c.isRollbackWithinWindow()
+	rollbackToStable := c.rollout.Status.StableRS == newRSHash
+	return isWithinWindow || isWithinScaleDownDelay || rollbackToStable
+
+}
+
 func (c *rolloutContext) isRollbackWithinWindow() bool {
 	if c.newRS == nil || c.stableRS == nil {
 		return false
@@ -955,8 +986,11 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
 		}
-		if c.isRollbackWithinWindow() {
-			return "Rollback within window"
+		if c.isFastRollback() {
+			if c.isRollbackWithinWindow() {
+				return "Rollback within window"
+			}
+			return "Fast rollback"
 		}
 		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 		stepCount := len(c.rollout.Spec.Strategy.Canary.Steps)
@@ -982,18 +1016,16 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
 		}
-		if c.isRollbackWithinWindow() {
-			return "Rollback within window"
+		if c.isFastRollback() {
+			if c.isRollbackWithinWindow() {
+				return "Rollback within window"
+			}
+			return "Fast rollback"
 		}
 		if c.pauseContext.IsAborted() {
 			return ""
 		}
 		if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
-			// corner case - we fast-track the StableRS to be updated to CurrentPodHash when we are
-			// moving to a ReplicaSet within scaleDownDelay and wish to skip analysis.
-			if replicasetutil.HasScaleDownDeadline(c.newRS) {
-				return fmt.Sprintf("Rollback to '%s' within scaleDownDelay", c.newRS.Name)
-			}
 			currentPostPromotionAnalysisRun := c.currentArs.BlueGreenPostPromotion
 			if currentPostPromotionAnalysisRun == nil || currentPostPromotionAnalysisRun.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
 				// we have yet to start post-promotion analysis or post-promotion was not successful
