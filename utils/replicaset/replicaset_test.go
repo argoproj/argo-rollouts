@@ -130,6 +130,39 @@ func TestFindNewReplicaSetAcrossHashChange(t *testing.T) {
 		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs})
 		assert.Nil(t, actual)
 	})
+
+	// "Twin" ReplicaSets — multiple retained ReplicaSets with identical templates but different
+	// hash labels — are the fleet state left behind by a controller whose hashing changed and which
+	// spuriously created a duplicate revision (e.g. v1.9.0, issue #4696). The rollout's own record
+	// of its current ReplicaSet must win, so upgrading to this version does not resurrect the
+	// older, scaled-down twin and trigger another redeploy.
+	newTwins := func(ro v1alpha1.Rollout) (older, newer appsv1.ReplicaSet) {
+		older = newStaleRS(ro)
+		older.Name = ro.Name + "-older"
+		older.CreationTimestamp = metav1.NewTime(time.Now().Add(-time.Hour))
+		newer = newStaleRS(ro)
+		newer.Name = ro.Name + "-newer"
+		newer.CreationTimestamp = metav1.NewTime(time.Now())
+		newer.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "stalehash11"
+		newer.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "stalehash11"
+		return older, newer
+	}
+
+	t.Run("prefers the ReplicaSet recorded in status.currentPodHash over an older twin", func(t *testing.T) {
+		ro := generateRollout("upgrade")
+		older, newer := newTwins(ro)
+		ro.Status.CurrentPodHash = "stalehash11"
+		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&older, &newer})
+		assert.Equal(t, &newer, actual)
+	})
+
+	t.Run("falls back to the oldest matching twin when status.currentPodHash matches no ReplicaSet", func(t *testing.T) {
+		ro := generateRollout("upgrade")
+		older, newer := newTwins(ro)
+		ro.Status.CurrentPodHash = "unknownhash"
+		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&older, &newer})
+		assert.Equal(t, &older, actual)
+	})
 }
 
 // TestFindNewReplicaSetWithDivergedLiveTemplate verifies that a ReplicaSet whose live pod template

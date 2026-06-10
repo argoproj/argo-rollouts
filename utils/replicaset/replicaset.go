@@ -52,6 +52,21 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	// controller. This covers ReplicaSets whose hash label was written by a different hashing
 	// algorithm (e.g. after an upgrade of the controller or its Kubernetes libraries); adopting
 	// them avoids an unwarranted redeploy.
+	//
+	// Prefer the ReplicaSet recorded in status.currentPodHash when it still matches the desired
+	// template. After a hashing-algorithm change, several retained ReplicaSets can carry the same
+	// template (e.g. the revision spuriously created by a controller version whose hash had
+	// changed); preferring the rollout's own record of its current ReplicaSet keeps the upgrade a
+	// no-op instead of resurrecting the oldest twin. On a genuine template change the current
+	// ReplicaSet no longer matches, so this is a no-op and the oldest matching ReplicaSet is
+	// reused, like the upstream Deployment controller.
+	if rollout.Status.CurrentPodHash != "" && rollout.Status.CurrentPodHash != podHash {
+		if rs := searchRsByHash(rsList, rollout.Status.CurrentPodHash); rs != nil && ReplicaSetTemplateMatchesRollout(rollout, rs) {
+			logCtx := logutil.WithRollout(rollout)
+			logCtx.Infof("Adopted ReplicaSet %s recorded in status.currentPodHash by pod template equality (hash label: %s, computed hash: %s)", rs.Name, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], podHash)
+			return rs
+		}
+	}
 	for _, rs := range rsList {
 		if ReplicaSetTemplateMatchesRollout(rollout, rs) {
 			logCtx := logutil.WithRollout(rollout)
