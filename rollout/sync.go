@@ -1107,26 +1107,25 @@ func (c *rolloutContext) resetRolloutStatus(newStatus *v1alpha1.RolloutStatus) {
 }
 
 // isRollback returns true if we are deploying to a previous revision.
+// When a rollout is promoted, this function will always return true
 func (c *rolloutContext) isRollback() bool {
 	if c.newRS == nil || c.stableRS == nil {
 		return false
 	}
 	newRSHash := replicasetutil.GetPodTemplateHash(c.newRS)
 
-	// For Canary: Detect rollback as a transition until CurrentPodHash updates
-	//             (indicates the rollback canary has started to desired step index)
-	// For Blue-Green: Detect rollback as a transition until ActiveSelector switches
-	//                 (indicates the rollback service cutover completed)
-	isAlreadyPromoted := c.rollout.Status.CurrentPodHash == newRSHash
-	if c.rollout.Spec.Strategy.BlueGreen != nil {
-		isAlreadyPromoted = isAlreadyPromoted &&
-			c.rollout.Status.BlueGreen.ActiveSelector == newRSHash
-	}
+	// rollbackToStable is also true when the rollout is already promoted
+	// since newRS is the stable RS. After it is completed, we cannot know if the rollout reached
+	// the stable state via a rollback or via a normal promotion.
 	rollbackToStable := c.rollout.Status.StableRS == newRSHash
+
 	rollbackToPreviousRevision := c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp)
-	return !isAlreadyPromoted && (rollbackToStable || rollbackToPreviousRevision)
+	return rollbackToStable || rollbackToPreviousRevision
 }
 
+// isFastRollback returns true if we are fast-rolling back to a previous revision.
+// In this case, steps might be skipped to accelerate the rollback.
+// When a rollout is promoted, this function will always return true
 func (c *rolloutContext) isFastRollback() bool {
 	if !c.isRollback() {
 		return false
