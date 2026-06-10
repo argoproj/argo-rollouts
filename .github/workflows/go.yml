@@ -4,9 +4,15 @@ on:
     branches:
       - 'master'
       - 'release-*'
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
     branches:
       - 'master'
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 env:
   # Golang version to use across CI steps
   GOLANG_VERSION: '1.26'
