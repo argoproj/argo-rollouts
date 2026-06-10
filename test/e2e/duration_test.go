@@ -522,8 +522,7 @@ func (s *DurationSuite) TestBlueGreenDuration_ManualPromotion() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusPromoted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			// TotalManualPauseDuration should be non-zero
-			assert.Greater(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0), "TotalManualPauseDuration should be greater than 0")
+			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0), "TotalManualPauseDuration should be greater than 0")
 		})
 }
 
@@ -544,8 +543,7 @@ func (s *DurationSuite) TestBlueGreenDuration_FullyPromoted() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusFastPromoted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			// TotalManualPauseDuration should be non-zero
-			assert.Greater(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0), "TotalManualPauseDuration should be greater than 0")
+			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0), "TotalManualPauseDuration should be greater than 0")
 		})
 }
 

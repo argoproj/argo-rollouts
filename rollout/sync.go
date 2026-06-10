@@ -1112,7 +1112,17 @@ func (c *rolloutContext) isRollback() bool {
 		return false
 	}
 	newRSHash := replicasetutil.GetPodTemplateHash(c.newRS)
+
+	// For Canary: Detect rollback as a transition until CurrentPodHash updates
+	//             (indicates the rollback canary has started to desired step index)
+	// For Blue-Green: Detect rollback as a transition until ActiveSelector switches
+	//                 (indicates the rollback service cutover completed)
 	isAlreadyPromoted := c.rollout.Status.CurrentPodHash == newRSHash
+	if c.rollout.Spec.Strategy.BlueGreen != nil {
+		isAlreadyPromoted = isAlreadyPromoted &&
+			c.rollout.Status.BlueGreen.ActiveSelector == newRSHash
+	}
+
 	rollbackToStable := c.rollout.Status.StableRS == newRSHash
 	rollbackToPreviousRevision := c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp)
 	return !isAlreadyPromoted && (rollbackToStable || rollbackToPreviousRevision)
