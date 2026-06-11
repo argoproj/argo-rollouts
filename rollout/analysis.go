@@ -74,15 +74,21 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 	isAborted := c.pauseContext.IsAborted()
 	isFastRollback := c.isFastRollback()
 	initialDeploy := c.rollout.Status.StableRS == ""
-	if isAborted || c.rollout.Status.PromoteFull || isFastRollback || initialDeploy {
-		c.log.Infof("Skipping analysis: isAborted: %v, promoteFull: %v, isFastRollback: %v, initialDeploy: %v", isAborted, c.rollout.Status.PromoteFull, isFastRollback, initialDeploy)
-		allArs := append(c.currentArs.ToArray(), c.otherArs...)
-		c.SetCurrentAnalysisRuns(c.currentArs)
-		return c.cancelAnalysisRuns(allArs)
-	}
+	isFullyPromoted := rolloututil.IsFullyPromoted(c.rollout)
+	shouldCancelCurrentAnalysis := isFullyPromoted || isAborted || c.rollout.Status.PromoteFull || isFastRollback || initialDeploy
 
 	newCurrentAnalysisRuns := analysisutil.CurrentAnalysisRuns{}
-	if c.rollout.Spec.Strategy.Canary != nil {
+	if shouldCancelCurrentAnalysis {
+		c.log.Infof("Skipping analysis: fullyPromoted: %v, isAborted: %v, promoteFull: %v, isFastRollback: %v, initialDeploy: %v", isFullyPromoted, isAborted, c.rollout.Status.PromoteFull, isFastRollback, initialDeploy)
+		err := c.cancelAnalysisRuns(c.currentArs.ToArray())
+		if err != nil {
+			return err
+		}
+		// For BlueGreen, we always retain the current analysis once stable.
+		// Canary retains the "current" analysis, so we remove them once cancelled.
+		newCurrentAnalysisRuns.BlueGreenPrePromotion = c.currentArs.BlueGreenPrePromotion
+		newCurrentAnalysisRuns.BlueGreenPostPromotion = c.currentArs.BlueGreenPostPromotion
+	} else if c.rollout.Spec.Strategy.Canary != nil {
 		stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun()
 		if err != nil {
 			return err
@@ -94,9 +100,7 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 			return err
 		}
 		newCurrentAnalysisRuns.CanaryBackground = backgroundAnalysisRun
-
-	}
-	if c.rollout.Spec.Strategy.BlueGreen != nil {
+	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
 		prePromotionAr, err := c.reconcilePrePromotionAnalysisRun()
 		if err != nil {
 			return err
