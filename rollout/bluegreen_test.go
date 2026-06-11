@@ -69,10 +69,11 @@ func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	generatedConditions := generateConditionsPatchWithCompletedHealthy(false, conditions.ReplicaSetUpdatedReason, rs, false, "", false, true)
 
-	f.expectCreateReplicaSetAction(rs)
+	f.expectCreateReplicaSetAction(rs)                          // create replica set
+	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r) // update rollout conditions
+	f.expectGetRolloutAction(r)                                 // second reconciliation
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectUpdateReplicaSetAction(rs) // scale up RS
-	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	expectedPatchWithoutSubs := `{
 		"status":{
 			"blueGreen" : {
@@ -90,7 +91,7 @@ func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 	}`
 	expectedPatch := calculatePatch(r, fmt.Sprintf(expectedPatchWithoutSubs, rsPodHash, generatedConditions, rsPodHash))
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r, expectedPatch)
-	f.run(getKey(r, t))
+	f.runWithSyncs(getKey(r, t), 2)
 
 	f.verifyPatchedService(servicePatchIndex, rsPodHash, "")
 
