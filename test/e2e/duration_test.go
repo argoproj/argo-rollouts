@@ -34,7 +34,11 @@ func assertDurationFieldsConsistency(t *testing.T, ro *v1alpha1.Rollout) {
 	if ro.Status.Duration.FinishedAt != nil {
 		assert.NotNil(t, ro.Status.Duration.CompletionStatus, "CompletionStatus should be set when completed")
 		assert.Nil(t, ro.Status.Duration.ManualPauseStartedAt, "ManualPauseStartedAt should be nil when completed")
-		assert.True(t, ro.Status.Duration.FinishedAt.After(ro.Status.Duration.RolloutStartedAt.Time), "FinishedAt should be after RolloutStartedAt")
+		// Some tests might be really fast and finishedAt will be equal to startedAt, so we allow it
+		// Tests introducing sleeps
+		if !ro.Status.Duration.FinishedAt.Equal(ro.Status.Duration.RolloutStartedAt) {
+			assert.True(t, ro.Status.Duration.FinishedAt.After(ro.Status.Duration.RolloutStartedAt.Time), "FinishedAt should be after RolloutStartedAt")
+		}
 	}
 }
 
