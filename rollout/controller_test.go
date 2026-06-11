@@ -763,6 +763,7 @@ func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInf
 		allowErr := f.allowErrorOnLastSync && (n == syncs-1)
 		f.assertSyncHandlerResult(n, syncs, err, expectError, allowErr)
 		f.reseedRolloutInInformerIfNeeded(c, rolloutName, n, syncs)
+		f.reseedReplicaSetsInInformerIfNeeded(k8sI, n, syncs)
 	}
 
 	return f.verifyActionsAndReturn(c)
@@ -797,6 +798,27 @@ func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName str
 	}
 	if err := c.rolloutsIndexer.Update(ro); err != nil {
 		f.t.Fatalf("re-seed rollout: update indexer: %v", err)
+	}
+}
+
+// reseedReplicaSetsInInformerIfNeeded re-seeds ReplicaSets that the controller created/updated via the
+// fake kube client back into the ReplicaSet informer, so the next sync sees them in the lister. This
+// mirrors a real cluster, where the informer observes ReplicaSets created in a prior reconciliation.
+// No-op when syncs <= 1 or on the last sync.
+func (f *fixture) reseedReplicaSetsInInformerIfNeeded(k8sI kubeinformers.SharedInformerFactory, n, syncs int) {
+	if syncs <= 1 || n >= syncs-1 {
+		return
+	}
+	rsList, err := f.kubeclient.AppsV1().ReplicaSets(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed replicasets: list: %v", err)
+	}
+	indexer := k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer()
+	for i := range rsList.Items {
+		rs := rsList.Items[i]
+		if err := indexer.Update(&rs); err != nil {
+			f.t.Fatalf("re-seed replicasets: update indexer: %v", err)
+		}
 	}
 }
 
