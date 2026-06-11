@@ -453,7 +453,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 	}
 
 	isPromoted := newStatus.StableRS == newStatus.CurrentPodHash
-	hasReachedDesiredReplicas := newStatus.AvailableReplicas >= defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
+	hasReachedDesiredReplicas := c.newRS != nil && c.newRS.Status.AvailableReplicas >= defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
 	isAborted := c.pauseContext.IsAborted()
 
 	progCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
@@ -780,6 +780,42 @@ func isWaitingForReplicaSetScaleDown(r *v1alpha1.Rollout, newRS, stableRS *appsv
 	return false
 }
 
+// evaluateProgressDeadlineAbort aborts the rollout (via the pause context) when an in-flight
+// update has exceeded its progress deadline and spec.progressDeadlineAbort is set.
+func (c *rolloutContext) evaluateProgressDeadlineAbort(newStatus *v1alpha1.RolloutStatus) {
+	if !c.rollout.Spec.ProgressDeadlineAbort {
+		return
+	}
+	if c.pauseContext == nil || c.pauseContext.IsAborted() {
+		return
+	}
+	// Progress-deadline abort only applies to an in-flight update. Once the rollout is fully
+	// promoted, the update already succeeded; a later availability drop should not abort
+	// a rollout that already completed.
+	if conditions.RolloutCompleted(newStatus) {
+		return
+	}
+	// Don't abort an update that is still making progress during this reconciliation
+	if conditions.RolloutProgressing(c.rollout, newStatus) {
+		return
+	}
+	// Some steps do not count against the lack of progress
+	if isIndefiniteStep(c.rollout) || isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs) {
+		return
+	}
+	// Check if the existing Progressing condition has timed out
+	if !conditions.RolloutTimedOut(c.rollout, &c.rollout.Status) {
+		return
+	}
+
+	msg := fmt.Sprintf(conditions.RolloutTimeOutMessage, c.rollout.Name)
+	if c.newRS != nil {
+		msg = fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, c.newRS.Name)
+	}
+	c.pauseContext.AddAbort(msg)
+	c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
+}
+
 func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutStatus) {
 	isPaused := len(newStatus.PauseConditions) > 0 || c.rollout.Spec.Paused
 	isAborted := c.pauseContext.IsAborted()
@@ -875,22 +911,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutS
 			}
 
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
-			condChanged := conditions.SetRolloutCondition(newStatus, *condition)
-
-			// If condition is changed and ProgressDeadlineAbort is set, abort the update
-			if condChanged {
-				if c.rollout.Spec.ProgressDeadlineAbort {
-					c.pauseContext.AddAbort(msg)
-					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
-				}
-			} else {
-				// Although condition is unchanged, ProgressDeadlineAbort can be set after
-				// an existing update timeout. In this case if update is not aborted, we need to abort.
-				if c.rollout.Spec.ProgressDeadlineAbort && c.pauseContext != nil && !c.pauseContext.IsAborted() {
-					c.pauseContext.AddAbort(msg)
-					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
-				}
-			}
+			conditions.SetRolloutCondition(newStatus, *condition)
 		}
 	}
 
@@ -948,10 +969,14 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 		newStatus.WorkloadObservedGeneration = ""
 	}
 
+	// Evaluate the progress-deadline abort first so that any resulting abort is reflected in
+	// the abort/pause fields below and persisted in this same reconcile.
+	c.evaluateProgressDeadlineAbort(newStatus)
+
 	// Then calculate the abort/pause fields based on the pause context
 	c.pauseContext.CalculatePauseStatus(newStatus)
 
-	// After that, calaculate the rollout conditions, which requires the abort/pause fields
+	// After that, calculate the rollout conditions, which requires the abort/pause fields to be evaluated
 	c.calculateRolloutConditions(newStatus)
 
 	// Calculate the phase. This requires the conditions to be calculated first
