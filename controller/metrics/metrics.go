@@ -22,6 +22,8 @@ import (
 
 type MetricsServer struct {
 	*http.Server
+
+	Registry                  *prometheus.Registry
 	reconcileRolloutHistogram *prometheus.HistogramVec
 	errorRolloutCounter       *prometheus.CounterVec
 
@@ -71,6 +73,34 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 
 	reg := prometheus.NewRegistry()
 
+	// Create new instances of duration metrics for test isolation
+	rolloutDurationTotal := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "rollout_duration_seconds_total",
+			Help:    "Total wall-clock time for a rollout from start to completion/abort/supersede",
+			Buckets: []float64{30, 60, 120, 300, 600, 1200, 1800, 3600, 7200, 14400, 28800},
+		},
+		[]string{"status"},
+	)
+
+	rolloutDurationProgression := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "rollout_duration_seconds_progression",
+			Help:    "Active progression time for a rollout (excluding manual pause time)",
+			Buckets: []float64{30, 60, 120, 300, 600, 900, 1800, 3600},
+		},
+		[]string{"status"},
+	)
+
+	rolloutDurationManualPause := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "rollout_duration_seconds_manual_pause",
+			Help:    "Time spent in manual pause waiting for human intervention",
+			Buckets: []float64{0, 60, 300, 600, 1800, 3600, 7200, 14400, 28800},
+		},
+		[]string{"status"},
+	)
+
 	if cfg.RolloutLister != nil {
 		reg.MustRegister(NewRolloutCollector(cfg.RolloutLister))
 	}
@@ -91,9 +121,9 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	reg.MustRegister(MetricNotificationSend)
 	reg.MustRegister(MetricVersionGauge)
 	reg.MustRegister(buildInfo)
-	reg.MustRegister(MetricRolloutDurationTotal)
-	reg.MustRegister(MetricRolloutDurationProgression)
-	reg.MustRegister(MetricRolloutDurationManualPause)
+	reg.MustRegister(rolloutDurationTotal)
+	reg.MustRegister(rolloutDurationProgression)
+	reg.MustRegister(rolloutDurationManualPause)
 
 	recordBuildInfo()
 
@@ -108,6 +138,7 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 			Addr:    cfg.Addr,
 			Handler: mux,
 		},
+		Registry:                  reg,
 		reconcileRolloutHistogram: MetricRolloutReconcile,
 		errorRolloutCounter:       MetricRolloutReconcileError,
 
@@ -122,9 +153,9 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 
 		k8sRequestsCounter: cfg.K8SRequestProvider,
 
-		rolloutDurationTotal:       MetricRolloutDurationTotal,
-		rolloutDurationProgression: MetricRolloutDurationProgression,
-		rolloutDurationManualPause: MetricRolloutDurationManualPause,
+		rolloutDurationTotal:       rolloutDurationTotal,
+		rolloutDurationProgression: rolloutDurationProgression,
+		rolloutDurationManualPause: rolloutDurationManualPause,
 	}
 }
 
