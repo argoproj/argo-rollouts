@@ -458,6 +458,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 
 	isPromoted := newStatus.StableRS == newStatus.CurrentPodHash
 	hasReachedDesiredReplicas := c.newRS != nil && c.newRS.Status.AvailableReplicas >= defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
+	isCompleted := isPromoted && hasReachedDesiredReplicas
 	isAborted := c.pauseContext.IsAborted()
 
 	progCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
@@ -501,7 +502,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 					Info("Rollout completed")
 			}
 		}
-		if isPromoted && hasReachedDesiredReplicas && !durationStatus.IsCompleted() {
+		if isCompleted && !durationStatus.IsCompleted() {
 			// Rollout is now completed
 			completionStatus := durationStatus.GetCompletionStatus()
 			if completionStatus == "" {
@@ -531,11 +532,14 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 		}
 	}
 
-	if durationStatus == nil || durationStatus.IsCompleted() {
+	if durationStatus == nil || (durationStatus.IsCompleted() && !isCompleted) {
 		// First rollout or Starting new rollout from a completed state
 		durationPaused = false
 
-		if podSpecChanged {
+		// If the rollout is already at its stable target nothing is actually rolling out
+		// This can happen when changing between strategies (e.g. from blue-green to canary)
+		alreadyAtStableTarget := isPromoted && hasReachedDesiredReplicas
+		if podSpecChanged && !alreadyAtStableTarget {
 			durationStatus = &v1alpha1.RolloutDurationStatus{
 				RolloutStartedAt: &now,
 			}

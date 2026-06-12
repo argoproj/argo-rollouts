@@ -1626,10 +1626,10 @@ requests:
 		f.objects = append(f.objects, r)
 
 		rs := newReplicaSet(r, 1)
-		rsIdx := f.expectCreateReplicaSetAction(rs)   // sync 1: create RS
-		f.expectUpdateRolloutStatusAction(r)          // sync 1: update status
-		f.expectGetRolloutAction(r)                   // re-seed between syncs
-		f.expectPatchRolloutAction(r)                 // sync 2: patch status
+		rsIdx := f.expectCreateReplicaSetAction(rs) // sync 1: create RS
+		f.expectUpdateRolloutStatusAction(r)        // sync 1: update status
+		f.expectGetRolloutAction(r)                 // re-seed between syncs
+		f.expectPatchRolloutAction(r)               // sync 2: patch status
 		f.runWithSyncs(getKey(r, t), 2)
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
@@ -1760,7 +1760,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	activeSvc := newService("active", 80, nil, r)
 	rs := newReplicaSetWithStatus(r, 1, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true, false)
+	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true, true)
 	// StableRS is set to avoid running the migration code. When .status.canary.stableRS is removed, the line below can be deleted
 	//r.Status.Canary.StableRS = rsPodHash
 	r.Spec.Strategy.BlueGreen = nil
@@ -1769,6 +1769,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 			SetWeight: int32Ptr(1),
 		}},
 	}
+
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.kubeobjects = append(f.kubeobjects, rs, activeSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
@@ -1778,22 +1779,22 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	f.run(getKey(r, t))
 	patch := f.getPatchedRollout(i)
 
-	addedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "", true)
-	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	// The controller emits conditions in the order [Available, Completed, Progressing]
+	// because the Progressing condition is rewritten (and re-appended) this reconcile.
+	_, availableCondition := newAvailableCondition(true)
+	_, completedCondition := newCompletedCondition(true)
+	_, progressingCondition := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	expectedPatch := fmt.Sprintf(`{
 			"status": {
 				"blueGreen": {
 					"activeSelector": null
 				},
-				"conditions": %s,
+				"conditions": [%s, %s, %s],
 				"currentStepIndex": 1,
 				"currentStepHash": "%s",
-				"selector": "foo=bar",
-				"duration": {
-					"rolloutStartedAt": "%s"
-				}
+				"selector": "foo=bar"
 			}
-		}`, addedConditions, conditions.ComputeStepHash(r), now)
+		}`, availableCondition, completedCondition, progressingCondition, conditions.ComputeStepHash(r))
 	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 	f.metricsRecorder.AssertNotCalled(t, "EmitRolloutDuration", mock.Anything)
 }
