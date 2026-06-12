@@ -439,6 +439,10 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 	if newStatus == nil {
 		return nil
 	}
+	if conditions.GetRolloutCondition(*newStatus, v1alpha1.InvalidSpec) != nil {
+		// Do not update duration tracking when the rollout spec is invalid.
+		return newStatus.Duration
+	}
 	durationStatus := newStatus.Duration.DeepCopy()
 	prevStatus := c.rollout.Status
 	now := timeutil.MetaNow()

@@ -512,7 +512,9 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	defer f.Close()
 
 	r := newCanaryRollout("foo", 10, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	// simulate a brand-new rollout
 	r.Status.CurrentPodHash = ""
+	r.Status.Duration = nil
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
@@ -533,13 +535,14 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, rs.Name), progressingCondition.Message)
 
 	patch := f.getPatchedRollout(patchIndex)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := `{
 		"status":{
 			"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
 			"currentPodHash":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
 			"conditions": %s,
 			"duration": {
-				"completionStatus": "promoted"
+				"rolloutStartedAt": "` + now + `"
 			}
 		}
 	}`
@@ -556,7 +559,9 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	r := newCanaryRollout("foo", 10, nil, steps, nil, intstr.FromInt(1), intstr.FromInt(0))
+	// simulate a brand-new rollout
 	r.Status.CurrentPodHash = ""
+	r.Status.Duration = nil
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
@@ -577,6 +582,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, rs.Name), progressingCondition.Message)
 
 	patch := f.getPatchedRollout(patchIndex)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatchWithSub := `{
 		"status":{
 			"stableRS":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
@@ -584,7 +590,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 			"currentPodHash":"` + rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] + `",
 			"conditions": %s,
 			"duration": {
-				"completionStatus": "promoted"
+				"rolloutStartedAt": "` + now + `"
 			}
 		}
 	}`
@@ -973,16 +979,15 @@ func TestRollBackToStable(t *testing.T) {
 			"currentStepIndex":1,
 			"conditions": %s,
 			"duration": {
-				"rolloutStartedAt": "%s"
+				"completionStatus": "fast-rollbacked"
 			}
 		}
 	}`
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
-	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions, now)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
-	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
+	f.metricsRecorder.AssertNotCalled(t, "EmitRolloutDuration", mock.Anything)
 }
 
 func TestRollBackToActiveReplicaSetWithinWindow(t *testing.T) {
@@ -1116,18 +1121,17 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 			"currentStepIndex":1,
 			"conditions": %s,
 			"duration": {
-				"rolloutStartedAt": "%s"
+				"completionStatus": "fast-rollbacked"
 			}
 		}
 	}`
 	newPodHash := hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount)
 	newStepHash := conditions.ComputeStepHash(r2)
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
-	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newPodHash, newStepHash, newConditions, now)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newPodHash, newStepHash, newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
-	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
+	f.metricsRecorder.AssertNotCalled(t, "EmitRolloutDuration", mock.Anything)
 }
 
 func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
