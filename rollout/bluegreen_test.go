@@ -1125,10 +1125,11 @@ func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *test
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	generatedConditions := generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true)
 
-	f.expectCreateReplicaSetAction(rs)
-	f.expectPatchServiceAction(previewSvc, rsPodHash)
-	f.expectUpdateReplicaSetAction(rs) // scale up RS
-	f.expectUpdateRolloutStatusAction(r)
+	f.expectCreateReplicaSetAction(rs)                // sync 1: create RS
+	f.expectUpdateRolloutStatusAction(r)              // sync 1: update conditions
+	f.expectGetRolloutAction(r)                       // re-seed between syncs
+	f.expectPatchServiceAction(previewSvc, rsPodHash) // sync 2
+	f.expectUpdateReplicaSetAction(rs)                // sync 2: scale up RS
 	expectedPatchWithoutSubs := `{
 		"status":{
 			"blueGreen" : {
@@ -1142,8 +1143,8 @@ func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *test
 		}
 	}`
 	expectedPatch := calculatePatch(r, fmt.Sprintf(expectedPatchWithoutSubs, rsPodHash, generatedConditions, rsPodHash))
-	f.expectPatchRolloutActionWithPatch(r, expectedPatch)
-	f.run(getKey(r, t))
+	f.expectPatchRolloutActionWithPatch(r, expectedPatch) // sync 2: patch status
+	f.runWithSyncs(getKey(r, t), 2)
 
 	logMessage := buf.String()
 	assert.True(t, strings.Contains(logMessage, "msg=\"Stable ReplicaSet doesn't exist and hence no reconciliation is required.\""), logMessage)
