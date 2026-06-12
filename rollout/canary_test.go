@@ -87,12 +87,13 @@ func TestCanaryRolloutBumpVersion(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	createdRSIndex := f.expectCreateReplicaSetAction(rs2)
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)                  // scale up RS
+	createdRSIndex := f.expectCreateReplicaSetAction(rs2)                  // create RS
 	updatedRolloutRevisionIndex := f.expectUpdateRolloutAction(r2)         // update rollout revision
 	updatedRolloutConditionsIndex := f.expectUpdateRolloutStatusAction(r2) // update rollout conditions
-	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.expectGetRolloutAction(r2)                                           // second reconciliation
+	f.expectPatchRolloutAction(r2)                                         // patch status
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)                  // scale up RS
+	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS := f.getCreatedReplicaSet(createdRSIndex)
 	assert.Equal(t, int32(0), *createdRS.Spec.Replicas)
