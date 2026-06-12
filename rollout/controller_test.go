@@ -1839,6 +1839,30 @@ func TestGetReferencedAnalyses(t *testing.T) {
 	})
 }
 
+// TestNewRolloutContextALBStatusNotAliased ensures newStatus does not alias the ALB status
+// of the rollout it was built from. Traffic routers mutate newStatus.ALB/ALBs in place
+// (e.g. ALB VerifyWeight); if those objects are shared with rollout.Status, the mutation is
+// visible on both sides of the diff in persistRolloutStatus, so target group updates are
+// never patched and the persisted ALB status stays frozen at its initial value
+// (https://github.com/argoproj/argo-rollouts/issues/3673).
+func TestNewRolloutContextALBStatusNotAliased(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Status.ALB = &v1alpha1.ALBStatus{Ingress: "ingress"}
+	r.Status.ALBs = []v1alpha1.ALBStatus{{Ingress: "ingress"}}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	roCtx, err := c.newRolloutContext(r)
+	assert.NoError(t, err)
+
+	roCtx.newStatus.ALB.CanaryTargetGroup.Name = "canary-tg"
+	roCtx.newStatus.ALBs[0].CanaryTargetGroup.Name = "canary-tg"
+	assert.Empty(t, r.Status.ALB.CanaryTargetGroup.Name)
+	assert.Empty(t, r.Status.ALBs[0].CanaryTargetGroup.Name)
+}
+
 func TestGetReferencedClusterAnalysisTemplate(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
