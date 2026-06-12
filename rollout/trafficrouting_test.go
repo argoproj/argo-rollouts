@@ -846,6 +846,11 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	completedCondition, _ := newCompletedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
+	// Duration is already completed so reconciliation makes no rollout status patch
+	finishedAt := timeutil.MetaNow()
+	promoted := v1alpha1.CompletionStatusPromoted
+	r2.Status.Duration.FinishedAt = &finishedAt
+	r2.Status.Duration.CompletionStatus = &promoted
 
 	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	canarySvc := newService("canary", 80, selector, r2)
