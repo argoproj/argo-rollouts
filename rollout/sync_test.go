@@ -335,12 +335,13 @@ func TestCanaryPromoteFull(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // create new ReplicaSet (size 0)
-	f.expectUpdateRolloutAction(r2)                        // update rollout revision
-	f.expectUpdateRolloutStatusAction(r2)                  // update rollout conditions
-	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // scale new ReplicaSet to 10
-	patchedRolloutIndex := f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // sync 1: create new ReplicaSet (size 0)
+	f.expectUpdateRolloutAction(r2)                        // sync 1: update rollout revision
+	f.expectUpdateRolloutStatusAction(r2)                  // sync 1: update rollout conditions
+	f.expectGetRolloutAction(r2)                           // re-seed between syncs
+	patchedRolloutIndex := f.expectPatchRolloutAction(r2)  // sync 2: patch status
+	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // sync 2: scale new ReplicaSet to 10
+	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
 	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
@@ -852,12 +853,13 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, oldRs, stableRs)
 	f.replicaSetLister = append(f.replicaSetLister, oldRs, stableRs)
 
-	f.expectUpdateRolloutAction(r2) // update rollout revision
-	f.expectUpdateRolloutStatusAction(r2)
-	updatedROIndex := f.expectPatchRolloutAction(r2)
-	createdRS2Index := f.expectCreateReplicaSetAction(stableRs)
-	updatedRS2Index := f.expectUpdateReplicaSetAction(stableRs)
-	f.run(getKey(r2, t))
+	createdRS2Index := f.expectCreateReplicaSetAction(stableRs) // sync 1: create RS
+	f.expectUpdateRolloutAction(r2)                             // sync 1: update rollout revision
+	f.expectUpdateRolloutStatusAction(r2)                       // sync 1: update status
+	f.expectGetRolloutAction(r2)                                // re-seed between syncs
+	updatedROIndex := f.expectPatchRolloutAction(r2)            // sync 2: patch status
+	updatedRS2Index := f.expectUpdateReplicaSetAction(stableRs) // sync 2: scale RS
+	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
 	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
