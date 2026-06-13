@@ -297,14 +297,18 @@ func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
 	r2.Status.Abort = false
+	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	addPausedConditionPatch := f.expectPatchRolloutAction(r2)
+	// Sync 1 resets the progress deadline (RolloutRetry); sync 2 reconciles the
+	// canary and re-pauses on the first step.
+	resetDeadlinePatch := f.expectPatchRolloutAction(r2)
+	f.expectGetRolloutAction(r2)
 	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.runWithSyncs(getKey(r2, t), 2)
 
-	patch := f.getPatchedRollout(addPausedConditionPatch)
+	patch := f.getPatchedRollout(resetDeadlinePatch)
 	_, retryCondition := newProgressingCondition(conditions.RolloutRetryReason, r2, "")
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
@@ -313,7 +317,7 @@ func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
 			"message": "more replicas need to be updated"
 		}
 	}`, retryCondition)
-	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, expectedPatch, patch)
 }
 
 func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {

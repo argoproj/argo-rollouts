@@ -75,6 +75,9 @@ const (
 )
 
 type FakeWorkloadRefResolver struct {
+	// resolveFn, if set, is invoked for workloadRef rollouts (kind != "Error") to mimic the real
+	// resolver repopulating the pod template that remarshalRollout strips when TemplateResolvedFromRef.
+	resolveFn func(r *v1alpha1.Rollout) error
 }
 
 func (f *FakeWorkloadRefResolver) Resolve(r *v1alpha1.Rollout) error {
@@ -91,6 +94,10 @@ func (f *FakeWorkloadRefResolver) Resolve(r *v1alpha1.Rollout) error {
 				Message: "not found",
 			},
 		}
+	}
+
+	if f.resolveFn != nil {
+		return f.resolveFn(r)
 	}
 
 	return nil
@@ -138,6 +145,9 @@ type fixture struct {
 	reseedRolloutMutator func(*v1alpha1.Rollout)
 	// allowErrorOnLastSync, if set, do not fail the test when the final sync returns an error (e.g. "delaying destination rule switch").
 	allowErrorOnLastSync bool
+	// workloadRefResolveFn, if set, is used by the fake workload ref resolver to repopulate the pod
+	// template (which remarshalRollout strips for TemplateResolvedFromRef rollouts), mimicking the real resolver.
+	workloadRefResolveFn func(*v1alpha1.Rollout) error
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -661,7 +671,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   f.metricsRecorder,
 		Recorder:                        record.NewFakeEventRecorder(),
-		RefResolver:                     &FakeWorkloadRefResolver{},
+		RefResolver:                     &FakeWorkloadRefResolver{resolveFn: f.workloadRefResolveFn},
 		EphemeralMetadataThreads:        DefaultEphemeralMetadataThreads,
 		EphemeralMetadataPodRetries:     DefaultEphemeralMetadataPodRetries,
 	})
