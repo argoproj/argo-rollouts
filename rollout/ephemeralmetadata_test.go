@@ -84,12 +84,12 @@ func TestSyncBlueGreenEphemeralMetadataInitialRevision(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
-	idx := f.expectCreateReplicaSetAction(rs1) // sync 1: create RS
-	f.expectUpdateRolloutStatusAction(r1)      // sync 1: update status
-	f.expectGetRolloutAction(r1)               // re-seed between syncs
-	f.expectPatchRolloutAction(r1)             // sync 2: patch status
+	idx := f.expectCreateReplicaSetAction(rs1)                                                // sync 1: create RS
+	f.expectUpdateRolloutStatusAction(r1)                                                     // sync 1: update status
+	f.expectGetRolloutAction(r1)                                                              // re-seed between syncs
+	f.expectPatchRolloutAction(r1)                                                            // sync 2: patch status
 	f.expectPatchServiceAction(previewSvc, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // sync 2
-	f.expectUpdateReplicaSetAction(rs1)        // sync 2: scale replicaset
+	f.expectUpdateReplicaSetAction(rs1)                                                       // sync 2: scale replicaset
 	f.runWithSyncs(getKey(r1, t), 2)
 	createdRS1 := f.getCreatedReplicaSet(idx)
 	expectedLabels := map[string]string{
