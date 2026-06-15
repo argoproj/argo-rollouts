@@ -800,9 +800,6 @@ func (f *fixture) reseedKubeResourcesInInformerIfNeeded(k8sI kubeinformers.Share
 		f.t.Fatalf("re-seed replicasets: list: %v", err)
 	}
 	for i := range rsList.Items {
-		f.t.Logf("DEBUG reseed: kubeclient rs=%s revision=%s hash=%s", rsList.Items[i].Name, rsList.Items[i].Annotations["rollout.argoproj.io/revision"], rsList.Items[i].Labels["rollouts-pod-template-hash"])
-	}
-	for i := range rsList.Items {
 		if err := rsIndexer.Update(&rsList.Items[i]); err != nil {
 			f.t.Fatalf("re-seed replicasets: update indexer: %v", err)
 		}
