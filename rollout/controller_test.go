@@ -737,6 +737,7 @@ func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInf
 		allowErr := f.allowErrorOnLastSync && (n == syncs-1)
 		f.assertSyncHandlerResult(n, syncs, err, expectError, allowErr)
 		f.reseedRolloutInInformerIfNeeded(c, rolloutName, n, syncs)
+		f.reseedKubeResourcesInInformerIfNeeded(k8sI, n, syncs)
 	}
 
 	return f.verifyActionsAndReturn(c)
@@ -771,6 +772,41 @@ func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName str
 	}
 	if err := c.rolloutsIndexer.Update(ro); err != nil {
 		f.t.Fatalf("re-seed rollout: update indexer: %v", err)
+	}
+}
+
+// reseedKubeResourcesInInformerIfNeeded re-seeds ReplicaSets and Services from the fake kube client
+// into the informer indexers between syncs. The controller creates/updates these resources via the
+// fake client during a sync, but the informer only learns about them through asynchronous watch
+// propagation, which races with the next synchronous sync. Re-seeding makes the multi-sync harness
+// deterministic. No-op when syncs <= 1 or on the last sync.
+func (f *fixture) reseedKubeResourcesInInformerIfNeeded(k8sI kubeinformers.SharedInformerFactory, n, syncs int) {
+	if syncs <= 1 || n >= syncs-1 {
+		return
+	}
+	rsIndexer := k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer()
+	rsList, err := f.kubeclient.AppsV1().ReplicaSets(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed replicasets: list: %v", err)
+	}
+	for i := range rsList.Items {
+		f.t.Logf("DEBUG reseed: kubeclient rs=%s revision=%s hash=%s", rsList.Items[i].Name, rsList.Items[i].Annotations["rollout.argoproj.io/revision"], rsList.Items[i].Labels["rollouts-pod-template-hash"])
+	}
+	for i := range rsList.Items {
+		if err := rsIndexer.Update(&rsList.Items[i]); err != nil {
+			f.t.Fatalf("re-seed replicasets: update indexer: %v", err)
+		}
+	}
+
+	svcIndexer := k8sI.Core().V1().Services().Informer().GetIndexer()
+	svcList, err := f.kubeclient.CoreV1().Services(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed services: list: %v", err)
+	}
+	for i := range svcList.Items {
+		if err := svcIndexer.Update(&svcList.Items[i]); err != nil {
+			f.t.Fatalf("re-seed services: update indexer: %v", err)
+		}
 	}
 }
 
