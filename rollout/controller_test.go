@@ -1027,6 +1027,7 @@ func (f *fixture) expectGetEndpointsAction(ep *corev1.Endpoints) int {
 // panicking) when fewer actions occurred than expected. This keeps a single failing test from
 // aborting the rest of the package via an index-out-of-range panic.
 func (f *fixture) kubeActionAt(index int) core.Action {
+	f.t.Helper()
 	actions := filterInformerActions(f.kubeclient.Actions())
 	require.Greaterf(f.t, len(actions), index, "expected at least %d kube actions, got %d", index+1, len(actions))
 	return actions[index]
@@ -1035,6 +1036,7 @@ func (f *fixture) kubeActionAt(index int) core.Action {
 // actionAt returns the filtered argoproj action at the given index, failing the test (instead of
 // panicking) when fewer actions occurred than expected.
 func (f *fixture) actionAt(index int) core.Action {
+	f.t.Helper()
 	actions := filterInformerActions(f.client.Actions())
 	require.Greaterf(f.t, len(actions), index, "expected at least %d rollout actions, got %d", index+1, len(actions))
 	return actions[index]
