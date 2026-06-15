@@ -14,6 +14,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -1022,8 +1023,27 @@ func (f *fixture) expectGetEndpointsAction(ep *corev1.Endpoints) int {
 	return len
 }
 
+// kubeActionAt returns the filtered kube action at the given index, failing the test (instead of
+// panicking) when fewer actions occurred than expected. This keeps a single failing test from
+// aborting the rest of the package via an index-out-of-range panic.
+func (f *fixture) kubeActionAt(index int) core.Action {
+	f.t.Helper()
+	actions := filterInformerActions(f.kubeclient.Actions())
+	require.Greaterf(f.t, len(actions), index, "expected at least %d kube actions, got %d", index+1, len(actions))
+	return actions[index]
+}
+
+// actionAt returns the filtered argoproj action at the given index, failing the test (instead of
+// panicking) when fewer actions occurred than expected.
+func (f *fixture) actionAt(index int) core.Action {
+	f.t.Helper()
+	actions := filterInformerActions(f.client.Actions())
+	require.Greaterf(f.t, len(actions), index, "expected at least %d rollout actions, got %d", index+1, len(actions))
+	return actions[index]
+}
+
 func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Created action, not %s", action.GetVerb())
@@ -1037,7 +1057,7 @@ func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 }
 
 func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
@@ -1051,7 +1071,7 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 }
 
 func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1066,7 +1086,7 @@ func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
 }
 
 func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
@@ -1077,7 +1097,7 @@ func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32
 }
 
 func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy string) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
@@ -1105,7 +1125,7 @@ func (f *fixture) verifyPatchedRolloutAborted(index int, rsName string) {
 }
 
 func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) bool {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
@@ -1114,7 +1134,7 @@ func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) 
 }
 
 func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
@@ -1128,7 +1148,7 @@ func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
 }
 
 func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nolint:unused
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1142,7 +1162,7 @@ func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nol
 }
 
 func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1156,7 +1176,7 @@ func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
 }
 
 func (f *fixture) getCreatedExperiment(index int) *v1alpha1.Experiment {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1170,7 +1190,7 @@ func (f *fixture) getCreatedExperiment(index int) *v1alpha1.Experiment {
 }
 
 func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1185,7 +1205,7 @@ func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
 }
 
 func (f *fixture) getPatchedRollout(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1194,7 +1214,7 @@ func (f *fixture) getPatchedRollout(index int) string {
 }
 
 func (f *fixture) getPatchedRolloutWithoutConditions(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1213,7 +1233,7 @@ func (f *fixture) getPatchedRolloutWithoutConditions(index int) string {
 }
 
 func (f *fixture) getPatchedRolloutAsObject(index int) *v1alpha1.Rollout {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1248,7 +1268,7 @@ func (f *fixture) expectDeleteReplicaSetAction(rs *appsv1.ReplicaSet) int {
 }
 
 func (f *fixture) getDeletedReplicaSet(index int) string { //nolint:unused
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1257,7 +1277,7 @@ func (f *fixture) getDeletedReplicaSet(index int) string { //nolint:unused
 }
 
 func (f *fixture) getDeletedAnalysisRun(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1266,7 +1286,7 @@ func (f *fixture) getDeletedAnalysisRun(index int) string {
 }
 
 func (f *fixture) getDeletedExperiment(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1275,7 +1295,7 @@ func (f *fixture) getDeletedExperiment(index int) string {
 }
 
 func (f *fixture) getUpdatedPod(index int) *corev1.Pod {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
