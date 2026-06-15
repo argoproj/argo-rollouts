@@ -235,6 +235,7 @@ func TestPersistWorkloadRefGeneration(t *testing.T) {
 		log:     logutil.WithRollout(r),
 		reconcilerBase: reconcilerBase{
 			argoprojclientset: &fake,
+			recorder:          record.NewFakeEventRecorder(),
 		},
 		pauseContext: &pauseContext{
 			rollout: r,
