@@ -1,4 +1,4 @@
-# This example demonstrates how start a new baseline and canary stack as part of the Rollout update.
+# This example demonstrates how to start a new baseline and canary stack as part of the Rollout update.
 # Comparing a canary against a baseline (as opposed to existing production instances) is considered
 # a common best practice when performing canary analysis, since it eliminates many differences that
 # may skew the results of an analysis (cache warmup time, heap size, etc).
