@@ -68,6 +68,7 @@ func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectUpdateReplicaSetAction(rs) // scale up RS
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
+	f.expectGetRolloutAction(r) // second reconciliation
 	expectedPatchWithoutSubs := `{
 		"status":{
 			"blueGreen" : {
@@ -82,7 +83,7 @@ func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 	}`
 	expectedPatch := calculatePatch(r, fmt.Sprintf(expectedPatchWithoutSubs, rsPodHash, generatedConditions, rsPodHash))
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r, expectedPatch)
-	f.run(getKey(r, t))
+	f.runWithSyncs(getKey(r, t), 2)
 
 	f.verifyPatchedService(servicePatchIndex, rsPodHash, "")
 
@@ -118,6 +119,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectUpdateReplicaSetAction(rs) // scale up RS
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
+	f.expectGetRolloutAction(r) // second reconciliation
 	expectedPatchWithoutSubs := `{
 		"status":{
 			"blueGreen" : {
@@ -132,7 +134,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	}`
 	expectedPatch := calculatePatch(r, fmt.Sprintf(expectedPatchWithoutSubs, rsPodHash, generatedConditions, rsPodHash))
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r, expectedPatch)
-	f.run(getKey(r, t))
+	f.runWithSyncs(getKey(r, t), 2)
 
 	f.verifyPatchedService(servicePatchIndex, rsPodHash, "")
 
@@ -369,7 +371,6 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
 		addPauseConditionPatchIndex := f.expectPatchRolloutAction(r2)
-		f.expectPatchRolloutAction(r2)
 		f.run(getKey(r2, t))
 
 		patch := f.getPatchedRollout(addPauseConditionPatchIndex)
@@ -802,8 +803,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs2PodHash)
 		unpausePatchIndex := f.expectPatchRolloutAction(r2)
+		f.expectGetRolloutAction(r2) // second reconciliation
 		patchRolloutIndex := f.expectPatchRolloutAction(r2)
-		f.run(getKey(r2, t))
+		f.runWithSyncs(getKey(r2, t), 2)
 
 		f.verifyPatchedService(servicePatchIndex, rs2PodHash, "")
 		unpausePatch := f.getPatchedRollout(unpausePatchIndex)
@@ -818,7 +820,13 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		}`
 		assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedUnpausePatch, unpauseConditions)), unpausePatch)
 
-		generatedConditions := generateConditionsPatchWithCompleted(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
+		// By the second reconciliation the rollout has fully promoted to the new ReplicaSet
+		// and become healthy. observedGeneration was already persisted in the unpause patch.
+		_, available2ndCondition := newAvailableCondition(true)
+		_, healthy2ndCondition := newHealthyCondition(true)
+		_, progressing2ndCondition := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
+		_, completed2ndCondition := newCompletedCondition(true)
+		generatedConditions := fmt.Sprintf("[%s, %s, %s, %s]", available2ndCondition, healthy2ndCondition, progressing2ndCondition, completed2ndCondition)
 		expected2ndPatchWithoutSubs := `{
 			"status": {
 				"blueGreen": {
@@ -833,7 +841,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 			}
 		}`
 		newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
-		expected2ndPatch := calculatePatch(r2, fmt.Sprintf(expected2ndPatchWithoutSubs, rs2PodHash, rs2PodHash, generatedConditions, newSelector))
+		expected2ndPatch := cleanPatch(fmt.Sprintf(expected2ndPatchWithoutSubs, rs2PodHash, rs2PodHash, generatedConditions, newSelector))
 		rollout2ndPatch := f.getPatchedRollout(patchRolloutIndex)
 		assert.Equal(t, expected2ndPatch, rollout2ndPatch)
 	})
@@ -1078,6 +1086,7 @@ func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *test
 	f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectUpdateReplicaSetAction(rs) // scale up RS
 	f.expectUpdateRolloutStatusAction(r)
+	f.expectGetRolloutAction(r) // second reconciliation
 	expectedPatchWithoutSubs := `{
 		"status":{
 			"blueGreen" : {
@@ -1092,7 +1101,7 @@ func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *test
 	}`
 	expectedPatch := calculatePatch(r, fmt.Sprintf(expectedPatchWithoutSubs, rsPodHash, generatedConditions, rsPodHash))
 	f.expectPatchRolloutActionWithPatch(r, expectedPatch)
-	f.run(getKey(r, t))
+	f.runWithSyncs(getKey(r, t), 2)
 
 	logMessage := buf.String()
 	assert.True(t, strings.Contains(logMessage, "msg=\"Stable ReplicaSet doesn't exist and hence no reconciliation is required.\""), logMessage)
@@ -1541,7 +1550,7 @@ func TestBlueGreenAbort(t *testing.T) {
 			"selector": "foo=bar,rollouts-pod-template-hash=%s",
 			"phase": "Degraded",
 			"message": "%s: %s"
-		}	
+		}
 	}`, rs1PodHash, expectedConditions, rs1PodHash, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))
 	patch := f.getPatchedRollout(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)

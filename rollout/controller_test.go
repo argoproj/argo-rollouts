@@ -1322,11 +1322,12 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.objects = append(f.objects, r)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 
-	f.expectUpdateRolloutStatusAction(r)
-	f.expectPatchRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r) // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r)          // second reconciliation
+	f.expectPatchRolloutAction(r)        // sync 2: patch status
 	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
 	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
-	f.run(getKey(r, t))
+	f.runWithSyncs(getKey(r, t), 2)
 }
 
 func TestAdoptReplicaSet(t *testing.T) {
@@ -1460,11 +1461,14 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
-	//updateIndex := f.expectUpdateRolloutAction(r)
-	f.expectUpdateRolloutStatusAction(r)
-	updateIndex := f.expectUpdateRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r)          // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r)                   // second reconciliation
+	updateIndex := f.expectUpdateRolloutAction(r) // sync 2: default .spec.replicas, then exit early
+	f.expectGetRolloutAction(r)                   // third reconciliation
+	f.expectPatchRolloutAction(r)                 // sync 3: patch status
 	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
-	f.run(getKey(r, t))
+	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.runWithSyncs(getKey(r, t), 3)
 	updatedRollout := f.getUpdatedRollout(updateIndex)
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
 }
@@ -1581,11 +1585,12 @@ requests:
 		f.serviceLister = append(f.serviceLister, activeSvc)
 		f.objects = append(f.objects, r)
 
-		f.expectUpdateRolloutStatusAction(r)
-		f.expectPatchRolloutAction(r)
+		f.expectUpdateRolloutStatusAction(r) // sync 1: create RS and set Progressing condition, then exit early
+		f.expectGetRolloutAction(r)          // second reconciliation
+		f.expectPatchRolloutAction(r)        // sync 2: patch status
 		rs := newReplicaSet(r, 1)
 		rsIdx := f.expectCreateReplicaSetAction(rs)
-		f.run(getKey(r, t))
+		f.runWithSyncs(getKey(r, t), 2)
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
 		f.Close()

@@ -1324,6 +1324,7 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 	f.objects = append(f.objects, r2, unstructuredObj)
 	f.expectUpdateRolloutAction(r2)
 	f.expectUpdateRolloutStatusAction(r2)
+	f.expectGetRolloutAction(r2) // second reconciliation
 	f.expectPatchRolloutAction(r2)
 	f.expectCreateReplicaSetAction(rs2)
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
@@ -1338,7 +1339,7 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 			},
 		},
 	}).Once().Return(nil)
-	f.run(getKey(r1, t))
+	f.runWithSyncs(getKey(r1, t), 2)
 }
 
 // This makes sure we don't set weight to zero if we are rolling back to stable with DynamicStableScale
