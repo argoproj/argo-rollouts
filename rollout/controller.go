@@ -213,13 +213,13 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	controller := &Controller{
-		reconcilerBase:      base,
-		namespace:           cfg.Namespace,
-		replicaSetControl:   replicaSetControl,
-		rolloutWorkqueue:    cfg.RolloutWorkQueue,
-		serviceWorkqueue:    cfg.ServiceWorkQueue,
-		ingressWorkqueue:    cfg.IngressWorkQueue,
-		metricsServer:       cfg.MetricsServer,
+		reconcilerBase:        base,
+		namespace:             cfg.Namespace,
+		replicaSetControl:     replicaSetControl,
+		rolloutWorkqueue:      cfg.RolloutWorkQueue,
+		serviceWorkqueue:      cfg.ServiceWorkQueue,
+		ingressWorkqueue:      cfg.IngressWorkQueue,
+		metricsServer:         cfg.MetricsServer,
 		rolloutVersionTracker: resourceversionutil.NewTracker(),
 	}
 	controller.enqueueRollout = func(obj any) {
