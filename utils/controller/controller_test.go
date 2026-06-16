@@ -83,6 +83,20 @@ func TestProcessNextWorkItemNormalSync(t *testing.T) {
 	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, nil))
 }
 
+func TestProcessNextWorkItemStaleCache(t *testing.T) {
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
+	q.Add("valid/key")
+	metricServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:               "localhost:8080",
+		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
+	})
+	syncHandler := func(ctx context.Context, key string) error {
+		return StaleCacheError
+	}
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, metricServer))
+	assert.Equal(t, 0, q.NumRequeues("valid/key"))
+}
+
 func TestProcessNextWorkItemSyncHandlerReturnError(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add("valid/key")

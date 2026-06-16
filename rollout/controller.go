@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	gocache "github.com/patrickmn/go-cache"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -54,6 +53,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	resourceversionutil "github.com/argoproj/argo-rollouts/utils/resourceversion"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
@@ -83,10 +83,9 @@ type Controller struct {
 	rolloutWorkqueue workqueue.RateLimitingInterface
 	serviceWorkqueue workqueue.RateLimitingInterface
 	ingressWorkqueue workqueue.RateLimitingInterface
-	// rolloutVersionCache is used to track recently applied rollout resource versions
-	// by tracking these resource versions in memory, we can determine if the cache is stale
-	// relative to what we just applied and wait until the cache gets updated to a version that has the change
-	rolloutVersionCache *gocache.Cache
+	// rolloutVersionTracker remembers ResourceVersions from our last successful writes so
+	// syncHandler can requeue when the informer cache hasn't caught up yet.
+	rolloutVersionTracker *resourceversionutil.Tracker
 }
 
 // ControllerConfig describes the data required to instantiate a new rollout controller
@@ -221,7 +220,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		serviceWorkqueue:    cfg.ServiceWorkQueue,
 		ingressWorkqueue:    cfg.IngressWorkQueue,
 		metricsServer:       cfg.MetricsServer,
-		rolloutVersionCache: gocache.New(time.Minute, time.Minute), // in the worst-case, the resourceVersion isn't monotonic and we just will retry after 1m
+		rolloutVersionTracker: resourceversionutil.NewTracker(),
 	}
 	controller.enqueueRollout = func(obj any) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)
@@ -398,26 +397,15 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}
 	rollout, err := c.rolloutsLister.Rollouts(namespace).Get(name)
 	if k8serrors.IsNotFound(err) {
+		c.rolloutVersionTracker.Forget(key)
 		return nil
 	}
 	if err != nil {
 		return err
 	}
 
-	// If the resourceVersion of the rollout that we get from the informer cache is lower than the resourceVersion
-	// that we stored in our resourceVersionCache, requeue since we're working with stale data
-	if cachedResourceVersion, ok := c.rolloutVersionCache.Get(key); ok {
-		cachedValue, err := strconv.ParseInt(cachedResourceVersion.(string), 10, 64)
-		if err != nil {
-			return fmt.Errorf("failed to parse cached resource version: %w", err)
-		}
-		rolloutValue, err := strconv.ParseInt(rollout.ResourceVersion, 10, 64)
-		if err != nil {
-			return fmt.Errorf("failed to parse rollout resource version: %w", err)
-		}
-		if rolloutValue < cachedValue {
-			return controllerutil.StaleCacheError
-		}
+	if c.rolloutVersionTracker.IsCacheStale(key, rollout.ResourceVersion) {
+		return controllerutil.StaleCacheError
 	}
 
 	// Remarshal the rollout to normalize all fields so that when we calculate hashes against the
@@ -464,7 +452,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		r.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
 		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
 		if err == nil {
-			c.rolloutVersionCache.SetDefault(key, newRollout.ResourceVersion)
+			c.rolloutVersionTracker.Record(key, newRollout.ResourceVersion)
 		}
 		return err
 	}
@@ -479,7 +467,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		return err
 	}
 	if roCtx.newRollout != nil {
-		c.rolloutVersionCache.SetDefault(key, roCtx.newRollout.ResourceVersion)
+		c.rolloutVersionTracker.Record(key, roCtx.newRollout.ResourceVersion)
 	}
 	return nil
 }

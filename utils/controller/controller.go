@@ -111,6 +111,10 @@ func RunWorker(ctx context.Context, workqueue workqueue.RateLimitingInterface, o
 
 var StaleCacheError = errors.New("stale cache, requeuing item")
 
+// StaleCacheRequeueDelay is how long to wait before retrying when the informer cache
+// hasn't yet observed our previous write.
+const StaleCacheRequeueDelay = 100 * time.Millisecond
+
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
 func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(context.Context, string) error, metricsServer *metrics.MetricsServer) bool {
@@ -162,7 +166,7 @@ func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingIn
 		// Rollout resource to be synced.
 		if err := runSyncHandler(); err != nil {
 			if errors.Is(err, StaleCacheError) {
-				workqueue.AddAfter(key, time.Second)
+				workqueue.AddAfter(key, StaleCacheRequeueDelay)
 				logCtx.Infof("requeuing due to stale cache, %s syncHandler queue retries: %v : key \"%v\"", objType, workqueue.NumRequeues(key), key)
 				return nil
 			}
