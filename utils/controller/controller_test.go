@@ -94,7 +94,12 @@ func TestProcessNextWorkItemStaleCache(t *testing.T) {
 		return StaleCacheError
 	}
 	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, metricServer))
+	assert.Equal(t, 0, q.Len())
+	// Stale cache uses AddAfter, not AddRateLimited, so it must not increment the rate limiter.
 	assert.Equal(t, 0, q.NumRequeues("valid/key"))
+
+	time.Sleep(StaleCacheRequeueDelay + 50*time.Millisecond)
+	assert.Equal(t, 1, q.Len())
 }
 
 func TestProcessNextWorkItemSyncHandlerReturnError(t *testing.T) {

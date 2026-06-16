@@ -167,7 +167,7 @@ func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingIn
 		if err := runSyncHandler(); err != nil {
 			if errors.Is(err, StaleCacheError) {
 				workqueue.AddAfter(key, StaleCacheRequeueDelay)
-				logCtx.Infof("requeuing due to stale cache, %s syncHandler queue retries: %v : key \"%v\"", objType, workqueue.NumRequeues(key), key)
+				logCtx.Infof("requeuing %s due to stale cache after %s, key %q", objType, StaleCacheRequeueDelay, key)
 				return nil
 			}
 			logCtx.Errorf("%s syncHandler error: %v", objType, err)
