@@ -743,6 +743,16 @@ func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInf
 	return f.verifyActionsAndReturn(c)
 }
 
+func (f *fixture) assertSyncHandlerResult(n, syncs int, err error, expectError, allowErr bool) {
+	if !expectError && err != nil && !allowErr {
+		f.t.Errorf("error syncing rollout (sync %d/%d): %v", n+1, syncs, err)
+		return
+	}
+	if expectError && err == nil {
+		f.t.Error("expected error syncing rollout, got nil")
+	}
+}
+
 // reseedRolloutInInformerIfNeeded re-seeds the rollout in the informer after a sync so the next sync
 // sees an updated typed Rollout (e.g. multi-sync tests that mutate status between reconciles).
 // No-op when syncs <= 1 or on the final sync index.
@@ -764,16 +774,6 @@ func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName str
 	c.rolloutVersionTracker.Forget(rolloutName)
 	if err := c.rolloutsIndexer.Update(ro); err != nil {
 		f.t.Fatalf("re-seed rollout: update indexer: %v", err)
-	}
-}
-
-func (f *fixture) assertSyncHandlerResult(n, syncs int, err error, expectError, allowErr bool) {
-	if !expectError && err != nil && !allowErr {
-		f.t.Errorf("error syncing rollout (sync %d/%d): %v", n+1, syncs, err)
-		return
-	}
-	if expectError && err == nil {
-		f.t.Error("expected error syncing rollout, got nil")
 	}
 }
 
