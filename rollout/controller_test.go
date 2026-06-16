@@ -1113,7 +1113,7 @@ func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy s
 }
 
 func (f *fixture) verifyPatchedRolloutAborted(index int, rsName string) {
-	action := f.kubeActionAt(index)
+	action := filterInformerActions(f.kubeclient.Actions())[index]
 	_, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
