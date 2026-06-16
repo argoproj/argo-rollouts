@@ -274,6 +274,7 @@ func TestNewManager(t *testing.T) {
 	)
 
 	assert.NotNil(t, cm)
+	assert.Equal(t, "test", cm.instanceID)
 }
 
 func TestNewAnalysisManager(t *testing.T) {
@@ -335,4 +336,28 @@ func TestPrimaryControllerSingleInstanceWithShutdown(t *testing.T) {
 		cancel()
 	}()
 	cm.Run(ctx, 1, 1, 1, 1, 1, electOpts)
+}
+
+func TestLeaseLockName(t *testing.T) {
+	tests := []struct {
+		name       string
+		instanceID string
+		expected   string
+	}{
+		{
+			name:       "no instance id uses the default lock name",
+			instanceID: "",
+			expected:   defaultLeaderElectionLeaseLockName,
+		},
+		{
+			name:       "instance id is appended to the default lock name",
+			instanceID: "my-instance",
+			expected:   defaultLeaderElectionLeaseLockName + "-my-instance",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, leaseLockName(tt.instanceID))
+		})
+	}
 }

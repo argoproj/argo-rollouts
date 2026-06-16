@@ -193,6 +193,11 @@ jobs:
         with:
           cosign-release: 'v2.2.0'
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: ui/package.json
+
       - name: Generate SBOM (spdx)
         id: spdx-builder
         env:
@@ -201,13 +206,13 @@ jobs:
           # defines the sigs.k8s.io/bom version to use.
           SIGS_BOM_VERSION: v0.2.1
           # comma delimited list of project relative folders to inspect for package
-          # managers (gomod, yarn, npm).
+          # managers (gomod, pnpm, npm).
           PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the container image to be inspected
           CONTAINER_IMAGE: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts:${{ github.ref_name }}
 
         run: |
-          yarn install --cwd ./ui
+          pnpm install --dir ./ui --frozen-lockfile
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
           go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
 

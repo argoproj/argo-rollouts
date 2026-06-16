@@ -9,5 +9,5 @@
   > and have to be installed separately. The CRD manifests are located in [manifests/crds](./crds) directory.
   > Use the following command to install them:
   > ```bash
-  > kubectl apply -k https://github.com/argoproj/argo-rollouts/manifests/crds\?ref\=stable
+  > kubectl apply --server-side -k https://github.com/argoproj/argo-rollouts/manifests/crds\?ref\=stable
   > ```

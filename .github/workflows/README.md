@@ -10,6 +10,8 @@
 | pr-title-check.yaml | Lint PR for semantic information                                |
 | init-release.yaml   | Build manifests and version then create a PR for release branch |
 | release.yaml        | Build images, cli-binaries, provenances, and post actions       |
+| stale-issues-pr.yml | Close stale Issues and PRs                                      |
+| waiting-issues.yml  | Close stale issues and PRs waiting for response                 |
 
 
 # Reusable workflows
