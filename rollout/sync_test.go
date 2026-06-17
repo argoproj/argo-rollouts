@@ -336,10 +336,11 @@ func TestCanaryPromoteFull(t *testing.T) {
 
 	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // create new ReplicaSet (size 0)
 	f.expectUpdateRolloutAction(r2)                        // update rollout revision
-	f.expectUpdateRolloutStatusAction(r2)                  // update rollout conditions
+	f.expectUpdateRolloutStatusAction(r2)                  // update rollout conditions, then exit early
+	f.expectGetRolloutAction(r2)                           // second reconciliation
 	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // scale new ReplicaSet to 10
 	patchedRolloutIndex := f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
 	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
@@ -853,10 +854,11 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 
 	f.expectUpdateRolloutAction(r2) // update rollout revision
 	f.expectUpdateRolloutStatusAction(r2)
+	f.expectGetRolloutAction(r2) // second reconciliation
 	updatedROIndex := f.expectPatchRolloutAction(r2)
 	createdRS2Index := f.expectCreateReplicaSetAction(stableRs)
 	updatedRS2Index := f.expectUpdateReplicaSetAction(stableRs)
-	f.run(getKey(r2, t))
+	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
 	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
