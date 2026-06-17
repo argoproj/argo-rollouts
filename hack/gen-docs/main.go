@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/argoproj/notifications-engine/pkg/docs"
 	"github.com/spf13/cobra"
