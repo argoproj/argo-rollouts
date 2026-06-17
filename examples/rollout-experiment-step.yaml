@@ -1,4 +1,4 @@
-# This example demonstrates a Rollout which begins an an experiment at a specified step.
+# This example demonstrates a Rollout which begins an experiment at a specified step.
 # The rollout will not proceed to the next step until the experiment is completed and successful.
 # In this example, the experiment itself starts its own AnalysisRun which is tied to the experiment.
 # This is useful for when analysis should be done only during the experimentation phase, but not
