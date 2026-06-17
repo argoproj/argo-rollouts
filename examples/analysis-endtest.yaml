@@ -1,0 +1,48 @@
+# This AnalysisTemplate runs one or more Endtest test suites as a Job metric.
+# Create a Secret named endtest-credentials with ENDTEST_APP_ID,
+# ENDTEST_APP_CODE, and ENDTEST_API_REQUEST before using this template.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: endtest
+spec:
+  metrics:
+    - name: endtest-release-gate
+      provider:
+        job:
+          spec:
+            backoffLimit: 0
+            activeDeadlineSeconds: 3700
+            template:
+              spec:
+                automountServiceAccountToken: false
+                restartPolicy: Never
+                securityContext:
+                  runAsNonRoot: true
+                  seccompProfile:
+                    type: RuntimeDefault
+                containers:
+                  - name: endtest
+                    image: ghcr.io/endtest-technologies/endtest-argo:0.2.1
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      capabilities:
+                        drop:
+                          - ALL
+                    env:
+                      - name: ENDTEST_APP_ID
+                        valueFrom:
+                          secretKeyRef:
+                            name: endtest-credentials
+                            key: ENDTEST_APP_ID
+                      - name: ENDTEST_APP_CODE
+                        valueFrom:
+                          secretKeyRef:
+                            name: endtest-credentials
+                            key: ENDTEST_APP_CODE
+                      - name: ENDTEST_API_REQUEST
+                        valueFrom:
+                          secretKeyRef:
+                            name: endtest-credentials
+                            key: ENDTEST_API_REQUEST
