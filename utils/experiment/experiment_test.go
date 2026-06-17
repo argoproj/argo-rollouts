@@ -1,6 +1,7 @@
 package experiment
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-rollouts/utils/hash"
 )
 
 func TestGetRolloutOwnerRef(t *testing.T) {
@@ -159,16 +161,14 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 			Name: "foo",
 		},
 	}
-	// NOTE: The hash must be updated for every k8s library upgrade
-	assert.Equal(t, "foo-template-658c46c486", ReplicasetNameFromExperiment(e, template))
+	assert.Equal(t, fmt.Sprintf("foo-template-%s", hash.ComputePodTemplateHash(&template.Template, nil)), ReplicasetNameFromExperiment(e, template))
 
 	newTemplateStatus := v1alpha1.TemplateStatus{
 		Name:           templateName,
 		CollisionCount: ptr.To[int32](1),
 	}
 	e.Status.TemplateStatuses = append(e.Status.TemplateStatuses, newTemplateStatus)
-	// NOTE: The hash must be updated for every k8s library upgrade
-	assert.Equal(t, "foo-template-6746d5bbc", ReplicasetNameFromExperiment(e, template))
+	assert.Equal(t, fmt.Sprintf("foo-template-%s", hash.ComputePodTemplateHash(&template.Template, ptr.To[int32](1))), ReplicasetNameFromExperiment(e, template))
 }
 
 func TestExperimentByCreationTimestamp(t *testing.T) {

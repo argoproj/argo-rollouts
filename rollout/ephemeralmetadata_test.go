@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -21,7 +22,16 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
+
+func setReplicaSetEphemeralMetadataAnnotation(rs *v1.ReplicaSet, metadata *v1alpha1.PodTemplateMetadata) {
+	metadataBytes, _ := json.Marshal(metadata)
+	if rs.Annotations == nil {
+		rs.Annotations = make(map[string]string)
+	}
+	rs.Annotations[replicasetutil.EphemeralMetadataAnnotation] = string(metadataBytes)
+}
 
 // TestSyncCanaryEphemeralMetadataInitialRevision verifies when we create a revision 1 ReplicaSet
 // (with no previous revisions), that the ReplicaSet will get the stable metadata.
@@ -323,9 +333,8 @@ func TestSyncCanaryEphemeralMetadataReplicaSetAlreadyPatched(t *testing.T) {
 
 	// Create a ReplicaSet that already has the stable metadata label
 	rs1 := newReplicaSetWithStatus(r1, 3, 3)
-	rs1.Spec.Template.Labels = map[string]string{
-		"role": "stable",
-	}
+	rs1.Spec.Template.Labels["role"] = "stable"
+	setReplicaSetEphemeralMetadataAnnotation(rs1, r1.Spec.Strategy.Canary.StableMetadata)
 
 	rsGVK := schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "ReplicaSet"}
 
@@ -395,9 +404,8 @@ func TestSyncBlueGreenEphemeralMetadataReplicaSetAlreadyPatched(t *testing.T) {
 
 	// Create a ReplicaSet that already has the active metadata label
 	rs1 := newReplicaSetWithStatus(r1, 3, 3)
-	rs1.Spec.Template.Labels = map[string]string{
-		"role": "active",
-	}
+	rs1.Spec.Template.Labels["role"] = "active"
+	setReplicaSetEphemeralMetadataAnnotation(rs1, r1.Spec.Strategy.BlueGreen.ActiveMetadata)
 
 	rsGVK := schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "ReplicaSet"}
 

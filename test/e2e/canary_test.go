@@ -560,6 +560,22 @@ spec:
 		})
 }
 
+// assertCanarySelectorPointsToStable returns an assertion that the canary Service's selector has been
+// moved back to the stable (revision "1") ReplicaSet's pod-template-hash. The expected hash is read
+// from the live ReplicaSet rather than hardcoded, so the assertion never needs updating when the
+// pod-template-hash algorithm or Kubernetes libraries change.
+func assertCanarySelectorPointsToStable(tt *testing.T, appLabel string) func(t *fixtures.Then) {
+	return func(t *fixtures.Then) {
+		canarySvc, _ := t.GetServices()
+		stableHash := t.GetReplicaSetByRevision("1").Labels[rov1.DefaultRolloutUniqueLabelKey]
+		expected := map[string]string{
+			"app":                             appLabel,
+			rov1.DefaultRolloutUniqueLabelKey: stableHash,
+		}
+		assert.Equal(tt, expected, canarySvc.Spec.Selector)
+	}
+}
+
 // TestCanaryScaleDownOnAbort verifies scaledownOnAbort feature for canary
 func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
 	s.Given().
@@ -571,7 +587,7 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
 		WaitForRolloutStatus("Degraded").
 		Then().
 		// Expect that the canary service selector has been moved back to stable
-		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "674d8cf959"}, false).
+		Assert(assertCanarySelectorPointsToStable(s.T(), "canary-scaledowndelay")).
 		When().
 		Sleep(3*time.Second).
 		Then().
@@ -588,7 +604,7 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbortNoTrafficRouting() {
 		WaitForRolloutStatus("Degraded").
 		Then().
 		// Expect that the canary service selector has been moved back to stable
-		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "674d8cf959"}, false).
+		Assert(assertCanarySelectorPointsToStable(s.T(), "canary-scaledowndelay")).
 		When().
 		Sleep(3*time.Second).
 		Then().
@@ -667,8 +683,7 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		Sleep(2*time.Second). //WaitForRevisionPodCount does not wait for terminating pods and so ExpectServiceSelector fails sleep a bit for the terminating pods to be deleted
 		Then().
 		// Expect that the canary service selector is now set to stable because of dynamic stable scale is over and we have all pods up on stable rs
-		// NOTE: This must be updated for every k8s version upgrade
-		ExpectServiceSelector("dynamic-stable-scale-canary", map[string]string{"app": "dynamic-stable-scale", "rollouts-pod-template-hash": "6b56c8cdb4"}, false).
+		Assert(assertCanarySelectorPointsToStable(s.T(), "dynamic-stable-scale")).
 		ExpectRevisionPodCount("1", 4)
 }
 

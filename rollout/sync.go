@@ -75,12 +75,12 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	// Set existing new replica set's annotation
 	annotationsUpdated := annotations.SetNewReplicaSetAnnotations(c.rollout, rsCopy, newRevision, true)
 	minReadySecondsNeedsUpdate := rsCopy.Spec.MinReadySeconds != c.rollout.Spec.MinReadySeconds
-	affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout)
+	affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout, replicasetutil.GetPodTemplateHash(c.newRS))
 
 	if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
 
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
-		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
+		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout, replicasetutil.GetPodTemplateHash(c.newRS))
 
 		rs, err := c.updateReplicaSet(ctx, rsCopy)
 		if err != nil {
@@ -140,9 +140,9 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 
 	// new ReplicaSet does not exist, create one.
 	newRSTemplate := *c.rollout.Spec.Template.DeepCopy()
-	// Add default anti-affinity rule if antiAffinity bool set and RSTemplate meets requirements
-	newRSTemplate.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
 	podTemplateSpecHash := hash.ComputePodTemplateHash(&c.rollout.Spec.Template, c.rollout.Status.CollisionCount)
+	// Add default anti-affinity rule if antiAffinity bool set and RSTemplate meets requirements
+	newRSTemplate.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout, podTemplateSpecHash)
 	newRSTemplate.Labels = labelsutil.CloneAndAddLabel(c.rollout.Spec.Template.Labels, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
 	// Add podTemplateHash label to selector.
 	newRSSelector := labelsutil.CloneSelectorAndAddLabel(c.rollout.Spec.Selector, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
@@ -205,11 +205,13 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		}
 
 		// If the Rollout owns the ReplicaSet and the ReplicaSet's PodTemplateSpec is semantically
-		// deep equal to the PodTemplateSpec of the Rollout, it's the Rollout's new ReplicaSet.
-		// Otherwise, this is a hash collision and we need to increment the collisionCount field in
-		// the status of the Rollout and requeue to try the creation in the next sync.
+		// deep equal to the PodTemplateSpec of the Rollout (ignoring fields this controller
+		// injects, such as ephemeral metadata and the anti-affinity rule), it's the Rollout's new
+		// ReplicaSet. Otherwise, this is a hash collision and we need to increment the
+		// collisionCount field in the status of the Rollout and requeue to try the creation in
+		// the next sync.
 		controllerRef := metav1.GetControllerOf(rs)
-		if controllerRef != nil && controllerRef.UID == c.rollout.UID && replicasetutil.PodTemplateEqualIgnoreHash(&rs.Spec.Template, &c.rollout.Spec.Template) {
+		if controllerRef != nil && controllerRef.UID == c.rollout.UID && replicasetutil.ReplicaSetTemplateMatchesRollout(c.rollout, rs) {
 			createdRS = rs
 			err = nil
 			break
