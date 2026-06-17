@@ -59,6 +59,10 @@ func (c *rolloutContext) reconcile() error {
 	if err != nil {
 		return err
 	}
+	if c.newRollout != nil {
+		// exit early since we modified the rollout
+		return nil
+	}
 
 	isScalingEvent, err := c.isScalingEvent()
 	if err != nil {
