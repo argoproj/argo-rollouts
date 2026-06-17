@@ -511,10 +511,11 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 
 	f.expectCreateReplicaSetAction(rs2)
 	f.expectUpdateRolloutAction(r2)       // update revision
-	f.expectUpdateRolloutStatusAction(r2) // update progressing condition
+	f.expectUpdateRolloutStatusAction(r2) // update progressing condition, then exit early
+	f.expectGetRolloutAction(r2)          // second reconciliation
 	f.expectUpdateReplicaSetAction(rs2)   // scale replicaset
 	f.expectPatchRolloutAction(r1)
-	f.run(getKey(r2, t))
+	f.runWithSyncs(getKey(r2, t), 2)
 }
 
 func TestGetExperimentFromTemplate(t *testing.T) {

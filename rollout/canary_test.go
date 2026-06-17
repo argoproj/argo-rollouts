@@ -82,12 +82,13 @@ func TestCanaryRolloutBumpVersion(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	createdRSIndex := f.expectCreateReplicaSetAction(rs2)
+	createdRSIndex := f.expectCreateReplicaSetAction(rs2)                  // create replica set
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)                  // scale up RS
 	updatedRolloutRevisionIndex := f.expectUpdateRolloutAction(r2)         // update rollout revision
 	updatedRolloutConditionsIndex := f.expectUpdateRolloutStatusAction(r2) // update rollout conditions
-	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.expectGetRolloutAction(r2)                                           // second reconciliation
+	f.expectPatchRolloutAction(r2)                                         // patch status
+	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS := f.getCreatedReplicaSet(createdRSIndex)
 	assert.Equal(t, int32(0), *createdRS.Spec.Replicas)
@@ -291,8 +292,9 @@ func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	// The retry condition patch modifies the rollout and the controller exits early,
+	// so only a single patch happens in this reconciliation.
 	addPausedConditionPatch := f.expectPatchRolloutAction(r2)
-	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(addPausedConditionPatch)
@@ -417,9 +419,10 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	f.expectUpdateRolloutStatusAction(r2)
+	f.expectGetRolloutAction(r2) // second reconciliation
 	patchIndex := f.expectPatchRolloutAction(r2)
 	createRSIndex := f.expectCreateReplicaSetAction(rs1)
-	f.run(getKey(r2, t))
+	f.runWithSyncs(getKey(r2, t), 2)
 	createdRS := f.getCreatedReplicaSet(createRSIndex)
 
 	patch := f.getPatchedRollout(patchIndex)
@@ -461,10 +464,11 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	f.expectUpdateRolloutStatusAction(r2)
+	f.expectGetRolloutAction(r2) // second reconciliation
 	patchIndex := f.expectPatchRolloutAction(r2)
 	createdRSIndex := f.expectCreateReplicaSetAction(rs1)
 
-	f.run(getKey(r2, t))
+	f.runWithSyncs(getKey(r2, t), 2)
 
 	patch := f.getPatchedRollout(patchIndex)
 	updatedRS := f.getUpdatedReplicaSet(createdRSIndex)
@@ -496,8 +500,9 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	f.expectCreateReplicaSetAction(rs)
 	f.expectUpdateReplicaSetAction(rs) // scale up rs
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
+	f.expectGetRolloutAction(r) // second reconciliation
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runWithSyncs(getKey(r, t), 2)
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
 	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
@@ -536,8 +541,9 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	f.expectCreateReplicaSetAction(rs)
 	f.expectUpdateReplicaSetAction(rs) // scale up rs
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
+	f.expectGetRolloutAction(r) // second reconciliation
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runWithSyncs(getKey(r, t), 2)
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
 	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
@@ -629,8 +635,9 @@ func TestCanaryRolloutWithMaxWeightInTrafficRouting(t *testing.T) {
 		createdRSIndex := f.expectCreateReplicaSetAction(rs2)
 		updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
 		updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r2)
+		f.expectGetRolloutAction(r2) // second reconciliation
 		f.expectPatchRolloutAction(r2)
-		f.run(getKey(r2, t))
+		f.runWithSyncs(getKey(r2, t), 2)
 
 		createdRS := f.getCreatedReplicaSet(createdRSIndex)
 		assert.Equal(t, tc.expectedCreatedReplicas, *createdRS.Spec.Replicas)
@@ -668,8 +675,9 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	createdRSIndex := f.expectCreateReplicaSetAction(rs2)
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r2)
+	f.expectGetRolloutAction(r2) // second reconciliation
 	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS := f.getCreatedReplicaSet(createdRSIndex)
 	assert.Equal(t, int32(0), *createdRS.Spec.Replicas)
@@ -1793,9 +1801,10 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	_ = f.expectPatchRolloutAction(r2)           // this just sets a conditions. ignore for now
+	_ = f.expectPatchRolloutAction(r2)           // sets conditions, controller exits early
+	f.expectGetRolloutAction(r2)                 // second reconciliation
 	patchIndex := f.expectPatchRolloutAction(r2) // this patch should resume the rollout
-	f.run(getKey(r2, t))
+	f.runWithSyncs(getKey(r2, t), 2)
 
 	patch := f.getPatchedRollout(patchIndex)
 	var patchObj map[string]any
@@ -1847,9 +1856,11 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	_ = f.expectPatchRolloutAction(r2) // this just sets a conditions. ignore for now
+	// The conditions patch (after which the controller exits early) now carries the "manually paused" message.
 	patchIndex := f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.expectGetRolloutAction(r2) // second reconciliation
+	f.expectPatchRolloutAction(r2)
+	f.runWithSyncs(getKey(r2, t), 2)
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := `{
 		"status": {
@@ -1899,16 +1910,16 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectUpdateRolloutStatusAction(r2)
-	f.expectPatchRolloutAction(r2)
-	patchIndex := f.expectPatchRolloutAction(r2)
-
-	f.expectCreateReplicaSetAction(rs1)
+	f.expectCreateReplicaSetAction(rs1)          // sync 1: create the new ReplicaSet
+	f.expectUpdateRolloutStatusAction(r2)        // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r2)                 // second reconciliation
+	patchIndex := f.expectPatchRolloutAction(r2) // sync 2: patch conditions (settles observedGeneration), then exit early
+	f.expectGetRolloutAction(r2)                 // third reconciliation
 	f.expectUpdateReplicaSetAction(rs1)
 	f.expectUpdateReplicaSetAction(rs1)
 
-	f.run(getKey(r2, t))
-	patch := f.getPatchedRollout(patchIndex)
+	f.runWithSyncs(getKey(r2, t), 3)
+	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
