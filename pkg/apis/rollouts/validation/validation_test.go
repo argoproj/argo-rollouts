@@ -88,6 +88,30 @@ func TestValidateRollout(t *testing.T) {
 		assert.Empty(t, allErrs)
 	})
 
+	// Regression test for https://github.com/argoproj/argo-rollouts/issues/3130:
+	// a privileged container with a Bidirectional mountPropagation must validate
+	// the same way it does in a Deployment.
+	t.Run("privileged container with bidirectional mount propagation", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		bidirectional := corev1.MountPropagationBidirectional
+		ro.Spec.Template.Spec.Volumes = []corev1.Volume{{
+			Name: "a-dir-to-mount",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		}}
+		ro.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+			Privileged: ptr.To[bool](true),
+		}
+		ro.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{
+			Name:             "a-dir-to-mount",
+			MountPath:        "/tmp",
+			MountPropagation: &bidirectional,
+		}}
+		allErrs := ValidateRollout(ro)
+		assert.Empty(t, allErrs)
+	})
+
 }
 
 func TestValidateRolloutStrategy(t *testing.T) {
