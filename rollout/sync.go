@@ -584,22 +584,58 @@ func isWaitingForReplicaSetScaleDown(r *v1alpha1.Rollout, newRS, stableRS *appsv
 	return false
 }
 
-func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutStatus) v1alpha1.RolloutStatus {
-	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
+// evaluateProgressDeadlineAbort aborts the rollout (via the pause context) when an in-flight
+// update has exceeded its progress deadline and spec.progressDeadlineAbort is set.
+func (c *rolloutContext) evaluateProgressDeadlineAbort(newStatus *v1alpha1.RolloutStatus) {
+	if !c.rollout.Spec.ProgressDeadlineAbort {
+		return
+	}
+	if c.pauseContext == nil || c.pauseContext.IsAborted() {
+		return
+	}
+	// Progress-deadline abort only applies to an in-flight update. Once the rollout is fully
+	// promoted, the update already succeeded; a later availability drop should not abort
+	// a rollout that already completed.
+	if conditions.RolloutCompleted(newStatus) {
+		return
+	}
+	// Don't abort an update that is still making progress during this reconciliation
+	if conditions.RolloutProgressing(c.rollout, newStatus) {
+		return
+	}
+	// Some steps do not count against the lack of progress
+	if isIndefiniteStep(c.rollout) || isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs) {
+		return
+	}
+	// Check if the existing Progressing condition has timed out
+	if !conditions.RolloutTimedOut(c.rollout, &c.rollout.Status) {
+		return
+	}
+
+	msg := fmt.Sprintf(conditions.RolloutTimeOutMessage, c.rollout.Name)
+	if c.newRS != nil {
+		msg = fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, c.newRS.Name)
+	}
+	c.pauseContext.AddAbort(msg)
+	c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
+}
+
+func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutStatus) {
+	isPaused := len(newStatus.PauseConditions) > 0 || c.rollout.Spec.Paused
 	isAborted := c.pauseContext.IsAborted()
 
 	var becameUnhealthy bool // remember if we transitioned from healthy to unhealthy
 	completeCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutHealthy)
-	if !isPaused && conditions.RolloutHealthy(c.rollout, &newStatus) {
+	if !isPaused && conditions.RolloutHealthy(c.rollout, newStatus) {
 		updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionTrue, conditions.RolloutHealthyReason, conditions.RolloutHealthyMessage)
-		conditions.SetRolloutCondition(&newStatus, *updateHealthyCond)
+		conditions.SetRolloutCondition(newStatus, *updateHealthyCond)
 		// If we ever wanted to emit a healthy event here it would be noisy and somewhat unpredictable for tests and so should probably be skipped
 		// when checking in e2e and unit tests.
 		//c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutHealthyMessage)
 	} else {
 		if completeCond != nil {
 			updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionFalse, conditions.RolloutHealthyReason, conditions.RolloutNotHealthyMessage)
-			becameUnhealthy = conditions.SetRolloutCondition(&newStatus, *updateHealthyCond)
+			becameUnhealthy = conditions.SetRolloutCondition(newStatus, *updateHealthyCond)
 			//c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutNotHealthyMessage)
 		}
 	}
@@ -611,7 +647,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			message = fmt.Sprintf("%s: %s", message, c.pauseContext.abortMessage)
 		}
 		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, message)
-		if conditions.SetRolloutCondition(&newStatus, *condition) {
+		if conditions.SetRolloutCondition(newStatus, *condition) {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, message)
 		}
 	}
@@ -625,7 +661,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	// Check for progress. Only do this if the latest rollout hasn't completed yet and it is not aborted
 	if !isHealthyRollout && !isAborted {
 		switch {
-		case conditions.RolloutHealthy(c.rollout, &newStatus):
+		case conditions.RolloutHealthy(c.rollout, newStatus):
 			// Update the rollout conditions with a message for the new replica set that
 			// was successfully deployed. If the condition already exists, we ignore this update.
 			rsName := ""
@@ -634,8 +670,8 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			}
 			msg := fmt.Sprintf(conditions.ReplicaSetCompletedMessage, rsName)
 			progressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
-			conditions.SetRolloutCondition(&newStatus, *progressingCondition)
-		case conditions.RolloutProgressing(c.rollout, &newStatus) || becameUnhealthy:
+			conditions.SetRolloutCondition(newStatus, *progressingCondition)
+		case conditions.RolloutProgressing(c.rollout, newStatus) || becameUnhealthy:
 			// If there is any progress made, continue by not checking if the rollout failed. This
 			// behavior emulates the rolling updater progressDeadline check.
 			msg := fmt.Sprintf(conditions.RolloutProgressingMessage, c.rollout.Name)
@@ -666,10 +702,10 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 				if currentCond.Status == corev1.ConditionTrue {
 					condition.LastTransitionTime = currentCond.LastTransitionTime
 				}
-				conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutProgressing)
+				conditions.RemoveRolloutCondition(newStatus, v1alpha1.RolloutProgressing)
 			}
-			conditions.SetRolloutCondition(&newStatus, *condition)
-		case !isIndefiniteStep(c.rollout) && !isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs) && conditions.RolloutTimedOut(c.rollout, &newStatus):
+			conditions.SetRolloutCondition(newStatus, *condition)
+		case !isIndefiniteStep(c.rollout) && !isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs) && conditions.RolloutTimedOut(c.rollout, newStatus):
 
 			// Update the rollout with a timeout condition. If the condition already exists,
 			// we ignore this update.
@@ -679,62 +715,45 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			}
 
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
-			condChanged := conditions.SetRolloutCondition(&newStatus, *condition)
-
-			// If condition is changed and ProgressDeadlineAbort is set, abort the update
-			if condChanged {
-				if c.rollout.Spec.ProgressDeadlineAbort {
-					c.pauseContext.AddAbort(msg)
-					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
-				}
-			} else {
-				// Although condition is unchanged, ProgressDeadlineAbort can be set after
-				// an existing update timeout. In this case if update is not aborted, we need to abort.
-				if c.rollout.Spec.ProgressDeadlineAbort && c.pauseContext != nil && !c.pauseContext.IsAborted() {
-					c.pauseContext.AddAbort(msg)
-					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
-				}
-			}
+			conditions.SetRolloutCondition(newStatus, *condition)
 		}
 	}
 
 	activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.allRSs, newStatus.BlueGreen.ActiveSelector)
 	if c.rollout.Spec.Strategy.BlueGreen != nil && activeRS != nil && annotations.IsSaturated(c.rollout, activeRS) {
 		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.AvailableReason, conditions.AvailableMessage)
-		conditions.SetRolloutCondition(&newStatus, *availability)
+		conditions.SetRolloutCondition(newStatus, *availability)
 	} else if c.rollout.Spec.Strategy.Canary != nil && replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs) >= defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
 		availability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionTrue, conditions.AvailableReason, conditions.AvailableMessage)
-		conditions.SetRolloutCondition(&newStatus, *availability)
+		conditions.SetRolloutCondition(newStatus, *availability)
 	} else {
 		noAvailability := conditions.NewRolloutCondition(v1alpha1.RolloutAvailable, corev1.ConditionFalse, conditions.AvailableReason, conditions.NotAvailableMessage)
-		conditions.SetRolloutCondition(&newStatus, *noAvailability)
+		conditions.SetRolloutCondition(newStatus, *noAvailability)
 	}
 
 	// Move failure conditions of all replica sets in rollout conditions. For now,
 	// only one failure condition is returned from getReplicaFailures.
 	if replicaFailureCond := c.getReplicaFailures(c.allRSs, c.newRS); len(replicaFailureCond) > 0 {
 		// There will be only one ReplicaFailure condition on the replica set.
-		conditions.SetRolloutCondition(&newStatus, replicaFailureCond[0])
+		conditions.SetRolloutCondition(newStatus, replicaFailureCond[0])
 	} else {
-		conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutReplicaFailure)
+		conditions.RemoveRolloutCondition(newStatus, v1alpha1.RolloutReplicaFailure)
 	}
 
-	if conditions.RolloutCompleted(&newStatus) {
+	if conditions.RolloutCompleted(newStatus) {
 		// The event gets triggered in function promoteStable
 		updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue,
 			conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
-		conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
+		conditions.SetRolloutCondition(newStatus, *updateCompletedCond)
 	} else {
 		updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionFalse,
 			conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
-		if conditions.SetRolloutCondition(&newStatus, *updateCompletedCond) {
+		if conditions.SetRolloutCondition(newStatus, *updateCompletedCond) {
 			revision, _ := replicasetutil.Revision(c.rollout)
 			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutNotCompletedReason},
 				conditions.RolloutNotCompletedMessage, revision, newStatus.CurrentPodHash)
 		}
 	}
-
-	return newStatus
 }
 
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
@@ -742,8 +761,8 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	ctx := context.TODO()
 	logCtx := logutil.WithVersionFields(c.log, c.rollout)
 
-	prevStatus := c.rollout.Status
-	c.pauseContext.CalculatePauseStatus(newStatus)
+	// First resolve the observed generation since we are "done" updating the status
+	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 	if c.rollout.Spec.TemplateResolvedFromRef {
 		workloadRefObservation, _ := annotations.GetWorkloadGenerationAnnotation(c.rollout)
 		currentWorkloadObservedGeneration, _ := strconv.ParseInt(newStatus.WorkloadObservedGeneration, 10, 32)
@@ -754,9 +773,20 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 		newStatus.WorkloadObservedGeneration = ""
 	}
 
-	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
+	// Evaluate the progress-deadline abort first so that any resulting abort is reflected in
+	// the abort/pause fields below and persisted in this same reconcile.
+	c.evaluateProgressDeadlineAbort(newStatus)
+
+	// Then calculate the abort/pause fields based on the pause context
+	c.pauseContext.CalculatePauseStatus(newStatus)
+
+	// After that, calculate the rollout conditions, which requires the abort/pause fields to be evaluated
+	c.calculateRolloutConditions(newStatus)
+
+	// Calculate the phase. This requires the conditions to be calculated first
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(c.rollout.Spec, *newStatus)
 
+	prevStatus := c.rollout.Status
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
 			Status: prevStatus,
