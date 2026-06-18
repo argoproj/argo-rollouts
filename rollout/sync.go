@@ -655,16 +655,22 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			}
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, reason, msg)
 
-			// Update the current Progressing condition or add a new one if it doesn't exist.
-			// If a Progressing condition with status=true already exists, we should update
-			// everything but lastTransitionTime. SetRolloutCondition already does that but
-			// it also is not updating conditions when the reason of the new condition is the
-			// same as the old. The Progressing condition is a special case because we want to
-			// update with the same reason and change just lastUpdateTime if we notice any
-			// progress. That's why we handle it here.
+			// Only reset the progress deadline (LastUpdateTime) when there is structural/scaling
+			// progress or when the condition doesn't exist yet. ReadyReplicas/AvailableReplicas
+			// oscillation (e.g., from crash-looping pods) should NOT reset the deadline, as this
+			// would prevent ProgressDeadlineExceeded from ever firing.
+			scalingProgress := conditions.RolloutScalingProgress(c.rollout, &newStatus)
+			readinessOnlyProgress := !scalingProgress && !becameUnhealthy
+
 			if currentCond != nil {
 				if currentCond.Status == corev1.ConditionTrue {
 					condition.LastTransitionTime = currentCond.LastTransitionTime
+				}
+				if readinessOnlyProgress && currentCond.Reason == conditions.ReplicaSetUpdatedReason {
+					// Readiness-only progress (ReadyReplicas/AvailableReplicas went up) should not
+					// reset the deadline timer when we're already tracking progress. This prevents
+					// crash-looping pods from indefinitely deferring the timeout.
+					condition.LastUpdateTime = currentCond.LastUpdateTime
 				}
 				conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutProgressing)
 			}
