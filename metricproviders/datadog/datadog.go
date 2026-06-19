@@ -72,9 +72,20 @@ type datadogResponseV2 struct {
 	}
 }
 
+// Column types returned by the v2 /query/scalar endpoint. The response is a
+// oneOf discriminated by this field (see Datadog's GroupScalarColumn /
+// DataScalarColumn schemas): a number column carries the formula/query results
+// as floats, a group column carries the tag values when the query uses `by
+// {tag}`.
+const (
+	datadogV2ColumnNumber = "number"
+	datadogV2ColumnGroup  = "group"
+)
+
 // datadogV2Column is a single column of a v2 scalar response. Values are kept
-// as raw JSON because group columns contain tag strings while number columns
-// contain floats (or null); callers interpret based on Type.
+// as raw JSON because the shape differs by Type: a number column holds floats
+// (or null), while a group column holds an array of tag values per group
+// (`[][]string` on the wire — one inner entry per `by {tag}` dimension).
 type datadogV2Column struct {
 	Name   string            `json:"name"`
 	Type   string            `json:"type"`
@@ -93,45 +104,60 @@ func isJSONNull(r json.RawMessage) bool {
 	return string(bytes.TrimSpace(r)) == "null"
 }
 
-// findColumns locates the first numeric column and the first group column in
-// a v2 scalar response. Legacy responses omit the type field, so an empty
-// type is treated as numeric for backward compatibility with the previous
-// behavior of picking column 0.
+// findColumns locates the number column and the group column in a v2 scalar
+// response. A response may carry several number columns (one per formula or
+// query); like the original implementation we evaluate the first. Legacy
+// responses omit the type field, so an empty type is treated as numeric for
+// backward compatibility with the previous behavior of picking column 0.
 func findColumns(columns []datadogV2Column) (numCol, groupCol *datadogV2Column) {
-	for i, c := range columns {
-		if numCol == nil && (c.Type == "" || c.Type == "number") {
-			numCol = &columns[i]
+	for i := range columns {
+		c := &columns[i]
+		if numCol == nil && (c.Type == "" || c.Type == datadogV2ColumnNumber) {
+			numCol = c
 		}
-		if groupCol == nil && c.Type == "group" {
-			groupCol = &columns[i]
+		if groupCol == nil && c.Type == datadogV2ColumnGroup {
+			groupCol = c
+		}
+		if numCol != nil && groupCol != nil {
+			break
 		}
 	}
 	return
 }
 
-// groupNameAt returns the tag name at idx in a group column, or "", false if
-// no group column was provided or the entry isn't a usable string.
+// groupNameAt returns the label for the group at idx, built from the tag
+// values Datadog reports for that group. Each entry is itself an array because
+// a query can group by more than one tag (`by {env, resource_name}` →
+// ["prod", "GET /a"]); the values are joined into a single label. ok is false
+// only when the entry is missing or malformed, which callers treat as an error
+// rather than silently dropping the group.
 func groupNameAt(col *datadogV2Column, idx int) (string, bool) {
 	if col == nil || idx >= len(col.Values) {
 		return "", false
 	}
-	var name string
-	if err := json.Unmarshal(col.Values[idx], &name); err != nil {
+	var tags []string
+	if err := json.Unmarshal(col.Values[idx], &tags); err != nil {
 		return "", false
 	}
-	return name, true
+	return strings.Join(tags, ","), true
 }
 
-// extractValues walks the v2 scalar response and returns the numeric values
-// paired with their group tag values (if any). Null entries in the number
-// column are skipped along with their corresponding group entry, so the
-// returned slices stay aligned. A non-numeric, non-null entry in the number
-// column is treated as an error rather than silently dropped — for a
-// production rollout gate we'd rather surface bad data loudly.
-func extractValues(columns []datadogV2Column) (values []float64, groups []groupedValue, err error) {
+// extractValues walks the v2 scalar response and returns the numeric values,
+// their group labels, and whether the query was grouped (i.e. a group column
+// was present). Callers dispatch on grouped — not on the number of values — so
+// a `by {tag}` query that happens to match a single group is still treated as
+// a slice, mirroring how the Prometheus provider keys off the response type.
+//
+// Null entries in the number column are Datadog's "no data for this group"
+// marker and are skipped together with their group label so values and groups
+// stay index-aligned. A non-numeric value, or a group label that fails to
+// parse, is surfaced as an error rather than silently dropped — for a
+// production rollout gate we'd rather fail loudly than evaluate partial data.
+func extractValues(columns []datadogV2Column) (values []float64, groups []groupedValue, grouped bool, err error) {
 	numCol, groupCol := findColumns(columns)
+	grouped = groupCol != nil
 	if numCol == nil {
-		return nil, nil, nil
+		return nil, nil, grouped, nil
 	}
 	values = make([]float64, 0, len(numCol.Values))
 	for i, r := range numCol.Values {
@@ -140,14 +166,18 @@ func extractValues(columns []datadogV2Column) (values []float64, groups []groupe
 		}
 		var f float64
 		if err := json.Unmarshal(r, &f); err != nil {
-			return nil, nil, fmt.Errorf("could not parse numeric value %q in column %q: %v", string(r), numCol.Name, err)
+			return nil, nil, grouped, fmt.Errorf("could not parse numeric value %q in column %q: %v", string(r), numCol.Name, err)
 		}
 		values = append(values, f)
-		if name, ok := groupNameAt(groupCol, i); ok {
+		if grouped {
+			name, ok := groupNameAt(groupCol, i)
+			if !ok {
+				return nil, nil, grouped, fmt.Errorf("could not parse group label at index %d in column %q", i, groupCol.Name)
+			}
 			groups = append(groups, groupedValue{Name: name, Value: f})
 		}
 	}
-	return values, groups, nil
+	return values, groups, grouped, nil
 }
 
 type datadogConfig struct {
@@ -402,7 +432,7 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 		return "", v1alpha1.AnalysisPhaseError, "", fmt.Errorf("There were errors in your query: %v", res.Data.Errors)
 	}
 
-	values, groups, err := extractValues(res.Data.Attributes.Columns)
+	values, groups, grouped, err := extractValues(res.Data.Attributes.Columns)
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, "", err
 	}
@@ -414,13 +444,15 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 		return "[]", status, "", evalErr
 	}
 
-	// Single-value queries return a scalar to preserve the existing
-	// `successCondition: result < X` style of expression. Grouped queries (`by
-	// {tag}`) return the slice so users can apply Expr functions like
-	// `max(result)`, `mean(result)`, `all(result, # < X)` directly in the
-	// success/failure condition — matching how the Prometheus provider handles
-	// vector results.
-	if len(values) == 1 {
+	// Dispatch on the response shape, not the value count. An ungrouped query
+	// is always a scalar, so it keeps returning a single value and preserves
+	// the existing `successCondition: result < X` style of expression. A
+	// grouped (`by {tag}`) query is always a slice — even when it matches a
+	// single group — so users can apply Expr functions like `max(result)`,
+	// `mean(result)`, `all(result, # < X)` directly in the condition. This
+	// mirrors the Prometheus provider, which keys off the response type rather
+	// than the number of samples returned.
+	if !grouped {
 		status, evalErr := evaluate.EvaluateResult(values[0], metric, p.logCtx)
 		return strconv.FormatFloat(values[0], 'f', -1, 64), status, "", evalErr
 	}

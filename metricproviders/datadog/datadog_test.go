@@ -31,48 +31,82 @@ func rawJSON(values ...string) []json.RawMessage {
 }
 
 func TestExtractValues(t *testing.T) {
+	// Group columns are arrays of tag values per group on the wire
+	// (`[][]string`), e.g. `["GET /a"]` for `by {resource_name}`. The fixtures
+	// below use that real shape so the tests exercise the same parsing path
+	// the live Datadog API does — a flat `"a"` would never reach this code.
 	t.Run("ungrouped numeric column", func(t *testing.T) {
 		cols := []datadogV2Column{
 			{Type: "number", Name: "q", Values: rawJSON(`1.5`, `2`)},
 		}
-		values, groups, err := extractValues(cols)
+		values, groups, grouped, err := extractValues(cols)
 		assert.NoError(t, err)
 		assert.Equal(t, []float64{1.5, 2}, values)
 		assert.Nil(t, groups)
+		assert.False(t, grouped)
 	})
 
 	t.Run("legacy column with no type field is treated as numeric", func(t *testing.T) {
 		cols := []datadogV2Column{
 			{Type: "", Values: rawJSON(`0.5`)},
 		}
-		values, groups, err := extractValues(cols)
+		values, groups, grouped, err := extractValues(cols)
 		assert.NoError(t, err)
 		assert.Equal(t, []float64{0.5}, values)
 		assert.Nil(t, groups)
+		assert.False(t, grouped)
 	})
 
 	t.Run("grouped query pairs numeric values with group names", func(t *testing.T) {
 		cols := []datadogV2Column{
-			{Type: "group", Values: rawJSON(`"a"`, `"b"`)},
+			{Type: "group", Values: rawJSON(`["a"]`, `["b"]`)},
 			{Type: "number", Values: rawJSON(`1`, `2`)},
 		}
-		values, groups, err := extractValues(cols)
+		values, groups, grouped, err := extractValues(cols)
 		assert.NoError(t, err)
 		assert.Equal(t, []float64{1, 2}, values)
 		assert.Equal(t, []groupedValue{{Name: "a", Value: 1}, {Name: "b", Value: 2}}, groups)
+		assert.True(t, grouped)
+	})
+
+	t.Run("multi-tag grouping joins the tag values into one label", func(t *testing.T) {
+		// `by {env, resource_name}` returns a tag value per dimension.
+		cols := []datadogV2Column{
+			{Type: "group", Values: rawJSON(`["prod","GET /a"]`, `["prod","GET /b"]`)},
+			{Type: "number", Values: rawJSON(`1`, `2`)},
+		}
+		_, groups, grouped, err := extractValues(cols)
+		assert.NoError(t, err)
+		assert.Equal(t, []groupedValue{{Name: "prod,GET /a", Value: 1}, {Name: "prod,GET /b", Value: 2}}, groups)
+		assert.True(t, grouped)
+	})
+
+	t.Run("single-group query is still grouped, not a scalar", func(t *testing.T) {
+		// A `by {tag}` query that matches one group must report grouped=true so
+		// the caller returns a slice and group metadata, not a bare scalar.
+		cols := []datadogV2Column{
+			{Type: "group", Values: rawJSON(`["only"]`)},
+			{Type: "number", Values: rawJSON(`0.03`)},
+		}
+		values, groups, grouped, err := extractValues(cols)
+		assert.NoError(t, err)
+		assert.Equal(t, []float64{0.03}, values)
+		assert.Equal(t, []groupedValue{{Name: "only", Value: 0.03}}, groups)
+		assert.True(t, grouped)
 	})
 
 	t.Run("null entries skip their group entry to keep pairing aligned", func(t *testing.T) {
 		// values[0] is null → first group ("a") must also be dropped, NOT
-		// shifted onto values[1]. Previous implementation got this wrong.
+		// shifted onto values[1].
 		cols := []datadogV2Column{
-			{Type: "group", Values: rawJSON(`"a"`, `"b"`, `"c"`)},
+			{Type: "group", Values: rawJSON(`["a"]`, `["b"]`, `["c"]`)},
 			{Type: "number", Values: rawJSON(`null`, `0.02`, `0.03`)},
 		}
-		values, groups, err := extractValues(cols)
+		values, groups, grouped, err := extractValues(cols)
 		assert.NoError(t, err)
 		assert.Equal(t, []float64{0.02, 0.03}, values)
 		assert.Equal(t, []groupedValue{{Name: "b", Value: 0.02}, {Name: "c", Value: 0.03}}, groups)
+		assert.True(t, grouped)
 	})
 
 	t.Run("non-numeric entry in number column errors loudly", func(t *testing.T) {
@@ -82,34 +116,48 @@ func TestExtractValues(t *testing.T) {
 		cols := []datadogV2Column{
 			{Type: "number", Name: "q", Values: rawJSON(`1`, `"oops"`)},
 		}
-		_, _, err := extractValues(cols)
+		_, _, _, err := extractValues(cols)
 		assert.ErrorContains(t, err, "could not parse numeric value")
+	})
+
+	t.Run("grouped query with an unparseable group label errors rather than misaligning", func(t *testing.T) {
+		// A group label we can't read would otherwise drop a group while
+		// keeping its value, silently shifting every later (name, value) pair.
+		// Fail loudly instead.
+		cols := []datadogV2Column{
+			{Type: "group", Name: "g", Values: rawJSON(`["a"]`, `42`)},
+			{Type: "number", Values: rawJSON(`1`, `2`)},
+		}
+		_, _, _, err := extractValues(cols)
+		assert.ErrorContains(t, err, "could not parse group label")
 	})
 
 	t.Run("group-only response (no number column) returns no values", func(t *testing.T) {
 		cols := []datadogV2Column{
-			{Type: "group", Values: rawJSON(`"a"`, `"b"`)},
+			{Type: "group", Values: rawJSON(`["a"]`, `["b"]`)},
 		}
-		values, groups, err := extractValues(cols)
+		values, groups, grouped, err := extractValues(cols)
 		assert.NoError(t, err)
 		assert.Empty(t, values)
 		assert.Empty(t, groups)
+		assert.True(t, grouped)
 	})
 
 	t.Run("group column placed after number column still works", func(t *testing.T) {
 		cols := []datadogV2Column{
 			{Type: "number", Values: rawJSON(`1`, `2`)},
-			{Type: "group", Values: rawJSON(`"a"`, `"b"`)},
+			{Type: "group", Values: rawJSON(`["a"]`, `["b"]`)},
 		}
-		values, groups, err := extractValues(cols)
+		values, groups, grouped, err := extractValues(cols)
 		assert.NoError(t, err)
 		assert.Equal(t, []float64{1, 2}, values)
 		assert.Equal(t, []groupedValue{{Name: "a", Value: 1}, {Name: "b", Value: 2}}, groups)
+		assert.True(t, grouped)
 	})
 }
 
 func TestGroupNameAt(t *testing.T) {
-	col := &datadogV2Column{Type: "group", Values: rawJSON(`"a"`, `42`, `null`)}
+	col := &datadogV2Column{Type: "group", Values: rawJSON(`["a"]`, `["x","y"]`, `42`, `null`)}
 
 	t.Run("nil column returns false", func(t *testing.T) {
 		_, ok := groupNameAt(nil, 0)
@@ -121,14 +169,20 @@ func TestGroupNameAt(t *testing.T) {
 		assert.False(t, ok)
 	})
 
-	t.Run("string entry returns the name", func(t *testing.T) {
+	t.Run("single-tag entry returns the name", func(t *testing.T) {
 		name, ok := groupNameAt(col, 0)
 		assert.True(t, ok)
 		assert.Equal(t, "a", name)
 	})
 
-	t.Run("non-string entry returns false rather than corrupting the label", func(t *testing.T) {
-		_, ok := groupNameAt(col, 1)
+	t.Run("multi-tag entry joins the values", func(t *testing.T) {
+		name, ok := groupNameAt(col, 1)
+		assert.True(t, ok)
+		assert.Equal(t, "x,y", name)
+	})
+
+	t.Run("non-array entry returns false rather than corrupting the label", func(t *testing.T) {
+		_, ok := groupNameAt(col, 2)
 		assert.False(t, ok)
 	})
 }

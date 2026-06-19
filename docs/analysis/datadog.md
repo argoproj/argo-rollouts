@@ -217,7 +217,7 @@ For example, using count-based distribution metric (`count:metric{*}.as_count()`
 
 #### Grouped queries with `by {tag}` (v2 only)
 
-Datadog queries that use a `by {tag}` clause return one scalar per group rather than a single value. The Datadog provider exposes these as a `result` slice, matching how the Prometheus provider surfaces vector results. Use any of the standard [Expr](https://expr-lang.org/docs/language-definition) functions in the success or failure condition to reduce the slice — for example `max(result)`, `mean(result)`, `sum(result)`, `all(result, # < X)`, or `any(result, # >= X)`.
+Datadog queries that use a `by {tag}` clause return one scalar per group rather than a single value. The Datadog provider detects a grouped query from the response shape (a `group` column is present), exactly as the Prometheus provider dispatches on its response type — so a grouped query is always exposed as a `result` slice, even when it matches only a single group. Use any of the standard [Expr](https://expr-lang.org/docs/language-definition) functions in the success or failure condition to reduce the slice — for example `max(result)`, `mean(result)`, `sum(result)`, `all(result, # < X)`, or `any(result, # >= X)`.
 
 This is useful for detecting regressions in a subset of entities (e.g. a specific `resource_name`) that would otherwise be diluted by a global aggregate:
 
@@ -235,7 +235,7 @@ This is useful for detecting regressions in a subset of entities (e.g. a specifi
         query: "sum:trace.http.request.errors{service:my-service} by {resource_name}.as_count()"
 ```
 
-When the query is grouped, the measurement's `metadata.groups` field is populated with a JSON array of `{"name": "...", "value": ...}` pairs, so the operator can map an outlier in `result` back to the entity that produced it. JSON is used so tag values containing `,` or `=` survive without escaping. Visible in `kubectl describe analysisrun`, the rollouts dashboard, and notification templates (which can parse it via `fromJson`).
+When the query is grouped, the measurement's `metadata.groups` field is populated with a JSON array of `{"name": "...", "value": ...}` pairs, so the operator can map an outlier in `result` back to the entity that produced it. JSON is used so tag values containing `,` or `=` survive without escaping. When the query groups by more than one tag (`by {env, resource_name}`), the `name` is the tag values joined with `,` (e.g. `prod,GET /a`). Visible in `kubectl describe analysisrun`, the rollouts dashboard, and notification templates (which can parse it via `fromJson`).
 
 #### Templates and Helm
 

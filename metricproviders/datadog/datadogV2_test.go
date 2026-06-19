@@ -311,11 +311,13 @@ func TestRunSuiteV2(t *testing.T) {
 		},
 
 		// Grouped query: `by {tag}` returns multiple values that the user
-		// evaluates with an Expr function in the success condition.
+		// evaluates with an Expr function in the success condition. Group
+		// columns are arrays of tag values per group on the wire (`[][]string`),
+		// which is what the live Datadog API returns for `by {resource_name}`.
 		{
 			webServerStatus: 200,
 			webServerResponse: `{"data": {"attributes": {"columns": [
-				{"name": "resource_name", "type": "group", "values": ["GET /a", "GET /b", "GET /c"]},
+				{"name": "resource_name", "type": "group", "values": [["GET /a"], ["GET /b"], ["GET /c"]]},
 				{"name": "query1", "type": "number", "values": [0.01, 0.087, 0.04]}
 			]}}}`,
 			metric: v1alpha1.Metric{
@@ -334,7 +336,7 @@ func TestRunSuiteV2(t *testing.T) {
 		{
 			webServerStatus: 200,
 			webServerResponse: `{"data": {"attributes": {"columns": [
-				{"name": "resource_name", "type": "group", "values": ["a", "b", "c"]},
+				{"name": "resource_name", "type": "group", "values": [["a"], ["b"], ["c"]]},
 				{"name": "query1", "type": "number", "values": [0.01, 0.02, 0.03]}
 			]}}}`,
 			metric: v1alpha1.Metric{
@@ -346,6 +348,47 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedValue:           "[0.01,0.02,0.03]",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			expectedGroups:          `[{"name":"a","value":0.01},{"name":"b","value":0.02},{"name":"c","value":0.03}]`,
+			useEnvVarForKeys:        false,
+		},
+
+		// Grouped query matching a single group: must still return a slice and
+		// group metadata (so `max(result)` works), NOT collapse to a bare
+		// scalar. This is the case the old length-based dispatch got wrong.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": [["GET /a"]]},
+				{"name": "query1", "type": "number", "values": [0.087]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "single-group query stays a slice",
+				SuccessCondition: "max(result) < 0.05",
+				Provider:         newQueryDefaultProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "[0.087]",
+			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			expectedGroups:          `[{"name":"GET /a","value":0.087}]`,
+			useEnvVarForKeys:        false,
+		},
+
+		// Multi-tag grouping (`by {env, resource_name}`): each group entry is a
+		// multi-element array; the tag values are joined into one label.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "group", "type": "group", "values": [["prod", "GET /a"], ["prod", "GET /b"]]},
+				{"name": "query1", "type": "number", "values": [0.01, 0.02]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "multi-tag grouped query",
+				SuccessCondition: "max(result) < 0.05",
+				Provider:         newQueryDefaultProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "[0.01,0.02]",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedGroups:          `[{"name":"prod,GET /a","value":0.01},{"name":"prod,GET /b","value":0.02}]`,
 			useEnvVarForKeys:        false,
 		},
 
@@ -366,7 +409,7 @@ func TestRunSuiteV2(t *testing.T) {
 		{
 			webServerStatus: 200,
 			webServerResponse: `{"data": {"attributes": {"columns": [
-				{"name": "resource_name", "type": "group", "values": ["a", "b", "c"]},
+				{"name": "resource_name", "type": "group", "values": [["a"], ["b"], ["c"]]},
 				{"name": "query1", "type": "number", "values": [null, 0.02, 0.03]}
 			]}}}`,
 			metric: v1alpha1.Metric{
@@ -396,6 +439,26 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    `could not parse numeric value "\"oops\"" in column "query1"`,
+			useEnvVarForKeys:        false,
+		},
+
+		// Malformed group label (not the expected array of tag values) must
+		// error rather than silently dropping the group and misaligning the
+		// rest of the (name, value) pairs.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "resource_name", "type": "group", "values": [["a"], "not-an-array"]},
+				{"name": "query1", "type": "number", "values": [0.01, 0.02]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "malformed group label errors",
+				SuccessCondition: "max(result) < 0.05",
+				Provider:         newQueryDefaultProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    `could not parse group label at index 1 in column "resource_name"`,
 			useEnvVarForKeys:        false,
 		},
 	}
