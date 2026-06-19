@@ -47,7 +47,7 @@ func TestSyncCanaryEphemeralMetadataInitialRevision(t *testing.T) {
 	idx := f.expectCreateReplicaSetAction(rs1) // sync 1: create RS
 	f.expectUpdateRolloutStatusAction(r1)      // sync 1: update status
 	f.expectGetRolloutAction(r1)               // re-seed between syncs
-	_ = f.expectPatchRolloutAction(r1)         // sync 2: patch status
+	f.expectPatchRolloutAction(r1)             // sync 2: patch status
 	f.expectUpdateReplicaSetAction(rs1)        // sync 2: scale up RS
 	f.runWithSyncs(getKey(r1, t), 2)
 	createdRS1 := f.getCreatedReplicaSet(idx)

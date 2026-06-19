@@ -269,7 +269,10 @@ export const RolloutsTable = ({
             pagination={
                 {
                     pageSize: itemsPerPage,
+                    showSizeChanger: true,
+                    pageSizeOptions: ['10', '20', '50', '100'],
                     onChange: handlePaginationChange,
+                    onShowSizeChange: (_current, size) => setItemsPerPage(size),
                 } as TablePaginationConfig
             }
             ref={tableRef}

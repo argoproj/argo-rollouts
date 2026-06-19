@@ -50,6 +50,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/hash"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -774,7 +775,7 @@ func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInf
 		allowErr := f.allowErrorOnLastSync && (n == syncs-1)
 		f.assertSyncHandlerResult(n, syncs, err, expectError, allowErr)
 		f.reseedRolloutInInformerIfNeeded(c, rolloutName, n, syncs)
-		f.reseedReplicaSetsInInformerIfNeeded(k8sI, n, syncs)
+		f.reseedKubeResourcesInInformerIfNeeded(k8sI, n, syncs)
 	}
 
 	return f.verifyActionsAndReturn(c)
@@ -790,8 +791,9 @@ func (f *fixture) assertSyncHandlerResult(n, syncs int, err error, expectError, 
 	}
 }
 
-// reseedRolloutInInformer re-seeds the rollout in the informer so the next sync sees a typed Rollout
-// (controller writes Unstructured via persistRolloutToInformer). No-op when syncs <= 1 or on the last sync.
+// reseedRolloutInInformerIfNeeded re-seeds the rollout in the informer after a sync so the next sync
+// sees an updated typed Rollout (e.g. multi-sync tests that mutate status between reconciles).
+// No-op when syncs <= 1 or on the final sync index.
 func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName string, n, syncs int) {
 	if syncs <= 1 || n >= syncs-1 {
 		return
@@ -807,28 +809,40 @@ func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName str
 	if f.reseedRolloutMutator != nil {
 		f.reseedRolloutMutator(ro)
 	}
+	c.rolloutVersionTracker.Forget(rolloutName)
 	if err := c.rolloutsIndexer.Update(ro); err != nil {
 		f.t.Fatalf("re-seed rollout: update indexer: %v", err)
 	}
 }
 
-// reseedReplicaSetsInInformerIfNeeded re-seeds ReplicaSets that the controller created/updated via the
-// fake kube client back into the ReplicaSet informer, so the next sync sees them in the lister. This
-// mirrors a real cluster, where the informer observes ReplicaSets created in a prior reconciliation.
-// No-op when syncs <= 1 or on the last sync.
-func (f *fixture) reseedReplicaSetsInInformerIfNeeded(k8sI kubeinformers.SharedInformerFactory, n, syncs int) {
+// reseedKubeResourcesInInformerIfNeeded re-seeds ReplicaSets and Services from the fake kube client
+// into the informer indexers between syncs. The controller creates/updates these resources via the
+// fake client during a sync, but the informer only learns about them through asynchronous watch
+// propagation, which races with the next synchronous sync. Re-seeding makes the multi-sync harness
+// deterministic. No-op when syncs <= 1 or on the last sync.
+func (f *fixture) reseedKubeResourcesInInformerIfNeeded(k8sI kubeinformers.SharedInformerFactory, n, syncs int) {
 	if syncs <= 1 || n >= syncs-1 {
 		return
 	}
+	rsIndexer := k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer()
 	rsList, err := f.kubeclient.AppsV1().ReplicaSets(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		f.t.Fatalf("re-seed replicasets: list: %v", err)
 	}
-	indexer := k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer()
 	for i := range rsList.Items {
-		rs := rsList.Items[i]
-		if err := indexer.Update(&rs); err != nil {
+		if err := rsIndexer.Update(&rsList.Items[i]); err != nil {
 			f.t.Fatalf("re-seed replicasets: update indexer: %v", err)
+		}
+	}
+
+	svcIndexer := k8sI.Core().V1().Services().Informer().GetIndexer()
+	svcList, err := f.kubeclient.CoreV1().Services(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed services: list: %v", err)
+	}
+	for i := range svcList.Items {
+		if err := svcIndexer.Update(&svcList.Items[i]); err != nil {
+			f.t.Fatalf("re-seed services: update indexer: %v", err)
 		}
 	}
 }
@@ -1086,6 +1100,7 @@ func (f *fixture) expectGetEndpointsAction(ep *corev1.Endpoints) int {
 // panicking) when fewer actions occurred than expected. This keeps a single failing test from
 // aborting the rest of the package via an index-out-of-range panic.
 func (f *fixture) kubeActionAt(index int) core.Action {
+	f.t.Helper()
 	actions := filterInformerActions(f.kubeclient.Actions())
 	require.Greaterf(f.t, len(actions), index, "expected at least %d kube actions, got %d", index+1, len(actions))
 	return actions[index]
@@ -1094,6 +1109,7 @@ func (f *fixture) kubeActionAt(index int) core.Action {
 // actionAt returns the filtered argoproj action at the given index, failing the test (instead of
 // panicking) when fewer actions occurred than expected.
 func (f *fixture) actionAt(index int) core.Action {
+	f.t.Helper()
 	actions := filterInformerActions(f.client.Actions())
 	require.Greaterf(f.t, len(actions), index, "expected at least %d rollout actions, got %d", index+1, len(actions))
 	return actions[index]
@@ -1514,11 +1530,14 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
-	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{}) // sync 1: create RS
-	f.expectUpdateRolloutStatusAction(r)                 // sync 1: update status
-	f.expectGetRolloutAction(r)                          // re-seed between syncs
-	updateIndex := f.expectUpdateRolloutAction(r)        // sync 2: default .spec.replicas
-	f.runWithSyncs(getKey(r, t), 2)
+	f.expectUpdateRolloutStatusAction(r)          // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r)                   // second reconciliation
+	updateIndex := f.expectUpdateRolloutAction(r) // sync 2: default .spec.replicas, then exit early
+	f.expectGetRolloutAction(r)                   // third reconciliation
+	f.expectPatchRolloutAction(r)                 // sync 3: patch status
+	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.runWithSyncs(getKey(r, t), 3)
 	updatedRollout := f.getUpdatedRollout(updateIndex)
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
 }
@@ -2642,42 +2661,21 @@ func TestRolloutStrategyNotSet(t *testing.T) {
 	assert.Contains(t, patchedRollout, `Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'`)
 }
 
-// TestWriteBackToInformer verifies that after a rollout reconciles, the new version of the rollout
-// is written back to the informer
-func TestWriteBackToInformer(t *testing.T) {
+func TestSyncHandlerStaleCacheGuard(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r1 := newCanaryRollout("foo", 10, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.StableRS = ""
-	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	r := newCanaryRollout("foo", 10, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r.ResourceVersion = "100"
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
 
-	f.rolloutLister = append(f.rolloutLister, r1)
-	f.objects = append(f.objects, r1)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	roKey := getKey(r, t)
+	c.rolloutVersionTracker.Record(roKey, "200")
 
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
-	f.expectPatchRolloutAction(r1)
-
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
-	roKey := getKey(r1, t)
-	f.runController(roKey, true, false, c, i, k8sI)
-
-	// Verify the informer was updated with the new unstructured object after reconciliation
-	obj, exists, err := c.rolloutsIndexer.GetByKey(roKey)
-	assert.NoError(t, err)
-	assert.True(t, exists)
-
-	// The type returned from c.rolloutsIndexer.GetByKey is not always the same type it switches between
-	// *unstructured.Unstructured and *v1alpha1.Rollout the underlying cause is not fully known. We use the
-	// runtime.DefaultUnstructuredConverter to account for this.
-	unObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	assert.NoError(t, err)
-
-	stableRS, _, _ := unstructured.NestedString(unObj, "status", "stableRS")
-	assert.NotEmpty(t, stableRS)
-	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
+	err := c.syncHandler(context.Background(), roKey)
+	assert.ErrorIs(t, err, controllerutil.StaleCacheError)
 }
 
 func TestRun(t *testing.T) {

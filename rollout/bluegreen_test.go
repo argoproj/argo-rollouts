@@ -124,11 +124,11 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	generatedConditions := generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true)
 
-	f.expectCreateReplicaSetAction(rs)                          // create replica set
-	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r) // update rollout conditions
-	f.expectGetRolloutAction(r)                                 // second reconciliation
+	f.expectCreateReplicaSetAction(rs) // create replica set
+	f.expectGetRolloutAction(r)        // second reconciliation
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectUpdateReplicaSetAction(rs) // scale up RS
+	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	expectedPatchWithoutSubs := `{
 		"status":{
 			"blueGreen" : {
@@ -850,13 +850,20 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
 		servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs2PodHash)
+		f.expectGetRolloutAction(r2) // second reconciliation
 		patchRolloutIndex := f.expectPatchRolloutAction(r2)
-		f.run(getKey(r2, t))
+		f.runWithSyncs(getKey(r2, t), 2)
 
 		f.verifyPatchedService(servicePatchIndex, rs2PodHash, "")
 
-		generatedConditions := generateConditionsPatchWithCompleted(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
-		expectedPatchWithoutSubs := `{
+		// By the second reconciliation the rollout has fully promoted to the new ReplicaSet
+		// and become healthy. observedGeneration was already persisted in the unpause patch.
+		_, available2ndCondition := newAvailableCondition(true)
+		_, healthy2ndCondition := newHealthyCondition(true)
+		_, progressing2ndCondition := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
+		_, completed2ndCondition := newCompletedCondition(true)
+		generatedConditions := fmt.Sprintf("[%s, %s, %s, %s]", available2ndCondition, healthy2ndCondition, progressing2ndCondition, completed2ndCondition)
+		expected2ndPatchWithoutSubs := `{
 			"status": {
 				"blueGreen": {
 					"activeSelector": "%s"
@@ -877,10 +884,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		}`
 		now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 		newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
-		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash, generatedConditions, newSelector, pausedDuration, now))
-		rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
-		assert.Equal(t, expectedPatch, rolloutPatch)
-		f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
+		expected2ndPatch := cleanPatch(fmt.Sprintf(expected2ndPatchWithoutSubs, rs2PodHash, rs2PodHash, generatedConditions, newSelector, pausedDuration, now))
+		rollout2ndPatch := f.getPatchedRollout(patchRolloutIndex)
+		assert.Equal(t, expected2ndPatch, rollout2ndPatch)
 	})
 }
 

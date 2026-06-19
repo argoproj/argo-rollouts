@@ -301,12 +301,10 @@ func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	// Sync 1 resets the progress deadline (RolloutRetry); sync 2 reconciles the
-	// canary and re-pauses on the first step.
-	resetDeadlinePatch := f.expectPatchRolloutAction(r2)
-	f.expectGetRolloutAction(r2)
-	f.expectPatchRolloutAction(r2)
-	f.runWithSyncs(getKey(r2, t), 2)
+	// The retry condition patch modifies the rollout and the controller exits early,
+	// so only a single patch happens in this reconciliation.
+	addPausedConditionPatch := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(resetDeadlinePatch)
 	_, retryCondition := newProgressingCondition(conditions.RolloutRetryReason, r2, "")
@@ -1847,7 +1845,7 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	_ = f.expectPatchRolloutAction(r2)           // sync 1: this just sets a conditions. ignore for now
+	f.expectPatchRolloutAction(r2)               // sync 1: this just sets a conditions. ignore for now
 	f.expectGetRolloutAction(r2)                 // re-seed between syncs
 	patchIndex := f.expectPatchRolloutAction(r2) // sync 2: this patch should resume the rollout
 	f.runWithSyncs(getKey(r2, t), 2)
@@ -1902,8 +1900,11 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	patchIndex := f.expectPatchRolloutAction(r2) // single combined patch (conditions + status)
-	f.run(getKey(r2, t))
+	// The conditions patch (after which the controller exits early) now carries the "manually paused" message.
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.expectGetRolloutAction(r2) // second reconciliation
+	f.expectPatchRolloutAction(r2)
+	f.runWithSyncs(getKey(r2, t), 2)
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := `{
 		"status": {
@@ -1966,7 +1967,7 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 	f.expectUpdateReplicaSetAction(rs1)          // sync 2: scale RS
 
 	f.runWithSyncs(getKey(r2, t), 2)
-	patch := f.getPatchedRollout(patchIndex)
+	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 

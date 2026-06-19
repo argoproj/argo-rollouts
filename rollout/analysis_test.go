@@ -1905,7 +1905,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 	f.objects = append(f.objects, r1, at)
 
 	f.expectCreateReplicaSetAction(rs1)   // create replica set
-	f.expectUpdateRolloutStatusAction(r1) // update rollout conditions
+	f.expectUpdateRolloutStatusAction(r1) // update conditions
 	f.expectGetRolloutAction(r1)          // second reconciliation
 	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
 	f.expectPatchRolloutAction(r1)        // patch status
@@ -1941,7 +1941,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 	f.objects = append(f.objects, r1, at)
 
 	f.expectCreateReplicaSetAction(rs1)   // create replica set
-	f.expectUpdateRolloutStatusAction(r1) // update rollout conditions
+	f.expectUpdateRolloutStatusAction(r1) // update conditions
 	f.expectGetRolloutAction(r1)          // second reconciliation
 	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
 	f.expectPatchRolloutAction(r1)        // patch status

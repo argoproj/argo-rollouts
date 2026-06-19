@@ -829,7 +829,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutS
 	isAborted := c.pauseContext.IsAborted()
 
 	var becameUnhealthy bool // remember if we transitioned from healthy to unhealthy
-	currentHealthyCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutHealthy)
+	completeCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutHealthy)
 	if !isPaused && conditions.RolloutHealthy(c.rollout, newStatus) {
 		updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionTrue, conditions.RolloutHealthyReason, conditions.RolloutHealthyMessage)
 		conditions.SetRolloutCondition(newStatus, *updateHealthyCond)
