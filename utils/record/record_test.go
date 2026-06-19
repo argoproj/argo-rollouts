@@ -69,14 +69,14 @@ func TestRecordLog(t *testing.T) {
 	log.SetOutput(buf)
 	rec.Warnf(&r, EventOptions{EventReason: "FooReason"}, "Rollout is %s", "foo")
 	logMessage = buf.String()
-	fmt.Println(logMessage)
+	t.Log(logMessage)
 	assert.True(t, strings.Contains(logMessage, "level=warning"))
 
 	buf = bytes.NewBufferString("")
 	log.SetOutput(buf)
 	rec.Eventf(&r, EventOptions{EventType: "Warning", EventReason: "FooReason"}, "Rollout is %s", "foo")
 	logMessage = buf.String()
-	fmt.Println(logMessage)
+	t.Log(logMessage)
 	assert.True(t, strings.Contains(logMessage, "level=warning"))
 
 }
