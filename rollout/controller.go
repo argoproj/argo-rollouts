@@ -221,7 +221,6 @@ func NewController(cfg ControllerConfig) *Controller {
 		rolloutWorkqueue:      cfg.RolloutWorkQueue,
 		serviceWorkqueue:      cfg.ServiceWorkQueue,
 		ingressWorkqueue:      cfg.IngressWorkQueue,
-		metricsServer:         cfg.MetricsServer,
 		rolloutVersionTracker: resourceversionutil.NewTracker(),
 	}
 	controller.enqueueRollout = func(obj any) {
