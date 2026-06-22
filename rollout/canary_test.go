@@ -303,7 +303,7 @@ func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
 
 	// The retry condition patch modifies the rollout and the controller exits early,
 	// so only a single patch happens in this reconciliation.
-	addPausedConditionPatch := f.expectPatchRolloutAction(r2)
+	resetDeadlinePatch := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(resetDeadlinePatch)
