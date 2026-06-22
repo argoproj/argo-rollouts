@@ -124,11 +124,11 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	generatedConditions := generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true)
 
-	f.expectCreateReplicaSetAction(rs) // create replica set
-	f.expectGetRolloutAction(r)        // second reconciliation
+	f.expectCreateReplicaSetAction(rs)                          // sync 1: create replica set
+	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r) // sync 1: set Progressing condition, then exit early
+	f.expectGetRolloutAction(r)                                 // re-seed between syncs
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
-	f.expectUpdateReplicaSetAction(rs) // scale up RS
-	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
+	f.expectUpdateReplicaSetAction(rs) // sync 2: scale up RS
 	expectedPatchWithoutSubs := `{
 		"status":{
 			"blueGreen" : {

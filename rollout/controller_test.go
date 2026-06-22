@@ -1203,14 +1203,14 @@ func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) 
 func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
 	action := f.actionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
-	if !ok {
-		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
-	}
+	require.True(f.t, ok, "Expected Update action, not %s", action.GetVerb())
 	obj := updateAction.GetObject()
 	rollout := &v1alpha1.Rollout{}
 	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
-	objMap, _ := converter.ToUnstructured(obj)
-	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rollout)
+	objMap, err := converter.ToUnstructured(obj)
+	require.NoError(f.t, err)
+	err = converter.FromUnstructured(objMap, rollout)
+	require.NoError(f.t, err)
 	return rollout
 }
 
