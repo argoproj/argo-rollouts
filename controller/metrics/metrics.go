@@ -30,10 +30,14 @@ type MetricsServer struct {
 
 	reconcileAnalysisRunHistogram *prometheus.HistogramVec
 	errorAnalysisRunCounter       *prometheus.CounterVec
-	successNotificationCounter    *prometheus.CounterVec
-	errorNotificationCounter      *prometheus.CounterVec
-	sendNotificationRunHistogram  *prometheus.HistogramVec
-	k8sRequestsCounter            *K8sRequestsCountProvider
+
+	reconcileRolloutPluginHistogram *prometheus.HistogramVec
+	errorRolloutPluginCounter       *prometheus.CounterVec
+
+	successNotificationCounter   *prometheus.CounterVec
+	errorNotificationCounter     *prometheus.CounterVec
+	sendNotificationRunHistogram *prometheus.HistogramVec
+	k8sRequestsCounter           *K8sRequestsCountProvider
 }
 
 const (
@@ -58,6 +62,7 @@ type ServerConfig struct {
 	AnalysisTemplateLister        rolloutlister.AnalysisTemplateLister
 	ClusterAnalysisTemplateLister rolloutlister.ClusterAnalysisTemplateLister
 	ExperimentLister              rolloutlister.ExperimentLister
+	RolloutPluginLister           rolloutlister.RolloutPluginLister
 	K8SRequestProvider            *K8sRequestsCountProvider
 }
 
@@ -73,6 +78,9 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	if cfg.ExperimentLister != nil {
 		reg.MustRegister(NewExperimentCollector(cfg.ExperimentLister))
 	}
+	if cfg.RolloutPluginLister != nil {
+		reg.MustRegister(NewRolloutPluginCollector(cfg.RolloutPluginLister))
+	}
 	reg.MustRegister(NewAnalysisRunCollector(cfg.AnalysisRunLister, cfg.AnalysisTemplateLister, cfg.ClusterAnalysisTemplateLister))
 	cfg.K8SRequestProvider.MustRegister(reg)
 	reg.MustRegister(MetricRolloutReconcile)
@@ -80,6 +88,9 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	reg.MustRegister(MetricRolloutEventsTotal)
 	reg.MustRegister(MetricExperimentReconcile)
 	reg.MustRegister(MetricExperimentReconcileError)
+	reg.MustRegister(MetricRolloutPluginReconcile)
+	reg.MustRegister(MetricRolloutPluginReconcileError)
+	reg.MustRegister(MetricRolloutPluginEventsTotal)
 	reg.MustRegister(MetricAnalysisRunReconcile)
 	reg.MustRegister(MetricAnalysisRunReconcileError)
 	reg.MustRegister(MetricNotificationSuccessTotal)
@@ -109,9 +120,13 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 
 		reconcileAnalysisRunHistogram: MetricAnalysisRunReconcile,
 		errorAnalysisRunCounter:       MetricAnalysisRunReconcileError,
-		successNotificationCounter:    MetricNotificationSuccessTotal,
-		errorNotificationCounter:      MetricNotificationFailedTotal,
-		sendNotificationRunHistogram:  MetricNotificationSend,
+
+		reconcileRolloutPluginHistogram: MetricRolloutPluginReconcile,
+		errorRolloutPluginCounter:       MetricRolloutPluginReconcileError,
+
+		successNotificationCounter:   MetricNotificationSuccessTotal,
+		errorNotificationCounter:     MetricNotificationFailedTotal,
+		sendNotificationRunHistogram: MetricNotificationSend,
 
 		k8sRequestsCounter: cfg.K8SRequestProvider,
 	}
@@ -132,6 +147,11 @@ func (m *MetricsServer) IncAnalysisRunReconcile(ar *v1alpha1.AnalysisRun, durati
 	m.reconcileAnalysisRunHistogram.WithLabelValues(ar.Namespace, ar.Name).Observe(duration.Seconds())
 }
 
+// IncRolloutPluginReconcile increments the reconcile counter for a RolloutPlugin
+func (m *MetricsServer) IncRolloutPluginReconcile(rp *v1alpha1.RolloutPlugin, duration time.Duration) {
+	m.reconcileRolloutPluginHistogram.WithLabelValues(rp.Namespace, rp.Name).Observe(duration.Seconds())
+}
+
 // IncError increments the reconcile counter for an rollout
 func (m *MetricsServer) IncError(namespace, name string, kind string) {
 	switch kind {
@@ -141,6 +161,8 @@ func (m *MetricsServer) IncError(namespace, name string, kind string) {
 		m.errorAnalysisRunCounter.WithLabelValues(namespace, name).Inc()
 	case log.ExperimentKey:
 		m.errorExperimentCounter.WithLabelValues(namespace, name).Inc()
+	case log.RolloutPluginKey:
+		m.errorRolloutPluginCounter.WithLabelValues(namespace, name).Inc()
 	}
 }
 
@@ -184,6 +206,18 @@ func (m *MetricsServer) Remove(namespace string, name string, kind string) {
 
 			MetricExperimentReconcile.Delete(map[string]string{"namespace": namespace, "name": name})
 			MetricExperimentReconcileError.Delete(map[string]string{"namespace": namespace, "name": name})
+
+		case log.RolloutPluginKey:
+			m.reconcileRolloutPluginHistogram.Delete(map[string]string{"namespace": namespace, "name": name})
+			m.errorRolloutPluginCounter.Delete(map[string]string{"namespace": namespace, "name": name})
+
+			m.successNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+			m.errorNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+			m.sendNotificationRunHistogram.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+
+			MetricRolloutPluginReconcile.Delete(map[string]string{"namespace": namespace, "name": name})
+			MetricRolloutPluginReconcileError.Delete(map[string]string{"namespace": namespace, "name": name})
+			MetricRolloutPluginEventsTotal.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
 		}
 	}(namespace, name, kind)
 
