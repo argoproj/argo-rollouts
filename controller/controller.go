@@ -108,6 +108,19 @@ type LeaderElectionOptions struct {
 	LeaderElectionRetryPeriod   time.Duration
 }
 
+// leaseLockName returns the name of the lease lock used for leader election. When an
+// instanceID is configured, it is appended to the default lock name so that controllers
+// operating on different instance IDs against a shared cluster elect leaders independently.
+// This mirrors Argo Workflows' behavior:
+// https://github.com/argoproj/argo-workflows/blob/main/cmd/workflow-controller/main.go#L152
+func leaseLockName(instanceID string) string {
+	//Keep backwards compatibility for existing users
+	if instanceID == "" {
+		return defaultLeaderElectionLeaseLockName
+	}
+	return fmt.Sprintf("%s-%s", defaultLeaderElectionLeaseLockName, instanceID)
+}
+
 func NewLeaderElectionOptions() *LeaderElectionOptions {
 	return &LeaderElectionOptions{
 		LeaderElect:                 DefaultLeaderElect,
@@ -158,6 +171,11 @@ type Manager struct {
 	kubeClientSet kubernetes.Interface
 
 	namespace string
+
+	// instanceID is the value of the --instance-id flag. When set, it is appended to the
+	// leader election lease lock name so that controllers operating on different instance IDs
+	// against a shared cluster elect leaders independently (see leaseLockName).
+	instanceID string
 
 	dynamicInformerFactory               dynamicinformer.DynamicSharedInformerFactory
 	clusterDynamicInformerFactory        dynamicinformer.DynamicSharedInformerFactory
@@ -412,6 +430,7 @@ func NewManager(
 		notificationsController:              notificationsController,
 		refResolver:                          refResolver,
 		namespace:                            namespace,
+		instanceID:                           instanceID,
 		kubeClientSet:                        kubeclientset,
 		dynamicInformerFactory:               dynamicInformerFactory,
 		clusterDynamicInformerFactory:        clusterDynamicInformerFactory,
@@ -479,9 +498,12 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 		// add a uniquifier so that two processes on the same host don't accidentally both become active
 		id = id + "_" + string(uuid.NewUUID())
 		log.Infof("Leaderelection get id %s", id)
+
+		lockName := leaseLockName(c.instanceID)
+		log.Infof("Using leader election lease lock name %s", lockName)
 		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 			Lock: &resourcelock.LeaseLock{
-				LeaseMeta: metav1.ObjectMeta{Name: defaultLeaderElectionLeaseLockName, Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
+				LeaseMeta: metav1.ObjectMeta{Name: lockName, Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
 				LockConfig: resourcelock.ResourceLockConfig{Identity: id},
 			},
 			ReleaseOnCancel: false, // We can not set this to true because our context is sent on sig which means our code

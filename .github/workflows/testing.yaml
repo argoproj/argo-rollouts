@@ -5,10 +5,16 @@ on:
     branches:
       - 'master'
       - 'release-*'
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/*'
   pull_request:
     branches:
       - 'master'
       - 'release-*'
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   workflow_dispatch:
 
 env:
@@ -45,11 +51,15 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v6
 
-      - name: Restore go build cache
+      - name: Restore go build and module cache
         uses: actions/cache@v5
         with:
-          path: ~/.cache/go-build
-          key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-v1-
 
       - name: Download all Go modules
         run: |
@@ -108,7 +118,7 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Download cache
@@ -178,13 +188,28 @@ jobs:
         with:
           name: coverage-output-unit
           path: coverage-output-unit
-      - name: combine-go-coverage
+      - name: Generate unit test coverage profile
         run: |
-          go tool covdata textfmt -i=coverage-output-unit/,coverage-output-e2e/ -o full-coverage.out
-      - name: Upload code coverage information to codecov.io
+          go tool covdata textfmt -i=coverage-output-unit/ -o unit-coverage.out
+      - name: Generate e2e test coverage profile
+        run: |
+          go tool covdata textfmt -i=coverage-output-e2e/ -o e2e-coverage.out
+      - name: Upload unit test coverage to codecov.io
         uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:
-          files: full-coverage.out
+          files: unit-coverage.out
+          flags: unit-tests
+          fail_ci_if_error: false
+          codecov_yml_path: .codecov.yml
+          disable_search: true
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload e2e test coverage to codecov.io
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+        with:
+          files: e2e-coverage.out
+          flags: e2e
           fail_ci_if_error: false
           codecov_yml_path: .codecov.yml
           disable_search: true

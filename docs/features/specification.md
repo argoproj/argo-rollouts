@@ -179,6 +179,17 @@ spec:
       # stable pods. Required for traffic routing.
       stableService: stable-service
 
+      # Ping-pong spec allows zero-downtime rollouts for long-lived TCP/gRPC
+      # connections by avoiding service selector swaps at promotion time.
+      # Instead of swapping selectors between canaryService/stableService,
+      # the rollout alternates which of the two persistent services is
+      # "stable" via Status.Canary.StablePingPong. Supported with ALB,
+      # Istio, and plugin-based traffic routers.
+      # When pingPong is set, canaryService and stableService are not required.
+      pingPong:
+        pingService: ping-service
+        pongService: pong-service
+
       # Metadata which will be attached to the canary pods. This metadata will
       # only exist during an update, since there are no canary pods in a fully
       # promoted rollout.
@@ -451,6 +462,7 @@ spec:
           ingress: ingress # required
           servicePort: 443 # required
           annotationPrefix: custom.alb.ingress.kubernetes.io # optional
+          rootService: root-service # required when ping-pong is enabled
 
         # Service Mesh Interface routing configuration
         smi:

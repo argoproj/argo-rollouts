@@ -5,9 +5,15 @@ on:
     branches:
       - master
       - release-*
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'    
 
   # Run tests for any PRs.
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
