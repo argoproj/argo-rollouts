@@ -3,6 +3,7 @@ package validation
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -110,6 +111,36 @@ func TestValidateRollout(t *testing.T) {
 		}}
 		allErrs := ValidateRollout(ro)
 		assert.Empty(t, allErrs)
+	})
+
+	// Negative counterpart of the test above: a non-privileged container with
+	// Bidirectional mountPropagation must still be rejected, matching the
+	// kube-apiserver behaviour for Deployments. Guards against accidentally
+	// weakening the upstream cross-field rule.
+	t.Run("non-privileged container with bidirectional mount propagation is rejected", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		bidirectional := corev1.MountPropagationBidirectional
+		ro.Spec.Template.Spec.Volumes = []corev1.Volume{{
+			Name: "a-dir-to-mount",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		}}
+		ro.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{
+			Name:             "a-dir-to-mount",
+			MountPath:        "/tmp",
+			MountPropagation: &bidirectional,
+		}}
+		allErrs := ValidateRollout(ro)
+		assert.NotEmpty(t, allErrs)
+		found := false
+		for _, e := range allErrs {
+			if strings.Contains(e.Error(), "Bidirectional mount propagation") {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "expected Bidirectional mount propagation error, got: %v", allErrs)
 	})
 
 }
