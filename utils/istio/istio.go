@@ -41,10 +41,18 @@ func GetVirtualServiceNamespaceName(vsv string) (string, string) {
 	namespace := ""
 	name := ""
 
+	// Strip the well-known cluster.local DNS suffix before parsing so that a
+	// fully-qualified reference still resolves to the right name/namespace.
+	vsv = strings.TrimSuffix(vsv, ".cluster.local")
+
 	fields := strings.Split(vsv, ".")
 	if len(fields) >= 2 {
-		name = fields[0]
-		namespace = fields[1]
+		// Istio uses the "name.namespace" shorthand and a Kubernetes namespace
+		// cannot contain a period, so the last segment is the namespace and
+		// everything before it is the VirtualService name. This keeps names
+		// that legitimately contain periods intact (see issue #4709).
+		name = strings.Join(fields[:len(fields)-1], ".")
+		namespace = fields[len(fields)-1]
 	} else if len(fields) == 1 {
 		name = fields[0]
 	}
