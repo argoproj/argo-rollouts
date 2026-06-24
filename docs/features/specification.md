@@ -128,7 +128,7 @@ spec:
       # Indicates if the rollout should automatically promote the new ReplicaSet
       # to the active service or enter a paused state. If not specified, the
       # default value is true. +optional
-      autoPromotionEnabled: false
+      autoPromotionEnabled: true
 
       # Automatically promotes the current ReplicaSet to active after the
       # specified pause delay in seconds after the ReplicaSet becomes ready.
