@@ -255,7 +255,7 @@ func NewAnalysisManager(
 		onlyAnalysisMode:              true,
 	}
 
-	_, err := rolloutsConfig.InitializeConfig(kubeclientset, defaults.DefaultRolloutsConfigMapName)
+	_, err := rolloutsConfig.InitializeConfig(kubeclientset, defaults.GetRolloutsConfigMapName())
 	if err != nil {
 		log.Fatalf("Failed to init config: %v", err)
 	}
@@ -469,7 +469,7 @@ func NewManager(
 		notificationSecretInformerFactory:    notificationSecretInformerFactory,
 	}
 
-	_, err := rolloutsConfig.InitializeConfig(kubeclientset, defaults.DefaultRolloutsConfigMapName)
+	_, err := rolloutsConfig.InitializeConfig(kubeclientset, defaults.GetRolloutsConfigMapName())
 	if err != nil {
 		log.Fatalf("Failed to init config: %v", err)
 	}
