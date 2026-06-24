@@ -13,14 +13,16 @@ spec:
         - templateName: invalid-image-job
       steps:
       - setWeight: 10
-      - pause: {duration: 10s}      
+      - analysis: # make the rollout busy until analysis run returns Inconclusive
+          templates:
+            - templateName: long-running-job
   selector:
     matchLabels:
-      app: rollout-background-long-running-job
+      app: rollout-background-invalid-job
   template:
     metadata:
       labels:
-        app: rollout-background-long-running-job
+        app: rollout-background-invalid-job
     spec:
       containers:
       - name: rollouts-demo

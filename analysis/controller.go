@@ -19,6 +19,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	batchinformers "k8s.io/client-go/informers/batch/v1"
+	coreinformer "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -53,6 +54,8 @@ type Controller struct {
 
 	jobInformer batchinformers.JobInformer
 
+	jobPodsInformer coreinformer.PodInformer
+
 	metricsServer *metrics.MetricsServer
 
 	newProvider func(logCtx log.Entry, namespace string, metric v1alpha1.Metric) (metric.Provider, error)
@@ -79,6 +82,7 @@ type ControllerConfig struct {
 	ArgoProjClientset    clientset.Interface
 	AnalysisRunInformer  informers.AnalysisRunInformer
 	JobInformer          batchinformers.JobInformer
+	JobPodsInformer      coreinformer.PodInformer
 	ResyncPeriod         time.Duration
 	AnalysisRunWorkQueue workqueue.RateLimitingInterface
 	MetricsServer        *metrics.MetricsServer
@@ -95,6 +99,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		metricsServer:        cfg.MetricsServer,
 		analysisRunWorkQueue: cfg.AnalysisRunWorkQueue,
 		jobInformer:          cfg.JobInformer,
+		jobPodsInformer:      cfg.JobPodsInformer,
 		analysisRunSynced:    cfg.AnalysisRunInformer.Informer().HasSynced,
 		recorder:             cfg.Recorder,
 		resyncPeriod:         cfg.ResyncPeriod,
@@ -108,8 +113,9 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	providerFactory := metricproviders.ProviderFactory{
-		KubeClient: controller.kubeclientset,
-		JobLister:  cfg.JobInformer.Lister(),
+		KubeClient:    controller.kubeclientset,
+		JobLister:     cfg.JobInformer.Lister(),
+		JobPodsLister: cfg.JobPodsInformer.Lister(),
 	}
 	controller.newProvider = providerFactory.NewProvider
 
