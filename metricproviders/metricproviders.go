@@ -10,6 +10,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/metric"
 	"github.com/argoproj/argo-rollouts/metricproviders/influxdb"
+	"github.com/argoproj/argo-rollouts/metricproviders/instana"
 	"github.com/argoproj/argo-rollouts/metricproviders/skywalking"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
@@ -112,6 +113,8 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, namespace string, metric
 			return nil, err
 		}
 		return skywalking.NewSkyWalkingProvider(client, logCtx), nil
+	case instana.ProviderType:
+		return instana.NewInstanaProvider(logCtx, f.KubeClient, namespace, metric)
 	case plugin.ProviderType:
 		plugin, err := plugin.NewRpcPlugin(metric)
 		if err != nil {
@@ -146,6 +149,8 @@ func Type(metric v1alpha1.Metric) string {
 		return influxdb.ProviderType
 	} else if metric.Provider.SkyWalking != nil {
 		return skywalking.ProviderType
+	} else if metric.Provider.Instana != nil {
+		return instana.ProviderType
 	} else if metric.Provider.Plugin != nil {
 		return plugin.ProviderType
 	}

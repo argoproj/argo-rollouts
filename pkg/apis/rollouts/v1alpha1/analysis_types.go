@@ -198,6 +198,8 @@ type MetricProvider struct {
 	// +kubebuilder:validation:Type=object
 	// Plugin specifies the hashicorp go-plugin metric to query
 	Plugin map[string]json.RawMessage `json:"plugin,omitempty" protobuf:"bytes,12,opt,name=plugin"`
+	// Instana specifies the Instana metric to query
+	Instana *InstanaMetric `json:"instana,omitempty" protobuf:"bytes,13,opt,name=instana"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -387,6 +389,35 @@ type SkyWalkingMetric struct {
 	Address  string         `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
 	Query    string         `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
 	Interval DurationString `json:"interval,omitempty" protobuf:"bytes,3,opt,name=interval,casttype=DurationString"`
+}
+
+// InstanaMetric defines the Instana metric query to perform canary analysis
+type InstanaMetric struct {
+	// Endpoint is the base URL of the Instana REST API (e.g. https://unit-name.instana.io)
+	Endpoint string `json:"endpoint,omitempty" protobuf:"bytes,1,opt,name=endpoint"`
+	// Query is an Instana Dynamic Focus query string used to scope the metric (optional)
+	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+	// MetricType is the type of Instana metric to query ("application" or "infrastructure")
+	// +kubebuilder:validation:Enum=application;infrastructure
+	MetricType string `json:"metricType" protobuf:"bytes,3,opt,name=metricType"`
+	// RollupInterval is the rollup (aggregation window) in seconds (default: 60)
+	// +kubebuilder:default=60
+	RollupInterval int32 `json:"rollupInterval,omitempty" protobuf:"varint,4,opt,name=rollupInterval"`
+	// Aggregation is the metric aggregation function (e.g. "sum", "mean", "min", "max", "p25", "p50", "p75", "p90", "p95", "p98", "p99")
+	Aggregation string `json:"aggregation,omitempty" protobuf:"bytes,5,opt,name=aggregation"`
+	// MetricID is the metric identifier within the Instana metric catalog
+	MetricID string `json:"metricId" protobuf:"bytes,6,opt,name=metricId"`
+	// SecretRef refers to a Kubernetes secret containing Instana credentials (endpoint and api-token)
+	// +optional
+	SecretRef InstanaSecretRef `json:"secretRef,omitempty" protobuf:"bytes,7,opt,name=secretRef"`
+}
+
+// InstanaSecretRef holds a reference to a Kubernetes secret containing Instana credentials
+type InstanaSecretRef struct {
+	// Name is the Kubernetes secret name containing Instana credentials
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// Namespaced indicates whether to use the AnalysisTemplate namespace instead of the argo-rollouts namespace
+	Namespaced bool `json:"namespaced,omitempty" protobuf:"varint,2,opt,name=namespaced"`
 }
 
 // AnalysisRunSpec is the spec for a AnalysisRun resource
