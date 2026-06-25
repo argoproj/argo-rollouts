@@ -528,6 +528,14 @@ func PodTemplateEqualIgnoreHash(live, desired *corev1.PodTemplateSpec) bool {
 	// Remove hash labels from template.Labels before comparing
 	delete(live.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 	delete(desired.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
+	// Remove revision annotations from template.Annotations before comparing
+	// since these are added automatically and shouldn't affect template equality
+	if live.Annotations != nil {
+		delete(live.Annotations, annotations.RevisionAnnotation)
+	}
+	if desired.Annotations != nil {
+		delete(desired.Annotations, annotations.RevisionAnnotation)
+	}
 
 	podTemplate := corev1.PodTemplate{
 		Template: *desired,
