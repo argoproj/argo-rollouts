@@ -2,7 +2,6 @@ package tolerantinformer
 
 import (
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -13,9 +12,11 @@ import (
 )
 
 func NewTolerantAnalysisTemplateInformer(factory dynamicinformer.DynamicSharedInformerFactory) rolloutinformers.AnalysisTemplateInformer {
-	return &tolerantAnalysisTemplateInformer{
-		delegate: factory.ForResource(v1alpha1.AnalysisTemplateGVR),
-	}
+	delegate := factory.ForResource(v1alpha1.AnalysisTemplateGVR)
+	installTransform(delegate.Informer(),
+		makeTransform(func() *v1alpha1.AnalysisTemplate { return &v1alpha1.AnalysisTemplate{} }),
+		"AnalysisTemplate")
+	return &tolerantAnalysisTemplateInformer{delegate: delegate}
 }
 
 type tolerantAnalysisTemplateInformer struct {
@@ -28,59 +29,52 @@ func (i *tolerantAnalysisTemplateInformer) Informer() cache.SharedIndexInformer 
 
 func (i *tolerantAnalysisTemplateInformer) Lister() rolloutlisters.AnalysisTemplateLister {
 	return &tolerantAnalysisTemplateLister{
-		delegate: i.delegate.Lister(),
+		delegate: rolloutlisters.NewAnalysisTemplateLister(i.delegate.Informer().GetIndexer()),
 	}
 }
 
 type tolerantAnalysisTemplateLister struct {
-	delegate cache.GenericLister
+	delegate rolloutlisters.AnalysisTemplateLister
 }
 
 func (t *tolerantAnalysisTemplateLister) List(selector labels.Selector) ([]*v1alpha1.AnalysisTemplate, error) {
-	objects, err := t.delegate.List(selector)
+	items, err := t.delegate.List(selector)
 	if err != nil {
 		return nil, err
 	}
-	return convertObjectsToAnalysisTemplates(objects)
+	out := make([]*v1alpha1.AnalysisTemplate, len(items))
+	for i, at := range items {
+		out[i] = at.DeepCopy()
+	}
+	return out, nil
 }
 
 func (t *tolerantAnalysisTemplateLister) AnalysisTemplates(namespace string) rolloutlisters.AnalysisTemplateNamespaceLister {
 	return &tolerantAnalysisTemplateNamespaceLister{
-		delegate: t.delegate.ByNamespace(namespace),
+		delegate: t.delegate.AnalysisTemplates(namespace),
 	}
 }
 
 type tolerantAnalysisTemplateNamespaceLister struct {
-	delegate cache.GenericNamespaceLister
+	delegate rolloutlisters.AnalysisTemplateNamespaceLister
 }
 
 func (t *tolerantAnalysisTemplateNamespaceLister) Get(name string) (*v1alpha1.AnalysisTemplate, error) {
-	object, err := t.delegate.Get(name)
+	at, err := t.delegate.Get(name)
 	if err != nil {
 		return nil, err
 	}
-	v := &v1alpha1.AnalysisTemplate{}
-	err = convertObject(object, v)
-	return v, err
+	return at.DeepCopy(), nil
 }
 
 func (t *tolerantAnalysisTemplateNamespaceLister) List(selector labels.Selector) ([]*v1alpha1.AnalysisTemplate, error) {
-	objects, err := t.delegate.List(selector)
+	items, err := t.delegate.List(selector)
 	if err != nil {
 		return nil, err
 	}
-	return convertObjectsToAnalysisTemplates(objects)
-}
-
-func convertObjectsToAnalysisTemplates(objects []runtime.Object) ([]*v1alpha1.AnalysisTemplate, error) {
-	var firstErr error
-	vs := make([]*v1alpha1.AnalysisTemplate, len(objects))
-	for i, obj := range objects {
-		vs[i] = &v1alpha1.AnalysisTemplate{}
-		err := convertObject(obj, vs[i])
-		if err != nil && firstErr != nil {
-			firstErr = err
-		}
+	out := make([]*v1alpha1.AnalysisTemplate, len(items))
+	for i, at := range items {
+		out[i] = at.DeepCopy()
 	}
-	return vs, firstErr
+	return out, nil
 }

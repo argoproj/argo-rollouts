@@ -2,7 +2,6 @@ package tolerantinformer
 
 import (
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -13,9 +12,11 @@ import (
 )
 
 func NewTolerantAnalysisRunInformer(factory dynamicinformer.DynamicSharedInformerFactory) rolloutinformers.AnalysisRunInformer {
-	return &tolerantAnalysisRunInformer{
-		delegate: factory.ForResource(v1alpha1.AnalysisRunGVR),
-	}
+	delegate := factory.ForResource(v1alpha1.AnalysisRunGVR)
+	installTransform(delegate.Informer(),
+		makeTransform(func() *v1alpha1.AnalysisRun { return &v1alpha1.AnalysisRun{} }),
+		"AnalysisRun")
+	return &tolerantAnalysisRunInformer{delegate: delegate}
 }
 
 type tolerantAnalysisRunInformer struct {
@@ -28,59 +29,57 @@ func (i *tolerantAnalysisRunInformer) Informer() cache.SharedIndexInformer {
 
 func (i *tolerantAnalysisRunInformer) Lister() rolloutlisters.AnalysisRunLister {
 	return &tolerantAnalysisRunLister{
-		delegate: i.delegate.Lister(),
+		delegate: rolloutlisters.NewAnalysisRunLister(i.delegate.Informer().GetIndexer()),
 	}
 }
 
+// tolerantAnalysisRunLister wraps the generated typed lister and deep-copies each
+// returned object so callers can safely mutate the result without corrupting the
+// shared informer cache. The SetTransform conversion still runs only once per
+// object change, so the dominant cost (unstructured→typed reflection) is paid
+// once; the per-call cost here is a fast generated DeepCopy.
 type tolerantAnalysisRunLister struct {
-	delegate cache.GenericLister
+	delegate rolloutlisters.AnalysisRunLister
 }
 
 func (t *tolerantAnalysisRunLister) List(selector labels.Selector) ([]*v1alpha1.AnalysisRun, error) {
-	objects, err := t.delegate.List(selector)
+	items, err := t.delegate.List(selector)
 	if err != nil {
 		return nil, err
 	}
-	return convertObjectsToAnalysisRuns(objects)
+	out := make([]*v1alpha1.AnalysisRun, len(items))
+	for i, ar := range items {
+		out[i] = ar.DeepCopy()
+	}
+	return out, nil
 }
 
 func (t *tolerantAnalysisRunLister) AnalysisRuns(namespace string) rolloutlisters.AnalysisRunNamespaceLister {
 	return &tolerantAnalysisRunNamespaceLister{
-		delegate: t.delegate.ByNamespace(namespace),
+		delegate: t.delegate.AnalysisRuns(namespace),
 	}
 }
 
 type tolerantAnalysisRunNamespaceLister struct {
-	delegate cache.GenericNamespaceLister
+	delegate rolloutlisters.AnalysisRunNamespaceLister
 }
 
 func (t *tolerantAnalysisRunNamespaceLister) Get(name string) (*v1alpha1.AnalysisRun, error) {
-	object, err := t.delegate.Get(name)
+	ar, err := t.delegate.Get(name)
 	if err != nil {
 		return nil, err
 	}
-	v := &v1alpha1.AnalysisRun{}
-	err = convertObject(object, v)
-	return v, err
+	return ar.DeepCopy(), nil
 }
 
 func (t *tolerantAnalysisRunNamespaceLister) List(selector labels.Selector) ([]*v1alpha1.AnalysisRun, error) {
-	objects, err := t.delegate.List(selector)
+	items, err := t.delegate.List(selector)
 	if err != nil {
 		return nil, err
 	}
-	return convertObjectsToAnalysisRuns(objects)
-}
-
-func convertObjectsToAnalysisRuns(objects []runtime.Object) ([]*v1alpha1.AnalysisRun, error) {
-	var firstErr error
-	vs := make([]*v1alpha1.AnalysisRun, len(objects))
-	for i, obj := range objects {
-		vs[i] = &v1alpha1.AnalysisRun{}
-		err := convertObject(obj, vs[i])
-		if err != nil && firstErr != nil {
-			firstErr = err
-		}
+	out := make([]*v1alpha1.AnalysisRun, len(items))
+	for i, ar := range items {
+		out[i] = ar.DeepCopy()
 	}
-	return vs, firstErr
+	return out, nil
 }

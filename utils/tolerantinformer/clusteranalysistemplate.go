@@ -2,7 +2,6 @@ package tolerantinformer
 
 import (
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -13,9 +12,11 @@ import (
 )
 
 func NewTolerantClusterAnalysisTemplateInformer(factory dynamicinformer.DynamicSharedInformerFactory) rolloutinformers.ClusterAnalysisTemplateInformer {
-	return &tolerantClusterAnalysisTemplateInformer{
-		delegate: factory.ForResource(v1alpha1.ClusterAnalysisTemplateGVR),
-	}
+	delegate := factory.ForResource(v1alpha1.ClusterAnalysisTemplateGVR)
+	installTransform(delegate.Informer(),
+		makeTransform(func() *v1alpha1.ClusterAnalysisTemplate { return &v1alpha1.ClusterAnalysisTemplate{} }),
+		"ClusterAnalysisTemplate")
+	return &tolerantClusterAnalysisTemplateInformer{delegate: delegate}
 }
 
 type tolerantClusterAnalysisTemplateInformer struct {
@@ -28,41 +29,30 @@ func (i *tolerantClusterAnalysisTemplateInformer) Informer() cache.SharedIndexIn
 
 func (i *tolerantClusterAnalysisTemplateInformer) Lister() rolloutlisters.ClusterAnalysisTemplateLister {
 	return &tolerantClusterAnalysisTemplateLister{
-		delegate: i.delegate.Lister(),
+		delegate: rolloutlisters.NewClusterAnalysisTemplateLister(i.delegate.Informer().GetIndexer()),
 	}
 }
 
 type tolerantClusterAnalysisTemplateLister struct {
-	delegate cache.GenericLister
+	delegate rolloutlisters.ClusterAnalysisTemplateLister
 }
 
 func (t *tolerantClusterAnalysisTemplateLister) List(selector labels.Selector) ([]*v1alpha1.ClusterAnalysisTemplate, error) {
-	objects, err := t.delegate.List(selector)
+	items, err := t.delegate.List(selector)
 	if err != nil {
 		return nil, err
 	}
-	return convertObjectsToClusterAnalysisTemplates(objects)
+	out := make([]*v1alpha1.ClusterAnalysisTemplate, len(items))
+	for i, cat := range items {
+		out[i] = cat.DeepCopy()
+	}
+	return out, nil
 }
 
 func (t *tolerantClusterAnalysisTemplateLister) Get(name string) (*v1alpha1.ClusterAnalysisTemplate, error) {
-	object, err := t.delegate.Get(name)
+	cat, err := t.delegate.Get(name)
 	if err != nil {
 		return nil, err
 	}
-	v := &v1alpha1.ClusterAnalysisTemplate{}
-	err = convertObject(object, v)
-	return v, err
-}
-
-func convertObjectsToClusterAnalysisTemplates(objects []runtime.Object) ([]*v1alpha1.ClusterAnalysisTemplate, error) {
-	var firstErr error
-	vs := make([]*v1alpha1.ClusterAnalysisTemplate, len(objects))
-	for i, obj := range objects {
-		vs[i] = &v1alpha1.ClusterAnalysisTemplate{}
-		err := convertObject(obj, vs[i])
-		if err != nil && firstErr != nil {
-			firstErr = err
-		}
-	}
-	return vs, firstErr
+	return cat.DeepCopy(), nil
 }

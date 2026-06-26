@@ -3,36 +3,49 @@ package tolerantinformer
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/cache"
 
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-// convertObject converts a runtime.Object into the supplied concrete typed object
-// typedObj should be a pointer to a typed object which is desired to be filled in.
-// This is a best effort conversion which ignores unmarshalling errors.
-func convertObject(object runtime.Object, typedObj any) error {
-	un, ok := object.(*unstructured.Unstructured)
-	if !ok {
-		return fmt.Errorf("malformed object: expected \"*unstructured.Unstructured\", got \"%s\"", reflect.TypeOf(object).Name())
+// makeTransform returns a cache.TransformFunc that converts a *unstructured.Unstructured
+// into a typed pointer produced by newFn. The conversion runs once per object on
+// insert/update into the shared informer cache, so subsequent List/Get calls return
+// the typed object directly with no per-call reflection cost.
+//
+// Tolerance: if the reflection-based DefaultUnstructuredConverter fails (e.g., a
+// malformed field that fails fast), fall back to encoding/json which continues past
+// invalid fields. Preserves the original tolerantinformer behavior from PR #666
+// (resolves #389, #517).
+//
+// Idempotent: if the object has already been converted (e.g., a resync delivers a
+// typed object), it is returned unchanged.
+func makeTransform[T runtime.Object](newFn func() T) cache.TransformFunc {
+	return func(obj any) (any, error) {
+		un, ok := obj.(*unstructured.Unstructured)
+		if !ok {
+			return obj, nil
+		}
+		typed := newFn()
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, typed); err != nil {
+			logCtx := logutil.WithObject(un)
+			logCtx.Warnf("malformed object: %v", err)
+			typed = newFn()
+			_ = fromUnstructuredViaJSON(un.Object, typed)
+		}
+		return typed, nil
 	}
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, typedObj)
-	if err != nil {
-		logCtx := logutil.WithObject(un)
-		logCtx.Warnf("malformed object: %v", err)
-		// When DefaultUnstructuredConverter.FromUnstructured fails to convert an object, it
-		// fails fast, not bothering to unmarshal the rest of the contents.
-		// When this happens, we fall back to golang json unmarshalling, since golang json
-		// unmarshalling continues to unmarshal all the remaining fields, which allows us to
-		// return back a mostly complete, and likely still usable object. This approach is
-		// preferred over the other options, which is to either return an error, or ignore the
-		// object completely.
-		_ = fromUnstructuredViaJSON(un.Object, typedObj)
+}
+
+// installTransform calls SetTransform on the informer, panicking if the informer
+// has already started. Constructors must run before factory.Start().
+func installTransform(informer cache.SharedIndexInformer, transform cache.TransformFunc, kind string) {
+	if err := informer.SetTransform(transform); err != nil {
+		panic(fmt.Errorf("tolerantinformer: SetTransform for %s: %w (constructors must run before factory.Start)", kind, err))
 	}
-	return nil
 }
 
 func fromUnstructuredViaJSON(u map[string]any, obj any) error {
