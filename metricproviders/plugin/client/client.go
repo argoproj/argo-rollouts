@@ -9,6 +9,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/plugin"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
@@ -68,6 +69,7 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricProv
 				Plugins:         pluginMap,
 				Cmd:             exec.Command(pluginPath, args...),
 				Managed:         true,
+				Logger:          logutil.NewPluginLogger(pluginName),
 			})
 
 			rpcClient, err := m.pluginClient[pluginName].Client()

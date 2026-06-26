@@ -8,6 +8,7 @@ import (
 	goPlugin "github.com/hashicorp/go-plugin"
 
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/plugin"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
@@ -64,6 +65,7 @@ func (t *stepPlugin) startPlugin(pluginName string) (rpc.StepPlugin, error) {
 			Plugins:         pluginMap,
 			Cmd:             exec.Command(pluginPath, args...),
 			Managed:         true,
+			Logger:          logutil.NewPluginLogger(pluginName),
 		})
 
 		rpcClient, err := t.client[pluginName].Client()
