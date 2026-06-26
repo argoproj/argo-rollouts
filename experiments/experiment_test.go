@@ -436,6 +436,89 @@ func TestFailReplicaSetCreation(t *testing.T) {
 	assert.Equal(t, newStatus.Phase, v1alpha1.AnalysisPhaseError)
 }
 
+func TestRetryDeleteReplicaSetErrorUpdatesStatus(t *testing.T) {
+	templates := generateTemplates("bar")
+	oldTemplate := templates[0]
+	newTemplate := oldTemplate.DeepCopy()
+	newTemplate.Template.Spec.Containers[0].Image = "bar-v2"
+
+	ex := newExperiment("foo", []v1alpha1.TemplateSpec{*newTemplate}, "")
+	ex.Status = v1alpha1.ExperimentStatus{}
+
+	oldRS := templateToRS(ex, oldTemplate, 1)
+	exCtx := newTestContext(ex, oldRS)
+	exCtx.templateRSs[oldTemplate.Name] = oldRS
+
+	fakeClient := exCtx.kubeclientset.(*k8sfake.Clientset)
+	fakeClient.PrependReactor("delete", "replicasets", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New("intentional delete error")
+	})
+
+	newStatus := exCtx.reconcile()
+	if assert.Len(t, newStatus.TemplateStatuses, 1) {
+		assert.Equal(t, v1alpha1.TemplateStatusError, newStatus.TemplateStatuses[0].Status)
+		assert.Contains(t, newStatus.TemplateStatuses[0].Message, "Failed to delete ReplicaSet")
+	}
+}
+
+func TestDeleteReplicaSetIgnoresNotFound(t *testing.T) {
+	templates := generateTemplates("bar")
+	ex := newExperiment("foo", templates, "")
+	exCtx := newTestContext(ex)
+
+	rs := templateToRS(ex, templates[0], 0)
+	fakeClient := exCtx.kubeclientset.(*k8sfake.Clientset)
+	fakeClient.PrependReactor("delete", "replicasets", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, k8serrors.NewNotFound(schema.GroupResource{Resource: "replicasets"}, rs.Name)
+	})
+
+	err := exCtx.deleteReplicaSet(rs)
+	assert.NoError(t, err)
+}
+
+func TestRetryRecreatesReplicaSetOnTemplateDiff(t *testing.T) {
+	templates := generateTemplates("bar")
+	oldTemplate := templates[0]
+	newTemplate := oldTemplate.DeepCopy()
+	newTemplate.Template.Spec.Containers[0].Image = "bar-v2"
+
+	ex := newExperiment("foo", []v1alpha1.TemplateSpec{*newTemplate}, "")
+	ex.Status = v1alpha1.ExperimentStatus{}
+
+	oldRS := templateToRS(ex, oldTemplate, 1)
+	exCtx := newTestContext(ex, oldRS)
+	exCtx.templateRSs[oldTemplate.Name] = oldRS
+
+	fakeClient := exCtx.kubeclientset.(*k8sfake.Clientset)
+	exCtx.reconcile()
+
+	deleted := false
+	for _, action := range fakeClient.Actions() {
+		if action.Matches("delete", "replicasets") {
+			deleted = true
+			break
+		}
+	}
+	assert.True(t, deleted)
+
+	exCtx.reconcile()
+	var createdRS *appsv1.ReplicaSet
+	for _, action := range fakeClient.Actions() {
+		if action.Matches("create", "replicasets") {
+			createAction, ok := action.(kubetesting.CreateAction)
+			assert.True(t, ok)
+			obj := createAction.GetObject()
+			rs, ok := obj.(*appsv1.ReplicaSet)
+			assert.True(t, ok)
+			createdRS = rs
+			break
+		}
+	}
+	if assert.NotNil(t, createdRS) {
+		assert.Equal(t, "bar-v2", createdRS.Spec.Template.Spec.Containers[0].Image)
+	}
+}
+
 func TestFailServiceCreation(t *testing.T) {
 	templates := generateTemplates("bad")
 	setExperimentService(&templates[0])
