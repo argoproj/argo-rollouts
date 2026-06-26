@@ -6,7 +6,9 @@ import (
 	"runtime/debug"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	"errors"
+
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -107,6 +109,12 @@ func RunWorker(ctx context.Context, workqueue workqueue.RateLimitingInterface, o
 	}
 }
 
+var StaleCacheError = errors.New("stale cache, requeuing item")
+
+// StaleCacheRequeueDelay is how long to wait before retrying when the informer cache
+// hasn't yet observed our previous write.
+const StaleCacheRequeueDelay = 100 * time.Millisecond
+
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
 func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(context.Context, string) error, metricsServer *metrics.MetricsServer) bool {
@@ -157,10 +165,14 @@ func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingIn
 		// Run the syncHandler, passing it the namespace/name string of the
 		// Rollout resource to be synced.
 		if err := runSyncHandler(); err != nil {
+			if errors.Is(err, StaleCacheError) {
+				workqueue.AddAfter(key, StaleCacheRequeueDelay)
+				logCtx.Infof("requeuing %s due to stale cache after %s, key %q", objType, StaleCacheRequeueDelay, key)
+				return nil
+			}
 			logCtx.Errorf("%s syncHandler error: %v", objType, err)
 			metricsServer.IncError(namespace, name, objType)
-
-			if errors.IsNotFound(err) {
+			if k8serrors.IsNotFound(err) {
 				workqueue.Forget(obj)
 				return nil
 			}
