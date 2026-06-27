@@ -48,9 +48,12 @@ func TestStreamInvalidTokenRejected(t *testing.T) {
 	md := metadata.Pairs("authorization", "Bearer forged")
 	ss := &fakeServerStream{ctx: metadata.NewIncomingContext(context.Background(), md)}
 
+	var handlerCalled bool
 	err := i.Stream(nil, ss, &grpc.StreamServerInfo{FullMethod: "/rollout.RolloutService/WatchRolloutInfos"}, func(_ interface{}, _ grpc.ServerStream) error {
+		handlerCalled = true
 		return nil
 	})
 	require.Error(t, err)
 	assert.Equal(t, codes.Unauthenticated, status.Code(err))
+	assert.False(t, handlerCalled, "handler must not be called when token is invalid (fail-closed)")
 }

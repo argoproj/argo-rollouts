@@ -53,3 +53,23 @@ func TestTokenAuthorizationBeatsCookie(t *testing.T) {
 func TestTokenAbsent(t *testing.T) {
 	assert.Equal(t, "", tokenFromContext(context.Background()))
 }
+
+func TestTokenFromAuthorizationLowercaseBearer(t *testing.T) {
+	md := metadata.Pairs("authorization", "bearer abc.def.ghi")
+	ctx := metadata.NewIncomingContext(context.Background(), md)
+	assert.Equal(t, "abc.def.ghi", tokenFromContext(ctx))
+}
+
+func TestTokenFromAuthorizationUppercaseBearer(t *testing.T) {
+	md := metadata.Pairs("authorization", "BEARER abc.def.ghi")
+	ctx := metadata.NewIncomingContext(context.Background(), md)
+	assert.Equal(t, "abc.def.ghi", tokenFromContext(ctx))
+}
+
+func TestTokenFromAuthorizationBearerEmptyCredential(t *testing.T) {
+	// "Bearer " with nothing after the space — documents that empty credential
+	// is treated as absent (tokenFromContext returns "").
+	md := metadata.Pairs("authorization", "Bearer ")
+	ctx := metadata.NewIncomingContext(context.Background(), md)
+	assert.Equal(t, "", tokenFromContext(ctx))
+}

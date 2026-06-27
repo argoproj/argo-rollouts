@@ -96,3 +96,27 @@ func TestUnaryWhitelistSkipsAuth(t *testing.T) {
 	assert.Equal(t, "ok", resp)
 	assert.Empty(t, v.seen, "whitelisted method must not invoke the verifier")
 }
+
+func TestUnaryNilClaimsNormalized(t *testing.T) {
+	// Verifier returns (nil, nil) — a degenerate but spec-legal success.
+	// Fix A requires the interceptor to normalize nil to an empty map so that
+	// authenticated requests always carry a non-nil claims map.
+	v := &fakeVerifier{claims: nil, err: nil}
+	i := NewInterceptor(v, false, nil)
+
+	var (
+		handlerOk  bool
+		claimsNonNil bool
+	)
+	handler := func(ctx context.Context, _ interface{}) (interface{}, error) {
+		handlerOk = true
+		c, ok := ClaimsFromContext(ctx)
+		claimsNonNil = ok && c != nil
+		return "ok", nil
+	}
+	resp, err := i.Unary(ctxWithToken("valid"), nil, &grpc.UnaryServerInfo{FullMethod: "/rollout.RolloutService/PromoteRollout"}, handler)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", resp)
+	assert.True(t, handlerOk, "handler must be called on valid token")
+	assert.True(t, claimsNonNil, "nil claims from verifier must be normalized to empty non-nil map")
+}

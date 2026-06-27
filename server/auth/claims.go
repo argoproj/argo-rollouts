@@ -11,6 +11,11 @@ import (
 
 // TokenVerifier verifies a token string and returns its claims. It is
 // satisfied by session.SessionManager.
+//
+// Contract: Parse must return a non-nil error on failure. On success it
+// returns the token's claims; a nil success result is defensively normalized
+// to an empty jwt.MapClaims{} by the interceptor so callers always see a
+// non-nil map for authenticated requests.
 type TokenVerifier interface {
 	Parse(token string) (jwt.MapClaims, error)
 }

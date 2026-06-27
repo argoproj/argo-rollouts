@@ -43,6 +43,9 @@ func (i *Interceptor) authenticate(ctx context.Context, fullMethod string) (cont
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "invalid authentication token")
 	}
+	if claims == nil {
+		claims = jwt.MapClaims{}
+	}
 	return ContextWithClaims(ctx, claims), nil
 }
 
