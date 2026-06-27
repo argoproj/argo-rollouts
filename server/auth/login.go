@@ -33,7 +33,15 @@ type LoginHandler struct {
 
 // dummyHash equalizes the failure-path timing against a real bcrypt comparison,
 // so an unknown user is not distinguishable from a wrong password by latency.
-var dummyHash, _ = password.HashPassword("argo-rollouts-login-timing-equalizer")
+var dummyHash string
+
+func init() {
+	h, err := password.HashPassword("argo-rollouts-login-timing-equalizer")
+	if err != nil {
+		panic("auth: failed to compute login timing-equalizer hash: " + err.Error())
+	}
+	dummyHash = h
+}
 
 type loginRequest struct {
 	Username string `json:"username"`
@@ -88,6 +96,7 @@ func LogoutHandler(w http.ResponseWriter, _ *http.Request) {
 		Path:     "/",
 		HttpOnly: true,
 		MaxAge:   -1,
+		SameSite: http.SameSiteStrictMode,
 	})
 	w.WriteHeader(http.StatusOK)
 }

@@ -59,11 +59,14 @@ func TestLoginSuccessSetsCookieAndToken(t *testing.T) {
 
 func TestLoginBadCredentialsGeneric(t *testing.T) {
 	// Different underlying errors must produce identical responses (no enumeration).
-	for _, underlying := range []error{
+	underlyings := []error{
 		errors.New(`account "ghost" not found`),
 		errors.New(`account "bob" is disabled`),
 		errors.New("crypto/bcrypt: hashedPassword is not the hash of the given password"),
-	} {
+	}
+	var firstCode int
+	var firstBody []byte
+	for i, underlying := range underlyings {
 		h := &LoginHandler{Verifier: fakeCredVerifier{err: underlying}, Issuer: &fakeIssuer{token: "x"}, TokenExpiry: time.Hour}
 		rec := postLogin(h, `{"username":"u","password":"p"}`)
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
@@ -71,6 +74,13 @@ func TestLoginBadCredentialsGeneric(t *testing.T) {
 		assert.NotContains(t, rec.Body.String(), "not found")
 		assert.NotContains(t, rec.Body.String(), "disabled")
 		assert.Equal(t, "invalid username or password\n", rec.Body.String())
+		if i == 0 {
+			firstCode = rec.Code
+			firstBody = append([]byte(nil), rec.Body.Bytes()...)
+		} else {
+			assert.Equal(t, firstCode, rec.Code, "status must be byte-identical across variants (no enumeration)")
+			assert.Equal(t, firstBody, rec.Body.Bytes(), "body must be byte-identical across variants (no enumeration)")
+		}
 	}
 }
 
@@ -107,4 +117,24 @@ func TestLogoutClearsCookie(t *testing.T) {
 	assert.Equal(t, AuthCookieName, cookies[0].Name)
 	assert.Equal(t, "", cookies[0].Value)
 	assert.True(t, cookies[0].MaxAge < 0, "logout cookie expires immediately")
+	assert.Equal(t, http.SameSiteStrictMode, cookies[0].SameSite, "logout cookie must set SameSite=Strict to prevent forced-logout CSRF")
+}
+
+func TestLoginCookieSecureFlag(t *testing.T) {
+	t.Run("secure=true", func(t *testing.T) {
+		h := &LoginHandler{Verifier: fakeCredVerifier{}, Issuer: &fakeIssuer{token: "tok"}, TokenExpiry: time.Hour, Secure: true}
+		rec := postLogin(h, `{"username":"alice","password":"s3cret"}`)
+		require.Equal(t, http.StatusOK, rec.Code)
+		cookies := rec.Result().Cookies()
+		require.Len(t, cookies, 1)
+		assert.True(t, cookies[0].Secure, "cookie must carry Secure flag when LoginHandler.Secure=true")
+	})
+	t.Run("secure=false", func(t *testing.T) {
+		h := &LoginHandler{Verifier: fakeCredVerifier{}, Issuer: &fakeIssuer{token: "tok"}, TokenExpiry: time.Hour, Secure: false}
+		rec := postLogin(h, `{"username":"alice","password":"s3cret"}`)
+		require.Equal(t, http.StatusOK, rec.Code)
+		cookies := rec.Result().Cookies()
+		require.Len(t, cookies, 1)
+		assert.False(t, cookies[0].Secure, "cookie must not carry Secure flag when LoginHandler.Secure=false")
+	})
 }
