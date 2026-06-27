@@ -60,7 +60,7 @@ func (s *ArgoRolloutsServer) setupAuth(ctx context.Context) (*authComponents, er
 	return &authComponents{
 		authn:       auth.NewInterceptor(sessionMgr, anonymous, authNWhitelist),
 		authz:       auth.NewAuthzInterceptor(enforcer, rbacCfg.DefaultRole),
-		login:       &auth.LoginHandler{Verifier: sm, Issuer: sessionMgr, TokenExpiry: tokenExpiry, Secure: false},
+		login:       &auth.LoginHandler{Verifier: sm, Issuer: sessionMgr, TokenExpiry: tokenExpiry, Secure: s.tlsConfig != nil},
 		enforcer:    enforcer,
 		defaultRole: rbacCfg.DefaultRole,
 	}, nil

@@ -106,6 +106,30 @@ func TestBuildTLSConfigPropagatesCertError(t *testing.T) {
 	assert.Nil(t, cfg)
 }
 
+func TestRunBuildsTLSConfigInServerMode(t *testing.T) {
+	client := k8sfake.NewSimpleClientset()
+	s := NewServer(ServerOptions{KubeClientset: client, Namespace: "argo-rollouts", AuthMode: AuthModeServer})
+
+	// Exercise just the TLS-config decision used by Run, not the full listener.
+	cfg, err := s.maybeTLSConfig(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, cfg, "server mode without --insecure must enable TLS")
+}
+
+func TestMaybeTLSConfigDisabled(t *testing.T) {
+	client := k8sfake.NewSimpleClientset()
+
+	none := NewServer(ServerOptions{KubeClientset: client, Namespace: "argo-rollouts", AuthMode: AuthModeNone})
+	cfg, err := none.maybeTLSConfig(context.Background())
+	require.NoError(t, err)
+	assert.Nil(t, cfg, "none mode stays plaintext")
+
+	insecure := NewServer(ServerOptions{KubeClientset: client, Namespace: "argo-rollouts", AuthMode: AuthModeServer, Insecure: true})
+	cfg, err = insecure.maybeTLSConfig(context.Background())
+	require.NoError(t, err)
+	assert.Nil(t, cfg, "--insecure disables TLS even in server mode")
+}
+
 // TestBuildTLSConfigUsesConfiguredCert verifies that when a valid TLS keypair is
 // stored in the Secret, buildTLSConfig uses it (not a self-signed fallback).
 func TestBuildTLSConfigUsesConfiguredCert(t *testing.T) {

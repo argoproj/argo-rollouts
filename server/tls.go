@@ -48,6 +48,15 @@ func generateSelfSignedCert() (tls.Certificate, error) {
 	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: priv}, nil
 }
 
+// maybeTLSConfig returns the TLS config to serve with, or nil for plaintext.
+// TLS is enabled in server mode unless --insecure is set.
+func (s *ArgoRolloutsServer) maybeTLSConfig(ctx context.Context) (*tls.Config, error) {
+	if s.Options.AuthMode != AuthModeServer || s.Options.Insecure {
+		return nil, nil
+	}
+	return s.buildTLSConfig(ctx)
+}
+
 // buildTLSConfig returns a TLS config for the dashboard: the Secret-provided
 // certificate if configured, otherwise a generated self-signed certificate.
 func (s *ArgoRolloutsServer) buildTLSConfig(ctx context.Context) (*tls.Config, error) {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,6 +62,7 @@ type ServerOptions struct {
 	Namespace         string
 	RootPath          string
 	AuthMode          string
+	Insecure          bool
 }
 
 const (
@@ -69,9 +72,10 @@ const (
 
 // ArgoRolloutsServer holds information about rollouts server
 type ArgoRolloutsServer struct {
-	Options ServerOptions
-	stopCh  chan struct{}
-	auth    *authComponents
+	Options   ServerOptions
+	stopCh    chan struct{}
+	auth      *authComponents
+	tlsConfig *tls.Config
 }
 
 // NewServer creates an ArgoRolloutsServer
@@ -111,7 +115,14 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	opts := []grpc.DialOption{
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)),
 	}
-	opts = append(opts, grpc.WithInsecure())
+	if s.tlsConfig != nil {
+		// InsecureSkipVerify is intentional and safe here: this is a loopback in-process
+		// dial (gateway → local gRPC on the same host); external clients still validate
+		// against the served certificate.
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))) //nolint:gosec
+	} else {
+		opts = append(opts, grpc.WithInsecure())
+	}
 
 	endpoint := net.JoinHostPort(connectAddr, fmt.Sprintf("%d", port))
 	err := rollout.RegisterRolloutServiceHandlerFromEndpoint(ctx, gwmux, endpoint, opts)
@@ -173,6 +184,12 @@ func (s *ArgoRolloutsServer) checkServeErr(name string, err error) {
 
 // Run starts the server
 func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) {
+	// Build TLS config FIRST so that setupAuth can read s.tlsConfig for the
+	// session-cookie Secure flag.
+	tlsCfg, err := s.maybeTLSConfig(ctx)
+	errors.CheckError(err)
+	s.tlsConfig = tlsCfg
+
 	if s.Options.AuthMode == AuthModeServer {
 		comps, err := s.setupAuth(ctx)
 		errors.CheckError(err)
@@ -197,9 +214,15 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 	})
 	errors.CheckError(realErr)
 
+	scheme := "http"
+	if s.tlsConfig != nil {
+		conn = tls.NewListener(conn, s.tlsConfig)
+		scheme = "https"
+	}
+
 	startupMessage := fmt.Sprintf("Argo Rollouts api-server serving on port %d (namespace: %s)", port, s.Options.Namespace)
 	if dashboard {
-		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at http://localhost:%d/%s", port, s.Options.RootPath)
+		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at %s://localhost:%d/%s", scheme, port, s.Options.RootPath)
 	}
 
 	log.Info(startupMessage)
