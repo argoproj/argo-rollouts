@@ -40,3 +40,23 @@ func (mgr *SessionManager) Create(subject string, expiry time.Duration, id strin
 	}
 	return signed, nil
 }
+
+// Parse verifies tokenString's HS256 signature and issuer and returns its
+// claims. It rejects any non-HS256 algorithm (including "none"), a bad
+// signature, a wrong issuer, or an expired token.
+func (mgr *SessionManager) Parse(tokenString string) (jwt.MapClaims, error) {
+	claims := jwt.MapClaims{}
+	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return mgr.signingKey, nil
+	},
+		jwt.WithValidMethods([]string{"HS256"}),
+		jwt.WithIssuer(SessionManagerClaimsIssuer),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("parse token: %w", err)
+	}
+	return claims, nil
+}
