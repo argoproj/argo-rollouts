@@ -38,3 +38,11 @@ func TestHashRejectsOverLongPassword(t *testing.T) {
 func TestVerifyRejectsGarbageHash(t *testing.T) {
 	assert.Error(t, VerifyPassword("x", "not-a-bcrypt-hash"))
 }
+
+func TestVerifyRejectsOverLongPassword(t *testing.T) {
+	hash, err := HashPassword("correct horse")
+	require.NoError(t, err)
+	// >72-byte password must be rejected before bcrypt sees it.
+	err = VerifyPassword(strings.Repeat("a", MaxPasswordLength+1), hash)
+	assert.Error(t, err, "VerifyPassword must reject passwords longer than MaxPasswordLength")
+}

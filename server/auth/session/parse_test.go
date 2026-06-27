@@ -1,6 +1,8 @@
 package session
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"testing"
 	"time"
 
@@ -68,4 +70,39 @@ func TestParseRejectsAlgNone(t *testing.T) {
 
 	_, err = mgr.Parse(tok)
 	assert.Error(t, err, "alg=none must be rejected (algorithm-confusion guard)")
+}
+
+// TestParseRejectsRS256 verifies that an RS256-signed token cannot be accepted
+// by a manager that only trusts HS256 (algorithm-confusion attack guard).
+func TestParseRejectsRS256(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	claims := jwt.RegisteredClaims{
+		Issuer:    SessionManagerClaimsIssuer,
+		Subject:   "attacker",
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	}
+	tok, err := jwt.NewWithClaims(jwt.SigningMethodRS256, claims).SignedString(key)
+	require.NoError(t, err)
+
+	mgr := NewSessionManager([]byte("test-signing-key"))
+	_, err = mgr.Parse(tok)
+	assert.Error(t, err, "RS256-signed token must be rejected by an HS256-only verifier")
+}
+
+// TestParseRejectsMissingExpiry verifies that a token without an exp claim is
+// rejected even when the signature and issuer are valid.
+func TestParseRejectsMissingExpiry(t *testing.T) {
+	mgr := NewSessionManager([]byte("test-signing-key"))
+	// RegisteredClaims with no ExpiresAt → no exp claim in the token.
+	claims := jwt.RegisteredClaims{
+		Issuer:  SessionManagerClaimsIssuer,
+		Subject: "alice",
+	}
+	tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("test-signing-key"))
+	require.NoError(t, err)
+
+	_, err = mgr.Parse(tok)
+	assert.Error(t, err, "token without exp claim must be rejected")
 }

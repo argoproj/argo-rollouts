@@ -18,6 +18,9 @@ type SessionManager struct {
 }
 
 // NewSessionManager returns a SessionManager that signs with signingKey.
+// The caller is responsible for supplying a strong signingKey — at least 32
+// bytes of high-entropy data — since an empty or short HS256 key is trivially
+// brute-forced.
 func NewSessionManager(signingKey []byte) *SessionManager {
 	return &SessionManager{signingKey: signingKey}
 }
@@ -43,7 +46,7 @@ func (mgr *SessionManager) Create(subject string, expiry time.Duration, id strin
 
 // Parse verifies tokenString's HS256 signature and issuer and returns its
 // claims. It rejects any non-HS256 algorithm (including "none"), a bad
-// signature, a wrong issuer, or an expired token.
+// signature, a wrong issuer, an expired token, or a token missing the exp claim.
 func (mgr *SessionManager) Parse(tokenString string) (jwt.MapClaims, error) {
 	claims := jwt.MapClaims{}
 	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
@@ -54,6 +57,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.MapClaims, error) {
 	},
 		jwt.WithValidMethods([]string{"HS256"}),
 		jwt.WithIssuer(SessionManagerClaimsIssuer),
+		jwt.WithExpirationRequired(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("parse token: %w", err)

@@ -26,5 +26,8 @@ func HashPassword(password string) (string, error) {
 
 // VerifyPassword returns nil if password matches hashedPassword, else an error.
 func VerifyPassword(password, hashedPassword string) error {
+	if len(password) > MaxPasswordLength {
+		return fmt.Errorf("password exceeds maximum length of %d bytes", MaxPasswordLength)
+	}
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
