@@ -36,3 +36,29 @@ func NewEnforcer() (*Enforcer, error) {
 func (e *Enforcer) Enforce(sub, res, act, obj string) (bool, error) {
 	return e.enforcer.Enforce(sub, res, act, obj)
 }
+
+// SetUserPolicy rebuilds the enforcer with the built-in policy plus the
+// user-supplied policy (from argo-rollouts-dashboard-rbac-cm policy.csv).
+func (e *Enforcer) SetUserPolicy(policyCSV string) error {
+	combined := strings.TrimSpace(BuiltinPolicyCSV) + "\n" + strings.TrimSpace(policyCSV)
+	rebuilt, err := newFromPolicy(combined)
+	if err != nil {
+		return err
+	}
+	e.enforcer = rebuilt.enforcer
+	return nil
+}
+
+// EnforceWithDefault enforces directly for sub; if denied and defaultRole is
+// non-empty, it retries enforcement as defaultRole. Empty defaultRole means
+// deny-by-default (locked down).
+func (e *Enforcer) EnforceWithDefault(defaultRole, sub, res, act, obj string) (bool, error) {
+	ok, err := e.enforcer.Enforce(sub, res, act, obj)
+	if err != nil {
+		return false, err
+	}
+	if ok || defaultRole == "" {
+		return ok, nil
+	}
+	return e.enforcer.Enforce(defaultRole, res, act, obj)
+}
