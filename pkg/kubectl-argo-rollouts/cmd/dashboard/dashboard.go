@@ -21,6 +21,7 @@ var (
 func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var rootPath string
 	var port int
+	var authMode string
 	var cmd = &cobra.Command{
 		Use:     "dashboard",
 		Short:   "Start UI dashboard",
@@ -36,6 +37,7 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 				RolloutsClientset: rolloutclientset,
 				DynamicClientset:  o.DynamicClientset(),
 				RootPath:          rootPath,
+				AuthMode:          authMode,
 			}
 
 			for {
@@ -49,6 +51,7 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&rootPath, "root-path", "rollouts", "changes the root path of the dashboard")
 	cmd.Flags().IntVarP(&port, "port", "p", 3100, "port to listen on")
+	cmd.Flags().StringVar(&authMode, "auth-mode", "none", "authentication mode: none (default, no auth) or server (require login + RBAC)")
 
 	return cmd
 }

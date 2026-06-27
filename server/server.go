@@ -57,6 +57,7 @@ type ServerOptions struct {
 	DynamicClientset  dynamic.Interface
 	Namespace         string
 	RootPath          string
+	AuthMode          string
 }
 
 const (
@@ -78,6 +79,12 @@ func NewServer(o ServerOptions) *ArgoRolloutsServer {
 const (
 	listenAddr  = "0.0.0.0"
 	connectAddr = "localhost"
+)
+
+// Auth modes for the dashboard server.
+const (
+	AuthModeNone   = "none"
+	AuthModeServer = "server"
 )
 
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
