@@ -69,6 +69,7 @@ const (
 type ArgoRolloutsServer struct {
 	Options ServerOptions
 	stopCh  chan struct{}
+	auth    *authComponents
 }
 
 // NewServer creates an ArgoRolloutsServer
