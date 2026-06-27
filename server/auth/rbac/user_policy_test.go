@@ -49,3 +49,20 @@ func TestEnforceWithDefaultRole(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, ok)
 }
+
+// TestEnforceWithDefaultDirectlyAllowed exercises the ok==true early-return
+// path: sub is directly permitted (via user policy), so the defaultRole branch
+// is never consulted even though defaultRole itself cannot perform the action.
+func TestEnforceWithDefaultDirectlyAllowed(t *testing.T) {
+	e, err := NewEnforcer()
+	require.NoError(t, err)
+
+	// Bind dave directly to role:operator (which can promote).
+	require.NoError(t, e.SetUserPolicy("g, dave, role:operator"))
+
+	// defaultRole readonly cannot promote — but dave is directly allowed, so the
+	// early-return (ok == true) must fire and the result must be true.
+	ok, err := e.EnforceWithDefault("role:readonly", "dave", "rollouts", "promote", "prod/web")
+	require.NoError(t, err)
+	assert.True(t, ok, "dave directly allowed via operator; early-return must fire")
+}

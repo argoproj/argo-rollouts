@@ -9,6 +9,14 @@ var BuiltinRoles = []string{"role:admin", "role:readonly", "role:operator"}
 // readonly: get on everything.
 // operator: readonly + lifecycle verbs (no create/delete/setimage/undo).
 // admin: wildcard.
+//
+// NOTE: Object globs must be written as `*/*` or `<ns>/*`, never a bare `*`,
+// because globMatch does not cross `/` — a bare `*` silently matches nothing
+// on `ns/name`-style object strings.
+//
+// NOTE: User policy supplied via SetUserPolicy is appended AFTER this
+// built-in policy, so admin-supplied configmap rules can extend built-in
+// roles. This is intentional — the configmap is admin-controlled.
 const BuiltinPolicyCSV = `
 p, role:readonly, *, get, */*, allow
 

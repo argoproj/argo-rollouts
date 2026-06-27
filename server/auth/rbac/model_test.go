@@ -27,6 +27,16 @@ func TestValidAction(t *testing.T) {
 }
 
 func TestListsCoverConstants(t *testing.T) {
-	assert.Len(t, ResourcesList, 5)
-	assert.Len(t, ActionsList, 12)
+	assert.ElementsMatch(t, []string{
+		ResourceRollouts,
+		ResourceAnalysisRuns,
+		ResourceAnalysisTemplates,
+		ResourceClusterAnalysisTemplates,
+		ResourceExperiments,
+	}, ResourcesList)
+	assert.ElementsMatch(t, []string{
+		ActionGet, ActionCreate, ActionUpdate, ActionDelete,
+		ActionPromote, ActionAbort, ActionRetry, ActionRestart,
+		ActionPause, ActionSkip, ActionSetImage, ActionUndo,
+	}, ActionsList)
 }
