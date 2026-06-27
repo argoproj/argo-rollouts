@@ -54,3 +54,21 @@ func (i *Interceptor) Unary(ctx context.Context, req interface{}, info *grpc.Una
 	}
 	return handler(newCtx, req)
 }
+
+// wrappedStream overrides a ServerStream's context so downstream handlers see
+// the authenticated claims.
+type wrappedStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (w *wrappedStream) Context() context.Context { return w.ctx }
+
+// Stream is a grpc.StreamServerInterceptor enforcing authentication.
+func (i *Interceptor) Stream(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	newCtx, err := i.authenticate(ss.Context(), info.FullMethod)
+	if err != nil {
+		return err
+	}
+	return handler(srv, &wrappedStream{ServerStream: ss, ctx: newCtx})
+}
