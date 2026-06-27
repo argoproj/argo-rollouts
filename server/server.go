@@ -27,6 +27,8 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	serverauth "github.com/argoproj/argo-rollouts/server/auth"
+	"github.com/argoproj/argo-rollouts/server/auth/rbac"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
@@ -127,14 +129,32 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 		apiHandler = http.StripPrefix(stripPrefix, gwmux)
 	}
 	mux.Handle(apiPath, apiHandler)
+	if s.auth != nil {
+		loginPath := "/api/login"
+		logoutPath := "/api/logout"
+		if s.Options.RootPath != "" {
+			loginPath = path.Join("/", s.Options.RootPath, "api/login")
+			logoutPath = path.Join("/", s.Options.RootPath, "api/logout")
+		}
+		mux.Handle(loginPath, s.auth.login)
+		mux.HandleFunc(logoutPath, serverauth.LogoutHandler)
+	}
 	mux.HandleFunc("/", s.staticFileHttpHandler)
 
 	return &httpS
 }
 
 func (s *ArgoRolloutsServer) newGRPCServer() *grpc.Server {
-	grpcS := grpc.NewServer()
-	var rolloutsServer rollout.RolloutServiceServer = NewServer(s.Options)
+	var opts []grpc.ServerOption
+	if s.auth != nil {
+		opts = append(opts,
+			grpc.ChainUnaryInterceptor(s.auth.authn.Unary, s.auth.authz.Unary),
+			grpc.ChainStreamInterceptor(s.auth.authn.Stream),
+		)
+	}
+	grpcS := grpc.NewServer(opts...)
+	rolloutsServer := NewServer(s.Options)
+	rolloutsServer.auth = s.auth // share auth so stream handlers enforce authz
 	rollout.RegisterRolloutServiceServer(grpcS, rolloutsServer)
 	return grpcS
 }
@@ -153,6 +173,14 @@ func (s *ArgoRolloutsServer) checkServeErr(name string, err error) {
 
 // Run starts the server
 func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) {
+	if s.Options.AuthMode == AuthModeServer {
+		comps, err := s.setupAuth(ctx)
+		errors.CheckError(err)
+		s.auth = comps
+	} else if s.Options.AuthMode != "" && s.Options.AuthMode != AuthModeNone {
+		errors.CheckError(fmt.Errorf("invalid --auth-mode %q (want %q or %q)", s.Options.AuthMode, AuthModeNone, AuthModeServer))
+	}
+
 	httpServer := s.newHTTPServer(ctx, port)
 	grpcServer := s.newGRPCServer()
 
@@ -220,6 +248,9 @@ func (s *ArgoRolloutsServer) GetRolloutInfo(c context.Context, q *rollout.Rollou
 // WatchRolloutInfo returns a rollout stream
 func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws rollout.RolloutService_WatchRolloutInfoServer) error {
 	ctx := ws.Context()
+	if err := s.authorizeStream(ctx, rbac.ActionGet, q.GetNamespace()+"/"+q.GetName()); err != nil {
+		return err
+	}
 	controller := s.initRolloutViewController(q.GetNamespace(), q.GetName(), ctx)
 
 	rolloutUpdates := make(chan *rollout.RolloutInfo)
@@ -291,6 +322,9 @@ func (s *ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.Rest
 
 // WatchRolloutInfos returns a stream of all rollouts
 func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, ws rollout.RolloutService_WatchRolloutInfosServer) error {
+	if err := s.authorizeStream(ws.Context(), rbac.ActionGet, q.GetNamespace()+"/*"); err != nil {
+		return err
+	}
 	send := func(r *rollout.RolloutInfo) {
 		err := ws.Send(&rollout.RolloutWatchEvent{
 			Type:        "Updated",

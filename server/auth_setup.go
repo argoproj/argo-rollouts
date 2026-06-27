@@ -65,3 +65,13 @@ func (s *ArgoRolloutsServer) setupAuth(ctx context.Context) (*authComponents, er
 		defaultRole: rbacCfg.DefaultRole,
 	}, nil
 }
+
+// authorizeStream enforces RBAC for a streaming RPC using the claims on ctx.
+// It is a no-op when auth is disabled (s.auth == nil).
+func (s *ArgoRolloutsServer) authorizeStream(ctx context.Context, action, object string) error {
+	if s.auth == nil {
+		return nil
+	}
+	claims, _ := auth.ClaimsFromContext(ctx)
+	return auth.EnforceClaims(s.auth.enforcer, s.auth.defaultRole, claims, rbac.ResourceRollouts, action, object)
+}
