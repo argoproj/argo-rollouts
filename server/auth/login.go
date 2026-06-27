@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
-
-	"github.com/argoproj/argo-rollouts/server/auth/password"
 )
 
 // CredentialVerifier verifies a username/password. Satisfied by
@@ -31,18 +29,6 @@ type LoginHandler struct {
 	Secure      bool // set the cookie Secure flag (under TLS)
 }
 
-// dummyHash equalizes the failure-path timing against a real bcrypt comparison,
-// so an unknown user is not distinguishable from a wrong password by latency.
-var dummyHash string
-
-func init() {
-	h, err := password.HashPassword("argo-rollouts-login-timing-equalizer")
-	if err != nil {
-		panic("auth: failed to compute login timing-equalizer hash: " + err.Error())
-	}
-	dummyHash = h
-}
-
 type loginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -53,15 +39,13 @@ func (h *LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 	if err := h.Verifier.VerifyUsernamePassword(r.Context(), req.Username, req.Password); err != nil {
-		// Burn one bcrypt comparison to flatten timing, then return a generic
-		// error that does not reveal which factor failed.
-		_ = password.VerifyPassword(req.Password, dummyHash)
 		http.Error(w, "invalid username or password", http.StatusUnauthorized)
 		return
 	}

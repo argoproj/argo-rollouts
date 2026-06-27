@@ -68,15 +68,35 @@ func (m *SettingsManager) GetAccount(ctx context.Context, name string) (Account,
 	}, nil
 }
 
+// dummyPasswordHash is a precomputed bcrypt hash used to equalise timing on
+// the not-found and disabled paths so they cost the same as a real comparison.
+var dummyPasswordHash string
+
+func init() {
+	h, err := password.HashPassword("argo-rollouts-settings-timing-equalizer")
+	if err != nil {
+		panic("settings: failed to compute timing-equalizer hash: " + err.Error())
+	}
+	dummyPasswordHash = h
+}
+
 // VerifyUsernamePassword returns nil if username exists, is enabled, and
 // password matches its stored hash. Any miss, disabled account, or mismatch
 // returns a non-nil error (fail closed).
+//
+// Exactly one bcrypt comparison runs on every code path to prevent
+// credential-timing enumeration (unknown-user and disabled-account paths
+// both perform a dummy comparison against dummyPasswordHash).
 func (m *SettingsManager) VerifyUsernamePassword(ctx context.Context, username, pass string) error {
 	account, err := m.GetAccount(ctx, username)
 	if err != nil {
+		// Unknown account: burn one bcrypt to equalise timing with the real path.
+		_ = password.VerifyPassword(pass, dummyPasswordHash)
 		return err
 	}
 	if !account.Enabled {
+		// Disabled account: burn one bcrypt to equalise timing with the real path.
+		_ = password.VerifyPassword(pass, dummyPasswordHash)
 		return fmt.Errorf("account %q is disabled", username)
 	}
 	return password.VerifyPassword(pass, account.PasswordHash)
