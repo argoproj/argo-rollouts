@@ -103,6 +103,7 @@ func TestCallbackMissingStateCookieRejected(t *testing.T) {
 	h := newHandler()
 	rec := doCallback(t, h, "", "xyz")
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	assert.Nil(t, cookie(rec, auth.AuthCookieName))
 }
 
 func TestCallbackExchangeErrorRejected(t *testing.T) {

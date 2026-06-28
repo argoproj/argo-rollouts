@@ -64,7 +64,13 @@ func (s *ArgoRolloutsServer) setupAuth(ctx context.Context) (*authComponents, er
 	if oidcCfg, ok, ocErr := sm.GetOIDCConfig(ctx); ocErr != nil {
 		return nil, fmt.Errorf("auth setup: oidc config: %w", ocErr)
 	} else if ok {
-		url, _ := sm.GetURL(ctx)
+		url, err := sm.GetURL(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("auth setup: oidc requires dashboard url: %w", err)
+		}
+		if url == "" {
+			return nil, fmt.Errorf("auth setup: oidc is configured but the dashboard 'url' setting is empty (needed to build the OIDC redirect URI)")
+		}
 		h, err := oidc.NewProvider(ctx, oidc.ProviderConfig{
 			Issuer:        oidcCfg.Issuer,
 			ClientID:      oidcCfg.ClientID,

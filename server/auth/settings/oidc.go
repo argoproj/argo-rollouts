@@ -36,7 +36,7 @@ func (m *SettingsManager) GetOIDCConfig(ctx context.Context) (*OIDCConfig, bool,
 		return nil, false, fmt.Errorf("parse %s: %w", KeyOIDCConfig, err)
 	}
 	if len(cfg.RequestedScopes) == 0 {
-		cfg.RequestedScopes = defaultOIDCScopes
+		cfg.RequestedScopes = append([]string(nil), defaultOIDCScopes...)
 	}
 	return &cfg, true, nil
 }
