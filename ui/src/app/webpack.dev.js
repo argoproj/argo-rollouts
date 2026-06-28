@@ -28,6 +28,18 @@ module.exports = merge(common, {
                 target: 'http://localhost:3100',
                 secure: false,
             },
+            '/api/login': {
+                target: 'http://localhost:3100',
+                secure: false,
+            },
+            '/api/logout': {
+                target: 'http://localhost:3100',
+                secure: false,
+            },
+            '/auth': {
+                target: 'http://localhost:3100',
+                secure: false,
+            },
         },
     },
 });
