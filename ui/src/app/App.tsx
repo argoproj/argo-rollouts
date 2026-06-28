@@ -58,6 +58,9 @@ const App = () => {
     const [namespace, setNamespace] = React.useState(init);
     const [availableNamespaces, setAvailableNamespaces] = React.useState([]);
     React.useEffect(() => {
+        if (window.location.pathname.replace(/\/+$/, '').endsWith('/login')) {
+            return;
+        }
         try {
             RolloutAPI.rolloutServiceGetNamespace()
                 .then((info) => {

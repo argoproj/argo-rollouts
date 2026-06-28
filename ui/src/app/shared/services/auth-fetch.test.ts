@@ -1,4 +1,4 @@
-import {makeAuthFetch} from './auth-fetch';
+import {makeAuthFetch, shouldRedirectToLogin} from './auth-fetch';
 
 function resp(status: number): Response {
     return {status} as Response;
@@ -37,4 +37,28 @@ test('does not invoke onUnauthorized on success', async () => {
     });
     await f('/api/x');
     expect(called).toBe(0);
+});
+
+describe('shouldRedirectToLogin', () => {
+    test('returns false for /login', () => {
+        expect(shouldRedirectToLogin('/login')).toBe(false);
+    });
+    test('returns false for foo/login', () => {
+        expect(shouldRedirectToLogin('foo/login')).toBe(false);
+    });
+    test('returns false for foo/login/ (trailing slash stripped)', () => {
+        expect(shouldRedirectToLogin('foo/login/')).toBe(false);
+    });
+    test('returns false for /rollouts/login', () => {
+        expect(shouldRedirectToLogin('/rollouts/login')).toBe(false);
+    });
+    test('returns true for /rollouts', () => {
+        expect(shouldRedirectToLogin('/rollouts')).toBe(true);
+    });
+    test('returns true for /rollouts/rollout/x', () => {
+        expect(shouldRedirectToLogin('/rollouts/rollout/x')).toBe(true);
+    });
+    test('returns true for empty string', () => {
+        expect(shouldRedirectToLogin('')).toBe(true);
+    });
 });

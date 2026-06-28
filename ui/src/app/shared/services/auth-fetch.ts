@@ -13,3 +13,9 @@ export function makeAuthFetch(baseFetch: typeof fetch, onUnauthorized: Unauthori
         return response;
     };
 }
+
+// shouldRedirectToLogin returns false when the browser is already on the login
+// page, to avoid an infinite reload loop when a bootstrap API call 401s there.
+export function shouldRedirectToLogin(pathname: string): boolean {
+    return !pathname.replace(/\/+$/, '').endsWith('/login');
+}

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {RolloutNamespaceInfo, RolloutServiceApi, Configuration} from '../../../models/rollout/generated';
-import {makeAuthFetch} from '../services/auth-fetch';
+import {makeAuthFetch, shouldRedirectToLogin} from '../services/auth-fetch';
 
 // Get the base path from document.baseURI
 // The generated API client already includes /api in its paths, so we just need the base
@@ -23,6 +23,7 @@ const basePath = getApiBasePath();
 // Redirect to the login page on 401. A full navigation re-bootstraps the app
 // once the user has authenticated.
 const redirectToLogin = () => {
+    if (!shouldRedirectToLogin(window.location.pathname)) return;
     window.location.assign(`${basePath}/login`);
 };
 
