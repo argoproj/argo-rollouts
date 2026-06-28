@@ -31,6 +31,34 @@ func TestAPIErrorsPropagate(t *testing.T) {
 
 	_, err = m.GetRBACConfig(context.Background())
 	assert.Error(t, err, "configmap get error must propagate")
+
+	_, err = m.AnonymousEnabled(context.Background())
+	assert.Error(t, err, "anonymous flag get error must propagate")
+
+	_, err = m.GetURL(context.Background())
+	assert.Error(t, err, "url get error must propagate")
+
+	_, _, err = m.GetOIDCConfig(context.Background())
+	assert.Error(t, err, "oidc config get error must propagate")
+}
+
+func TestGetRBACConfigHonorsMatchMode(t *testing.T) {
+	rbacCM := cmWith(RBACConfigMapName, map[string]string{KeyPolicyMatchMode: "regex"})
+	m := NewSettingsManager(fake.NewSimpleClientset(rbacCM), testNamespace)
+	cfg, err := m.GetRBACConfig(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "regex", cfg.MatchMode, "explicit matchMode must be honored over the glob default")
+}
+
+func TestGetTLSCertificateRejectsInvalidKeypair(t *testing.T) {
+	secret := secretWith(map[string][]byte{
+		KeyTLSCert: []byte("not-a-cert"),
+		KeyTLSKey:  []byte("not-a-key"),
+	})
+	m := NewSettingsManager(fake.NewSimpleClientset(secret), testNamespace)
+	_, ok, err := m.GetTLSCertificate(context.Background())
+	assert.Error(t, err, "invalid keypair must error")
+	assert.False(t, ok)
 }
 
 const testNamespace = "argo-rollouts"
