@@ -64,3 +64,30 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.MapClaims, error) {
 	}
 	return claims, nil
 }
+
+// CreateWithGroups signs an HS256 session token for subject with an optional
+// groups claim. Used by the OIDC callback to carry identity from the IdP into a
+// normal dashboard session token.
+func (mgr *SessionManager) CreateWithGroups(subject string, groups []string, expiry time.Duration, id string) (string, error) {
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"iss": SessionManagerClaimsIssuer,
+		"sub": subject,
+		"iat": now.Unix(),
+		"exp": now.Add(expiry).Unix(),
+		"jti": id,
+	}
+	if len(groups) > 0 {
+		arr := make([]interface{}, len(groups))
+		for i, g := range groups {
+			arr[i] = g
+		}
+		claims["groups"] = arr
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString(mgr.signingKey)
+	if err != nil {
+		return "", fmt.Errorf("sign token: %w", err)
+	}
+	return signed, nil
+}
