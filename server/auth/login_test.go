@@ -120,6 +120,14 @@ func TestLogoutClearsCookie(t *testing.T) {
 	assert.Equal(t, http.SameSiteStrictMode, cookies[0].SameSite, "logout cookie must set SameSite=Strict to prevent forced-logout CSRF")
 }
 
+func TestLoginIssuerErrorReturns500(t *testing.T) {
+	// A token-minting failure must surface as 500 with no cookie set.
+	h := &LoginHandler{Verifier: fakeCredVerifier{}, Issuer: &fakeIssuer{err: errors.New("sign failed")}, TokenExpiry: time.Hour}
+	rec := postLogin(h, `{"username":"alice","password":"s3cret"}`)
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assert.Empty(t, rec.Result().Cookies(), "no session cookie when token minting fails")
+}
+
 func TestLoginCookieSecureFlag(t *testing.T) {
 	// The session cookie is always marked Secure so the token never travels
 	// over cleartext HTTP. localhost remains usable (browser secure context).

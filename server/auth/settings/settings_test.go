@@ -2,6 +2,7 @@ package settings
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -9,8 +10,28 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
+
+func TestAPIErrorsPropagate(t *testing.T) {
+	// Non-NotFound API errors must surface rather than be swallowed as empty data.
+	client := fake.NewSimpleClientset()
+	client.PrependReactor("get", "secrets", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("api down")
+	})
+	client.PrependReactor("get", "configmaps", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("api down")
+	})
+	m := NewSettingsManager(client, testNamespace)
+
+	_, err := m.GetSigningKey(context.Background())
+	assert.Error(t, err, "secret get error must propagate")
+
+	_, err = m.GetRBACConfig(context.Background())
+	assert.Error(t, err, "configmap get error must propagate")
+}
 
 const testNamespace = "argo-rollouts"
 

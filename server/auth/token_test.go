@@ -9,6 +9,12 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+func TestCookieValue(t *testing.T) {
+	assert.Equal(t, "tok123", cookieValue("argorollouts.token=tok123", AuthCookieName))
+	assert.Equal(t, "", cookieValue("other=1", AuthCookieName), "missing cookie yields empty string")
+	assert.Equal(t, "", cookieValue("", AuthCookieName))
+}
+
 func TestClaimsRoundTrip(t *testing.T) {
 	claims := jwt.MapClaims{"sub": "alice"}
 	ctx := ContextWithClaims(context.Background(), claims)

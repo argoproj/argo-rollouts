@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -50,6 +53,94 @@ func TestSetupAuthErrorsWithoutSigningKey(t *testing.T) {
 
 	_, err := s.setupAuth(context.Background())
 	assert.Error(t, err, "missing/short signing key must fail loudly, not silently disable auth")
+}
+
+func oidcDiscoveryServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	var issuer string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"issuer":                 issuer,
+			"authorization_endpoint": issuer + "/auth",
+			"token_endpoint":         issuer + "/token",
+			"jwks_uri":               issuer + "/keys",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	issuer = srv.URL
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func authSecretAndNS() (*corev1.Secret, string) {
+	ns := "argo-rollouts"
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: settings.SecretName, Namespace: ns},
+		Data:       map[string][]byte{settings.KeyServerSignature: []byte(strings.Repeat("k", 32))},
+	}, ns
+}
+
+func TestSetupAuthBuildsOIDCHandler(t *testing.T) {
+	srv := oidcDiscoveryServer(t)
+	secret, ns := authSecretAndNS()
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: settings.ConfigMapName, Namespace: ns},
+		Data: map[string]string{
+			settings.KeyOIDCConfig: "issuer: " + srv.URL + "\nclientID: client\n",
+			settings.KeyURL:        "https://dash.example.com",
+		},
+	}
+	client := k8sfake.NewSimpleClientset(secret, cm)
+	s := NewServer(ServerOptions{KubeClientset: client, Namespace: ns, AuthMode: AuthModeServer})
+
+	comps, err := s.setupAuth(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, comps.oidc, "OIDC handler must be built when oidc.config and url are present")
+}
+
+func TestSetupAuthOIDCRequiresURL(t *testing.T) {
+	secret, ns := authSecretAndNS()
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: settings.ConfigMapName, Namespace: ns},
+		Data:       map[string]string{settings.KeyOIDCConfig: "issuer: https://idp.example.com\nclientID: c\n"},
+	}
+	client := k8sfake.NewSimpleClientset(secret, cm)
+	s := NewServer(ServerOptions{KubeClientset: client, Namespace: ns, AuthMode: AuthModeServer})
+
+	_, err := s.setupAuth(context.Background())
+	require.Error(t, err, "OIDC configured without a dashboard url must fail")
+}
+
+func TestSetupAuthOIDCDiscoveryError(t *testing.T) {
+	secret, ns := authSecretAndNS()
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: settings.ConfigMapName, Namespace: ns},
+		Data: map[string]string{
+			// Unreachable issuer => provider discovery fails.
+			settings.KeyOIDCConfig: "issuer: http://127.0.0.1:1/oidc\nclientID: c\n",
+			settings.KeyURL:        "https://dash.example.com",
+		},
+	}
+	client := k8sfake.NewSimpleClientset(secret, cm)
+	s := NewServer(ServerOptions{KubeClientset: client, Namespace: ns, AuthMode: AuthModeServer})
+
+	_, err := s.setupAuth(context.Background())
+	require.Error(t, err)
+}
+
+func TestSetupAuthAnonymousEnabled(t *testing.T) {
+	secret, ns := authSecretAndNS()
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: settings.ConfigMapName, Namespace: ns},
+		Data:       map[string]string{settings.KeyAnonymousEnabled: "true"},
+	}
+	client := k8sfake.NewSimpleClientset(secret, cm)
+	s := NewServer(ServerOptions{KubeClientset: client, Namespace: ns, AuthMode: AuthModeServer})
+
+	comps, err := s.setupAuth(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, comps.authn)
 }
 
 // fakeWatchStream is a minimal RolloutService_WatchRolloutInfoServer carrying a context.
