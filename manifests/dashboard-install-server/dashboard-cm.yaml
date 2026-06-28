@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-dashboard-cm
+  labels:
+    app.kubernetes.io/component: argo-rollouts-dashboard
+    app.kubernetes.io/name: argo-rollouts-dashboard
+    app.kubernetes.io/part-of: argo-rollouts
+data:
+  # External URL the dashboard is served at. REQUIRED for OIDC (used to build
+  # the redirect_uri). Example: https://rollouts.example.com
+  url: ""
+  # Allow unauthenticated access. Off by default; leave "false" for a secured
+  # dashboard.
+  users.anonymous.enabled: "false"
+  # OIDC single sign-on (optional). Uncomment and fill to enable SSO. The
+  # clientSecret belongs in argo-rollouts-dashboard-secret, not here.
+  # oidc.config: |
+  #   name: MyIDP
+  #   issuer: https://idp.example.com
+  #   clientID: argo-rollouts-dashboard
+  #   requestedScopes: ["openid", "profile", "email", "groups"]
