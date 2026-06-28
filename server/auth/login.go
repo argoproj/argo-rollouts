@@ -26,7 +26,6 @@ type LoginHandler struct {
 	Verifier    CredentialVerifier
 	Issuer      TokenIssuer
 	TokenExpiry time.Duration
-	Secure      bool // set the cookie Secure flag (under TLS)
 }
 
 type loginRequest struct {
@@ -59,12 +58,16 @@ func (h *LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	// Always set Secure: the session token must never travel over cleartext
+	// HTTP. Browsers treat localhost as a secure context, so local development
+	// still works; any non-localhost deployment must therefore terminate TLS
+	// (directly or at an upstream proxy) for login to function.
 	http.SetCookie(w, &http.Cookie{
 		Name:     AuthCookieName,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   h.Secure,
+		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   int(h.TokenExpiry.Seconds()),
 	})
@@ -79,6 +82,7 @@ func LogoutHandler(w http.ResponseWriter, _ *http.Request) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   true,
 		MaxAge:   -1,
 		SameSite: http.SameSiteStrictMode,
 	})

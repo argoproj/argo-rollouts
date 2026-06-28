@@ -10,3 +10,9 @@ spec:
           args:
             - dashboard
             - --auth-mode=server
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              memory: 128Mi

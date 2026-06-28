@@ -46,7 +46,6 @@ type Handler struct {
 	Verifier    IDTokenVerifier
 	Issuer      TokenIssuerWithGroups
 	TokenExpiry time.Duration
-	Secure      bool
 }
 
 func randomToken() (string, error) {
@@ -69,7 +68,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		Value:    state,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   h.Secure,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   300,
 	})
@@ -105,14 +104,25 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Clear the state cookie and set the session cookie. SameSite=Lax so the
-	// cookie survives the top-level redirect back from the IdP.
-	http.SetCookie(w, &http.Cookie{Name: stateCookieName, Value: "", Path: "/", MaxAge: -1})
+	// cookie survives the top-level redirect back from the IdP. The clear cookie
+	// mirrors the original attributes so browsers reliably overwrite it.
+	http.SetCookie(w, &http.Cookie{
+		Name:     stateCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+	// Always set Secure: the session token must never travel over cleartext HTTP
+	// (localhost is a browser secure context, so local dev still works).
 	http.SetCookie(w, &http.Cookie{
 		Name:     auth.AuthCookieName,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   h.Secure,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(h.TokenExpiry.Seconds()),
 	})

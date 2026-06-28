@@ -121,20 +121,12 @@ func TestLogoutClearsCookie(t *testing.T) {
 }
 
 func TestLoginCookieSecureFlag(t *testing.T) {
-	t.Run("secure=true", func(t *testing.T) {
-		h := &LoginHandler{Verifier: fakeCredVerifier{}, Issuer: &fakeIssuer{token: "tok"}, TokenExpiry: time.Hour, Secure: true}
-		rec := postLogin(h, `{"username":"alice","password":"s3cret"}`)
-		require.Equal(t, http.StatusOK, rec.Code)
-		cookies := rec.Result().Cookies()
-		require.Len(t, cookies, 1)
-		assert.True(t, cookies[0].Secure, "cookie must carry Secure flag when LoginHandler.Secure=true")
-	})
-	t.Run("secure=false", func(t *testing.T) {
-		h := &LoginHandler{Verifier: fakeCredVerifier{}, Issuer: &fakeIssuer{token: "tok"}, TokenExpiry: time.Hour, Secure: false}
-		rec := postLogin(h, `{"username":"alice","password":"s3cret"}`)
-		require.Equal(t, http.StatusOK, rec.Code)
-		cookies := rec.Result().Cookies()
-		require.Len(t, cookies, 1)
-		assert.False(t, cookies[0].Secure, "cookie must not carry Secure flag when LoginHandler.Secure=false")
-	})
+	// The session cookie is always marked Secure so the token never travels
+	// over cleartext HTTP. localhost remains usable (browser secure context).
+	h := &LoginHandler{Verifier: fakeCredVerifier{}, Issuer: &fakeIssuer{token: "tok"}, TokenExpiry: time.Hour}
+	rec := postLogin(h, `{"username":"alice","password":"s3cret"}`)
+	require.Equal(t, http.StatusOK, rec.Code)
+	cookies := rec.Result().Cookies()
+	require.Len(t, cookies, 1)
+	assert.True(t, cookies[0].Secure, "session cookie must always carry the Secure flag")
 }

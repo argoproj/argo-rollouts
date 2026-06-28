@@ -79,7 +79,6 @@ func (s *ArgoRolloutsServer) setupAuth(ctx context.Context) (*authComponents, er
 			Scopes:        oidcCfg.RequestedScopes,
 			SessionIssuer: sessionMgr,
 			TokenExpiry:   tokenExpiry,
-			Secure:        s.tlsConfig != nil,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("auth setup: oidc provider: %w", err)
@@ -90,7 +89,7 @@ func (s *ArgoRolloutsServer) setupAuth(ctx context.Context) (*authComponents, er
 	return &authComponents{
 		authn:       auth.NewInterceptor(sessionMgr, anonymous, authNWhitelist),
 		authz:       auth.NewAuthzInterceptor(enforcer, rbacCfg.DefaultRole),
-		login:       &auth.LoginHandler{Verifier: sm, Issuer: sessionMgr, TokenExpiry: tokenExpiry, Secure: s.tlsConfig != nil},
+		login:       &auth.LoginHandler{Verifier: sm, Issuer: sessionMgr, TokenExpiry: tokenExpiry},
 		oidc:        oidcHandler,
 		enforcer:    enforcer,
 		defaultRole: rbacCfg.DefaultRole,

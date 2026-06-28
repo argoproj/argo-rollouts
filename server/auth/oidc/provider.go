@@ -18,7 +18,6 @@ type ProviderConfig struct {
 	Scopes        []string
 	SessionIssuer TokenIssuerWithGroups
 	TokenExpiry   time.Duration
-	Secure        bool
 }
 
 // oauth2Adapter implements AuthCodeURLBuilder + CodeExchanger over oauth2.Config.
@@ -86,6 +85,5 @@ func NewProvider(ctx context.Context, cfg ProviderConfig) (*Handler, error) {
 		Verifier:    &verifierAdapter{v: verifier},
 		Issuer:      cfg.SessionIssuer,
 		TokenExpiry: cfg.TokenExpiry,
-		Secure:      cfg.Secure,
 	}, nil
 }
