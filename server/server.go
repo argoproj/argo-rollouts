@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -116,10 +117,16 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)),
 	}
 	if s.tlsConfig != nil {
-		// InsecureSkipVerify is intentional and safe here: this is a loopback in-process
-		// dial (gateway → local gRPC on the same host); external clients still validate
-		// against the served certificate.
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))) //nolint:gosec
+		// The gateway dials the in-process gRPC server over the same TLS port.
+		// Instead of skipping verification, pin the served certificate as the
+		// sole trusted root and verify against one of its own SANs, so the
+		// loopback dial stays fully verified for both the generated self-signed
+		// certificate and an operator-provided one.
+		creds, err := loopbackDialCreds(s.tlsConfig)
+		if err != nil {
+			panic(err)
+		}
+		opts = append(opts, grpc.WithTransportCredentials(creds))
 	} else {
 		opts = append(opts, grpc.WithInsecure())
 	}
@@ -157,6 +164,37 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	mux.HandleFunc("/", s.staticFileHttpHandler)
 
 	return &httpS
+}
+
+// loopbackDialCreds builds transport credentials for the in-process gateway→gRPC
+// dial. Rather than disabling certificate verification, it pins the served
+// certificate as the only trusted root and sets ServerName to one of that
+// certificate's own SANs, so the handshake is fully verified.
+func loopbackDialCreds(served *tls.Config) (credentials.TransportCredentials, error) {
+	if len(served.Certificates) == 0 {
+		return nil, fmt.Errorf("no served certificate configured")
+	}
+	leaf := served.Certificates[0].Leaf
+	if leaf == nil {
+		parsed, err := x509.ParseCertificate(served.Certificates[0].Certificate[0])
+		if err != nil {
+			return nil, fmt.Errorf("parse served certificate: %w", err)
+		}
+		leaf = parsed
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(leaf)
+	serverName := connectAddr
+	if len(leaf.DNSNames) > 0 {
+		serverName = leaf.DNSNames[0]
+	} else if len(leaf.IPAddresses) > 0 {
+		serverName = leaf.IPAddresses[0].String()
+	}
+	return credentials.NewTLS(&tls.Config{
+		RootCAs:    pool,
+		ServerName: serverName,
+		MinVersion: tls.VersionTLS12,
+	}), nil
 }
 
 func (s *ArgoRolloutsServer) newGRPCServer() *grpc.Server {
