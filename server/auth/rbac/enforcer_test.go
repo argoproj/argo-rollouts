@@ -8,6 +8,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestEnforceWithDefaultUsesDefaultRole(t *testing.T) {
+	e, err := NewEnforcer()
+	require.NoError(t, err)
+	// alice has no direct grant; the default role:readonly grants get.
+	ok, err := e.EnforceWithDefault("role:readonly", "alice", ResourceRollouts, ActionGet, "ns/web")
+	require.NoError(t, err)
+	assert.True(t, ok, "default role must grant access when the subject has none")
+
+	// With no default role, the same subject is denied.
+	ok, err = e.EnforceWithDefault("", "alice", ResourceRollouts, ActionGet, "ns/web")
+	require.NoError(t, err)
+	assert.False(t, ok)
+}
+
 func enforce(t *testing.T, e *Enforcer, sub, res, act, obj string) bool {
 	t.Helper()
 	ok, err := e.Enforce(sub, res, act, obj)

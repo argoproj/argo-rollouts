@@ -10,6 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestParseRejectsExpiredToken(t *testing.T) {
+	// A token whose expiry is in the past must be rejected.
+	mgr := NewSessionManager([]byte("test-signing-key"))
+	tok, err := mgr.Create("alice", -time.Hour, "jti-exp")
+	require.NoError(t, err)
+	_, err = mgr.Parse(tok)
+	assert.Error(t, err, "expired token must not parse")
+}
+
 func TestParseRejectsNonHMACSigningMethod(t *testing.T) {
 	// A token using a non-HMAC algorithm must be rejected (alg-confusion guard).
 	mgr := NewSessionManager([]byte("test-signing-key"))
