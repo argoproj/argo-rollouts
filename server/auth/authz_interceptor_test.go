@@ -16,7 +16,7 @@ import (
 // allowEnforcer allows a fixed (sub,res,act,obj) tuple.
 type allowEnforcer struct{ allowKey string }
 
-func (e allowEnforcer) EnforceWithDefault(_ , sub, res, act, obj string) (bool, error) {
+func (e allowEnforcer) EnforceWithDefault(_, sub, res, act, obj string) (bool, error) {
 	return sub+"|"+res+"|"+act+"|"+obj == e.allowKey, nil
 }
 

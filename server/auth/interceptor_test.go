@@ -105,7 +105,7 @@ func TestUnaryNilClaimsNormalized(t *testing.T) {
 	i := NewInterceptor(v, false, nil)
 
 	var (
-		handlerOk  bool
+		handlerOk    bool
 		claimsNonNil bool
 	)
 	handler := func(ctx context.Context, _ interface{}) (interface{}, error) {

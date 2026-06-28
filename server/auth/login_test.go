@@ -21,10 +21,10 @@ func (f fakeCredVerifier) VerifyUsernamePassword(_ context.Context, _, _ string)
 }
 
 type fakeIssuer struct {
-	token    string
-	err      error
-	seenSub  string
-	seenExp  time.Duration
+	token   string
+	err     error
+	seenSub string
+	seenExp time.Duration
 }
 
 func (f *fakeIssuer) Create(subject string, expiry time.Duration, _ string) (string, error) {

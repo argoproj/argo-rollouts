@@ -20,9 +20,9 @@ func TestBuiltinRoleMatrix(t *testing.T) {
 	require.NoError(t, err)
 
 	cases := []struct {
-		name             string
+		name               string
 		sub, res, act, obj string
-		want             bool
+		want               bool
 	}{
 		{"readonly get rollout", "role:readonly", "rollouts", "get", "prod/web", true},
 		{"readonly cannot promote", "role:readonly", "rollouts", "promote", "prod/web", false},

@@ -23,7 +23,9 @@ kubectl argo rollouts dashboard --port 8080
 ## Options
 
 ```
+      --auth-mode string   authentication mode: none (default, no auth) or server (require login + RBAC) (default "none")
   -h, --help               help for dashboard
+      --insecure           disable TLS in server mode (e.g. when TLS is terminated upstream)
   -p, --port int           port to listen on (default 3100)
       --root-path string   changes the root path of the dashboard (default "rollouts")
 ```

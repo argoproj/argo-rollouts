@@ -29,8 +29,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	serverauth "github.com/argoproj/argo-rollouts/server/auth"
-	"github.com/argoproj/argo-rollouts/server/auth/rbac"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
@@ -43,6 +41,8 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	serverauth "github.com/argoproj/argo-rollouts/server/auth"
+	"github.com/argoproj/argo-rollouts/server/auth/rbac"
 	"github.com/argoproj/argo-rollouts/utils/errors"
 	"github.com/argoproj/argo-rollouts/utils/json"
 	versionutils "github.com/argoproj/argo-rollouts/utils/version"

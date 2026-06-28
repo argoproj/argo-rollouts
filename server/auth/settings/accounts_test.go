@@ -4,12 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/server/auth/password"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/argoproj/argo-rollouts/server/auth/password"
 )
 
 func cmWith(name string, data map[string]string) *corev1.ConfigMap {

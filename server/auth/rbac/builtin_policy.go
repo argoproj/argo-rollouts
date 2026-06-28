@@ -4,8 +4,10 @@ package rbac
 var BuiltinRoles = []string{"role:admin", "role:readonly", "role:operator"}
 
 // BuiltinPolicyCSV is the default Casbin policy. Format per line:
-//   p, <sub>, <res>, <act>, <obj>, <eff>
-//   g, <sub>, <role>
+//
+//	p, <sub>, <res>, <act>, <obj>, <eff>
+//	g, <sub>, <role>
+//
 // readonly: get on everything.
 // operator: readonly + lifecycle verbs (no create/delete/setimage/undo).
 // admin: wildcard.
