@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Authenticated server-mode dashboard: the no-auth base plus auth config,
+# least-privilege RBAC, and the --auth-mode=server flag.
+resources:
+  - ../dashboard-install
+  - dashboard-cm.yaml
+  - dashboard-secret.yaml
+  - dashboard-rbac-cm.yaml
+  - dashboard-auth-role.yaml
+  - dashboard-auth-rolebinding.yaml
+
+patches:
+  - path: deployment-auth-patch.yaml
+    target:
+      kind: Deployment
+      name: argo-rollouts-dashboard

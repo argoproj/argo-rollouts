@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-rollouts-dashboard
+spec:
+  template:
+    spec:
+      containers:
+        - name: argo-rollouts-dashboard
+          args:
+            - dashboard
+            - --auth-mode=server
