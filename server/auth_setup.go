@@ -3,9 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/server/auth"
+	"github.com/argoproj/argo-rollouts/server/auth/oidc"
 	"github.com/argoproj/argo-rollouts/server/auth/rbac"
 	"github.com/argoproj/argo-rollouts/server/auth/session"
 	"github.com/argoproj/argo-rollouts/server/auth/settings"
@@ -24,6 +26,7 @@ type authComponents struct {
 	authn       *auth.Interceptor
 	authz       *auth.AuthzInterceptor
 	login       *auth.LoginHandler
+	oidc        *oidc.Handler
 	enforcer    *rbac.Enforcer
 	defaultRole string
 }
@@ -57,10 +60,32 @@ func (s *ArgoRolloutsServer) setupAuth(ctx context.Context) (*authComponents, er
 		return nil, fmt.Errorf("auth setup: anonymous flag: %w", err)
 	}
 
+	var oidcHandler *oidc.Handler
+	if oidcCfg, ok, ocErr := sm.GetOIDCConfig(ctx); ocErr != nil {
+		return nil, fmt.Errorf("auth setup: oidc config: %w", ocErr)
+	} else if ok {
+		url, _ := sm.GetURL(ctx)
+		h, err := oidc.NewProvider(ctx, oidc.ProviderConfig{
+			Issuer:        oidcCfg.Issuer,
+			ClientID:      oidcCfg.ClientID,
+			ClientSecret:  oidcCfg.ClientSecret,
+			RedirectURL:   strings.TrimSuffix(url, "/") + "/auth/callback",
+			Scopes:        oidcCfg.RequestedScopes,
+			SessionIssuer: sessionMgr,
+			TokenExpiry:   tokenExpiry,
+			Secure:        s.tlsConfig != nil,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("auth setup: oidc provider: %w", err)
+		}
+		oidcHandler = h
+	}
+
 	return &authComponents{
 		authn:       auth.NewInterceptor(sessionMgr, anonymous, authNWhitelist),
 		authz:       auth.NewAuthzInterceptor(enforcer, rbacCfg.DefaultRole),
 		login:       &auth.LoginHandler{Verifier: sm, Issuer: sessionMgr, TokenExpiry: tokenExpiry, Secure: s.tlsConfig != nil},
+		oidc:        oidcHandler,
 		enforcer:    enforcer,
 		defaultRole: rbacCfg.DefaultRole,
 	}, nil

@@ -150,6 +150,10 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 		mux.Handle(loginPath, s.auth.login)
 		mux.HandleFunc(logoutPath, serverauth.LogoutHandler)
 	}
+	if s.auth != nil && s.auth.oidc != nil {
+		mux.HandleFunc("/auth/login", s.auth.oidc.Login)
+		mux.HandleFunc("/auth/callback", s.auth.oidc.Callback)
+	}
 	mux.HandleFunc("/", s.staticFileHttpHandler)
 
 	return &httpS
