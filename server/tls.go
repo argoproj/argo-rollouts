@@ -76,5 +76,10 @@ func (s *ArgoRolloutsServer) buildTLSConfig(ctx context.Context) (*tls.Config, e
 	return &tls.Config{
 		Certificates: []tls.Certificate{*cert},
 		MinVersion:   tls.VersionTLS12,
+		// Advertise HTTP/2 (h2) and HTTP/1.1 via ALPN. The grpc-gateway dials the
+		// in-process gRPC server over this same TLS port and requires an h2 ALPN
+		// selection; without this the handshake fails with "missing selected ALPN
+		// property" and gateway calls surface as HTTP 503.
+		NextProtos: []string{"h2", "http/1.1"},
 	}, nil
 }
