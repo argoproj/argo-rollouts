@@ -1,0 +1,16 @@
+.rollouts-login {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.rollouts-login__card {
+    width: 320px;
+}
+
+.rollouts-login__sso {
+    display: block;
+    margin-top: 12px;
+    text-align: center;
+}
