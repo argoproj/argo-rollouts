@@ -40,24 +40,42 @@ export const LoginPage: React.FC<LoginPageProps> = ({onSuccess}) => {
 
     return (
         <div className='rollouts-login'>
-            <div className='rollouts-login__card'>
-                {error && <Alert type='error' message={error} style={{marginBottom: 12}} />}
-                <Form layout='vertical' onFinish={handleFinish}>
-                    <Form.Item label='Username' name='username' rules={[{required: true, message: 'Username is required'}]}>
-                        <Input id='username' autoFocus />
-                    </Form.Item>
-                    <Form.Item label='Password' name='password' rules={[{required: true, message: 'Password is required'}]}>
-                        <Input.Password id='password' />
-                    </Form.Item>
-                    <Form.Item>
-                        <Button type='primary' htmlType='submit' block loading={submitting}>
-                            Log in
-                        </Button>
-                    </Form.Item>
-                </Form>
-                <a className='rollouts-login__sso' href={`${base}/auth/login`}>
-                    Login with SSO
-                </a>
+            <div className='rollouts-login__content'>
+                <div className='rollouts-login__text'>Let&apos;s get stuff rolled out!</div>
+                <div className='rollouts-login__logo-hero' />
+            </div>
+            <div className='rollouts-login__box'>
+                <div className='rollouts-login__brand'>
+                    <img className='rollouts-login__brand-icon' src='assets/images/argo-icon-color-square.png' alt='Argo' />
+                    <div className='rollouts-login__brand-title'>Argo Rollouts</div>
+                </div>
+                <div className='rollouts-login__form'>
+                    {error && <Alert type='error' message={error} showIcon style={{marginBottom: 16}} />}
+                    <Form layout='vertical' requiredMark={false} onFinish={handleFinish}>
+                        <Form.Item label='Username' name='username' rules={[{required: true, message: 'Username is required'}]}>
+                            <Input id='username' size='large' autoFocus autoCapitalize='none' autoComplete='username' />
+                        </Form.Item>
+                        <Form.Item label='Password' name='password' rules={[{required: true, message: 'Password is required'}]}>
+                            <Input.Password id='password' size='large' autoComplete='current-password' />
+                        </Form.Item>
+                        <Form.Item style={{marginBottom: 0}}>
+                            <Button type='primary' htmlType='submit' size='large' block loading={submitting}>
+                                Log in
+                            </Button>
+                        </Form.Item>
+                    </Form>
+                    <div className='rollouts-login__separator'>
+                        <span>or</span>
+                    </div>
+                    <a className='rollouts-login__sso' href={`${base}/auth/login`}>
+                        Log in via SSO
+                    </a>
+                </div>
+                <div className='rollouts-login__footer'>
+                    <a href='https://argoproj.io' target='_blank' rel='noreferrer'>
+                        <img src='assets/images/argologo.svg' alt='Argo' />
+                    </a>
+                </div>
             </div>
         </div>
     );
