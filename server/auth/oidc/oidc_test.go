@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/server/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-rollouts/server/auth"
 )
 
 type fakeURLBuilder struct{}

@@ -3,9 +3,10 @@ package dashboard
 import (
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 )
 
 func TestDashboardAuthModeFlagDefault(t *testing.T) {

@@ -3,8 +3,9 @@ package auth
 import (
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/server/auth/rbac"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-rollouts/server/auth/rbac"
 )
 
 func TestPermissionForMutatingMethods(t *testing.T) {

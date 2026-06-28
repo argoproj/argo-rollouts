@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/server/auth/rbac"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/argoproj/argo-rollouts/server/auth/rbac"
 )
 
 // allowEnforcer allows a fixed (sub,res,act,obj) tuple.

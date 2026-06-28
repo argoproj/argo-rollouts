@@ -5,10 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
-	"github.com/argoproj/argo-rollouts/server/auth"
-	"github.com/argoproj/argo-rollouts/server/auth/rbac"
-	"github.com/argoproj/argo-rollouts/server/auth/settings"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,6 +13,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
+	"github.com/argoproj/argo-rollouts/server/auth"
+	"github.com/argoproj/argo-rollouts/server/auth/rbac"
+	"github.com/argoproj/argo-rollouts/server/auth/settings"
 )
 
 func TestSetupAuthBuildsComponents(t *testing.T) {
