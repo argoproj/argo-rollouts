@@ -2,7 +2,6 @@
 
 The Argo Rollouts controller is already instrumented with [Prometheus metrics](https://prometheus.io/) available at `/metrics` in port 8090. You can use these metrics to look at the health of the controller either via dashboards or via other Prometheus integrations.
 
-
 ## Installing and configuring Prometheus
 
 To take advantage of the metrics you need to have Prometheus installed in your Kubernetes cluster. If you don't have an existing installation of Prometheus
@@ -18,9 +17,9 @@ spec:
   template:
     metadata:
       annotations:
-        prometheus.io/scrape: "true"
+        prometheus.io/scrape: 'true'
         prometheus.io/path: /metrics
-        prometheus.io/port: "8090"
+        prometheus.io/port: '8090'
 ```
 
 You can always see if the controller is reached successfully in the Prometheus "Targets" screen:
@@ -40,45 +39,72 @@ As a starting point you can find an existing dashboard at [https://github.com/ar
 
 You can import this Dashboard in your Grafana installation [as a JSON file](https://grafana.com/docs/grafana/latest/dashboards/export-import/#importing-a-dashboard).
 
-
 ## Available metrics for Rollout Objects
 
 The Argo Rollouts controller publishes the following prometheus metrics about Argo Rollout objects.
 
-| Name                                | Description |
-|-------------------------------------| ----------- |
-| `rollout_info`                      | Information about rollout. |
-| `rollout_info_replicas_available`   | The number of available replicas per rollout. |
-| `rollout_info_replicas_unavailable` | The number of unavailable replicas per rollout. |
-| `rollout_info_replicas_desired`     | The number of desired replicas per rollout. |
-| `rollout_info_replicas_updated`     | The number of updated replicas per rollout. |
-| `rollout_phase`                     | [**DEPRECATED - use rollout_info**] Information on the state of the rollout. |
-| `rollout_reconcile`                 | Rollout reconciliation performance. |
-| `rollout_reconcile_error`           | Error occurring during the rollout. |
-| `experiment_info`                   | Information about Experiment. |
-| `experiment_phase`                  | Information on the state of the experiment. |
-| `experiment_reconcile`              | Experiments reconciliation performance. |
-| `experiment_reconcile_error`        | Error occurring during the experiment. |
-| `analysis_run_info`                 | Information about analysis run. |
-| `analysis_run_metric_phase`         | Information on the duration of a specific metric in the Analysis Run. |
-| `analysis_run_metric_type`          | Information on the type of a specific metric in the Analysis Runs. |
-| `analysis_run_phase`                | Information on the state of the Analysis Run. |
-| `analysis_run_reconcile`            | Analysis Run reconciliation performance. |
-| `analysis_run_reconcile_error`      | Error occurring during the analysis run. |
+| Name                                    | Description                                                                                                 |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `rollout_info`                          | Information about rollout.                                                                                  |
+| `rollout_info_replicas_available`       | The number of available replicas per rollout.                                                               |
+| `rollout_info_replicas_unavailable`     | The number of unavailable replicas per rollout.                                                             |
+| `rollout_info_replicas_desired`         | The number of desired replicas per rollout.                                                                 |
+| `rollout_info_replicas_updated`         | The number of updated replicas per rollout.                                                                 |
+| `rollout_phase`                         | [**DEPRECATED - use rollout_info**] Information on the state of the rollout.                                |
+| `rollout_reconcile`                     | Rollout reconciliation performance.                                                                         |
+| `rollout_reconcile_error`               | Error occurring during the rollout.                                                                         |
+| `rollout_duration_seconds_total`        | Total wall-clock time for a rollout from start to completion/abort/supersede (histogram with status label). |
+| `rollout_duration_seconds_progression`  | Active progression time for a rollout, excluding manual pause time (histogram with status label).           |
+| `rollout_duration_seconds_manual_pause` | Time spent in manual pause waiting for human intervention (histogram with status label).                    |
+| `experiment_info`                       | Information about Experiment.                                                                               |
+| `experiment_phase`                      | Information on the state of the experiment.                                                                 |
+| `experiment_reconcile`                  | Experiments reconciliation performance.                                                                     |
+| `experiment_reconcile_error`            | Error occurring during the experiment.                                                                      |
+| `analysis_run_info`                     | Information about analysis run.                                                                             |
+| `analysis_run_metric_phase`             | Information on the duration of a specific metric in the Analysis Run.                                       |
+| `analysis_run_metric_type`              | Information on the type of a specific metric in the Analysis Runs.                                          |
+| `analysis_run_phase`                    | Information on the state of the Analysis Run.                                                               |
+| `analysis_run_reconcile`                | Analysis Run reconciliation performance.                                                                    |
+| `analysis_run_reconcile_error`          | Error occurring during the analysis run.                                                                    |
 
 ## Available metrics for the controller itself
 
 The controller also publishes the following Prometheus metrics to describe the controller health.
 
-| Name                                          | Description |
-| --------------------------------------------- | ----------- |
-| `controller_clientset_k8s_request_total`      | Number of kubernetes requests executed during application reconciliation. |
-| `workqueue_adds_total`                        | Total number of adds handled by workqueue |
-| `workqueue_depth`                             | Current depth of workqueue |
-| `workqueue_queue_duration_seconds`            | How long in seconds an item stays in workqueue before being requested. |
-| `workqueue_work_duration_seconds`             | How long in seconds processing an item from workqueue takes. |
+| Name                                          | Description                                                                                                                                                                                                                     |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `controller_clientset_k8s_request_total`      | Number of kubernetes requests executed during application reconciliation.                                                                                                                                                       |
+| `workqueue_adds_total`                        | Total number of adds handled by workqueue                                                                                                                                                                                       |
+| `workqueue_depth`                             | Current depth of workqueue                                                                                                                                                                                                      |
+| `workqueue_queue_duration_seconds`            | How long in seconds an item stays in workqueue before being requested.                                                                                                                                                          |
+| `workqueue_work_duration_seconds`             | How long in seconds processing an item from workqueue takes.                                                                                                                                                                    |
 | `workqueue_unfinished_work_seconds`           | How many seconds of work has done that is in progress and hasn't been observed by work_duration. Large values indicate stuck threads. One can deduce the number of stuck threads by observing the rate at which this increases. |
-| `workqueue_longest_running_processor_seconds` | How many seconds has the longest running processor for workqueue been running |
-| `workqueue_retries_total`                     | Total number of retries handled by workqueue |
+| `workqueue_longest_running_processor_seconds` | How many seconds has the longest running processor for workqueue been running                                                                                                                                                   |
+| `workqueue_retries_total`                     | Total number of retries handled by workqueue                                                                                                                                                                                    |
 
 In addition, the Argo-rollouts offers metrics on CPU, memory and file descriptor usage as well as the process start time and memory stats of current Go processes.
+
+## Rollout Duration Tracking
+
+Three complementary histograms track rollout performance with status labels:
+
+- **rollout_duration_seconds_total{status}** (histogram): Total wall-clock time from rollout start to completion/abort/supersede, including all pauses. Measured from when StableRS diverges from CurrentPodHash until the rollout reaches its final state.
+- **rollout_duration_seconds_progression{status}** (histogram): Active progression time, excluding manual pause time. This represents actual deployment work time - useful for understanding automation efficiency and identifying slow deployment steps.
+- **rollout_duration_seconds_manual_pause{status}** (histogram): Time spent in manual pauses waiting for human intervention. Includes:
+  - `spec.paused: true` (user-initiated pause)
+  - Canary steps with `pause: {}` (no duration - indefinite)
+  - Blue-green with `autoPromotionEnabled: false`
+  - Inconclusive analysis or experiment results
+
+  Does NOT include automatic timed pauses (e.g., `pause: {duration: 5m}`) or waiting for analysis/experiments to complete.
+
+**Status label values:**
+
+- `promoted` - Normal successful completion, all steps completed
+- `fast-promoted` - User triggered full promotion (`spec.promoteFull` or `kubectl promote --full`), skipping remaining steps
+- `aborted` - Rollout was aborted (timeout, failed analysis, manual abort)
+- `superseded` - Template/steps changed **while rollout was in-progress** to a new revision. The rollout was stopped and a new one started. Note: Template changes after completion do NOT emit superseded metrics.
+- `rollbacked` - Template/steps changed **while rollout was in-progress** to a previous revision and successfully rollbacked to that revision.
+- `fast-rollbacked` - Template/steps changed **while rollout was in-progress** to a previous revision within the rollback window and successfully expedited the rollback to that revision.
+
+- **Relationship**: `total = progression + manual_pause` (for all statuses)

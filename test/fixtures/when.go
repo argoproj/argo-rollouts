@@ -147,6 +147,12 @@ func (w *When) UpdateSpec(texts ...string) *When {
 	return w
 }
 
+func (w *When) UpdateVersion(version string) *When {
+	patchBytes := []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"version":"%s"}}}}}`, version))
+	w.log.Infof("Updated rollout to version: %s", version)
+	return w.UpdateSpec(string(patchBytes))
+}
+
 // UpdateWorkloadRef updates the workload referenced by the rollout (e.g., deployment)
 func (w *When) UpdateWorkloadRef(deploymentName string, texts ...string) *When {
 	if w.rollout == nil {
@@ -516,6 +522,7 @@ func (w *When) WaitForRolloutStepPluginRunning(timeout ...time.Duration) *When {
 }
 
 func (w *When) WaitForRolloutCondition(test func(ro *rov1.Rollout) bool, condition string, timeouts ...time.Duration) *When {
+	w.t.Helper()
 	start := time.Now()
 	w.log.Infof("Waiting for condition: %s", condition)
 	rolloutIf := w.dynamicClient.Resource(rov1.RolloutGVR).Namespace(w.namespace)

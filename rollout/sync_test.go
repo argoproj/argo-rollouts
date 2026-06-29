@@ -335,12 +335,12 @@ func TestCanaryPromoteFull(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // create new ReplicaSet (size 0)
-	f.expectUpdateRolloutAction(r2)                        // update rollout revision
-	f.expectUpdateRolloutStatusAction(r2)                  // update rollout conditions, then exit early
-	f.expectGetRolloutAction(r2)                           // second reconciliation
-	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // scale new ReplicaSet to 10
-	patchedRolloutIndex := f.expectPatchRolloutAction(r2)
+	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // sync 1: create new ReplicaSet (size 0)
+	f.expectUpdateRolloutAction(r2)                        // sync 1: update rollout revision
+	f.expectUpdateRolloutStatusAction(r2)                  // sync 1: update rollout conditions
+	f.expectGetRolloutAction(r2)                           // re-seed between syncs
+	patchedRolloutIndex := f.expectPatchRolloutAction(r2)  // sync 2: patch status
+	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // sync 2: scale new ReplicaSet to 10
 	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
@@ -660,7 +660,8 @@ func TestShouldFullPromoteWithReplicaProgressThreshold(t *testing.T) {
 			// Create stable RS and new RS
 			stableRS := &appsv1.ReplicaSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "stable",
+					Name:   "stable",
+					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "stablehash"},
 				},
 				Spec: appsv1.ReplicaSetSpec{
 					Replicas: int32Ptr(10),
@@ -672,7 +673,8 @@ func TestShouldFullPromoteWithReplicaProgressThreshold(t *testing.T) {
 
 			newRS := &appsv1.ReplicaSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "new",
+					Name:   "new",
+					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "newhash"},
 				},
 				Spec: appsv1.ReplicaSetSpec{
 					Replicas: int32Ptr(10),
@@ -711,6 +713,7 @@ func TestShouldFullPromoteWithReplicaProgressThreshold(t *testing.T) {
 
 			// Set to last step to trigger full promotion check
 			ctx.rollout.Status.CurrentStepIndex = int32Ptr(1)
+			ctx.rollout.Status.StableRS = "stablehash"
 			newStatus := v1alpha1.RolloutStatus{}
 
 			result := ctx.shouldFullPromote(newStatus)
@@ -753,12 +756,12 @@ func TestShouldFullPromoteCanaryAvailableVsDesired(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stableRS := &appsv1.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "stable"},
+				ObjectMeta: metav1.ObjectMeta{Name: "stable", Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "stablehash"}},
 				Spec:       appsv1.ReplicaSetSpec{Replicas: &tt.rolloutReplicas},
 				Status:     v1.ReplicaSetStatus{AvailableReplicas: tt.rolloutReplicas},
 			}
 			newRS := &appsv1.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "new"},
+				ObjectMeta: metav1.ObjectMeta{Name: "new", Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "newhash"}},
 				Spec:       appsv1.ReplicaSetSpec{Replicas: &tt.rolloutReplicas},
 				Status:     v1.ReplicaSetStatus{AvailableReplicas: tt.canaryAvailableReplicas},
 			}
@@ -783,6 +786,7 @@ func TestShouldFullPromoteCanaryAvailableVsDesired(t *testing.T) {
 			ctx.pauseContext = &pauseContext{rollout: ctx.rollout}
 			ctx.log = logutil.WithRollout(ctx.rollout)
 			ctx.rollout.Status.CurrentStepIndex = int32Ptr(1)
+			ctx.rollout.Status.StableRS = "stablehash"
 
 			result := ctx.shouldFullPromote(v1alpha1.RolloutStatus{})
 			assert.Equal(t, tt.expectedPromotionMessage, result)
@@ -853,12 +857,12 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, oldRs, stableRs)
 	f.replicaSetLister = append(f.replicaSetLister, oldRs, stableRs)
 
-	f.expectUpdateRolloutAction(r2) // update rollout revision
-	f.expectUpdateRolloutStatusAction(r2)
-	f.expectGetRolloutAction(r2) // second reconciliation
-	updatedROIndex := f.expectPatchRolloutAction(r2)
-	createdRS2Index := f.expectCreateReplicaSetAction(stableRs)
-	updatedRS2Index := f.expectUpdateReplicaSetAction(stableRs)
+	createdRS2Index := f.expectCreateReplicaSetAction(stableRs) // sync 1: create RS
+	f.expectUpdateRolloutAction(r2)                             // sync 1: update rollout revision
+	f.expectUpdateRolloutStatusAction(r2)                       // sync 1: update status
+	f.expectGetRolloutAction(r2)                                // re-seed between syncs
+	updatedROIndex := f.expectPatchRolloutAction(r2)            // sync 2: patch status
+	updatedRS2Index := f.expectUpdateReplicaSetAction(stableRs) // sync 2: scale RS
 	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)

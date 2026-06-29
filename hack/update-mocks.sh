@@ -31,3 +31,8 @@ mockery \
     --dir "${PROJECT_ROOT}"/rollout/steps/plugin/rpc \
     --name "StepPlugin" \
     --output "${PROJECT_ROOT}"/rollout/steps/plugin/rpc/mocks
+
+mockery \
+    --dir "${PROJECT_ROOT}"/controller/metrics \
+    --name MetricsRecorder \
+    --output "${PROJECT_ROOT}"/controller/metrics/mocks

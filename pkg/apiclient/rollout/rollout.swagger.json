@@ -2043,6 +2043,33 @@
       },
       "description": "RolloutCondition describes the state of a rollout at a certain point."
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutDurationStatus": {
+      "type": "object",
+      "properties": {
+        "rolloutStartedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "RolloutStartedAt is when the current rollout attempt started (StableRS diverged from CurrentPodHash)\n+optional"
+        },
+        "manualPauseStartedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "ManualPauseStartedAt is when the current manual pause began (nil if not in manual pause)\n+optional"
+        },
+        "totalManualPauseDuration": {
+          "type": "string",
+          "format": "int64",
+          "title": "TotalManualPauseDuration is the accumulated time spent in manual pauses (in seconds)\n+optional"
+        },
+        "finishedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "FinishedAt is when the rollout reached its final stable state and metrics were emitted\nSet after: (1) rollout promoted and stable, OR (2) aborted, OR (3) superseded\nNil means rollout is in-progress or just promoted but metrics not yet emitted\n+optional"
+        },
+        "completionStatus": {
+          "type": "string",
+          "title": "CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)\n+optional"
+        }
+      },
+      "title": "RolloutDurationStatus tracks timing for a rollout attempt"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutExperimentStep": {
       "type": "object",
       "properties": {
@@ -2341,6 +2368,10 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBStatus"
           },
           "title": "/ ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario"
+        },
+        "duration": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutDurationStatus",
+          "title": "Duration tracks timing information for the current rollout attempt\n+optional"
         }
       },
       "title": "RolloutStatus is the status for a Rollout resource"
