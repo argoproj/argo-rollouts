@@ -31276,6 +31276,17 @@ spec:
                         description: Name of the service that the rollout modifies
                           as the preview service.
                         type: string
+                      replicaProgressThreshold:
+                        properties:
+                          type:
+                            type: string
+                          value:
+                            format: int32
+                            type: integer
+                        required:
+                        - type
+                        - value
+                        type: object
                       scaleDownDelayRevisionLimit:
                         description: ScaleDownDelayRevisionLimit limits the number
                           of old RS that can run at one time before getting scaled
