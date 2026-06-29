@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -142,14 +143,14 @@ func GetHttpRoute(routes []any, ref string) (any, error) {
 		}
 		typedName, ok := rawName.(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("%s rule name", failedToTypeAssertion))
+			return nil, fmt.Errorf("%s rule name", failedToTypeAssertion)
 		}
 		if typedName == ref {
 			return route, nil
 		}
 
 	}
-	return nil, errors.New(fmt.Sprintf("Apisix http route rule %s not found", ref))
+	return nil, fmt.Errorf("Apisix http route rule %s not found", ref)
 }
 
 func GetBackends(httpRoute any) ([]any, error) {
@@ -163,7 +164,7 @@ func GetBackends(httpRoute any) ([]any, error) {
 	}
 	backends, ok := rawBackends.([]any)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("%s backends", failedToTypeAssertion))
+		return nil, fmt.Errorf("%s backends", failedToTypeAssertion)
 	}
 	return backends, nil
 }
@@ -173,7 +174,7 @@ func setBackendWeight(backendName string, backends []any, weight int64) error {
 	for _, backend := range backends {
 		typedBackend, ok := backend.(map[string]any)
 		if !ok {
-			return errors.New(fmt.Sprintf("%s backends", failedToTypeAssertion))
+			return fmt.Errorf("%s backends", failedToTypeAssertion)
 		}
 		nameOfCurrentBackend, isFound, err := unstructured.NestedString(typedBackend, "serviceName")
 		if err != nil {
@@ -190,7 +191,7 @@ func setBackendWeight(backendName string, backends []any, weight int64) error {
 	}
 
 	if !found {
-		return errors.New(fmt.Sprintf("apisix route %s backend was not found", backendName))
+		return fmt.Errorf("apisix route %s backend was not found", backendName)
 	}
 	return nil
 }
@@ -318,7 +319,7 @@ func (r *Reconciler) makeSetHeaderRoute(ctx context.Context, headerRouting *v1al
 		}
 	} else {
 		if !metav1.IsControlledBy(setHeaderApisixRoute, r.Rollout) {
-			return nil, false, errors.New(fmt.Sprintf("duplicate ApisixRoute [%s] already exists", headerRouting.Name))
+			return nil, false, fmt.Errorf("duplicate ApisixRoute [%s] already exists", headerRouting.Name)
 		}
 	}
 	return setHeaderApisixRoute, isNew, nil

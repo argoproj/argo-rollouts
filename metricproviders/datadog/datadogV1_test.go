@@ -164,7 +164,7 @@ func TestRunSuite(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage:    `invalid operation: < (mismatched types <nil> and float64)`,
+			expectedErrorMessage:    `metric result is nil or empty: no data returned from the metric provider`,
 			useEnvVarForKeys:        false,
 		},
 

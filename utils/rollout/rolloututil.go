@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/argoproj/argo-rollouts/utils/weightutil"
 
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -18,6 +20,49 @@ import (
 // (versus being in the middle of an update). This is determined by checking if stable hash == desired hash
 func IsFullyPromoted(ro *v1alpha1.Rollout) bool {
 	return ro.Status.StableRS == ro.Status.CurrentPodHash
+}
+
+// IsDynamicallyRollingBackToStable returns true when the rollout was in a canary update with
+// dynamic stable scaling but was interrupted and is now rolling back to the stable RS.
+// It also returns the previous desired (canary) pod template hash when true.
+// Used by the controller for weight calculation and by AbortOrDynamicRollbackToStable.
+func IsDynamicallyRollingBackToStable(ro *v1alpha1.Rollout, desiredRS *appsv1.ReplicaSet) (bool, string) {
+	if !IsFullyPromoted(ro) || ro.Spec.Strategy.Canary == nil || ro.Spec.Strategy.Canary.TrafficRouting == nil || !ro.Spec.Strategy.Canary.DynamicStableScale {
+		return false, ""
+	}
+	if ro.Status.Canary.Weights == nil {
+		return false, ""
+	}
+	currSelector := ro.Status.Canary.Weights.Canary.PodTemplateHash
+	desiredSelector := replicasetutil.GetPodTemplateHash(desiredRS)
+	if currSelector == desiredSelector {
+		return false, ""
+	}
+	if desiredRS.Status.AvailableReplicas >= *ro.Spec.Replicas {
+		return false, ""
+	}
+	return true, currSelector
+}
+
+// AbortOrDynamicRollbackToStable returns true when the rollout is aborted or dynamically rolling
+// back to stable, i.e. only stable RS availability should be required before updating
+// traffic. Used by the Istio reconciler to avoid blocking DestinationRule updates on canary RS availability.
+func AbortOrDynamicRollbackToStable(ro *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, stableHash string) bool {
+	if ro.Status.Abort {
+		return true
+	}
+	var stableRS *appsv1.ReplicaSet
+	for i := range allRSs {
+		if replicasetutil.GetPodTemplateHash(allRSs[i]) == stableHash {
+			stableRS = allRSs[i]
+			break
+		}
+	}
+	if stableRS == nil {
+		return false
+	}
+	ok, _ := IsDynamicallyRollingBackToStable(ro, stableRS)
+	return ok
 }
 
 // GetRolloutPhase returns a status and message for a rollout. Takes into consideration whether

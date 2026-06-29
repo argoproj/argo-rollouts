@@ -25,7 +25,6 @@ import (
 	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
 
-	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -109,6 +108,19 @@ type LeaderElectionOptions struct {
 	LeaderElectionRetryPeriod   time.Duration
 }
 
+// leaseLockName returns the name of the lease lock used for leader election. When an
+// instanceID is configured, it is appended to the default lock name so that controllers
+// operating on different instance IDs against a shared cluster elect leaders independently.
+// This mirrors Argo Workflows' behavior:
+// https://github.com/argoproj/argo-workflows/blob/main/cmd/workflow-controller/main.go#L152
+func leaseLockName(instanceID string) string {
+	//Keep backwards compatibility for existing users
+	if instanceID == "" {
+		return defaultLeaderElectionLeaseLockName
+	}
+	return fmt.Sprintf("%s-%s", defaultLeaderElectionLeaseLockName, instanceID)
+}
+
 func NewLeaderElectionOptions() *LeaderElectionOptions {
 	return &LeaderElectionOptions{
 		LeaderElect:                 DefaultLeaderElect,
@@ -139,6 +151,7 @@ type Manager struct {
 	serviceSynced                 cache.InformerSynced
 	ingressSynced                 cache.InformerSynced
 	jobSynced                     cache.InformerSynced
+	jobPodsSynced                 cache.InformerSynced
 	replicasSetSynced             cache.InformerSynced
 	configMapSynced               cache.InformerSynced
 	secretSynced                  cache.InformerSynced
@@ -155,11 +168,17 @@ type Manager struct {
 
 	namespace string
 
+	// instanceID is the value of the --instance-id flag. When set, it is appended to the
+	// leader election lease lock name so that controllers operating on different instance IDs
+	// against a shared cluster elect leaders independently (see leaseLockName).
+	instanceID string
+
 	dynamicInformerFactory               dynamicinformer.DynamicSharedInformerFactory
 	clusterDynamicInformerFactory        dynamicinformer.DynamicSharedInformerFactory
 	istioDynamicInformerFactory          dynamicinformer.DynamicSharedInformerFactory
 	namespaced                           bool
 	kubeInformerFactory                  kubeinformers.SharedInformerFactory
+	replicaSetInformerFactory            kubeinformers.SharedInformerFactory
 	notificationConfigMapInformerFactory kubeinformers.SharedInformerFactory
 	notificationSecretInformerFactory    kubeinformers.SharedInformerFactory
 	jobInformerFactory                   kubeinformers.SharedInformerFactory
@@ -173,6 +192,7 @@ func NewAnalysisManager(
 	kubeclientset kubernetes.Interface,
 	argoprojclientset clientset.Interface,
 	jobInformer batchinformers.JobInformer,
+	jobPodsInformer coreinformers.PodInformer,
 	analysisRunInformer informers.AnalysisRunInformer,
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
@@ -208,6 +228,7 @@ func NewAnalysisManager(
 		ArgoProjClientset:    argoprojclientset,
 		AnalysisRunInformer:  analysisRunInformer,
 		JobInformer:          jobInformer,
+		JobPodsInformer:      jobPodsInformer,
 		ResyncPeriod:         resyncPeriod,
 		AnalysisRunWorkQueue: analysisRunWorkqueue,
 		MetricsServer:        metricsServer,
@@ -219,6 +240,7 @@ func NewAnalysisManager(
 		metricsServer:                 metricsServer,
 		healthzServer:                 healthzServer,
 		jobSynced:                     jobInformer.Informer().HasSynced,
+		jobPodsSynced:                 jobPodsInformer.Informer().HasSynced,
 		analysisRunSynced:             analysisRunInformer.Informer().HasSynced,
 		analysisTemplateSynced:        analysisTemplateInformer.Informer().HasSynced,
 		clusterAnalysisTemplateSynced: clusterAnalysisTemplateInformer.Informer().HasSynced,
@@ -259,6 +281,7 @@ func NewManager(
 	servicesInformer coreinformers.ServiceInformer,
 	ingressWrap *ingressutil.IngressWrap,
 	jobInformer batchinformers.JobInformer,
+	jobPodsInformer coreinformers.PodInformer,
 	rolloutsInformer informers.RolloutInformer,
 	experimentsInformer informers.ExperimentInformer,
 	analysisRunInformer informers.AnalysisRunInformer,
@@ -281,6 +304,7 @@ func NewManager(
 	istioDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	namespaced bool,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	replicaSetInformerFactory kubeinformers.SharedInformerFactory,
 	jobInformerFactory kubeinformers.SharedInformerFactory,
 	ephemeralMetadataThreads int,
 	ephemeralMetadataPodRetries int,
@@ -373,6 +397,7 @@ func NewManager(
 		ArgoProjClientset:    argoprojclientset,
 		AnalysisRunInformer:  analysisRunInformer,
 		JobInformer:          jobInformer,
+		JobPodsInformer:      jobPodsInformer,
 		ResyncPeriod:         resyncPeriod,
 		AnalysisRunWorkQueue: analysisRunWorkqueue,
 		MetricsServer:        metricsServer,
@@ -412,6 +437,7 @@ func NewManager(
 		serviceSynced:                        servicesInformer.Informer().HasSynced,
 		ingressSynced:                        ingressWrap.HasSynced,
 		jobSynced:                            jobInformer.Informer().HasSynced,
+		jobPodsSynced:                        jobPodsInformer.Informer().HasSynced,
 		experimentSynced:                     experimentsInformer.Informer().HasSynced,
 		analysisRunSynced:                    analysisRunInformer.Informer().HasSynced,
 		analysisTemplateSynced:               analysisTemplateInformer.Informer().HasSynced,
@@ -432,12 +458,14 @@ func NewManager(
 		notificationsController:              notificationsController,
 		refResolver:                          refResolver,
 		namespace:                            namespace,
+		instanceID:                           instanceID,
 		kubeClientSet:                        kubeclientset,
 		dynamicInformerFactory:               dynamicInformerFactory,
 		clusterDynamicInformerFactory:        clusterDynamicInformerFactory,
 		istioDynamicInformerFactory:          istioDynamicInformerFactory,
 		namespaced:                           namespaced,
 		kubeInformerFactory:                  kubeInformerFactory,
+		replicaSetInformerFactory:            replicaSetInformerFactory,
 		jobInformerFactory:                   jobInformerFactory,
 		istioPrimaryDynamicClient:            istioPrimaryDynamicClient,
 		notificationConfigMapInformerFactory: notificationConfigMapInformerFactory,
@@ -470,15 +498,14 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 		log.Infof("Starting Healthz Server at %s", c.healthzServer.Addr)
 		err := c.healthzServer.ListenAndServe()
 		if err != nil {
-			err = errors.Wrap(err, "Healthz Server Error")
-			log.Error(err)
+			log.Error(fmt.Errorf("Healthz Server Error: %w", err))
 		}
 	}()
 
 	go func() {
 		log.Infof("Starting Metric Server at %s", c.metricsServer.Addr)
 		if err := c.metricsServer.ListenAndServe(); err != nil {
-			log.Error(errors.Wrap(err, "Metric Server Error"))
+			log.Error(fmt.Errorf("Metric Server Error: %w", err))
 		}
 	}()
 
@@ -500,9 +527,12 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 		// add a uniquifier so that two processes on the same host don't accidentally both become active
 		id = id + "_" + string(uuid.NewUUID())
 		log.Infof("Leaderelection get id %s", id)
+
+		lockName := leaseLockName(c.instanceID)
+		log.Infof("Using leader election lease lock name %s", lockName)
 		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 			Lock: &resourcelock.LeaseLock{
-				LeaseMeta: metav1.ObjectMeta{Name: defaultLeaderElectionLeaseLockName, Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
+				LeaseMeta: metav1.ObjectMeta{Name: lockName, Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
 				LockConfig: resourcelock.ResourceLockConfig{Identity: id},
 			},
 			ReleaseOnCancel: false, // We can not set this to true because our context is sent on sig which means our code
@@ -558,12 +588,15 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 		c.clusterDynamicInformerFactory.Start(ctx.Done())
 	}
 	c.kubeInformerFactory.Start(ctx.Done())
+	if c.replicaSetInformerFactory != nil {
+		c.replicaSetInformerFactory.Start(ctx.Done())
+	}
 
 	c.jobInformerFactory.Start(ctx.Done())
 
 	if c.onlyAnalysisMode {
 		log.Info("Waiting for controller's informer caches to sync")
-		if ok := cache.WaitForCacheSync(ctx.Done(), c.analysisRunSynced, c.analysisTemplateSynced, c.jobSynced); !ok {
+		if ok := cache.WaitForCacheSync(ctx.Done(), c.analysisRunSynced, c.analysisTemplateSynced, c.jobSynced, c.jobPodsSynced); !ok {
 			log.Fatalf("failed to wait for caches to sync, exiting")
 		}
 		// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
@@ -572,7 +605,11 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 				log.Fatalf("failed to wait for cluster-scoped caches to sync, exiting")
 			}
 		}
-		go wait.Until(func() { c.wg.Add(1); c.analysisController.Run(ctx, analysisThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+		c.wg.Add(1)
+		go func() {
+			wait.Until(func() { c.analysisController.Run(ctx, analysisThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
 	} else {
 
 		c.notificationConfigMapInformerFactory.Start(ctx.Done())
@@ -588,7 +625,7 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 
 		// Wait for the caches to be synced before starting workers
 		log.Info("Waiting for controller's informer caches to sync")
-		if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
+		if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.jobPodsSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
 			log.Fatalf("failed to wait for caches to sync, exiting")
 		}
 		// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
@@ -598,12 +635,36 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 			}
 		}
 
-		go wait.Until(func() { c.wg.Add(1); c.rolloutController.Run(ctx, rolloutThreadiness); c.wg.Done() }, time.Second, ctx.Done())
-		go wait.Until(func() { c.wg.Add(1); c.serviceController.Run(ctx, serviceThreadiness); c.wg.Done() }, time.Second, ctx.Done())
-		go wait.Until(func() { c.wg.Add(1); c.ingressController.Run(ctx, ingressThreadiness); c.wg.Done() }, time.Second, ctx.Done())
-		go wait.Until(func() { c.wg.Add(1); c.experimentController.Run(ctx, experimentThreadiness); c.wg.Done() }, time.Second, ctx.Done())
-		go wait.Until(func() { c.wg.Add(1); c.analysisController.Run(ctx, analysisThreadiness); c.wg.Done() }, time.Second, ctx.Done())
-		go wait.Until(func() { c.wg.Add(1); c.notificationsController.Run(rolloutThreadiness, ctx.Done()); c.wg.Done() }, time.Second, ctx.Done())
+		c.wg.Add(1)
+		go func() {
+			wait.Until(func() { c.rolloutController.Run(ctx, rolloutThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
+		c.wg.Add(1)
+		go func() {
+			wait.Until(func() { c.serviceController.Run(ctx, serviceThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
+		c.wg.Add(1)
+		go func() {
+			wait.Until(func() { c.ingressController.Run(ctx, ingressThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
+		c.wg.Add(1)
+		go func() {
+			wait.Until(func() { c.experimentController.Run(ctx, experimentThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
+		c.wg.Add(1)
+		go func() {
+			wait.Until(func() { c.analysisController.Run(ctx, analysisThreadiness) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
+		c.wg.Add(1)
+		go func() {
+			wait.Until(func() { c.notificationsController.Run(rolloutThreadiness, ctx.Done()) }, time.Second, ctx.Done())
+			c.wg.Done()
+		}()
 
 	}
 	log.Info("Started controller")

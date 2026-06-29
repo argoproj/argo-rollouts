@@ -12,11 +12,14 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/dynamiclister"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
@@ -3175,13 +3178,26 @@ func TestReconcileHeaderRouteAvoidDuplicates(t *testing.T) {
 func TestUpdateHashNoReadyReplicaSets(t *testing.T) {
 	ro := rolloutWithDestinationRule(nil)
 
-	client := testutil.NewFakeDynamicClient()
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  host: ratings.prod.svc.cluster.local
+  subsets:
+  - name: stable
+  - name: canary
+`)
+	client := testutil.NewFakeDynamicClient(obj)
 	vsvcLister, druleLister := getIstioListers(client)
 
 	replicaSets := []*appsv1.ReplicaSet{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "ReplicaSetForTesting",
+				Labels:    map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abc123"},
 				UID:       uuid.NewUUID(),
 				Namespace: metav1.NamespaceDefault,
 			},
@@ -3200,7 +3216,8 @@ func TestUpdateHashNoReadyReplicaSets(t *testing.T) {
 	client.ClearActions()
 
 	err := r.UpdateHash("abc123", "def456")
-	assert.Error(t, err, "delaying destination rule switch: ReplicaSet ReplicaSetForTesting not fully available")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "delaying destination rule switch")
 	actions := client.Actions()
 	assert.Len(t, actions, 0)
 }
@@ -3385,11 +3402,11 @@ spec:
 		rsList := []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
 		r := setupReconciler(ro, client, rsList)
 
-		// This should return nil (delaying update) because canary RS (which will receive traffic) is not available
+		// Should return error when delaying (so SetWeight is not called); canary RS is not available
 		err := r.UpdateHash("canary456", "stable123")
-		assert.NoError(t, err)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delaying destination rule switch")
 
-		// Verify no actions were taken because update was delayed
 		actions := client.Actions()
 		assert.Len(t, actions, 0)
 	})
@@ -3427,7 +3444,7 @@ spec:
 		otherRS := createUnavailableReplicaSet(ro, "other789")
 
 		rsList := []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
-		r := setupReconciler(ro, client, rsList)
+		r := setupReconciler(ro, client, rsList) // ro.Status.Abort=true => shifting traffic to stable only
 
 		// Since stable is available, this should succeed
 		err := r.UpdateHash("", "stable123") // Empty canary hash = no traffic to canary
@@ -3437,6 +3454,93 @@ spec:
 		actions := client.Actions()
 		assert.Len(t, actions, 1)
 		assert.Equal(t, "update", actions[0].GetVerb())
+	})
+}
+
+// TestShouldDelayDestinationRuleUpdate tests that only ReplicaSets matching canaryHash or
+// stableHash (the traffic targets) can cause a delay; other RSs in the rollout are ignored.
+func TestShouldDelayDestinationRuleUpdate(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	ro.Spec.Strategy.Canary.CanaryService = ""
+	ro.Spec.Strategy.Canary.StableService = ""
+
+	createUnavailableRS := func(hash string, replicas int32) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rs-" + hash,
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+				Labels:    map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: hash},
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: &replicas,
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{Replicas: replicas, AvailableReplicas: 0},
+		}
+	}
+	createAvailableRS := func(hash string, replicas int32) *appsv1.ReplicaSet {
+		rs := createUnavailableRS(hash, replicas)
+		rs.Status.AvailableReplicas = replicas
+		return rs
+	}
+
+	client := testutil.NewFakeDynamicClient()
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil, nil)
+
+	t.Run("only canary and stable RSs are considered - unavailable other RS does not delay", func(t *testing.T) {
+		stableRS := createAvailableRS("stable123", 1)
+		canaryRS := createAvailableRS("canary456", 1)
+		otherRS := createUnavailableRS("other789", 1) // Unavailable but not a traffic target
+		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
+
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		assert.False(t, shouldDelay, "unavailable RS with hash other789 should not delay; only canary and stable are targets")
+		assert.Empty(t, rsName)
+	})
+
+	t.Run("unavailable canary RS delays when not abort", func(t *testing.T) {
+		stableRS := createAvailableRS("stable123", 1)
+		canaryRS := createUnavailableRS("canary456", 1)
+		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
+
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		assert.True(t, shouldDelay)
+		assert.Equal(t, "rs-canary456", rsName)
+	})
+
+	t.Run("unavailable stable RS delays", func(t *testing.T) {
+		stableRS := createUnavailableRS("stable123", 1)
+		canaryRS := createAvailableRS("canary456", 1)
+		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
+
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		assert.True(t, shouldDelay)
+		assert.Equal(t, "rs-stable123", rsName)
+	})
+
+	t.Run("when CanaryService is set, never delay", func(t *testing.T) {
+		roWithSvc := rolloutWithDestinationRule(nil)
+		roWithSvc.Spec.Strategy.Canary.CanaryService = "canary-svc"
+		roWithSvc.Spec.Strategy.Canary.StableService = "stable-svc"
+		rSvc := NewReconciler(roWithSvc, client, record.NewFakeEventRecorder(), nil, nil, nil)
+		canaryRS := createUnavailableRS("canary456", 1)
+		stableRS := createAvailableRS("stable123", 1)
+		rSvc.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
+
+		shouldDelay, rsName := rSvc.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		assert.False(t, shouldDelay, "delay check is skipped when canary/stable services are set")
+		assert.Empty(t, rsName)
+	})
+
+	t.Run("ReplicaSet with 0 replicas is ignored", func(t *testing.T) {
+		stableRS := createAvailableRS("stable123", 1)
+		canaryRS := createUnavailableRS("canary456", 0) // Scaled down; "unavailable" but should not block
+		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
+
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		assert.False(t, shouldDelay, "RS with 0 replicas should be skipped")
+		assert.Empty(t, rsName)
 	})
 }
 
@@ -3462,4 +3566,540 @@ func TestUpdateHashInvalidDestinationRule(t *testing.T) {
 	err := r.UpdateHash("abc123", "def456")
 	assert.Error(t, err, "expected destination rule not found")
 	assert.Contains(t, err.Error(), "invalid-destination-rule")
+}
+
+func TestRemoveManagedRoutesWithHeaderRoutes(t *testing.T) {
+	// Create a rollout with header routes in steps
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To(int32(20)),
+		},
+		{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: "test-header-1",
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "x-test",
+						HeaderValue: &v1alpha1.StringMatch{
+							Exact: "test",
+						},
+					},
+				},
+			},
+		},
+		{
+			SetWeight: ptr.To(int32(50)),
+		},
+		{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: "test-header-2",
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "x-version",
+						HeaderValue: &v1alpha1.StringMatch{
+							Prefix: "v2",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Add managed routes
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "managed-route-1"},
+	}
+
+	// Create virtual service with existing routes
+	vsvcWithRoutes := `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  http:
+  - name: test-header-1
+    match:
+    - headers:
+        x-test:
+          exact: test
+    route:
+    - destination:
+        host: canary
+      weight: 100
+  - name: test-header-2
+    match:
+    - headers:
+        x-version:
+          prefix: v2
+    route:
+    - destination:
+        host: canary
+      weight: 100
+  - name: managed-route-1
+    route:
+    - destination:
+        host: stable
+      weight: 50
+    - destination:
+        host: canary
+      weight: 50
+  - name: primary
+    route:
+    - destination:
+        host: stable
+      weight: 50
+    - destination:
+        host: canary
+      weight: 50
+  - name: user-defined-route
+    match:
+    - uri:
+        prefix: /api
+    route:
+    - destination:
+        host: stable
+      weight: 100
+`
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(vsvcWithRoutes)
+	client := testutil.NewFakeDynamicClient(obj)
+
+	// First verify the VirtualService exists in the client
+	vsvcCheck, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), "vsvc", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, vsvcCheck)
+
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	// Call RemoveManagedRoutes
+	err = r.RemoveManagedRoutes()
+	assert.NoError(t, err)
+
+	// Verify the virtual service was updated
+	updatedVsvc, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedVsvc)
+
+	// Extract routes
+	httpRoutes := extractHttpRoutes(t, updatedVsvc)
+
+	// Assert that header routes and managed routes were removed, but user-defined routes remain
+	assert.Equal(t, 2, len(httpRoutes))
+	assert.Equal(t, "primary", httpRoutes[0].Name)
+	assert.Equal(t, "user-defined-route", httpRoutes[1].Name)
+
+	// Verify that test-header-1, test-header-2, and managed-route-1 were removed
+	for _, route := range httpRoutes {
+		assert.NotEqual(t, "test-header-1", route.Name)
+		assert.NotEqual(t, "test-header-2", route.Name)
+		assert.NotEqual(t, "managed-route-1", route.Name)
+	}
+}
+
+func TestRemoveManagedRoutesVirtualServiceNotFound(t *testing.T) {
+	// Create a rollout with managed routes
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "route1"},
+		{Name: "route2"},
+	}
+
+	// Create a client without any VirtualService (simulating it being deleted)
+	client := testutil.NewFakeDynamicClient()
+	_, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, druleLister, nil)
+
+	// Call RemoveManagedRoutes - it should not fail when VirtualService doesn't exist
+	err := r.RemoveManagedRoutes()
+	assert.NoError(t, err)
+
+	// Verify no update was attempted, only get operations
+	actions := client.Actions()
+	updateCount := 0
+	for _, action := range actions {
+		if action.GetVerb() == "update" {
+			updateCount++
+		}
+	}
+	assert.Equal(t, 0, updateCount) // No updates should be attempted
+}
+
+func TestRemoveManagedRoutesMultipleVirtualServicesWithOneNotFound(t *testing.T) {
+	// Create a rollout with multiple virtual services
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rollout",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService: "stable",
+					CanaryService: "canary",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Istio: &v1alpha1.IstioTrafficRouting{
+							VirtualServices: []v1alpha1.IstioVirtualService{
+								{Name: "vsvc1", Routes: []string{"primary"}},
+								{Name: "vsvc2", Routes: []string{"secondary"}}, // This one won't exist
+								{Name: "vsvc3", Routes: []string{"tertiary"}},
+							},
+						},
+						ManagedRoutes: []v1alpha1.MangedRoutes{
+							{Name: "managed-route"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create only vsvc1 and vsvc3, but not vsvc2
+	vsvc1 := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	vsvc1.SetName("vsvc1")
+	vsvc3 := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	vsvc3.SetName("vsvc3")
+
+	client := testutil.NewFakeDynamicClient(vsvc1, vsvc3)
+	_, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, druleLister, nil)
+	client.ClearActions()
+
+	// Call RemoveManagedRoutes - it should handle the missing vsvc2 gracefully
+	err := r.RemoveManagedRoutes()
+	assert.NoError(t, err)
+
+	// Verify get operations were performed for all three, but only two were updated
+	actions := client.Actions()
+	getCount := 0
+	updateCount := 0
+	for _, action := range actions {
+		if action.GetVerb() == "get" {
+			getCount++
+		} else if action.GetVerb() == "update" {
+			updateCount++
+		}
+	}
+	assert.Equal(t, 3, getCount)          // Attempts to get all three
+	assert.LessOrEqual(t, updateCount, 2) // Updates only the existing ones if needed
+}
+
+func TestRemoveManagedRoutesWithHeaderRoutesAndNoManagedRoutes(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
+		{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: "test-header-1",
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "x-test",
+						HeaderValue: &v1alpha1.StringMatch{
+							Exact: "test",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	vsvcWithRoutes := `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  http:
+  - name: test-header-1
+    match:
+    - headers:
+        x-test:
+          exact: test
+    route:
+    - destination:
+        host: canary
+      weight: 100
+  - name: primary
+    route:
+    - destination:
+        host: stable
+      weight: 100
+`
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(vsvcWithRoutes)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.NoError(t, err)
+
+	updatedVsvc, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), "vsvc", metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	httpRoutes := extractHttpRoutes(t, updatedVsvc)
+	assert.Len(t, httpRoutes, 1)
+	assert.Equal(t, "primary", httpRoutes[0].Name)
+
+	actions := client.Actions()
+	updateCount := 0
+	for _, action := range actions {
+		if action.GetVerb() == "update" {
+			updateCount++
+		}
+	}
+	assert.Equal(t, 1, updateCount)
+}
+
+func TestRemoveManagedRoutesWithMirrorRoutesAndNoManagedRoutes(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
+		{
+			SetMirrorRoute: &v1alpha1.SetMirrorRoute{
+				Name: "test-mirror-1",
+				Match: []v1alpha1.RouteMatch{
+					{
+						Method: &v1alpha1.StringMatch{
+							Exact: "GET",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	vsvcWithRoutes := `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  http:
+  - name: test-mirror-1
+    match:
+    - method:
+        exact: GET
+    route:
+    - destination:
+        host: stable
+      weight: 100
+    mirror:
+      host: canary
+  - name: primary
+    route:
+    - destination:
+        host: stable
+      weight: 100
+`
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(vsvcWithRoutes)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.NoError(t, err)
+
+	updatedVsvc, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), "vsvc", metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	httpRoutes := extractHttpRoutes(t, updatedVsvc)
+	assert.Len(t, httpRoutes, 1)
+	assert.Equal(t, "primary", httpRoutes[0].Name)
+
+	actions := client.Actions()
+	updateCount := 0
+	for _, action := range actions {
+		if action.GetVerb() == "update" {
+			updateCount++
+		}
+	}
+	assert.Equal(t, 1, updateCount)
+}
+
+func TestRemoveManagedRoutesWithInvalidStepRouteEntriesAndNoManagedRoutes(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
+		{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: "header-route",
+			},
+		},
+		{
+			SetMirrorRoute: &v1alpha1.SetMirrorRoute{
+				Name: "mirror-route",
+			},
+		},
+	}
+
+	invalidVsvc := `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  http:
+  - not-a-route
+`
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(invalidVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.NoError(t, err)
+
+	updatedVsvc, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), "vsvc", metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	httpRoutes, found, err := unstructured.NestedSlice(updatedVsvc.Object, "spec", Http)
+	assert.NoError(t, err)
+	assert.True(t, found)
+	assert.Len(t, httpRoutes, 1)
+
+	updateCount := 0
+	for _, action := range client.Actions() {
+		if action.GetVerb() == "update" {
+			updateCount++
+		}
+	}
+	assert.Equal(t, 0, updateCount)
+}
+
+func TestRemoveManagedRoutesWithoutManagedRoutesOrStepRoutes(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.NoError(t, err)
+
+	updateCount := 0
+	for _, action := range client.Actions() {
+		if action.GetVerb() == "update" {
+			updateCount++
+		}
+	}
+	assert.Equal(t, 0, updateCount)
+}
+
+func TestRemoveManagedRoutesWithInvalidHTTPRoutes(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+
+	invalidVsvc := `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  http: invalid
+`
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(invalidVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get http routes from virtual service")
+}
+
+func TestRemoveManagedRoutesWithInvalidManagedRouteEntries(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "primary"},
+	}
+
+	invalidVsvc := `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  http:
+  - not-a-route
+`
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(invalidVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to split managed and non-managed routes")
+}
+
+func TestRemoveManagedRoutesReturnsGetError(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	client := testutil.NewFakeDynamicClient()
+	client.PrependReactor("get", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("boom")
+	})
+
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil, nil)
+
+	err := r.RemoveManagedRoutes()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get virtual service")
+}
+
+func TestRemoveManagedRoutesReturnsUpdateError(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "managed-route"},
+	}
+
+	vsvcWithRoutes := `
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  http:
+  - name: managed-route
+    route:
+    - destination:
+        host: stable
+      weight: 100
+  - name: primary
+    route:
+    - destination:
+        host: stable
+      weight: 100
+`
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(vsvcWithRoutes)
+	client := testutil.NewFakeDynamicClient(obj)
+	client.PrependReactor("update", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("update failed")
+	})
+
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.RemoveManagedRoutes()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update kubernetes virtual service")
 }

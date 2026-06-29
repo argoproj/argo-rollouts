@@ -269,7 +269,7 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		return nil
 	}
 
-	if dynamicallyRollingBackToStable, currSelector := isDynamicallyRollingBackToStable(c.rollout, c.newRS); dynamicallyRollingBackToStable {
+	if dynamicallyRollingBackToStable, currSelector := rolloututils.IsDynamicallyRollingBackToStable(c.rollout, c.newRS); dynamicallyRollingBackToStable {
 		// User may have interrupted an update in order go back to stableRS, and is using dynamic
 		// stable scaling. If that is the case, the stableRS might be undersized and if we blindly
 		// switch service selector we could overwhelm stableRS pods.

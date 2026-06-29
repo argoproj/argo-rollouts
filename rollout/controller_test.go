@@ -14,6 +14,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -48,6 +49,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/hash"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -73,6 +75,9 @@ const (
 )
 
 type FakeWorkloadRefResolver struct {
+	// resolveFn, if set, is invoked for workloadRef rollouts (kind != "Error") to mimic the real
+	// resolver repopulating the pod template that remarshalRollout strips when TemplateResolvedFromRef.
+	resolveFn func(r *v1alpha1.Rollout) error
 }
 
 func (f *FakeWorkloadRefResolver) Resolve(r *v1alpha1.Rollout) error {
@@ -89,6 +94,10 @@ func (f *FakeWorkloadRefResolver) Resolve(r *v1alpha1.Rollout) error {
 				Message: "not found",
 			},
 		}
+	}
+
+	if f.resolveFn != nil {
+		return f.resolveFn(r)
 	}
 
 	return nil
@@ -119,6 +128,8 @@ type fixture struct {
 	// Objects from here preloaded into NewSimpleFake.
 	kubeobjects []runtime.Object
 	objects     []runtime.Object
+	// dynamicOnlyObjects: added to dynamic client only (not Argo client). Use for Istio VS/DR so listers don't see unstructured as rollout.
+	dynamicOnlyObjects []runtime.Object
 	// Acquire 'enqueuedObjectsLock' before accessing enqueuedObjects
 	enqueuedObjects     map[string]int
 	enqueuedObjectsLock sync.Mutex
@@ -127,6 +138,13 @@ type fixture struct {
 	// events holds all the K8s Event Reasons emitted during the run
 	events             []string
 	fakeTrafficRouting *mocks.TrafficRoutingReconciler
+	// reseedRolloutMutator, if set, is applied to the rollout when re-seeding between syncs (for multi-sync tests).
+	reseedRolloutMutator func(*v1alpha1.Rollout)
+	// allowErrorOnLastSync, if set, do not fail the test when the final sync returns an error (e.g. "delaying destination rule switch").
+	allowErrorOnLastSync bool
+	// workloadRefResolveFn, if set, is used by the fake workload ref resolver to repopulate the pod
+	// template (which remarshalRollout strips for TemplateResolvedFromRef rollouts), mimicking the real resolver.
+	workloadRefResolveFn func(*v1alpha1.Rollout) error
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -562,6 +580,11 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 
+	dynamicClientObjects := f.objects
+	if len(f.dynamicOnlyObjects) > 0 {
+		dynamicClientObjects = append(append([]runtime.Object{}, f.objects...), f.dynamicOnlyObjects...)
+	}
+
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
@@ -581,7 +604,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		destGVR: destGVR.Resource + "List",
 	}
 
-	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, f.objects...)
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, dynamicClientObjects...)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
 	istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
@@ -622,7 +645,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   metricsServer,
 		Recorder:                        record.NewFakeEventRecorder(),
-		RefResolver:                     &FakeWorkloadRefResolver{},
+		RefResolver:                     &FakeWorkloadRefResolver{resolveFn: f.workloadRefResolveFn},
 		EphemeralMetadataThreads:        DefaultEphemeralMetadataThreads,
 		EphemeralMetadataPodRetries:     DefaultEphemeralMetadataPodRetries,
 	})
@@ -647,13 +670,15 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	c.enqueueRolloutAfter = func(obj any, duration time.Duration) {
 		c.enqueueRollout(obj)
 	}
-	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
-		if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
-			return nil, nil
+	if f.fakeTrafficRouting != nil {
+		c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
+			if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+				return nil, nil
+			}
+			var reconcilers = []trafficrouting.TrafficRoutingReconciler{}
+			reconcilers = append(reconcilers, f.fakeTrafficRouting)
+			return reconcilers, nil
 		}
-		var reconcilers = []trafficrouting.TrafficRoutingReconciler{}
-		reconcilers = append(reconcilers, f.fakeTrafficRouting)
-		return reconcilers, nil
 	}
 
 	for _, r := range f.rolloutLister {
@@ -698,9 +723,101 @@ func (f *fixture) run(rolloutName string) {
 	f.runController(rolloutName, true, false, c, i, k8sI)
 }
 
+// runWithSyncs runs the controller syncHandler n times (e.g. 2 for two reconciliation loops) then verifies actions.
+func (f *fixture) runWithSyncs(rolloutName string, syncs int) {
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.runControllerWithSyncs(rolloutName, syncs, true, false, c, i, k8sI)
+}
+
 func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(rolloutName, startInformers, true, c, i, k8sI)
+}
+
+func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
+	if startInformers {
+		stopCh := make(chan struct{})
+		defer close(stopCh)
+		i.Start(stopCh)
+		k8sI.Start(stopCh)
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
+	}
+
+	for n := 0; n < syncs; n++ {
+		err := c.syncHandler(context.Background(), rolloutName)
+		allowErr := f.allowErrorOnLastSync && (n == syncs-1)
+		f.assertSyncHandlerResult(n, syncs, err, expectError, allowErr)
+		f.reseedRolloutInInformerIfNeeded(c, rolloutName, n, syncs)
+		f.reseedKubeResourcesInInformerIfNeeded(k8sI, n, syncs)
+	}
+
+	return f.verifyActionsAndReturn(c)
+}
+
+func (f *fixture) assertSyncHandlerResult(n, syncs int, err error, expectError, allowErr bool) {
+	if !expectError && err != nil && !allowErr {
+		f.t.Errorf("error syncing rollout (sync %d/%d): %v", n+1, syncs, err)
+		return
+	}
+	if expectError && err == nil {
+		f.t.Error("expected error syncing rollout, got nil")
+	}
+}
+
+// reseedRolloutInInformerIfNeeded re-seeds the rollout in the informer after a sync so the next sync
+// sees an updated typed Rollout (e.g. multi-sync tests that mutate status between reconciles).
+// No-op when syncs <= 1 or on the final sync index.
+func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName string, n, syncs int) {
+	if syncs <= 1 || n >= syncs-1 {
+		return
+	}
+	namespace, name, err := cache.SplitMetaNamespaceKey(rolloutName)
+	if err != nil {
+		f.t.Fatalf("re-seed rollout: split key: %v", err)
+	}
+	ro, err := f.client.ArgoprojV1alpha1().Rollouts(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed rollout: get: %v", err)
+	}
+	if f.reseedRolloutMutator != nil {
+		f.reseedRolloutMutator(ro)
+	}
+	c.rolloutVersionTracker.Forget(rolloutName)
+	if err := c.rolloutsIndexer.Update(ro); err != nil {
+		f.t.Fatalf("re-seed rollout: update indexer: %v", err)
+	}
+}
+
+// reseedKubeResourcesInInformerIfNeeded re-seeds ReplicaSets and Services from the fake kube client
+// into the informer indexers between syncs. The controller creates/updates these resources via the
+// fake client during a sync, but the informer only learns about them through asynchronous watch
+// propagation, which races with the next synchronous sync. Re-seeding makes the multi-sync harness
+// deterministic. No-op when syncs <= 1 or on the last sync.
+func (f *fixture) reseedKubeResourcesInInformerIfNeeded(k8sI kubeinformers.SharedInformerFactory, n, syncs int) {
+	if syncs <= 1 || n >= syncs-1 {
+		return
+	}
+	rsIndexer := k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer()
+	rsList, err := f.kubeclient.AppsV1().ReplicaSets(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed replicasets: list: %v", err)
+	}
+	for i := range rsList.Items {
+		if err := rsIndexer.Update(&rsList.Items[i]); err != nil {
+			f.t.Fatalf("re-seed replicasets: update indexer: %v", err)
+		}
+	}
+
+	svcIndexer := k8sI.Core().V1().Services().Informer().GetIndexer()
+	svcList, err := f.kubeclient.CoreV1().Services(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed services: list: %v", err)
+	}
+	for i := range svcList.Items {
+		if err := svcIndexer.Update(&svcList.Items[i]); err != nil {
+			f.t.Fatalf("re-seed services: update indexer: %v", err)
+		}
+	}
 }
 
 func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
@@ -720,6 +837,10 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		f.t.Error("expected error syncing rollout, got nil")
 	}
 
+	return f.verifyActionsAndReturn(c)
+}
+
+func (f *fixture) verifyActionsAndReturn(c *Controller) *Controller {
 	actions := filterInformerActions(f.client.Actions())
 	for i, action := range actions {
 		if len(f.actions) < i+1 {
@@ -752,7 +873,6 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		f.t.Errorf("%d expected actions did not happen:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
 	}
 	fakeRecorder := c.recorder.(*record.FakeEventRecorder)
-
 	f.events = fakeRecorder.Events()
 	return c
 }
@@ -850,6 +970,11 @@ func (f *fixture) expectUpdatePodAction(p *corev1.Pod) int {
 	return len
 }
 
+func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
+	len := len(f.actions)
+	f.actions = append(f.actions, core.NewGetAction(v1alpha1.RolloutGVR, rollout.Namespace, rollout.Name))
+	return len
+}
 func (f *fixture) expectCreateExperimentAction(ex *v1alpha1.Experiment) int {
 	action := core.NewCreateAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex)
 	len := len(f.actions)
@@ -944,8 +1069,27 @@ func (f *fixture) expectGetEndpointsAction(ep *corev1.Endpoints) int {
 	return len
 }
 
+// kubeActionAt returns the filtered kube action at the given index, failing the test (instead of
+// panicking) when fewer actions occurred than expected. This keeps a single failing test from
+// aborting the rest of the package via an index-out-of-range panic.
+func (f *fixture) kubeActionAt(index int) core.Action {
+	f.t.Helper()
+	actions := filterInformerActions(f.kubeclient.Actions())
+	require.Greaterf(f.t, len(actions), index, "expected at least %d kube actions, got %d", index+1, len(actions))
+	return actions[index]
+}
+
+// actionAt returns the filtered argoproj action at the given index, failing the test (instead of
+// panicking) when fewer actions occurred than expected.
+func (f *fixture) actionAt(index int) core.Action {
+	f.t.Helper()
+	actions := filterInformerActions(f.client.Actions())
+	require.Greaterf(f.t, len(actions), index, "expected at least %d rollout actions, got %d", index+1, len(actions))
+	return actions[index]
+}
+
 func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Created action, not %s", action.GetVerb())
@@ -959,7 +1103,7 @@ func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 }
 
 func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
@@ -973,7 +1117,7 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 }
 
 func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -988,7 +1132,7 @@ func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
 }
 
 func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
@@ -999,7 +1143,7 @@ func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32
 }
 
 func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy string) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
@@ -1012,22 +1156,16 @@ func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy s
 }
 
 func (f *fixture) verifyPatchedRolloutAborted(index int, rsName string) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
-	_, ok := action.(core.PatchAction)
-	if !ok {
-		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
-	}
-
 	ro := f.getPatchedRolloutAsObject(index)
 	assert.NotNil(f.t, ro)
 	assert.True(f.t, ro.Status.Abort)
 	assert.Equal(f.t, v1alpha1.RolloutPhaseDegraded, ro.Status.Phase)
-	expectedMsg := fmt.Sprintf("ProgressDeadlineExceeded: ReplicaSet %q has timed out progressing.", rsName)
-	assert.Equal(f.t, expectedMsg, ro.Status.Message)
+	expectedMsg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rsName)
+	assert.Contains(f.t, ro.Status.Message, expectedMsg)
 }
 
 func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) bool {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
@@ -1036,7 +1174,7 @@ func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) 
 }
 
 func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
@@ -1050,7 +1188,7 @@ func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
 }
 
 func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nolint:unused
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1064,7 +1202,7 @@ func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nol
 }
 
 func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1078,7 +1216,7 @@ func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
 }
 
 func (f *fixture) getCreatedExperiment(index int) *v1alpha1.Experiment {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1092,7 +1230,7 @@ func (f *fixture) getCreatedExperiment(index int) *v1alpha1.Experiment {
 }
 
 func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1107,7 +1245,7 @@ func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
 }
 
 func (f *fixture) getPatchedRollout(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1116,7 +1254,7 @@ func (f *fixture) getPatchedRollout(index int) string {
 }
 
 func (f *fixture) getPatchedRolloutWithoutConditions(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1135,7 +1273,7 @@ func (f *fixture) getPatchedRolloutWithoutConditions(index int) string {
 }
 
 func (f *fixture) getPatchedRolloutAsObject(index int) *v1alpha1.Rollout {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1170,7 +1308,7 @@ func (f *fixture) expectDeleteReplicaSetAction(rs *appsv1.ReplicaSet) int {
 }
 
 func (f *fixture) getDeletedReplicaSet(index int) string { //nolint:unused
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1179,7 +1317,7 @@ func (f *fixture) getDeletedReplicaSet(index int) string { //nolint:unused
 }
 
 func (f *fixture) getDeletedAnalysisRun(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1188,7 +1326,7 @@ func (f *fixture) getDeletedAnalysisRun(index int) string {
 }
 
 func (f *fixture) getDeletedExperiment(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1197,7 +1335,7 @@ func (f *fixture) getDeletedExperiment(index int) string {
 }
 
 func (f *fixture) getUpdatedPod(index int) *corev1.Pod {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
@@ -1226,11 +1364,12 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.objects = append(f.objects, r)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 
-	f.expectUpdateRolloutStatusAction(r)
-	f.expectPatchRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r) // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r)          // second reconciliation
+	f.expectPatchRolloutAction(r)        // sync 2: patch status
 	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
 	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
-	f.run(getKey(r, t))
+	f.runWithSyncs(getKey(r, t), 2)
 }
 
 func TestAdoptReplicaSet(t *testing.T) {
@@ -1364,11 +1503,14 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
-	//updateIndex := f.expectUpdateRolloutAction(r)
-	f.expectUpdateRolloutStatusAction(r)
-	updateIndex := f.expectUpdateRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r)          // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r)                   // second reconciliation
+	updateIndex := f.expectUpdateRolloutAction(r) // sync 2: default .spec.replicas, then exit early
+	f.expectGetRolloutAction(r)                   // third reconciliation
+	f.expectPatchRolloutAction(r)                 // sync 3: patch status
 	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
-	f.run(getKey(r, t))
+	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.runWithSyncs(getKey(r, t), 3)
 	updatedRollout := f.getUpdatedRollout(updateIndex)
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
 }
@@ -1485,11 +1627,12 @@ requests:
 		f.serviceLister = append(f.serviceLister, activeSvc)
 		f.objects = append(f.objects, r)
 
-		f.expectUpdateRolloutStatusAction(r)
-		f.expectPatchRolloutAction(r)
+		f.expectUpdateRolloutStatusAction(r) // sync 1: create RS and set Progressing condition, then exit early
+		f.expectGetRolloutAction(r)          // second reconciliation
+		f.expectPatchRolloutAction(r)        // sync 2: patch status
 		rs := newReplicaSet(r, 1)
 		rsIdx := f.expectCreateReplicaSetAction(rs)
-		f.run(getKey(r, t))
+		f.runWithSyncs(getKey(r, t), 2)
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
 		f.Close()
@@ -2481,42 +2624,21 @@ func TestRolloutStrategyNotSet(t *testing.T) {
 	assert.Contains(t, patchedRollout, `Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'`)
 }
 
-// TestWriteBackToInformer verifies that after a rollout reconciles, the new version of the rollout
-// is written back to the informer
-func TestWriteBackToInformer(t *testing.T) {
+func TestSyncHandlerStaleCacheGuard(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r1 := newCanaryRollout("foo", 10, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.StableRS = ""
-	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	r := newCanaryRollout("foo", 10, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r.ResourceVersion = "100"
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
 
-	f.rolloutLister = append(f.rolloutLister, r1)
-	f.objects = append(f.objects, r1)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	roKey := getKey(r, t)
+	c.rolloutVersionTracker.Record(roKey, "200")
 
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
-	f.expectPatchRolloutAction(r1)
-
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
-	roKey := getKey(r1, t)
-	f.runController(roKey, true, false, c, i, k8sI)
-
-	// Verify the informer was updated with the new unstructured object after reconciliation
-	obj, exists, err := c.rolloutsIndexer.GetByKey(roKey)
-	assert.NoError(t, err)
-	assert.True(t, exists)
-
-	// The type returned from c.rolloutsIndexer.GetByKey is not always the same type it switches between
-	// *unstructured.Unstructured and *v1alpha1.Rollout the underlying cause is not fully known. We use the
-	// runtime.DefaultUnstructuredConverter to account for this.
-	unObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	assert.NoError(t, err)
-
-	stableRS, _, _ := unstructured.NestedString(unObj, "status", "stableRS")
-	assert.NotEmpty(t, stableRS)
-	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
+	err := c.syncHandler(context.Background(), roKey)
+	assert.ErrorIs(t, err, controllerutil.StaleCacheError)
 }
 
 func TestRun(t *testing.T) {

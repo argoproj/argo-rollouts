@@ -4,6 +4,10 @@ Argo Rollouts provides several ways to perform analysis to drive progressive del
 This document describes how to achieve various forms of progressive delivery, varying the point in
 time analysis is performed, its frequency, and occurrence.
 
+!!! info "No new metric integrations are accepted in the core controller"
+
+    If you want to use a brand new metric integration you **must** create a [Plugin](../analysis/plugins.md). Argo Rollouts is moving to a plugin-based architecture where we want to keep the core code stable and minimal and all extensions should come in the form of plugins ([metrics](../analysis/plugins.md), [traffic](../traffic-management/plugins), [steps](../canary/plugins/)). We will only accept minor contributions and fixes for the existing metric providers that are already part of Argo Rollouts core. 
+
 ## Custom Resource Definitions
 
 | CRD                 | Description |

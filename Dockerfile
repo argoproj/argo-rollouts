@@ -3,7 +3,7 @@
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.24 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26 AS builder
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install golangci-lint
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.1.6 && \
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.11.1 && \
     golangci-lint linters
 
 COPY .golangci.yml ${GOPATH}/src/dummy/.golangci.yml
@@ -27,20 +27,21 @@ RUN cd ${GOPATH}/src/dummy && \
 FROM --platform=$BUILDPLATFORM docker.io/library/node:18 AS argo-rollouts-ui
 
 WORKDIR /src
-ADD ["ui/package.json", "ui/yarn.lock", "./"]
+RUN corepack enable
+ADD ["ui/package.json", "ui/pnpm-lock.yaml", "./"]
 
-RUN yarn install --network-timeout 300000
+RUN pnpm install --frozen-lockfile
 
 ADD ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
-RUN NODE_ENV='production' yarn build
+RUN NODE_ENV='production' pnpm run build
 
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.24 AS argo-rollouts-build
+FROM --platform=$BUILDPLATFORM golang:1.26 AS argo-rollouts-build
 
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
 
@@ -55,7 +56,7 @@ COPY --from=argo-rollouts-ui /src/dist/app ./ui/dist/app
 # Perform the build
 COPY . .
 
-# stop make from trying to re-build this without yarn installed
+# stop make from trying to re-build this without node_modules present
 RUN touch ui/dist/node_modules.marker && \
     mkdir -p ui/dist/app && \
     touch ui/dist/app/index.html && \
@@ -69,7 +70,7 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make ${MAKE_TARGET}
 ####################################################################################################
 # Kubectl plugin image
 ####################################################################################################
-FROM gcr.io/distroless/static-debian11 AS kubectl-argo-rollouts
+FROM gcr.io/distroless/static-debian12 AS kubectl-argo-rollouts
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts /bin/kubectl-argo-rollouts
 
@@ -84,7 +85,7 @@ CMD ["dashboard"]
 ####################################################################################################
 # Final image
 ####################################################################################################
-FROM gcr.io/distroless/static-debian11
+FROM gcr.io/distroless/static-debian12
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
