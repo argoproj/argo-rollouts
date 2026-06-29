@@ -206,9 +206,10 @@ func TestListWithWatch(t *testing.T) {
 	watcher.Add(bg)
 	watcher.Add(can1copy)
 	watcher.Add(can2)
-	// Don't stop immediately to allow all events to be processed
+	// Don't stop immediately to allow all events to be processed.
+	// Use a longer sleep to avoid flakiness under CI load.
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 		watcher.Stop()
 	}()
 	callCount := 0
