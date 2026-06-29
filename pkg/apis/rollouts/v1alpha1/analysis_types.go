@@ -254,6 +254,12 @@ type PrometheusMetric struct {
 	// Arguments for prometheus
 	// +optional
 	RangeQuery *PrometheusRangeQueryArgs `json:"rangeQuery,omitempty" protobuf:"bytes,7,opt,name=rangeQuery"`
+	// CACert is an inline PEM-encoded CA certificate bundle used to verify the
+	// Prometheus server's TLS certificate (e.g. a self-signed or internal CA).
+	// When set, TLS verification is performed against this CA in addition to
+	// the system roots. Ignored when empty.
+	// +optional
+	CACert string `json:"caCert,omitempty" protobuf:"bytes,8,opt,name=caCert"`
 }
 
 // Authentication method

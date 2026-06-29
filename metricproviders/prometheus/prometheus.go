@@ -3,6 +3,7 @@ package prometheus
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -209,7 +210,7 @@ func NewPrometheusProvider(api v1.API, logCtx log.Entry, metric v1alpha1.Metric)
 	return provider, nil
 }
 
-func newHTTPTransport(insecureSkipVerify bool) *http.Transport {
+func newHTTPTransport(tlsConfig *tls.Config) *http.Transport {
 	return &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -217,12 +218,30 @@ func newHTTPTransport(insecureSkipVerify bool) *http.Transport {
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
 		TLSHandshakeTimeout: 10 * time.Second,
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: insecureSkipVerify},
+		TLSClientConfig:     tlsConfig,
 	}
 }
 
-var secureTransport *http.Transport = newHTTPTransport(false)
-var insecureTransport *http.Transport = newHTTPTransport(true)
+var secureTransport *http.Transport = newHTTPTransport(&tls.Config{InsecureSkipVerify: false})
+var insecureTransport *http.Transport = newHTTPTransport(&tls.Config{InsecureSkipVerify: true})
+
+// newCACertTransport builds an HTTP transport that verifies the server
+// certificate against the supplied PEM-encoded CA bundle (in addition to the
+// system roots). insecureSkipVerify is honored so that insecure: true continues
+// to skip verification even when a CA cert is provided.
+func newCACertTransport(caCert string, insecureSkipVerify bool) (*http.Transport, error) {
+	certPool, err := x509.SystemCertPool()
+	if err != nil || certPool == nil {
+		certPool = x509.NewCertPool()
+	}
+	if !certPool.AppendCertsFromPEM([]byte(caCert)) {
+		return nil, errors.New("failed to parse prometheus caCert: no valid PEM certificates found")
+	}
+	return newHTTPTransport(&tls.Config{
+		RootCAs:            certPool,
+		InsecureSkipVerify: insecureSkipVerify,
+	}), nil
+}
 
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
@@ -247,7 +266,14 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	}
 
 	var roundTripper http.RoundTripper
-	if metric.Provider.Prometheus.Insecure {
+	if metric.Provider.Prometheus.CACert != "" {
+		transport, err := newCACertTransport(metric.Provider.Prometheus.CACert, metric.Provider.Prometheus.Insecure)
+		if err != nil {
+			log.Errorf("Error creating prometheus transport with custom CA cert: %v", err)
+			return nil, err
+		}
+		roundTripper = transport
+	} else if metric.Provider.Prometheus.Insecure {
 		roundTripper = insecureTransport
 	} else {
 		roundTripper = secureTransport
