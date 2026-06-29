@@ -444,6 +444,9 @@ type SecretKeyRef struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// Key is the key of the secret to select from.
 	Key string `json:"key" protobuf:"bytes,2,opt,name=key"`
+	// ControllerNamespace indicates the secret should be read from the namespace
+	// where the argo-rollouts controller is deployed.
+	ControllerNamespace bool `json:"controllerNamespace,omitempty" protobuf:"bytes,3,opt,name=controllerNamespace"`
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource

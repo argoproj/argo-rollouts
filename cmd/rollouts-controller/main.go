@@ -261,7 +261,8 @@ func newCommand() *cobra.Command {
 					clusterDynamicInformerFactory,
 					namespaced,
 					kubeInformerFactory,
-					jobInformerFactory)
+					jobInformerFactory,
+				)
 			} else {
 				cm = controller.NewManager(
 					namespace,
@@ -300,7 +301,8 @@ func newCommand() *cobra.Command {
 					replicaSetInformerFactory,
 					jobInformerFactory,
 					ephemeralMetadataThreads,
-					ephemeralMetadataPodRetries)
+					ephemeralMetadataPodRetries,
+				)
 			}
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())

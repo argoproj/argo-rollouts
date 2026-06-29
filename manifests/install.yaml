@@ -81,6 +81,8 @@ spec:
                           description: Secret is a reference to where a secret is
                             stored. This field is one of the fields with valueFrom
                           properties:
+                            controllerNamespace:
+                              type: boolean
                             key:
                               description: Key is the key of the secret to select
                                 from.
@@ -8150,6 +8152,8 @@ spec:
                           description: Secret is a reference to where a secret is
                             stored. This field is one of the fields with valueFrom
                           properties:
+                            controllerNamespace:
+                              type: boolean
                             key:
                               description: Key is the key of the secret to select
                                 from.
@@ -16014,6 +16018,8 @@ spec:
                           description: Secret is a reference to where a secret is
                             stored. This field is one of the fields with valueFrom
                           properties:
+                            controllerNamespace:
+                              type: boolean
                             key:
                               description: Key is the key of the secret to select
                                 from.
@@ -23887,6 +23893,8 @@ spec:
                                   is stored. This field is one of the fields with
                                   valueFrom
                                 properties:
+                                  controllerNamespace:
+                                    type: boolean
                                   key:
                                     description: Key is the key of the secret to select
                                       from.
