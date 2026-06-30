@@ -221,6 +221,18 @@ type BlueGreenStrategy struct {
 	// Default is 30 second
 	// +optional
 	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,14,opt,name=abortScaleDownDelaySeconds"`
+
+	// AdditionalActiveServices is a list of additional Services that the
+	// rollout modifies during reconciliation. These will always be updated
+	// after the primary active Service.
+	// +optional
+	AdditionalActiveServices []string `json:"additionalActiveServices,omitempty" protobuf:"bytes,15,opt,name=additionalActiveServices"`
+
+	// AdditionalPreviewServices is a list of additional Services that the
+	// rollout modifies during reconciliation. These will always be updated
+	// after the primary one.
+	// +optional
+	AdditionalPreviewServices []string `json:"additionalPreviewServices,omitempty" protobuf:"bytes,16,opt,name=additionalPreviewServices"`
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection

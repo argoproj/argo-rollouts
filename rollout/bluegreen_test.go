@@ -176,6 +176,88 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.verifyPatchedService(servicePatch, rsPodHash, "")
 }
 
+// TestBlueGreenSetAdditionalPreviewServices ensures all preview services are set to the desired ReplicaSet
+func TestBlueGreenSetAdditionalPreviewServices(t *testing.T) {
+	previewServiceNames := []string{"preview", "additional1", "additional2", "additional3"}
+	previewServices := make([]*corev1.Service, len(previewServiceNames))
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newBlueGreenRollout("foo", 1, nil, "active", previewServiceNames[0])
+	r.Spec.Strategy.BlueGreen.AdditionalPreviewServices = previewServiceNames[1:]
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	rs := newReplicaSetWithStatus(r, 1, 1)
+	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.kubeobjects = append(f.kubeobjects, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsPodHash}
+	activeSvc := newService("active", 80, selector, r)
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
+	for i, svcName := range previewServiceNames {
+		previewServices[i] = newService(svcName, 80, nil, r)
+		f.kubeobjects = append(f.kubeobjects, previewServices[i])
+	}
+
+	f.serviceLister = append(f.serviceLister, previewServices[0], activeSvc)
+	f.serviceLister = append(f.serviceLister, previewServices[1:]...)
+
+	servicePatches := make([]int, len(previewServices))
+	for i, svc := range previewServices {
+		servicePatches[i] = f.expectPatchServiceAction(svc, rsPodHash)
+	}
+
+	f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	for _, patch := range servicePatches {
+		f.verifyPatchedService(patch, rsPodHash, "")
+	}
+}
+
+// TestBlueGreenSetAdditionalActiveServices ensures all active services are set to the desired ReplicaSet
+func TestBlueGreenSetAdditionalActiveServices(t *testing.T) {
+	activeServiceNames := []string{"active", "additional1", "additional2", "additional3"}
+	activeServices := make([]*corev1.Service, len(activeServiceNames))
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newBlueGreenRollout("foo", 1, nil, activeServiceNames[0], "preview")
+	r.Spec.Strategy.BlueGreen.AdditionalActiveServices = activeServiceNames[1:]
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	rs := newReplicaSetWithStatus(r, 1, 1)
+	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.kubeobjects = append(f.kubeobjects, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsPodHash}
+	previewSvc := newService("preview", 80, selector, r)
+	f.kubeobjects = append(f.kubeobjects, previewSvc)
+	for i, svcName := range activeServiceNames {
+		activeServices[i] = newService(svcName, 80, nil, r)
+		f.kubeobjects = append(f.kubeobjects, activeServices[i])
+	}
+
+	f.serviceLister = append(f.serviceLister, activeServices[0], previewSvc)
+	f.serviceLister = append(f.serviceLister, activeServices[1:]...)
+
+	servicePatches := make([]int, len(activeServices))
+	for i, svc := range activeServices {
+		servicePatches[i] = f.expectPatchServiceAction(svc, rsPodHash)
+	}
+
+	f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	for _, patch := range servicePatches {
+		f.verifyPatchedService(patch, rsPodHash, "")
+	}
+}
+
 // TestBlueGreenProgressDeadlineAbort tests aborting an update if it is timeout
 func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 	// Two cases to be tested:

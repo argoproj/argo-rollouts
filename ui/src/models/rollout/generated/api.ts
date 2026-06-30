@@ -674,6 +674,18 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BlueGreenSt
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BlueGreenStrategy
      */
     abortScaleDownDelaySeconds?: number;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BlueGreenStrategy
+     */
+    additionalActiveServices?: Array<string>;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BlueGreenStrategy
+     */
+    additionalPreviewServices?: Array<string>;
 }
 /**
  * 

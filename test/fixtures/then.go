@@ -411,6 +411,41 @@ func (t *Then) verifyBlueGreenSelectorRevision(which string, revision string) *T
 	return t
 }
 
+// ExpectServiceSelectorRevision verifies the given service's rollouts-pod-template-hash selector
+// points to the ReplicaSet of the specified revision. Useful for asserting on additional active or
+// preview services configured via BlueGreen.AdditionalActiveServices / AdditionalPreviewServices.
+func (t *Then) ExpectServiceSelectorRevision(service string, revision string) *Then {
+	t.t.Helper()
+	verifyRevision := func() error {
+		svc, err := t.kubeClient.CoreV1().Services(t.namespace).Get(t.Context, service, metav1.GetOptions{})
+		t.CheckError(err)
+		rs := t.GetReplicaSetByRevision(revision)
+		expectedHash := rs.Labels[rov1.DefaultRolloutUniqueLabelKey]
+		actualHash := svc.Spec.Selector[rov1.DefaultRolloutUniqueLabelKey]
+		if expectedHash != actualHash {
+			return fmt.Errorf("Expectation failed: service '%s' selector %s != revision %s ReplicaSet hash %s", service, actualHash, revision, expectedHash)
+		}
+		return nil
+	}
+	// we retry because switching the service selector lags behind the Degraded/Promotion event
+	var err error
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		err = verifyRevision()
+		if err == nil {
+			t.log.Infof("Expectation: service '%s' revision == '%s' met", service, revision)
+			return t
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	t.log.Error(err)
+	t.t.FailNow()
+	return t
+}
+
 func (t *Then) ExpectServiceSelector(service string, selector map[string]string, ensurePodTemplateHash bool) *Then {
 	t.t.Helper()
 	svc, err := t.kubeClient.CoreV1().Services(t.namespace).Get(t.Context, service, metav1.GetOptions{})

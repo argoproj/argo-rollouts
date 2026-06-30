@@ -99,6 +99,32 @@ func TestGetRolloutServiceKeysForBlueGreen(t *testing.T) {
 	assert.Equal(t, keys, []string{"default/active-service", "default/preview-service"})
 }
 
+func TestGetRolloutServiceKeysForBlueGreenWithAdditionalServices(t *testing.T) {
+	keys := GetRolloutServiceKeys(&v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					PreviewService:            "preview-service",
+					ActiveService:             "active-service",
+					AdditionalActiveServices:  []string{"additional-active-1", "additional-active-2"},
+					AdditionalPreviewServices: []string{"additional-preview-1", "additional-preview-2"},
+				},
+			},
+		},
+	})
+	assert.Equal(t, keys, []string{
+		"default/active-service",
+		"default/additional-active-1",
+		"default/additional-active-2",
+		"default/preview-service",
+		"default/additional-preview-1",
+		"default/additional-preview-2",
+	})
+}
+
 func TestHasManagedByAnnotation(t *testing.T) {
 	service := &corev1.Service{}
 	managedBy, exists := HasManagedByAnnotation(service)
