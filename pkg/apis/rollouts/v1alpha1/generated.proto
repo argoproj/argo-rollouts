@@ -1258,8 +1258,13 @@ message PrometheusMetric {
   // +optional
   optional int64 timeout = 4;
 
-  // Insecure skips host TLS verification
+  // Insecure skips TLS certificate verification when querying Prometheus
+  // +optional
   optional bool insecure = 5;
+
+  // CAPath is a path to a PEM-encoded CA certificate file on the controller filesystem
+  // +optional
+  optional string caPath = 8;
 
   // Headers are optional HTTP headers to use in the request
   // +optional

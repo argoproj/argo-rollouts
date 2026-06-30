@@ -6195,6 +6195,9 @@
                                                         },
                                                         "type": "object"
                                                     },
+                                                    "caPath": {
+                                                        "type": "string"
+                                                    },
                                                     "headers": {
                                                         "description": "Headers are optional HTTP headers to use in the request",
                                                         "items": {
@@ -12612,6 +12615,9 @@
                                                             }
                                                         },
                                                         "type": "object"
+                                                    },
+                                                    "caPath": {
+                                                        "type": "string"
                                                     },
                                                     "headers": {
                                                         "description": "Headers are optional HTTP headers to use in the request",
@@ -19046,6 +19052,9 @@
                                                             }
                                                         },
                                                         "type": "object"
+                                                    },
+                                                    "caPath": {
+                                                        "type": "string"
                                                     },
                                                     "headers": {
                                                         "description": "Headers are optional HTTP headers to use in the request",

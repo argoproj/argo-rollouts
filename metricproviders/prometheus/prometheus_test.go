@@ -1,11 +1,14 @@
 package prometheus
 
 import (
+	"context"
+	"encoding/pem"
 	"fmt"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -634,6 +637,113 @@ func TestNewPrometheusAPI(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestBuildRoundTripperDefaults(t *testing.T) {
+	roundTripper, err := buildRoundTripper(v1alpha1.PrometheusMetric{})
+	assert.NoError(t, err)
+	assert.Same(t, secureTransport, roundTripper)
+}
+
+func TestNewPrometheusAPITLSInsecure(t *testing.T) {
+	promServer := mockTLSPromServer()
+	defer promServer.Close()
+
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address:  promServer.URL,
+				Query:    "test",
+				Insecure: true,
+			},
+		},
+	}
+
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+
+	_, _, err = api.Query(context.Background(), metric.Provider.Prometheus.Query, time.Now())
+	assert.NoError(t, err)
+}
+
+func TestNewPrometheusAPITLSSelfSignedFails(t *testing.T) {
+	promServer := mockTLSPromServer()
+	defer promServer.Close()
+
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+			},
+		},
+	}
+
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+
+	_, _, err = api.Query(context.Background(), metric.Provider.Prometheus.Query, time.Now())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "x509")
+}
+
+func TestNewPrometheusAPITLSWithCAPath(t *testing.T) {
+	promServer := mockTLSPromServer()
+	defer promServer.Close()
+
+	caPath := writeTestCACertFile(t, promServer)
+
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				CAPath:  caPath,
+			},
+		},
+	}
+
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+
+	_, _, err = api.Query(context.Background(), metric.Provider.Prometheus.Query, time.Now())
+	assert.NoError(t, err)
+}
+
+func TestNewPrometheusAPITLSWithMissingCAPath(t *testing.T) {
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "https://prometheus.example.com",
+				Query:   "test",
+				CAPath:  filepath.Join(t.TempDir(), "missing.pem"),
+			},
+		},
+	}
+
+	_, err := NewPrometheusAPI(metric)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read CA certificate")
+}
+
+func TestNewPrometheusAPITLSWithInvalidCAPath(t *testing.T) {
+	caPath := filepath.Join(t.TempDir(), "invalid.pem")
+	err := os.WriteFile(caPath, []byte("invalid-pem"), 0o600)
+	assert.NoError(t, err)
+
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "https://prometheus.example.com",
+				Query:   "test",
+				CAPath:  caPath,
+			},
+		},
+	}
+
+	_, err = NewPrometheusAPI(metric)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse CA certificate")
+}
+
 func TestNewPrometheusAPIWithEnv(t *testing.T) {
 	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
 	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, ":invalid::url")
@@ -895,4 +1005,36 @@ func mockPromServer(expectedAuthorizationHeader string) *httptest.Server {
 			w.Write([]byte(promResponse))
 		}
 	}))
+}
+
+func mockTLSPromServer() *httptest.Server {
+	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		promResponse := `{"data":{"result":[{"metric":{"__name__":"myMetric"},"value":[0, "10"]}],"resultType":"vector"},"status":"success"}`
+
+		sc := http.StatusOK
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(sc)
+		w.Write([]byte(promResponse))
+	}))
+}
+
+func writeTestCACertFile(t *testing.T, server *httptest.Server) string {
+	t.Helper()
+
+	if server.TLS == nil || len(server.TLS.Certificates) == 0 || len(server.TLS.Certificates[0].Certificate) == 0 {
+		t.Fatal("missing TLS certificate data")
+	}
+
+	certBytes := server.TLS.Certificates[0].Certificate[0]
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+	if pemBytes == nil {
+		t.Fatal("failed to encode TLS certificate")
+	}
+
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(caPath, pemBytes, 0o600); err != nil {
+		t.Fatalf("failed to write CA file: %v", err)
+	}
+
+	return caPath
 }
