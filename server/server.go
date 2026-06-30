@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +42,8 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	serverauth "github.com/argoproj/argo-rollouts/server/auth"
+	"github.com/argoproj/argo-rollouts/server/auth/rbac"
 	"github.com/argoproj/argo-rollouts/utils/errors"
 	"github.com/argoproj/argo-rollouts/utils/json"
 	versionutils "github.com/argoproj/argo-rollouts/utils/version"
@@ -57,6 +62,8 @@ type ServerOptions struct {
 	DynamicClientset  dynamic.Interface
 	Namespace         string
 	RootPath          string
+	AuthMode          string
+	Insecure          bool
 }
 
 const (
@@ -66,8 +73,10 @@ const (
 
 // ArgoRolloutsServer holds information about rollouts server
 type ArgoRolloutsServer struct {
-	Options ServerOptions
-	stopCh  chan struct{}
+	Options   ServerOptions
+	stopCh    chan struct{}
+	auth      *authComponents
+	tlsConfig *tls.Config
 }
 
 // NewServer creates an ArgoRolloutsServer
@@ -78,6 +87,12 @@ func NewServer(o ServerOptions) *ArgoRolloutsServer {
 const (
 	listenAddr  = "0.0.0.0"
 	connectAddr = "localhost"
+)
+
+// Auth modes for the dashboard server.
+const (
+	AuthModeNone   = "none"
+	AuthModeServer = "server"
 )
 
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
@@ -101,7 +116,20 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	opts := []grpc.DialOption{
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)),
 	}
-	opts = append(opts, grpc.WithInsecure())
+	if s.tlsConfig != nil {
+		// The gateway dials the in-process gRPC server over the same TLS port.
+		// Instead of skipping verification, pin the served certificate as the
+		// sole trusted root and verify against one of its own SANs, so the
+		// loopback dial stays fully verified for both the generated self-signed
+		// certificate and an operator-provided one.
+		creds, err := loopbackDialCreds(s.tlsConfig)
+		if err != nil {
+			panic(err)
+		}
+		opts = append(opts, grpc.WithTransportCredentials(creds))
+	} else {
+		opts = append(opts, grpc.WithInsecure())
+	}
 
 	endpoint := net.JoinHostPort(connectAddr, fmt.Sprintf("%d", port))
 	err := rollout.RegisterRolloutServiceHandlerFromEndpoint(ctx, gwmux, endpoint, opts)
@@ -119,14 +147,67 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 		apiHandler = http.StripPrefix(stripPrefix, gwmux)
 	}
 	mux.Handle(apiPath, apiHandler)
+	if s.auth != nil {
+		loginPath := "/api/login"
+		logoutPath := "/api/logout"
+		if s.Options.RootPath != "" {
+			loginPath = path.Join("/", s.Options.RootPath, "api/login")
+			logoutPath = path.Join("/", s.Options.RootPath, "api/logout")
+		}
+		mux.Handle(loginPath, s.auth.login)
+		mux.HandleFunc(logoutPath, serverauth.LogoutHandler)
+	}
+	if s.auth != nil && s.auth.oidc != nil {
+		mux.HandleFunc("/auth/login", s.auth.oidc.Login)
+		mux.HandleFunc("/auth/callback", s.auth.oidc.Callback)
+	}
 	mux.HandleFunc("/", s.staticFileHttpHandler)
 
 	return &httpS
 }
 
+// loopbackDialCreds builds transport credentials for the in-process gateway→gRPC
+// dial. Rather than disabling certificate verification, it pins the served
+// certificate as the only trusted root and sets ServerName to one of that
+// certificate's own SANs, so the handshake is fully verified.
+func loopbackDialCreds(served *tls.Config) (credentials.TransportCredentials, error) {
+	if len(served.Certificates) == 0 {
+		return nil, fmt.Errorf("no served certificate configured")
+	}
+	leaf := served.Certificates[0].Leaf
+	if leaf == nil {
+		parsed, err := x509.ParseCertificate(served.Certificates[0].Certificate[0])
+		if err != nil {
+			return nil, fmt.Errorf("parse served certificate: %w", err)
+		}
+		leaf = parsed
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(leaf)
+	serverName := connectAddr
+	if len(leaf.DNSNames) > 0 {
+		serverName = leaf.DNSNames[0]
+	} else if len(leaf.IPAddresses) > 0 {
+		serverName = leaf.IPAddresses[0].String()
+	}
+	return credentials.NewTLS(&tls.Config{
+		RootCAs:    pool,
+		ServerName: serverName,
+		MinVersion: tls.VersionTLS12,
+	}), nil
+}
+
 func (s *ArgoRolloutsServer) newGRPCServer() *grpc.Server {
-	grpcS := grpc.NewServer()
-	var rolloutsServer rollout.RolloutServiceServer = NewServer(s.Options)
+	var opts []grpc.ServerOption
+	if s.auth != nil {
+		opts = append(opts,
+			grpc.ChainUnaryInterceptor(s.auth.authn.Unary, s.auth.authz.Unary),
+			grpc.ChainStreamInterceptor(s.auth.authn.Stream),
+		)
+	}
+	grpcS := grpc.NewServer(opts...)
+	rolloutsServer := NewServer(s.Options)
+	rolloutsServer.auth = s.auth // share auth so stream handlers enforce authz
 	rollout.RegisterRolloutServiceServer(grpcS, rolloutsServer)
 	return grpcS
 }
@@ -145,6 +226,20 @@ func (s *ArgoRolloutsServer) checkServeErr(name string, err error) {
 
 // Run starts the server
 func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) {
+	// Build TLS config FIRST so that setupAuth can read s.tlsConfig for the
+	// session-cookie Secure flag.
+	tlsCfg, err := s.maybeTLSConfig(ctx)
+	errors.CheckError(err)
+	s.tlsConfig = tlsCfg
+
+	if s.Options.AuthMode == AuthModeServer {
+		comps, err := s.setupAuth(ctx)
+		errors.CheckError(err)
+		s.auth = comps
+	} else if s.Options.AuthMode != "" && s.Options.AuthMode != AuthModeNone {
+		errors.CheckError(fmt.Errorf("invalid --auth-mode %q (want %q or %q)", s.Options.AuthMode, AuthModeNone, AuthModeServer))
+	}
+
 	httpServer := s.newHTTPServer(ctx, port)
 	grpcServer := s.newGRPCServer()
 
@@ -161,9 +256,15 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 	})
 	errors.CheckError(realErr)
 
+	scheme := "http"
+	if s.tlsConfig != nil {
+		conn = tls.NewListener(conn, s.tlsConfig)
+		scheme = "https"
+	}
+
 	startupMessage := fmt.Sprintf("Argo Rollouts api-server serving on port %d (namespace: %s)", port, s.Options.Namespace)
 	if dashboard {
-		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at http://localhost:%d/%s", port, s.Options.RootPath)
+		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at %s://localhost:%d/%s", scheme, port, s.Options.RootPath)
 	}
 
 	log.Info(startupMessage)
@@ -212,6 +313,9 @@ func (s *ArgoRolloutsServer) GetRolloutInfo(c context.Context, q *rollout.Rollou
 // WatchRolloutInfo returns a rollout stream
 func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws rollout.RolloutService_WatchRolloutInfoServer) error {
 	ctx := ws.Context()
+	if err := s.authorizeStream(ctx, rbac.ActionGet, q.GetNamespace()+"/"+q.GetName()); err != nil {
+		return err
+	}
 	controller := s.initRolloutViewController(q.GetNamespace(), q.GetName(), ctx)
 
 	rolloutUpdates := make(chan *rollout.RolloutInfo)
@@ -283,6 +387,9 @@ func (s *ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.Rest
 
 // WatchRolloutInfos returns a stream of all rollouts
 func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, ws rollout.RolloutService_WatchRolloutInfosServer) error {
+	if err := s.authorizeStream(ws.Context(), rbac.ActionGet, q.GetNamespace()+"/*"); err != nil {
+		return err
+	}
 	send := func(r *rollout.RolloutInfo) {
 		err := ws.Send(&rollout.RolloutWatchEvent{
 			Type:        "Updated",

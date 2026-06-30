@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argo-rollouts-dashboard-auth
+  labels:
+    app.kubernetes.io/component: argo-rollouts-dashboard
+    app.kubernetes.io/name: argo-rollouts-dashboard
+    app.kubernetes.io/part-of: argo-rollouts
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      - argo-rollouts-dashboard-cm
+      - argo-rollouts-dashboard-rbac-cm
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    resourceNames:
+      - argo-rollouts-dashboard-secret
+    verbs:
+      - get

@@ -4,5 +4,8 @@ module.exports = {
     transform: {
         '^.+\\.(ts|tsx)$': 'ts-jest',
     },
+    moduleNameMapper: {
+        '\\.(scss|sass|css)$': 'identity-obj-proxy',
+    },
     modulePathIgnorePatterns: ['generated'],
 };

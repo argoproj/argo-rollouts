@@ -5,6 +5,7 @@ import {KeybindingProvider} from 'react-keyhooks';
 import {Route, Router, Switch} from 'react-router-dom';
 import './App.scss';
 import {NamespaceContext, RolloutAPI} from './shared/context/api';
+import {LoginPage} from './components/login/login';
 import {Modal} from './components/modal/modal';
 import {Rollout} from './components/rollout/rollout';
 import {RolloutsHome} from './components/rollouts-home/rollouts-home';
@@ -57,6 +58,9 @@ const App = () => {
     const [namespace, setNamespace] = React.useState(init);
     const [availableNamespaces, setAvailableNamespaces] = React.useState([]);
     React.useEffect(() => {
+        if (window.location.pathname.replace(/\/+$/, '').endsWith('/login')) {
+            return;
+        }
         try {
             RolloutAPI.rolloutServiceGetNamespace()
                 .then((info) => {
@@ -88,29 +92,38 @@ const App = () => {
     };
 
     return (
-        namespace && (
-            <NamespaceContext.Provider value={{namespace, availableNamespaces}}>
-                <KeybindingProvider>
-                    <Router history={history}>
-                        <Switch>
-                            <Page
-                                exact
-                                path='/:namespace?'
-                                component={<RolloutsHome />}
-                                shortcuts={[
-                                    {key: '/', description: 'Search'},
-                                    {key: 'TAB', description: 'Search, navigate search items'},
-                                    {key: ['fa-arrow-left', 'fa-arrow-right', 'fa-arrow-up', 'fa-arrow-down'], description: 'Navigate rollouts list', icon: true},
-                                    {key: ['SHIFT', 'H'], description: 'Show help menu', combo: true},
-                                ]}
-                                changeNamespace={changeNamespace}
-                            />
-                            <Page path='/rollout/:namespace?/:name' component={<Rollout />} changeNamespace={changeNamespace} />
-                        </Switch>
-                    </Router>
-                </KeybindingProvider>
-            </NamespaceContext.Provider>
-        )
+        <Router history={history}>
+            <Switch>
+                <Route path='/login' exact>
+                    <ConfigProvider theme={theme}>
+                        <LoginPage />
+                    </ConfigProvider>
+                </Route>
+                <Route>
+                    {namespace ? (
+                        <NamespaceContext.Provider value={{namespace, availableNamespaces}}>
+                            <KeybindingProvider>
+                                <Switch>
+                                    <Page
+                                        exact
+                                        path='/:namespace?'
+                                        component={<RolloutsHome />}
+                                        shortcuts={[
+                                            {key: '/', description: 'Search'},
+                                            {key: 'TAB', description: 'Search, navigate search items'},
+                                            {key: ['fa-arrow-left', 'fa-arrow-right', 'fa-arrow-up', 'fa-arrow-down'], description: 'Navigate rollouts list', icon: true},
+                                            {key: ['SHIFT', 'H'], description: 'Show help menu', combo: true},
+                                        ]}
+                                        changeNamespace={changeNamespace}
+                                    />
+                                    <Page path='/rollout/:namespace?/:name' component={<Rollout />} changeNamespace={changeNamespace} />
+                                </Switch>
+                            </KeybindingProvider>
+                        </NamespaceContext.Provider>
+                    ) : null}
+                </Route>
+            </Switch>
+        </Router>
     );
 };
 

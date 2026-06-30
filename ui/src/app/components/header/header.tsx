@@ -2,7 +2,8 @@ import * as React from 'react';
 
 import {useParams} from 'react-router';
 import {Key, KeybindingContext} from 'react-keyhooks';
-import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
+import {NamespaceContext, RolloutAPIContext, getApiBasePath} from '../../shared/context/api';
+import {logout} from '../login/logout';
 
 import './header.scss';
 import {Link, useHistory} from 'react-router-dom';
@@ -80,6 +81,14 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                     <a href='https://argo-rollouts.readthedocs.io/' target='_blank' rel='noreferrer'>
                         <Button icon={<FontAwesomeIcon icon={faBook} />} style={{marginRight: '10px'}} />
                     </a>
+                </Tooltip>
+                <Tooltip title='Log out'>
+                    <Button
+                        onClick={() => logout(getApiBasePath(), (url) => window.location.assign(url))}
+                        style={{marginRight: '10px'}}
+                    >
+                        Log out
+                    </Button>
                 </Tooltip>
                 <div className='rollouts-header__namespace'>
                     <div className='rollouts-header__label'>NAMESPACE</div>

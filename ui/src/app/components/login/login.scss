@@ -1,0 +1,140 @@
+// Argo Rollouts dashboard login — split-screen layout modelled on the Argo CD
+// login page: branded gradient panel on the left, white sign-in box on the right.
+
+$rollouts-login-accent: #f9784b; // Argo orange
+$rollouts-login-dark: #232841;
+
+.rollouts-login {
+    display: flex;
+    min-height: 100vh;
+    background: linear-gradient(to top left, rgba(122, 139, 207, 0.95) 0%, rgba(35, 40, 65, 0.98) 100%);
+
+    // Left branding panel — hidden on narrow viewports so the box stays usable.
+    &__content {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        text-align: center;
+
+        @media screen and (max-width: 900px) {
+            display: none;
+        }
+    }
+
+    &__text {
+        color: #fff;
+        font-size: 2.5rem;
+        font-weight: 200;
+        letter-spacing: 0.5px;
+        margin-bottom: 24px;
+    }
+
+    &__logo-hero {
+        width: 100%;
+        max-width: 360px;
+        height: 40vh;
+        background-image: url('assets/images/argo-icon-white.svg');
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: contain;
+        opacity: 0.92;
+    }
+
+    // Right sign-in box.
+    &__box {
+        position: relative;
+        flex: 0 0 440px;
+        max-width: 100%;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 56px 96px;
+        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.25);
+
+        @media screen and (max-width: 900px) {
+            flex: 1 1 auto;
+        }
+    }
+
+    &__brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 36px;
+    }
+
+    &__brand-icon {
+        width: 48px;
+        height: 48px;
+    }
+
+    &__brand-title {
+        font-size: 1.6rem;
+        font-weight: 600;
+        color: $rollouts-login-dark;
+    }
+
+    &__form {
+        width: 100%;
+        max-width: 280px;
+    }
+
+    // Tint the AntD primary button with the Argo accent so it reads on-brand.
+    .ant-btn-primary {
+        background: $rollouts-login-accent;
+        border-color: $rollouts-login-accent;
+
+        &:hover,
+        &:focus {
+            background: lighten($rollouts-login-accent, 6%);
+            border-color: lighten($rollouts-login-accent, 6%);
+        }
+    }
+
+    &__separator {
+        position: relative;
+        margin: 24px 0;
+        text-align: center;
+        border-bottom: 1px solid #e0e0e0;
+
+        & > span {
+            position: relative;
+            top: 0.7em;
+            padding: 0 10px;
+            background: #fff;
+            color: #8c8c8c;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+    }
+
+    &__sso {
+        display: block;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 500;
+        color: $rollouts-login-dark;
+
+        &:hover {
+            color: $rollouts-login-accent;
+        }
+    }
+
+    &__footer {
+        position: absolute;
+        bottom: 28px;
+        left: 0;
+        width: 100%;
+        text-align: center;
+
+        img {
+            height: 22px;
+            opacity: 0.5;
+        }
+    }
+}

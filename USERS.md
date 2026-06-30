@@ -72,6 +72,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Synamedia](https://www.synamedia.com)
 1. [Taboola](https://www.taboola.com)
 1. [TBC Bank](https://tbcbank.ge/)
+1. [Techcom Securities](https://www.tcbs.com.vn/)
 1. [Trustly](https://www.trustly.com/)
 1. [Tuhu](https://www.tuhu.cn/)
 1. [Twilio SendGrid](https://sendgrid.com)

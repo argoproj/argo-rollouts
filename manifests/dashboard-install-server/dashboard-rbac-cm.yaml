@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-dashboard-rbac-cm
+  labels:
+    app.kubernetes.io/component: argo-rollouts-dashboard
+    app.kubernetes.io/name: argo-rollouts-dashboard
+    app.kubernetes.io/part-of: argo-rollouts
+data:
+  # Default role for authenticated users with no explicit grant. Built-in roles:
+  # role:admin, role:readonly, role:operator. Empty string = deny by default.
+  policy.default: role:readonly
+  # Glob (default) or regex matching for policy objects.
+  policy.matchMode: glob
+  # Additional RBAC policy. Format:
+  #   p, <subject>, <resource>, <action>, <namespace>/<name>, allow
+  #   g, <user-or-group>, <role>
+  # Resources: rollouts, analysisruns, analysistemplates,
+  #   clusteranalysistemplates, experiments.
+  # Actions: get, create, update, delete, promote, abort, retry, restart,
+  #   pause, skip, setimage, undo.
+  # Example:
+  #   g, alice@example.com, role:admin
+  #   p, role:operator, rollouts, promote, prod/*, allow
+  policy.csv: ""
