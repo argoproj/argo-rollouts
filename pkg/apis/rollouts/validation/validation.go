@@ -69,6 +69,9 @@ const (
 	InvalidAnalysisArgsMessage = "Analyses arguments must refer to valid object metadata supported by downwardAPI"
 	// InvalidCanaryScaleDownDelay indicates that canary.scaleDownDelaySeconds cannot be used
 	InvalidCanaryScaleDownDelay = "Canary scaleDownDelaySeconds can only be used with traffic routing"
+	// InvalidCanaryWeightUpdateDelay indicates that canary.weightUpdateDelaySeconds
+	// requires either Istio with a DestinationRule or a Plugin traffic router.
+	InvalidCanaryWeightUpdateDelay = "Canary weightUpdateDelaySeconds requires either Istio with a DestinationRule or a Plugin traffic router"
 	// InvalidCanaryDynamicStableScale indicates that canary.dynamicStableScale cannot be used
 	InvalidCanaryDynamicStableScale = "Canary dynamicStableScale can only be used with traffic routing"
 	// InvalidCanaryDynamicStableScaleWithScaleDownDelay indicates that canary.dynamicStableScale cannot be used with scaleDownDelaySeconds
@@ -306,6 +309,16 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 			if canary.TrafficRouting.Nginx == nil && len(canary.TrafficRouting.Plugins) == 0 {
 				allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("maxTrafficWeight"), canary.TrafficRouting.MaxTrafficWeight, InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins))
 			}
+		}
+	}
+
+	// WeightUpdateDelaySeconds requires either Istio with a DestinationRule or a Plugin.
+	if canary.WeightUpdateDelaySeconds != nil {
+		trafficRouting := canary.TrafficRouting
+		hasIstioWithDR := trafficRouting != nil && trafficRouting.Istio != nil && trafficRouting.Istio.DestinationRule != nil
+		hasPlugin := trafficRouting != nil && len(trafficRouting.Plugins) > 0
+		if !hasIstioWithDR && !hasPlugin {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("weightUpdateDelaySeconds"), *canary.WeightUpdateDelaySeconds, InvalidCanaryWeightUpdateDelay))
 		}
 	}
 

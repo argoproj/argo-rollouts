@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/gob"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -81,6 +82,14 @@ type RpcTrafficRoutingReconciler interface {
 	VerifyWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (RpcVerified, RpcError)
 	// RemoveManagedRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
 	RemoveManagedRoutes(ro *v1alpha1.Rollout) RpcError
+	// GetWeightUpdateDeadline returns the absolute time at which the weight-update
+	// delay completes, or (nil, RpcError{}) when no delay is currently pending.
+	// Implementations that do not support the delay return (nil, RpcError{}).
+	GetWeightUpdateDeadline(rollout *v1alpha1.Rollout) (*time.Time, RpcError)
+	// ClearWeightUpdateDeadline removes the weight-update-deadline annotation from
+	// the routing resource. Implementations that do not support the delay return
+	// an empty RpcError.
+	ClearWeightUpdateDeadline(rollout *v1alpha1.Rollout) RpcError
 	// Type returns the type of the traffic routing reconciler
 	Type() string
 }

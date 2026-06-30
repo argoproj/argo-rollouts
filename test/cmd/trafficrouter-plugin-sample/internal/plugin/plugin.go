@@ -330,6 +330,14 @@ func (r *RpcPlugin) RemoveManagedRoutes(ro *v1alpha1.Rollout) pluginTypes.RpcErr
 	return pluginTypes.RpcError{}
 }
 
+func (r *RpcPlugin) GetWeightUpdateDeadline(ro *v1alpha1.Rollout) (*time.Time, pluginTypes.RpcError) {
+	return nil, pluginTypes.RpcError{}
+}
+
+func (r *RpcPlugin) ClearWeightUpdateDeadline(ro *v1alpha1.Rollout) pluginTypes.RpcError {
+	return pluginTypes.RpcError{}
+}
+
 func (r *RpcPlugin) Type() string {
 	return "plugin-nginx"
 }

@@ -159,6 +159,10 @@ const (
 	// LabelKeyControllerInstanceID is the label the controller uses for the rollout, experiment, analysis segregation
 	// between controllers. Controllers will only operate on objects with the same instanceID as the controller.
 	LabelKeyControllerInstanceID = "argo-rollouts.argoproj.io/controller-instance-id"
+	// DefaultWeightUpdateDeadlineAnnotationKey is the annotation key (RFC3339
+	// timestamp) written to a routing resource (e.g. an Istio DestinationRule)
+	// to defer the next SetWeight call after a pod-template hash change.
+	DefaultWeightUpdateDeadlineAnnotationKey = "argo-rollouts.argoproj.io/weight-update-deadline"
 )
 
 // RolloutStrategy defines strategy to apply during next rollout
@@ -339,6 +343,13 @@ type CanaryStrategy struct {
 	// Defaults to 100% of total replicas.
 	// +optional
 	ReplicaProgressThreshold *ReplicaProgressThreshold `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,17,opt,name=replicaProgressThreshold"`
+
+	// WeightUpdateDelaySeconds delays applying a new traffic weight after the
+	// destination's pod-template hash has changed (at canary start and at
+	// promotion), giving the data plane time to absorb the change before
+	// traffic shifts.
+	// +optional
+	WeightUpdateDelaySeconds *int32 `json:"weightUpdateDelaySeconds,omitempty" protobuf:"varint,18,opt,name=weightUpdateDelaySeconds"`
 }
 
 // PingPongSpec holds the ping and pong service name.

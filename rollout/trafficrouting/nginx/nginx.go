@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -384,4 +385,12 @@ func getDesiredAnnotations(current, desired *ingressutil.Ingress) map[string]str
 		}
 	}
 	return desiredAnnotations
+}
+
+func (r *Reconciler) GetWeightUpdateDeadline() (*time.Time, error) {
+	return nil, nil
+}
+
+func (r *Reconciler) ClearWeightUpdateDeadline() error {
+	return nil
 }

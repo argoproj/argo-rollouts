@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"net/rpc"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 
@@ -39,8 +40,21 @@ type RemoveManagedRoutesArgs struct {
 	Rollout v1alpha1.Rollout
 }
 
+type GetWeightUpdateDeadlineArgs struct {
+	Rollout v1alpha1.Rollout
+}
+
+type ClearWeightUpdateDeadlineArgs struct {
+	Rollout v1alpha1.Rollout
+}
+
 type VerifyWeightResponse struct {
 	Verified types.RpcVerified
+	Err      types.RpcError
+}
+
+type WeightUpdateDeadlineResponse struct {
+	Deadline *time.Time
 	Err      types.RpcError
 }
 
@@ -50,6 +64,8 @@ func init() {
 	gob.RegisterName("SetHeaderArgs", new(SetHeaderArgs))
 	gob.RegisterName("SetMirrorArgs", new(SetMirrorArgs))
 	gob.RegisterName("RemoveManagedRoutesArgs", new(RemoveManagedRoutesArgs))
+	gob.RegisterName("GetWeightUpdateDeadlineArgs", new(GetWeightUpdateDeadlineArgs))
+	gob.RegisterName("ClearWeightUpdateDeadlineArgs", new(ClearWeightUpdateDeadlineArgs))
 }
 
 // TrafficRouterPlugin is the interface that we're exposing as a plugin. It needs to match metricproviders.Providers but we can
@@ -172,6 +188,34 @@ func (g *TrafficRouterPluginRPC) RemoveManagedRoutes(rollout *v1alpha1.Rollout) 
 	return resp
 }
 
+// GetWeightUpdateDeadline returns the absolute time at which the weight-update
+// delay completes, or (nil, RpcError{}) when no delay is currently pending.
+func (g *TrafficRouterPluginRPC) GetWeightUpdateDeadline(rollout *v1alpha1.Rollout) (*time.Time, types.RpcError) {
+	var resp WeightUpdateDeadlineResponse
+	var args any = GetWeightUpdateDeadlineArgs{
+		Rollout: *rollout,
+	}
+	err := g.client.Call("Plugin.GetWeightUpdateDeadline", &args, &resp)
+	if err != nil {
+		return nil, types.RpcError{ErrorString: fmt.Sprintf("GetWeightUpdateDeadline rpc call error: %s", err)}
+	}
+	return resp.Deadline, resp.Err
+}
+
+// ClearWeightUpdateDeadline removes the weight-update-deadline annotation from the
+// routing resource.
+func (g *TrafficRouterPluginRPC) ClearWeightUpdateDeadline(rollout *v1alpha1.Rollout) types.RpcError {
+	var resp types.RpcError
+	var args any = ClearWeightUpdateDeadlineArgs{
+		Rollout: *rollout,
+	}
+	err := g.client.Call("Plugin.ClearWeightUpdateDeadline", &args, &resp)
+	if err != nil {
+		return types.RpcError{ErrorString: fmt.Sprintf("ClearWeightUpdateDeadline rpc call error: %s", err)}
+	}
+	return resp
+}
+
 // TrafficRouterRPCServer Here is the RPC server that MetricsPluginRPC talks to, conforming to
 // the requirements of net/rpc
 type TrafficRouterRPCServer struct {
@@ -254,6 +298,32 @@ func (s *TrafficRouterRPCServer) RemoveManagedRoutes(args any, resp *types.RpcEr
 		return fmt.Errorf("invalid args %s", args)
 	}
 	*resp = s.Impl.RemoveManagedRoutes(&removeManagedRoutesArgs.Rollout)
+	return nil
+}
+
+// GetWeightUpdateDeadline returns the absolute time at which the weight-update
+// delay completes, or (nil, RpcError{}) when no delay is currently pending.
+func (s *TrafficRouterRPCServer) GetWeightUpdateDeadline(args any, resp *WeightUpdateDeadlineResponse) error {
+	getDeadlineArgs, ok := args.(*GetWeightUpdateDeadlineArgs)
+	if !ok {
+		return fmt.Errorf("invalid args %s", args)
+	}
+	deadline, err := s.Impl.GetWeightUpdateDeadline(&getDeadlineArgs.Rollout)
+	*resp = WeightUpdateDeadlineResponse{
+		Deadline: deadline,
+		Err:      err,
+	}
+	return nil
+}
+
+// ClearWeightUpdateDeadline removes the weight-update-deadline annotation from the
+// routing resource.
+func (s *TrafficRouterRPCServer) ClearWeightUpdateDeadline(args any, resp *types.RpcError) error {
+	clearDeadlineArgs, ok := args.(*ClearWeightUpdateDeadlineArgs)
+	if !ok {
+		return fmt.Errorf("invalid args %s", args)
+	}
+	*resp = s.Impl.ClearWeightUpdateDeadline(&clearDeadlineArgs.Rollout)
 	return nil
 }
 

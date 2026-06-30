@@ -30,6 +30,9 @@ const (
 	DefaultScaleDownDelaySeconds = int32(30)
 	// DefaultAbortScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
 	DefaultAbortScaleDownDelaySeconds = int32(30)
+	// DefaultWeightUpdateDelaySeconds is the default value of weightUpdateDelaySeconds when
+	// unset. 0 disables the delay entirely (no behavior change from prior versions).
+	DefaultWeightUpdateDelaySeconds = int32(0)
 	// DefaultAutoPromotionEnabled default value for auto promoting a blueGreen strategy
 	DefaultAutoPromotionEnabled = true
 	// DefaultConsecutiveErrorLimit is the default number times a metric can error in sequence before
@@ -203,6 +206,23 @@ func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) time.Duration 
 		}
 	}
 	return time.Duration(delaySeconds) * time.Second
+}
+
+// GetWeightUpdateDelaySecondsOrDefault returns the duration the controller should wait
+// between updating a traffic-routing resource's pod-template hash and updating its
+// traffic weight. Returns 0 when traffic routing is not configured or when the field
+// is unset.
+func GetWeightUpdateDelaySecondsOrDefault(rollout *v1alpha1.Rollout) time.Duration {
+	if rollout.Spec.Strategy.Canary == nil {
+		return 0
+	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		return 0
+	}
+	if rollout.Spec.Strategy.Canary.WeightUpdateDelaySeconds == nil {
+		return time.Duration(DefaultWeightUpdateDelaySeconds) * time.Second
+	}
+	return time.Duration(*rollout.Spec.Strategy.Canary.WeightUpdateDelaySeconds) * time.Second
 }
 
 // GetAbortScaleDownDelaySecondsOrDefault returns the duration to delay the scale down of

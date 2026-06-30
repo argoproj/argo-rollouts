@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+	"time"
 
 	"k8s.io/client-go/kubernetes"
 
@@ -93,6 +94,26 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 	resp := r.TrafficRouterPlugin.RemoveManagedRoutes(r.Rollout)
 	if resp.HasError() {
 		return fmt.Errorf("failed to remove managed routes via plugin: %w", resp)
+	}
+	return nil
+}
+
+// GetWeightUpdateDeadline returns the absolute time at which the weight-update
+// delay completes, or (nil, nil) when no delay is currently pending.
+// Implementations that do not support the delay return (nil, nil).
+func (r *Reconciler) GetWeightUpdateDeadline() (*time.Time, error) {
+	deadline, errResp := r.TrafficRouterPlugin.GetWeightUpdateDeadline(r.Rollout)
+	if errResp.HasError() {
+		return deadline, fmt.Errorf("failed to get weight-update deadline via plugin: %w", errResp)
+	}
+	return deadline, nil
+}
+
+// ClearWeightUpdateDeadline removes the weight-update-deadline annotation from the routing resource.
+func (r *Reconciler) ClearWeightUpdateDeadline() error {
+	resp := r.TrafficRouterPlugin.ClearWeightUpdateDeadline(r.Rollout)
+	if resp.HasError() {
+		return fmt.Errorf("failed to clear weight-update deadline via plugin: %w", resp)
 	}
 	return nil
 }

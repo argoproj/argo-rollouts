@@ -981,6 +981,92 @@ func TestCanaryScaleDownDelaySeconds(t *testing.T) {
 	})
 }
 
+func TestCanaryWeightUpdateDelaySeconds(t *testing.T) {
+	selector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{"key": "value"},
+	}
+	ro := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Selector: selector,
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService:            "stable",
+					CanaryService:            "canary",
+					WeightUpdateDelaySeconds: ptr.To[int32](120),
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: selector.MatchLabels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Resources: corev1.ResourceRequirements{},
+						Image:     "foo",
+						Name:      "image-name",
+					}},
+				},
+			},
+		},
+	}
+	t.Run("weightUpdateDelaySeconds without traffic routing rejected", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		allErrs := ValidateRollout(ro)
+		assert.NotEmpty(t, allErrs)
+		assert.EqualError(t, allErrs[0], fmt.Sprintf("spec.strategy.weightUpdateDelaySeconds: Invalid value: 120: %s", InvalidCanaryWeightUpdateDelay))
+	})
+	t.Run("weightUpdateDelaySeconds with SMI rejected", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			SMI: &v1alpha1.SMITrafficRouting{},
+		}
+		allErrs := ValidateRollout(ro)
+		assert.NotEmpty(t, allErrs)
+		assert.EqualError(t, allErrs[0], fmt.Sprintf("spec.strategy.weightUpdateDelaySeconds: Invalid value: 120: %s", InvalidCanaryWeightUpdateDelay))
+	})
+	t.Run("weightUpdateDelaySeconds with ALB rejected", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			ALB: &v1alpha1.ALBTrafficRouting{RootService: "root"},
+		}
+		allErrs := ValidateRollout(ro)
+		assert.NotEmpty(t, allErrs)
+		assert.EqualError(t, allErrs[0], fmt.Sprintf("spec.strategy.weightUpdateDelaySeconds: Invalid value: 120: %s", InvalidCanaryWeightUpdateDelay))
+	})
+	t.Run("weightUpdateDelaySeconds with Istio VirtualService only rejected", func(t *testing.T) {
+		// Istio host-level routing (VS without DR) is not supported because the
+		// deadline annotation is persisted on the DestinationRule.
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Istio: &v1alpha1.IstioTrafficRouting{
+				VirtualService: &v1alpha1.IstioVirtualService{Name: "vs"},
+			},
+		}
+		allErrs := ValidateRollout(ro)
+		assert.NotEmpty(t, allErrs)
+		assert.EqualError(t, allErrs[0], fmt.Sprintf("spec.strategy.weightUpdateDelaySeconds: Invalid value: 120: %s", InvalidCanaryWeightUpdateDelay))
+	})
+	t.Run("weightUpdateDelaySeconds with Istio + DestinationRule accepted", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Istio: &v1alpha1.IstioTrafficRouting{
+				VirtualService:  &v1alpha1.IstioVirtualService{Name: "vs"},
+				DestinationRule: &v1alpha1.IstioDestinationRule{Name: "dr", CanarySubsetName: "canary", StableSubsetName: "stable"},
+			},
+		}
+		allErrs := ValidateRollout(ro)
+		assert.Empty(t, allErrs)
+	})
+	t.Run("weightUpdateDelaySeconds with Plugins accepted", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Plugins: map[string]json.RawMessage{"example": []byte(`{}`)},
+		}
+		allErrs := ValidateRollout(ro)
+		assert.Empty(t, allErrs)
+	})
+}
+
 func TestCanaryDynamicStableScale(t *testing.T) {
 	selector := &metav1.LabelSelector{
 		MatchLabels: map[string]string{"key": "value"},

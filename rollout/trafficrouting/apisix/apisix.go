@@ -451,3 +451,11 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 	}
 	return nil
 }
+
+func (r *Reconciler) GetWeightUpdateDeadline() (*time.Time, error) {
+	return nil, nil
+}
+
+func (r *Reconciler) ClearWeightUpdateDeadline() error {
+	return nil
+}

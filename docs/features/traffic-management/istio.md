@@ -249,6 +249,21 @@ During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts wil
 * modify the DestinationRule `spec.subsets[].labels` to contain the `rollouts-pod-template-hash`
   label of the canary and stable ReplicaSets
 
+### Weight-Update Delay
+
+The `DestinationRule` subset labels are relabeled at canary start and at
+promotion. If your Istio installation takes a non-trivial amount of time to
+propagate the subset change to its data plane, shifting `VirtualService`
+weights immediately can hit endpoints that are not yet ready.
+
+Set `canary.weightUpdateDelaySeconds` to defer the `VirtualService` weight
+update by a fixed duration each time the subset hash changes. The deadline is
+persisted as the annotation
+`argo-rollouts.argoproj.io/weight-update-deadline` on the managed
+`DestinationRule`. See
+[Weight-Update Delay (with Traffic Routing)](../canary/index.md#weight-update-delay-with-traffic-routing)
+in the canary docs for the full description.
+
 ### Additional Subset DestinationRule's
 
 Argo Rollouts also allows users to add additional subset DestinationRule's.

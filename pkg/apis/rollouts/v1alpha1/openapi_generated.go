@@ -1630,6 +1630,13 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ReplicaProgressThreshold"),
 						},
 					},
+					"weightUpdateDelaySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "WeightUpdateDelaySeconds adds a delay before applying a new traffic weight to the underlying routing resource (e.g. an Istio VirtualService) when the destination's pod-template hash has just changed — that is, at canary start (DestinationRule canary subset relabeled to the new ReplicaSet) and at promotion (stable subset relabeled). The delay gives the data plane time to absorb the destination change before traffic actually shifts.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},

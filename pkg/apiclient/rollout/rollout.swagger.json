@@ -1105,6 +1105,11 @@
         "replicaProgressThreshold": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaProgressThreshold",
           "title": "ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.\nDefaults to 100% of total replicas.\n+optional"
+        },
+        "weightUpdateDelaySeconds": {
+          "type": "integer",
+          "format": "int32",
+          "title": "WeightUpdateDelaySeconds adds a delay before applying a new traffic weight to the\nunderlying routing resource (e.g. an Istio VirtualService) when the destination's\npod-template hash has just changed — that is, at canary start (DestinationRule canary\nsubset relabeled to the new ReplicaSet) and at promotion (stable subset relabeled).\nThe delay gives the data plane time to absorb the destination change before traffic\nactually shifts.\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"

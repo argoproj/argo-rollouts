@@ -1,6 +1,8 @@
 package trafficrouting
 
 import (
+	"time"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
@@ -19,6 +21,14 @@ type TrafficRoutingReconciler interface {
 	VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error)
 	// RemoveAllRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
 	RemoveManagedRoutes() error
+	// GetWeightUpdateDeadline returns the time at which the weight-update delay completes.
+	// Returns (nil, nil) when no delay is pending or when not supported by the implementation.
+	// Implementations must read the deadline from the source-of-truth (API server) — not an
+	// informer cache — to avoid a staleness race with UpdateHash written in the same reconcile.
+	GetWeightUpdateDeadline() (*time.Time, error)
+	// ClearWeightUpdateDeadline removes the weight-update-deadline annotation from the routing resource.
+	// Returns nil when not supported by the implementation.
+	ClearWeightUpdateDeadline() error
 	// Type returns the type of the traffic routing reconciler
 	Type() string
 }

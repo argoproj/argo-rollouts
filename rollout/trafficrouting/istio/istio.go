@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 	appsv1 "k8s.io/api/apps/v1"
@@ -13,12 +14,14 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamiclister"
 
@@ -28,6 +31,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const Http = "http"
@@ -402,11 +406,18 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 	for _, dest := range additionalDestinations {
 		svcToDest[dest.ServiceName] = dest
 	}
+	// hashChanged is true when a canary/stable subset is being relabeled with a new
+	// non-empty pod-template hash (canary start or promotion). Clearing the hash is
+	// not treated as a change so abort/cleanup paths are not delayed.
+	hashChanged := false
 	tmp := make([]Subset, 0)
 	for _, subset := range dRuleNew.Spec.Subsets {
 		if subset.Name == dRuleSpec.CanarySubsetName { // Canary Subset
 			if subset.Labels == nil {
 				subset.Labels = make(map[string]string)
+			}
+			if canaryHash != "" && subset.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] != canaryHash {
+				hashChanged = true
 			}
 			if canaryHash != "" {
 				subset.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = canaryHash
@@ -416,6 +427,9 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 		} else if subset.Name == dRuleSpec.StableSubsetName { // Stable Subset
 			if subset.Labels == nil {
 				subset.Labels = make(map[string]string)
+			}
+			if stableHash != "" && subset.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] != stableHash {
+				hashChanged = true
 			}
 			if stableHash != "" {
 				subset.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = stableHash
@@ -441,6 +455,16 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 			Name:   dest.ServiceName,
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: dest.PodTemplateHash},
 		})
+	}
+	if hashChanged {
+		if delay := defaults.GetWeightUpdateDelaySecondsOrDefault(r.rollout); delay > 0 {
+			deadline := timeutil.MetaNow().Add(delay).UTC().Format(time.RFC3339)
+			if dRuleNew.Annotations == nil {
+				dRuleNew.Annotations = make(map[string]string)
+			}
+			dRuleNew.Annotations[v1alpha1.DefaultWeightUpdateDeadlineAnnotationKey] = deadline
+			r.log.Infof("hash update detected, setting weight update deadline annotation to %s", deadline)
+		}
 	}
 	modified, err := updateDestinationRule(ctx, client, origBytes, dRule, dRuleNew)
 	if err != nil {
@@ -949,6 +973,69 @@ func routeDestination(host string, port uint32, subset string, weight int64) map
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
 	return nil, nil
+}
+
+// GetWeightUpdateDeadline reads the weight-update-deadline annotation from the
+// managed DestinationRule. Returns (nil, nil) when subset-level traffic routing
+// is not configured, the DestinationRule is missing, or no deadline is set.
+//
+// Reads go directly to the API server (not the informer cache) so the value
+// just written by UpdateHash in the same reconcile is visible.
+func (r *Reconciler) GetWeightUpdateDeadline() (*time.Time, error) {
+	if r.rollout.Spec.Strategy.Canary == nil ||
+		r.rollout.Spec.Strategy.Canary.TrafficRouting == nil ||
+		r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+		return nil, nil
+	}
+	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
+	if dRuleSpec == nil {
+		return nil, nil
+	}
+	ctx := context.TODO()
+	client := r.client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace)
+	dRuleUn, err := client.Get(ctx, dRuleSpec.Name, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	raw := dRuleUn.GetAnnotations()[v1alpha1.DefaultWeightUpdateDeadlineAnnotationKey]
+	if raw == "" {
+		return nil, nil
+	}
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"invalid weight-update-deadline annotation %q on DestinationRule %s: %w",
+			raw, dRuleSpec.Name, err)
+	}
+	return &t, nil
+}
+
+// ClearWeightUpdateDeadline implements TrafficRoutingReconciler.
+// Removes the weight-update-deadline annotation from the managed DestinationRule
+// via a JSON merge-patch. No-op when the rollout does not use subset-level
+// traffic routing.
+func (r *Reconciler) ClearWeightUpdateDeadline() error {
+	if r.rollout.Spec.Strategy.Canary == nil ||
+		r.rollout.Spec.Strategy.Canary.TrafficRouting == nil ||
+		r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+		return nil
+	}
+	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
+	if dRuleSpec == nil {
+		return nil
+	}
+	ctx := context.TODO()
+	client := r.client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace)
+	patch := fmt.Sprintf(`{"metadata":{"annotations":{"%s":null}}}`,
+		v1alpha1.DefaultWeightUpdateDeadlineAnnotationKey)
+	_, err := client.Patch(ctx, dRuleSpec.Name, patchtypes.MergePatchType, []byte(patch), metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to clear weight-update-deadline annotation on DestinationRule %s: %w", dRuleSpec.Name, err)
+	}
+	return nil
 }
 
 // getHttpRouteIndexesToPatch returns array indices of the httpRoutes which need to be patched when updating weights

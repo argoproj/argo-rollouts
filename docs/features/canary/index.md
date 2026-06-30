@@ -172,6 +172,61 @@ spec:
       abortScaleDownDelaySeconds: 600
 ```
 
+## Weight-Update Delay (with Traffic Routing)
+
+When traffic routing is enabled, Argo Rollouts updates the destination
+selector (e.g. an Istio `DestinationRule` subset) and the traffic weight
+(e.g. an Istio `VirtualService`) within the same reconcile loop. If your
+service-mesh implementation takes a non-trivial amount of time to propagate
+the destination change to its data plane, shifting traffic immediately can
+hit endpoints that are not yet ready and surface as `no healthy upstream`
+errors.
+
+`weightUpdateDelaySeconds` defers the weight update by a fixed duration each
+time the destination's pod-template hash changes (canary start and promotion),
+giving the data plane time to settle:
+
+```yaml
+spec:
+  strategy:
+    canary:
+      trafficRouting:
+        istio:
+          virtualService:
+            name: my-vsvc
+          destinationRule:
+            name: my-destrule
+            canarySubsetName: canary
+            stableSubsetName: stable
+      weightUpdateDelaySeconds: 120
+      steps:
+        - setWeight: 20
+        - pause: { duration: 5m }
+        - setWeight: 100
+```
+
+Intermediate `setWeight` steps that don't change the hash are not delayed.
+Default is `0` (no delay; identical to prior behavior).
+
+Currently supported by:
+
+- Istio with a `DestinationRule` (subset-level traffic routing). The deadline
+  is persisted as the annotation
+  `argo-rollouts.argoproj.io/weight-update-deadline` on the `DestinationRule`.
+- Traffic-routing plugins — support depends on the plugin implementation.
+
+Validation rejects `weightUpdateDelaySeconds` for other configurations
+(e.g. Istio without a `DestinationRule`, ALB, NGINX, SMI, etc.).
+
+### GitOps note
+
+When the deadline is active, the controller writes a transient annotation to
+the managed `DestinationRule`. If you manage that resource via GitOps,
+configure your sync tool to ignore differences on
+`metadata.annotations.argo-rollouts.argoproj.io/weight-update-deadline`. This
+is the same pattern used for `spec.http[].route[].weight` drift on managed
+`VirtualService` resources.
+
 ## Mimicking Rolling Update
 
 !!! important
@@ -196,6 +251,7 @@ spec:
       maxSurge: stringOrInt
       maxUnavailable: stringOrInt
       trafficRouting: object
+      weightUpdateDelaySeconds: int32
 ```
 
 ### analysis
@@ -243,3 +299,13 @@ Defaults to 25%
 The [traffic management](../traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.
 
 Defaults to nil
+
+### weightUpdateDelaySeconds
+
+`weightUpdateDelaySeconds` delays applying a new traffic weight after the
+destination's pod-template hash has changed (at canary start and at promotion),
+giving the data plane time to absorb the change before traffic actually shifts.
+See [Weight-Update Delay (with Traffic Routing)](#weight-update-delay-with-traffic-routing)
+for details. Only honored by Istio (subset-level) and Plugins.
+
+Defaults to 0 (disabled).
