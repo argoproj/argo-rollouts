@@ -152,9 +152,17 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request.Header.Set("DD-API-KEY", p.config.ApiKey)
 	request.Header.Set("DD-APPLICATION-KEY", p.config.AppKey)
 
-	// Send Request
+	// Send Request. The client timeout defaults to 10s and can be overridden via the
+	// metric's spec (e.g. for expensive v2 formula queries that take longer to return).
+	timeout := time.Duration(10) * time.Second
+	if dd.RequestTimeout != "" {
+		timeout, err = dd.RequestTimeout.Duration()
+		if err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
+	}
 	httpClient := &http.Client{
-		Timeout: time.Duration(10) * time.Second,
+		Timeout: timeout,
 	}
 	response, err := httpClient.Do(request)
 	if err != nil {

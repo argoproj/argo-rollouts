@@ -58,6 +58,11 @@ func TestDatadogSpecDefaults(t *testing.T) {
 		assert.Equal(t, "\"5m\"", defaultInterval, "Default interval should be \"5m\" ")
 	})
 
+	t.Run("requestTimeout: Validate default is 10s", func(t *testing.T) {
+		defaultRequestTimeout := string(ddSpec.Properties["requestTimeout"].Default.Raw)
+		assert.Equal(t, "\"10s\"", defaultRequestTimeout, "Default requestTimeout should be \"10s\" ")
+	})
+
 	t.Run("aggregator: Validate enum exists to restrict aggregator to 9 options", func(t *testing.T) {
 		aggregatorEnums := ddSpec.Properties["aggregator"].Enum
 		assert.Equal(t, 9, len(aggregatorEnums), "Expecting 9 enum options")
