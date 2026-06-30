@@ -38,19 +38,27 @@ func TestRequestTimeout(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		requestTimeout v1alpha1.DurationString
-		expectedPhase  v1alpha1.AnalysisPhase
+		name            string
+		requestTimeout  v1alpha1.DurationString
+		expectedPhase   v1alpha1.AnalysisPhase
+		expectedMessage string
 	}{
 		{
-			name:           "short timeout against slow server fails",
-			requestTimeout: "10ms",
-			expectedPhase:  v1alpha1.AnalysisPhaseError,
+			name:            "short timeout against slow server fails",
+			requestTimeout:  "10ms",
+			expectedPhase:   v1alpha1.AnalysisPhaseError,
+			expectedMessage: "Client.Timeout",
 		},
 		{
 			name:           "generous timeout against slow server succeeds",
 			requestTimeout: "5s",
 			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+		},
+		{
+			name:            "invalid timeout string fails before the request is sent",
+			requestTimeout:  "not-a-duration",
+			expectedPhase:   v1alpha1.AnalysisPhaseError,
+			expectedMessage: "invalid duration",
 		},
 	}
 
@@ -91,8 +99,8 @@ func TestRequestTimeout(t *testing.T) {
 			measurement := provider.Run(newAnalysisRun(), metric)
 
 			assert.Equal(t, test.expectedPhase, measurement.Phase)
-			if test.expectedPhase == v1alpha1.AnalysisPhaseError {
-				assert.Contains(t, measurement.Message, "Client.Timeout")
+			if test.expectedMessage != "" {
+				assert.Contains(t, measurement.Message, test.expectedMessage)
 			}
 		})
 	}
