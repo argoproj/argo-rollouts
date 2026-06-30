@@ -525,8 +525,12 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		otherExs:   otherExs,
 		newStatus: v1alpha1.RolloutStatus{
 			RestartedAt: rollout.Status.RestartedAt,
-			ALB:         rollout.Status.ALB,
-			ALBs:        rollout.Status.ALBs,
+			// ALB and ALBs are copied because traffic routers mutate them on
+			// newStatus in place; if they aliased rollout.Status, the mutations
+			// would be visible on both sides of the diff in persistRolloutStatus
+			// and would never be patched.
+			ALB:  rollout.Status.ALB.DeepCopy(),
+			ALBs: append([]v1alpha1.ALBStatus(nil), rollout.Status.ALBs...),
 		},
 		pauseContext: &pauseContext{
 			rollout: rollout,
