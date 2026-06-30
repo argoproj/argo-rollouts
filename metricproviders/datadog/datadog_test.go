@@ -3,13 +3,18 @@
 package datadog
 
 import (
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -175,6 +180,42 @@ func TestValidateIncomingProps(t *testing.T) {
 			},
 			expectedErrorMessage: "",
 		},
+		{
+			name: "invalid request timeout string",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion:     "v2",
+				Query:          "foo",
+				RequestTimeout: "not-a-duration",
+			},
+			expectedErrorMessage: "Could not parse the request timeout",
+		},
+		{
+			name: "zero request timeout",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion:     "v2",
+				Query:          "foo",
+				RequestTimeout: "0s",
+			},
+			expectedErrorMessage: "Request timeout must be a positive duration",
+		},
+		{
+			name: "negative request timeout",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion:     "v2",
+				Query:          "foo",
+				RequestTimeout: "-5s",
+			},
+			expectedErrorMessage: "Request timeout must be a positive duration",
+		},
+		{
+			name: "valid request timeout",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion:     "v2",
+				Query:          "foo",
+				RequestTimeout: "30s",
+			},
+			expectedErrorMessage: "",
+		},
 	}
 
 	for _, test := range tests {
@@ -245,6 +286,95 @@ func TestFindCredentials(t *testing.T) {
 			}
 		})
 
+	}
+}
+
+// TestRequestTimeout verifies that the configurable RequestTimeout on the Datadog
+// metric is honored by the HTTP client: a short timeout against a slow server fails,
+// a generous timeout against the same server succeeds, and an empty timeout falls back
+// to the default (10s) and still succeeds (backwards compatibility).
+func TestRequestTimeout(t *testing.T) {
+	const expectedApiKey = "0123456789abcdef0123456789abcdef"
+	const expectedAppKey = "0123456789abcdef0123456789abcdef01234567"
+	const serverDelay = 200 * time.Millisecond
+
+	newProvider := func(requestTimeout v1alpha1.DurationString) v1alpha1.MetricProvider {
+		return v1alpha1.MetricProvider{
+			Datadog: &v1alpha1.DatadogMetric{
+				Interval:       "5m",
+				Query:          "avg:kubernetes.cpu.user.total{*}",
+				ApiVersion:     "v2",
+				RequestTimeout: requestTimeout,
+			},
+		}
+	}
+
+	tests := []struct {
+		name            string
+		requestTimeout  v1alpha1.DurationString
+		expectedPhase   v1alpha1.AnalysisPhase
+		expectedMessage string
+	}{
+		{
+			name:           "no timeout falls back to the default and succeeds",
+			requestTimeout: "",
+			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+		},
+		{
+			name:           "generous timeout against slow server succeeds",
+			requestTimeout: "5s",
+			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+		},
+		{
+			name:            "short timeout against slow server fails",
+			requestTimeout:  "10ms",
+			expectedPhase:   v1alpha1.AnalysisPhaseError,
+			expectedMessage: "Client.Timeout",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				time.Sleep(serverDelay)
+				rw.Header().Set("Content-Type", "application/json")
+				io.WriteString(rw, `{"data": {"attributes": {"columns": [ {"values": [0.0006332881882246533]}]}}}`)
+			}))
+			defer server.Close()
+
+			tokenSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: DatadogTokensSecretName,
+				},
+				Data: map[string][]byte{
+					"address": []byte(server.URL),
+					"api-key": []byte(expectedApiKey),
+					"app-key": []byte(expectedAppKey),
+				},
+			}
+
+			metric := v1alpha1.Metric{
+				Name:             "timeout test",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
+				Provider:         newProvider(test.requestTimeout),
+			}
+
+			logCtx := log.WithField("test", "test")
+			fakeClient := k8sfake.NewSimpleClientset()
+			fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, tokenSecret, nil
+			})
+
+			provider, err := NewDatadogProvider(*logCtx, fakeClient, "namespace", metric)
+			assert.NoError(t, err)
+			measurement := provider.Run(newAnalysisRun(), metric)
+
+			assert.Equal(t, test.expectedPhase, measurement.Phase)
+			if test.expectedMessage != "" {
+				assert.Contains(t, measurement.Message, test.expectedMessage)
+			}
+		})
 	}
 }
 

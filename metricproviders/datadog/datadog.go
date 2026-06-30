@@ -412,6 +412,17 @@ func validateIncomingProps(dd *v1alpha1.DatadogMetric) error {
 		return errors.New("Aggregator is not supported in v1. Please review the Analysis Template.")
 	}
 
+	// If a request timeout is provided, it must be a valid, strictly positive duration.
+	if dd.RequestTimeout != "" {
+		timeout, err := dd.RequestTimeout.Duration()
+		if err != nil {
+			return fmt.Errorf("Could not parse the request timeout: %v. Please review the Analysis Template.", err)
+		}
+		if timeout <= 0 {
+			return errors.New("Request timeout must be a positive duration (e.g. 30s). Please review the Analysis Template.")
+		}
+	}
+
 	return nil
 }
 
