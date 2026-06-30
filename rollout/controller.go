@@ -539,6 +539,17 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		reconcilerBase: c.reconcilerBase,
 	}
 
+	// Detect if newRS has a valid (non-expired) scale-down delay annotation
+	if roCtx.newRS != nil {
+		timeRemaining, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(roCtx.newRS)
+		if err != nil {
+			logCtx.Warnf("Failed to parse scale-down-deadline annotation: %v", err)
+		}
+		if timeRemaining != nil {
+			roCtx.newRSWithinDelay = true
+		}
+	}
+
 	if resolveErr != nil {
 		err := roCtx.createInvalidRolloutCondition(resolveErr, rollout)
 		if err != nil {
