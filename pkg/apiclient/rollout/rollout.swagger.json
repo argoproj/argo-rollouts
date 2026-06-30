@@ -1883,6 +1883,10 @@
         "rangeQuery": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusRangeQueryArgs",
           "title": "Arguments for prometheus\n+optional"
+        },
+        "caCert": {
+          "type": "string",
+          "title": "CACert is an inline PEM-encoded CA certificate bundle used to verify the\nPrometheus server's TLS certificate (e.g. a self-signed or internal CA).\nWhen set, TLS verification is performed against this CA in addition to\nthe system roots. Ignored when empty.\n+optional"
         }
       },
       "title": "PrometheusMetric defines the prometheus query to perform canary analysis"

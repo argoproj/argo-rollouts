@@ -177,3 +177,51 @@ provider:
         istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
       ))
 ```
+
+## Custom CA certificate (self-signed certs)
+
+If your Prometheus endpoint is served with a self-signed certificate or one issued
+by an internal/private CA, you can have Argo Rollouts verify the connection against
+a custom CA bundle instead of disabling verification with `insecure: true`. Set
+`caCert` to the inline PEM-encoded CA certificate(s). The provided CA is trusted in
+addition to the system root CAs.
+
+```yaml
+provider:
+  prometheus:
+    address: https://prometheus.example.com
+    caCert: |
+      -----BEGIN CERTIFICATE-----
+      MIIBeup...
+      -----END CERTIFICATE-----
+    query: |
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+      ))
+```
+
+Because the certificate is a regular string field, it is often supplied through an
+[analysis argument](../../features/analysis/#analysis-template-arguments) sourced
+from a `Secret`, keeping the PEM out of the template:
+
+```yaml
+spec:
+  args:
+  - name: prometheus-ca
+    valueFrom:
+      secretKeyRef:
+        name: prometheus-ca
+        key: ca.crt
+  metrics:
+  - name: success-rate
+    provider:
+      prometheus:
+        address: https://prometheus.example.com
+        caCert: "{{ args.prometheus-ca }}"
+        query: ...
+```
+
+!!! note
+    `caCert` and `insecure` are independent. `insecure: true` skips verification
+    entirely and takes precedence; prefer `caCert` so the server certificate is
+    still validated.

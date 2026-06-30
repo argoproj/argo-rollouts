@@ -7669,6 +7669,13 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            caCert:
+                              description: |-
+                                CACert is an inline PEM-encoded CA certificate bundle used to verify the
+                                Prometheus server's TLS certificate (e.g. a self-signed or internal CA).
+                                When set, TLS verification is performed against this CA in addition to
+                                the system roots. Ignored when empty.
+                              type: string
                             headers:
                               description: Headers are optional HTTP headers to use
                                 in the request
