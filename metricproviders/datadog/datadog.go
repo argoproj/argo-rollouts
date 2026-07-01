@@ -303,9 +303,17 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request.Header.Set("DD-API-KEY", p.config.ApiKey)
 	request.Header.Set("DD-APPLICATION-KEY", p.config.AppKey)
 
-	// Send Request
+	// Send Request. The client timeout defaults to 10s and can be overridden via the
+	// metric's spec (e.g. for expensive v2 formula queries that take longer to return).
+	timeout := time.Duration(10) * time.Second
+	if dd.RequestTimeout != "" {
+		timeout, err = dd.RequestTimeout.Duration()
+		if err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
+	}
 	httpClient := &http.Client{
-		Timeout: time.Duration(10) * time.Second,
+		Timeout: timeout,
 	}
 	response, err := httpClient.Do(request)
 	if err != nil {
@@ -576,6 +584,17 @@ func validateIncomingProps(dd *v1alpha1.DatadogMetric) error {
 
 	if dd.ApiVersion == "v1" && dd.Aggregator != "" {
 		return errors.New("Aggregator is not supported in v1. Please review the Analysis Template.")
+	}
+
+	// If a request timeout is provided, it must be a valid, strictly positive duration.
+	if dd.RequestTimeout != "" {
+		timeout, err := dd.RequestTimeout.Duration()
+		if err != nil {
+			return fmt.Errorf("Could not parse the request timeout: %v. Please review the Analysis Template.", err)
+		}
+		if timeout <= 0 {
+			return errors.New("Request timeout must be a positive duration (e.g. 30s). Please review the Analysis Template.")
+		}
 	}
 
 	return nil
