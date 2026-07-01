@@ -37,6 +37,9 @@ var pluginMap = map[string]goPlugin.Plugin{
 // getPluginInfo is a package-level function variable to allow test overrides.
 var getPluginInfo = plugin.GetPluginInfo
 
+// newClient is a package-level function variable to allow test overrides.
+var newClient = goPlugin.NewClient
+
 // GetMetricPlugin returns a singleton plugin client for the given metric plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the metric.
 func GetMetricPlugin(metric v1alpha1.Metric) (rpc.MetricProviderPlugin, error) {
@@ -67,7 +70,7 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricProv
 
 		if m.pluginClient[pluginName] == nil || m.pluginClient[pluginName].Exited() {
 
-			m.pluginClient[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
+			m.pluginClient[pluginName] = newClient(&goPlugin.ClientConfig{
 				HandshakeConfig: handshakeConfig,
 				Plugins:         pluginMap,
 				Cmd:             exec.Command(pluginPath, args...),
