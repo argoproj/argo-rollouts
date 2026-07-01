@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/klog/v2"
-
+	hclog "github.com/hashicorp/go-hclog"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/klog/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -294,6 +294,27 @@ func TestWithVersionFields(t *testing.T) {
 	logMessage := buf.String()
 	assert.True(t, strings.Contains(logMessage, "generation=2"))
 	assert.True(t, strings.Contains(logMessage, "resourceVersion=123"))
+}
+
+func TestNewPluginLogger_TextFormat(t *testing.T) {
+	log.SetFormatter(&log.TextFormatter{})
+
+	logger := NewPluginLogger("my-plugin")
+
+	assert.NotNil(t, logger)
+	assert.Implements(t, (*hclog.Logger)(nil), logger)
+	assert.Equal(t, "my-plugin", logger.Name())
+}
+
+func TestNewPluginLogger_JSONFormat(t *testing.T) {
+	log.SetFormatter(&log.JSONFormatter{})
+	defer log.SetFormatter(&log.TextFormatter{})
+
+	logger := NewPluginLogger("my-plugin")
+
+	assert.NotNil(t, logger)
+	assert.Implements(t, (*hclog.Logger)(nil), logger)
+	assert.Equal(t, "my-plugin", logger.Name())
 }
 
 func TestKLogLogger(t *testing.T) {
