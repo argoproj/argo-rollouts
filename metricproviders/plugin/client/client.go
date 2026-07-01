@@ -9,6 +9,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/plugin"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
@@ -33,6 +34,12 @@ var pluginMap = map[string]goPlugin.Plugin{
 	"RpcMetricProviderPlugin": &rpc.RpcMetricProviderPlugin{},
 }
 
+// getPluginInfo is a package-level function variable to allow test overrides.
+var getPluginInfo = plugin.GetPluginInfo
+
+// newClient is a package-level function variable to allow test overrides.
+var newClient = goPlugin.NewClient
+
 // GetMetricPlugin returns a singleton plugin client for the given metric plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the metric.
 func GetMetricPlugin(metric v1alpha1.Metric) (rpc.MetricProviderPlugin, error) {
@@ -56,18 +63,19 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricProv
 	// There should only ever be one plugin defined in metric.Provider.Plugin per analysis template this gets checked
 	// during validation
 	for pluginName := range metric.Provider.Plugin {
-		pluginPath, args, err := plugin.GetPluginInfo(pluginName, types.PluginTypeMetricProvider)
+		pluginPath, args, err := getPluginInfo(pluginName, types.PluginTypeMetricProvider)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
 
 		if m.pluginClient[pluginName] == nil || m.pluginClient[pluginName].Exited() {
 
-			m.pluginClient[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
+			m.pluginClient[pluginName] = newClient(&goPlugin.ClientConfig{
 				HandshakeConfig: handshakeConfig,
 				Plugins:         pluginMap,
 				Cmd:             exec.Command(pluginPath, args...),
 				Managed:         true,
+				Logger:          logutil.NewPluginLogger(pluginName),
 			})
 
 			rpcClient, err := m.pluginClient[pluginName].Client()
