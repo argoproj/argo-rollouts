@@ -150,6 +150,18 @@ func TestExtractValues(t *testing.T) {
 		assert.ErrorContains(t, err, "could not parse group label")
 	})
 
+	t.Run("group column shorter than number column errors on the missing row", func(t *testing.T) {
+		// Datadog returns parallel arrays, so a group column shorter than the
+		// number column is a malformed response. Fail loudly at the first
+		// missing row rather than pair a value with an absent label.
+		cols := []datadogV2Column{
+			{Type: "group", Values: rawJSON(`["a"]`, `["b"]`)},
+			{Type: "number", Values: rawJSON(`1`, `2`, `3`)},
+		}
+		_, _, _, err := extractValues(cols)
+		assert.ErrorContains(t, err, "could not parse group label at index 2")
+	})
+
 	t.Run("group-only response (no number column) returns no values", func(t *testing.T) {
 		cols := []datadogV2Column{
 			{Type: "group", Values: rawJSON(`["a"]`, `["b"]`)},
@@ -259,13 +271,14 @@ func TestGroupsMetadata(t *testing.T) {
 		assert.False(t, truncated)
 	})
 
-	t.Run("high-cardinality list is capped to the highest-valued groups", func(t *testing.T) {
-		// One more than the cap: the single smallest-valued group must be the
-		// one dropped, and the result flagged as truncated.
-		groups := make([]groupedValue, 0, maxGroupsInMetadata+1)
-		groups = append(groups, groupedValue{Name: "smallest", Value: -1})
-		for i := 0; i < maxGroupsInMetadata; i++ {
-			groups = append(groups, groupedValue{Name: "keep", Value: float64(i)})
+	t.Run("high-cardinality list keeps both extremes and drops the middle", func(t *testing.T) {
+		// The offending group is the lowest value for a success-rate gate and
+		// the highest for an error-rate gate; groupsMetadata can't tell which,
+		// so both extremes must survive and the "normal" middle is trimmed.
+		const n = maxGroupsInMetadata + 50
+		groups := make([]groupedValue, n)
+		for i := 0; i < n; i++ {
+			groups[i] = groupedValue{Name: fmt.Sprintf("g%d", i), Value: float64(i)}
 		}
 		out, truncated := groupsMetadata(groups)
 		assert.True(t, truncated)
@@ -273,9 +286,14 @@ func TestGroupsMetadata(t *testing.T) {
 		var kept []groupedValue
 		assert.NoError(t, json.Unmarshal([]byte(out), &kept))
 		assert.Len(t, kept, maxGroupsInMetadata)
+
+		names := make(map[string]bool, len(kept))
 		for _, g := range kept {
-			assert.NotEqual(t, "smallest", g.Name, "the lowest-valued group should have been dropped")
+			names[g.Name] = true
 		}
+		assert.True(t, names["g0"], "lowest-valued group must be kept")
+		assert.True(t, names[fmt.Sprintf("g%d", n-1)], "highest-valued group must be kept")
+		assert.False(t, names[fmt.Sprintf("g%d", n/2)], "a middle group should be dropped")
 	})
 }
 

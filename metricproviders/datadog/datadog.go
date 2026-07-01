@@ -197,20 +197,28 @@ func extractValues(columns []datadogV2Column) (values []float64, groups []groupe
 // like `by {host}` can return thousands of groups, and every measurement is
 // stored in the AnalysisRun status up to DefaultMeasurementHistoryLimit times;
 // left unbounded that can exceed the ~1.5MB Kubernetes object limit and wedge
-// the run with "request entity too large". We keep the highest-valued groups —
-// the usual offenders for error-rate and latency gates — and flag the trim.
+// the run with "request entity too large". When we trim, we keep the groups at
+// both value extremes and flag the trim.
 const maxGroupsInMetadata = 100
 
 // groupsMetadata renders the group pairs as JSON for the measurement metadata,
 // capping the entry count at maxGroupsInMetadata and reporting whether the list
 // was truncated. Only the display-only breakdown is trimmed; the evaluated
 // values slice is left intact.
+//
+// The offending group is the highest value for an error-rate or latency gate
+// but the lowest for a success-rate gate, and this function can't see the
+// condition. So when trimming we keep both extremes — the lowest and highest
+// halves — which keeps the worst outlier in view either way; the dropped
+// middle is the "normal" groups an operator doesn't need.
 func groupsMetadata(groups []groupedValue) (groupsJSON string, truncated bool) {
 	if len(groups) > maxGroupsInMetadata {
 		sorted := make([]groupedValue, len(groups))
 		copy(sorted, groups)
-		sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Value > sorted[j].Value })
-		groups = sorted[:maxGroupsInMetadata]
+		sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Value < sorted[j].Value })
+		low := maxGroupsInMetadata / 2
+		high := maxGroupsInMetadata - low
+		groups = append(sorted[:low:low], sorted[len(sorted)-high:]...)
 		truncated = true
 	}
 	out, _ := json.Marshal(groups)

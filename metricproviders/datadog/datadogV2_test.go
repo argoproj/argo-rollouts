@@ -669,5 +669,9 @@ func TestRunSuiteV2(t *testing.T) {
 		} else {
 			assert.Empty(t, measurement.Metadata["groups"])
 		}
+		// None of these cases exceed the cap, so the truncation flag must never
+		// be set — a spurious "true" would mislead operators into thinking the
+		// breakdown was trimmed.
+		assert.NotEqual(t, "true", measurement.Metadata["groups_truncated"])
 	}
 }
