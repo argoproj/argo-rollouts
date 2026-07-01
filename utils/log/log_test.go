@@ -9,10 +9,10 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/klog/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
