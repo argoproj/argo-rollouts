@@ -418,6 +418,32 @@ func TestRunSuiteV2(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
+		// Six-tag grouping: the fix collects an arbitrary number of group
+		// columns, so exercise well past the two-tag step-up from the old bug.
+		// Every column must appear in the joined label, in response order.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "region", "type": "group", "values": [["us-east"], ["us-west"]]},
+				{"name": "host", "type": "group", "values": [["host-a"], ["host-b"]]},
+				{"name": "endpoint", "type": "group", "values": [["/checkout"], ["/cart"]]},
+				{"name": "method", "type": "group", "values": [["GET"], ["POST"]]},
+				{"name": "env", "type": "group", "values": [["prod"], ["prod"]]},
+				{"name": "version", "type": "group", "values": [["v2"], ["v3"]]},
+				{"name": "query1", "type": "number", "values": [0.01, 0.09]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "six-tag grouped query joins every column",
+				SuccessCondition: "max(result) < 0.05",
+				Provider:         newQueryDefaultProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "[0.01,0.09]",
+			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			expectedGroups:          `[{"name":"us-east,host-a,/checkout,GET,prod,v2","value":0.01},{"name":"us-west,host-b,/cart,POST,prod,v3","value":0.09}]`,
+			useEnvVarForKeys:        false,
+		},
+
 		// Datadog returns a populated errors field: surface a clear error.
 		{
 			webServerStatus:         200,

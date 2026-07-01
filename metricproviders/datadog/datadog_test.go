@@ -198,6 +198,20 @@ func TestGroupNameAt(t *testing.T) {
 		assert.Equal(t, "us-west,host-b", name)
 	})
 
+	t.Run("joins across six group columns in order", func(t *testing.T) {
+		cols := []*datadogV2Column{
+			{Type: "group", Values: rawJSON(`["us-east"]`)},
+			{Type: "group", Values: rawJSON(`["host-a"]`)},
+			{Type: "group", Values: rawJSON(`["/checkout"]`)},
+			{Type: "group", Values: rawJSON(`["GET"]`)},
+			{Type: "group", Values: rawJSON(`["prod"]`)},
+			{Type: "group", Values: rawJSON(`["v2"]`)},
+		}
+		name, ok := groupNameAt(cols, 0)
+		assert.True(t, ok)
+		assert.Equal(t, "us-east,host-a,/checkout,GET,prod,v2", name)
+	})
+
 	t.Run("aliased values within one dimension join too", func(t *testing.T) {
 		name, ok := groupNameAt([]*datadogV2Column{edge}, 0)
 		assert.True(t, ok)
