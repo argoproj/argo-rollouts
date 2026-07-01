@@ -36,6 +36,9 @@ var pluginMap = map[string]goPlugin.Plugin{
 // getPluginInfo is a package-level function variable to allow test overrides.
 var getPluginInfo = plugin.GetPluginInfo
 
+// newClient is a package-level function variable to allow test overrides.
+var newClient = goPlugin.NewClient
+
 // GetPlugin returns a singleton plugin client for the given plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the rollout object.
 func GetPlugin(pluginName string) (rpc.StepPlugin, error) {
@@ -63,7 +66,7 @@ func (t *stepPlugin) startPlugin(pluginName string) (rpc.StepPlugin, error) {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
 
-		t.client[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
+		t.client[pluginName] = newClient(&goPlugin.ClientConfig{
 			HandshakeConfig: handshakeConfig,
 			Plugins:         pluginMap,
 			Cmd:             exec.Command(pluginPath, args...),
