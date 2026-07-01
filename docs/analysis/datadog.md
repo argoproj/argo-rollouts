@@ -235,7 +235,9 @@ This is useful for detecting regressions in a subset of entities (e.g. a specifi
         query: "sum:trace.http.request.errors{service:my-service} by {resource_name}.as_count()"
 ```
 
-When the query is grouped, the measurement's `metadata.groups` field is populated with a JSON array of `{"name": "...", "value": ...}` pairs, so the operator can map an outlier in `result` back to the entity that produced it. JSON is used so tag values containing `,` or `=` survive without escaping. When the query groups by more than one tag (`by {env, resource_name}`), the `name` is the tag values joined with `,` (e.g. `prod,GET /a`). Visible in `kubectl describe analysisrun`, the rollouts dashboard, and notification templates (which can parse it via `fromJson`).
+When the query is grouped, the measurement's `metadata.groups` field is populated with a JSON array of `{"name": "...", "value": ...}` pairs, so the operator can map an outlier in `result` back to the entity that produced it. JSON is used so tag values containing `,` or `=` survive without escaping. When the query groups by more than one tag (`by {env, resource_name}`), Datadog returns a separate column per tag; the `name` is those tag values joined with `,` (e.g. `prod,GET /a`), so every dimension is preserved. Visible in `kubectl describe analysisrun`, the rollouts dashboard, and notification templates (which can parse it via `fromJson`).
+
+`metadata.groups` is intended for **low-cardinality** tags such as `resource_name` or `endpoint`. It is display-only — evaluation always uses the full `result` slice — and is capped at the 100 highest-valued groups to keep the AnalysisRun status from exceeding the Kubernetes object-size limit. When the cap is hit, `metadata.groups_truncated` is set to `"true"`. Avoid grouping by an unbounded tag like `host` or `pod` on a large fleet: the `result` slice itself is not capped, so a query returning many thousands of groups can still bloat the stored measurement.
 
 #### Templates and Helm
 

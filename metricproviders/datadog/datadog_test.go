@@ -69,16 +69,31 @@ func TestExtractValues(t *testing.T) {
 		assert.True(t, grouped)
 	})
 
-	t.Run("multi-tag grouping joins the tag values into one label", func(t *testing.T) {
-		// `by {env, resource_name}` returns a tag value per dimension.
+	t.Run("multi-tag grouping joins across the per-tag group columns", func(t *testing.T) {
+		// `by {env, resource_name}` returns one group column per tag; the label
+		// is joined across them. A single column with multi-element rows is not
+		// a shape the API sends for multi-tag.
 		cols := []datadogV2Column{
-			{Type: "group", Values: rawJSON(`["prod","GET /a"]`, `["prod","GET /b"]`)},
+			{Type: "group", Values: rawJSON(`["prod"]`, `["prod"]`)},
+			{Type: "group", Values: rawJSON(`["GET /a"]`, `["GET /b"]`)},
 			{Type: "number", Values: rawJSON(`1`, `2`)},
 		}
 		_, groups, grouped, err := extractValues(cols)
 		assert.NoError(t, err)
 		assert.Equal(t, []groupedValue{{Name: "prod,GET /a", Value: 1}, {Name: "prod,GET /b", Value: 2}}, groups)
 		assert.True(t, grouped)
+	})
+
+	t.Run("null group label errors rather than pairing a blank name", func(t *testing.T) {
+		// A JSON null (or []) in a group column parses without error but yields
+		// no tag, which would silently pair the value with an empty label.
+		// The contract says that's malformed, so extractValues must error.
+		cols := []datadogV2Column{
+			{Type: "group", Name: "g", Values: rawJSON(`["a"]`, `null`)},
+			{Type: "number", Values: rawJSON(`1`, `2`)},
+		}
+		_, _, _, err := extractValues(cols)
+		assert.ErrorContains(t, err, "could not parse group label")
 	})
 
 	t.Run("single-group query is still grouped, not a scalar", func(t *testing.T) {
@@ -157,33 +172,82 @@ func TestExtractValues(t *testing.T) {
 }
 
 func TestGroupNameAt(t *testing.T) {
-	col := &datadogV2Column{Type: "group", Values: rawJSON(`["a"]`, `["x","y"]`, `42`, `null`)}
-
-	t.Run("nil column returns false", func(t *testing.T) {
-		_, ok := groupNameAt(nil, 0)
-		assert.False(t, ok)
-	})
+	// Two group columns (`by {region, host}`), plus a single column carrying
+	// aliased values, a non-array, and a null to exercise the edge cases.
+	region := &datadogV2Column{Type: "group", Values: rawJSON(`["us-east"]`, `["us-west"]`)}
+	host := &datadogV2Column{Type: "group", Values: rawJSON(`["host-a"]`, `["host-b"]`)}
+	edge := &datadogV2Column{Type: "group", Values: rawJSON(`["x","y"]`, `42`, `null`, `[]`)}
 
 	t.Run("index past end returns false", func(t *testing.T) {
-		_, ok := groupNameAt(col, 99)
+		_, ok := groupNameAt([]*datadogV2Column{region}, 99)
 		assert.False(t, ok)
 	})
 
-	t.Run("single-tag entry returns the name", func(t *testing.T) {
-		name, ok := groupNameAt(col, 0)
+	t.Run("single group column returns the name", func(t *testing.T) {
+		name, ok := groupNameAt([]*datadogV2Column{region}, 0)
 		assert.True(t, ok)
-		assert.Equal(t, "a", name)
+		assert.Equal(t, "us-east", name)
 	})
 
-	t.Run("multi-tag entry joins the values", func(t *testing.T) {
-		name, ok := groupNameAt(col, 1)
+	t.Run("joins across per-tag group columns", func(t *testing.T) {
+		name, ok := groupNameAt([]*datadogV2Column{region, host}, 1)
+		assert.True(t, ok)
+		assert.Equal(t, "us-west,host-b", name)
+	})
+
+	t.Run("aliased values within one dimension join too", func(t *testing.T) {
+		name, ok := groupNameAt([]*datadogV2Column{edge}, 0)
 		assert.True(t, ok)
 		assert.Equal(t, "x,y", name)
 	})
 
 	t.Run("non-array entry returns false rather than corrupting the label", func(t *testing.T) {
-		_, ok := groupNameAt(col, 2)
+		_, ok := groupNameAt([]*datadogV2Column{edge}, 1)
 		assert.False(t, ok)
+	})
+
+	t.Run("null entry returns false", func(t *testing.T) {
+		_, ok := groupNameAt([]*datadogV2Column{edge}, 2)
+		assert.False(t, ok)
+	})
+
+	t.Run("empty array entry returns false", func(t *testing.T) {
+		_, ok := groupNameAt([]*datadogV2Column{edge}, 3)
+		assert.False(t, ok)
+	})
+
+	t.Run("a row missing from a later column returns false", func(t *testing.T) {
+		short := &datadogV2Column{Type: "group", Values: rawJSON(`["only"]`)}
+		_, ok := groupNameAt([]*datadogV2Column{region, short}, 1)
+		assert.False(t, ok)
+	})
+}
+
+func TestGroupsMetadata(t *testing.T) {
+	t.Run("small group list is returned in full, not truncated", func(t *testing.T) {
+		groups := []groupedValue{{Name: "a", Value: 1}, {Name: "b", Value: 2}}
+		out, truncated := groupsMetadata(groups)
+		assert.False(t, truncated)
+		assert.JSONEq(t, `[{"name":"a","value":1},{"name":"b","value":2}]`, out)
+	})
+
+	t.Run("high-cardinality list is capped to the highest-valued groups", func(t *testing.T) {
+		// One more than the cap: the single smallest-valued group must be the
+		// one dropped, and the result flagged as truncated.
+		groups := make([]groupedValue, 0, maxGroupsInMetadata+1)
+		groups = append(groups, groupedValue{Name: "smallest", Value: -1})
+		for i := 0; i < maxGroupsInMetadata; i++ {
+			groups = append(groups, groupedValue{Name: "keep", Value: float64(i)})
+		}
+		out, truncated := groupsMetadata(groups)
+		assert.True(t, truncated)
+
+		var kept []groupedValue
+		assert.NoError(t, json.Unmarshal([]byte(out), &kept))
+		assert.Len(t, kept, maxGroupsInMetadata)
+		for _, g := range kept {
+			assert.NotEqual(t, "smallest", g.Name, "the lowest-valued group should have been dropped")
+		}
 	})
 }
 

@@ -372,12 +372,14 @@ func TestRunSuiteV2(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Multi-tag grouping (`by {env, resource_name}`): each group entry is a
-		// multi-element array; the tag values are joined into one label.
+		// Multi-tag grouping (`by {env, resource_name}`): Datadog returns one
+		// group column *per tag*, not one column with multi-element rows. Each
+		// row's label is joined across the group columns.
 		{
 			webServerStatus: 200,
 			webServerResponse: `{"data": {"attributes": {"columns": [
-				{"name": "group", "type": "group", "values": [["prod", "GET /a"], ["prod", "GET /b"]]},
+				{"name": "env", "type": "group", "values": [["prod"], ["prod"]]},
+				{"name": "resource_name", "type": "group", "values": [["GET /a"], ["GET /b"]]},
 				{"name": "query1", "type": "number", "values": [0.01, 0.02]}
 			]}}}`,
 			metric: v1alpha1.Metric{
@@ -389,6 +391,30 @@ func TestRunSuiteV2(t *testing.T) {
 			expectedValue:           "[0.01,0.02]",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			expectedGroups:          `[{"name":"prod,GET /a","value":0.01},{"name":"prod,GET /b","value":0.02}]`,
+			useEnvVarForKeys:        false,
+		},
+
+		// Regression: `by {region, host}` where one host spikes. Every group
+		// column must be preserved so metadata.groups keeps the host dimension —
+		// the offending host is the whole point of the breakdown. The previous
+		// single-column implementation dropped everything after `region`, so
+		// both us-east rows looked identical.
+		{
+			webServerStatus: 200,
+			webServerResponse: `{"data": {"attributes": {"columns": [
+				{"name": "region", "type": "group", "values": [["us-east"], ["us-east"], ["us-west"]]},
+				{"name": "host", "type": "group", "values": [["host-a"], ["host-b"], ["host-c"]]},
+				{"name": "query1", "type": "number", "values": [0.01, 0.09, 0.02]}
+			]}}}`,
+			metric: v1alpha1.Metric{
+				Name:             "multi-tag keeps every dimension",
+				SuccessCondition: "max(result) < 0.05",
+				Provider:         newQueryDefaultProvider(),
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "[0.01,0.09,0.02]",
+			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			expectedGroups:          `[{"name":"us-east,host-a","value":0.01},{"name":"us-east,host-b","value":0.09},{"name":"us-west,host-c","value":0.02}]`,
 			useEnvVarForKeys:        false,
 		},
 
@@ -458,7 +484,7 @@ func TestRunSuiteV2(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage:    `could not parse group label at index 1 in column "resource_name"`,
+			expectedErrorMessage:    `could not parse group label at index 1`,
 			useEnvVarForKeys:        false,
 		},
 	}
