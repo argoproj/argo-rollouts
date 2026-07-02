@@ -215,6 +215,37 @@ For example, using count-based distribution metric (`count:metric{*}.as_count()`
         formula: "moving_rollup(a, 300, 'sum') / moving_rollup(b, 300, 'sum') * 100" # percentage of requests with errors
 ```
 
+#### Request timeout
+
+By default, requests to the Datadog API use a 10 second HTTP client timeout. Expensive
+queries — for example a v2 `formula` built from many sub-queries — can occasionally take
+longer than that to return, surfacing as:
+
+```
+Post "https://api.datadoghq.com/api/v2/query/scalar": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+```
+
+You can raise (or lower) this timeout with the `requestTimeout` field. It accepts a duration
+string (e.g. `30s`, `1m`) and defaults to `10s` when omitted:
+
+```yaml
+...<snip>
+  metrics:
+  - name: error-percentage
+    interval: 30s
+    successCondition: default(result, 0) < 5
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
+        interval: 5m
+        requestTimeout: 30s # override the default 10s HTTP client timeout
+        queries:
+          a: count:requests.errors{service:my-service}.as_count()
+          b: count:requests{service:my-service}.as_count()
+        formula: "moving_rollup(a, 300, 'sum') / moving_rollup(b, 300, 'sum') * 100"
+```
+
 #### Templates and Helm
 
 Helm and Argo Rollouts both try to parse things between `{{ ... }}` when rendering templates. If you use Helm to deliver your manifests, you will need to escape `{{ args.whatever }}`. Using the example above, here it is set up for Helm:

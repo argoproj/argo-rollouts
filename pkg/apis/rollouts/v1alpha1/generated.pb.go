@@ -6315,6 +6315,11 @@ func (m *DatadogMetric) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.RequestTimeout)
+	copy(dAtA[i:], m.RequestTimeout)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.RequestTimeout)))
+	i--
+	dAtA[i] = 0x42
 	{
 		size, err := m.SecretRef.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
@@ -11927,6 +11932,8 @@ func (m *DatadogMetric) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = m.SecretRef.Size()
 	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.RequestTimeout)
+	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -14275,6 +14282,7 @@ func (this *DatadogMetric) String() string {
 		`ApiVersion:` + fmt.Sprintf("%v", this.ApiVersion) + `,`,
 		`Aggregator:` + fmt.Sprintf("%v", this.Aggregator) + `,`,
 		`SecretRef:` + strings.Replace(strings.Replace(this.SecretRef.String(), "SecretRef", "SecretRef", 1), `&`, ``, 1) + `,`,
+		`RequestTimeout:` + fmt.Sprintf("%v", this.RequestTimeout) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -22489,6 +22497,38 @@ func (m *DatadogMetric) Unmarshal(dAtA []byte) error {
 			if err := m.SecretRef.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RequestTimeout", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RequestTimeout = DurationString(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

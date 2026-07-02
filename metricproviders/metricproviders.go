@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	coreListers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -37,8 +38,9 @@ const (
 )
 
 type ProviderFactory struct {
-	KubeClient kubernetes.Interface
-	JobLister  batchlisters.JobLister
+	KubeClient    kubernetes.Interface
+	JobLister     batchlisters.JobLister
+	JobPodsLister coreListers.PodLister
 }
 
 type ProviderFactoryFunc func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error)
@@ -58,7 +60,7 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, namespace string, metric
 			return nil, err
 		}
 
-		return job.NewJobProvider(logCtx, kubeClient, f.JobLister, GetAnalysisJobNamespace(), customKubeconfig), nil
+		return job.NewJobProvider(logCtx, kubeClient, f.JobLister, f.JobPodsLister, GetAnalysisJobNamespace(), customKubeconfig), nil
 	case kayenta.ProviderType:
 		c := kayenta.NewHttpClient()
 		return kayenta.NewKayentaProvider(logCtx, c), nil

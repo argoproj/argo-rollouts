@@ -95,7 +95,15 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 		return fresh, nil
 	})
 	cm := controller.NewReplicaSetControllerRefManager(c.replicaSetControl, r, replicaSetSelector, controllerKind, canAdoptFunc)
-	return cm.ClaimReplicaSets(ctx, rsList)
+	rsList, err = cm.ClaimReplicaSets(ctx, rsList)
+	if err != nil {
+		return nil, err
+	}
+	// Create a copy of the object in the informer since Rollout may modify them during the reconciliation
+	for i := range rsList {
+		rsList[i] = rsList[i].DeepCopy()
+	}
+	return rsList, nil
 }
 
 // removeScaleDownDeadlines removes the scale-down-deadline annotation from the new/stable ReplicaSets,

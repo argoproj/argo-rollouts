@@ -1164,7 +1164,7 @@ func (c *rolloutContext) isFastRollback() bool {
 		return false
 	}
 	newRSHash := replicasetutil.GetPodTemplateHash(c.newRS)
-	isWithinScaleDownDelay := (c.newRSWithinDelay && c.rollout.Spec.Strategy.BlueGreen != nil)
+	isWithinScaleDownDelay := c.newRSWithinDelay && c.rollout.Spec.Strategy.BlueGreen != nil
 	isWithinWindow := c.isRollbackWithinWindow()
 	rollbackToStable := c.rollout.Status.StableRS == newRSHash
 	return isWithinWindow || isWithinScaleDownDelay || rollbackToStable
@@ -1263,11 +1263,6 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 			return ""
 		}
 		if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
-			// corner case - we fast-track the StableRS to be updated to CurrentPodHash when we are
-			// moving to a ReplicaSet during a fast rollback and wish to skip analysis.
-			if c.isFastRollback() {
-				return fmt.Sprintf("Rollback to '%s'", c.newRS.Name)
-			}
 			currentPostPromotionAnalysisRun := c.currentArs.BlueGreenPostPromotion
 			if currentPostPromotionAnalysisRun == nil || currentPostPromotionAnalysisRun.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
 				// we have yet to start post-promotion analysis or post-promotion was not successful

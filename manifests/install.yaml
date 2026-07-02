@@ -308,6 +308,12 @@ spec:
                               type: object
                             query:
                               type: string
+                            requestTimeout:
+                              default: 10s
+                              description: 'RequestTimeout overrides the HTTP client
+                                timeout for requests to the Datadog API (e.g. 10s,
+                                30s; default: 10s).'
+                              type: string
                             secretRef:
                               description: Secret refers to the name of the secret
                                 that should be used for an analysis and should exists
@@ -8377,6 +8383,12 @@ spec:
                               type: object
                             query:
                               type: string
+                            requestTimeout:
+                              default: 10s
+                              description: 'RequestTimeout overrides the HTTP client
+                                timeout for requests to the Datadog API (e.g. 10s,
+                                30s; default: 10s).'
+                              type: string
                             secretRef:
                               description: Secret refers to the name of the secret
                                 that should be used for an analysis and should exists
@@ -16240,6 +16252,12 @@ spec:
                                 for v2'
                               type: object
                             query:
+                              type: string
+                            requestTimeout:
+                              default: 10s
+                              description: 'RequestTimeout overrides the HTTP client
+                                timeout for requests to the Datadog API (e.g. 10s,
+                                30s; default: 10s).'
                               type: string
                             secretRef:
                               description: Secret refers to the name of the secret
