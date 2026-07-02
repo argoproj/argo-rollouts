@@ -81,33 +81,6 @@ var (
 		append(namespaceNameLabels, "strategy", "phase"),
 		nil,
 	)
-
-	MetricRolloutDurationTotal = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "rollout_duration_seconds_total",
-			Help:    "Total wall-clock time for a rollout from start to completion/abort/supersede",
-			Buckets: []float64{60, 120, 300, 600, 1200, 1800, 3600, 7200},
-		},
-		[]string{"status"},
-	)
-
-	MetricRolloutDurationProgression = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "rollout_duration_seconds_progression",
-			Help:    "Active progression time for a rollout (excluding manual pause time)",
-			Buckets: []float64{30, 60, 120, 300, 600, 900, 1800, 3600},
-		},
-		[]string{"status"},
-	)
-
-	MetricRolloutDurationManualPause = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "rollout_duration_seconds_manual_pause",
-			Help:    "Time spent in manual pause waiting for human intervention",
-			Buckets: []float64{0, 60, 300, 600, 1800, 3600, 7200, 14400, 28800},
-		},
-		[]string{"status"},
-	)
 )
 
 // AnalysisRun metrics
