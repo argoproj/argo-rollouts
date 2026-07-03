@@ -52,6 +52,14 @@ type rolloutContext struct {
 	// annotation at the start of reconciliation (before it may be removed).
 	// Used to detect fast rollbacks where we skip pause/analysis steps.
 	newRSWithinDelay bool
+
+	// trafficRoutingDelayed indicates the traffic router intentionally skipped applying the
+	// desired routing state this reconcile (e.g. Istio delayed the DestinationRule switch
+	// because a traffic-receiving ReplicaSet is not fully available). It is a transient,
+	// non-fatal condition: reconciliation continues (so abort/progressDeadline handling and
+	// ReplicaSet cleanup still run, see #4626), but the current canary step must not be
+	// considered completed, since the desired traffic state was never actually applied.
+	trafficRoutingDelayed bool
 }
 
 func (c *rolloutContext) reconcile() error {

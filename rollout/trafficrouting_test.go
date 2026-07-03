@@ -10,6 +10,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -107,6 +108,97 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("Error message"))
 	f.runExpectError(getKey(ro, t), true)
+}
+
+// verify error is not returned, and SetWeight is not called, when UpdateHash returns
+// istio.ErrDestinationRuleUpdateDelayed (traffic-receiving ReplicaSet not yet available).
+// This is a transient, expected condition (see #4626): treating it as fatal would abort the
+// rest of the canary reconcile (e.g. progressDeadline/abort handling, stale RS cleanup) before
+// it ever runs. SetWeight is intentionally left unstubbed on the mock reconciler here: if the
+// fix regresses and SetWeight gets called anyway, the mock panics on the unexpected call.
+// The current step must also NOT be marked completed: the desired weight was never applied,
+// so advancing currentStepIndex would let the rollout progress with stale traffic routing.
+func TestReconcileTrafficRoutingUpdateHashDelayedErr(t *testing.T) {
+	f, ro := newTrafficWeightFixture(t)
+	defer f.Close()
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(
+		fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available: %w", "canary-rs", istio.ErrDestinationRuleUpdateDelayed))
+	patchIndex := f.expectPatchRolloutAction(ro)
+	f.run(getKey(ro, t))
+
+	patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
+	assert.Nil(t, patchedRollout.Status.CurrentStepIndex,
+		"delayed destination rule switch must not complete the setWeight step (currentStepIndex must not advance); patched status: %+v", patchedRollout.Status)
+	eventsStr := strings.Join(f.events, " ")
+	assert.NotContains(t, eventsStr, "RolloutStepCompleted",
+		"delayed destination rule switch must not emit a step-completed event")
+}
+
+// TestCanaryProgressDeadlineAbortNotBlockedByDelayedDestinationRuleSwitch reproduces the
+// user-facing symptom reported in #4626: a canary rollout with progressDeadlineAbort enabled,
+// stuck past its progress deadline, must still auto-abort even while the traffic router is
+// delaying the DestinationRule switch (canary ReplicaSet not yet available).
+//
+// Before the fix, UpdateHash's "delaying destination rule switch" error propagated unchanged
+// through reconcileTrafficRouting() and caused rolloutCanary() to return before ever reaching
+// syncRolloutStatusCanary() -> persistRolloutStatus() -> evaluateProgressDeadlineAbort(). The
+// rollout would then never abort, no matter how long it stayed stuck (see the 3 production
+// recurrences of #4626 in May-June 2026, the worst of which needed a controller restart to
+// recover). This test fails on the pre-fix code (no abort patch happens) and passes on the fix.
+func TestCanaryProgressDeadlineAbortNotBlockedByDelayedDestinationRuleSwitch(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}}
+	r1 := newCanaryRollout("foo", 20, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	progressDeadlineSeconds := int32(1)
+	r1.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
+	r1.Spec.ProgressDeadlineAbort = true
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
+	rs1 := newReplicaSetWithStatus(r1, 20, 20)
+	// Canary RS is at its desired replica count for the 10% step (2 of 20), but only 1 of 2 is
+	// available: pods exist but are stuck (e.g. crashlooping), the same partial-availability
+	// condition that makes UpdateHash delay the DestinationRule switch (IsReplicaSetAvailable
+	// requires ALL desired replicas available, not just >0). Since nothing here changes replica
+	// counts or increases availability, this reconcile makes no progress, isolating the "still
+	// progressing" guard in evaluateProgressDeadlineAbort from the one we're actually testing.
+	rs2 := newReplicaSetWithStatus(r2, 2, 1)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	// availableReplicas=21 and updatedReplicas=2 mirror exactly what this reconcile will compute
+	// from the live ReplicaSets above (20 available on stable + 1 on canary, 2 spec'd on canary),
+	// so the only thing distinguishing "before" from "after" this reconcile is progress-deadline
+	// evaluation.
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 21, 2, 22, false)
+	msg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rs2.Name)
+	progressingTimeoutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+	conditions.SetRolloutCondition(&r2.Status, *progressingTimeoutCond)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(
+		fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available: %w", rs2.Name, istio.ErrDestinationRuleUpdateDelayed))
+
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	f.verifyPatchedRolloutAborted(patchIndex, rs2.Name)
 }
 
 // verify error is not returned when VerifyWeight returns error (so that we can continue reconciling)
@@ -2033,6 +2125,8 @@ func TestTrafficRoutingErrorsWhenNewCanaryHasNoReplicas(t *testing.T) {
 // (within rollback window), the DestinationRule must be updated before SetWeight so traffic
 // does not hit the canary subset at final step weight (e.g. 70%) while still pointing at old subsets.
 // Uses subset-level Istio traffic routing (VirtualService + DestinationRule with canary/stable subsets).
+// It also covers #4626: delaying the DestinationRule switch must not abort the rest of the canary
+// reconcile (e.g. stale ReplicaSet cleanup), only the SetWeight call for this round.
 func TestRollbackDestinationRuleBeforeSetWeight(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -2145,7 +2239,10 @@ spec:
 	f.expectUpdateRolloutAction(r6)
 	f.expectPatchRolloutAction(r6)
 	f.expectGetRolloutAction(r6) // re-seed between syncs
-	// Sync 2 returns error "delaying destination rule switch" and does not complete, so we do NOT expect update rs6 or second patch.
+	// Sync 2 hits "delaying destination rule switch" (rs3 not fully available). This is transient,
+	// not fatal (see #4626): SetWeight is still skipped (asserted below), but reconciliation no
+	// longer aborts early, so cleanup of the now-stale canary RS (rs6) proceeds in the same sync.
+	f.expectUpdateReplicaSetAction(rs6)
 
 	assert.Nil(t, f.fakeTrafficRouting, "test must use real Istio reconciler (fakeTrafficRouting=nil)")
 
@@ -2155,7 +2252,6 @@ spec:
 	f.reseedRolloutMutator = func(ro *v1alpha1.Rollout) {
 		ro.Status.CurrentStepIndex = &stepCount
 	}
-	f.allowErrorOnLastSync = true // sync 2 returns "delaying destination rule switch" and does not complete
 
 	prevLog := log.StandardLogger().Out
 	defer log.SetOutput(prevLog)
