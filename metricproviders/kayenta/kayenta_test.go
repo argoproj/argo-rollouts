@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
@@ -227,7 +228,34 @@ func TestRunSuccessfully(t *testing.T) {
 	assert.Equal(t, nil, p.GarbageCollect(run, metric, 0))
 
 	measurement2 := p.Terminate(run, metric, measurement)
-	assert.Equal(t, measurement, measurement2)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement2.Phase)
+	assert.NotNil(t, measurement2.FinishedAt)
+}
+
+func TestTerminate(t *testing.T) {
+	e := log.NewEntry(log.New())
+	c := NewTestClient(func(req *http.Request) *http.Response {
+		return &http.Response{
+			StatusCode: 200,
+			Body:       io.NopCloser(bytes.NewBufferString("{}")),
+			Header:     make(http.Header),
+		}
+	})
+	p := NewKayentaProvider(*e, c)
+	metric := buildMetric()
+	run := newAnalysisRun()
+
+	startTime := timeutil.MetaNow()
+	measurement := v1alpha1.Measurement{
+		StartedAt: &startTime,
+		Phase:     v1alpha1.AnalysisPhaseRunning,
+		Metadata:  map[string]string{"canaryExecutionId": "01DS50WVHAWSTAQACJKB1VKDQB"},
+	}
+
+	terminated := p.Terminate(run, metric, measurement)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, terminated.Phase)
+	assert.NotNil(t, terminated.FinishedAt)
+	assert.Equal(t, "01DS50WVHAWSTAQACJKB1VKDQB", terminated.Metadata["canaryExecutionId"])
 }
 
 func TestRunBadJobResponse(t *testing.T) {
