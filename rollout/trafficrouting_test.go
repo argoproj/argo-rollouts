@@ -10,6 +10,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -106,7 +107,83 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("Error message"))
+	// When traffic routing fails, status is still synced so the progress deadline can be evaluated.
+	f.expectPatchRolloutAction(ro)
 	f.runExpectError(getKey(ro, t), true)
+}
+
+// TestProgressDeadlineAbortWithTrafficRoutingError verifies that progressDeadlineAbort fires even
+// when reconcileTrafficRouting() keeps returning an error on every reconciliation cycle (e.g. Istio
+// delaying a destination rule switch until the canary ReplicaSet is fully available). Without the
+// fix for https://github.com/argoproj/argo-rollouts/issues/4626 the deadline could never fire
+// because syncRolloutStatusCanary() was never reached when traffic routing failed.
+func TestProgressDeadlineAbortWithTrafficRoutingError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	// Use SetWeight(50%) — needs 5 canary replicas. rs2 has only 3 available, so the step is
+	// not yet complete. This prevents completedCurrentCanaryStep() from advancing the step
+	// index, ensuring we reach persistRolloutStatus() where the deadline check runs.
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](50)},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	progressDeadlineSeconds := int32(1)
+	r1.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
+	r1.Spec.ProgressDeadlineAbort = true
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
+	// rs2 has 3 spec replicas, 3 available — the canary is partially up but not at the desired
+	// count for 50% weight (which needs 5 of 10). Istio's subset-routing reconciler checks
+	// IsReplicaSetAvailable (AvailableReplicas >= DesiredReplicas) on UpdateHash and delays when
+	// the canary RS is not fully scaled to the rollout's total replica count. We simulate that
+	// by having the mock return the same "delaying" error from UpdateHash.
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 3, 3)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	// Set old status to exactly match what calculateBaseStatus will compute, so that
+	// RolloutProgressing() sees no delta and returns false (allowing the deadline to fire).
+	//   UpdatedReplicas = rs2.Status.Replicas = 3
+	//   Replicas        = rs1.Status.Replicas + rs2.Status.Replicas = 10 + 3 = 13
+	//   ReadyReplicas   = rs1.ReadyReplicas + rs2.ReadyReplicas = 10 + 3 = 13
+	//   AvailableReplicas = 13
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 13, 3, 13, false)
+	r2.Status.CurrentPodHash = rs2PodHash
+
+	// Inject a timed-out progressing condition so that RolloutTimedOut() returns true immediately.
+	msg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rs2.Name)
+	timedOutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+	conditions.SetRolloutCondition(&r2.Status, *timedOutCond)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	// Simulate Istio's UpdateHash refusing to proceed because the canary RS is not fully available.
+	// This is the exact error path that caused issue #4626.
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(
+		fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs2.Name),
+	)
+
+	// The status patch (including the abort) should be applied even though traffic routing failed.
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.runExpectError(getKey(r2, t), true)
+
+	// Verify the rollout was aborted by the progress deadline.
+	f.verifyPatchedRolloutAborted(patchIndex, rs2.Name)
 }
 
 // verify error is not returned when VerifyWeight returns error (so that we can continue reconciling)
@@ -185,6 +262,9 @@ func TestReconcileTrafficRoutingVerifyWeightEndOfRollout(t *testing.T) {
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), nil)
+	// When traffic routing fails (weight not yet verified), status is still synced so the
+	// progress deadline can be evaluated.
+	f.expectPatchRolloutAction(r2)
 	f.runExpectError(getKey(r2, t), true)
 }
 
@@ -2022,6 +2102,8 @@ func TestTrafficRoutingErrorsWhenNewCanaryHasNoReplicas(t *testing.T) {
 			f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(tc.removeManagedRoutesErr)
 			f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 
+			// When traffic routing fails, status is still synced so the progress deadline can be evaluated.
+			f.expectPatchRolloutAction(r2)
 			f.runExpectError(getKey(r2, t), true)
 
 			f.fakeTrafficRouting.AssertCalled(t, tc.expectedCall, mock.Anything, mock.Anything)
