@@ -24,11 +24,11 @@ RUN cd ${GOPATH}/src/dummy && \
 ####################################################################################################
 # UI build stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:18 AS argo-rollouts-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:22 AS argo-rollouts-ui
 
 WORKDIR /src
-RUN corepack enable
-ADD ["ui/package.json", "ui/pnpm-lock.yaml", "./"]
+RUN npm install -g corepack@0.34.6 && corepack enable
+ADD ["ui/package.json", "ui/pnpm-lock.yaml", "ui/pnpm-workspace.yaml", "./"]
 
 RUN pnpm install --frozen-lockfile
 
