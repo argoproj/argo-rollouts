@@ -99,6 +99,14 @@ slsa-verifier verify-artifact kubectl-argo-rollouts-linux-amd64 --provenance-pat
 ```
 ## Verification of Sbom
 
+`sbom.tar.gz` contains:
+
+| File | Description |
+|------|-------------|
+| `bom-go-mod.spdx` | Go module dependencies (tag-value SPDX from `spdx-sbom-generator`) |
+| `bom-ui-pnpm.spdx.json` | UI dependencies (SPDX 2.3 JSON from `pnpm sbom`) |
+| `bom-docker-image.spdx` | Published release container image (tag-value SPDX from `sigs.k8s.io/bom`) |
+
 ```bash
 cosign verify-blob --signature sbom.tar.gz.sig --certificate sbom.tar.gz.pem \
 --certificate-identity-regexp ^https://github.com/argoproj/argo-rollouts/.github/workflows/release.yaml@refs/tags/v \
