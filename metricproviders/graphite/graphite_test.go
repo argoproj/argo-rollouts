@@ -93,7 +93,7 @@ func TestRunMeasurementError(t *testing.T) {
 	assert.Equal(t, "[10.000000]", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
-	assert.Equal(t, "unexpected token Number(\"10.000000\")", measurement.Message)
+	assert.Equal(t, "could not evaluate successCondition \"result[0] 10.000000\": unexpected token Number(\"10.000000\")", measurement.Message)
 }
 
 func TestRunErrorEvaluationFromNilQueryResponse(t *testing.T) {

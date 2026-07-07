@@ -642,6 +642,10 @@ type DatadogMetric struct {
 	// Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
 	// +optional
 	SecretRef SecretRef `json:"secretRef,omitempty" protobuf:"bytes,7,opt,name=secretRef"`
+	// +kubebuilder:default="10s"
+	// RequestTimeout overrides the HTTP client timeout for requests to the Datadog API (e.g. 10s, 30s; default: 10s).
+	// +optional
+	RequestTimeout DurationString `json:"requestTimeout,omitempty" protobuf:"bytes,8,opt,name=requestTimeout,casttype=DurationString"`
 }
 
 type SecretRef struct {

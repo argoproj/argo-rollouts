@@ -1742,6 +1742,9 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 			"conditions": %s,
 			"abortedAt": "%s",
 			"phase": "Degraded",
+			"canary": {
+				"currentStepAnalysisRunStatus": null
+			},
 			"message": "RolloutAborted: %s"
 		}
 	}`
@@ -1789,7 +1792,8 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
-	patchIndex := f.expectPatchRolloutAction(r2)
+	f.expectPatchAnalysisRunAction(ar)           // terminate the AR
+	patchIndex := f.expectPatchRolloutAction(r2) // patch status
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
@@ -1878,11 +1882,12 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r1, at)
 
-	f.expectCreateReplicaSetAction(rs1)
+	f.expectCreateReplicaSetAction(rs1)   // create replica set
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
+	f.expectGetRolloutAction(r1)          // second reconciliation
 	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
-	f.expectPatchRolloutAction(r1)
-	f.run(getKey(r1, t))
+	f.expectPatchRolloutAction(r1)        // patch status
+	f.runWithSyncs(getKey(r1, t), 2)
 }
 
 // Same as TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout but when Status.StableRS is ""
@@ -1913,11 +1918,12 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r1, at)
 
-	f.expectCreateReplicaSetAction(rs1)
+	f.expectCreateReplicaSetAction(rs1)   // create replica set
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
+	f.expectGetRolloutAction(r1)          // second reconciliation
 	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
-	f.expectPatchRolloutAction(r1)
-	f.run(getKey(r1, t))
+	f.expectPatchRolloutAction(r1)        // patch status
+	f.runWithSyncs(getKey(r1, t), 2)
 }
 
 func TestDoNotCreateBackgroundAnalysisRunWhenWithinRollbackWindow(t *testing.T) {
@@ -2092,11 +2098,12 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 
 	rs := newReplicaSet(r, 1)
 
-	f.expectCreateReplicaSetAction(rs)
-	f.expectUpdateRolloutStatusAction(r)
-	f.expectUpdateReplicaSetAction(rs) // scale RS
-	f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.expectCreateReplicaSetAction(rs)   // create replica set
+	f.expectUpdateRolloutStatusAction(r) // update rollout conditions
+	f.expectGetRolloutAction(r)          // second reconciliation
+	f.expectUpdateReplicaSetAction(rs)   // scale RS
+	f.expectPatchRolloutAction(r)        // patch status
+	f.runWithSyncs(getKey(r, t), 2)
 }
 
 // TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
@@ -2505,7 +2512,7 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 		"status": {
 			"blueGreen": {
 				"postPromotionAnalysisRunStatus":{
-					"name": "%s", 
+					"name": "%s",
 					"status": ""
 				}
 			}
@@ -2836,7 +2843,6 @@ func TestDoNotCreatePrePromotionAnalysisRunWithEmptyTemplates(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
 	// Should not create an AnalysisRun since templates are empty
-	f.expectPatchRolloutAction(r2) // conditions patch
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)

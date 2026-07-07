@@ -47,12 +47,21 @@ type rolloutContext struct {
 	// (e.g. a setWeight step, after a blue-green active switch, after stable service switch),
 	// since we do not want to continually verify weight in case it could incur rate-limiting or other expenses.
 	targetsVerified *bool
+
+	// newRSWithinDelay indicates if the newRS has a valid (non-expired) scale-down-deadline
+	// annotation at the start of reconciliation (before it may be removed).
+	// Used to detect fast rollbacks where we skip pause/analysis steps.
+	newRSWithinDelay bool
 }
 
 func (c *rolloutContext) reconcile() error {
 	err := c.checkPausedConditions()
 	if err != nil {
 		return err
+	}
+	if c.newRollout != nil {
+		// exit early since we modified the rollout
+		return nil
 	}
 
 	isScalingEvent, err := c.isScalingEvent()
