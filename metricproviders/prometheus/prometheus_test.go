@@ -709,19 +709,6 @@ func TestNewPrometheusAPIMissingBasicAuthPassword(t *testing.T) {
 	assert.EqualError(t, err, "missing mandatory parameter in metric for basic auth setup: password")
 }
 
-func TestNewPrometheusAPIMissingBasicAuthCredentials(t *testing.T) {
-	metric := v1alpha1.Metric{
-		Provider: v1alpha1.MetricProvider{
-			Prometheus: &v1alpha1.PrometheusMetric{
-				Address: "http://127.0.0.1:9090",
-			},
-		},
-	}
-
-	_, err := NewPrometheusAPI(metric)
-	assert.EqualError(t, err, "missing mandatory parameter in metric for basic auth setup: username and password")
-}
-
 func TestNewPrometheusNegativeTimeout(t *testing.T) {
 	e := log.Entry{}
 	mock := &mockAPI{

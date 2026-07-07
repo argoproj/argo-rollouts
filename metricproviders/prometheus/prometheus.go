@@ -265,14 +265,13 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 
 	// Check if using basic auth to connect a prometheus instance (example: grafana cloud prometheus instance)
 	basicAuth := metric.Provider.Prometheus.Authentication.BasicAuth
-	switch {
-	case basicAuth.Username == "" && basicAuth.Password == "":
-		return nil, errors.New("missing mandatory parameter in metric for basic auth setup: username and password")
-	case basicAuth.Username == "":
-		return nil, errors.New("missing mandatory parameter in metric for basic auth setup: username")
-	case basicAuth.Password == "":
-		return nil, errors.New("missing mandatory parameter in metric for basic auth setup: password")
-	default:
+	if basicAuth.Username != "" || basicAuth.Password != "" {
+		if basicAuth.Username == "" {
+			return nil, errors.New("missing mandatory parameter in metric for basic auth setup: username")
+		} else if basicAuth.Password == "" {
+			return nil, errors.New("missing mandatory parameter in metric for basic auth setup: password")
+		}
+
 		roundTripper = config.NewBasicAuthRoundTripper(
 			config.NewInlineSecret(basicAuth.Username),
 			config.NewInlineSecret(basicAuth.Password),
