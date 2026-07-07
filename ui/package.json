@@ -2,7 +2,7 @@
     "name": "ui",
     "version": "0.1.0",
     "private": true,
-    "packageManager": "pnpm@10.28.1",
+    "packageManager": "pnpm@11.9.0",
     "dependencies": {
         "@fortawesome/fontawesome-svg-core": "^6.4.0",
         "@fortawesome/free-regular-svg-icons": "^6.4.0",
@@ -92,15 +92,5 @@
         "webpack-dev-server": "^4.7.4",
         "webpack": "^5.105.4",
         "webpack-merge": "^5.7.3"   
-    },
-    "pnpm": {
-        "overrides": {
-            "@types/react": "16.9.3",
-            "moment": "2.29.4",
-            "@types/react-dom": "^16.8.2",
-            "normalize-url": "4.5.1",
-            "rxjs": "6.6.7",
-            "formidable": "2.1.2"
-        }
     }
 }
