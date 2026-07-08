@@ -6155,11 +6155,14 @@
                                                         "description": "Authentication details",
                                                         "properties": {
                                                             "basicAuth": {
+                                                                "description": "BasicAuth config",
                                                                 "properties": {
                                                                     "password": {
+                                                                        "description": "Password is the access policy token",
                                                                         "type": "string"
                                                                     },
                                                                     "username": {
+                                                                        "description": "Username is the username in grafana cloud",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -6301,11 +6304,14 @@
                                                         "description": "Authentication details",
                                                         "properties": {
                                                             "basicAuth": {
+                                                                "description": "BasicAuth config",
                                                                 "properties": {
                                                                     "password": {
+                                                                        "description": "Password is the access policy token",
                                                                         "type": "string"
                                                                     },
                                                                     "username": {
+                                                                        "description": "Username is the username in grafana cloud",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -12600,11 +12606,14 @@
                                                         "description": "Authentication details",
                                                         "properties": {
                                                             "basicAuth": {
+                                                                "description": "BasicAuth config",
                                                                 "properties": {
                                                                     "password": {
+                                                                        "description": "Password is the access policy token",
                                                                         "type": "string"
                                                                     },
                                                                     "username": {
+                                                                        "description": "Username is the username in grafana cloud",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -12746,11 +12755,14 @@
                                                         "description": "Authentication details",
                                                         "properties": {
                                                             "basicAuth": {
+                                                                "description": "BasicAuth config",
                                                                 "properties": {
                                                                     "password": {
+                                                                        "description": "Password is the access policy token",
                                                                         "type": "string"
                                                                     },
                                                                     "username": {
+                                                                        "description": "Username is the username in grafana cloud",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -19061,11 +19073,14 @@
                                                         "description": "Authentication details",
                                                         "properties": {
                                                             "basicAuth": {
+                                                                "description": "BasicAuth config",
                                                                 "properties": {
                                                                     "password": {
+                                                                        "description": "Password is the access policy token",
                                                                         "type": "string"
                                                                     },
                                                                     "username": {
+                                                                        "description": "Username is the username in grafana cloud",
                                                                         "type": "string"
                                                                     }
                                                                 },
@@ -19207,11 +19222,14 @@
                                                         "description": "Authentication details",
                                                         "properties": {
                                                             "basicAuth": {
+                                                                "description": "BasicAuth config",
                                                                 "properties": {
                                                                     "password": {
+                                                                        "description": "Password is the access policy token",
                                                                         "type": "string"
                                                                     },
                                                                     "username": {
+                                                                        "description": "Username is the username in grafana cloud",
                                                                         "type": "string"
                                                                     }
                                                                 },
