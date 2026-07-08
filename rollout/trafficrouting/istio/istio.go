@@ -85,6 +85,27 @@ const (
 )
 
 func (patches virtualServicePatches) patchVirtualService(httpRoutes []any, tlsRoutes []any, tcpRoutes []any) error {
+	// Apply patches in an order that keeps destination indices valid. All
+	// non-delete patches (in-place weight updates and appends) are applied
+	// first so they operate on the original indices, then deletions are
+	// applied in descending index order so removing one destination does not
+	// shift the indices of the remaining deletions. Without this ordering,
+	// deleting a lower index first shrinks the slice and makes a later
+	// deletion's index either point at the wrong destination or fall out of
+	// range, which caused leftover experiment destinations in the
+	// VirtualService when an experiment completed.
+	slices.SortStableFunc(patches, func(a, b virtualServicePatch) int {
+		if a.toDelete != b.toDelete {
+			if a.toDelete {
+				return 1
+			}
+			return -1
+		}
+		if a.toDelete {
+			return b.destinationIndex - a.destinationIndex
+		}
+		return 0
+	})
 	for _, patch := range patches {
 		var route map[string]any
 		err := false
@@ -244,9 +265,17 @@ func processRoutes(routeType string, routeIdx int, destinations []VirtualService
 			}
 		}
 	}
-	// Add new destinations for experiment services which don't exist yet
+	// Add new destinations for experiment services which don't exist yet.
+	// Iterate the services in a deterministic (sorted) order so the resulting
+	// destination ordering does not depend on Go's randomized map iteration.
 	idx := len(destinations)
-	for _, dest := range svcToDest {
+	newHosts := make([]string, 0, len(svcToDest))
+	for host := range svcToDest {
+		newHosts = append(newHosts, host)
+	}
+	slices.Sort(newHosts)
+	for _, host := range newHosts {
+		dest := svcToDest[host]
 		patches = appendPatch(routeIdx, routeType, 0, int64(dest.Weight), idx, dest.ServiceName, false, patches)
 		idx += 1
 	}
