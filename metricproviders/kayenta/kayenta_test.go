@@ -183,6 +183,13 @@ func TestRunSuccessfully(t *testing.T) {
 				// Must be set to non-nil value or it panics
 				Header: make(http.Header),
 			}
+		} else if req.Method == http.MethodDelete {
+			// Terminate() cancels the in-flight execution.
+			return &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewBufferString("")),
+				Header:     make(http.Header),
+			}
 		} else {
 			url := req.URL.String()
 			assert.Equal(t, url, lookupURL)
@@ -228,13 +235,17 @@ func TestRunSuccessfully(t *testing.T) {
 	assert.Equal(t, nil, p.GarbageCollect(run, metric, 0))
 
 	measurement2 := p.Terminate(run, metric, measurement)
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement2.Phase)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, measurement2.Phase)
 	assert.NotNil(t, measurement2.FinishedAt)
 }
 
 func TestTerminate(t *testing.T) {
 	e := log.NewEntry(log.New())
+	var canceledURL string
 	c := NewTestClient(func(req *http.Request) *http.Response {
+		if req.Method == http.MethodDelete {
+			canceledURL = req.URL.String()
+		}
 		return &http.Response{
 			StatusCode: 200,
 			Body:       io.NopCloser(bytes.NewBufferString("{}")),
@@ -253,9 +264,10 @@ func TestTerminate(t *testing.T) {
 	}
 
 	terminated := p.Terminate(run, metric, measurement)
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, terminated.Phase)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, terminated.Phase)
 	assert.NotNil(t, terminated.FinishedAt)
 	assert.Equal(t, "01DS50WVHAWSTAQACJKB1VKDQB", terminated.Metadata["canaryExecutionId"])
+	assert.Equal(t, "https://kayenta.example.oom/canary/01DS50WVHAWSTAQACJKB1VKDQB", canceledURL)
 }
 
 func TestRunBadJobResponse(t *testing.T) {

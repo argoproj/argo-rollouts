@@ -310,14 +310,36 @@ func scopeToScopeRequest(scope v1alpha1.KayentaScope) (ScopeRequest, error) {
 }
 
 // Terminate is called when an in-progress Kayenta canary analysis needs to be stopped before it
-// has completed naturally (e.g. when the AnalysisRun is terminated). Since Kayenta does not
-// expose a cancellation API, the measurement is marked as Successful so the AnalysisRun can
-// proceed with its own termination logic.
+// has completed naturally (e.g. when the AnalysisRun is terminated). It attempts to cancel the
+// in-flight execution via DELETE /canary/{canaryExecutionId} (best-effort; failures are logged but
+// do not block termination). The measurement is marked Inconclusive because the outcome of an
+// interrupted analysis is unknown.
 func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	p.logCtx.Info("Terminating in-progress Kayenta canary analysis")
+
+	if executionID, ok := measurement.Metadata["canaryExecutionId"]; ok && executionID != "" {
+		cancelURL := fmt.Sprintf(scoreURLFormat, metric.Provider.Kayenta.Address, executionID)
+		req, err := http.NewRequest(http.MethodDelete, cancelURL, nil)
+		if err != nil {
+			p.logCtx.WithError(err).Warn("Failed to build Kayenta cancel request")
+		} else {
+			resp, err := p.client.Do(req)
+			if err != nil {
+				p.logCtx.WithError(err).Warn("Failed to cancel Kayenta canary execution")
+			} else {
+				resp.Body.Close()
+				if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+					p.logCtx.Warnf("Kayenta cancel returned unexpected status %d", resp.StatusCode)
+				} else {
+					p.logCtx.Infof("Cancelled Kayenta canary execution %s", executionID)
+				}
+			}
+		}
+	}
+
 	now := timeutil.MetaNow()
 	measurement.FinishedAt = &now
-	measurement.Phase = v1alpha1.AnalysisPhaseSuccessful
+	measurement.Phase = v1alpha1.AnalysisPhaseInconclusive
 	return measurement
 }
 
