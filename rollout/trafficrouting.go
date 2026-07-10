@@ -451,7 +451,17 @@ func (c *rolloutContext) calculateWeightDestinationsFromExperiment() []v1alpha1.
 		}
 		for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
 			templateWeight := getTemplateWeight(templateStatus.Name)
-			if templateWeight != nil {
+			// Only build a WeightDestination when the template still has a Service.
+			// When an experiment finishes, the experiment controller scales down the
+			// template ReplicaSets and deletes their Services, clearing
+			// templateStatus.ServiceName (and PodTemplateHash). This can happen while
+			// the experiment is still reported as Running (e.g. a completed template
+			// whose service is torn down before the overall phase transitions). Without
+			// this guard we would emit a WeightDestination with an empty ServiceName,
+			// which the traffic router turns into a route destination with an empty
+			// host, and Istio rejects the VirtualService ("empty domain name not
+			// allowed"), wedging the rollout on the experiment step.
+			if templateWeight != nil && templateStatus.ServiceName != "" {
 				weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
 					ServiceName:     templateStatus.ServiceName,
 					PodTemplateHash: templateStatus.PodTemplateHash,
