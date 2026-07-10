@@ -479,7 +479,6 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 				if c.isFastRollback() {
 					status = v1alpha1.CompletionStatusFastRollbacked
 				}
-				// The user explicitly reverted the rollout to the previous pod spec
 				durationStatus.CompletionStatus = &status
 				c.log.WithField("event", "rollout_rollback").
 					WithField("reason", "reverted to previous revision causing "+status+" rollout").
@@ -518,7 +517,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 			// if we just reached desired replicas.
 			return durationStatus
 		} else if isAborted {
-			// Rolout was just aborted
+			// Rollout was just aborted
 			completionStatus := durationStatus.GetCompletionStatus()
 			if completionStatus == "" {
 				completionStatus = v1alpha1.CompletionStatusAborted
@@ -547,12 +546,12 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 				WithField("reason", "new revision detected").
 				Info("Rollout started")
 		} else if isRetry {
-			// Rolout retried after being aborted, start a new rollout
+			// Rollout retried after being aborted, start a new rollout
 			durationStatus = &v1alpha1.RolloutDurationStatus{
 				RolloutStartedAt: &now,
 			}
 			c.log.WithField("event", "rollout_started").
-				WithField("reason", "rety after abort").
+				WithField("reason", "retry after abort").
 				Info("Rollout retried")
 		}
 	}

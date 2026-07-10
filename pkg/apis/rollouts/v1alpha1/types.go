@@ -1059,7 +1059,7 @@ const (
 	CompletionStatusFastRollbacked CompletionStatus = "fast-rollbacked"
 )
 
-// IsAlreadyCompleted returns true if completion metrics have been emitted for this rollout attempt
+// IsCompleted returns true if completion metrics have been emitted for this rollout attempt
 // Determined by checking if FinishedAt timestamp is set (metrics published)
 func (d *RolloutDurationStatus) IsCompleted() bool {
 	return d != nil && d.RolloutStartedAt != nil && d.FinishedAt != nil
