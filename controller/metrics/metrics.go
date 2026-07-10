@@ -76,7 +76,7 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	// Create new instances of duration metrics for test isolation
 	rolloutDurationTotal := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "rollout_duration_seconds_total",
+			Name:    "rollout_duration_seconds",
 			Help:    "Total wall-clock time for a rollout from start to completion/abort/supersede",
 			Buckets: []float64{30, 60, 120, 300, 600, 1200, 1800, 3600, 7200, 14400, 28800},
 		},

@@ -185,26 +185,26 @@ rollout_duration_seconds_progression_bucket{status="promoted",le="+Inf"} 1
 rollout_duration_seconds_progression_sum{status="promoted"} 240
 rollout_duration_seconds_progression_count{status="promoted"} 1
 
-# HELP rollout_duration_seconds_total Total wall-clock time for a rollout from start to completion/abort/supersede
-# TYPE rollout_duration_seconds_total histogram
-rollout_duration_seconds_total_bucket{status="promoted",le="30"} 0
-rollout_duration_seconds_total_bucket{status="promoted",le="60"} 0
-rollout_duration_seconds_total_bucket{status="promoted",le="120"} 0
-rollout_duration_seconds_total_bucket{status="promoted",le="300"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="600"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="1200"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="1800"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="3600"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="7200"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="14400"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="28800"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="+Inf"} 1
-rollout_duration_seconds_total_sum{status="promoted"} 300
-rollout_duration_seconds_total_count{status="promoted"} 1
+# HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
+# TYPE rollout_duration_seconds histogram
+rollout_duration_seconds_bucket{status="promoted",le="30"} 0
+rollout_duration_seconds_bucket{status="promoted",le="60"} 0
+rollout_duration_seconds_bucket{status="promoted",le="120"} 0
+rollout_duration_seconds_bucket{status="promoted",le="300"} 1
+rollout_duration_seconds_bucket{status="promoted",le="600"} 1
+rollout_duration_seconds_bucket{status="promoted",le="1200"} 1
+rollout_duration_seconds_bucket{status="promoted",le="1800"} 1
+rollout_duration_seconds_bucket{status="promoted",le="3600"} 1
+rollout_duration_seconds_bucket{status="promoted",le="7200"} 1
+rollout_duration_seconds_bucket{status="promoted",le="14400"} 1
+rollout_duration_seconds_bucket{status="promoted",le="28800"} 1
+rollout_duration_seconds_bucket{status="promoted",le="+Inf"} 1
+rollout_duration_seconds_sum{status="promoted"} 300
+rollout_duration_seconds_count{status="promoted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds_total", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
 	require.NoError(t, err)
 }
 
@@ -264,26 +264,26 @@ rollout_duration_seconds_progression_bucket{status="fast-promoted",le="+Inf"} 1
 rollout_duration_seconds_progression_sum{status="fast-promoted"} 180
 rollout_duration_seconds_progression_count{status="fast-promoted"} 1
 
-# HELP rollout_duration_seconds_total Total wall-clock time for a rollout from start to completion/abort/supersede
-# TYPE rollout_duration_seconds_total histogram
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="30"} 0
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="60"} 0
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="120"} 0
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="300"} 1
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="600"} 1
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="1200"} 1
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="1800"} 1
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="3600"} 1
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="7200"} 1
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="14400"} 1
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="28800"} 1
-rollout_duration_seconds_total_bucket{status="fast-promoted",le="+Inf"} 1
-rollout_duration_seconds_total_sum{status="fast-promoted"} 180
-rollout_duration_seconds_total_count{status="fast-promoted"} 1
+# HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
+# TYPE rollout_duration_seconds histogram
+rollout_duration_seconds_bucket{status="fast-promoted",le="30"} 0
+rollout_duration_seconds_bucket{status="fast-promoted",le="60"} 0
+rollout_duration_seconds_bucket{status="fast-promoted",le="120"} 0
+rollout_duration_seconds_bucket{status="fast-promoted",le="300"} 1
+rollout_duration_seconds_bucket{status="fast-promoted",le="600"} 1
+rollout_duration_seconds_bucket{status="fast-promoted",le="1200"} 1
+rollout_duration_seconds_bucket{status="fast-promoted",le="1800"} 1
+rollout_duration_seconds_bucket{status="fast-promoted",le="3600"} 1
+rollout_duration_seconds_bucket{status="fast-promoted",le="7200"} 1
+rollout_duration_seconds_bucket{status="fast-promoted",le="14400"} 1
+rollout_duration_seconds_bucket{status="fast-promoted",le="28800"} 1
+rollout_duration_seconds_bucket{status="fast-promoted",le="+Inf"} 1
+rollout_duration_seconds_sum{status="fast-promoted"} 180
+rollout_duration_seconds_count{status="fast-promoted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds_total", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
 	require.NoError(t, err)
 }
 
@@ -343,26 +343,26 @@ rollout_duration_seconds_progression_bucket{status="aborted",le="+Inf"} 1
 rollout_duration_seconds_progression_sum{status="aborted"} 120
 rollout_duration_seconds_progression_count{status="aborted"} 1
 
-# HELP rollout_duration_seconds_total Total wall-clock time for a rollout from start to completion/abort/supersede
-# TYPE rollout_duration_seconds_total histogram
-rollout_duration_seconds_total_bucket{status="aborted",le="30"} 0
-rollout_duration_seconds_total_bucket{status="aborted",le="60"} 0
-rollout_duration_seconds_total_bucket{status="aborted",le="120"} 1
-rollout_duration_seconds_total_bucket{status="aborted",le="300"} 1
-rollout_duration_seconds_total_bucket{status="aborted",le="600"} 1
-rollout_duration_seconds_total_bucket{status="aborted",le="1200"} 1
-rollout_duration_seconds_total_bucket{status="aborted",le="1800"} 1
-rollout_duration_seconds_total_bucket{status="aborted",le="3600"} 1
-rollout_duration_seconds_total_bucket{status="aborted",le="7200"} 1
-rollout_duration_seconds_total_bucket{status="aborted",le="14400"} 1
-rollout_duration_seconds_total_bucket{status="aborted",le="28800"} 1
-rollout_duration_seconds_total_bucket{status="aborted",le="+Inf"} 1
-rollout_duration_seconds_total_sum{status="aborted"} 120
-rollout_duration_seconds_total_count{status="aborted"} 1
+# HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
+# TYPE rollout_duration_seconds histogram
+rollout_duration_seconds_bucket{status="aborted",le="30"} 0
+rollout_duration_seconds_bucket{status="aborted",le="60"} 0
+rollout_duration_seconds_bucket{status="aborted",le="120"} 1
+rollout_duration_seconds_bucket{status="aborted",le="300"} 1
+rollout_duration_seconds_bucket{status="aborted",le="600"} 1
+rollout_duration_seconds_bucket{status="aborted",le="1200"} 1
+rollout_duration_seconds_bucket{status="aborted",le="1800"} 1
+rollout_duration_seconds_bucket{status="aborted",le="3600"} 1
+rollout_duration_seconds_bucket{status="aborted",le="7200"} 1
+rollout_duration_seconds_bucket{status="aborted",le="14400"} 1
+rollout_duration_seconds_bucket{status="aborted",le="28800"} 1
+rollout_duration_seconds_bucket{status="aborted",le="+Inf"} 1
+rollout_duration_seconds_sum{status="aborted"} 120
+rollout_duration_seconds_count{status="aborted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds_total", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
 	require.NoError(t, err)
 }
 
@@ -422,26 +422,26 @@ rollout_duration_seconds_progression_bucket{status="superseded",le="+Inf"} 1
 rollout_duration_seconds_progression_sum{status="superseded"} 60
 rollout_duration_seconds_progression_count{status="superseded"} 1
 
-# HELP rollout_duration_seconds_total Total wall-clock time for a rollout from start to completion/abort/supersede
-# TYPE rollout_duration_seconds_total histogram
-rollout_duration_seconds_total_bucket{status="superseded",le="30"} 0
-rollout_duration_seconds_total_bucket{status="superseded",le="60"} 1
-rollout_duration_seconds_total_bucket{status="superseded",le="120"} 1
-rollout_duration_seconds_total_bucket{status="superseded",le="300"} 1
-rollout_duration_seconds_total_bucket{status="superseded",le="600"} 1
-rollout_duration_seconds_total_bucket{status="superseded",le="1200"} 1
-rollout_duration_seconds_total_bucket{status="superseded",le="1800"} 1
-rollout_duration_seconds_total_bucket{status="superseded",le="3600"} 1
-rollout_duration_seconds_total_bucket{status="superseded",le="7200"} 1
-rollout_duration_seconds_total_bucket{status="superseded",le="14400"} 1
-rollout_duration_seconds_total_bucket{status="superseded",le="28800"} 1
-rollout_duration_seconds_total_bucket{status="superseded",le="+Inf"} 1
-rollout_duration_seconds_total_sum{status="superseded"} 60
-rollout_duration_seconds_total_count{status="superseded"} 1
+# HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
+# TYPE rollout_duration_seconds histogram
+rollout_duration_seconds_bucket{status="superseded",le="30"} 0
+rollout_duration_seconds_bucket{status="superseded",le="60"} 1
+rollout_duration_seconds_bucket{status="superseded",le="120"} 1
+rollout_duration_seconds_bucket{status="superseded",le="300"} 1
+rollout_duration_seconds_bucket{status="superseded",le="600"} 1
+rollout_duration_seconds_bucket{status="superseded",le="1200"} 1
+rollout_duration_seconds_bucket{status="superseded",le="1800"} 1
+rollout_duration_seconds_bucket{status="superseded",le="3600"} 1
+rollout_duration_seconds_bucket{status="superseded",le="7200"} 1
+rollout_duration_seconds_bucket{status="superseded",le="14400"} 1
+rollout_duration_seconds_bucket{status="superseded",le="28800"} 1
+rollout_duration_seconds_bucket{status="superseded",le="+Inf"} 1
+rollout_duration_seconds_sum{status="superseded"} 60
+rollout_duration_seconds_count{status="superseded"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds_total", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
 	require.NoError(t, err)
 }
 
@@ -503,26 +503,26 @@ rollout_duration_seconds_progression_bucket{status="promoted",le="+Inf"} 1
 rollout_duration_seconds_progression_sum{status="promoted"} 300
 rollout_duration_seconds_progression_count{status="promoted"} 1
 
-# HELP rollout_duration_seconds_total Total wall-clock time for a rollout from start to completion/abort/supersede
-# TYPE rollout_duration_seconds_total histogram
-rollout_duration_seconds_total_bucket{status="promoted",le="30"} 0
-rollout_duration_seconds_total_bucket{status="promoted",le="60"} 0
-rollout_duration_seconds_total_bucket{status="promoted",le="120"} 0
-rollout_duration_seconds_total_bucket{status="promoted",le="300"} 0
-rollout_duration_seconds_total_bucket{status="promoted",le="600"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="1200"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="1800"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="3600"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="7200"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="14400"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="28800"} 1
-rollout_duration_seconds_total_bucket{status="promoted",le="+Inf"} 1
-rollout_duration_seconds_total_sum{status="promoted"} 600
-rollout_duration_seconds_total_count{status="promoted"} 1
+# HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
+# TYPE rollout_duration_seconds histogram
+rollout_duration_seconds_bucket{status="promoted",le="30"} 0
+rollout_duration_seconds_bucket{status="promoted",le="60"} 0
+rollout_duration_seconds_bucket{status="promoted",le="120"} 0
+rollout_duration_seconds_bucket{status="promoted",le="300"} 0
+rollout_duration_seconds_bucket{status="promoted",le="600"} 1
+rollout_duration_seconds_bucket{status="promoted",le="1200"} 1
+rollout_duration_seconds_bucket{status="promoted",le="1800"} 1
+rollout_duration_seconds_bucket{status="promoted",le="3600"} 1
+rollout_duration_seconds_bucket{status="promoted",le="7200"} 1
+rollout_duration_seconds_bucket{status="promoted",le="14400"} 1
+rollout_duration_seconds_bucket{status="promoted",le="28800"} 1
+rollout_duration_seconds_bucket{status="promoted",le="+Inf"} 1
+rollout_duration_seconds_sum{status="promoted"} 600
+rollout_duration_seconds_count{status="promoted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds_total", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
 	require.NoError(t, err)
 }
 
@@ -544,7 +544,7 @@ func TestEmitRolloutDuration_NilDurationStatus(t *testing.T) {
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
 	expected := ``
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds_total", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
 	require.NoError(t, err)
 }
 
@@ -568,7 +568,7 @@ func TestEmitRolloutDuration_NilRolloutStartedAt(t *testing.T) {
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
 	expected := ``
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds_total", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
 	require.NoError(t, err)
 }
 
@@ -596,6 +596,6 @@ func TestEmitRolloutDuration_NilFinishedAt(t *testing.T) {
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
 	expected := ``
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds_total", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
 	require.NoError(t, err)
 }

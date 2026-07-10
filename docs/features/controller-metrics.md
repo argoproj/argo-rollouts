@@ -53,7 +53,7 @@ The Argo Rollouts controller publishes the following prometheus metrics about Ar
 | `rollout_phase`                         | [**DEPRECATED - use rollout_info**] Information on the state of the rollout.                                |
 | `rollout_reconcile`                     | Rollout reconciliation performance.                                                                         |
 | `rollout_reconcile_error`               | Error occurring during the rollout.                                                                         |
-| `rollout_duration_seconds_total`        | Total wall-clock time for a rollout from start to completion/abort/supersede (histogram with status label). |
+| `rollout_duration_seconds`              | Total wall-clock time for a rollout from start to completion/abort/supersede (histogram with status label). |
 | `rollout_duration_seconds_progression`  | Active progression time for a rollout, excluding manual pause time (histogram with status label).           |
 | `rollout_duration_seconds_manual_pause` | Time spent in manual pause waiting for human intervention (histogram with status label).                    |
 | `experiment_info`                       | Information about Experiment.                                                                               |
@@ -88,7 +88,7 @@ In addition, the Argo-rollouts offers metrics on CPU, memory and file descriptor
 
 Three complementary histograms track rollout performance with status labels:
 
-- **rollout_duration_seconds_total{status}** (histogram): Total wall-clock time from rollout start to completion/abort/supersede, including all pauses. Measured from when StableRS diverges from CurrentPodHash until the rollout reaches its final state.
+- **rollout_duration_seconds{status}** (histogram): Total wall-clock time from rollout start to completion/abort/supersede, including all pauses. Measured from when StableRS diverges from CurrentPodHash until the rollout reaches its final state.
 - **rollout_duration_seconds_progression{status}** (histogram): Active progression time, excluding manual pause time. This represents actual deployment work time - useful for understanding automation efficiency and identifying slow deployment steps.
 - **rollout_duration_seconds_manual_pause{status}** (histogram): Time spent in manual pauses waiting for human intervention. Includes:
   - `spec.paused: true` (user-initiated pause)
