@@ -388,6 +388,35 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
 		f.run(getKey(r2, t))
 	})
+
+	t.Run("Experiment Running but template Service torn down - no WeightDestination created", func(t *testing.T) {
+		// When an experiment finishes, its controller deletes the template Services
+		// and clears templateStatus.ServiceName, which can be observed while the
+		// experiment is still Running. In that state we must NOT emit a
+		// WeightDestination with an empty ServiceName, otherwise the traffic router
+		// produces a route destination with an empty host and Istio rejects the
+		// VirtualService, wedging the rollout on the experiment step.
+		ex.Status.Phase = v1alpha1.AnalysisPhaseRunning
+		originalServiceName := ex.Status.TemplateStatuses[0].ServiceName
+		ex.Status.TemplateStatuses[0].ServiceName = ""
+		ex.Status.TemplateStatuses[0].PodTemplateHash = ""
+		defer func() {
+			ex.Status.TemplateStatuses[0].ServiceName = originalServiceName
+			ex.Status.TemplateStatuses[0].PodTemplateHash = rs2PodHash
+		}()
+		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
+			// The weighted template's Service is gone, so no WeightDestination
+			// (and therefore no empty-host route destination) should be produced.
+			assert.Equal(t, int32(10), desiredWeight)
+			assert.Len(t, weightDestinations, 0)
+			return nil
+		})
+		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
+		f.run(getKey(r2, t))
+	})
 }
 
 func TestRolloutUsePreviousSetWeight(t *testing.T) {
