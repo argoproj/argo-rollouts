@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	core "k8s.io/client-go/testing"
+
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -184,6 +186,65 @@ func TestProgressDeadlineAbortWithTrafficRoutingError(t *testing.T) {
 
 	// Verify the rollout was aborted by the progress deadline.
 	f.verifyPatchedRolloutAborted(patchIndex, rs2.Name)
+}
+
+// TestProgressDeadlineSyncStatusErrorWithTrafficRoutingError verifies that when both
+// reconcileTrafficRouting() and syncRolloutStatusCanary() return errors, the sync error is
+// surfaced (not silently dropped), so the controller requeues the reconcile.
+func TestProgressDeadlineSyncStatusErrorWithTrafficRoutingError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](50)},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	progressDeadlineSeconds := int32(1)
+	r1.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
+	r1.Spec.ProgressDeadlineAbort = true
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 3, 3)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 13, 3, 13, false)
+	r2.Status.CurrentPodHash = rs2PodHash
+
+	msg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rs2.Name)
+	timedOutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+	conditions.SetRolloutCondition(&r2.Status, *timedOutCond)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(
+		fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs2.Name),
+	)
+
+	// Initialize the controller first (creates f.client), then inject a reactor that makes
+	// the rollout status patch fail. This causes syncRolloutStatusCanary() to return an error,
+	// exercising the double-error branch: trafficErr != nil AND syncErr != nil → return syncErr.
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.client.PrependReactor("patch", "rollouts", func(action core.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("injected patch failure")
+	})
+
+	f.expectPatchRolloutAction(r2)
+	f.runController(getKey(r2, t), true, true, c, i, k8sI)
 }
 
 // verify error is not returned when VerifyWeight returns error (so that we can continue reconciling)
