@@ -98,6 +98,9 @@ message RolloutInfo {
   repeated github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep steps = 20;
 
   repeated ContainerInfo initContainers = 21;
+
+  // pauseStartTime is the RFC3339 start time of the current canary pause step, empty when not paused on a step
+  string pauseStartTime = 22;
 }
 
 message ExperimentInfo {

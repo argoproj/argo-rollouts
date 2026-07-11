@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -101,6 +102,13 @@ func NewRolloutInfo(
 
 	for _, c := range initContainerList {
 		roInfo.InitContainers = append(roInfo.InitContainers, &rollout.ContainerInfo{Name: c.Name, Image: c.Image})
+	}
+
+	for _, cond := range ro.Status.PauseConditions {
+		if cond.Reason == v1alpha1.PauseReasonCanaryPauseStep {
+			roInfo.PauseStartTime = cond.StartTime.UTC().Format(time.RFC3339)
+			break
+		}
 	}
 
 	if ro.Status.RestartedAt != nil {

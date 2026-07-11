@@ -178,3 +178,34 @@ func TestRolloutInfoMetadata(t *testing.T) {
 	assert.Equal(t, roInfo.ObjectMeta.Labels, rolloutObjs.Rollouts[0].Labels)
 	assert.Equal(t, roInfo.ObjectMeta.Generation, rolloutObjs.Rollouts[0].Generation)
 }
+
+func TestRolloutInfoPauseStartTime(t *testing.T) {
+	start := metav1.NewTime(time.Date(2026, 7, 10, 16, 0, 0, 0, time.UTC))
+	canary := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Spec:       v1alpha1.RolloutSpec{Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{}}},
+		Status: v1alpha1.RolloutStatus{
+			PauseConditions: []v1alpha1.PauseCondition{
+				{Reason: v1alpha1.PauseReasonCanaryPauseStep, StartTime: start},
+			},
+		},
+	}
+	assert.Equal(t, "2026-07-10T16:00:00Z", NewRolloutInfo(canary, nil, nil, nil, nil, nil).PauseStartTime)
+
+	noPause := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test2", Namespace: "default"},
+		Spec:       v1alpha1.RolloutSpec{Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{}}},
+	}
+	assert.Equal(t, "", NewRolloutInfo(noPause, nil, nil, nil, nil, nil).PauseStartTime)
+
+	nonCanaryPause := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test3", Namespace: "default"},
+		Spec:       v1alpha1.RolloutSpec{Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{}}},
+		Status: v1alpha1.RolloutStatus{
+			PauseConditions: []v1alpha1.PauseCondition{
+				{Reason: v1alpha1.PauseReasonBlueGreenPause, StartTime: start},
+			},
+		},
+	}
+	assert.Equal(t, "", NewRolloutInfo(nonCanaryPause, nil, nil, nil, nil, nil).PauseStartTime)
+}
