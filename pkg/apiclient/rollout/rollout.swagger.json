@@ -6626,6 +6626,10 @@
           "items": {
             "$ref": "#/definitions/rollout.ContainerInfo"
           }
+        },
+        "pauseStartTime": {
+          "type": "string",
+          "title": "pauseStartTime is the RFC3339 start time of the current canary pause step, empty when not paused on a step"
         }
       }
     },
