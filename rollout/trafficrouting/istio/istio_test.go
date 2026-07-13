@@ -3544,6 +3544,213 @@ func TestShouldDelayDestinationRuleUpdate(t *testing.T) {
 	})
 }
 
+// TestUpdateHashSkipsNotYetScaledUpCanary verifies that UpdateHash does not re-point the
+// canary subset to a canary ReplicaSet that has not been scaled up yet (spec.replicas == 0),
+// which would de-select the previous, still-healthy canary pods and cause transient
+// "no_healthy_upstream" 503s. Unlike the unavailable-RS case, no error may be returned,
+// because ReplicaSets are scaled up after traffic routing is reconciled; failing the
+// reconcile would prevent the ReplicaSet from ever being scaled up.
+// See https://github.com/argoproj/argo-rollouts/issues/4775
+func TestUpdateHashSkipsNotYetScaledUpCanary(t *testing.T) {
+	createRollout := func(abort bool) *v1alpha1.Rollout {
+		ro := rolloutWithDestinationRule(nil)
+		ro.Spec.Strategy.Canary.CanaryService = ""
+		ro.Spec.Strategy.Canary.StableService = ""
+		ro.Status.Abort = abort
+		return ro
+	}
+
+	createDestinationRuleObj := func() *unstructured.Unstructured {
+		return unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  subsets:
+  - name: stable
+  - name: canary
+`)
+	}
+
+	createRS := func(ro *v1alpha1.Rollout, hash string, replicas, availableReplicas int32) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rs-" + hash,
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: &replicas,
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{
+				Replicas:          replicas,
+				AvailableReplicas: availableReplicas,
+			},
+		}
+	}
+
+	setupReconciler := func(ro *v1alpha1.Rollout, client *dynamicfake.FakeDynamicClient, rsList []*appsv1.ReplicaSet) *Reconciler {
+		vsvcLister, druleLister := getIstioListers(client)
+		r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, rsList)
+		client.ClearActions()
+		return r
+	}
+
+	t.Run("skips DestinationRule update without error when canary RS is not scaled up yet", func(t *testing.T) {
+		ro := createRollout(false)
+		client := testutil.NewFakeDynamicClient(createDestinationRuleObj())
+
+		stableRS := createRS(ro, "stable123", 1, 1)
+		newCanaryRS := createRS(ro, "canary456", 0, 0) // created, but not scaled up yet
+		r := setupReconciler(ro, client, []*appsv1.ReplicaSet{stableRS, newCanaryRS})
+
+		err := r.UpdateHash("canary456", "stable123")
+		assert.NoError(t, err, "must not fail the reconcile; otherwise the canary RS would never be scaled up")
+
+		actions := client.Actions()
+		assert.Len(t, actions, 0, "DestinationRule must not be re-pointed to a canary RS with no pods")
+	})
+
+	t.Run("updates DestinationRule when canary RS is scaled up and available", func(t *testing.T) {
+		ro := createRollout(false)
+		client := testutil.NewFakeDynamicClient(createDestinationRuleObj())
+
+		stableRS := createRS(ro, "stable123", 1, 1)
+		canaryRS := createRS(ro, "canary456", 1, 1)
+		r := setupReconciler(ro, client, []*appsv1.ReplicaSet{stableRS, canaryRS})
+
+		err := r.UpdateHash("canary456", "stable123")
+		assert.NoError(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 1)
+		assert.Equal(t, "update", actions[0].GetVerb())
+	})
+
+	t.Run("does not skip during abort", func(t *testing.T) {
+		ro := createRollout(true)
+		client := testutil.NewFakeDynamicClient(createDestinationRuleObj())
+
+		stableRS := createRS(ro, "stable123", 1, 1)
+		canaryRS := createRS(ro, "canary456", 0, 0)
+		r := setupReconciler(ro, client, []*appsv1.ReplicaSet{stableRS, canaryRS})
+
+		err := r.UpdateHash("canary456", "stable123")
+		assert.NoError(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 1, "abort shifts traffic to stable; the canary subset switch is safe and must not be skipped")
+		assert.Equal(t, "update", actions[0].GetVerb())
+	})
+
+	t.Run("does not skip when fully promoted (canaryHash == stableHash)", func(t *testing.T) {
+		ro := createRollout(false)
+		client := testutil.NewFakeDynamicClient(createDestinationRuleObj())
+
+		stableRS := createRS(ro, "stable123", 0, 0) // e.g. user scaled the rollout down
+		r := setupReconciler(ro, client, []*appsv1.ReplicaSet{stableRS})
+
+		err := r.UpdateHash("stable123", "stable123")
+		assert.NoError(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 1)
+		assert.Equal(t, "update", actions[0].GetVerb())
+	})
+}
+
+// TestShouldSkipDestinationRuleUpdate tests the guard that prevents re-pointing the canary
+// subset to a not-yet-scaled-up canary ReplicaSet.
+// See https://github.com/argoproj/argo-rollouts/issues/4775
+func TestShouldSkipDestinationRuleUpdate(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	ro.Spec.Strategy.Canary.CanaryService = ""
+	ro.Spec.Strategy.Canary.StableService = ""
+
+	createRS := func(hash string, replicas, availableReplicas int32) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rs-" + hash,
+				UID:       uuid.NewUUID(),
+				Namespace: metav1.NamespaceDefault,
+				Labels:    map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: hash},
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: &replicas,
+				Template: ro.Spec.Template,
+			},
+			Status: appsv1.ReplicaSetStatus{Replicas: replicas, AvailableReplicas: availableReplicas},
+		}
+	}
+
+	client := testutil.NewFakeDynamicClient()
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil, nil)
+
+	t.Run("skip when target canary RS is not scaled up yet", func(t *testing.T) {
+		r.rollout.Status.Abort = false
+		r.replicaSets = []*appsv1.ReplicaSet{createRS("stable123", 1, 1), createRS("canary456", 0, 0)}
+
+		shouldSkip, rsName := r.shouldSkipDestinationRuleUpdate("canary456", "stable123")
+		assert.True(t, shouldSkip)
+		assert.Equal(t, "rs-canary456", rsName)
+	})
+
+	t.Run("no skip when target canary RS is scaled up", func(t *testing.T) {
+		r.rollout.Status.Abort = false
+		r.replicaSets = []*appsv1.ReplicaSet{createRS("stable123", 1, 1), createRS("canary456", 1, 0)}
+
+		shouldSkip, rsName := r.shouldSkipDestinationRuleUpdate("canary456", "stable123")
+		assert.False(t, shouldSkip, "a scaled-up but unavailable canary RS is handled by shouldDelayDestinationRuleUpdate")
+		assert.Empty(t, rsName)
+	})
+
+	t.Run("no skip on abort", func(t *testing.T) {
+		r.rollout.Status.Abort = true
+		r.replicaSets = []*appsv1.ReplicaSet{createRS("stable123", 1, 1), createRS("canary456", 0, 0)}
+
+		shouldSkip, rsName := r.shouldSkipDestinationRuleUpdate("canary456", "stable123")
+		assert.False(t, shouldSkip)
+		assert.Empty(t, rsName)
+	})
+
+	t.Run("no skip when canaryHash is empty or equals stableHash", func(t *testing.T) {
+		r.rollout.Status.Abort = false
+		r.replicaSets = []*appsv1.ReplicaSet{createRS("stable123", 0, 0)}
+
+		shouldSkip, _ := r.shouldSkipDestinationRuleUpdate("", "stable123")
+		assert.False(t, shouldSkip)
+		shouldSkip, _ = r.shouldSkipDestinationRuleUpdate("stable123", "stable123")
+		assert.False(t, shouldSkip)
+	})
+
+	t.Run("no skip when canary/stable services are set", func(t *testing.T) {
+		roWithSvc := rolloutWithDestinationRule(nil)
+		roWithSvc.Spec.Strategy.Canary.CanaryService = "canary-svc"
+		roWithSvc.Spec.Strategy.Canary.StableService = "stable-svc"
+		rSvc := NewReconciler(roWithSvc, client, record.NewFakeEventRecorder(), nil, nil, nil)
+		rSvc.replicaSets = []*appsv1.ReplicaSet{createRS("stable123", 1, 1), createRS("canary456", 0, 0)}
+
+		shouldSkip, rsName := rSvc.shouldSkipDestinationRuleUpdate("canary456", "stable123")
+		assert.False(t, shouldSkip)
+		assert.Empty(t, rsName)
+	})
+
+	t.Run("no skip when no RS matches the canary hash", func(t *testing.T) {
+		r.rollout.Status.Abort = false
+		r.replicaSets = []*appsv1.ReplicaSet{createRS("stable123", 1, 1)}
+
+		shouldSkip, rsName := r.shouldSkipDestinationRuleUpdate("canary456", "stable123")
+		assert.False(t, shouldSkip)
+		assert.Empty(t, rsName)
+	})
+}
+
 func TestUpdateHashInvalidDestinationRule(t *testing.T) {
 	ro := rolloutWithDestinationRule(nil)
 	// set to invalid destination rule
