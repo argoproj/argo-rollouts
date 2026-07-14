@@ -5,9 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
@@ -279,6 +282,237 @@ func TestMalformedExperiment(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, list, 1)
 	verify(obj)
+}
+
+// storeUpdateCase covers one tolerant resource kind for the GetStore().Update /
+// poisoned-indexer regressions introduced by #4745 + notifications-engine.
+type storeUpdateCase struct {
+	name         string
+	obj          *unstructured.Unstructured
+	cacheKey     string
+	assertTyped  func(t *testing.T, raw any)
+	list         func(t *testing.T, fi *fakeInformers) (annotations map[string]string, err error)
+	get          func(t *testing.T, fi *fakeInformers, name string) (annotations map[string]string, err error)
+	rawIndexer   func(fi *fakeInformers) cache.Indexer
+	wrappedStore func(fi *fakeInformers) cache.Store
+}
+
+func storeUpdateCases(t *testing.T) []storeUpdateCase {
+	t.Helper()
+
+	rollout := testutil.ObjectFromPath("examples/rollout-canary.yaml")
+	rollout.SetNamespace("default")
+
+	analysisRun := testutil.ObjectFromPath("test/e2e/functional/analysis-run-job.yaml")
+	analysisRun.SetNamespace("default")
+
+	analysisTemplate := testutil.ObjectFromPath("test/e2e/functional/analysis-run-job.yaml")
+	analysisTemplate.SetNamespace("default")
+	analysisTemplate.SetKind("AnalysisTemplate")
+	analysisTemplate.SetName("good-analysis-template")
+
+	experiment := testutil.ObjectFromPath("test/e2e/functional/experiment-basic.yaml")
+	experiment.SetNamespace("default")
+	experiment.SetGenerateName("")
+	experiment.SetName("good-experiment")
+
+	clusterAT := testutil.ObjectFromPath("test/e2e/functional/analysis-run-job.yaml")
+	clusterAT.SetKind("ClusterAnalysisTemplate")
+	clusterAT.SetNamespace("")
+	clusterAT.SetName("good-cluster-analysis-template")
+
+	return []storeUpdateCase{
+		{
+			name:     "Rollout",
+			obj:      rollout,
+			cacheKey: "default/" + rollout.GetName(),
+			assertTyped: func(t *testing.T, raw any) {
+				_, ok := raw.(*v1alpha1.Rollout)
+				assert.True(t, ok, "expected *v1alpha1.Rollout, got %T", raw)
+			},
+			list: func(t *testing.T, fi *fakeInformers) (map[string]string, error) {
+				list, err := fi.rollout.Lister().List(labels.NewSelector())
+				if err != nil {
+					return nil, err
+				}
+				require.Len(t, list, 1)
+				return list[0].Annotations, nil
+			},
+			get: func(t *testing.T, fi *fakeInformers, name string) (map[string]string, error) {
+				obj, err := fi.rollout.Lister().Rollouts("default").Get(name)
+				if err != nil {
+					return nil, err
+				}
+				return obj.Annotations, nil
+			},
+			rawIndexer: func(fi *fakeInformers) cache.Indexer {
+				return fi.rollout.(*tolerantRolloutInformer).delegate.Informer().GetIndexer()
+			},
+			wrappedStore: func(fi *fakeInformers) cache.Store { return fi.rollout.Informer().GetStore() },
+		},
+		{
+			name:     "AnalysisRun",
+			obj:      analysisRun,
+			cacheKey: "default/" + analysisRun.GetName(),
+			assertTyped: func(t *testing.T, raw any) {
+				_, ok := raw.(*v1alpha1.AnalysisRun)
+				assert.True(t, ok, "expected *v1alpha1.AnalysisRun, got %T", raw)
+			},
+			list: func(t *testing.T, fi *fakeInformers) (map[string]string, error) {
+				list, err := fi.analysisRun.Lister().List(labels.NewSelector())
+				if err != nil {
+					return nil, err
+				}
+				require.Len(t, list, 1)
+				return list[0].Annotations, nil
+			},
+			get: func(t *testing.T, fi *fakeInformers, name string) (map[string]string, error) {
+				obj, err := fi.analysisRun.Lister().AnalysisRuns("default").Get(name)
+				if err != nil {
+					return nil, err
+				}
+				return obj.Annotations, nil
+			},
+			rawIndexer: func(fi *fakeInformers) cache.Indexer {
+				return fi.analysisRun.(*tolerantAnalysisRunInformer).delegate.Informer().GetIndexer()
+			},
+			wrappedStore: func(fi *fakeInformers) cache.Store { return fi.analysisRun.Informer().GetStore() },
+		},
+		{
+			name:     "AnalysisTemplate",
+			obj:      analysisTemplate,
+			cacheKey: "default/" + analysisTemplate.GetName(),
+			assertTyped: func(t *testing.T, raw any) {
+				_, ok := raw.(*v1alpha1.AnalysisTemplate)
+				assert.True(t, ok, "expected *v1alpha1.AnalysisTemplate, got %T", raw)
+			},
+			list: func(t *testing.T, fi *fakeInformers) (map[string]string, error) {
+				list, err := fi.analysisTemplate.Lister().List(labels.NewSelector())
+				if err != nil {
+					return nil, err
+				}
+				require.Len(t, list, 1)
+				return list[0].Annotations, nil
+			},
+			get: func(t *testing.T, fi *fakeInformers, name string) (map[string]string, error) {
+				obj, err := fi.analysisTemplate.Lister().AnalysisTemplates("default").Get(name)
+				if err != nil {
+					return nil, err
+				}
+				return obj.Annotations, nil
+			},
+			rawIndexer: func(fi *fakeInformers) cache.Indexer {
+				return fi.analysisTemplate.(*tolerantAnalysisTemplateInformer).delegate.Informer().GetIndexer()
+			},
+			wrappedStore: func(fi *fakeInformers) cache.Store { return fi.analysisTemplate.Informer().GetStore() },
+		},
+		{
+			name:     "Experiment",
+			obj:      experiment,
+			cacheKey: "default/" + experiment.GetName(),
+			assertTyped: func(t *testing.T, raw any) {
+				_, ok := raw.(*v1alpha1.Experiment)
+				assert.True(t, ok, "expected *v1alpha1.Experiment, got %T", raw)
+			},
+			list: func(t *testing.T, fi *fakeInformers) (map[string]string, error) {
+				list, err := fi.experiment.Lister().List(labels.NewSelector())
+				if err != nil {
+					return nil, err
+				}
+				require.Len(t, list, 1)
+				return list[0].Annotations, nil
+			},
+			get: func(t *testing.T, fi *fakeInformers, name string) (map[string]string, error) {
+				obj, err := fi.experiment.Lister().Experiments("default").Get(name)
+				if err != nil {
+					return nil, err
+				}
+				return obj.Annotations, nil
+			},
+			rawIndexer: func(fi *fakeInformers) cache.Indexer {
+				return fi.experiment.(*tolerantExperimentInformer).delegate.Informer().GetIndexer()
+			},
+			wrappedStore: func(fi *fakeInformers) cache.Store { return fi.experiment.Informer().GetStore() },
+		},
+		{
+			name:     "ClusterAnalysisTemplate",
+			obj:      clusterAT,
+			cacheKey: clusterAT.GetName(),
+			assertTyped: func(t *testing.T, raw any) {
+				_, ok := raw.(*v1alpha1.ClusterAnalysisTemplate)
+				assert.True(t, ok, "expected *v1alpha1.ClusterAnalysisTemplate, got %T", raw)
+			},
+			list: func(t *testing.T, fi *fakeInformers) (map[string]string, error) {
+				list, err := fi.clusterAnalysisTemplate.Lister().List(labels.NewSelector())
+				if err != nil {
+					return nil, err
+				}
+				require.Len(t, list, 1)
+				return list[0].Annotations, nil
+			},
+			get: func(t *testing.T, fi *fakeInformers, name string) (map[string]string, error) {
+				obj, err := fi.clusterAnalysisTemplate.Lister().Get(name)
+				if err != nil {
+					return nil, err
+				}
+				return obj.Annotations, nil
+			},
+			rawIndexer: func(fi *fakeInformers) cache.Indexer {
+				return fi.clusterAnalysisTemplate.(*tolerantClusterAnalysisTemplateInformer).delegate.Informer().GetIndexer()
+			},
+			wrappedStore: func(fi *fakeInformers) cache.Store { return fi.clusterAnalysisTemplate.Informer().GetStore() },
+		},
+	}
+}
+
+// TestStoreUpdateWithUnstructuredDoesNotPanicList reproduces the notifications-engine
+// pattern: after a dynamic client Patch it writes *unstructured.Unstructured into
+// Informer().GetStore(). Typed listers that hard-cast panic (see prometheus scrape
+// path in controller/metrics). Both the transformingInformer wrapper and coerceToTyped
+// in List must keep this safe for every tolerant resource kind.
+func TestStoreUpdateWithUnstructuredDoesNotPanicList(t *testing.T) {
+	for _, tc := range storeUpdateCases(t) {
+		t.Run(tc.name, func(t *testing.T) {
+			fi := newFakeDynamicInformer(tc.obj)
+
+			patched := tc.obj.DeepCopy()
+			patched.SetAnnotations(map[string]string{"notified": "true"})
+			require.NoError(t, tc.wrappedStore(fi).Update(patched))
+
+			raw, exists, err := tc.rawIndexer(fi).GetByKey(tc.cacheKey)
+			require.NoError(t, err)
+			require.True(t, exists)
+			tc.assertTyped(t, raw)
+
+			annotations, err := tc.list(t, fi)
+			require.NoError(t, err)
+			assert.Equal(t, "true", annotations["notified"])
+		})
+	}
+}
+
+// TestPoisonedCacheListRecovers coerces objects that were written to the raw
+// indexer as Unstructured (bypassing both SetTransform and the Informer wrapper).
+// Covers both List and namespaced/cluster Get — Get also goes through getTyped
+// and was on the same hard-cast panic path before the fix.
+func TestPoisonedCacheListRecovers(t *testing.T) {
+	for _, tc := range storeUpdateCases(t) {
+		t.Run(tc.name, func(t *testing.T) {
+			fi := newFakeDynamicInformer(tc.obj)
+
+			poisoned := tc.obj.DeepCopy()
+			poisoned.SetAnnotations(map[string]string{"poison": "1"})
+			require.NoError(t, tc.rawIndexer(fi).Update(poisoned))
+
+			annotations, err := tc.list(t, fi)
+			require.NoError(t, err)
+			assert.Equal(t, "1", annotations["poison"])
+
+			annotations, err = tc.get(t, fi, tc.obj.GetName())
+			require.NoError(t, err)
+			assert.Equal(t, "1", annotations["poison"])
+		})
+	}
 }
 
 // TestListerReturnsIsolatedCopies guards the contract that objects returned from
