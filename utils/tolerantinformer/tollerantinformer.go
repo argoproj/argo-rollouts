@@ -77,6 +77,10 @@ func coerceToTyped[T runtime.Object](obj any, newFn func() T) (T, error) {
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, typed); err != nil {
 		logCtx := logutil.WithObject(un)
 		logCtx.Warnf("malformed object: %v", err)
+		// FromUnstructured fails fast on the first bad field. encoding/json continues
+		// past invalid fields so we can return a mostly complete, still-usable object
+		// (PR #666 / issues #389, #517). Ignore the JSON error: even a partially
+		// filled or empty object is preferred over dropping it from the cache.
 		typed = newFn()
 		_ = fromUnstructuredViaJSON(un.Object, typed)
 	}
