@@ -13,73 +13,53 @@ import (
 
 func NewTolerantAnalysisRunInformer(factory dynamicinformer.DynamicSharedInformerFactory) rolloutinformers.AnalysisRunInformer {
 	delegate := factory.ForResource(v1alpha1.AnalysisRunGVR)
-	installTransform(delegate.Informer(),
-		makeTransform(func() *v1alpha1.AnalysisRun { return &v1alpha1.AnalysisRun{} }),
-		"AnalysisRun")
-	return &tolerantAnalysisRunInformer{delegate: delegate}
+	newFn := func() *v1alpha1.AnalysisRun { return &v1alpha1.AnalysisRun{} }
+	transform := makeTransform(newFn)
+	installTransform(delegate.Informer(), transform, "AnalysisRun")
+	return &tolerantAnalysisRunInformer{delegate: delegate, transform: transform, newFn: newFn}
 }
 
 type tolerantAnalysisRunInformer struct {
-	delegate informers.GenericInformer
+	delegate  informers.GenericInformer
+	transform cache.TransformFunc
+	newFn     func() *v1alpha1.AnalysisRun
 }
 
 func (i *tolerantAnalysisRunInformer) Informer() cache.SharedIndexInformer {
-	return i.delegate.Informer()
+	return &transformingInformer{SharedIndexInformer: i.delegate.Informer(), transform: i.transform}
 }
 
 func (i *tolerantAnalysisRunInformer) Lister() rolloutlisters.AnalysisRunLister {
-	return &tolerantAnalysisRunLister{
-		delegate: rolloutlisters.NewAnalysisRunLister(i.delegate.Informer().GetIndexer()),
-	}
+	return &tolerantAnalysisRunLister{indexer: i.delegate.Informer().GetIndexer(), newFn: i.newFn}
 }
 
-// tolerantAnalysisRunLister wraps the generated typed lister and deep-copies each
-// returned object so callers can safely mutate the result without corrupting the
-// shared informer cache. The SetTransform conversion still runs only once per
-// object change, so the dominant cost (unstructured→typed reflection) is paid
-// once; the per-call cost here is a fast generated DeepCopy.
+// tolerantAnalysisRunLister lists from the indexer and deep-copies each result so
+// callers can safely mutate without corrupting the shared cache. Objects are
+// coerced from either the typed form (SetTransform path) or *unstructured.Unstructured
+// (direct store writes that bypass SetTransform).
 type tolerantAnalysisRunLister struct {
-	delegate rolloutlisters.AnalysisRunLister
+	indexer cache.Indexer
+	newFn   func() *v1alpha1.AnalysisRun
 }
 
 func (t *tolerantAnalysisRunLister) List(selector labels.Selector) ([]*v1alpha1.AnalysisRun, error) {
-	items, err := t.delegate.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]*v1alpha1.AnalysisRun, len(items))
-	for i, ar := range items {
-		out[i] = ar.DeepCopy()
-	}
-	return out, nil
+	return listTyped(t.indexer, "", selector, t.newFn)
 }
 
 func (t *tolerantAnalysisRunLister) AnalysisRuns(namespace string) rolloutlisters.AnalysisRunNamespaceLister {
-	return &tolerantAnalysisRunNamespaceLister{
-		delegate: t.delegate.AnalysisRuns(namespace),
-	}
+	return &tolerantAnalysisRunNamespaceLister{indexer: t.indexer, namespace: namespace, newFn: t.newFn}
 }
 
 type tolerantAnalysisRunNamespaceLister struct {
-	delegate rolloutlisters.AnalysisRunNamespaceLister
+	indexer   cache.Indexer
+	namespace string
+	newFn     func() *v1alpha1.AnalysisRun
 }
 
 func (t *tolerantAnalysisRunNamespaceLister) Get(name string) (*v1alpha1.AnalysisRun, error) {
-	ar, err := t.delegate.Get(name)
-	if err != nil {
-		return nil, err
-	}
-	return ar.DeepCopy(), nil
+	return getTyped(t.indexer, v1alpha1.Resource("analysisrun"), t.namespace, name, t.newFn)
 }
 
 func (t *tolerantAnalysisRunNamespaceLister) List(selector labels.Selector) ([]*v1alpha1.AnalysisRun, error) {
-	items, err := t.delegate.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]*v1alpha1.AnalysisRun, len(items))
-	for i, ar := range items {
-		out[i] = ar.DeepCopy()
-	}
-	return out, nil
+	return listTyped(t.indexer, t.namespace, selector, t.newFn)
 }

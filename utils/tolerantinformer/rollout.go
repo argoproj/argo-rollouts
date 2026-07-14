@@ -13,68 +13,49 @@ import (
 
 func NewTolerantRolloutInformer(factory dynamicinformer.DynamicSharedInformerFactory) rolloutinformers.RolloutInformer {
 	delegate := factory.ForResource(v1alpha1.RolloutGVR)
-	installTransform(delegate.Informer(),
-		makeTransform(func() *v1alpha1.Rollout { return &v1alpha1.Rollout{} }),
-		"Rollout")
-	return &tolerantRolloutInformer{delegate: delegate}
+	newFn := func() *v1alpha1.Rollout { return &v1alpha1.Rollout{} }
+	transform := makeTransform(newFn)
+	installTransform(delegate.Informer(), transform, "Rollout")
+	return &tolerantRolloutInformer{delegate: delegate, transform: transform, newFn: newFn}
 }
 
 type tolerantRolloutInformer struct {
-	delegate informers.GenericInformer
+	delegate  informers.GenericInformer
+	transform cache.TransformFunc
+	newFn     func() *v1alpha1.Rollout
 }
 
 func (i *tolerantRolloutInformer) Informer() cache.SharedIndexInformer {
-	return i.delegate.Informer()
+	return &transformingInformer{SharedIndexInformer: i.delegate.Informer(), transform: i.transform}
 }
 
 func (i *tolerantRolloutInformer) Lister() rolloutlisters.RolloutLister {
-	return &tolerantRolloutLister{
-		delegate: rolloutlisters.NewRolloutLister(i.delegate.Informer().GetIndexer()),
-	}
+	return &tolerantRolloutLister{indexer: i.delegate.Informer().GetIndexer(), newFn: i.newFn}
 }
 
 type tolerantRolloutLister struct {
-	delegate rolloutlisters.RolloutLister
+	indexer cache.Indexer
+	newFn   func() *v1alpha1.Rollout
 }
 
 func (t *tolerantRolloutLister) List(selector labels.Selector) ([]*v1alpha1.Rollout, error) {
-	items, err := t.delegate.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]*v1alpha1.Rollout, len(items))
-	for i, ro := range items {
-		out[i] = ro.DeepCopy()
-	}
-	return out, nil
+	return listTyped(t.indexer, "", selector, t.newFn)
 }
 
 func (t *tolerantRolloutLister) Rollouts(namespace string) rolloutlisters.RolloutNamespaceLister {
-	return &tolerantRolloutNamespaceLister{
-		delegate: t.delegate.Rollouts(namespace),
-	}
+	return &tolerantRolloutNamespaceLister{indexer: t.indexer, namespace: namespace, newFn: t.newFn}
 }
 
 type tolerantRolloutNamespaceLister struct {
-	delegate rolloutlisters.RolloutNamespaceLister
+	indexer   cache.Indexer
+	namespace string
+	newFn     func() *v1alpha1.Rollout
 }
 
 func (t *tolerantRolloutNamespaceLister) Get(name string) (*v1alpha1.Rollout, error) {
-	ro, err := t.delegate.Get(name)
-	if err != nil {
-		return nil, err
-	}
-	return ro.DeepCopy(), nil
+	return getTyped(t.indexer, v1alpha1.Resource("rollout"), t.namespace, name, t.newFn)
 }
 
 func (t *tolerantRolloutNamespaceLister) List(selector labels.Selector) ([]*v1alpha1.Rollout, error) {
-	items, err := t.delegate.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]*v1alpha1.Rollout, len(items))
-	for i, ro := range items {
-		out[i] = ro.DeepCopy()
-	}
-	return out, nil
+	return listTyped(t.indexer, t.namespace, selector, t.newFn)
 }
