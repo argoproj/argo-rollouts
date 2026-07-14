@@ -13,46 +13,35 @@ import (
 
 func NewTolerantClusterAnalysisTemplateInformer(factory dynamicinformer.DynamicSharedInformerFactory) rolloutinformers.ClusterAnalysisTemplateInformer {
 	delegate := factory.ForResource(v1alpha1.ClusterAnalysisTemplateGVR)
-	installTransform(delegate.Informer(),
-		makeTransform(func() *v1alpha1.ClusterAnalysisTemplate { return &v1alpha1.ClusterAnalysisTemplate{} }),
-		"ClusterAnalysisTemplate")
-	return &tolerantClusterAnalysisTemplateInformer{delegate: delegate}
+	newFn := func() *v1alpha1.ClusterAnalysisTemplate { return &v1alpha1.ClusterAnalysisTemplate{} }
+	transform := makeTransform(newFn)
+	installTransform(delegate.Informer(), transform, "ClusterAnalysisTemplate")
+	return &tolerantClusterAnalysisTemplateInformer{delegate: delegate, transform: transform, newFn: newFn}
 }
 
 type tolerantClusterAnalysisTemplateInformer struct {
-	delegate informers.GenericInformer
+	delegate  informers.GenericInformer
+	transform cache.TransformFunc
+	newFn     func() *v1alpha1.ClusterAnalysisTemplate
 }
 
 func (i *tolerantClusterAnalysisTemplateInformer) Informer() cache.SharedIndexInformer {
-	return i.delegate.Informer()
+	return &transformingInformer{SharedIndexInformer: i.delegate.Informer(), transform: i.transform}
 }
 
 func (i *tolerantClusterAnalysisTemplateInformer) Lister() rolloutlisters.ClusterAnalysisTemplateLister {
-	return &tolerantClusterAnalysisTemplateLister{
-		delegate: rolloutlisters.NewClusterAnalysisTemplateLister(i.delegate.Informer().GetIndexer()),
-	}
+	return &tolerantClusterAnalysisTemplateLister{indexer: i.delegate.Informer().GetIndexer(), newFn: i.newFn}
 }
 
 type tolerantClusterAnalysisTemplateLister struct {
-	delegate rolloutlisters.ClusterAnalysisTemplateLister
+	indexer cache.Indexer
+	newFn   func() *v1alpha1.ClusterAnalysisTemplate
 }
 
 func (t *tolerantClusterAnalysisTemplateLister) List(selector labels.Selector) ([]*v1alpha1.ClusterAnalysisTemplate, error) {
-	items, err := t.delegate.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]*v1alpha1.ClusterAnalysisTemplate, len(items))
-	for i, cat := range items {
-		out[i] = cat.DeepCopy()
-	}
-	return out, nil
+	return listTyped(t.indexer, "", selector, t.newFn)
 }
 
 func (t *tolerantClusterAnalysisTemplateLister) Get(name string) (*v1alpha1.ClusterAnalysisTemplate, error) {
-	cat, err := t.delegate.Get(name)
-	if err != nil {
-		return nil, err
-	}
-	return cat.DeepCopy(), nil
+	return getTyped(t.indexer, v1alpha1.Resource("clusteranalysistemplate"), "", name, t.newFn)
 }
