@@ -13,14 +13,16 @@ import (
 
 func NewTolerantAnalysisRunInformer(factory dynamicinformer.DynamicSharedInformerFactory) rolloutinformers.AnalysisRunInformer {
 	delegate := factory.ForResource(v1alpha1.AnalysisRunGVR)
-	transform := makeTransform(func() *v1alpha1.AnalysisRun { return &v1alpha1.AnalysisRun{} })
+	newFn := func() *v1alpha1.AnalysisRun { return &v1alpha1.AnalysisRun{} }
+	transform := makeTransform(newFn)
 	installTransform(delegate.Informer(), transform, "AnalysisRun")
-	return &tolerantAnalysisRunInformer{delegate: delegate, transform: transform}
+	return &tolerantAnalysisRunInformer{delegate: delegate, transform: transform, newFn: newFn}
 }
 
 type tolerantAnalysisRunInformer struct {
 	delegate  informers.GenericInformer
 	transform cache.TransformFunc
+	newFn     func() *v1alpha1.AnalysisRun
 }
 
 func (i *tolerantAnalysisRunInformer) Informer() cache.SharedIndexInformer {
@@ -28,7 +30,7 @@ func (i *tolerantAnalysisRunInformer) Informer() cache.SharedIndexInformer {
 }
 
 func (i *tolerantAnalysisRunInformer) Lister() rolloutlisters.AnalysisRunLister {
-	return &tolerantAnalysisRunLister{indexer: i.delegate.Informer().GetIndexer()}
+	return &tolerantAnalysisRunLister{indexer: i.delegate.Informer().GetIndexer(), newFn: i.newFn}
 }
 
 // tolerantAnalysisRunLister lists from the indexer and deep-copies each result so
@@ -37,31 +39,27 @@ func (i *tolerantAnalysisRunInformer) Lister() rolloutlisters.AnalysisRunLister 
 // (direct store writes that bypass SetTransform).
 type tolerantAnalysisRunLister struct {
 	indexer cache.Indexer
+	newFn   func() *v1alpha1.AnalysisRun
 }
 
 func (t *tolerantAnalysisRunLister) List(selector labels.Selector) ([]*v1alpha1.AnalysisRun, error) {
-	return listTyped(t.indexer, "", selector,
-		func() *v1alpha1.AnalysisRun { return &v1alpha1.AnalysisRun{} },
-		func(ar *v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun { return ar.DeepCopy() })
+	return listTyped(t.indexer, "", selector, t.newFn)
 }
 
 func (t *tolerantAnalysisRunLister) AnalysisRuns(namespace string) rolloutlisters.AnalysisRunNamespaceLister {
-	return &tolerantAnalysisRunNamespaceLister{indexer: t.indexer, namespace: namespace}
+	return &tolerantAnalysisRunNamespaceLister{indexer: t.indexer, namespace: namespace, newFn: t.newFn}
 }
 
 type tolerantAnalysisRunNamespaceLister struct {
 	indexer   cache.Indexer
 	namespace string
+	newFn     func() *v1alpha1.AnalysisRun
 }
 
 func (t *tolerantAnalysisRunNamespaceLister) Get(name string) (*v1alpha1.AnalysisRun, error) {
-	return getTyped(t.indexer, v1alpha1.Resource("analysisrun"), t.namespace, name,
-		func() *v1alpha1.AnalysisRun { return &v1alpha1.AnalysisRun{} },
-		func(ar *v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun { return ar.DeepCopy() })
+	return getTyped(t.indexer, v1alpha1.Resource("analysisrun"), t.namespace, name, t.newFn)
 }
 
 func (t *tolerantAnalysisRunNamespaceLister) List(selector labels.Selector) ([]*v1alpha1.AnalysisRun, error) {
-	return listTyped(t.indexer, t.namespace, selector,
-		func() *v1alpha1.AnalysisRun { return &v1alpha1.AnalysisRun{} },
-		func(ar *v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun { return ar.DeepCopy() })
+	return listTyped(t.indexer, t.namespace, selector, t.newFn)
 }
