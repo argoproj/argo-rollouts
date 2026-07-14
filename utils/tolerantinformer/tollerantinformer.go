@@ -81,7 +81,7 @@ func listTyped[T runtime.Object](indexer cache.Indexer, namespace string, select
 	appendOne := func(m any) {
 		typed, err := coerceToTyped(m, newFn)
 		if err != nil {
-			log.Warnf("tolerantinformer: skipping cache object: %v", err)
+			warnSkipCacheObject(m, err)
 			return
 		}
 		out = append(out, deepCopy(typed))
@@ -93,6 +93,25 @@ func listTyped[T runtime.Object](indexer cache.Indexer, namespace string, select
 		err = cache.ListAllByNamespace(indexer, namespace, selector, appendOne)
 	}
 	return out, err
+}
+
+// warnSkipCacheObject logs a skipped cache object with enough identity for field
+// diagnosis (namespace/name/key when available), matching logutil.WithObject style.
+func warnSkipCacheObject(obj any, err error) {
+	if ro, ok := obj.(runtime.Object); ok {
+		logutil.WithObject(ro).WithField("type", fmt.Sprintf("%T", obj)).
+			Warnf("tolerantinformer: skipping cache object: %v", err)
+		return
+	}
+	fields := log.Fields{"type": fmt.Sprintf("%T", obj)}
+	if key, keyErr := cache.MetaNamespaceKeyFunc(obj); keyErr == nil {
+		fields["key"] = key
+		if ns, name, splitErr := cache.SplitMetaNamespaceKey(key); splitErr == nil {
+			fields["namespace"] = ns
+			fields["name"] = name
+		}
+	}
+	log.WithFields(fields).Warnf("tolerantinformer: skipping cache object: %v", err)
 }
 
 func getTyped[T runtime.Object](indexer cache.Indexer, resource schema.GroupResource, namespace, name string, newFn func() T, deepCopy func(T) T) (T, error) {

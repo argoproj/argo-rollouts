@@ -292,6 +292,7 @@ type storeUpdateCase struct {
 	cacheKey     string
 	assertTyped  func(t *testing.T, raw any)
 	list         func(t *testing.T, fi *fakeInformers) (annotations map[string]string, err error)
+	get          func(t *testing.T, fi *fakeInformers, name string) (annotations map[string]string, err error)
 	rawIndexer   func(fi *fakeInformers) cache.Indexer
 	wrappedStore func(fi *fakeInformers) cache.Store
 }
@@ -337,6 +338,13 @@ func storeUpdateCases(t *testing.T) []storeUpdateCase {
 				require.Len(t, list, 1)
 				return list[0].Annotations, nil
 			},
+			get: func(t *testing.T, fi *fakeInformers, name string) (map[string]string, error) {
+				obj, err := fi.rollout.Lister().Rollouts("default").Get(name)
+				if err != nil {
+					return nil, err
+				}
+				return obj.Annotations, nil
+			},
 			rawIndexer: func(fi *fakeInformers) cache.Indexer {
 				return fi.rollout.(*tolerantRolloutInformer).delegate.Informer().GetIndexer()
 			},
@@ -357,6 +365,13 @@ func storeUpdateCases(t *testing.T) []storeUpdateCase {
 				}
 				require.Len(t, list, 1)
 				return list[0].Annotations, nil
+			},
+			get: func(t *testing.T, fi *fakeInformers, name string) (map[string]string, error) {
+				obj, err := fi.analysisRun.Lister().AnalysisRuns("default").Get(name)
+				if err != nil {
+					return nil, err
+				}
+				return obj.Annotations, nil
 			},
 			rawIndexer: func(fi *fakeInformers) cache.Indexer {
 				return fi.analysisRun.(*tolerantAnalysisRunInformer).delegate.Informer().GetIndexer()
@@ -379,6 +394,13 @@ func storeUpdateCases(t *testing.T) []storeUpdateCase {
 				require.Len(t, list, 1)
 				return list[0].Annotations, nil
 			},
+			get: func(t *testing.T, fi *fakeInformers, name string) (map[string]string, error) {
+				obj, err := fi.analysisTemplate.Lister().AnalysisTemplates("default").Get(name)
+				if err != nil {
+					return nil, err
+				}
+				return obj.Annotations, nil
+			},
 			rawIndexer: func(fi *fakeInformers) cache.Indexer {
 				return fi.analysisTemplate.(*tolerantAnalysisTemplateInformer).delegate.Informer().GetIndexer()
 			},
@@ -400,6 +422,13 @@ func storeUpdateCases(t *testing.T) []storeUpdateCase {
 				require.Len(t, list, 1)
 				return list[0].Annotations, nil
 			},
+			get: func(t *testing.T, fi *fakeInformers, name string) (map[string]string, error) {
+				obj, err := fi.experiment.Lister().Experiments("default").Get(name)
+				if err != nil {
+					return nil, err
+				}
+				return obj.Annotations, nil
+			},
 			rawIndexer: func(fi *fakeInformers) cache.Indexer {
 				return fi.experiment.(*tolerantExperimentInformer).delegate.Informer().GetIndexer()
 			},
@@ -420,6 +449,13 @@ func storeUpdateCases(t *testing.T) []storeUpdateCase {
 				}
 				require.Len(t, list, 1)
 				return list[0].Annotations, nil
+			},
+			get: func(t *testing.T, fi *fakeInformers, name string) (map[string]string, error) {
+				obj, err := fi.clusterAnalysisTemplate.Lister().Get(name)
+				if err != nil {
+					return nil, err
+				}
+				return obj.Annotations, nil
 			},
 			rawIndexer: func(fi *fakeInformers) cache.Indexer {
 				return fi.clusterAnalysisTemplate.(*tolerantClusterAnalysisTemplateInformer).delegate.Informer().GetIndexer()
@@ -457,6 +493,8 @@ func TestStoreUpdateWithUnstructuredDoesNotPanicList(t *testing.T) {
 
 // TestPoisonedCacheListRecovers coerces objects that were written to the raw
 // indexer as Unstructured (bypassing both SetTransform and the Informer wrapper).
+// Covers both List and namespaced/cluster Get — Get also goes through getTyped
+// and was on the same hard-cast panic path before the fix.
 func TestPoisonedCacheListRecovers(t *testing.T) {
 	for _, tc := range storeUpdateCases(t) {
 		t.Run(tc.name, func(t *testing.T) {
@@ -467,6 +505,10 @@ func TestPoisonedCacheListRecovers(t *testing.T) {
 			require.NoError(t, tc.rawIndexer(fi).Update(poisoned))
 
 			annotations, err := tc.list(t, fi)
+			require.NoError(t, err)
+			assert.Equal(t, "1", annotations["poison"])
+
+			annotations, err = tc.get(t, fi, tc.obj.GetName())
 			require.NoError(t, err)
 			assert.Equal(t, "1", annotations["poison"])
 		})
