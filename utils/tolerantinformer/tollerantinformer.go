@@ -15,7 +15,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-// deepCopyable is satisfied by the generated ARGO CRD pointer types
+// deepCopyable is satisfied by the generated Rollouts CRD pointer types
 // (e.g. *v1alpha1.Rollout), which implement both runtime.Object and DeepCopy().
 type deepCopyable[T any] interface {
 	runtime.Object
