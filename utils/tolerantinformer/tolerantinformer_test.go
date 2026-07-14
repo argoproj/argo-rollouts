@@ -281,6 +281,56 @@ func TestMalformedExperiment(t *testing.T) {
 	verify(obj)
 }
 
+// TestStoreUpdateWithUnstructuredDoesNotPanicList reproduces the notifications-engine
+// pattern: after a dynamic client Patch it writes *unstructured.Unstructured into
+// Informer().GetStore(). Typed listers that hard-cast panic (see prometheus scrape
+// path in controller/metrics). Both the transformingInformer wrapper and coerceToTyped
+// in List must keep this safe.
+func TestStoreUpdateWithUnstructuredDoesNotPanicList(t *testing.T) {
+	good := testutil.ObjectFromPath("examples/rollout-canary.yaml")
+	good.SetNamespace("default")
+	fi := newFakeDynamicInformer(good)
+	informer := fi.rollout
+
+	// Simulate notifications-engine processResource after Patch: write Unstructured
+	// directly into the store exposed by Informer().
+	patched := good.DeepCopy()
+	patched.SetAnnotations(map[string]string{"notified": "true"})
+	err := informer.Informer().GetStore().Update(patched)
+	assert.NoError(t, err)
+
+	// Cache should hold a typed Rollout after the transforming store wrapper runs.
+	raw, exists, err := fi.rollout.Informer().GetIndexer().GetByKey("default/" + good.GetName())
+	assert.NoError(t, err)
+	assert.True(t, exists)
+	_, ok := raw.(*v1alpha1.Rollout)
+	assert.True(t, ok, "expected *v1alpha1.Rollout in cache after GetStore().Update, got %T", raw)
+
+	list, err := informer.Lister().List(labels.NewSelector())
+	assert.NoError(t, err)
+	assert.Len(t, list, 1)
+	assert.Equal(t, "true", list[0].Annotations["notified"])
+}
+
+// TestPoisonedCacheListRecovers coerces objects that were written to the raw
+// indexer as Unstructured (bypassing both SetTransform and the Informer wrapper).
+func TestPoisonedCacheListRecovers(t *testing.T) {
+	good := testutil.ObjectFromPath("examples/rollout-canary.yaml")
+	good.SetNamespace("default")
+	fi := newFakeDynamicInformer(good)
+
+	// Write Unstructured into the underlying indexer, skipping transformingInformer.
+	poisoned := good.DeepCopy()
+	poisoned.SetAnnotations(map[string]string{"poison": "1"})
+	err := fi.rollout.(*tolerantRolloutInformer).delegate.Informer().GetIndexer().Update(poisoned)
+	assert.NoError(t, err)
+
+	list, err := fi.rollout.Lister().List(labels.NewSelector())
+	assert.NoError(t, err)
+	assert.Len(t, list, 1)
+	assert.Equal(t, "1", list[0].Annotations["poison"])
+}
+
 // TestListerReturnsIsolatedCopies guards the contract that objects returned from
 // the tolerant listers can be mutated by callers without corrupting the shared
 // informer cache. Real consumers (e.g. validation_references.go's
