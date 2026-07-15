@@ -19,7 +19,7 @@ To install the controller in your cluster and get started with Progressive Deliv
 The Rollout resource is a custom Kubernetes resource introduced and managed by Argo Rollouts. It is mostly compatible with the native Kubernetes Deployment resource but with extra
 fields that control the stages, thresholds and methods of advanced deployment methods such as canaries and blue/green deployments.
 
-Note that the Argo Rollouts controller will only respond to those changes that happen in Rollout sources. It will do nothing for normal deployment resources. This means that you need to [migrate your Deployments to Rollouts](../migrating/) if you want to manage them with Argo Rollouts.
+Note that the Argo Rollouts controller will only respond to those changes that happen in Rollout resources. It will do nothing for normal deployment resources. This means that you need to [migrate your Deployments to Rollouts](../migrating/) if you want to manage them with Argo Rollouts.
 
 You can see all possible options of a Rollout in the [full specification page](../features/specification/).
 
