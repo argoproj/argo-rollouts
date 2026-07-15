@@ -17,7 +17,7 @@ const TestRootPath = "/test-root"
 var (
 	//go:embed static_test/*
 	staticTestData embed.FS //nolint
-	mockServer     ArgoRolloutsServer
+	mockServer     *ArgoRolloutsServer
 )
 
 func init() {
@@ -103,8 +103,8 @@ func TestInvalidFilesOrHackingAttemptReturn404(t *testing.T) {
 	}
 }
 
-func mockArgoRolloutServer() ArgoRolloutsServer {
-	s := ArgoRolloutsServer{
+func mockArgoRolloutServer() *ArgoRolloutsServer {
+	s := &ArgoRolloutsServer{
 		Options: ServerOptions{
 			RootPath: TestRootPath,
 		},
