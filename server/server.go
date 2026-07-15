@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/argoproj/pkg/errors"
@@ -23,6 +25,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
@@ -67,6 +70,82 @@ const (
 type ArgoRolloutsServer struct {
 	Options ServerOptions
 	stopCh  chan struct{}
+
+	// Lazily-initialized, per-namespace informer-backed listers for the
+	// one-shot list paths (ListRolloutInfos / ListReplicaSetsAndPods).
+	// Without this, every page load issued unfiltered, full-payload List
+	// calls for ALL ReplicaSets and Pods in the namespace, which takes the
+	// control plane seconds to minutes on large namespaces.
+	nsListersMu sync.Mutex
+	nsListers   map[string]*namespaceListers
+}
+
+// namespaceListers serves reads from a shared watch cache instead of
+// re-listing the world on every request.
+type namespaceListers struct {
+	rollouts    listers.RolloutNamespaceLister
+	replicaSets appslisters.ReplicaSetNamespaceLister
+	pods        corelisters.PodNamespaceLister
+}
+
+// namespaceListers returns (building on first use) the informer-backed
+// listers for a namespace. Informers are started once and live for the
+// process lifetime — a warm watch is the point of the cache, and the
+// dashboard serves a small, fixed set of namespaces.
+func (s *ArgoRolloutsServer) namespaceListers(ctx context.Context, namespace string) (*namespaceListers, error) {
+	s.nsListersMu.Lock()
+	defer s.nsListersMu.Unlock()
+	if c, ok := s.nsListers[namespace]; ok {
+		return c, nil
+	}
+
+	stopCh := make(chan struct{})
+
+	rolloutsFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(
+		s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(namespace))
+	rolloutInformer := rolloutsFactory.Argoproj().V1alpha1().Rollouts()
+
+	// Only ReplicaSets/Pods managed by Argo Rollouts carry
+	// DefaultRolloutUniqueLabelKey, and those are the only objects the
+	// ownerRef walk in GetReplicaSetInfo can ever match — so let the API
+	// server filter out everything else instead of shipping it to us.
+	kubeFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+		s.Options.KubeClientset, 0,
+		kubeinformers.WithNamespace(namespace),
+		kubeinformers.WithTweakListOptions(func(opts *v1.ListOptions) {
+			opts.LabelSelector = v1alpha1.DefaultRolloutUniqueLabelKey
+		}))
+	rsInformer := kubeFactory.Apps().V1().ReplicaSets()
+	podInformer := kubeFactory.Core().V1().Pods()
+
+	// Informer() must be called BEFORE factory.Start — Start only launches
+	// informers that are already registered with the factory.
+	rolloutSynced := rolloutInformer.Informer().HasSynced
+	rsSynced := rsInformer.Informer().HasSynced
+	podSynced := podInformer.Informer().HasSynced
+
+	rolloutsFactory.Start(stopCh)
+	kubeFactory.Start(stopCh)
+
+	// Bound the initial sync independently of the request context (the gRPC
+	// context may carry no deadline, which would block forever on failure).
+	syncCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if !cache.WaitForCacheSync(syncCtx.Done(), rolloutSynced, rsSynced, podSynced) {
+		close(stopCh)
+		return nil, fmt.Errorf("timed out waiting for informer caches to sync for namespace %q", namespace)
+	}
+
+	c := &namespaceListers{
+		rollouts:    rolloutInformer.Lister().Rollouts(namespace),
+		replicaSets: rsInformer.Lister().ReplicaSets(namespace),
+		pods:        podInformer.Lister().Pods(namespace),
+	}
+	if s.nsListers == nil {
+		s.nsListers = make(map[string]*namespaceListers)
+	}
+	s.nsListers[namespace] = c
+	return c, nil
 }
 
 // NewServer creates an ArgoRolloutsServer
@@ -211,36 +290,38 @@ func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws ro
 }
 
 func (s *ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context, namespace string) ([]*appsv1.ReplicaSet, []*corev1.Pod, error) {
-
-	allReplicaSets, err := s.Options.KubeClientset.AppsV1().ReplicaSets(namespace).List(ctx, v1.ListOptions{})
+	c, err := s.namespaceListers(ctx, namespace)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	allPods, err := s.Options.KubeClientset.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{})
+	allReplicaSets, err := c.replicaSets.List(labels.Everything())
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var allReplicaSetsP = make([]*appsv1.ReplicaSet, len(allReplicaSets.Items))
-	for i := range allReplicaSets.Items {
-		allReplicaSetsP[i] = &allReplicaSets.Items[i]
+	allPods, err := c.pods.List(labels.Everything())
+	if err != nil {
+		return nil, nil, err
 	}
-	var allPodsP = make([]*corev1.Pod, len(allPods.Items))
-	for i := range allPods.Items {
-		allPodsP[i] = &allPods.Items[i]
-	}
-	return allReplicaSetsP, allPodsP, nil
+
+	return allReplicaSets, allPods, nil
 }
 
 // ListRolloutInfos returns a list of all rollouts
 func (s *ArgoRolloutsServer) ListRolloutInfos(ctx context.Context, q *rollout.RolloutInfoListQuery) (*rollout.RolloutInfoList, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
-	rolloutList, err := rolloutIf.List(ctx, v1.ListOptions{})
-
+	c, err := s.namespaceListers(ctx, q.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
+
+	rollouts, err := c.rollouts.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	// Listers return objects in undefined order; the direct API List this
+	// replaces was name-ordered, so sort to keep the UI stable.
+	sort.Slice(rollouts, func(i, j int) bool { return rollouts[i].Name < rollouts[j].Name })
 
 	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx, q.GetNamespace())
 	if err != nil {
@@ -248,10 +329,9 @@ func (s *ArgoRolloutsServer) ListRolloutInfos(ctx context.Context, q *rollout.Ro
 	}
 
 	var riList []*rollout.RolloutInfo
-	for i := range rolloutList.Items {
-		cur := rolloutList.Items[i]
-		ri := info.NewRolloutInfo(&cur, nil, nil, nil, nil, nil)
-		ri.ReplicaSets = info.GetReplicaSetInfo(cur.UID, &cur, allReplicaSets, allPods)
+	for _, cur := range rollouts {
+		ri := info.NewRolloutInfo(cur, nil, nil, nil, nil, nil)
+		ri.ReplicaSets = info.GetReplicaSetInfo(cur.UID, cur, allReplicaSets, allPods)
 		riList = append(riList, ri)
 	}
 
