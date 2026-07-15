@@ -1,0 +1,36 @@
+# statsig-io fork: builds the dashboard plugin binary (UI embedded) and
+# attaches it to a GitHub Release, for consumption by the
+# statsig-io/kubectl-via-gcloud image build.
+#
+# Trigger: push a tag like v1.6.4-statsig.1 (cut from release-1.6.4-statsig).
+name: Build statsig dashboard release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*-statsig*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.repository == 'statsig-io/argo-rollouts'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      # make plugin = yarn ui build -> cp into server/static -> go build
+      - run: make plugin
+      - run: mv dist/kubectl-argo-rollouts dist/kubectl-argo-rollouts-linux-amd64
+      - name: Attach binary to release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: dist/kubectl-argo-rollouts-linux-amd64
+          generate_release_notes: false
