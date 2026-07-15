@@ -172,6 +172,35 @@ spec:
       abortScaleDownDelaySeconds: 600
 ```
 
+### Stable Scale-Down Policy
+
+When `dynamicStableScale` is enabled with traffic routing, the controller scales the stable
+ReplicaSet down as stable traffic weight decreases. At high canary weight (e.g. `setWeight: 100`),
+the stable ReplicaSet may be scaled to zero immediately after the control plane updates traffic
+weights. Service mesh data planes can lag behind the control plane, briefly routing traffic to an
+empty stable subset and causing `503` errors.
+
+`stableScaleDownPolicy` delays scaling the stable ReplicaSet below its current replica count for
+`delaySeconds` after a scale-down is requested, giving the data plane time to converge before pods
+are removed. The field requires `dynamicStableScale: true` and `trafficRouting` to be configured.
+
+```yaml
+spec:
+  strategy:
+    canary:
+      dynamicStableScale: true
+      stableScaleDownPolicy:
+        delaySeconds: 60
+      trafficRouting:
+        istio:
+          virtualService:
+            name: rollouts-demo-vsvc
+          destinationRule:
+            name: rollouts-demo-destrule
+            canarySubsetName: canary
+            stableSubsetName: stable
+```
+
 ## Mimicking Rolling Update
 
 !!! important

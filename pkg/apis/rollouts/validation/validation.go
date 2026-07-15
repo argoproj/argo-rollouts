@@ -73,6 +73,12 @@ const (
 	InvalidCanaryDynamicStableScale = "Canary dynamicStableScale can only be used with traffic routing"
 	// InvalidCanaryDynamicStableScaleWithScaleDownDelay indicates that canary.dynamicStableScale cannot be used with scaleDownDelaySeconds
 	InvalidCanaryDynamicStableScaleWithScaleDownDelay = "Canary dynamicStableScale cannot be used with scaleDownDelaySeconds"
+	// InvalidStableScaleDownPolicyRequiresDynamicStableScale indicates stableScaleDownPolicy requires dynamicStableScale
+	InvalidStableScaleDownPolicyRequiresDynamicStableScale = "Canary stableScaleDownPolicy can only be used with dynamicStableScale"
+	// InvalidStableScaleDownPolicyRequiresTrafficRouting indicates stableScaleDownPolicy requires traffic routing
+	InvalidStableScaleDownPolicyRequiresTrafficRouting = "Canary stableScaleDownPolicy can only be used with traffic routing"
+	// InvalidStableScaleDownPolicyDelaySeconds indicates stableScaleDownPolicy.delaySeconds must be non-negative
+	InvalidStableScaleDownPolicyDelaySeconds = "Canary stableScaleDownPolicy.delaySeconds must be greater than or equal to zero"
 	// InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins indicates that canary.maxTrafficWeight cannot be used
 	InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins = "Canary maxTrafficWeight in traffic routing only supported in Nginx and Plugins"
 	// InvalidPingPongProvidedMessage indicates that both ping and pong service must be set to use Ping-Pong feature
@@ -297,9 +303,20 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if canary.DynamicStableScale {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("dynamicStableScale"), canary.DynamicStableScale, InvalidCanaryDynamicStableScale))
 		}
+		if canary.StableScaleDownPolicy != nil {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("stableScaleDownPolicy"), canary.StableScaleDownPolicy, InvalidStableScaleDownPolicyRequiresTrafficRouting))
+		}
 	} else {
 		if canary.ScaleDownDelaySeconds != nil && canary.DynamicStableScale {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("dynamicStableScale"), canary.DynamicStableScale, InvalidCanaryDynamicStableScaleWithScaleDownDelay))
+		}
+		if canary.StableScaleDownPolicy != nil {
+			if !canary.DynamicStableScale {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("stableScaleDownPolicy"), canary.StableScaleDownPolicy, InvalidStableScaleDownPolicyRequiresDynamicStableScale))
+			}
+			if canary.StableScaleDownPolicy.DelaySeconds != nil && *canary.StableScaleDownPolicy.DelaySeconds < 0 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("stableScaleDownPolicy").Child("delaySeconds"), *canary.StableScaleDownPolicy.DelaySeconds, InvalidStableScaleDownPolicyDelaySeconds))
+			}
 		}
 		// only the nginx and plugin have this support for now
 		if canary.TrafficRouting.MaxTrafficWeight != nil {

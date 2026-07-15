@@ -820,6 +820,19 @@ spec:
                             description: Labels Additional labels to add to the experiment
                             type: object
                         type: object
+                      stableScaleDownPolicy:
+                        description: |-
+                          StableScaleDownPolicy configures how the stable ReplicaSet is scaled down when using dynamicStableScale.
+                          When set, the controller delays scaling the stable ReplicaSet below its current replica count for
+                          DelaySeconds after a scale-down is requested, allowing the data plane to converge before pods are removed.
+                        properties:
+                          delaySeconds:
+                            description: |-
+                              DelaySeconds is the number of seconds to hold the stable ReplicaSet at its current replica count
+                              after a scale-down is requested before allowing further scale-down.
+                            format: int32
+                            type: integer
+                        type: object
                       stableService:
                         description: StableService holds the name of a service which
                           selects pods with stable version and don't select any pods

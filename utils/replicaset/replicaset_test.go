@@ -1189,6 +1189,22 @@ func TestGetTimeRemainingBeforeScaleDownDeadline(t *testing.T) {
 	}
 }
 
+func TestGetTimeRemainingBeforeStableScaleDownDeadline(t *testing.T) {
+	rs := generateRS(generateRollout("foo"))
+	{
+		remainingTime, _ := GetTimeRemainingBeforeStableScaleDownDeadline(&rs)
+		assert.Nil(t, remainingTime)
+		assert.False(t, HasStableScaleDownDeadline(&rs))
+	}
+	{
+		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultStableScaleDownDeadlineAnnotationKey: timeutil.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)}
+		remainingTime, err := GetTimeRemainingBeforeStableScaleDownDeadline(&rs)
+		assert.Nil(t, err)
+		assert.NotNil(t, remainingTime)
+		assert.True(t, HasStableScaleDownDeadline(&rs))
+	}
+}
+
 // TestPodTemplateEqualIgnoreHashWithServiceAccount catches a corner case where the K8s ComputeHash
 // function changed from underneath us, and we fell back to deep equality checking, which then
 // incorrectly detected a diff because of a deprecated field being present in the live but not desired.

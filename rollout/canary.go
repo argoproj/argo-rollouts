@@ -125,9 +125,16 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
 		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.newRS, c.stableRS, c.rollout.Status.Canary.Weights)
 	}
+	desiredStableRSReplicaCount, held, err := c.applyStableScaleDownPolicy(desiredStableRSReplicaCount)
+	if err != nil {
+		return false, err
+	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
 		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileCanaryStableReplicaSet: %w", err)
+	}
+	if held {
+		c.log.Infof("%s stable scale-down held at %d replicas", stableScaleDownPolicyLogPrefix, desiredStableRSReplicaCount)
 	}
 	return scaled, err
 }

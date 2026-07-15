@@ -3,6 +3,7 @@ package validation
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1022,6 +1023,47 @@ func TestCanaryDynamicStableScale(t *testing.T) {
 		}
 		allErrs := ValidateRollout(ro)
 		assert.EqualError(t, allErrs[0], fmt.Sprintf("spec.strategy.dynamicStableScale: Invalid value: true: %s", InvalidCanaryDynamicStableScaleWithScaleDownDelay))
+	})
+	t.Run("stableScaleDownPolicy without traffic routing", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.TrafficRouting = nil
+		ro.Spec.Strategy.Canary.StableScaleDownPolicy = &v1alpha1.StableScaleDownPolicy{
+			DelaySeconds: ptr.To[int32](30),
+		}
+		allErrs := ValidateRollout(ro)
+		assert.GreaterOrEqual(t, len(allErrs), 1)
+		found := false
+		for _, err := range allErrs {
+			if strings.Contains(err.Error(), InvalidStableScaleDownPolicyRequiresTrafficRouting) {
+				found = true
+			}
+		}
+		assert.True(t, found)
+	})
+	t.Run("stableScaleDownPolicy without dynamicStableScale", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.DynamicStableScale = false
+		ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			SMI: &v1alpha1.SMITrafficRouting{},
+		}
+		ro.Spec.Strategy.Canary.StableScaleDownPolicy = &v1alpha1.StableScaleDownPolicy{
+			DelaySeconds: ptr.To[int32](30),
+		}
+		allErrs := ValidateRollout(ro)
+		assert.Equal(t, 1, len(allErrs))
+		assert.Contains(t, allErrs[0].Error(), InvalidStableScaleDownPolicyRequiresDynamicStableScale)
+	})
+	t.Run("stableScaleDownPolicy negative delaySeconds", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			SMI: &v1alpha1.SMITrafficRouting{},
+		}
+		ro.Spec.Strategy.Canary.StableScaleDownPolicy = &v1alpha1.StableScaleDownPolicy{
+			DelaySeconds: ptr.To[int32](-1),
+		}
+		allErrs := ValidateRollout(ro)
+		assert.Equal(t, 1, len(allErrs))
+		assert.Contains(t, allErrs[0].Error(), InvalidStableScaleDownPolicyDelaySeconds)
 	})
 
 }

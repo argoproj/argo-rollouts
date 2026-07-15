@@ -595,15 +595,34 @@ func (o ReplicaSetsByRevisionNumber) Less(i, j int) bool {
 
 // HasScaleDownDeadline returns whether or not the given ReplicaSet is annotated with a scale-down delay
 func HasScaleDownDeadline(rs *appsv1.ReplicaSet) bool {
+	return HasScaleDownDeadlineAnnotation(rs, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+}
+
+// HasStableScaleDownDeadline returns whether the stable RS has a stable-scale-down-deadline annotation.
+func HasStableScaleDownDeadline(rs *appsv1.ReplicaSet) bool {
+	return HasScaleDownDeadlineAnnotation(rs, v1alpha1.DefaultStableScaleDownDeadlineAnnotationKey)
+}
+
+// HasScaleDownDeadlineAnnotation returns whether the ReplicaSet has the given scale-down deadline annotation.
+func HasScaleDownDeadlineAnnotation(rs *appsv1.ReplicaSet, annotationKey string) bool {
 	if rs == nil || rs.Annotations == nil {
 		return false
 	}
-	return rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] != ""
+	return rs.Annotations[annotationKey] != ""
 }
 
 func GetTimeRemainingBeforeScaleDownDeadline(rs *appsv1.ReplicaSet) (*time.Duration, error) {
-	if HasScaleDownDeadline(rs) {
-		scaleDownAtStr := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+	return GetTimeRemainingBeforeScaleDownDeadlineAnnotation(rs, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+}
+
+// GetTimeRemainingBeforeStableScaleDownDeadline returns remaining time before stable scale-down is allowed.
+func GetTimeRemainingBeforeStableScaleDownDeadline(rs *appsv1.ReplicaSet) (*time.Duration, error) {
+	return GetTimeRemainingBeforeScaleDownDeadlineAnnotation(rs, v1alpha1.DefaultStableScaleDownDeadlineAnnotationKey)
+}
+
+func GetTimeRemainingBeforeScaleDownDeadlineAnnotation(rs *appsv1.ReplicaSet, annotationKey string) (*time.Duration, error) {
+	if HasScaleDownDeadlineAnnotation(rs, annotationKey) {
+		scaleDownAtStr := rs.Annotations[annotationKey]
 		scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read scaleDownAt label on rs '%s'", rs.Name)
