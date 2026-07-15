@@ -376,6 +376,13 @@ func (c *rolloutContext) calculateDesiredWeightOnAbortOrStableRollback() int32 {
 	}
 
 	currentCanaryWeight := c.rollout.Status.Canary.Weights.Canary.Weight
+	// When aborting and stable is fully available, canary weight must reach 0 regardless of
+	// minPodsPerReplicaSet flooring the canary RS. GetDesiredCanaryWeight uses actual
+	// newRS.AvailableReplicas (floored) causing it to return a non-zero step weight even after
+	// stable is fully scaled up. See https://github.com/argoproj/argo-rollouts/issues/4841
+	if c.rollout.Status.Abort && expectedCanaryWeight == 0 {
+		return 0
+	}
 	if desiredCanaryWeight <= 0 {
 		// This ensures that if we are already at a lower weight, then we will not
 		// increase the weight because stable availability is flapping (e.g. pod restarts)
