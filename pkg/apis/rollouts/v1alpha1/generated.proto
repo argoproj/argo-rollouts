@@ -673,6 +673,11 @@ message DatadogMetric {
   // Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
   // +optional
   optional SecretRef secretRef = 7;
+
+  // +kubebuilder:default="10s"
+  // RequestTimeout overrides the HTTP client timeout for requests to the Datadog API (e.g. 10s, 30s; default: 10s).
+  // +optional
+  optional string requestTimeout = 8;
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.

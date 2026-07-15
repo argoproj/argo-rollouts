@@ -178,6 +178,7 @@ type Manager struct {
 	istioDynamicInformerFactory          dynamicinformer.DynamicSharedInformerFactory
 	namespaced                           bool
 	kubeInformerFactory                  kubeinformers.SharedInformerFactory
+	replicaSetInformerFactory            kubeinformers.SharedInformerFactory
 	notificationConfigMapInformerFactory kubeinformers.SharedInformerFactory
 	notificationSecretInformerFactory    kubeinformers.SharedInformerFactory
 	jobInformerFactory                   kubeinformers.SharedInformerFactory
@@ -303,6 +304,7 @@ func NewManager(
 	istioDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	namespaced bool,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	replicaSetInformerFactory kubeinformers.SharedInformerFactory,
 	jobInformerFactory kubeinformers.SharedInformerFactory,
 	ephemeralMetadataThreads int,
 	ephemeralMetadataPodRetries int,
@@ -463,6 +465,7 @@ func NewManager(
 		istioDynamicInformerFactory:          istioDynamicInformerFactory,
 		namespaced:                           namespaced,
 		kubeInformerFactory:                  kubeInformerFactory,
+		replicaSetInformerFactory:            replicaSetInformerFactory,
 		jobInformerFactory:                   jobInformerFactory,
 		istioPrimaryDynamicClient:            istioPrimaryDynamicClient,
 		notificationConfigMapInformerFactory: notificationConfigMapInformerFactory,
@@ -585,6 +588,9 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 		c.clusterDynamicInformerFactory.Start(ctx.Done())
 	}
 	c.kubeInformerFactory.Start(ctx.Done())
+	if c.replicaSetInformerFactory != nil {
+		c.replicaSetInformerFactory.Start(ctx.Done())
+	}
 
 	c.jobInformerFactory.Start(ctx.Done())
 
