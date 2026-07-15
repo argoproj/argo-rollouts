@@ -77,6 +77,7 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 		serviceSynced:                        alwaysReady,
 		ingressSynced:                        alwaysReady,
 		jobSynced:                            alwaysReady,
+		jobPodsSynced:                        alwaysReady,
 		replicasSetSynced:                    alwaysReady,
 		configMapSynced:                      alwaysReady,
 		secretSynced:                         alwaysReady,
@@ -160,6 +161,7 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 		ArgoProjClientset:    f.client,
 		AnalysisRunInformer:  i.Argoproj().V1alpha1().AnalysisRuns(),
 		JobInformer:          k8sI.Batch().V1().Jobs(),
+		JobPodsInformer:      k8sI.Core().V1().Pods(),
 		ResyncPeriod:         noResyncPeriodFunc(),
 		AnalysisRunWorkQueue: analysisRunWorkqueue,
 		MetricsServer:        cm.metricsServer,
@@ -246,6 +248,7 @@ func TestNewManager(t *testing.T) {
 		k8sI.Core().V1().Services(),
 		ingressWrapper,
 		k8sI.Batch().V1().Jobs(),
+		k8sI.Core().V1().Pods(),
 		i.Argoproj().V1alpha1().Rollouts(),
 		i.Argoproj().V1alpha1().Experiments(),
 		i.Argoproj().V1alpha1().AnalysisRuns(),
@@ -269,11 +272,13 @@ func TestNewManager(t *testing.T) {
 		false,
 		nil,
 		nil,
+		nil,
 		rolloutController.DefaultEphemeralMetadataThreads,
 		rolloutController.DefaultEphemeralMetadataPodRetries,
 	)
 
 	assert.NotNil(t, cm)
+	assert.Equal(t, "test", cm.instanceID)
 }
 
 func TestNewAnalysisManager(t *testing.T) {
@@ -293,6 +298,7 @@ func TestNewAnalysisManager(t *testing.T) {
 		f.kubeclient,
 		f.client,
 		k8sI.Batch().V1().Jobs(),
+		k8sI.Core().V1().Pods(),
 		i.Argoproj().V1alpha1().AnalysisRuns(),
 		i.Argoproj().V1alpha1().AnalysisTemplates(),
 		i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
@@ -335,4 +341,28 @@ func TestPrimaryControllerSingleInstanceWithShutdown(t *testing.T) {
 		cancel()
 	}()
 	cm.Run(ctx, 1, 1, 1, 1, 1, electOpts)
+}
+
+func TestLeaseLockName(t *testing.T) {
+	tests := []struct {
+		name       string
+		instanceID string
+		expected   string
+	}{
+		{
+			name:       "no instance id uses the default lock name",
+			instanceID: "",
+			expected:   defaultLeaderElectionLeaseLockName,
+		},
+		{
+			name:       "instance id is appended to the default lock name",
+			instanceID: "my-instance",
+			expected:   defaultLeaderElectionLeaseLockName + "-my-instance",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, leaseLockName(tt.instanceID))
+		})
+	}
 }

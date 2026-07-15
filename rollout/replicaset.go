@@ -36,12 +36,13 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 		return nil
 	}
 	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
-	rs, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("error removing scale-down-deadline annotation from RS '%s': %w", rs.Name, err)
 	}
 	c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
-	return err
+	delete(rs.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+	return nil
 }
 
 // addScaleDownDelay injects the `scale-down-deadline` annotation to the ReplicaSet, or if
@@ -94,7 +95,15 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 		return fresh, nil
 	})
 	cm := controller.NewReplicaSetControllerRefManager(c.replicaSetControl, r, replicaSetSelector, controllerKind, canAdoptFunc)
-	return cm.ClaimReplicaSets(ctx, rsList)
+	rsList, err = cm.ClaimReplicaSets(ctx, rsList)
+	if err != nil {
+		return nil, err
+	}
+	// Create a copy of the object in the informer since Rollout may modify them during the reconciliation
+	for i := range rsList {
+		rsList[i] = rsList[i].DeepCopy()
+	}
+	return rsList, nil
 }
 
 // removeScaleDownDeadlines removes the scale-down-deadline annotation from the new/stable ReplicaSets,

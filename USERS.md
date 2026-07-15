@@ -44,6 +44,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Nextdoor](https://nextdoor.com)
 1. [Nitro](https://www.gonitro.com)
 1. [Nozzle](https://nozzle.io)
+1. [OneSignal](https://onesignal.com/)
 1. [Opensurvey Inc.](https://opensurvey.co.kr)
 1. [OpsMx](https://opsmx.io)
 1. [OpsVerse](https://opsverse.io)

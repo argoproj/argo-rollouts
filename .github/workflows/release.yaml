@@ -193,6 +193,11 @@ jobs:
         with:
           cosign-release: 'v2.2.0'
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: ui/package.json
+
       - name: Generate SBOM (spdx)
         id: spdx-builder
         env:
@@ -200,29 +205,31 @@ jobs:
           SPDX_GEN_VERSION: v0.0.13
           # defines the sigs.k8s.io/bom version to use.
           SIGS_BOM_VERSION: v0.2.1
-          # comma delimited list of project relative folders to inspect for package
-          # managers (gomod, yarn, npm).
-          PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the container image to be inspected
           CONTAINER_IMAGE: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts:${{ github.ref_name }}
 
         run: |
-          yarn install --cwd ./ui
+          set -euo pipefail
+          pnpm install --dir ./ui --frozen-lockfile
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
           go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
 
-          # Generate SPDX for project dependencies analyzing package managers
-          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
-          do
-            generator -p $folder -o /tmp
-          done
+          generator -p . -o /tmp
+          pnpm --dir ./ui sbom --sbom-format spdx --prod > /tmp/bom-ui-pnpm.spdx.json
 
-          # Generate SPDX for binaries analyzing the container image
-          if [[ ! -z CONTAINER_IMAGE ]]; then
-            bom generate -o /tmp/bom-docker-image.spdx -i $CONTAINER_IMAGE
+          if [[ -n "${CONTAINER_IMAGE:-}" ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i "${CONTAINER_IMAGE}"
           fi
 
-          cd /tmp && tar -zcf sbom.tar.gz *.spdx
+          cd /tmp
+          shopt -s nullglob
+          spdx_files=( *.spdx )
+          shopt -u nullglob
+          if [[ ${#spdx_files[@]} -eq 0 ]]; then
+            echo "No .spdx files produced under /tmp"
+            exit 1
+          fi
+          tar -zcf sbom.tar.gz "${spdx_files[@]}" bom-ui-pnpm.spdx.json
 
       - name: Sign SBOM
         run: |
