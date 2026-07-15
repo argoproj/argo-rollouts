@@ -1,0 +1,27 @@
+# statsig-io fork: slim PR CI. Upstream's workflows (E2E, docker publish,
+# goreleaser, pages, ...) need argoproj infra/secrets and only produce red
+# noise here, so they are removed on this branch; this covers our actual
+# change surface instead.
+name: statsig CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: ['release-*-statsig']
+
+jobs:
+  build-test:
+    if: github.repository == 'statsig-io/argo-rollouts'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./server/... ./pkg/kubectl-argo-rollouts/info/...
+      - name: Unit tests (server + info)
+        run: go test ./server/... ./pkg/kubectl-argo-rollouts/info/...
