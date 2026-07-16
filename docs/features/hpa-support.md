@@ -323,6 +323,17 @@ spec:
 
 `scaleReporting: mode: Stable` requires `trafficRouting` and is rejected in combination with `dynamicStableScale: true` (with dynamic stable scaling, the stable ReplicaSet scales down as the canary takes traffic, so its pod count no longer represents serving capacity — and total pods already stay near `spec.replicas`, so `All` is correct there). Before the first revision is fully promoted there is no stable ReplicaSet yet, and the Rollout falls back to reporting all pods.
 
+### Eliminating the mode choice with `dynamicStableScale`
+
+Before choosing a reporting mode, consider whether you need one at all. The mode trade-off only exists because with `dynamicStableScale: false` the Rollout deliberately runs up to double the pods, detaching pod count from traffic. With [`dynamicStableScale: true`](canary/index.md#dynamic-stable-scale-with-traffic-routing), pod count tracks traffic by construction — the stable ReplicaSet scales down as the canary scales up, so at every weight roughly `(100−w)%` of the pods carry `(100−w)%` of the traffic. That single invariant makes **both** metric classes below correct at the same time with the default `All` reporting:
+
+- Sampled metrics see every pod carrying roughly steady-state per-pod load at every weight — no dilution.
+- Absolute metrics see a total pod count that stays near `spec.replicas` — no inflation, no feedback loop.
+
+(This is also why `scaleReporting: mode: Stable` is rejected in combination with `dynamicStableScale` — in that configuration `All` is already the correct answer.)
+
+The trade-offs of `dynamicStableScale` are that aborts are no longer instant (the stable ReplicaSet must scale back up before it can absorb traffic), totals transiently exceed `spec.replicas` during weight transitions, and `setCanaryScale` breaks the pods-track-traffic invariant again. If you can accept those, prefer `dynamicStableScale` and skip the rest of this section. Use `scaleReporting` when you need the stable ReplicaSet kept fully scaled for instant-abort capacity — in that case you are running surge pods and must pick which view the autoscaler gets.
+
 ### Choosing a mode
 
 Which mode is correct depends on **how your HPA metrics consume the scale subresource**. There is no mode that works for every metric type — this is why the behavior is configurable.
