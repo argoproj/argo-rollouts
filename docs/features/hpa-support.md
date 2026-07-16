@@ -289,6 +289,7 @@ strategy:
     - pause: {}
 ```
 
+**Note:** because `setCanaryScale` detaches the canary pod count from the traffic weight, canary pods may be running while receiving little or no traffic. By default these pods are still reported to the HPA and can skew its calculations — see [Interaction with `setCanaryScale`](#interaction-with-setcanaryscale) below.
 
 ## Scale Reporting During Canary Updates
 
@@ -334,6 +335,13 @@ Which mode is correct depends on **how your HPA metrics consume the scale subres
 
 !!! warning
     If a single HPA mixes metric types from both rows (e.g. CPU utilization **and** a KEDA cron scaler), no mode is correct during an update: `All` breaks the absolute metrics and `Stable` breaks the sampled metrics. In that case, prefer restructuring the metrics (e.g. separate the scheduled floor from the utilization target) or accept the default behavior and its transient effects.
+
+### Interaction with `setCanaryScale`
+
+The [`setCanaryScale`](#decoupling-canary-with-traffic-manager-setcanaryscale) step detaches the canary pod count from the traffic weight, so canary pods may be running while receiving little or no traffic (e.g. `setCanaryScale.weight` before any `setWeight`, or `matchTrafficWeight: false`).
+
+- With **`All`**, these no-traffic canary pods are still included in what is reported to the autoscaler: they dilute selector-sampled metrics (idle pods lower the average utilization) and inflate the absolute counts. The feedback loop described above is typically triggered by exactly this combination — a `setCanaryScale` step while an absolute-metric scaler (e.g. KEDA cron) holds a fixed desired replica count.
+- With **`Stable`**, pods created by `setCanaryScale` are excluded from scale reporting entirely, so the autoscaler continues to see only the stable workload regardless of how the canary is scaled. This makes `Stable` the natural fit for `setCanaryScale`-based steps — with the same caveat as above: it assumes the stable pods are the ones serving the traffic, so it should not be combined with sampled (Utilization/Pods) metrics at high canary traffic weights.
 
 ## Best Practices
 1. Choose the right strategy: use standard Blue/Green for simple deployments, add `previewReplicaCount` for cost optimization, and consider canary with `setCanaryScale` for maximum control and isolation.
