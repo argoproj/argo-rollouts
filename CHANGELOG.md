@@ -213,7 +213,7 @@
 * **dashboard:** fix issue where rollout step in ui is blank when setWeight is 0 ([#4521](https://github.com/argoproj/argo-rollouts/issues/4521))
 * **dashboard:** Revert react-scripts upgrade due to performance regression. Fixes [#4122](https://github.com/argoproj/argo-rollouts/issues/4122) ([#4166](https://github.com/argoproj/argo-rollouts/issues/4166))
 * **deps:** bumping k8s modules to 0.30.14 fixes [#4210](https://github.com/argoproj/argo-rollouts/issues/4210) Rollout CRD and mitigates [#4180](https://github.com/argoproj/argo-rollouts/issues/4180) ([#4212](https://github.com/argoproj/argo-rollouts/issues/4212))
-* **experiments:** propagate rolouts labels to experiments and replicasets ([#4118](https://github.com/argoproj/argo-rollouts/issues/4118))
+* **experiments:** propagate rollouts labels to experiments and replicasets ([#4118](https://github.com/argoproj/argo-rollouts/issues/4118))
 * **experiments:** fire rollout event on experiment step ([#4124](https://github.com/argoproj/argo-rollouts/issues/4124))
 * **experiments:** move recorder event to after experiment reconciliation, fixes [#4021](https://github.com/argoproj/argo-rollouts/issues/4021) ([#4022](https://github.com/argoproj/argo-rollouts/issues/4022))
 * **metricprovider:** not require address in kubernetes secret for Datadog. Fixes [#4103](https://github.com/argoproj/argo-rollouts/issues/4103) ([#4145](https://github.com/argoproj/argo-rollouts/issues/4145))

@@ -14,6 +14,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -40,7 +41,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-rollouts/controller/metrics"
+	metricsmocks "github.com/argoproj/argo-rollouts/controller/metrics/mocks"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -135,6 +136,9 @@ type fixture struct {
 	enqueuedObjectsLock sync.Mutex
 	unfreezeTime        func() error
 
+	// metricsRecorder allows injecting a mock metrics recorder for testing
+	metricsRecorder *metricsmocks.MetricsRecorder
+
 	// events holds all the K8s Event Reasons emitted during the run
 	events             []string
 	fakeTrafficRouting *mocks.TrafficRoutingReconciler
@@ -163,12 +167,24 @@ func newFixture(t *testing.T) *fixture {
 		return nil
 	}
 
+	f.metricsRecorder = newFakeMetricsRecorder(t)
 	f.fakeTrafficRouting = newFakeSingleTrafficRoutingReconciler()
 	return f
 }
 
 func (f *fixture) Close() {
 	f.unfreezeTime()
+}
+
+func newFakeMetricsRecorder(t *testing.T) *metricsmocks.MetricsRecorder {
+	metricsRecorder := metricsmocks.NewMetricsRecorder(t)
+	metricsRecorder.On("IncRolloutReconcile", mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("IncExperimentReconcile", mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("IncAnalysisRunReconcile", mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("IncError", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("Remove", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("EmitRolloutDuration", mock.Anything).Return(nil).Maybe()
+	return metricsRecorder
 }
 
 func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
@@ -457,14 +473,26 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
 	completeCond, _ := newCompletedCondition(isCompleted)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, completeCond)
+	now := timeutil.MetaNow()
 	if pause {
-		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{
 			Reason:    v1alpha1.PauseReasonBlueGreenPause,
 			StartTime: now,
 		}
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+		if requiresManualAction(cond.Reason, newRollout) {
+			previousTime := metav1.Time{Time: now.Time.Add(time.Second * -5)}
+			newRollout.Status.Duration.ManualPauseStartedAt = &previousTime
+		}
+	} else {
+		newRollout.Status.Duration.ManualPauseStartedAt = nil
+	}
+	if isCompleted {
+		newRollout.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
+		if available {
+			newRollout.Status.Duration.FinishedAt = &now
+		}
 	}
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
 	return newRollout
@@ -473,13 +501,17 @@ func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableRe
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas)
 	newRollout.Status.StableRS = stableRS
 	if pause {
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{
 			Reason:    v1alpha1.PauseReasonCanaryPauseStep,
 			StartTime: now,
 		}
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+		if requiresManualAction(cond.Reason, newRollout) {
+			previousTime := metav1.Time{Time: now.Time.Add(time.Second * -5)}
+			newRollout.Status.Duration.ManualPauseStartedAt = &previousTime
+		}
 	}
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
 	return newRollout
@@ -613,11 +645,6 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Services")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
 
-	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr:               "localhost:8080",
-		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	})
-
 	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, f.kubeclient, k8sI)
 	if err != nil {
 		f.t.Fatal(err)
@@ -643,7 +670,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		RolloutWorkQueue:                rolloutWorkqueue,
 		ServiceWorkQueue:                serviceWorkqueue,
 		IngressWorkQueue:                ingressWorkqueue,
-		MetricsServer:                   metricsServer,
+		MetricsServer:                   f.metricsRecorder,
 		Recorder:                        record.NewFakeEventRecorder(),
 		RefResolver:                     &FakeWorkloadRefResolver{resolveFn: f.workloadRefResolveFn},
 		EphemeralMetadataThreads:        DefaultEphemeralMetadataThreads,
@@ -1176,14 +1203,14 @@ func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) 
 func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
 	action := f.actionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
-	if !ok {
-		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
-	}
+	require.True(f.t, ok, "Expected Update action, not %s", action.GetVerb())
 	obj := updateAction.GetObject()
 	rollout := &v1alpha1.Rollout{}
 	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
-	objMap, _ := converter.ToUnstructured(obj)
-	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rollout)
+	objMap, err := converter.ToUnstructured(obj)
+	require.NoError(f.t, err)
+	err = converter.FromUnstructured(objMap, rollout)
+	require.NoError(f.t, err)
 	return rollout
 }
 
@@ -1364,11 +1391,11 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.objects = append(f.objects, r)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 
-	f.expectUpdateRolloutStatusAction(r) // sync 1: create RS and set Progressing condition, then exit early
-	f.expectGetRolloutAction(r)          // second reconciliation
-	f.expectPatchRolloutAction(r)        // sync 2: patch status
-	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
-	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{}) // sync 1: create RS
+	f.expectUpdateRolloutStatusAction(r)                 // sync 1: update status
+	f.expectGetRolloutAction(r)                          // re-seed between syncs
+	f.expectPatchRolloutAction(r)                        // sync 2: patch status
+	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{}) // sync 2: scale up RS
 	f.runWithSyncs(getKey(r, t), 2)
 }
 
@@ -1627,11 +1654,11 @@ requests:
 		f.serviceLister = append(f.serviceLister, activeSvc)
 		f.objects = append(f.objects, r)
 
-		f.expectUpdateRolloutStatusAction(r) // sync 1: create RS and set Progressing condition, then exit early
-		f.expectGetRolloutAction(r)          // second reconciliation
-		f.expectPatchRolloutAction(r)        // sync 2: patch status
 		rs := newReplicaSet(r, 1)
-		rsIdx := f.expectCreateReplicaSetAction(rs)
+		rsIdx := f.expectCreateReplicaSetAction(rs) // sync 1: create RS
+		f.expectUpdateRolloutStatusAction(r)        // sync 1: update status
+		f.expectGetRolloutAction(r)                 // re-seed between syncs
+		f.expectPatchRolloutAction(r)               // sync 2: patch status
 		f.runWithSyncs(getKey(r, t), 2)
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
@@ -1665,6 +1692,8 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	r.Status.ReadyReplicas = 1
 	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
 	r.Status.ObservedGeneration = "122"
+	r.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
+	r.Status.Duration.FinishedAt = ptr.To(timeutil.MetaNow())
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
@@ -1720,6 +1749,8 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.ObservedGeneration = "122"
+	r.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
+	r.Status.Duration.FinishedAt = ptr.To(timeutil.MetaNow())
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
@@ -1758,7 +1789,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	activeSvc := newService("active", 80, nil, r)
 	rs := newReplicaSetWithStatus(r, 1, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true, false)
+	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true, true)
 	// StableRS is set to avoid running the migration code. When .status.canary.stableRS is removed, the line below can be deleted
 	//r.Status.Canary.StableRS = rsPodHash
 	r.Spec.Strategy.BlueGreen = nil
@@ -1767,6 +1798,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 			SetWeight: int32Ptr(1),
 		}},
 	}
+
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.kubeobjects = append(f.kubeobjects, rs, activeSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
@@ -1776,19 +1808,24 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	f.run(getKey(r, t))
 	patch := f.getPatchedRollout(i)
 
-	addedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "", true)
+	// The controller emits conditions in the order [Available, Completed, Progressing]
+	// because the Progressing condition is rewritten (and re-appended) this reconcile.
+	_, availableCondition := newAvailableCondition(true)
+	_, completedCondition := newCompletedCondition(true)
+	_, progressingCondition := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	expectedPatch := fmt.Sprintf(`{
 			"status": {
 				"blueGreen": {
 					"activeSelector": null
 				},
-				"conditions": %s,
+				"conditions": [%s, %s, %s],
 				"currentStepIndex": 1,
 				"currentStepHash": "%s",
 				"selector": "foo=bar"
 			}
-		}`, addedConditions, conditions.ComputeStepHash(r))
+		}`, availableCondition, completedCondition, progressingCondition, conditions.ComputeStepHash(r))
 	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
+	f.metricsRecorder.AssertNotCalled(t, "EmitRolloutDuration", mock.Anything)
 }
 
 func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {

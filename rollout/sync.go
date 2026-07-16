@@ -29,6 +29,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 // getAllReplicaSetsAndSyncRevision returns all the replica sets for the provided rollout (new and all old), with new RS's and rollout's revision updated.
@@ -420,7 +421,191 @@ func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 	newStatus.Conditions = prevStatus.Conditions
 	newStatus.RestartedAt = c.newStatus.RestartedAt
 	newStatus.PromoteFull = (newStatus.CurrentPodHash != newStatus.StableRS) && prevStatus.PromoteFull
+
 	return newStatus
+}
+
+// calculateStatusDuration handles all duration tracking state transitions and metric emission.
+// This includes: new rollout detection, superseded rollout handling, abort detection,
+// completion detection, manual pause tracking, and retry detection.
+// Returns the updated status with duration field calculated.
+//
+// Transition Detection Strategy:
+// - prevStatus = Status currently persisted in Kubernetes (the "before" state)
+// - newStatus = Status being calculated in this reconciliation (the "after" state)
+// Most duration tracking involves detecting state transitions (events), not just states.
+// For example: "rollout just started" requires comparing old (completed) vs new (in-progress).
+func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStatus) *v1alpha1.RolloutDurationStatus {
+	if newStatus == nil {
+		return nil
+	}
+	if conditions.GetRolloutCondition(*newStatus, v1alpha1.InvalidSpec) != nil {
+		// Do not update duration tracking when the rollout spec is invalid.
+		return newStatus.Duration
+	}
+	durationStatus := newStatus.Duration.DeepCopy()
+	prevStatus := c.rollout.Status
+	now := timeutil.MetaNow()
+
+	// Determine if spec changed (for superseded rollout detection) or if it's the initial rollout
+	// CurrentPodHash == "" allows use to know that it is the initial rollout
+	podSpecChanged := c.rollout.Status.CurrentPodHash == ""
+	if c.rollout.Spec.Strategy.Canary != nil {
+		podSpecChanged = podSpecChanged || replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS)
+	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
+		podSpecChanged = podSpecChanged || replicasetutil.CheckPodSpecChange(c.rollout, c.newRS)
+	}
+
+	isPromoted := newStatus.StableRS == newStatus.CurrentPodHash
+	hasReachedDesiredReplicas := c.newRS != nil && c.newRS.Status.AvailableReplicas >= defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
+	isCompleted := isPromoted && hasReachedDesiredReplicas
+	isAborted := c.pauseContext.IsAborted()
+
+	progCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
+	wasAborted := progCond != nil && progCond.Reason == conditions.RolloutAbortedReason
+	isRetry := !isAborted && wasAborted
+
+	durationPaused := prevStatus.Duration != nil && prevStatus.Duration.ManualPauseStartedAt != nil
+	durationInProgress := prevStatus.Duration != nil && prevStatus.Duration.RolloutStartedAt != nil && !prevStatus.Duration.IsCompleted()
+
+	if durationInProgress {
+		// Rollout is in progress
+		if podSpecChanged {
+			// First rollout or Rollout was interrupted mid-execution
+			if c.isRollback() {
+				// If the rollout is a rollback, we keep the the current duration
+				// The user explicitly reverted the rollout to the previous pod spec
+				status := v1alpha1.CompletionStatusRollbacked
+				if c.isFastRollback() {
+					status = v1alpha1.CompletionStatusFastRollbacked
+				}
+				durationStatus.CompletionStatus = &status
+				c.log.WithField("event", "rollout_rollback").
+					WithField("reason", "reverted to previous revision causing "+status+" rollout").
+					Info("Rollout rollback")
+
+			} else {
+				// Rollout was interrupted mid-execution
+				durationStatus.CompleteRollout(now, v1alpha1.CompletionStatusSuperseded)
+				c.metricsServer.EmitRolloutDuration(durationStatus)
+
+				completionReason := "Pod template changed mid-rollout"
+				if c.rollout.Spec.Strategy.Canary != nil {
+					completionReason = "Pod template or steps changed mid-rollout"
+				}
+
+				// Log superseded with duration fields
+				c.log.WithFields(durationStatus.GetCompletionLogFields()).
+					WithField("event", "rollout_completed").
+					WithField("completion_reason", completionReason).
+					Info("Rollout completed")
+			}
+		}
+		if isCompleted && !durationStatus.IsCompleted() {
+			// Rollout is now completed
+			completionStatus := durationStatus.GetCompletionStatus()
+			if completionStatus == "" {
+				completionStatus = v1alpha1.CompletionStatusPromoted
+			}
+			durationStatus.CompleteRollout(now, completionStatus)
+			c.metricsServer.EmitRolloutDuration(durationStatus)
+			c.log.WithFields(durationStatus.GetCompletionLogFields()).
+				WithField("event", "rollout_completed").
+				WithField("reason", "rollout reached desired replicas").
+				Info("Rollout completed")
+			// We can return immediately because we know that we are not starting a new rollout
+			// if we just reached desired replicas.
+			return durationStatus
+		} else if isAborted {
+			// Rollout was just aborted
+			completionStatus := durationStatus.GetCompletionStatus()
+			if completionStatus == "" {
+				completionStatus = v1alpha1.CompletionStatusAborted
+			}
+			durationStatus.CompleteRollout(now, completionStatus)
+			c.metricsServer.EmitRolloutDuration(durationStatus)
+			c.log.WithFields(durationStatus.GetCompletionLogFields()).
+				WithField("event", "rollout_completed").
+				WithField("completion_reason", c.pauseContext.abortMessage).
+				Warn("Rollout completed")
+		}
+	}
+
+	if durationStatus == nil || (durationStatus.IsCompleted() && !isCompleted) {
+		// First rollout or Starting new rollout from a completed state
+		durationPaused = false
+
+		// If the rollout is already at its stable target nothing is actually rolling out
+		// This can happen when changing between strategies (e.g. from blue-green to canary)
+		alreadyAtStableTarget := isPromoted && hasReachedDesiredReplicas
+		if podSpecChanged && !alreadyAtStableTarget {
+			durationStatus = &v1alpha1.RolloutDurationStatus{
+				RolloutStartedAt: &now,
+			}
+			c.log.WithField("event", "rollout_started").
+				WithField("reason", "new revision detected").
+				Info("Rollout started")
+		} else if isRetry {
+			// Rollout retried after being aborted, start a new rollout
+			durationStatus = &v1alpha1.RolloutDurationStatus{
+				RolloutStartedAt: &now,
+			}
+			c.log.WithField("event", "rollout_started").
+				WithField("reason", "retry after abort").
+				Info("Rollout retried")
+		}
+	}
+
+	if durationStatus == nil {
+		// This might happen if the CRD is not up to date and duration cannot be persisted
+		c.log.Debug("Duration is nil, skipping duration tracking")
+		return nil
+	}
+
+	if durationStatus.IsCompleted() {
+		// Usual no-op during a completed rollout reconciliation
+		return durationStatus
+	}
+
+	// To correctly know if the current rollout is paused or not, and for which reason
+	// we assume that c.pauseContext.CalculatePauseConditions() has been called before this function
+	// and the pause conditions are already calculated for the current rollout spec
+
+	// Check if the rollout was manually pause or for a specific reason
+	// requiring a manual resume action
+	isManualPause := c.rollout.Spec.Paused
+	for _, pauseCondition := range newStatus.PauseConditions {
+		if requiresManualAction(pauseCondition.Reason, c.rollout) {
+			isManualPause = true
+			break
+		}
+	}
+
+	if durationPaused && !isManualPause {
+		// end manual pause tracking
+		if durationStatus.ManualPauseStartedAt != nil {
+			pauseDuration := now.Sub(durationStatus.ManualPauseStartedAt.Time)
+			accumulated := int64(0)
+			if durationStatus.TotalManualPauseDuration != nil {
+				accumulated = *durationStatus.TotalManualPauseDuration
+			}
+			accumulated += int64(pauseDuration.Seconds())
+			durationStatus.TotalManualPauseDuration = &accumulated
+			durationStatus.ManualPauseStartedAt = nil
+			c.log.WithField("pause_duration_seconds", pauseDuration.Seconds()).
+				WithField("event", "rollout_resumed").
+				Infof("Rollout resumed")
+		}
+	} else if !durationPaused && isManualPause {
+		// start manual pause tracking
+		if durationStatus.ManualPauseStartedAt == nil {
+			durationStatus.ManualPauseStartedAt = &now
+			c.log.WithField("event", "rollout_paused").
+				Info("Rollout paused")
+		}
+	}
+
+	return durationStatus
 }
 
 // reconcileRevisionHistoryLimit is responsible for cleaning up a rollout ie. retains all but the latest N old replica sets
@@ -483,6 +668,19 @@ func (c *rolloutContext) reconcileRevisionHistoryLimit(oldRSs []*appsv1.ReplicaS
 // These conditions are needed so that we won't accidentally report lack of progress for resumed rollouts
 // that were paused for longer than progressDeadlineSeconds.
 func (c *rolloutContext) checkPausedConditions() error {
+
+	if strconv.Itoa(int(c.rollout.Generation)) != c.rollout.Status.ObservedGeneration {
+		// If the generation has changed, we need to reconcile the full rollout status
+		// so the status is consistent with the conditions
+		c.log.Infof("Rollout generation has changed, skipping checkPausedConditions")
+		return nil
+	}
+
+	// TODO: The code below should be refactored so the current reconciliation does not update the conditions
+	// before reconciling the status, but during the same update.
+	// For instance, the reconciliation should use c.rollout.Status.Abort or c.spec.paused rather than the
+	// conditions to determine what to do during the reconciliation, then update the conditions.
+
 	// Progressing condition
 	progCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
 	progCondPaused := progCond != nil && progCond.Reason == conditions.RolloutPausedReason
@@ -529,8 +727,13 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 	for _, condition := range conditionList {
 		conditions.SetRolloutCondition(newStatus, *condition)
 	}
+
+	// While this function is called "PatchConditions", it also calculate the phase and
+	// all other status fields that need to be consistent with the conditions.
+	// This should most likely be replaced by persistRolloutStatus to avoid discrepancies.
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(r.Spec, *newStatus)
+	newStatus.Duration = c.calculateStatusDuration(newStatus)
 
 	logCtx := logutil.WithVersionFields(c.log, r)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
@@ -625,7 +828,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutS
 	isAborted := c.pauseContext.IsAborted()
 
 	var becameUnhealthy bool // remember if we transitioned from healthy to unhealthy
-	completeCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutHealthy)
+	currentHealthyCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutHealthy)
 	if !isPaused && conditions.RolloutHealthy(c.rollout, newStatus) {
 		updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionTrue, conditions.RolloutHealthyReason, conditions.RolloutHealthyMessage)
 		conditions.SetRolloutCondition(newStatus, *updateHealthyCond)
@@ -633,7 +836,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutS
 		// when checking in e2e and unit tests.
 		//c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutHealthyMessage)
 	} else {
-		if completeCond != nil {
+		if currentHealthyCond != nil {
 			updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionFalse, conditions.RolloutHealthyReason, conditions.RolloutNotHealthyMessage)
 			becameUnhealthy = conditions.SetRolloutCondition(newStatus, *updateHealthyCond)
 			//c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutNotHealthyMessage)
@@ -786,6 +989,9 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	// Calculate the phase. This requires the conditions to be calculated first
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(c.rollout.Spec, *newStatus)
 
+	// Calculate duration status - handles all duration tracking state transitions and metric emission
+	newStatus.Duration = c.calculateStatusDuration(newStatus)
+
 	prevStatus := c.rollout.Status
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.Rollout{
@@ -933,6 +1139,7 @@ func (c *rolloutContext) resetRolloutStatus(newStatus *v1alpha1.RolloutStatus) {
 }
 
 // isRollback returns true if we are deploying to a previous revision.
+// When a rollout is promoted, this function will always return true
 func (c *rolloutContext) isRollback() bool {
 	if c.newRS == nil || c.stableRS == nil {
 		return false
@@ -967,29 +1174,28 @@ func (c *rolloutContext) isRollbackWithinWindow() bool {
 	if c.newRS == nil || c.stableRS == nil {
 		return false
 	}
-	// first check if this is a rollback
-	if c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) {
-		// then check if we are within window
-		if c.rollout.Spec.RollbackWindow != nil {
-			if c.rollout.Spec.RollbackWindow.Revisions > 0 {
-				var windowSize int32
-				for _, rs := range c.allRSs {
-					if rs.Annotations != nil && rs.Annotations[v1alpha1.ExperimentNameAnnotationKey] != "" {
-						continue
-					}
+	if !c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) {
+		return false
+	}
+	if c.rollout.Spec.RollbackWindow != nil {
+		if c.rollout.Spec.RollbackWindow.Revisions > 0 {
+			var windowSize int32
+			for _, rs := range c.allRSs {
+				if rs.Annotations != nil && rs.Annotations[v1alpha1.ExperimentNameAnnotationKey] != "" {
+					continue
+				}
 
-					// is newRS < rs < stableRS ? then it's part of the window
-					if rs.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) &&
-						c.newRS.CreationTimestamp.Before(&rs.CreationTimestamp) {
-						windowSize = windowSize + 1
-					}
+				// is newRS < rs < stableRS ? then it's part of the window
+				if rs.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) &&
+					c.newRS.CreationTimestamp.Before(&rs.CreationTimestamp) {
+					windowSize = windowSize + 1
 				}
-				if windowSize < c.rollout.Spec.RollbackWindow.Revisions {
-					c.log.Infof("Rollback within the window: %d (%v)", windowSize, c.rollout.Spec.RollbackWindow.Revisions)
-					return true
-				}
-				c.log.Infof("Rollback outside the window: %d (%v)", windowSize, c.rollout.Spec.RollbackWindow.Revisions)
 			}
+			if windowSize < c.rollout.Spec.RollbackWindow.Revisions {
+				c.log.Infof("Rollback within the window: %d (%v)", windowSize, c.rollout.Spec.RollbackWindow.Revisions)
+				return true
+			}
+			c.log.Infof("Rollback outside the window: %d (%v)", windowSize, c.rollout.Spec.RollbackWindow.Revisions)
 		}
 	}
 	return false
@@ -1093,6 +1299,17 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 				newStatus.Canary.StablePingPong = v1alpha1.PPPing
 			}
 		}
+
+		// Set CompletionStatus for duration tracking (metrics will be emitted when stable)
+		if newStatus.Duration != nil && newStatus.Duration.CompletionStatus == nil {
+			completionStatus := v1alpha1.CompletionStatusPromoted
+			if c.rollout.Status.PromoteFull {
+				completionStatus = v1alpha1.CompletionStatusFastPromoted
+			}
+			newStatus.Duration.CompletionStatus = &completionStatus
+			// FinishedAt remains nil until rollout is stable
+		}
+
 		newStatus.StableRS = newStatus.CurrentPodHash
 
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},

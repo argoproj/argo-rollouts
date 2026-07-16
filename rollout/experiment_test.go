@@ -310,12 +310,17 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 				"currentExperiment": null
 			},
 			"phase": "Degraded",
-			"message": "%s: %s"
+			"message": "%s: %s",
+			"duration": {
+				"completionStatus": "aborted",
+				"finishedAt": "%s"
+			}
 		}
 	}`
 	now := timeutil.Now().UTC().Format(time.RFC3339)
 	generatedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "Experiment analysis phase is error/failed", false)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": Experiment analysis phase is error/failed")), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": Experiment analysis phase is error/failed", now)), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
@@ -509,12 +514,12 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectCreateReplicaSetAction(rs2)
-	f.expectUpdateRolloutAction(r2)       // update revision
-	f.expectUpdateRolloutStatusAction(r2) // update progressing condition, then exit early
-	f.expectGetRolloutAction(r2)          // second reconciliation
-	f.expectUpdateReplicaSetAction(rs2)   // scale replicaset
-	f.expectPatchRolloutAction(r1)
+	f.expectCreateReplicaSetAction(rs2)   // sync 1: create RS
+	f.expectUpdateRolloutAction(r2)       // sync 1: update revision
+	f.expectUpdateRolloutStatusAction(r2) // sync 1: update progressing condition
+	f.expectGetRolloutAction(r2)          // re-seed between syncs
+	f.expectPatchRolloutAction(r1)        // sync 2: patch status
+	f.expectUpdateReplicaSetAction(rs2)   // sync 2: scale replicaset
 	f.runWithSyncs(getKey(r2, t), 2)
 }
 

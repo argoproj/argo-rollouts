@@ -1011,6 +1011,126 @@ type RolloutStatus struct {
 	ALB *ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
 	/// ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario
 	ALBs []ALBStatus `json:"albs,omitempty" protobuf:"bytes,26,opt,name=albs"`
+	// Duration tracks timing information for the current rollout attempt
+	// +optional
+	Duration *RolloutDurationStatus `json:"duration,omitempty" protobuf:"bytes,27,opt,name=duration"`
+}
+
+// RolloutDurationStatus tracks timing for a rollout attempt
+type RolloutDurationStatus struct {
+	// RolloutStartedAt is when the current rollout attempt started (StableRS diverged from CurrentPodHash)
+	// +optional
+	RolloutStartedAt *metav1.Time `json:"rolloutStartedAt,omitempty" protobuf:"bytes,1,opt,name=rolloutStartedAt"`
+
+	// ManualPauseStartedAt is when the current manual pause began (nil if not in manual pause)
+	// +optional
+	ManualPauseStartedAt *metav1.Time `json:"manualPauseStartedAt,omitempty" protobuf:"bytes,2,opt,name=manualPauseStartedAt"`
+
+	// TotalManualPauseDuration is the accumulated time spent in manual pauses (in seconds)
+	// +optional
+	TotalManualPauseDuration *int64 `json:"totalManualPauseDuration,omitempty" protobuf:"varint,3,opt,name=totalManualPauseDuration"`
+
+	// FinishedAt is when the rollout reached its final stable state and metrics were emitted
+	// Set after: (1) rollout promoted and stable, OR (2) aborted, OR (3) superseded
+	// Nil means rollout is in-progress or just promoted but metrics not yet emitted
+	// +optional
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,4,opt,name=finishedAt"`
+
+	// CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)
+	// +optional
+	CompletionStatus *CompletionStatus `json:"completionStatus,omitempty" protobuf:"bytes,5,opt,name=completionStatus"`
+}
+
+// CompletionStatus is a label for the outcome of a rollout (used in metrics and status)
+type CompletionStatus string
+
+const (
+	// CompletionStatusPromoted indicates the rollout completed successfully through normal progression
+	CompletionStatusPromoted CompletionStatus = "promoted"
+	// CompletionStatusFastPromoted indicates the rollout was manually promoted (skipping remaining steps)
+	CompletionStatusFastPromoted CompletionStatus = "fast-promoted"
+	// CompletionStatusAborted indicates the rollout was aborted before completion
+	CompletionStatusAborted CompletionStatus = "aborted"
+	// CompletionStatusSuperseded indicates the rollout was superseded by a new rollout
+	CompletionStatusSuperseded CompletionStatus = "superseded"
+	// CompletionStatusRollbacked indicates the rollout was explicitly rolled back to a previous version
+	CompletionStatusRollbacked CompletionStatus = "rollbacked"
+	// CompletionStatusFastRollbacked indicates rollback within the rollback window (immediate promotion)
+	CompletionStatusFastRollbacked CompletionStatus = "fast-rollbacked"
+)
+
+// IsCompleted returns true if completion metrics have been emitted for this rollout attempt
+// Determined by checking if FinishedAt timestamp is set (metrics published)
+func (d *RolloutDurationStatus) IsCompleted() bool {
+	return d != nil && d.RolloutStartedAt != nil && d.FinishedAt != nil
+}
+
+// GetCompletionStatus returns the completion status (outcome that was or will be emitted), empty string if not set
+func (d *RolloutDurationStatus) GetCompletionStatus() CompletionStatus {
+	if d != nil && d.CompletionStatus != nil {
+		return *d.CompletionStatus
+	}
+	return ""
+}
+
+// CompleteRollout finalizes the rollout by setting FinishedAt and CompletionStatus.
+// It also finalizes any active manual pause by accumulating the current pause duration.
+// This should be called before emitting completion metrics.
+func (d *RolloutDurationStatus) CompleteRollout(now metav1.Time, status CompletionStatus) {
+	if d == nil {
+		return
+	}
+
+	// Finalize manual pause tracking if currently paused
+	if d.ManualPauseStartedAt != nil {
+		currentPauseDuration := now.Sub(d.ManualPauseStartedAt.Time)
+		currentPauseSeconds := int64(currentPauseDuration.Seconds())
+
+		if d.TotalManualPauseDuration == nil {
+			d.TotalManualPauseDuration = &currentPauseSeconds
+		} else {
+			total := *d.TotalManualPauseDuration + currentPauseSeconds
+			d.TotalManualPauseDuration = &total
+		}
+		d.ManualPauseStartedAt = nil
+	}
+
+	// Set completion fields
+	d.FinishedAt = &now
+	d.CompletionStatus = &status
+}
+
+// GetCompletionLogFields returns structured log fields for a completed rollout including
+// status and duration metrics (total, progression, manual_pause).
+// Returns an empty map if rollout is not completed (no FinishedAt or CompletionStatus).
+func (d *RolloutDurationStatus) GetCompletionLogFields() map[string]interface{} {
+	if d == nil || d.RolloutStartedAt == nil || d.FinishedAt == nil {
+		return map[string]interface{}{}
+	}
+
+	status := d.GetCompletionStatus()
+	if status == "" {
+		return map[string]interface{}{}
+	}
+
+	// Calculate total duration
+	total := d.FinishedAt.Sub(d.RolloutStartedAt.Time)
+
+	// Calculate manual pause time
+	manualPause := time.Duration(0)
+	if d.TotalManualPauseDuration != nil {
+		manualPause = time.Duration(*d.TotalManualPauseDuration) * time.Second
+	}
+
+	// Calculate progression time
+	progression := total - manualPause
+
+	return map[string]interface{}{
+		"status":                        string(status),
+		"duration_total_seconds":        total.Seconds(),
+		"duration_progression_seconds":  progression.Seconds(),
+		"duration_manual_pause_seconds": manualPause.Seconds(),
+	}
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
