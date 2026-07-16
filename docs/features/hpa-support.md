@@ -336,6 +336,16 @@ Which mode is correct depends on **how your HPA metrics consume the scale subres
 !!! warning
     If a single HPA mixes metric types from both rows (e.g. CPU utilization **and** a KEDA cron scaler), no mode is correct during an update: `All` breaks the absolute metrics and `Stable` breaks the sampled metrics. In that case, prefer restructuring the metrics (e.g. separate the scheduled floor from the utilization target) or accept the default behavior and its transient effects.
 
+### What happens in `Stable` mode as traffic shifts to the canary
+
+The traffic shift itself never changes what is reported: with `dynamicStableScale: false` the stable ReplicaSet stays fully scaled at `spec.replicas` from weight 0 through weight 100, so `status.HPAReplicas` and `status.selector` describe the same pods for the entire update. This insensitivity is the point of the mode — the reported state never inflates, so absolute-metric scalers have nothing to feed back on. Whether scaling stays *correct* during the shift depends on whether the HPA metric is attached to *how much total work exists* or to *which pods currently have the traffic*:
+
+- **Absolute metrics (recommended for this mode)** measure the whole application (queue depth, scheduled replica floor, total request rate on the root service), so they are unaffected by how traffic is split between the versions. If load changes mid-update and the HPA adjusts `spec.replicas`, the stable ReplicaSet scales to the new value, the canary follows via `ceil(weight × replicas)`, and the reported count tracks `spec.replicas` — the calculation converges instead of looping. Make sure the metric measures **aggregate** traffic: a metric scoped to the stable Service alone drains away as weight shifts and causes under-scaling.
+
+- **Sampled metrics (not recommended for this mode)** degrade progressively as weight increases. The HPA samples only the stable pods, whose per-pod load decays as traffic leaves them — at `setWeight: 90`, the stable pods share 10% of the traffic and look nearly idle. The HPA then scales `spec.replicas` down, which shrinks **both** ReplicaSets and cuts real serving capacity while the canary carries most of the load. At low weights the decay stays inside the HPA's tolerance (10% by default) and nothing happens; at higher weights pods are actively shed. This is the failure mode that makes sampled metrics require `All`.
+
+At the moment of promotion, the new ReplicaSet becomes stable and reporting switches to it. On an abort, traffic returns to the still-fully-scaled stable ReplicaSet — which is already the one being reported — so scaling is correct immediately.
+
 ### Interaction with `setCanaryScale`
 
 The [`setCanaryScale`](#decoupling-canary-with-traffic-manager-setcanaryscale) step detaches the canary pod count from the traffic weight, so canary pods may be running while receiving little or no traffic (e.g. `setCanaryScale.weight` before any `setWeight`, or `matchTrafficWeight: false`).
