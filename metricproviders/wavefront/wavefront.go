@@ -140,6 +140,11 @@ func (p *Provider) findDataPointValue(datapoints []wavefrontapi.DataPoint, mTime
 	delta := math.Inf(1)
 	startTimeEpoch := float64(mTime.Unix())
 	for _, dp := range datapoints {
+		if len(dp) < 2 {
+			// A well-formed Wavefront datapoint is [<timestamp>, <value>].
+			// Skip malformed entries so we don't panic on dp[0]/dp[1].
+			continue
+		}
 		newDelta := dp[0] - startTimeEpoch
 		if math.Abs(newDelta) < math.Abs(delta) {
 			currentValue = dp[1]

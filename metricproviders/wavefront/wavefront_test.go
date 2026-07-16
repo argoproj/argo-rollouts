@@ -270,4 +270,27 @@ func TestFindDataPointValue(t *testing.T) {
 		assert.Equal(t, int64(0), epoch)
 		assert.Equal(t, int64(0), drift)
 	})
+
+	t.Run("Skip malformed datapoints without panicking", func(t *testing.T) {
+		dataPoints := []wavefrontapi.DataPoint{
+			{},       // zero elements
+			{7},      // one element
+			dp(0, 1), // valid, closest
+			dp(5, 2),
+		}
+		value, epoch, drift := p.findDataPointValue(dataPoints, metav1.Unix(1, 0))
+		assert.Equal(t, float64(1), value)
+		assert.Equal(t, int64(0), epoch)
+		assert.Equal(t, int64(-1), drift)
+	})
+
+	t.Run("Only malformed datapoints returns zero value", func(t *testing.T) {
+		dataPoints := []wavefrontapi.DataPoint{
+			{},
+			{7},
+		}
+		value, epoch, _ := p.findDataPointValue(dataPoints, metav1.Unix(1, 0))
+		assert.Equal(t, float64(0), value)
+		assert.Equal(t, int64(0), epoch)
+	})
 }
