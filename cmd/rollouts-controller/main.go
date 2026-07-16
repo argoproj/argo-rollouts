@@ -300,7 +300,8 @@ func newCommand() *cobra.Command {
 					replicaSetInformerFactory,
 					jobInformerFactory,
 					ephemeralMetadataThreads,
-					ephemeralMetadataPodRetries)
+					ephemeralMetadataPodRetries,
+					selfServiceNotificationEnabled)
 			}
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
