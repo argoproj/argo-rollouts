@@ -81,11 +81,50 @@ type ArgoRolloutsServer struct {
 }
 
 // namespaceListers serves reads from a shared watch cache instead of
-// re-listing the world on every request.
+// re-listing the world on every request, and fans informer events out to
+// stream subscribers (WatchRolloutInfos) so streams don't build and sync
+// their own informers per connection.
 type namespaceListers struct {
 	rollouts    listers.RolloutNamespaceLister
 	replicaSets appslisters.ReplicaSetNamespaceLister
 	pods        corelisters.PodNamespaceLister
+
+	subsMu    sync.Mutex
+	subs      map[uint64]chan *v1alpha1.Rollout
+	nextSubID uint64
+}
+
+// subscribe registers a stream for rollout-change notifications. Channels
+// are buffered and broadcast never blocks (see broadcast).
+func (c *namespaceListers) subscribe() (uint64, <-chan *v1alpha1.Rollout) {
+	c.subsMu.Lock()
+	defer c.subsMu.Unlock()
+	id := c.nextSubID
+	c.nextSubID++
+	ch := make(chan *v1alpha1.Rollout, 256)
+	c.subs[id] = ch
+	return id, ch
+}
+
+func (c *namespaceListers) unsubscribe(id uint64) {
+	c.subsMu.Lock()
+	defer c.subsMu.Unlock()
+	delete(c.subs, id)
+}
+
+// broadcast delivers a changed rollout to every subscriber, dropping the
+// event for any subscriber whose buffer is full — a dropped update is
+// superseded by the next one, and the shared informer must never block on
+// a slow stream.
+func (c *namespaceListers) broadcast(ro *v1alpha1.Rollout) {
+	c.subsMu.Lock()
+	defer c.subsMu.Unlock()
+	for _, ch := range c.subs {
+		select {
+		case ch <- ro:
+		default:
+		}
+	}
 }
 
 // namespaceListers returns (building on first use) the informer-backed
@@ -140,7 +179,39 @@ func (s *ArgoRolloutsServer) namespaceListers(ctx context.Context, namespace str
 		rollouts:    rolloutInformer.Lister().Rollouts(namespace),
 		replicaSets: rsInformer.Lister().ReplicaSets(namespace),
 		pods:        podInformer.Lister().Pods(namespace),
+		subs:        make(map[uint64]chan *v1alpha1.Rollout),
 	}
+
+	// One set of event handlers on the SHARED informers feeds every stream
+	// subscriber (this client-go can't remove handlers, so per-stream
+	// handlers would leak). podUpdated maps pod deletions back to the owning
+	// rollout; it sends on a channel, so bridge it to broadcast.
+	podEvents := make(chan *v1alpha1.Rollout, 64)
+	go func() {
+		for ro := range podEvents {
+			c.broadcast(ro)
+		}
+	}()
+	rolloutInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if ro, ok := obj.(*v1alpha1.Rollout); ok {
+				c.broadcast(ro)
+			}
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			if ro, ok := newObj.(*v1alpha1.Rollout); ok {
+				c.broadcast(ro)
+			}
+		},
+	})
+	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			if pod, ok := obj.(*corev1.Pod); ok {
+				podUpdated(pod, c.replicaSets, c.rollouts, podEvents)
+			}
+		},
+	})
+
 	if s.nsListers == nil {
 		s.nsListers = make(map[string]*namespaceListers)
 	}
@@ -357,58 +428,54 @@ func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, 
 	}
 	ctx := ws.Context()
 
-	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(q.Namespace))
-	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(q.Namespace)
-	rolloutInformer := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer()
+	// Streams share the namespace informer cache: opening the dashboard no
+	// longer builds and syncs a fresh informer set per connection (which
+	// took 10-15s of full-namespace listing on large namespaces).
+	c, err := s.namespaceListers(ctx, q.GetNamespace())
+	if err != nil {
+		return err
+	}
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(s.Options.KubeClientset, 0, kubeinformers.WithNamespace(q.Namespace))
-	podsLister := kubeInformerFactory.Core().V1().Pods().Lister().Pods(q.GetNamespace())
-	rsLister := kubeInformerFactory.Apps().V1().ReplicaSets().Lister().ReplicaSets(q.GetNamespace())
-	kubeInformerFactory.Start(ws.Context().Done())
-	podsInformer := kubeInformerFactory.Core().V1().Pods().Informer()
+	emit := func(ro *v1alpha1.Rollout) error {
+		allPods, err := c.pods.List(labels.Everything())
+		if err != nil {
+			return err
+		}
+		allReplicaSets, err := c.replicaSets.List(labels.Everything())
+		if err != nil {
+			return err
+		}
+		// get shallow rollout info
+		send(info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil, nil))
+		return nil
+	}
 
-	rolloutUpdateChan := make(chan *v1alpha1.Rollout)
+	// Subscribe before snapshotting so nothing lands between the two (a
+	// duplicate update is harmless).
+	id, updates := c.subscribe()
+	defer c.unsubscribe(id)
 
-	rolloutInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			rolloutUpdateChan <- obj.(*v1alpha1.Rollout)
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			rolloutUpdateChan <- newObj.(*v1alpha1.Rollout)
-		},
-	})
-	podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
-			podUpdated(obj.(*corev1.Pod), rsLister, rolloutsLister, rolloutUpdateChan)
-		},
-	})
-
-	go rolloutInformer.Run(ctx.Done())
-
-	cache.WaitForCacheSync(
-		ws.Context().Done(),
-		podsInformer.HasSynced,
-		kubeInformerFactory.Apps().V1().ReplicaSets().Informer().HasSynced,
-		rolloutInformer.HasSynced,
-	)
+	// Initial snapshot from the warm cache — replaces the ADD-event flood
+	// the per-stream informer sync used to produce.
+	rollouts, err := c.rollouts.List(labels.Everything())
+	if err != nil {
+		return err
+	}
+	sort.Slice(rollouts, func(i, j int) bool { return rollouts[i].Name < rollouts[j].Name })
+	for _, ro := range rollouts {
+		if err := emit(ro); err != nil {
+			return err
+		}
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case ro := <-rolloutUpdateChan:
-			allPods, err := podsLister.List(labels.Everything())
-			if err != nil {
+		case ro := <-updates:
+			if err := emit(ro); err != nil {
 				return err
 			}
-			allReplicaSets, err := rsLister.List(labels.Everything())
-			if err != nil {
-				return err
-			}
-
-			// get shallow rollout info
-			ri := info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil, nil)
-			send(ri)
 		}
 	}
 }
