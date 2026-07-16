@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Upload
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Event File
           path: ${{ github.event_path }}
@@ -80,13 +80,13 @@ jobs:
 
       - name: Upload Unit Test Results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Unit Test Results
           path: |
             junit-unit-test.xml
       - name: Generate code coverage artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-output-unit
           path: coverage-output-unit
@@ -160,23 +160,46 @@ jobs:
           [[ -f rerunreport.txt ]] && cat rerunreport.txt || echo "No rerun report found"
       - name: Upload E2E Test Results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: E2E Test Results (k8s ${{ matrix.kubernetes.version }})
           path: |
             junit-e2e-test.xml
       - name: Upload e2e-controller logs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-controller-k8s-${{ matrix.kubernetes.version }}.log
           path: /tmp/e2e-controller.log
         if: ${{ always() }}
       - name: Upload code coverage artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-output-e2e
           path: coverage-output-e2e
         if: ${{ matrix.kubernetes.latest }}
+
+  # workaround for status checks -- check this one job instead of each individual E2E job in the matrix
+  # this allows us to skip the entire matrix when it doesn't need to run while still having accurate status checks
+  # see:
+  # https://github.com/argoproj/argo-workflows/pull/12006
+  # https://github.com/orgs/community/discussions/9141#discussioncomment-2296809
+  # https://github.com/orgs/community/discussions/26822#discussioncomment-3305794
+  test-e2e-composite-result:
+    name: E2E Tests - Composite result
+    if: ${{ always() }}
+    needs:
+      - test-e2e
+      - changes
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          result="${{ needs.test-e2e.result }}"
+          # mark as successful even if skipped
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi
 
   coverage-process:
     name: Process Coverage Files
@@ -210,7 +233,7 @@ jobs:
         run: |
           go tool covdata textfmt -i=coverage-output-e2e/ -o e2e-coverage.out
       - name: Upload unit test coverage to codecov.io
-        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: unit-coverage.out
           flags: unit-tests
@@ -221,7 +244,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload e2e test coverage to codecov.io
-        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: e2e-coverage.out
           flags: e2e

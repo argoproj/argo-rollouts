@@ -13,7 +13,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/evanphx/json-patch/v5 v5.9.11
-	github.com/expr-lang/expr v1.17.7
+	github.com/expr-lang/expr v1.17.8
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.4
@@ -30,10 +30,10 @@ require (
 	github.com/prometheus/common v0.67.5
 	github.com/prometheus/common/sigv4 v0.1.0
 	github.com/servicemeshinterface/smi-sdk-go v0.5.0
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spaceapegames/go-wavefront v1.8.1
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/tj/assert v0.0.3
 	github.com/valyala/fasttemplate v1.2.2
@@ -170,7 +170,7 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/slack-go/slack v0.26.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
