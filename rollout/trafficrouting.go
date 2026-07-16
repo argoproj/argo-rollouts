@@ -440,35 +440,64 @@ func calculateWeightStatus(ro *v1alpha1.Rollout, canaryHash, stableHash string, 
 func (c *rolloutContext) calculateWeightDestinationsFromExperiment() []v1alpha1.WeightDestination {
 	weightDestinations := make([]v1alpha1.WeightDestination, 0)
 	exStep := replicasetutil.GetCurrentExperimentStep(c.rollout)
-	if exStep != nil && c.currentEx != nil && c.currentEx.Status.Phase == v1alpha1.AnalysisPhaseRunning {
-		getTemplateWeight := func(name string) *int32 {
-			for _, tmpl := range exStep.Templates {
-				if tmpl.Name == name {
-					return tmpl.Weight
-				}
-			}
-			return nil
-		}
-		for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
-			templateWeight := getTemplateWeight(templateStatus.Name)
-			// Only build a WeightDestination when the template still has a Service.
-			// When an experiment finishes, the experiment controller scales down the
-			// template ReplicaSets and deletes their Services, clearing
-			// templateStatus.ServiceName (and PodTemplateHash). This can happen while
-			// the experiment is still reported as Running (e.g. a completed template
-			// whose service is torn down before the overall phase transitions). Without
-			// this guard we would emit a WeightDestination with an empty ServiceName,
-			// which the traffic router turns into a route destination with an empty
-			// host, and Istio rejects the VirtualService ("empty domain name not
-			// allowed"), wedging the rollout on the experiment step.
-			if templateWeight != nil && templateStatus.ServiceName != "" {
-				weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
-					ServiceName:     templateStatus.ServiceName,
-					PodTemplateHash: templateStatus.PodTemplateHash,
-					Weight:          *templateWeight,
-				})
+	// We only build destinations while the experiment is Running. Once the experiment
+	// reaches a terminal phase (Successful/Failed) this returns no destinations, and the
+	// traffic router removes the experiment hosts from the route entirely (returning their
+	// share to stable) - so the drain-to-0 handling below is specifically for the window
+	// where the experiment is still Running but an individual template has already
+	// completed and started tearing down.
+	if exStep == nil || c.currentEx == nil || c.currentEx.Status.Phase != v1alpha1.AnalysisPhaseRunning {
+		return weightDestinations
+	}
+	getTemplateWeight := func(name string) *int32 {
+		for _, tmpl := range exStep.Templates {
+			if tmpl.Name == name {
+				return tmpl.Weight
 			}
 		}
+		return nil
+	}
+	for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
+		templateWeight := getTemplateWeight(templateStatus.Name)
+		if templateWeight == nil {
+			continue
+		}
+		// Only build a WeightDestination when the template still has a Service.
+		// When an experiment finishes, the experiment controller scales down the
+		// template ReplicaSets and deletes their Services, clearing
+		// templateStatus.ServiceName (and PodTemplateHash). This can happen while
+		// the experiment is still reported as Running (e.g. a completed template
+		// whose service is torn down before the overall phase transitions). Without
+		// this guard we would emit a WeightDestination with an empty ServiceName,
+		// which the traffic router turns into a route destination with an empty
+		// host, and Istio rejects the VirtualService ("empty domain name not
+		// allowed"), wedging the rollout on the experiment step.
+		if templateStatus.ServiceName == "" {
+			continue
+		}
+		// Drain the template's traffic before it is torn down. An individual template
+		// can complete (its duration elapsed) while the experiment as a whole is still
+		// Running - e.g. a multi-template experiment where another template is still
+		// running, or a template that finished while a required-for-completion analysis
+		// keeps the experiment Running. Once a template's status is Completed, the
+		// experiment controller begins scaling its ReplicaSet down to 0 and only deletes
+		// the Service after AvailableReplicas reaches 0. During that window the Service
+		// and (draining) pods still exist, so we keep the destination in the route but
+		// set its weight to 0. This stops *new* traffic from being routed to a template
+		// that is being torn down while letting in-flight requests finish, giving a
+		// clean "weight -> 0, drain, delete Service" sequence. The removed weight is
+		// returned to the stable service by the traffic router. If we left the configured
+		// weight in place, the VirtualService would keep routing traffic to pods that are
+		// actively being scaled down, causing resets/5xx until the Service is deleted.
+		weight := *templateWeight
+		if templateStatus.Status.Completed() {
+			weight = 0
+		}
+		weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
+			ServiceName:     templateStatus.ServiceName,
+			PodTemplateHash: templateStatus.PodTemplateHash,
+			Weight:          weight,
+		})
 	}
 	return weightDestinations
 }
