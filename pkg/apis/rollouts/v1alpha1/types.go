@@ -151,6 +151,10 @@ const (
 	// DefaultReplicaSetScaleDownDeadlineAnnotationKey is the default key attached to an old stable ReplicaSet after
 	// the rollout transitioned to a new version. It contains the time when the controller can scale down the RS.
 	DefaultReplicaSetScaleDownDeadlineAnnotationKey = "scale-down-deadline"
+	// DefaultStableScaleDownDeadlineAnnotationKey is attached to the stable ReplicaSet when dynamicStableScale
+	// requests a scale-down and stableScaleDownPolicy is configured. It contains the time when the controller
+	// may scale the stable RS below its current replica count.
+	DefaultStableScaleDownDeadlineAnnotationKey = "stable-scale-down-deadline"
 	// ManagedByRolloutKey is the key used to indicate which rollout(s) manage a resource but doesn't own it.
 	ManagedByRolloutsKey = "argo-rollouts.argoproj.io/managed-by-rollouts"
 	// DefaultReplicaSetRestartAnnotationKey indicates that the ReplicaSet with this annotation was restarted at the
@@ -339,6 +343,19 @@ type CanaryStrategy struct {
 	// Defaults to 100% of total replicas.
 	// +optional
 	ReplicaProgressThreshold *ReplicaProgressThreshold `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,17,opt,name=replicaProgressThreshold"`
+	// StableScaleDownPolicy configures how the stable ReplicaSet is scaled down when using dynamicStableScale.
+	// When set, the controller delays scaling the stable ReplicaSet below its current replica count for
+	// DelaySeconds after a scale-down is requested, allowing the data plane to converge before pods are removed.
+	// +optional
+	StableScaleDownPolicy *StableScaleDownPolicy `json:"stableScaleDownPolicy,omitempty" protobuf:"bytes,18,opt,name=stableScaleDownPolicy"`
+}
+
+// StableScaleDownPolicy holds options for delaying stable ReplicaSet scale-down when using dynamicStableScale.
+type StableScaleDownPolicy struct {
+	// DelaySeconds is the number of seconds to hold the stable ReplicaSet at its current replica count
+	// after a scale-down is requested before allowing further scale-down.
+	// +optional
+	DelaySeconds *int32 `json:"delaySeconds,omitempty" protobuf:"varint,1,opt,name=delaySeconds"`
 }
 
 // PingPongSpec holds the ping and pong service name.

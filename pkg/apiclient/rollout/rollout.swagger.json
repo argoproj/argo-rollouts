@@ -1105,6 +1105,10 @@
         "replicaProgressThreshold": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaProgressThreshold",
           "title": "ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.\nDefaults to 100% of total replicas.\n+optional"
+        },
+        "stableScaleDownPolicy": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StableScaleDownPolicy",
+          "title": "StableScaleDownPolicy configures how the stable ReplicaSet is scaled down when using dynamicStableScale.\nWhen set, the controller delays scaling the stable ReplicaSet below its current replica count for\nDelaySeconds after a scale-down is requested, allowing the data plane to converge before pods are removed.\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
@@ -2620,6 +2624,17 @@
           "type": "string"
         }
       }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StableScaleDownPolicy": {
+      "type": "object",
+      "properties": {
+        "delaySeconds": {
+          "type": "integer",
+          "format": "int32",
+          "title": "DelaySeconds is the number of seconds to hold the stable ReplicaSet at its current replica count\nafter a scale-down is requested before allowing further scale-down.\n+optional"
+        }
+      },
+      "description": "StableScaleDownPolicy holds options for delaying stable ReplicaSet scale-down when using dynamicStableScale."
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StepPluginStatus": {
       "type": "object",
