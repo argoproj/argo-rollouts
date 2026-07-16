@@ -73,6 +73,12 @@ const (
 	InvalidCanaryDynamicStableScale = "Canary dynamicStableScale can only be used with traffic routing"
 	// InvalidCanaryDynamicStableScaleWithScaleDownDelay indicates that canary.dynamicStableScale cannot be used with scaleDownDelaySeconds
 	InvalidCanaryDynamicStableScaleWithScaleDownDelay = "Canary dynamicStableScale cannot be used with scaleDownDelaySeconds"
+	// InvalidCanaryScaleReportingNoTrafficRouting indicates that canary.scaleReporting mode Stable requires traffic routing
+	InvalidCanaryScaleReportingNoTrafficRouting = "Canary scaleReporting mode Stable can only be used with traffic routing"
+	// InvalidCanaryScaleReportingDynamicStableScale indicates that canary.scaleReporting mode Stable cannot be used with dynamicStableScale
+	InvalidCanaryScaleReportingDynamicStableScale = "Canary scaleReporting mode Stable cannot be used with dynamicStableScale"
+	// InvalidCanaryScaleReportingMode indicates an unknown canary.scaleReporting mode
+	InvalidCanaryScaleReportingMode = "Canary scaleReporting mode must be one of: All, Stable"
 	// InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins indicates that canary.maxTrafficWeight cannot be used
 	InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins = "Canary maxTrafficWeight in traffic routing only supported in Nginx and Plugins"
 	// InvalidPingPongProvidedMessage indicates that both ping and pong service must be set to use Ping-Pong feature
@@ -306,6 +312,21 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 			if canary.TrafficRouting.Nginx == nil && len(canary.TrafficRouting.Plugins) == 0 {
 				allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("maxTrafficWeight"), canary.TrafficRouting.MaxTrafficWeight, InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins))
 			}
+		}
+	}
+
+	if canary.ScaleReporting != nil {
+		switch canary.ScaleReporting.Mode {
+		case "", v1alpha1.ScaleReportingModeAll:
+		case v1alpha1.ScaleReportingModeStable:
+			if canary.TrafficRouting == nil {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleReporting").Child("mode"), canary.ScaleReporting.Mode, InvalidCanaryScaleReportingNoTrafficRouting))
+			}
+			if canary.DynamicStableScale {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleReporting").Child("mode"), canary.ScaleReporting.Mode, InvalidCanaryScaleReportingDynamicStableScale))
+			}
+		default:
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleReporting").Child("mode"), canary.ScaleReporting.Mode, InvalidCanaryScaleReportingMode))
 		}
 	}
 

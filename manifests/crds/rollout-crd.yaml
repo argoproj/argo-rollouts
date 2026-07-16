@@ -803,6 +803,27 @@ spec:
                           This value is ignored with basic, replica-weighted canary without traffic routing.
                         format: int32
                         type: integer
+                      scaleReporting:
+                        description: |-
+                          ScaleReporting controls what the status fields backing the scale subresource
+                          (status.HPAReplicas, status.selector) report during an update when using
+                          traffic routing. Defaults to reporting all pods owned by the Rollout.
+                        properties:
+                          mode:
+                            description: |-
+                              Mode controls which pods are reported. "All" (default) reports every pod owned
+                              by the Rollout (stable + canary + draining). "Stable" reports only the stable
+                              ReplicaSet's pod count and selector, keeping the reported count equal to
+                              spec.replicas so HPA/KEDA scalers using absolute (Object/External) metrics do
+                              not oscillate against the temporarily doubled pod count. "Stable" should not be
+                              used with resource Utilization or Pods metrics, since the HPA would then only
+                              sample stable pods while the canary is taking traffic. Requires trafficRouting;
+                              incompatible with dynamicStableScale.
+                            enum:
+                            - All
+                            - Stable
+                            type: string
+                        type: object
                       stableMetadata:
                         description: |-
                           StableMetadata specify labels and annotations which will be attached to the stable pods for

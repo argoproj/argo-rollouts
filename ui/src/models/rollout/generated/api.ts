@@ -906,6 +906,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
      */
     replicaProgressThreshold?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScaleReporting}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    scaleReporting?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScaleReporting;
 }
 /**
  * 
@@ -2748,6 +2754,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SMITrafficR
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SMITrafficRouting
      */
     trafficSplitName?: string;
+}
+/**
+ * ScaleReporting configures what the Rollout reports in the status fields consumed by the scale subresource (status.HPAReplicas and status.selector) during a canary update.
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScaleReporting
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScaleReporting {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScaleReporting
+     */
+    mode?: string;
 }
 /**
  * 

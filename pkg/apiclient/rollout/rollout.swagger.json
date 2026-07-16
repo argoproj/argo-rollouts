@@ -1122,6 +1122,10 @@
         "replicaProgressThreshold": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaProgressThreshold",
           "title": "ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.\nDefaults to 100% of total replicas.\n+optional"
+        },
+        "scaleReporting": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ScaleReporting",
+          "title": "ScaleReporting controls what the status fields backing the scale subresource\n(status.HPAReplicas, status.selector) report during an update when using\ntraffic routing. Defaults to reporting all pods owned by the Rollout.\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
@@ -2502,6 +2506,16 @@
         }
       },
       "title": "SMITrafficRouting configuration for TrafficSplit Custom Resource to control traffic routing"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ScaleReporting": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "title": "Mode controls which pods are reported. \"All\" (default) reports every pod owned\nby the Rollout (stable + canary + draining). \"Stable\" reports only the stable\nReplicaSet's pod count and selector, keeping the reported count equal to\nspec.replicas so HPA/KEDA scalers using absolute (Object/External) metrics do\nnot oscillate against the temporarily doubled pod count. \"Stable\" should not be\nused with resource Utilization or Pods metrics, since the HPA would then only\nsample stable pods while the canary is taking traffic. Requires trafficRouting;\nincompatible with dynamicStableScale.\n+kubebuilder:validation:Enum=All;Stable\n+optional"
+        }
+      },
+      "description": "ScaleReporting configures what the Rollout reports in the status fields consumed by the\nscale subresource (status.HPAReplicas and status.selector) during a canary update."
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ScopeDetail": {
       "type": "object",

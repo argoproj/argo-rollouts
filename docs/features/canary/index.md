@@ -172,6 +172,12 @@ spec:
       abortScaleDownDelaySeconds: 600
 ```
 
+NOTE: when the stable ReplicaSet is left scaled to 100% (i.e. `dynamicStableScale` is not enabled),
+the temporarily doubled pod count is also reported to any HPA targeting the Rollout, which can cause
+incorrect autoscaling decisions during the update. See
+[Scale Reporting During Canary Updates](../hpa-support.md#scale-reporting-during-canary-updates)
+for how to configure this via `canary.scaleReporting` (which is incompatible with `dynamicStableScale`).
+
 ## Mimicking Rolling Update
 
 !!! important

@@ -257,6 +257,34 @@ type ReplicaProgressThreshold struct {
 	Value int32 `json:"value" protobuf:"varint,2,opt,name=value"`
 }
 
+// ScaleReportingMode is the type of pods reported through the scale subresource. All | Stable
+type ScaleReportingMode string
+
+const (
+	// ScaleReportingModeAll reports the count and selector of all pods owned by the Rollout
+	// (stable + canary + draining). This is the default.
+	ScaleReportingModeAll ScaleReportingMode = "All"
+	// ScaleReportingModeStable reports only the stable ReplicaSet's pod count and selector.
+	// Only valid with traffic routing and without dynamicStableScale.
+	ScaleReportingModeStable ScaleReportingMode = "Stable"
+)
+
+// ScaleReporting configures what the Rollout reports in the status fields consumed by the
+// scale subresource (status.HPAReplicas and status.selector) during a canary update.
+type ScaleReporting struct {
+	// Mode controls which pods are reported. "All" (default) reports every pod owned
+	// by the Rollout (stable + canary + draining). "Stable" reports only the stable
+	// ReplicaSet's pod count and selector, keeping the reported count equal to
+	// spec.replicas so HPA/KEDA scalers using absolute (Object/External) metrics do
+	// not oscillate against the temporarily doubled pod count. "Stable" should not be
+	// used with resource Utilization or Pods metrics, since the HPA would then only
+	// sample stable pods while the canary is taking traffic. Requires trafficRouting;
+	// incompatible with dynamicStableScale.
+	// +kubebuilder:validation:Enum=All;Stable
+	// +optional
+	Mode ScaleReportingMode `json:"mode,omitempty" protobuf:"bytes,1,opt,name=mode,casttype=ScaleReportingMode"`
+}
+
 // CanaryStrategy defines parameters for a Replica Based Canary
 type CanaryStrategy struct {
 	// CanaryService holds the name of a service which selects pods with canary version and don't select any pods with stable version.
@@ -339,6 +367,11 @@ type CanaryStrategy struct {
 	// Defaults to 100% of total replicas.
 	// +optional
 	ReplicaProgressThreshold *ReplicaProgressThreshold `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,17,opt,name=replicaProgressThreshold"`
+	// ScaleReporting controls what the status fields backing the scale subresource
+	// (status.HPAReplicas, status.selector) report during an update when using
+	// traffic routing. Defaults to reporting all pods owned by the Rollout.
+	// +optional
+	ScaleReporting *ScaleReporting `json:"scaleReporting,omitempty" protobuf:"bytes,18,opt,name=scaleReporting"`
 }
 
 // PingPongSpec holds the ping and pong service name.

@@ -862,6 +862,55 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
 }
 
+// Verifies with a canary using traffic routing and scaleReporting mode Stable, the scale
+// subresource fields (status.HPAReplicas, status.selector) are patched to report only the
+// stable ReplicaSet's pod count and selector (issue #4847). Both fields must change
+// together for HPA calculations to be coherent.
+func TestCanaryWithTrafficRoutingAddScaleDownDelayScaleReportingStable(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newCanaryRollout("foo", 1, nil, []v1alpha1.CanaryStep{{
+		SetWeight: ptr.To[int32](10),
+	}}, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.ScaleReporting = &v1alpha1.ScaleReporting{Mode: v1alpha1.ScaleReportingModeStable}
+	r2 := bumpVersion(r1)
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 2, 1, 2, false)
+	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.CurrentStepIndex = ptr.To[int32](1)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
+
+	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	canarySvc := newService("canary", 80, selector, r2)
+	stableSvc := newService("stable", 80, selector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	rs1Patch := f.expectPatchReplicaSetAction(rs1)      // set scale-down-deadline annotation
+	rolloutPatchIndex := f.expectPatchRolloutAction(r2) // patch to update scale subresource fields
+	f.run(getKey(r2, t))
+
+	f.verifyPatchedReplicaSet(rs1Patch, 30)
+	updatedRollout := f.getPatchedRollout(rolloutPatchIndex)
+	expectedRolloutPatch := fmt.Sprintf(`{"status":{"HPAReplicas":1,"selector":"foo=bar,rollouts-pod-template-hash=%s"}}`, rs2PodHash)
+	assert.JSONEq(t, expectedRolloutPatch, updatedRollout)
+}
+
 // Verifies with a canary using traffic routing, we scale down old ReplicaSets which exceed our limit
 // after promoting desired ReplicaSet to stable
 func TestCanaryWithTrafficRoutingScaleDownLimit(t *testing.T) {

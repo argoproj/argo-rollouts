@@ -192,6 +192,8 @@ The key difference from the default behavior (without a traffic manager) is that
 **Warning: Lack of Scaling Isolation**<br>
 Using a single HPA for both stable and canary pods has a drawback: scaling isn’t decoupled between the stable and canary versions. If the canary has a performance issue (e.g. a memory leak or CPU spike), the HPA will see a high average metric across all pods and scale up the entire application. This means the stable version also gets scaled up due to a problem in the canary. Therefore, it is crucial to develop the applications free of memory leaks and performance issues for smooth canary releases.
 
+Additionally, during an update the total number of pods owned by the Rollout temporarily reaches up to twice `spec.replicas` (stable stays fully scaled while the canary scales up). Depending on the HPA metric type, this inflated count can cause incorrect scaling decisions or even a scaling feedback loop. See [Scale Reporting During Canary Updates](#scale-reporting-during-canary-updates) for how to configure what the Rollout reports to the autoscaler.
+
 ### Example Configuration: 
 In this example, Traefik is used as the traffic manager. The setup requires: an `IngressRoute` for Traefik to expose the service, a `TraefikService` to handle the weighted load balancing between canary and stable, and a `Rollout` configured to use Traefik's `trafficRouting`. 
 The HPA still targets the Rollouts resource as in previous examples.
@@ -287,6 +289,51 @@ strategy:
     - pause: {}
 ```
 
+
+## Scale Reporting During Canary Updates
+
+!!! important
+    Available since v1.11
+
+The HPA (and autoscalers built on it, such as KEDA) reads the Rollout through the `scale` subresource, which exposes two fields from the Rollout status:
+
+- `status.selector` (`labelSelectorPath`) — the label selector the HPA uses to list pods. It is used to sample per-pod metrics (Resource/ContainerResource and Pods metrics) and to count ready pods for Object/External metrics with a `Value` target.
+- `status.HPAReplicas` (`statusReplicasPath`) — the current replica count. It is used by Object/External metrics with an `AverageValue` target (e.g. KEDA scalers).
+
+By default, a canary Rollout reports **all** pods it owns: during an update with traffic routing (and `dynamicStableScale: false`), that is stable + canary — up to twice `spec.replicas`. For metric types that consume these fields as absolute counts, the temporarily doubled value feeds back into the autoscaler's calculation: the HPA raises `spec.replicas`, which raises the canary pod count (`ceil(weight × replicas)`), which raises the reported count again, producing a continuous scale-up/scale-down oscillation for the entire duration of the update.
+
+The `scaleReporting` field on the canary strategy controls this behavior:
+
+```yaml
+spec:
+  strategy:
+    canary:
+      trafficRouting:
+        istio: {} # any traffic routing provider
+      scaleReporting:
+        mode: Stable # All (default) | Stable
+      steps:
+      - setWeight: 20
+      - pause: {}
+```
+
+- **`All`** (default): `status.HPAReplicas` and `status.selector` report every pod owned by the Rollout (stable + canary + any old ReplicaSets still draining). This is the long-standing behavior.
+- **`Stable`**: `status.HPAReplicas` and `status.selector` report only the stable ReplicaSet. The reported replica count stays equal to `spec.replicas` throughout the update, so autoscalers using absolute metrics do not see the transient canary surge. Both fields switch together so that the count always matches the pods selected by the selector.
+
+`scaleReporting: mode: Stable` requires `trafficRouting` and is rejected in combination with `dynamicStableScale: true` (with dynamic stable scaling, the stable ReplicaSet scales down as the canary takes traffic, so its pod count no longer represents serving capacity — and total pods already stay near `spec.replicas`, so `All` is correct there). Before the first revision is fully promoted there is no stable ReplicaSet yet, and the Rollout falls back to reporting all pods.
+
+### Choosing a mode
+
+Which mode is correct depends on **how your HPA metrics consume the scale subresource**. There is no mode that works for every metric type — this is why the behavior is configurable.
+
+| HPA metric type | How it uses the scale subresource | Recommended mode |
+|---|---|---|
+| `Resource` / `ContainerResource` (Utilization or AverageValue), `Pods` | Samples metrics from the pods matched by `status.selector` | `All` — the HPA must see every pod taking traffic. With `Stable`, the HPA only samples stable pods; at high canary traffic weights the stable pods look idle and the HPA scales the application down while the canary is under load. |
+| `Object` / `External` with a `Value` target | Multiplies the usage ratio by the ready-pod count from `status.selector` | `Stable` — with `All`, the doubled pod count inflates the desired replica calculation during the update. |
+| `Object` / `External` with an `AverageValue` target (most KEDA scalers, e.g. cron, queue length) | Divides the metric by `status.HPAReplicas` for its tolerance check; may return `status.HPAReplicas` as the desired count | `Stable` — with `All`, the inflated count can be adopted as the desired replica count, creating a feedback loop between the HPA and the Rollout controller. |
+
+!!! warning
+    If a single HPA mixes metric types from both rows (e.g. CPU utilization **and** a KEDA cron scaler), no mode is correct during an update: `All` breaks the absolute metrics and `Stable` breaks the sampled metrics. In that case, prefer restructuring the metrics (e.g. separate the scheduled floor from the utilization target) or accept the default behavior and its transient effects.
 
 ## Best Practices
 1. Choose the right strategy: use standard Blue/Green for simple deployments, add `previewReplicaCount` for cost optimization, and consider canary with `setCanaryScale` for maximum control and isolation.

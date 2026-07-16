@@ -1328,6 +1328,114 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	assert.JSONEq(t, calculatePatch(r2, expectedPatchWithSub), patch)
 }
 
+// TestCanaryRolloutStatusHPAStatusFieldsScaleReportingStable verifies that with
+// scaleReporting mode Stable and traffic routing, the scale subresource fields report
+// only the stable ReplicaSet's pod count and selector during an update (issue #4847)
+func TestCanaryRolloutStatusHPAStatusFieldsScaleReportingStable(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To[int32](10),
+		}, {
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Status.Selector = ""
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+	r2.Spec.Strategy.Canary.ScaleReporting = &v1alpha1.ScaleReporting{Mode: v1alpha1.ScaleReportingModeStable}
+
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 11, 1, 11, true)
+	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs1PodHash, 10)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	expectedPatchWithSub := fmt.Sprintf(`{
+		"status":{
+			"HPAReplicas":10,
+			"selector":"foo=bar,rollouts-pod-template-hash=%s"
+		}
+	}`, rs1PodHash)
+
+	index := f.expectPatchRolloutActionWithPatch(r2, expectedPatchWithSub)
+	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRolloutWithoutConditions(index)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatchWithSub), patch)
+}
+
+// TestCanaryRolloutStatusHPAStatusFieldsScaleReportingStableNoTrafficRouting verifies that
+// scaleReporting mode Stable without traffic routing is rejected as an invalid spec and
+// the scale subresource fields are not switched to stable-only reporting
+func TestCanaryRolloutStatusHPAStatusFieldsScaleReportingStableNoTrafficRouting(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To[int32](20),
+		}, {
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Status.Selector = ""
+	r1.Spec.Strategy.Canary.ScaleReporting = &v1alpha1.ScaleReporting{Mode: v1alpha1.ScaleReportingModeStable}
+	r2 := bumpVersion(r1)
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	rs1 := newReplicaSetWithStatus(r1, 4, 4)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 5, 1, 10, true)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	expectedPatchWithSub := `{
+		"status":{
+			"message":"InvalidSpec: The Rollout \"foo\" is invalid: spec.strategy.scaleReporting.mode: Invalid value: \"Stable\": Canary scaleReporting mode Stable can only be used with traffic routing",
+			"phase":"Degraded"
+		}
+	}`
+
+	index := f.expectPatchRolloutActionWithPatch(r2, expectedPatchWithSub)
+	f.runExpectError(getKey(r2, t), true)
+
+	patch := f.getPatchedRolloutWithoutConditions(index)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatchWithSub), patch)
+}
+
 func TestCanaryRolloutWithCanaryService(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
