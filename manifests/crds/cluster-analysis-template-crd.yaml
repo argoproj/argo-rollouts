@@ -7638,6 +7638,17 @@ spec:
                             authentication:
                               description: Authentication details
                               properties:
+                                basicAuth:
+                                  description: BasicAuth config
+                                  properties:
+                                    password:
+                                      description: Password is the access policy token
+                                      type: string
+                                    username:
+                                      description: Username is the username in grafana
+                                        cloud
+                                      type: string
+                                  type: object
                                 oauth2:
                                   description: OAuth2 config
                                   properties:
@@ -7749,6 +7760,17 @@ spec:
                             authentication:
                               description: Authentication details
                               properties:
+                                basicAuth:
+                                  description: BasicAuth config
+                                  properties:
+                                    password:
+                                      description: Password is the access policy token
+                                      type: string
+                                    username:
+                                      description: Username is the username in grafana
+                                        cloud
+                                      type: string
+                                  type: object
                                 oauth2:
                                   description: OAuth2 config
                                   properties:

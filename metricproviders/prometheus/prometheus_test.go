@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"encoding/base64"
 	"fmt"
 	"math"
 	"net/http"
@@ -20,7 +21,8 @@ import (
 )
 
 const (
-	AccessToken = "MyAccessToken"
+	AccessToken          = "MyAccessToken"
+	BasicAuthCredentials = "myuser:mypassword"
 )
 
 type OAuthResponse struct {
@@ -671,6 +673,42 @@ func TestNewPrometheusAddressNotConfigured(t *testing.T) {
 	log.Infof("api:%v", api)
 }
 
+func TestNewPrometheusAPIMissingBasicAuthUsername(t *testing.T) {
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "http://127.0.0.1:9090",
+				Authentication: v1alpha1.Authentication{
+					BasicAuth: v1alpha1.BasicAuthConfig{
+						Password: "mypassword",
+					},
+				},
+			},
+		},
+	}
+
+	_, err := NewPrometheusAPI(metric)
+	assert.EqualError(t, err, "missing mandatory parameter in metric for basic auth setup: username")
+}
+
+func TestNewPrometheusAPIMissingBasicAuthPassword(t *testing.T) {
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "http://127.0.0.1:9090",
+				Authentication: v1alpha1.Authentication{
+					BasicAuth: v1alpha1.BasicAuthConfig{
+						Username: "myuser",
+					},
+				},
+			},
+		},
+	}
+
+	_, err := NewPrometheusAPI(metric)
+	assert.EqualError(t, err, "missing mandatory parameter in metric for basic auth setup: password")
+}
+
 func TestNewPrometheusNegativeTimeout(t *testing.T) {
 	e := log.Entry{}
 	mock := &mockAPI{
@@ -843,6 +881,71 @@ func TestRunErrorOAuthFailure(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 }
 
+func TestRunSuccessfulWithBasicAuth(t *testing.T) {
+	e := log.Entry{}
+	promServer := mockPromServer("")
+	defer promServer.Close()
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					BasicAuth: v1alpha1.BasicAuthConfig{
+						Username: "myuser",
+						Password: "mypassword",
+					},
+				},
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	p, err := NewPrometheusProvider(api, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
+	assert.Equal(t, "[10]", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+}
+
+func TestRunErrorBasicAuthFailure(t *testing.T) {
+	e := log.Entry{}
+	promServer := mockPromServer("")
+	defer promServer.Close()
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					BasicAuth: v1alpha1.BasicAuthConfig{
+						Username: "wronguser",
+						Password: "wrongpassword",
+					},
+				},
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	p, err := NewPrometheusProvider(api, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NoError(t, err)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
+
 func mockOAuthServer(accessToken string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.StandardLogger().Infof("Received oauth query")
@@ -879,7 +982,7 @@ func mockPromServer(expectedAuthorizationHeader string) *httptest.Server {
 
 		authorizationHeader := r.Header.Get("Authorization")
 		// Reject call if we don't find the expected oauth token
-		if expectedAuthorizationHeader != "" && ("Bearer "+expectedAuthorizationHeader) != authorizationHeader {
+		if (expectedAuthorizationHeader != "" && ("Bearer "+expectedAuthorizationHeader) != authorizationHeader) || (expectedAuthorizationHeader == "" && ("Basic "+base64.StdEncoding.EncodeToString([]byte(BasicAuthCredentials))) != authorizationHeader) {
 
 			log.StandardLogger().Infof("Authorization header not as expected, rejecting")
 			sc := http.StatusUnauthorized
