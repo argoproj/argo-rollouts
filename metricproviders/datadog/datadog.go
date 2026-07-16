@@ -8,8 +8,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"reflect"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -66,12 +67,162 @@ type datadogResponseV1 struct {
 type datadogResponseV2 struct {
 	Data struct {
 		Attributes struct {
-			Columns []struct {
-				Values []*float64
-			}
+			Columns []datadogV2Column
 		}
 		Errors string
 	}
+}
+
+// Column types returned by the v2 /query/scalar endpoint. The response is a
+// oneOf discriminated by this field (see Datadog's GroupScalarColumn /
+// DataScalarColumn schemas): a number column carries the formula/query results
+// as floats, a group column carries the tag values when the query uses `by
+// {tag}`.
+const (
+	datadogV2ColumnNumber = "number"
+	datadogV2ColumnGroup  = "group"
+)
+
+// datadogV2Column is a single column of a v2 scalar response. Values are kept
+// as raw JSON because the shape differs by Type: a number column holds floats
+// (or null), while a group column holds an array of tag values per group
+// (`[][]string` on the wire). A `by {tag}` query returns one group column *per
+// tag dimension* — `by {region, host}` yields a separate `region` column and
+// `host` column — so the group columns must be read together to reconstruct a
+// row's full label. The inner array is tag aliasing within a single dimension,
+// not the multiple tags of a multi-tag query.
+type datadogV2Column struct {
+	Name   string            `json:"name"`
+	Type   string            `json:"type"`
+	Values []json.RawMessage `json:"values"`
+}
+
+// groupedValue pairs a numeric value with its group tag (if the query was
+// grouped by a tag) so the two stay aligned even when null entries are
+// skipped.
+type groupedValue struct {
+	Name  string  `json:"name"`
+	Value float64 `json:"value"`
+}
+
+func isJSONNull(r json.RawMessage) bool {
+	return string(bytes.TrimSpace(r)) == "null"
+}
+
+// findColumns locates the number column and every group column in a v2 scalar
+// response. A response may carry several number columns (one per formula or
+// query); like the original implementation we evaluate the first. Every group
+// column is returned, in response order, because a multi-tag query (`by
+// {region, host}`) reports one group column per tag and a row's label is built
+// by joining across them. Legacy responses omit the type field, so an empty
+// type is treated as numeric for backward compatibility with the previous
+// behavior of picking column 0.
+func findColumns(columns []datadogV2Column) (numCol *datadogV2Column, groupCols []*datadogV2Column) {
+	for i := range columns {
+		c := &columns[i]
+		if numCol == nil && (c.Type == "" || c.Type == datadogV2ColumnNumber) {
+			numCol = c
+		}
+		if c.Type == datadogV2ColumnGroup {
+			groupCols = append(groupCols, c)
+		}
+	}
+	return
+}
+
+// groupNameAt returns the label for the group at idx, joined across every group
+// column. Each column contributes the tag value(s) it recorded for that row, so
+// `by {region, host}` yields `us-east,host-a`. A column's per-row entry is
+// itself an array because a single dimension can carry aliased values; those
+// are joined in too. ok is false when any column is missing the row or its
+// entry is malformed or empty (including a JSON `null` or `[]`), which callers
+// treat as an error rather than silently pairing a value with a blank label.
+func groupNameAt(cols []*datadogV2Column, idx int) (string, bool) {
+	parts := make([]string, 0, len(cols))
+	for _, col := range cols {
+		if idx >= len(col.Values) {
+			return "", false
+		}
+		var tags []string
+		if err := json.Unmarshal(col.Values[idx], &tags); err != nil || len(tags) == 0 {
+			return "", false
+		}
+		parts = append(parts, tags...)
+	}
+	return strings.Join(parts, ","), true
+}
+
+// extractValues walks the v2 scalar response and returns the numeric values,
+// their group labels, and whether the query was grouped (i.e. at least one
+// group column was present). Callers dispatch on grouped — not on the number of
+// values — so a `by {tag}` query that happens to match a single group is still
+// treated as a slice, mirroring how the Prometheus provider keys off the
+// response type.
+//
+// Null entries in the number column are Datadog's "no data for this group"
+// marker and are skipped together with their group label so values and groups
+// stay index-aligned. A non-numeric value, or a group label that fails to
+// parse, is surfaced as an error rather than silently dropped — for a
+// production rollout gate we'd rather fail loudly than evaluate partial data.
+func extractValues(columns []datadogV2Column) (values []float64, groups []groupedValue, grouped bool, err error) {
+	numCol, groupCols := findColumns(columns)
+	grouped = len(groupCols) > 0
+	if numCol == nil {
+		return nil, nil, grouped, nil
+	}
+	values = make([]float64, 0, len(numCol.Values))
+	for i, r := range numCol.Values {
+		if isJSONNull(r) {
+			continue
+		}
+		var f float64
+		if err := json.Unmarshal(r, &f); err != nil {
+			return nil, nil, grouped, fmt.Errorf("could not parse numeric value %q in column %q: %v", string(r), numCol.Name, err)
+		}
+		values = append(values, f)
+		if grouped {
+			name, ok := groupNameAt(groupCols, i)
+			if !ok {
+				return nil, nil, grouped, fmt.Errorf("could not parse group label at index %d", i)
+			}
+			groups = append(groups, groupedValue{Name: name, Value: f})
+		}
+	}
+	return values, groups, grouped, nil
+}
+
+// maxGroupsInMetadata bounds how many group entries are persisted to the
+// measurement metadata. metadata.groups is display-only — evaluation always
+// uses the full values slice — so trimming it is safe. A high-cardinality tag
+// like `by {host}` can return thousands of groups, and every measurement is
+// stored in the AnalysisRun status up to DefaultMeasurementHistoryLimit times;
+// left unbounded that can exceed the ~1.5MB Kubernetes object limit and wedge
+// the run with "request entity too large". When we trim, we keep the groups at
+// both value extremes and flag the trim.
+const maxGroupsInMetadata = 100
+
+// groupsMetadata renders the group pairs as JSON for the measurement metadata,
+// capping the entry count at maxGroupsInMetadata and reporting whether the list
+// was truncated. Only the display-only breakdown is trimmed; the evaluated
+// values slice is left intact.
+//
+// The offending group is the highest value for an error-rate or latency gate
+// but the lowest for a success-rate gate, and this function can't see the
+// condition. So when trimming we keep both extremes — the lowest and highest
+// halves — which keeps the worst outlier in view either way; the dropped
+// middle is the "normal" groups an operator doesn't need.
+func groupsMetadata(groups []groupedValue) (groupsJSON string, truncated bool) {
+	if len(groups) > maxGroupsInMetadata {
+		sorted := make([]groupedValue, len(groups))
+		copy(sorted, groups)
+		sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Value < sorted[j].Value })
+		low := maxGroupsInMetadata / 2
+		high := maxGroupsInMetadata - low
+		groups = append(sorted[:low:low], sorted[len(sorted)-high:]...)
+		truncated = true
+	}
+	out, _ := json.Marshal(groups)
+	return string(out), truncated
 }
 
 type datadogConfig struct {
@@ -152,9 +303,17 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request.Header.Set("DD-API-KEY", p.config.ApiKey)
 	request.Header.Set("DD-APPLICATION-KEY", p.config.AppKey)
 
-	// Send Request
+	// Send Request. The client timeout defaults to 10s and can be overridden via the
+	// metric's spec (e.g. for expensive v2 formula queries that take longer to return).
+	timeout := time.Duration(10) * time.Second
+	if dd.RequestTimeout != "" {
+		timeout, err = dd.RequestTimeout.Duration()
+		if err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
+	}
 	httpClient := &http.Client{
-		Timeout: time.Duration(10) * time.Second,
+		Timeout: timeout,
 	}
 	response, err := httpClient.Do(request)
 	if err != nil {
@@ -162,13 +321,16 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 	defer response.Body.Close()
 
-	value, status, err := p.parseResponse(metric, response, dd.ApiVersion)
+	value, status, metadata, err := p.parseResponse(metric, response, dd.ApiVersion)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
 	measurement.Value = value
 	measurement.Phase = status
+	if len(metadata) > 0 {
+		measurement.Metadata = metadata
+	}
 	finishedTime := timeutil.MetaNow()
 	measurement.FinishedAt = &finishedTime
 
@@ -248,9 +410,10 @@ func (p *Provider) createRequestV2(queries map[string]string, formula string, no
 	return request, nil
 }
 
-func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response, apiVersion string) (string, v1alpha1.AnalysisPhase, error) {
+func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response, apiVersion string) (string, v1alpha1.AnalysisPhase, map[string]string, error) {
 	if apiVersion == "v1" {
-		return p.parseResponseV1(metric, response)
+		value, phase, err := p.parseResponseV1(metric, response)
+		return value, phase, nil, err
 	}
 	return p.parseResponseV2(metric, response)
 }
@@ -297,56 +460,75 @@ func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Respon
 	return strconv.FormatFloat(value, 'f', -1, 64), status, err
 }
 
-func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
+func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, map[string]string, error) {
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
+		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("Received no bytes in response: %v", err)
 	}
 
 	if response.StatusCode == http.StatusForbidden || response.StatusCode == http.StatusUnauthorized {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("received authentication error response code: %v %s", response.StatusCode, string(bodyBytes))
+		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("received authentication error response code: %v %s", response.StatusCode, string(bodyBytes))
 	} else if response.StatusCode != http.StatusOK {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("received non 2xx response code: %v %s", response.StatusCode, string(bodyBytes))
+		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("received non 2xx response code: %v %s", response.StatusCode, string(bodyBytes))
 	}
 
 	var res datadogResponseV2
 	err = json.Unmarshal(bodyBytes, &res)
 	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %v", err)
+		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("Could not parse JSON body: %v", err)
 	}
 
 	// Handle an error returned by Datadog
 	if res.Data.Errors != "" {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("There were errors in your query: %v", res.Data.Errors)
+		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("There were errors in your query: %v", res.Data.Errors)
+	}
+
+	values, groups, grouped, err := extractValues(res.Data.Attributes.Columns)
+	if err != nil {
+		return "", v1alpha1.AnalysisPhaseError, nil, err
 	}
 
 	// Handle an empty query result
-	if reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Columns) == 0 || len(res.Data.Attributes.Columns[0].Values) == 0 || res.Data.Attributes.Columns[0].Values[0] == nil {
+	if len(values) == 0 {
 		var nilFloat64 *float64
-		status, err := evaluate.EvaluateResult(nilFloat64, metric, p.logCtx)
-
-		var attributesBytes []byte
-		var jsonErr error
-		// Should be impossible for this to not be true, based on dd openapi spec.
-		// But in this case, better safe than sorry
-		if len(res.Data.Attributes.Columns) == 1 {
-			attributesBytes, jsonErr = json.Marshal(res.Data.Attributes.Columns[0].Values)
-		} else {
-			attributesBytes, jsonErr = json.Marshal(res.Data.Attributes)
-		}
-
-		if jsonErr != nil {
-			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Failed to marshall JSON empty Values: %v", jsonErr)
-		}
-
-		return string(attributesBytes), status, err
+		status, evalErr := evaluate.EvaluateResult(nilFloat64, metric, p.logCtx)
+		return "[]", status, nil, evalErr
 	}
 
-	// Handle a populated query result
-	column := res.Data.Attributes.Columns[0]
-	value := *column.Values[0]
-	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
-	return strconv.FormatFloat(value, 'f', -1, 64), status, err
+	// Dispatch on the response shape, not the value count. An ungrouped query
+	// is always a scalar, so it keeps returning a single value and preserves
+	// the existing `successCondition: result < X` style of expression. A
+	// grouped (`by {tag}`) query is always a slice — even when it matches a
+	// single group — so users can apply Expr functions like `max(result)`,
+	// `mean(result)`, `all(result, # < X)` directly in the condition. This
+	// mirrors the Prometheus provider, which keys off the response type rather
+	// than the number of samples returned.
+	if !grouped {
+		status, evalErr := evaluate.EvaluateResult(values[0], metric, p.logCtx)
+		return strconv.FormatFloat(values[0], 'f', -1, 64), status, nil, evalErr
+	}
+
+	status, evalErr := evaluate.EvaluateResult(values, metric, p.logCtx)
+
+	// For grouped queries, surface the (name, value) pairs as JSON so
+	// operators can map an outlier in `result` back to the entity that
+	// produced it. JSON-encoded rather than CSV because Datadog tag values
+	// can legally contain `,` and `=`. The breakdown is capped for
+	// high-cardinality tags; see maxGroupsInMetadata.
+	groupsJSON, truncated := groupsMetadata(groups)
+	metadata := map[string]string{"groups": groupsJSON}
+	if truncated {
+		metadata["groups_truncated"] = "true"
+	}
+	return formatValueSlice(values), status, metadata, evalErr
+}
+
+func formatValueSlice(values []float64) string {
+	parts := make([]string, 0, len(values))
+	for _, v := range values {
+		parts = append(parts, strconv.FormatFloat(v, 'f', -1, 64))
+	}
+	return "[" + strings.Join(parts, ",") + "]"
 }
 
 // Resume should not be used the Datadog provider since all the work should occur in the Run method
@@ -402,6 +584,17 @@ func validateIncomingProps(dd *v1alpha1.DatadogMetric) error {
 
 	if dd.ApiVersion == "v1" && dd.Aggregator != "" {
 		return errors.New("Aggregator is not supported in v1. Please review the Analysis Template.")
+	}
+
+	// If a request timeout is provided, it must be a valid, strictly positive duration.
+	if dd.RequestTimeout != "" {
+		timeout, err := dd.RequestTimeout.Duration()
+		if err != nil {
+			return fmt.Errorf("Could not parse the request timeout: %v. Please review the Analysis Template.", err)
+		}
+		if timeout <= 0 {
+			return errors.New("Request timeout must be a positive duration (e.g. 30s). Please review the Analysis Template.")
+		}
 	}
 
 	return nil

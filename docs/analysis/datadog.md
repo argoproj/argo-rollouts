@@ -215,6 +215,61 @@ For example, using count-based distribution metric (`count:metric{*}.as_count()`
         formula: "moving_rollup(a, 300, 'sum') / moving_rollup(b, 300, 'sum') * 100" # percentage of requests with errors
 ```
 
+#### Request timeout
+
+By default, requests to the Datadog API use a 10 second HTTP client timeout. Expensive
+queries — for example a v2 `formula` built from many sub-queries — can occasionally take
+longer than that to return, surfacing as:
+
+```
+Post "https://api.datadoghq.com/api/v2/query/scalar": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+```
+
+You can raise (or lower) this timeout with the `requestTimeout` field. It accepts a duration
+string (e.g. `30s`, `1m`) and defaults to `10s` when omitted:
+
+```yaml
+...<snip>
+  metrics:
+  - name: error-percentage
+    interval: 30s
+    successCondition: default(result, 0) < 5
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
+        interval: 5m
+        requestTimeout: 30s # override the default 10s HTTP client timeout
+        queries:
+          a: count:requests.errors{service:my-service}.as_count()
+          b: count:requests{service:my-service}.as_count()
+        formula: "moving_rollup(a, 300, 'sum') / moving_rollup(b, 300, 'sum') * 100"
+```
+
+#### Grouped queries with `by {tag}` (v2 only)
+
+Datadog queries that use a `by {tag}` clause return one scalar per group rather than a single value. The Datadog provider detects a grouped query from the response shape (a `group` column is present), exactly as the Prometheus provider dispatches on its response type — so a grouped query is always exposed as a `result` slice, even when it matches only a single group. Use any of the standard [Expr](https://expr-lang.org/docs/language-definition) functions in the success or failure condition to reduce the slice — for example `max(result)`, `mean(result)`, `sum(result)`, `all(result, # < X)`, or `any(result, # >= X)`.
+
+This is useful for detecting regressions in a subset of entities (e.g. a specific `resource_name`) that would otherwise be diluted by a global aggregate:
+
+```yaml
+...<snip>
+  metrics:
+  - name: per-endpoint-error-rate
+    interval: 30s
+    successCondition: max(result) < 0.05 # fail if ANY endpoint exceeds the threshold
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
+        interval: 5m
+        query: "sum:trace.http.request.errors{service:my-service} by {resource_name}.as_count()"
+```
+
+When the query is grouped, the measurement's `metadata.groups` field is populated with a JSON array of `{"name": "...", "value": ...}` pairs, so the operator can map an outlier in `result` back to the entity that produced it. JSON is used so tag values containing `,` or `=` survive without escaping. When the query groups by more than one tag (`by {env, resource_name}`), Datadog returns a separate column per tag; the `name` is those tag values joined with `,` (e.g. `prod,GET /a`), so every dimension is preserved. Visible in `kubectl describe analysisrun`, the rollouts dashboard, and notification templates (which can parse it via `fromJson`).
+
+`metadata.groups` is intended for **low-cardinality** tags such as `resource_name` or `endpoint`. It is display-only — evaluation always uses the full `result` slice — and is capped at the 100 highest-valued groups to keep the AnalysisRun status from exceeding the Kubernetes object-size limit. When the cap is hit, `metadata.groups_truncated` is set to `"true"`. Avoid grouping by an unbounded tag like `host` or `pod` on a large fleet: the `result` slice itself is not capped, so a query returning many thousands of groups can still bloat the stored measurement.
+
 #### Templates and Helm
 
 Helm and Argo Rollouts both try to parse things between `{{ ... }}` when rendering templates. If you use Helm to deliver your manifests, you will need to escape `{{ args.whatever }}`. Using the example above, here it is set up for Helm:
