@@ -192,7 +192,7 @@ The key difference from the default behavior (without a traffic manager) is that
 **Warning: Lack of Scaling Isolation**<br>
 Using a single HPA for both stable and canary pods has a drawback: scaling isn’t decoupled between the stable and canary versions. If the canary has a performance issue (e.g. a memory leak or CPU spike), the HPA will see a high average metric across all pods and scale up the entire application. This means the stable version also gets scaled up due to a problem in the canary. Therefore, it is crucial to develop the applications free of memory leaks and performance issues for smooth canary releases.
 
-Additionally, during an update the total number of pods owned by the Rollout temporarily reaches up to twice `spec.replicas` (stable stays fully scaled while the canary scales up). Depending on the HPA metric type, this inflated count can cause incorrect scaling decisions or even a scaling feedback loop. See [Scale Reporting During Canary Updates](#scale-reporting-during-canary-updates) for how to configure what the Rollout reports to the autoscaler.
+Additionally, during an update the total number of pods owned by the Rollout temporarily reaches up to twice `spec.replicas` (stable stays fully scaled while the canary scales up). The replica count reported to the autoscaler counts only the stable ReplicaSet's pods so this surge does not feed back into scaling decisions, but the surge pods are still visible to metrics sampled through the label selector. See [Scale Reporting During Canary Updates](#scale-reporting-during-canary-updates) for how the Rollout reports to the autoscaler during updates.
 
 ### Example Configuration: 
 In this example, Traefik is used as the traffic manager. The setup requires: an `IngressRoute` for Traefik to expose the service, a `TraefikService` to handle the weighted load balancing between canary and stable, and a `Rollout` configured to use Traefik's `trafficRouting`. 
@@ -289,7 +289,7 @@ strategy:
     - pause: {}
 ```
 
-**Note:** because `setCanaryScale` detaches the canary pod count from the traffic weight, canary pods may be running while receiving little or no traffic. By default these pods are still reported to the HPA and can skew its calculations — see [Interaction with `setCanaryScale`](#interaction-with-setcanaryscale) below.
+**Note:** because `setCanaryScale` detaches the canary pod count from the traffic weight, canary pods may be running while receiving little or no traffic. These pods are excluded from the replica count reported to the HPA, but they still appear in metrics sampled through the label selector (idle pods lower the average utilization) — see [Scale Reporting During Canary Updates](#scale-reporting-during-canary-updates) below.
 
 ## Scale Reporting During Canary Updates
 
