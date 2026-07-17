@@ -495,6 +495,73 @@ spec:
 		})
 }
 
+// TestCanaryScaleReportingHPAReplicas verifies that with traffic routing, status.HPAReplicas
+// (the replica count exposed through the scale subresource) counts only the stable
+// ReplicaSet's pods during an update, while status.selector continues to match all pods
+// owned by the Rollout (issue #4847). A live HPA (pinned to min=max=2 so it never
+// rescales) targets the Rollout to verify the real HPA controller consumes the scale
+// subresource without errors, and the scale subresource itself is asserted at each phase.
+func (s *CanarySuite) TestCanaryScaleReportingHPAReplicas() {
+	assertScale := func(t *fixtures.Then, specReplicas, statusReplicas int32) {
+		scale := t.GetRolloutScale()
+		assert.Equal(s.T(), specReplicas, scale.Spec.Replicas)
+		assert.Equal(s.T(), statusReplicas, scale.Status.Replicas)
+		assert.Equal(s.T(), "app=canary-scale-reporting", scale.Status.Selector)
+	}
+	s.Given().
+		HealthyRollout(`@functional/canary-scale-reporting.yaml`).
+		When().
+		Then().
+		ExpectRollout("HPAReplicas == 2 at steady state", func(ro *v1alpha1.Rollout) bool {
+			return ro.Status.HPAReplicas == 2
+		}).
+		Assert(func(t *fixtures.Then) {
+			assertScale(t, 2, 2)
+			// the HPA controller reads the Rollout through the scale subresource and
+			// records what it saw; AbleToScale=True proves the read succeeded
+			assert.Eventually(s.T(), func() bool {
+				hpa := t.GetHorizontalPodAutoscaler("canary-scale-reporting")
+				for _, cond := range hpa.Status.Conditions {
+					if cond.Type == "AbleToScale" && cond.Status == "True" {
+						return hpa.Status.CurrentReplicas == 2
+					}
+				}
+				return false
+			}, time.Minute, 2*time.Second, "HPA never read the Rollout scale subresource")
+		}).
+		When().
+		UpdateSpec(). // update to revision 2, pauses at 50% weight
+		WaitForRolloutStatus("Paused").
+		WaitForRolloutCondition(func(ro *v1alpha1.Rollout) bool {
+			return ro.Status.HPAReplicas == 2 && ro.Status.Replicas == 3 &&
+				ro.Status.Selector == "app=canary-scale-reporting"
+		}, "HPAReplicas counts only stable pods mid-update").
+		Then().
+		ExpectRevisionPodCount("1", 2). // stable stays fully scaled during the update
+		ExpectRevisionPodCount("2", 1).
+		Assert(func(t *fixtures.Then) {
+			// the scale subresource reports the stable pod count (not the 3 total pods)
+			// while the selector still matches all pods
+			assertScale(t, 2, 2)
+		}).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		// after promotion the old ReplicaSet is still scaled up under the default
+		// scaleDownDelaySeconds, but only the new stable ReplicaSet is counted
+		WaitForRolloutCondition(func(ro *v1alpha1.Rollout) bool {
+			return ro.Status.HPAReplicas == 2 && ro.Status.Replicas == 4
+		}, "HPAReplicas excludes draining old ReplicaSet").
+		Then().
+		ExpectRevisionPodCount("1", 2).
+		Assert(func(t *fixtures.Then) {
+			assertScale(t, 2, 2)
+			// the HPA never rescaled the Rollout throughout the update
+			hpa := t.GetHorizontalPodAutoscaler("canary-scale-reporting")
+			assert.Equal(s.T(), int32(2), hpa.Status.CurrentReplicas)
+		})
+}
+
 // TestCanaryScaleDownDelay verifies canary uses a scaleDownDelay when traffic routing is used,
 // and verifies the annotation is properly managed
 func (s *CanarySuite) TestCanaryScaleDownDelay() {
