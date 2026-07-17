@@ -294,63 +294,36 @@ strategy:
 ## Scale Reporting During Canary Updates
 
 !!! important
-    Available since v1.11
+    Behavior changed in v1.11. Previously, `status.HPAReplicas` counted all pods owned by the Rollout at all times, which could cause the autoscaler feedback loop described below.
 
 The HPA (and autoscalers built on it, such as KEDA) reads the Rollout through the `scale` subresource, which exposes two fields from the Rollout status:
 
-- `status.selector` (`labelSelectorPath`) — the label selector the HPA uses to list pods. It is used to sample per-pod metrics (Resource/ContainerResource and Pods metrics) and to count ready pods for Object/External metrics with a `Value` target.
-- `status.HPAReplicas` (`statusReplicasPath`) — the current replica count. It is used by `Pods` metrics and Object/External metrics with an `AverageValue` target (e.g. most KEDA scalers): the metric is divided by this count for the HPA's tolerance check, and when the result is within tolerance the HPA **adopts this count as the desired replica count**.
+- `status.selector` (`labelSelectorPath`) — the label selector the HPA uses to list pods. It is used to sample per-pod metrics (Resource/ContainerResource and Pods metrics) and to count ready pods for Object/External metrics with a `Value` target. It always matches **all** pods owned by the Rollout, so sampled metrics observe every pod taking traffic. (Narrowing it to the stable pods would blind the HPA to the canary's load and cause it to scale the application down while the canary is serving traffic — this was attempted in v1.8 and reverted.)
+- `status.HPAReplicas` (`statusReplicasPath`) — the current replica count. It is consumed by `Pods` metrics and Object/External metrics with an `AverageValue` target (e.g. most KEDA scalers): the metric is divided by this count for the HPA's tolerance check, and when the result is within tolerance the HPA **adopts this count as the desired replica count**.
 
-By default, `status.HPAReplicas` counts **all** pods the Rollout owns: during an update with traffic routing (and `dynamicStableScale: false`), that is stable + canary — up to twice `spec.replicas`. For the metric types that consume this count, the temporarily doubled value feeds back into the autoscaler's calculation: the HPA adopts the inflated count and raises `spec.replicas`, which raises the canary pod count (`ceil(weight × replicas)`), which raises the reported count again, producing a continuous scale-up/scale-down oscillation for the entire duration of the update.
+For a canary using **traffic routing without `dynamicStableScale`**, `status.HPAReplicas` counts only the **stable ReplicaSet's** pods. The stable ReplicaSet stays fully scaled throughout an update, so the reported count stays equal to `spec.replicas` — matching the field's definition (the replicas receiving active traffic at steady state) and excluding the transient surge (total pods reach up to twice `spec.replicas` mid-update, including old ReplicaSets still draining under `scaleDownDelaySeconds`).
 
-The `scaleReporting` field on the canary strategy controls which pods are counted:
+Counting the surge instead (the pre-v1.11 behavior) feeds the doubled value back into the autoscaler's calculation: the HPA adopts the inflated count and raises `spec.replicas`, which raises the canary pod count (`ceil(weight × replicas)`), which raises the reported count again — a continuous scale-up/scale-down oscillation for the entire duration of the update. This loop was typically triggered by KEDA cron/scheduled scalers or queue-length scalers holding a fixed desired replica count during a `setCanaryScale` or `setWeight` step.
 
-```yaml
-spec:
-  strategy:
-    canary:
-      trafficRouting:
-        istio: {} # any traffic routing provider
-      scaleReporting:
-        mode: Stable # All (default) | Stable
-      steps:
-      - setWeight: 20
-      - pause: {}
-```
+In all other cases the stable ReplicaSet's size does not represent serving capacity, and `status.HPAReplicas` counts all pods owned by the Rollout:
 
-- **`All`** (default): `status.HPAReplicas` counts every pod owned by the Rollout (stable + canary + any old ReplicaSets still draining). This is the long-standing behavior.
-- **`Stable`**: `status.HPAReplicas` counts only the stable ReplicaSet's pods. The reported replica count stays equal to `spec.replicas` throughout the update, so autoscalers using per-pod averaged metrics do not see the transient canary surge and the feedback loop cannot start.
+- **Basic canary (no `trafficRouting`)** — pod counts are how traffic is split, and the stable ReplicaSet shrinks during the update.
+- **`dynamicStableScale: true`** — the stable ReplicaSet scales down as traffic shifts to the canary; total pods already stay near `spec.replicas`, so counting all pods is correct.
+- **Before the first revision is fully promoted** — no stable ReplicaSet exists yet.
 
-**`status.selector` is never modified by this setting.** It always matches all pods owned by the Rollout, so metrics that are sampled through the selector — resource Utilization, per-pod CPU/memory averages, `Pods` metrics — continue to observe every pod taking traffic in either mode. This is deliberate: narrowing the selector to the stable pods would blind the HPA to the canary's load and cause it to scale the application down while the canary is serving traffic (this was attempted unconditionally in v1.8 and reverted). Setting `mode: Stable` therefore cannot harm selector-sampled metrics.
-
-`scaleReporting: mode: Stable` requires `trafficRouting` and is rejected in combination with `dynamicStableScale: true` (with dynamic stable scaling, the stable ReplicaSet scales down as the canary takes traffic, so its pod count no longer represents serving capacity — total pods already stay near `spec.replicas`, so `All` is correct there). Before the first revision is fully promoted there is no stable ReplicaSet yet, and the Rollout falls back to counting all pods.
-
-### When to set `mode: Stable`
-
-Set it whenever the Rollout is scaled by KEDA or by Object/External metrics with `AverageValue` targets (queue length, scheduled/cron replica floors, requests-per-pod). These are exactly the metric types that consume `status.HPAReplicas`, and with the default `All` mode they can oscillate during every update. Because the selector is untouched, enabling it is safe even when the same HPA also uses CPU/memory Utilization metrics — a mixed HPA (e.g. CPU utilization **plus** a KEDA cron floor) behaves correctly with `Stable`: the utilization metric keeps sampling all pods while the cron metric sees a steady count.
+### How each HPA metric type behaves during an update
 
 | HPA metric type | Scale subresource field consumed | Behavior during an update |
 |---|---|---|
-| `Resource` / `ContainerResource` (Utilization or AverageValue) | `status.selector` (pod sampling) | Unaffected by the mode. All traffic-taking pods are always sampled. (The average is somewhat diluted by surge pods carrying less traffic — long-standing behavior, see the scaling-isolation warning above.) |
-| `Pods`, `Object` / `External` with an `AverageValue` target (most KEDA scalers) | `status.HPAReplicas` | `All`: inflated count can be adopted as the desired replica count → feedback loop. **`Stable`: fixed** — the count stays at `spec.replicas`. |
-| `Object` / `External` with a `Value` target | `status.selector` (ready-pod count) | Unaffected by the mode. The ready-pod count is inflated during the update, which can transiently over-scale. Prefer restating the metric as an `AverageValue` target (then `Stable` fixes it), or use `dynamicStableScale`. |
+| `Resource` / `ContainerResource` (Utilization or AverageValue) | `status.selector` (pod sampling) | All traffic-taking pods are always sampled. The average is somewhat diluted by surge pods carrying less traffic — long-standing behavior, see the scaling-isolation warning above. |
+| `Pods`, `Object` / `External` with an `AverageValue` target (most KEDA scalers) | `status.HPAReplicas` | The count stays at `spec.replicas`, so the HPA's calculation converges instead of looping. If load changes mid-update and the HPA adjusts `spec.replicas`, the stable ReplicaSet scales to the new value, the canary follows via `ceil(weight × replicas)`, and the reported count tracks it. |
+| `Object` / `External` with a `Value` target | `status.selector` (ready-pod count) | The ready-pod count is inflated during the update, which can transiently over-scale. Prefer restating the metric as an `AverageValue` target, or use `dynamicStableScale`. |
 
-### Eliminating the transient effects entirely with `dynamicStableScale`
+The traffic shift itself never changes the reported count — the stable ReplicaSet stays at `spec.replicas` from weight 0 through 100. At promotion, the new ReplicaSet becomes stable and the count switches to it (same value). On an abort, traffic returns to the still-fully-scaled stable ReplicaSet — already the one being counted — so scaling is correct immediately. Pods created by [`setCanaryScale`](#decoupling-canary-with-traffic-manager-setcanaryscale) are likewise excluded from the count regardless of how the canary is scaled (they do still appear in selector-sampled metrics — idle surge pods lower the average utilization).
 
-The residual effects that `mode: Stable` does not address — utilization dilution across surge pods and `Value`-target inflation — exist because with `dynamicStableScale: false` the Rollout deliberately runs up to double the pods, detaching pod count from traffic. With [`dynamicStableScale: true`](canary/index.md#dynamic-stable-scale-with-traffic-routing), pod count tracks traffic by construction — at every weight roughly `(100−w)%` of the pods carry `(100−w)%` of the traffic — so every metric type scales correctly with the default `All` reporting (which is also why `Stable` is rejected in that configuration). The trade-offs are that aborts are no longer instant (the stable ReplicaSet must scale back up before it can absorb traffic), totals transiently exceed `spec.replicas` during weight transitions, and `setCanaryScale` breaks the pods-track-traffic invariant. Use `scaleReporting: mode: Stable` when you need the stable ReplicaSet kept fully scaled for instant-abort capacity.
+### Eliminating the residual effects with `dynamicStableScale`
 
-### What happens in `Stable` mode as traffic shifts to the canary
-
-The traffic shift never changes the reported count: with `dynamicStableScale: false` the stable ReplicaSet stays fully scaled at `spec.replicas` from weight 0 through weight 100. That insensitivity is the point — the count never inflates, so there is nothing for `HPAReplicas`-consuming scalers to feed back on. If load changes mid-update and the HPA adjusts `spec.replicas`, the stable ReplicaSet scales to the new value, the canary follows via `ceil(weight × replicas)`, and the reported count tracks `spec.replicas` — the calculation converges instead of looping. Selector-sampled metrics behave exactly as they do in `All` mode at every weight, since the selector is not modified.
-
-At the moment of promotion, the new ReplicaSet becomes stable and the count switches to it (same value, `spec.replicas`). On an abort, traffic returns to the still-fully-scaled stable ReplicaSet — which is already the one being counted — so scaling is correct immediately.
-
-### Interaction with `setCanaryScale`
-
-The [`setCanaryScale`](#decoupling-canary-with-traffic-manager-setcanaryscale) step detaches the canary pod count from the traffic weight, so canary pods may be running while receiving little or no traffic (e.g. `setCanaryScale.weight` before any `setWeight`, or `matchTrafficWeight: false`).
-
-- With **`All`**, these surge pods inflate `status.HPAReplicas`. The feedback loop described above is typically triggered by exactly this combination — a `setCanaryScale` step while an `AverageValue`-metric scaler (e.g. KEDA cron) holds a fixed desired replica count.
-- With **`Stable`**, pods created by `setCanaryScale` are excluded from the reported count regardless of how the canary is scaled, so the loop cannot occur. They do still appear in selector-sampled metrics (idle surge pods lower the average utilization) — that behavior is independent of the mode.
+The effects that remain — utilization dilution across surge pods and `Value`-target inflation — exist because without `dynamicStableScale` the Rollout deliberately runs up to double the pods, detaching pod count from traffic. With [`dynamicStableScale: true`](canary/index.md#dynamic-stable-scale-with-traffic-routing), pod count tracks traffic by construction — at every weight roughly `(100−w)%` of the pods carry `(100−w)%` of the traffic — so every metric type scales correctly. The trade-offs are that aborts are no longer instant (the stable ReplicaSet must scale back up before it can absorb traffic), totals transiently exceed `spec.replicas` during weight transitions, and `setCanaryScale` breaks the pods-track-traffic invariant.
 
 ## Best Practices
 1. Choose the right strategy: use standard Blue/Green for simple deployments, add `previewReplicaCount` for cost optimization, and consider canary with `setCanaryScale` for maximum control and isolation.

@@ -479,16 +479,6 @@ spec:
       # are created the number of stable pods stays the same. 
       dynamicStableScale: false
 
-      # Controls what the replica count backing the scale subresource (status.HPAReplicas)
-      # reports during an update. "All" (default) counts all pods owned by the Rollout
-      # (stable + canary). "Stable" counts only the stable ReplicaSet's pods, which prevents
-      # HPA/KEDA scalers using per-pod averaged (Object/External AverageValue, Pods) metrics
-      # from oscillating against the temporarily doubled pod count. status.selector is not
-      # affected and continues to match all pods. Only available when traffic routing is
-      # used; incompatible with dynamicStableScale.
-      scaleReporting:
-        mode: All # All | Stable
-
 status:
   pauseConditions:
     - reason: StepPause

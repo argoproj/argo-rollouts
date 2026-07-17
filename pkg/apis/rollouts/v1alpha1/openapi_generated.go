@@ -121,7 +121,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RouteMatch":                                      schema_pkg_apis_rollouts_v1alpha1_RouteMatch(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RunSummary":                                      schema_pkg_apis_rollouts_v1alpha1_RunSummary(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting":                               schema_pkg_apis_rollouts_v1alpha1_SMITrafficRouting(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScaleReporting":                                  schema_pkg_apis_rollouts_v1alpha1_ScaleReporting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail":                                     schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SecretKeyRef":                                    schema_pkg_apis_rollouts_v1alpha1_SecretKeyRef(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SecretRef":                                       schema_pkg_apis_rollouts_v1alpha1_SecretRef(ref),
@@ -1665,17 +1664,11 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ReplicaProgressThreshold"),
 						},
 					},
-					"scaleReporting": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ScaleReporting controls what the replica count backing the scale subresource (status.HPAReplicas) reports during an update when using traffic routing. Defaults to counting all pods owned by the Rollout.",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScaleReporting"),
-						},
-					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PingPongSpec", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ReplicaProgressThreshold", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScaleReporting", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PingPongSpec", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ReplicaProgressThreshold", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
@@ -5107,26 +5100,6 @@ func schema_pkg_apis_rollouts_v1alpha1_SMITrafficRouting(ref common.ReferenceCal
 					"trafficSplitName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TrafficSplitName holds the name of the TrafficSplit.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_rollouts_v1alpha1_ScaleReporting(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "ScaleReporting configures what the Rollout reports in the replica count consumed by the scale subresource (status.HPAReplicas) during a canary update.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"mode": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Mode controls which pods are counted. \"All\" (default) counts every pod owned by the Rollout (stable + canary + draining). \"Stable\" counts only the stable ReplicaSet's pods, keeping the reported count equal to spec.replicas so HPA/KEDA scalers using per-pod averaged (Object/External AverageValue, Pods) metrics do not adopt the temporarily doubled pod count as the desired replica count. status.selector is unaffected by this setting and continues to match all pods owned by the Rollout, so metrics sampled through the selector (e.g. resource Utilization) always observe every pod taking traffic. Requires trafficRouting; incompatible with dynamicStableScale.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
