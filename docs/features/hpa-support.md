@@ -299,7 +299,7 @@ strategy:
 The HPA (and autoscalers built on it, such as KEDA) reads the Rollout through the `scale` subresource, which exposes two fields from the Rollout status:
 
 - `status.selector` (`labelSelectorPath`) — the label selector the HPA uses to list pods. It is used to sample per-pod metrics (Resource/ContainerResource and Pods metrics) and to count ready pods for Object/External metrics with a `Value` target. It always matches **all** pods owned by the Rollout, so sampled metrics observe every pod taking traffic. (Narrowing it to the stable pods would blind the HPA to the canary's load and cause it to scale the application down while the canary is serving traffic — this was attempted in v1.8 and reverted.)
-- `status.HPAReplicas` (`statusReplicasPath`) — the current replica count. It is consumed by `Pods` metrics and Object/External metrics with an `AverageValue` target (e.g. most KEDA scalers): the metric is divided by this count for the HPA's tolerance check, and when the result is within tolerance the HPA **adopts this count as the desired replica count**.
+- `status.HPAReplicas` (`statusReplicasPath`) — the current replica count. It is consumed by `Pods` metrics and Object/External metrics with an `AverageValue` target (e.g. most KEDA scalers): the metric is divided by this count for the HPA's tolerance check, and when the result is within tolerance the HPA **adopts this count as the desired replica count** (see [`GetObjectPerPodMetricReplicas`](https://github.com/kubernetes/kubernetes/blob/v1.33.0/pkg/controller/podautoscaler/replica_calculator.go#L301-L320) and [`GetExternalPerPodMetricReplicas`](https://github.com/kubernetes/kubernetes/blob/v1.33.0/pkg/controller/podautoscaler/replica_calculator.go#L366-L390)).
 
 For a canary using **traffic routing without `dynamicStableScale`**, `status.HPAReplicas` counts only the **stable ReplicaSet's** pods. The stable ReplicaSet stays fully scaled throughout an update, so the reported count stays equal to `spec.replicas` — matching the field's definition (the replicas receiving active traffic at steady state) and excluding the transient surge (total pods reach up to twice `spec.replicas` mid-update, including old ReplicaSets still draining under `scaleDownDelaySeconds`).
 
@@ -315,11 +315,44 @@ In all other cases the stable ReplicaSet's size does not represent serving capac
 
 | HPA metric type | Scale subresource field consumed | Behavior during an update |
 |---|---|---|
-| `Resource` / `ContainerResource` (Utilization or AverageValue) | `status.selector` (pod sampling) | Unchanged by v1.11 (the selector is not modified). All traffic-taking pods are always sampled, so the total load is captured, and the desired-replica arithmetic self-corrects: the HPA multiplies the (lower) average back by the (larger) sampled pod count (`ceil(usageRatio × readyPodCount)` — see [`GetResourceReplicas`](https://github.com/kubernetes/kubernetes/blob/v1.33.0/pkg/controller/podautoscaler/replica_calculator.go#L102-L115) and [`calcPlainMetricReplicas`](https://github.com/kubernetes/kubernetes/blob/v1.33.0/pkg/controller/podautoscaler/replica_calculator.go#L190-L220)), so the two cancel — e.g. 15 pods averaging ⅔ of target still yields `ceil(0.67 × 15) = 10`. The per-pod average *displayed* by the HPA looks low during the surge, but the computed replica count is right, provided resource requests are uniform across versions and pods are ready. |
+| `Resource` / `ContainerResource` (Utilization or AverageValue) | `status.selector` (pod sampling) | Unchanged by v1.11 (the selector is not modified). All traffic-taking pods are always sampled, so the total load is captured and the desired-replica arithmetic self-corrects for surge pods — see [Why sampled metrics self-correct during a surge](#why-sampled-metrics-self-correct-during-a-surge). |
 | `Pods`, `Object` / `External` with an `AverageValue` target (most KEDA scalers) | `status.HPAReplicas` | Fixed in v1.11. The count stays at `spec.replicas`, so the HPA's calculation converges instead of looping. If load changes mid-update and the HPA adjusts `spec.replicas`, the stable ReplicaSet scales to the new value, the canary follows via `ceil(weight × replicas)`, and the reported count tracks it. |
-| `Object` / `External` with a `Value` target | `status.selector` (ready-pod count) | Unchanged by v1.11 (the selector is not modified). The ready-pod count is inflated during the update, which can transiently over-scale — long-standing behavior. Prefer restating the metric as an `AverageValue` target, or use `dynamicStableScale`. |
+| `Object` / `External` with a `Value` target | `status.selector` (ready-pod count) | Unchanged by v1.11 (the selector is not modified). The desired count is the usage ratio multiplied by the ready-pod count from the selector (see [`getUsageRatioReplicaCount`](https://github.com/kubernetes/kubernetes/blob/v1.33.0/pkg/controller/podautoscaler/replica_calculator.go#L279-L299)), which is inflated during the update and can transiently over-scale — long-standing behavior, and unlike sampled metrics there is [no cancellation](#why-sampled-metrics-self-correct-during-a-surge). Prefer restating the metric as an `AverageValue` target, or use `dynamicStableScale`. |
 
-The traffic shift itself never changes the reported count — the stable ReplicaSet stays at `spec.replicas` from weight 0 through 100. At promotion, the new ReplicaSet becomes stable and the count switches to it (same value). On an abort, traffic returns to the still-fully-scaled stable ReplicaSet — already the one being counted — so scaling is correct immediately. Pods created by [`setCanaryScale`](#decoupling-canary-with-traffic-manager-setcanaryscale) are likewise excluded from the count regardless of how the canary is scaled (they do still appear in selector-sampled metrics, where the averaging arithmetic self-corrects).
+The traffic shift itself never changes the reported count — the stable ReplicaSet stays at `spec.replicas` from weight 0 through 100. At promotion, the new ReplicaSet becomes stable and the count switches to it (same value). On an abort, traffic returns to the still-fully-scaled stable ReplicaSet — already the one being counted — so scaling is correct immediately. Pods created by [`setCanaryScale`](#decoupling-canary-with-traffic-manager-setcanaryscale) are likewise excluded from the count regardless of how the canary is scaled (they do still appear in selector-sampled metrics, where the [averaging arithmetic self-corrects](#why-sampled-metrics-self-correct-during-a-surge)).
+
+### Why sampled metrics self-correct during a surge
+
+Consider `spec.replicas: 10` with a per-pod target of **T = 800m** CPU. The application's traffic generates a fixed total amount of work — say **U = 8000m** of CPU across however many pods serve it. At steady state: 10 pods, each doing 8000/10 = 800m, ratio 1.0, no scaling.
+
+For sampled metrics the HPA computes, in three steps (see [`GetResourceReplicas`](https://github.com/kubernetes/kubernetes/blob/v1.33.0/pkg/controller/podautoscaler/replica_calculator.go#L102-L115) for Utilization and [`calcPlainMetricReplicas`](https://github.com/kubernetes/kubernetes/blob/v1.33.0/pkg/controller/podautoscaler/replica_calculator.go#L190-L220) for AverageValue and `Pods` metrics):
+
+1. List the N pods matched by `status.selector`, **sum** their usage, and divide by N: `avg = U/N`
+2. Compare to the target: `ratio = avg/T`
+3. Multiply *back* by the same N: `desired = ceil(ratio × N)`
+
+Substituting step 1 into step 3:
+
+```
+desired = ceil( (U/N)/T × N ) = ceil( U/T )
+```
+
+**N cancels.** The pod count appears once as a divisor (making the average) and once as a multiplier (scaling back up), so the result never depended on it — desired replicas is simply total work divided by per-pod capacity.
+
+During a canary surge with 15 pods (10 stable + 5 canary) and the same total work U = 8000m, however traffic is split among them:
+
+- `avg = 8000/15 ≈ 533m` — this is the "diluted" number, and it is what `kubectl get hpa` displays (533m against an 800m target looks like the app is at ⅔ load)
+- `ratio = 533/800 = 0.67`
+- `desired = ceil(0.67 × 15) = 10` ✓
+
+The displayed average looks low; the computed replica count is right. And if load genuinely doubles mid-update (U = 16000m): `avg = 1067m`, `ratio = 1.33`, `desired = ceil(1.33 × 15) = 20` ✓ — real load changes are still handled correctly.
+
+Two things the cancellation relies on:
+
+- **The selector must capture all of the work.** `desired = U_sampled/T`, where U_sampled is the usage summed over the sampled pods — any pod count is fine, but a sample that misses traffic-taking pods under-reports the work and under-scales. This is why `status.selector` always matches every pod owned by the Rollout.
+- **Uniform resource requests and ready pods.** For the Utilization variant the ratio is really `sum(usage)/sum(requests)` against a target percentage; the cancellation needs every pod to request the same amount, so a canary that changes its resource requests skews the result. Unready pods and pods with missing metrics are pulled out of the average and handled by separate conservative logic.
+
+By contrast, `Object`/`External` metrics with a `Value` target get no cancellation: their usage is a single externally-measured number (queue depth, total request rate) rather than a sum over the sampled pods, so the formula `desired = ceil(U/target × readyPodCount)` multiplies by the pod count without anything ever having divided by it — 15 pods inflate the result by 1.5×. That asymmetry — summed-over-pods versus measured-externally — is why one selector-consuming metric type self-corrects during a surge and the other does not.
 
 ### Eliminating the residual effects with `dynamicStableScale`
 
