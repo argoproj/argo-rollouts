@@ -19,7 +19,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/hashicorp/go-plugin v1.7.0
+	github.com/hashicorp/go-plugin v1.8.0
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/juju/ansiterm v1.0.0
 	github.com/machinebox/graphql v0.2.2
