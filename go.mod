@@ -7,7 +7,7 @@ require (
 	github.com/argoproj/pkg v0.13.6
 	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.30
-	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.55.2
+	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.63.1
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.54.9
 	github.com/aws/smithy-go v1.27.3
 	github.com/blang/semver v3.5.1+incompatible
