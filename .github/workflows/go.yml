@@ -70,7 +70,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Restore go build and module cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
@@ -114,15 +114,15 @@ jobs:
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
           package_json_file: ui/package.json
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: /home/runner/.cache/go-build
           key: GOCACHE-${{ hashFiles('**/go.mod') }}
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: /home/runner/go/pkg/mod
           key: GOMODCACHE-${{ hashFiles('**/go.mod') }}
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: /home/runner/go/bin
           key: go-bin-v1-${{ hashFiles('**/go.mod') }}
