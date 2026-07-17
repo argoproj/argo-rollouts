@@ -2756,7 +2756,7 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SMITrafficR
     trafficSplitName?: string;
 }
 /**
- * ScaleReporting configures what the Rollout reports in the status fields consumed by the scale subresource (status.HPAReplicas and status.selector) during a canary update.
+ * ScaleReporting configures what the Rollout reports in the replica count consumed by the scale subresource (status.HPAReplicas) during a canary update.
  * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScaleReporting
  */

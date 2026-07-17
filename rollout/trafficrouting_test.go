@@ -862,10 +862,9 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
 }
 
-// Verifies with a canary using traffic routing and scaleReporting mode Stable, the scale
-// subresource fields (status.HPAReplicas, status.selector) are patched to report only the
-// stable ReplicaSet's pod count and selector (issue #4847). Both fields must change
-// together for HPA calculations to be coherent.
+// Verifies with a canary using traffic routing and scaleReporting mode Stable,
+// status.HPAReplicas is patched to report only the stable ReplicaSet's pod count while
+// status.selector is left matching all pods owned by the Rollout (issue #4847).
 func TestCanaryWithTrafficRoutingAddScaleDownDelayScaleReportingStable(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -902,12 +901,12 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelayScaleReportingStable(t *testin
 	f.objects = append(f.objects, r2)
 
 	rs1Patch := f.expectPatchReplicaSetAction(rs1)      // set scale-down-deadline annotation
-	rolloutPatchIndex := f.expectPatchRolloutAction(r2) // patch to update scale subresource fields
+	rolloutPatchIndex := f.expectPatchRolloutAction(r2) // patch to update scale subresource replica count
 	f.run(getKey(r2, t))
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
 	updatedRollout := f.getPatchedRollout(rolloutPatchIndex)
-	expectedRolloutPatch := fmt.Sprintf(`{"status":{"HPAReplicas":1,"selector":"foo=bar,rollouts-pod-template-hash=%s"}}`, rs2PodHash)
+	expectedRolloutPatch := `{"status":{"HPAReplicas":1}}`
 	assert.JSONEq(t, expectedRolloutPatch, updatedRollout)
 }
 

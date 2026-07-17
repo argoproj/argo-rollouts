@@ -350,19 +350,16 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
 
 	// When scaleReporting mode is Stable, report only the stable ReplicaSet's pod count
-	// and selector to the scale subresource. With traffic routing and dynamicStableScale
-	// disabled, total pods reach up to 2x spec.replicas mid-update; reporting all of them
-	// causes HPA/KEDA scalers using absolute (Object/External) metrics to see phantom
-	// over-provisioning and oscillate (issue #4847). Both fields must change together so
-	// the reported count matches the pods selected by the reported selector.
-	// NOTE: unlike blue-green, AvailableReplicas/ReadyReplicas intentionally keep
-	// reporting all pods; they are not part of the scale subresource and are consumed by
-	// health/progress checks.
+	// through the scale subresource. With traffic routing and dynamicStableScale disabled,
+	// total pods reach up to 2x spec.replicas mid-update; reporting all of them causes
+	// HPA/KEDA scalers using per-pod averaged (AverageValue/Pods) metrics to adopt the
+	// inflated count as the desired replica count and oscillate (issue #4847). The
+	// selector is intentionally left reporting all pods so that metrics sampled through
+	// it (e.g. resource Utilization) continue to observe every pod taking traffic.
 	canary := c.rollout.Spec.Strategy.Canary
 	if canary.ScaleReporting != nil && canary.ScaleReporting.Mode == v1alpha1.ScaleReportingModeStable &&
 		canary.TrafficRouting != nil && !canary.DynamicStableScale && c.stableRS != nil {
 		newStatus.HPAReplicas = c.stableRS.Status.Replicas
-		newStatus.Selector = metav1.FormatLabelSelector(c.stableRS.Spec.Selector)
 	}
 
 	newStatus.Canary.StablePingPong = c.rollout.Status.Canary.StablePingPong

@@ -1329,8 +1329,9 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 }
 
 // TestCanaryRolloutStatusHPAStatusFieldsScaleReportingStable verifies that with
-// scaleReporting mode Stable and traffic routing, the scale subresource fields report
-// only the stable ReplicaSet's pod count and selector during an update (issue #4847)
+// scaleReporting mode Stable and traffic routing, status.HPAReplicas reports only the
+// stable ReplicaSet's pod count during an update, while status.selector continues to
+// match all pods owned by the Rollout (issue #4847)
 func TestCanaryRolloutStatusHPAStatusFieldsScaleReportingStable(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1374,12 +1375,12 @@ func TestCanaryRolloutStatusHPAStatusFieldsScaleReportingStable(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	expectedPatchWithSub := fmt.Sprintf(`{
+	expectedPatchWithSub := `{
 		"status":{
 			"HPAReplicas":10,
-			"selector":"foo=bar,rollouts-pod-template-hash=%s"
+			"selector":"foo=bar"
 		}
-	}`, rs1PodHash)
+	}`
 
 	index := f.expectPatchRolloutActionWithPatch(r2, expectedPatchWithSub)
 	f.run(getKey(r2, t))

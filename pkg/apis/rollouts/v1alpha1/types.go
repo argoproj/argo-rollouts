@@ -257,28 +257,29 @@ type ReplicaProgressThreshold struct {
 	Value int32 `json:"value" protobuf:"varint,2,opt,name=value"`
 }
 
-// ScaleReportingMode is the type of pods reported through the scale subresource. All | Stable
+// ScaleReportingMode is the replica count reported through the scale subresource. All | Stable
 type ScaleReportingMode string
 
 const (
-	// ScaleReportingModeAll reports the count and selector of all pods owned by the Rollout
-	// (stable + canary + draining). This is the default.
+	// ScaleReportingModeAll reports the pod count of all ReplicaSets owned by the Rollout
+	// (stable + canary + draining) through status.HPAReplicas. This is the default.
 	ScaleReportingModeAll ScaleReportingMode = "All"
-	// ScaleReportingModeStable reports only the stable ReplicaSet's pod count and selector.
-	// Only valid with traffic routing and without dynamicStableScale.
+	// ScaleReportingModeStable reports only the stable ReplicaSet's pod count through
+	// status.HPAReplicas. Only valid with traffic routing and without dynamicStableScale.
 	ScaleReportingModeStable ScaleReportingMode = "Stable"
 )
 
-// ScaleReporting configures what the Rollout reports in the status fields consumed by the
-// scale subresource (status.HPAReplicas and status.selector) during a canary update.
+// ScaleReporting configures what the Rollout reports in the replica count consumed by the
+// scale subresource (status.HPAReplicas) during a canary update.
 type ScaleReporting struct {
-	// Mode controls which pods are reported. "All" (default) reports every pod owned
-	// by the Rollout (stable + canary + draining). "Stable" reports only the stable
-	// ReplicaSet's pod count and selector, keeping the reported count equal to
-	// spec.replicas so HPA/KEDA scalers using absolute (Object/External) metrics do
-	// not oscillate against the temporarily doubled pod count. "Stable" should not be
-	// used with resource Utilization or Pods metrics, since the HPA would then only
-	// sample stable pods while the canary is taking traffic. Requires trafficRouting;
+	// Mode controls which pods are counted. "All" (default) counts every pod owned by
+	// the Rollout (stable + canary + draining). "Stable" counts only the stable
+	// ReplicaSet's pods, keeping the reported count equal to spec.replicas so HPA/KEDA
+	// scalers using per-pod averaged (Object/External AverageValue, Pods) metrics do
+	// not adopt the temporarily doubled pod count as the desired replica count.
+	// status.selector is unaffected by this setting and continues to match all pods
+	// owned by the Rollout, so metrics sampled through the selector (e.g. resource
+	// Utilization) always observe every pod taking traffic. Requires trafficRouting;
 	// incompatible with dynamicStableScale.
 	// +kubebuilder:validation:Enum=All;Stable
 	// +optional
@@ -367,9 +368,9 @@ type CanaryStrategy struct {
 	// Defaults to 100% of total replicas.
 	// +optional
 	ReplicaProgressThreshold *ReplicaProgressThreshold `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,17,opt,name=replicaProgressThreshold"`
-	// ScaleReporting controls what the status fields backing the scale subresource
-	// (status.HPAReplicas, status.selector) report during an update when using
-	// traffic routing. Defaults to reporting all pods owned by the Rollout.
+	// ScaleReporting controls what the replica count backing the scale subresource
+	// (status.HPAReplicas) reports during an update when using traffic routing.
+	// Defaults to counting all pods owned by the Rollout.
 	// +optional
 	ScaleReporting *ScaleReporting `json:"scaleReporting,omitempty" protobuf:"bytes,18,opt,name=scaleReporting"`
 }
