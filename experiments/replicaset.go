@@ -93,7 +93,15 @@ func (ec *experimentContext) createReplicaSet(template v1alpha1.TemplateSpec, co
 		// Fetch a copy of the ReplicaSet.
 		rs, rsErr := ec.replicaSetLister.ReplicaSets(newRS.Namespace).Get(newRS.Name)
 		if rsErr != nil {
-			return nil, rsErr
+			if !errors.IsNotFound(rsErr) {
+				return nil, rsErr
+			}
+			// Lister cache may be stale — fall back to a direct API Get
+			rs, rsErr = ec.kubeclientset.AppsV1().ReplicaSets(newRS.Namespace).Get(ctx, newRS.Name, metav1.GetOptions{})
+			if rsErr != nil {
+				return nil, rsErr
+			}
+			ec.log.Warnf("ReplicaSet '%s' missing from informer cache, fell back to API get", rs.Name)
 		}
 
 		// If the Experiment owns the ReplicaSet and the ReplicaSet's PodTemplateSpec is semantically

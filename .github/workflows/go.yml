@@ -70,7 +70,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Restore go build and module cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
@@ -83,7 +83,7 @@ jobs:
           go mod download
 
       - name: Install pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
           package_json_file: ui/package.json
 
@@ -111,18 +111,18 @@ jobs:
           mkdir -p ~/go/src/github.com/argoproj
           ln -s $(pwd) ~/go/src/github.com/argoproj/argo-rollouts
       - name: Install pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
           package_json_file: ui/package.json
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: /home/runner/.cache/go-build
           key: GOCACHE-${{ hashFiles('**/go.mod') }}
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: /home/runner/go/pkg/mod
           key: GOMODCACHE-${{ hashFiles('**/go.mod') }}
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: /home/runner/go/bin
           key: go-bin-v1-${{ hashFiles('**/go.mod') }}
