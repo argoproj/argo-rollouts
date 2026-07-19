@@ -388,6 +388,27 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
 		f.run(getKey(r2, t))
 	})
+
+	t.Run("Experiment Running with empty ServiceName - no WeightDestination created", func(t *testing.T) {
+		// Simulates the teardown race where the template status momentarily
+		// carries an empty ServiceName while the template weight still applies.
+		// Without the guard this produced a WeightDestination with an empty
+		// ServiceName, rendered by traffic routers as a destination with an
+		// empty host that black-holes its traffic share.
+		ex.Status.Phase = v1alpha1.AnalysisPhaseRunning
+		ex.Status.TemplateStatuses[0].ServiceName = ""
+		ex.Status.TemplateStatuses[1].ServiceName = ""
+		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
+			assert.Equal(t, int32(10), desiredWeight)
+			assert.Len(t, weightDestinations, 0)
+			return nil
+		})
+		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
+		f.run(getKey(r2, t))
+	})
 }
 
 func TestRolloutUsePreviousSetWeight(t *testing.T) {

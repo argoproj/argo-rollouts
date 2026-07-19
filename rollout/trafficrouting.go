@@ -440,25 +440,39 @@ func calculateWeightStatus(ro *v1alpha1.Rollout, canaryHash, stableHash string, 
 func (c *rolloutContext) calculateWeightDestinationsFromExperiment() []v1alpha1.WeightDestination {
 	weightDestinations := make([]v1alpha1.WeightDestination, 0)
 	exStep := replicasetutil.GetCurrentExperimentStep(c.rollout)
-	if exStep != nil && c.currentEx != nil && c.currentEx.Status.Phase == v1alpha1.AnalysisPhaseRunning {
-		getTemplateWeight := func(name string) *int32 {
-			for _, tmpl := range exStep.Templates {
-				if tmpl.Name == name {
-					return tmpl.Weight
-				}
-			}
-			return nil
-		}
-		for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
-			templateWeight := getTemplateWeight(templateStatus.Name)
-			if templateWeight != nil {
-				weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
-					ServiceName:     templateStatus.ServiceName,
-					PodTemplateHash: templateStatus.PodTemplateHash,
-					Weight:          *templateWeight,
-				})
+	if exStep == nil || c.currentEx == nil || c.currentEx.Status.Phase != v1alpha1.AnalysisPhaseRunning {
+		return weightDestinations
+	}
+	getTemplateWeight := func(name string) *int32 {
+		for _, tmpl := range exStep.Templates {
+			if tmpl.Name == name {
+				return tmpl.Weight
 			}
 		}
+		return nil
+	}
+	for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
+		templateWeight := getTemplateWeight(templateStatus.Name)
+		if templateWeight == nil {
+			continue
+		}
+		if templateStatus.ServiceName == "" {
+			// A weighted experiment template requires a Service to route to.
+			// During experiment teardown (or if the experiment's Service is
+			// removed) the template status can momentarily carry an empty
+			// ServiceName while the template weight still applies. Emitting a
+			// WeightDestination without a ServiceName causes traffic routers
+			// to render destinations with an empty host (e.g. an Istio
+			// VirtualService route to host ""), which black-holes that share
+			// of traffic.
+			c.log.Warnf("Skipping weight destination for experiment template '%s': empty ServiceName", templateStatus.Name)
+			continue
+		}
+		weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
+			ServiceName:     templateStatus.ServiceName,
+			PodTemplateHash: templateStatus.PodTemplateHash,
+			Weight:          *templateWeight,
+		})
 	}
 	return weightDestinations
 }
