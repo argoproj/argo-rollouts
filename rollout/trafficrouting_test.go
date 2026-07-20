@@ -400,21 +400,11 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 		defer func() {
 			ex.Status.TemplateStatuses[0].Status = ""
 		}()
-		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
-			assert.Equal(t, int32(10), desiredWeight)
-			assert.Len(t, weightDestinations, 1)
-			// weight drained to 0, but the destination (host) is preserved until the
-			// Service is deleted.
-			assert.Equal(t, int32(0), weightDestinations[0].Weight)
-			assert.Equal(t, ex.Status.TemplateStatuses[0].ServiceName, weightDestinations[0].ServiceName)
-			assert.Equal(t, ex.Status.TemplateStatuses[0].PodTemplateHash, weightDestinations[0].PodTemplateHash)
-			return nil
-		})
-		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
-		f.run(getKey(r2, t))
+		assertExperimentSetWeight(t, f, r2, 10, []v1alpha1.WeightDestination{{
+			ServiceName:     ex.Status.TemplateStatuses[0].ServiceName,
+			PodTemplateHash: ex.Status.TemplateStatuses[0].PodTemplateHash,
+			Weight:          0,
+		}})
 	})
 
 	t.Run("Experiment Successful - no WeightDestination created", func(t *testing.T) {
@@ -427,16 +417,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 		defer func() {
 			ex.Status.TemplateStatuses[0].Status = ""
 		}()
-		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
-			assert.Equal(t, int32(10), desiredWeight)
-			assert.Len(t, weightDestinations, 0)
-			return nil
-		})
-		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
-		f.run(getKey(r2, t))
+		assertExperimentSetWeight(t, f, r2, 10, nil)
 	})
 
 	t.Run("Experiment Running due to pending required analysis but template completed - WeightDestination drained to 0", func(t *testing.T) {
@@ -459,19 +440,11 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 			ex.Status.TemplateStatuses[0].Status = ""
 			ex.Status.AnalysisRuns = nil
 		}()
-		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
-			assert.Equal(t, int32(10), desiredWeight)
-			assert.Len(t, weightDestinations, 1)
-			assert.Equal(t, int32(0), weightDestinations[0].Weight)
-			assert.Equal(t, ex.Status.TemplateStatuses[0].ServiceName, weightDestinations[0].ServiceName)
-			assert.Equal(t, ex.Status.TemplateStatuses[0].PodTemplateHash, weightDestinations[0].PodTemplateHash)
-			return nil
-		})
-		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
-		f.run(getKey(r2, t))
+		assertExperimentSetWeight(t, f, r2, 10, []v1alpha1.WeightDestination{{
+			ServiceName:     ex.Status.TemplateStatuses[0].ServiceName,
+			PodTemplateHash: ex.Status.TemplateStatuses[0].PodTemplateHash,
+			Weight:          0,
+		}})
 	})
 
 	t.Run("Experiment Running but template Service torn down - no WeightDestination created", func(t *testing.T) {
@@ -489,19 +462,26 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 			ex.Status.TemplateStatuses[0].ServiceName = originalServiceName
 			ex.Status.TemplateStatuses[0].PodTemplateHash = rs2PodHash
 		}()
-		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
-			// The weighted template's Service is gone, so no WeightDestination
-			// (and therefore no empty-host route destination) should be produced.
-			assert.Equal(t, int32(10), desiredWeight)
-			assert.Len(t, weightDestinations, 0)
-			return nil
-		})
-		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
-		f.run(getKey(r2, t))
+		assertExperimentSetWeight(t, f, r2, 10, nil)
 	})
+}
+
+// assertExperimentSetWeight runs the rollout reconcile and asserts that SetWeight was invoked
+// with the given desired weight and exactly the given weight destinations (order-sensitive).
+func assertExperimentSetWeight(t *testing.T, f *fixture, r2 *v1alpha1.Rollout, desiredWeight int32, expectedDestinations []v1alpha1.WeightDestination) {
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(gotWeight int32, gotDestinations ...v1alpha1.WeightDestination) error {
+		assert.Equal(t, desiredWeight, gotWeight)
+		assert.Len(t, gotDestinations, len(expectedDestinations))
+		for i, expected := range expectedDestinations {
+			assert.Equal(t, expected, gotDestinations[i])
+		}
+		return nil
+	})
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
+	f.run(getKey(r2, t))
 }
 
 func TestRolloutUsePreviousSetWeight(t *testing.T) {
