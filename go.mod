@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.30
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.63.1
-	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.54.9
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.57.0
 	github.com/aws/smithy-go v1.27.3
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bombsimon/logrusr/v4 v4.1.0
@@ -24,7 +24,7 @@ require (
 	github.com/juju/ansiterm v1.0.0
 	github.com/machinebox/graphql v0.2.2
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/newrelic/newrelic-client-go/v2 v2.82.0
+	github.com/newrelic/newrelic-client-go/v2 v2.91.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.67.5
@@ -39,7 +39,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2
 	go.yaml.in/yaml/v2 v2.4.4
 	golang.org/x/oauth2 v0.36.0
-	golang.org/x/sync v0.21.0
+	golang.org/x/sync v0.22.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478
 	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11
