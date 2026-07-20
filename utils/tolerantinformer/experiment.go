@@ -2,7 +2,6 @@ package tolerantinformer
 
 import (
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -13,74 +12,50 @@ import (
 )
 
 func NewTolerantExperimentInformer(factory dynamicinformer.DynamicSharedInformerFactory) rolloutinformers.ExperimentInformer {
-	return &tolerantExperimentInformer{
-		delegate: factory.ForResource(v1alpha1.ExperimentGVR),
-	}
+	delegate := factory.ForResource(v1alpha1.ExperimentGVR)
+	newFn := func() *v1alpha1.Experiment { return &v1alpha1.Experiment{} }
+	transform := makeTransform(newFn)
+	installTransform(delegate.Informer(), transform, "Experiment")
+	return &tolerantExperimentInformer{delegate: delegate, transform: transform, newFn: newFn}
 }
 
 type tolerantExperimentInformer struct {
-	delegate informers.GenericInformer
+	delegate  informers.GenericInformer
+	transform cache.TransformFunc
+	newFn     func() *v1alpha1.Experiment
 }
 
 func (i *tolerantExperimentInformer) Informer() cache.SharedIndexInformer {
-	return i.delegate.Informer()
+	return &transformingInformer{SharedIndexInformer: i.delegate.Informer(), transform: i.transform}
 }
 
 func (i *tolerantExperimentInformer) Lister() rolloutlisters.ExperimentLister {
-	return &tolerantExperimentLister{
-		delegate: i.delegate.Lister(),
-	}
+	return &tolerantExperimentLister{indexer: i.delegate.Informer().GetIndexer(), newFn: i.newFn}
 }
 
 type tolerantExperimentLister struct {
-	delegate cache.GenericLister
+	indexer cache.Indexer
+	newFn   func() *v1alpha1.Experiment
 }
 
 func (t *tolerantExperimentLister) List(selector labels.Selector) ([]*v1alpha1.Experiment, error) {
-	objects, err := t.delegate.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	return convertObjectsToExperiments(objects)
+	return listTyped(t.indexer, "", selector, t.newFn)
 }
 
 func (t *tolerantExperimentLister) Experiments(namespace string) rolloutlisters.ExperimentNamespaceLister {
-	return &tolerantExperimentNamespaceLister{
-		delegate: t.delegate.ByNamespace(namespace),
-	}
+	return &tolerantExperimentNamespaceLister{indexer: t.indexer, namespace: namespace, newFn: t.newFn}
 }
 
 type tolerantExperimentNamespaceLister struct {
-	delegate cache.GenericNamespaceLister
+	indexer   cache.Indexer
+	namespace string
+	newFn     func() *v1alpha1.Experiment
 }
 
 func (t *tolerantExperimentNamespaceLister) Get(name string) (*v1alpha1.Experiment, error) {
-	object, err := t.delegate.Get(name)
-	if err != nil {
-		return nil, err
-	}
-	v := &v1alpha1.Experiment{}
-	err = convertObject(object, v)
-	return v, err
+	return getTyped(t.indexer, v1alpha1.Resource("experiment"), t.namespace, name, t.newFn)
 }
 
 func (t *tolerantExperimentNamespaceLister) List(selector labels.Selector) ([]*v1alpha1.Experiment, error) {
-	objects, err := t.delegate.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	return convertObjectsToExperiments(objects)
-}
-
-func convertObjectsToExperiments(objects []runtime.Object) ([]*v1alpha1.Experiment, error) {
-	var firstErr error
-	vs := make([]*v1alpha1.Experiment, len(objects))
-	for i, obj := range objects {
-		vs[i] = &v1alpha1.Experiment{}
-		err := convertObject(obj, vs[i])
-		if err != nil && firstErr != nil {
-			firstErr = err
-		}
-	}
-	return vs, firstErr
+	return listTyped(t.indexer, t.namespace, selector, t.newFn)
 }

@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -18,7 +16,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -33,8 +30,6 @@ import (
 	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/ptr"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
@@ -58,6 +53,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	resourceversionutil "github.com/argoproj/argo-rollouts/utils/resourceversion"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
@@ -87,6 +83,9 @@ type Controller struct {
 	rolloutWorkqueue workqueue.RateLimitingInterface
 	serviceWorkqueue workqueue.RateLimitingInterface
 	ingressWorkqueue workqueue.RateLimitingInterface
+	// rolloutVersionTracker remembers ResourceVersions from our last successful writes so
+	// syncHandler can requeue when the informer cache hasn't caught up yet.
+	rolloutVersionTracker *resourceversionutil.Tracker
 }
 
 // ControllerConfig describes the data required to instantiate a new rollout controller
@@ -214,13 +213,14 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	controller := &Controller{
-		reconcilerBase:    base,
-		namespace:         cfg.Namespace,
-		replicaSetControl: replicaSetControl,
-		rolloutWorkqueue:  cfg.RolloutWorkQueue,
-		serviceWorkqueue:  cfg.ServiceWorkQueue,
-		ingressWorkqueue:  cfg.IngressWorkQueue,
-		metricsServer:     cfg.MetricsServer,
+		reconcilerBase:        base,
+		namespace:             cfg.Namespace,
+		replicaSetControl:     replicaSetControl,
+		rolloutWorkqueue:      cfg.RolloutWorkQueue,
+		serviceWorkqueue:      cfg.ServiceWorkQueue,
+		ingressWorkqueue:      cfg.IngressWorkQueue,
+		metricsServer:         cfg.MetricsServer,
+		rolloutVersionTracker: resourceversionutil.NewTracker(),
 	}
 	controller.enqueueRollout = func(obj any) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)
@@ -397,10 +397,15 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}
 	rollout, err := c.rolloutsLister.Rollouts(namespace).Get(name)
 	if k8serrors.IsNotFound(err) {
+		c.rolloutVersionTracker.Forget(key)
 		return nil
 	}
 	if err != nil {
 		return err
+	}
+
+	if c.rolloutVersionTracker.IsCacheStale(key, rollout.ResourceVersion) {
+		return controllerutil.StaleCacheError
 	}
 
 	// Remarshal the rollout to normalize all fields so that when we calculate hashes against the
@@ -439,6 +444,11 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.Errorf("newRolloutContext err %v", err)
 		return err
 	}
+	if roCtx.newRollout != nil {
+		// We modified the rollout object already. Let the next reconciliation process the update.
+		c.rolloutVersionTracker.Record(key, roCtx.newRollout.ResourceVersion)
+		return nil
+	}
 
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
@@ -446,10 +456,11 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.Info("Defaulting .spec.replica to 1")
 		r.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
 		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
-		if err == nil {
-			c.writeBackToInformer(newRollout)
+		if err != nil {
+			return err
 		}
-		return err
+		c.rolloutVersionTracker.Record(key, newRollout.ResourceVersion)
+		return nil
 	}
 
 	err = roCtx.reconcile()
@@ -462,41 +473,9 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		return err
 	}
 	if roCtx.newRollout != nil {
-		c.writeBackToInformer(roCtx.newRollout)
+		c.rolloutVersionTracker.Record(key, roCtx.newRollout.ResourceVersion)
 	}
 	return nil
-}
-
-// writeBackToInformer writes a just recently updated Rollout back into the informer cache.
-// This prevents the situation where the controller operates on a stale rollout and repeats work
-func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
-	logCtx := logutil.WithRollout(ro)
-	logCtx = logutil.WithVersionFields(logCtx, ro)
-	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ro)
-	if err != nil {
-		logCtx.Errorf("failed to convert rollout to unstructured: %v", err)
-		return
-	}
-	un := unstructured.Unstructured{Object: obj}
-	// With code-gen tools the argoclientset is generated and the update method here is removing typemetafields
-	// which the notification controller expects when it converts rolloutobject to toUnstructured and if not present
-	// and that throws an error "Failed to process: Object 'Kind' is missing in ..."
-	// Fixing this here as the informer is shared by notification controller by updating typemetafileds.
-	// TODO: Need to revisit this in the future and maybe we should have a dedicated informer for notification
-	gvk := un.GetObjectKind().GroupVersionKind()
-	if len(gvk.Version) == 0 || len(gvk.Group) == 0 || len(gvk.Kind) == 0 {
-		un.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   v1alpha1.SchemeGroupVersion.Group,
-			Kind:    rollouts.RolloutKind,
-			Version: v1alpha1.SchemeGroupVersion.Version,
-		})
-	}
-	err = c.rolloutsInformer.GetStore().Update(&un)
-	if err != nil {
-		logCtx.Errorf("failed to update informer store: %v", err)
-		return
-	}
-	logCtx.Info("persisted to informer")
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {
@@ -562,6 +541,17 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			log:      logCtx,
 		},
 		reconcilerBase: c.reconcilerBase,
+	}
+
+	// Detect if newRS has a valid (non-expired) scale-down delay annotation
+	if roCtx.newRS != nil {
+		timeRemaining, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(roCtx.newRS)
+		if err != nil {
+			logCtx.Warnf("Failed to parse scale-down-deadline annotation: %v", err)
+		}
+		if timeRemaining != nil {
+			roCtx.newRSWithinDelay = true
+		}
 	}
 
 	if resolveErr != nil {

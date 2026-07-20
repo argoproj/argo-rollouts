@@ -115,7 +115,7 @@ jobs:
           go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
@@ -194,7 +194,7 @@ jobs:
           cosign-release: 'v2.2.0'
 
       - name: Install pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
           package_json_file: ui/package.json
 
@@ -205,29 +205,31 @@ jobs:
           SPDX_GEN_VERSION: v0.0.13
           # defines the sigs.k8s.io/bom version to use.
           SIGS_BOM_VERSION: v0.2.1
-          # comma delimited list of project relative folders to inspect for package
-          # managers (gomod, pnpm, npm).
-          PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the container image to be inspected
           CONTAINER_IMAGE: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts:${{ github.ref_name }}
 
         run: |
+          set -euo pipefail
           pnpm install --dir ./ui --frozen-lockfile
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
           go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
 
-          # Generate SPDX for project dependencies analyzing package managers
-          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
-          do
-            generator -p $folder -o /tmp
-          done
+          generator -p . -o /tmp
+          pnpm --dir ./ui sbom --sbom-format spdx --prod > /tmp/bom-ui-pnpm.spdx.json
 
-          # Generate SPDX for binaries analyzing the container image
-          if [[ ! -z CONTAINER_IMAGE ]]; then
-            bom generate -o /tmp/bom-docker-image.spdx -i $CONTAINER_IMAGE
+          if [[ -n "${CONTAINER_IMAGE:-}" ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i "${CONTAINER_IMAGE}"
           fi
 
-          cd /tmp && tar -zcf sbom.tar.gz *.spdx
+          cd /tmp
+          shopt -s nullglob
+          spdx_files=( *.spdx )
+          shopt -u nullglob
+          if [[ ${#spdx_files[@]} -eq 0 ]]; then
+            echo "No .spdx files produced under /tmp"
+            exit 1
+          fi
+          tar -zcf sbom.tar.gz "${spdx_files[@]}" bom-ui-pnpm.spdx.json
 
       - name: Sign SBOM
         run: |
