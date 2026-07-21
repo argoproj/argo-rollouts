@@ -5351,6 +5351,13 @@ func schema_pkg_apis_rollouts_v1alpha1_Sigv4Config(ref common.ReferenceCallback)
 							Format:      "",
 						},
 					},
+					"service": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Service is the AWS service name used when signing the SigV4 Request, e.g. \"aps\" for Amazon Managed Prometheus or \"monitoring\" for Amazon CloudWatch's Prometheus-compatible query API. When empty it defaults to \"aps\" for Amazon Managed Prometheus workspace addresses.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

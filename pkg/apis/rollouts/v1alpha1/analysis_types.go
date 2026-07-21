@@ -288,6 +288,12 @@ type Sigv4Config struct {
 	Profile string `json:"profile,omitempty" protobuf:"bytes,2,opt,name=profile"`
 	// RoleARN is the IAM role used to sign the SIgV4 Request
 	RoleARN string `json:"roleArn,omitempty" protobuf:"bytes,3,opt,name=roleArn"`
+	// Service is the AWS service name used when signing the SigV4 Request, e.g. "aps"
+	// for Amazon Managed Prometheus or "monitoring" for Amazon CloudWatch's
+	// Prometheus-compatible query API. When empty it defaults to "aps" for Amazon
+	// Managed Prometheus workspace addresses.
+	// +optional
+	Service string `json:"service,omitempty" protobuf:"bytes,4,opt,name=service"`
 }
 
 type BasicAuthConfig struct {
