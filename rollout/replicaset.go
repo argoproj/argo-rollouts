@@ -232,13 +232,13 @@ func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
 		// basic canary should not use this
 		return false
 	}
-	abortDelay, abortDelayWasSet := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
+	abortDelay, _ := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
 	if abortDelay == nil {
 		// user explicitly set abortScaleDownDelaySeconds: 0, and wishes to leave canary/preview up indefinitely
 		return false
 	}
 	usesDynamicStableScaling := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.DynamicStableScale
-	if usesDynamicStableScaling && !abortDelayWasSet {
+	if usesDynamicStableScaling && !defaults.HasExplicitNonZeroAbortScaleDownDelay(c.rollout) {
 		// we are using dynamic stable/canary scaling and user did not explicitly set abortScaleDownDelay
 		return false
 	}

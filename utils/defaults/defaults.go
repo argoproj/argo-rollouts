@@ -237,6 +237,16 @@ func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) (*time.Du
 	return &dur, wasSet
 }
 
+// HasExplicitNonZeroAbortScaleDownDelay returns whether the user explicitly set a non-zero
+// abortScaleDownDelaySeconds. Under dynamicStableScale this is the mode where the canary is
+// held at full scale on abort until it receives a scale-down deadline (rather than draining
+// progressively), which the abort weight calculation (GetDesiredCanaryWeight) and the
+// scale-down delay logic (shouldDelayScaleDownOnAbort) must agree on.
+func HasExplicitNonZeroAbortScaleDownDelay(rollout *v1alpha1.Rollout) bool {
+	abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(rollout)
+	return wasSet && abortDelay != nil
+}
+
 func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
 	if rollout.Spec.Strategy.BlueGreen == nil {
 		return DefaultAutoPromotionEnabled
