@@ -238,7 +238,7 @@ func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
 		return false
 	}
 	usesDynamicStableScaling := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.DynamicStableScale
-	if usesDynamicStableScaling && !defaults.HasExplicitNonZeroAbortScaleDownDelay(c.rollout) {
+	if usesDynamicStableScaling && !defaults.HasExplicitAbortScaleDownDelay(c.rollout) {
 		// we are using dynamic stable/canary scaling and user did not explicitly set abortScaleDownDelay
 		return false
 	}
