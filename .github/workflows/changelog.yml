@@ -32,3 +32,4 @@ jobs:
           base: master
           add-paths: |
             CHANGELOG.md
+          signoff: true
