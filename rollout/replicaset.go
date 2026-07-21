@@ -164,8 +164,12 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 				}
 			}
 		} else if abortScaleDownDelaySeconds != nil {
-			// Don't annotate until need to ensure the stable RS is fully scaled
-			if c.stableRS.Status.AvailableReplicas == *c.rollout.Spec.Replicas {
+			// Don't annotate until the stable RS is fully scaled, i.e. able to serve 100%
+			// of traffic, since the deadline scales the canary to zero unconditionally.
+			// With dynamicStableScale this holds once the abort weight has stepped down to
+			// zero (see GetDesiredCanaryWeight). >= tolerates stable transiently exceeding
+			// spec.Replicas (e.g. HPA scale-in).
+			if c.stableRS.Status.AvailableReplicas >= *c.rollout.Spec.Replicas {
 				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
 				if err != nil {
 					return false, err

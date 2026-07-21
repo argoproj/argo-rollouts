@@ -1899,3 +1899,76 @@ func TestAllReplicaProgressThresholdMet(t *testing.T) {
 		})
 	}
 }
+
+// TestGetDesiredCanaryWeightOnAbortWithScaleDownDelay verifies that when an explicit
+// abortScaleDownDelaySeconds keeps the canary at full scale on abort, the canary's size
+// does not hold the abort weight up. Without this, the abort deadlocks: the weight can
+// never step below the smallest setWeight step (bounded by newRS availability), so the
+// stable RS never reaches spec.Replicas, so the scale-down-deadline annotation is never
+// added, so the canary never scales down (issue #4898).
+func TestGetDesiredCanaryWeightOnAbortWithScaleDownDelay(t *testing.T) {
+	newAbortedRollout := func(abortDelay *int32) *v1alpha1.Rollout {
+		rollout := newRollout(10, 50, intstr.FromInt(1), intstr.FromInt(0), "canary", "stable", nil, &v1alpha1.RolloutTrafficRouting{})
+		rollout.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
+			{SetWeight: pointer.Int32Ptr(10)},
+			{SetWeight: pointer.Int32Ptr(50)},
+		}
+		rollout.Spec.Strategy.Canary.DynamicStableScale = true
+		rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = abortDelay
+		rollout.Status.Abort = true
+		return rollout
+	}
+
+	tests := []struct {
+		name            string
+		abortDelay      *int32
+		stableAvailable int32
+		expectedWeight  int32
+	}{
+		{
+			name:            "no explicit delay: weight is held up by canary size (progressive drain unchanged)",
+			abortDelay:      nil,
+			stableAvailable: 9,
+			expectedWeight:  10,
+		},
+		{
+			name:            "explicit delay: weight steps down gradually while stable is scaling up",
+			abortDelay:      pointer.Int32Ptr(30),
+			stableAvailable: 5,
+			expectedWeight:  10,
+		},
+		{
+			name:            "explicit delay: weight reaches zero once stable nearly covers spec.Replicas (deadlock case)",
+			abortDelay:      pointer.Int32Ptr(30),
+			stableAvailable: 9,
+			expectedWeight:  0,
+		},
+		{
+			name:            "explicit zero delay (leave canary up indefinitely): weight is held up by canary size",
+			abortDelay:      pointer.Int32Ptr(0),
+			stableAvailable: 9,
+			expectedWeight:  10,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rollout := newAbortedRollout(test.abortDelay)
+			canaryRS := newRS("canary", 5, 5)
+			stableRS := newRS("stable", test.stableAvailable, test.stableAvailable)
+			assert.Equal(t, test.expectedWeight, GetDesiredCanaryWeight(rollout, canaryRS, stableRS))
+		})
+	}
+
+	t.Run("stable scales to spec.Replicas once weight reaches zero", func(t *testing.T) {
+		rollout := newAbortedRollout(pointer.Int32Ptr(30))
+		canaryRS := newRS("canary", 5, 5)
+		stableRS := newRS("stable", 9, 9)
+		weights := v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{Weight: 10},
+			Stable: v1alpha1.WeightDestination{Weight: 90},
+		}
+		_, stableRSReplicaCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, canaryRS, stableRS, &weights)
+		assert.Equal(t, int32(10), stableRSReplicaCount)
+	})
+}

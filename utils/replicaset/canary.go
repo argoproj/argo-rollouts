@@ -528,6 +528,16 @@ func GetDesiredCanaryWeight(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.R
 		expectedCanaryReplicas := rolloutSpecReplica - stableRS.Status.AvailableReplicas
 		// max makes sure that scaling down NewRS replicas will catch up with scaling up stableRS replicas
 		canaryReplicas := max(expectedCanaryReplicas, newRS.Status.AvailableReplicas)
+		if abortDelay, wasSet := defaults.GetAbortScaleDownDelaySecondsOrDefault(rollout); wasSet && abortDelay != nil {
+			// An explicitly set abortScaleDownDelaySeconds keeps the canary at full scale
+			// until its scale-down deadline, and the deadline annotation is only added once
+			// the stable RS is fully scaled (see reconcileNewReplicaSet). The canary's size
+			// therefore must not hold the weight up, otherwise the weight can never step
+			// below the smallest setWeight step and the abort deadlocks: weight step-down
+			// waits on canary drain, canary drain waits on stable reaching full scale, and
+			// stable scale-up waits on weight step-down.
+			canaryReplicas = expectedCanaryReplicas
+		}
 		// find next step to scale down NewRS to
 		for i := len(rollout.Spec.Strategy.Canary.Steps) - 1; i >= 0; i-- {
 			step := rollout.Spec.Strategy.Canary.Steps[i]
