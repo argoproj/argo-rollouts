@@ -347,39 +347,59 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 	}
 }
 
-// TestReconcileNewReplicaSetAbortDynamicStableScale verifies that on abort with
-// dynamicStableScale + abortScaleDownDelaySeconds, the scale-down-deadline annotation
-// is added as soon as combined stable+canary capacity covers spec.Replicas. Prior to
-// the fix, the gate required stable.Available == spec.Replicas, which never holds under
-// dynamicStableScale (stable is kept proportional to reverse traffic weight), producing
-// a deadlock where the canary was never annotated and never scaled down on abort.
+// TestReconcileNewReplicaSetAbortDynamicStableScale verifies the scale-down-deadline
+// annotation gate on abort with abortScaleDownDelaySeconds. Coverage:
+//   - dynamicStableScale=true: uses combined stable+canary capacity. Prior to the fix
+//     the gate required stable.Available == spec.Replicas, which never holds under
+//     dynamicStableScale (stable is kept proportional to reverse traffic weight),
+//     producing a deadlock where canary was never annotated / never scaled down.
+//   - dynamicStableScale=false: retains the original strict check, waiting for any
+//     transient stable degradation to heal before starting the drain window.
 func TestReconcileNewReplicaSetAbortDynamicStableScale(t *testing.T) {
 	rolloutReplicas := int32(10)
 	abortDelay := int32(30)
 
 	tests := []struct {
-		name              string
-		stableAvailable   int32
-		newAvailable      int32
-		expectAnnotation  bool
+		name               string
+		dynamicStableScale bool
+		stableAvailable    int32
+		newAvailable       int32
+		expectAnnotation   bool
 	}{
 		{
-			name:             "combined capacity meets spec.Replicas -> annotate (deadlock case)",
-			stableAvailable:  9,
-			newAvailable:     2,
-			expectAnnotation: true,
+			name:               "dynamic: combined capacity meets spec.Replicas -> annotate (deadlock case)",
+			dynamicStableScale: true,
+			stableAvailable:    9,
+			newAvailable:       2,
+			expectAnnotation:   true,
 		},
 		{
-			name:             "stable alone meets spec.Replicas -> annotate (non-dynamic-like)",
-			stableAvailable:  10,
-			newAvailable:     0,
-			expectAnnotation: true,
+			name:               "dynamic: stable alone meets spec.Replicas -> annotate",
+			dynamicStableScale: true,
+			stableAvailable:    10,
+			newAvailable:       0,
+			expectAnnotation:   true,
 		},
 		{
-			name:             "combined capacity below spec.Replicas -> do not annotate",
-			stableAvailable:  5,
-			newAvailable:     2,
-			expectAnnotation: false,
+			name:               "dynamic: combined capacity below spec.Replicas -> do not annotate",
+			dynamicStableScale: true,
+			stableAvailable:    5,
+			newAvailable:       2,
+			expectAnnotation:   false,
+		},
+		{
+			name:               "non-dynamic: stable at spec.Replicas -> annotate",
+			dynamicStableScale: false,
+			stableAvailable:    10,
+			newAvailable:       0,
+			expectAnnotation:   true,
+		},
+		{
+			name:               "non-dynamic: stable degraded below spec.Replicas -> do not annotate (legacy strict check preserved)",
+			dynamicStableScale: false,
+			stableAvailable:    9,
+			newAvailable:       2,
+			expectAnnotation:   false,
 		},
 	}
 
@@ -389,7 +409,7 @@ func TestReconcileNewReplicaSetAbortDynamicStableScale(t *testing.T) {
 			steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}}
 			rollout := newCanaryRollout("foo", int(rolloutReplicas), nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 			rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
-			rollout.Spec.Strategy.Canary.DynamicStableScale = true
+			rollout.Spec.Strategy.Canary.DynamicStableScale = test.dynamicStableScale
 			rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = &abortDelay
 			rollout.Spec.Strategy.Canary.CanaryService = "canary"
 			rollout.Spec.Strategy.Canary.StableService = "stable"

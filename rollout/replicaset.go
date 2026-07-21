@@ -164,12 +164,24 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 				}
 			}
 		} else if abortScaleDownDelaySeconds != nil {
-			// Ensure combined stable+canary capacity covers spec.Replicas before annotating.
-			// Using equality with only stable.Available deadlocks when dynamicStableScale is
-			// enabled: stable is intentionally kept proportional to reverse traffic weight and
-			// only reaches spec.Replicas once canary is fully drained — which itself is gated
-			// on this annotation.
-			if c.stableRS.Status.AvailableReplicas+c.newRS.Status.AvailableReplicas >= *c.rollout.Spec.Replicas {
+			// Gate the scale-down-deadline annotation on sufficient serving capacity:
+			//   - Non-dynamic canary / BlueGreen: stable is kept at spec.Replicas by design,
+			//     so we retain the original strict check (stable.Available == spec.Replicas).
+			//     This preserves the legacy behavior of waiting for any transient stable
+			//     degradation to heal before starting the drain window.
+			//   - dynamicStableScale: stable is intentionally kept proportional to the reverse
+			//     traffic weight and only reaches spec.Replicas once canary is fully drained.
+			//     Requiring stable == spec.Replicas here deadlocks — canary can't shrink until
+			//     stable grows and vice versa. Fall back to combined stable+canary capacity.
+			usesDynamicStableScale := c.rollout.Spec.Strategy.Canary != nil &&
+				c.rollout.Spec.Strategy.Canary.DynamicStableScale
+			var hasCapacity bool
+			if usesDynamicStableScale {
+				hasCapacity = c.stableRS.Status.AvailableReplicas+c.newRS.Status.AvailableReplicas >= *c.rollout.Spec.Replicas
+			} else {
+				hasCapacity = c.stableRS.Status.AvailableReplicas == *c.rollout.Spec.Replicas
+			}
+			if hasCapacity {
 				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
 				if err != nil {
 					return false, err
