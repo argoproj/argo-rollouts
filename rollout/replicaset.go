@@ -164,8 +164,12 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 				}
 			}
 		} else if abortScaleDownDelaySeconds != nil {
-			// Don't annotate until need to ensure the stable RS is fully scaled
-			if c.stableRS.Status.AvailableReplicas == *c.rollout.Spec.Replicas {
+			// Ensure combined stable+canary capacity covers spec.Replicas before annotating.
+			// Using equality with only stable.Available deadlocks when dynamicStableScale is
+			// enabled: stable is intentionally kept proportional to reverse traffic weight and
+			// only reaches spec.Replicas once canary is fully drained — which itself is gated
+			// on this annotation.
+			if c.stableRS.Status.AvailableReplicas+c.newRS.Status.AvailableReplicas >= *c.rollout.Spec.Replicas {
 				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
 				if err != nil {
 					return false, err

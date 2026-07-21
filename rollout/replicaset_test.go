@@ -347,6 +347,107 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 	}
 }
 
+// TestReconcileNewReplicaSetAbortDynamicStableScale verifies that on abort with
+// dynamicStableScale + abortScaleDownDelaySeconds, the scale-down-deadline annotation
+// is added as soon as combined stable+canary capacity covers spec.Replicas. Prior to
+// the fix, the gate required stable.Available == spec.Replicas, which never holds under
+// dynamicStableScale (stable is kept proportional to reverse traffic weight), producing
+// a deadlock where the canary was never annotated and never scaled down on abort.
+func TestReconcileNewReplicaSetAbortDynamicStableScale(t *testing.T) {
+	rolloutReplicas := int32(10)
+	abortDelay := int32(30)
+
+	tests := []struct {
+		name              string
+		stableAvailable   int32
+		newAvailable      int32
+		expectAnnotation  bool
+	}{
+		{
+			name:             "combined capacity meets spec.Replicas -> annotate (deadlock case)",
+			stableAvailable:  9,
+			newAvailable:     2,
+			expectAnnotation: true,
+		},
+		{
+			name:             "stable alone meets spec.Replicas -> annotate (non-dynamic-like)",
+			stableAvailable:  10,
+			newAvailable:     0,
+			expectAnnotation: true,
+		},
+		{
+			name:             "combined capacity below spec.Replicas -> do not annotate",
+			stableAvailable:  5,
+			newAvailable:     2,
+			expectAnnotation: false,
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}}
+			rollout := newCanaryRollout("foo", int(rolloutReplicas), nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+			rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+			rollout.Spec.Strategy.Canary.DynamicStableScale = true
+			rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = &abortDelay
+			rollout.Spec.Strategy.Canary.CanaryService = "canary"
+			rollout.Spec.Strategy.Canary.StableService = "stable"
+			rollout.Status.Abort = true
+			rollout.Status.StableRS = "abc123"
+			rollout.Status.CurrentPodHash = "def456"
+
+			stableRS := rs("foo-stable", int(rolloutReplicas), nil, noTimestamp, nil)
+			stableRS.Status.AvailableReplicas = test.stableAvailable
+			newRS := rs("foo-canary", int(test.newAvailable), nil, noTimestamp, nil)
+			newRS.Status.AvailableReplicas = test.newAvailable
+
+			f := newFixture(t)
+			defer f.Close()
+			f.objects = append(f.objects, rollout)
+			f.replicaSetLister = append(f.replicaSetLister, stableRS, newRS)
+			f.kubeobjects = append(f.kubeobjects, stableRS, newRS)
+			_, informers, k8sInformer := f.newController(noResyncPeriodFunc)
+			stopCh := make(chan struct{})
+			informers.Start(stopCh)
+			informers.WaitForCacheSync(stopCh)
+			close(stopCh)
+
+			k8sfake := k8sfake.Clientset{}
+			roCtx := rolloutContext{
+				log:      logutil.WithRollout(rollout),
+				rollout:  rollout,
+				newRS:    newRS,
+				stableRS: stableRS,
+				newStatus: v1alpha1.RolloutStatus{
+					Canary: v1alpha1.CanaryStatus{Weights: &v1alpha1.TrafficWeights{}},
+				},
+				reconcilerBase: reconcilerBase{
+					argoprojclientset:  &fake.Clientset{},
+					kubeclientset:      &k8sfake,
+					recorder:           record.NewFakeEventRecorder(),
+					resyncPeriod:       30 * time.Second,
+					replicaSetInformer: k8sInformer.Apps().V1().ReplicaSets().Informer(),
+				},
+				pauseContext: &pauseContext{rollout: rollout},
+			}
+			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
+
+			_, err := roCtx.reconcileNewReplicaSet()
+			assert.NoError(t, err)
+
+			annotated := false
+			for _, action := range k8sfake.Actions() {
+				if action.GetVerb() == "patch" && action.GetResource().Resource == "replicasets" {
+					annotated = true
+					break
+				}
+			}
+			assert.Equal(t, test.expectAnnotation, annotated, "unexpected annotation state; actions=%v", k8sfake.Actions())
+		})
+	}
+}
+
 func TestReconcileOldReplicaSet(t *testing.T) {
 	tests := []struct {
 		name                string
