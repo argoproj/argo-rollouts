@@ -13,6 +13,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1513,6 +1514,77 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.runWithSyncs(getKey(r, t), 3)
 	updatedRollout := f.getUpdatedRollout(updateIndex)
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
+}
+
+func TestSyncHandlerLogsUnderlyingErrorFromNewRolloutContext(t *testing.T) {
+	// When newRolloutContext returns (nil, err), syncHandler must include err in the log
+	// line, and emit at Warn for benign 409 conflicts (the workqueue retries) and Error
+	// for everything else.
+	cases := []struct {
+		name      string
+		injectErr error
+		wantLevel log.Level
+		wantMsg   string
+	}{
+		{
+			name: "conflict is logged at warn",
+			injectErr: errors.NewConflict(
+				schema.GroupResource{Group: "argoproj.io", Resource: "rollouts"},
+				"foo",
+				fmt.Errorf("the object has been modified; please apply your changes to the latest version and try again"),
+			),
+			wantLevel: log.WarnLevel,
+			wantMsg:   "the object has been modified",
+		},
+		{
+			name:      "non-conflict is logged at error",
+			injectErr: fmt.Errorf("boom"),
+			wantLevel: log.ErrorLevel,
+			wantMsg:   "boom",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+			f.rolloutLister = append(f.rolloutLister, r)
+			f.objects = append(f.objects, r)
+
+			c, i, k8sI := f.newController(noResyncPeriodFunc)
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			i.Start(stopCh)
+			k8sI.Start(stopCh)
+			assert.True(t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
+
+			f.client.PrependReactor("update", "rollouts", func(action core.Action) (bool, runtime.Object, error) {
+				if action.GetSubresource() == "status" {
+					return true, nil, tc.injectErr
+				}
+				return false, nil, nil
+			})
+
+			hook := logtest.NewGlobal()
+			defer hook.Reset()
+
+			assert.Error(t, c.syncHandler(context.Background(), getKey(r, t)))
+
+			var found *log.Entry
+			for _, e := range hook.AllEntries() {
+				if strings.HasPrefix(e.Message, "newRolloutContext returned nil") {
+					found = e
+					break
+				}
+			}
+			if found == nil {
+				t.Fatal("expected 'newRolloutContext returned nil' log entry, got none")
+			}
+			assert.Contains(t, found.Message, tc.wantMsg)
+			assert.Equal(t, tc.wantLevel, found.Level)
+		})
+	}
 }
 
 // TestSwitchInvalidSpecMessage verifies message is updated when reason for InvalidSpec changes
