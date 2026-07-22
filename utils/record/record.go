@@ -390,6 +390,13 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 	for _, destination := range destinations {
 		res, err := notificationsAPI.RunTrigger(trigger, objMap)
 		if err != nil {
+			// A "trigger is not configured" error is expected whenever a lifecycle
+			// event fires without a matching trigger configured. Log it at debug
+			// level and do not treat it as a notification failure.
+			if strings.Contains(err.Error(), "is not configured") {
+				logCtx.Debugf("Skipping trigger %s: %v", trigger, err)
+				continue
+			}
 			log.Errorf("Failed to run trigger, trigger: %s, destination: %s, namespace config: %s : %v",
 				trigger, destination, notificationsAPI.GetConfig().Namespace, err)
 			errors = append(errors, err)
