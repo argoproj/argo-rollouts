@@ -237,6 +237,18 @@ func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) (*time.Du
 	return &dur, wasSet
 }
 
+// HasExplicitAbortScaleDownDelay returns whether the user explicitly configured a delayed
+// scale-down on abort. An explicit abortScaleDownDelaySeconds: 0 returns false, since zero
+// disables scale-down entirely rather than delaying it. Under dynamicStableScale this is the
+// mode where the canary is held at full scale on abort until it receives a scale-down
+// deadline (rather than draining progressively), which the abort weight calculation
+// (GetDesiredCanaryWeight) and the scale-down delay logic (shouldDelayScaleDownOnAbort)
+// must agree on.
+func HasExplicitAbortScaleDownDelay(rollout *v1alpha1.Rollout) bool {
+	abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(rollout)
+	return wasSet && abortDelay != nil
+}
+
 func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
 	if rollout.Spec.Strategy.BlueGreen == nil {
 		return DefaultAutoPromotionEnabled
