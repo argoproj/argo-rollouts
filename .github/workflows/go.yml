@@ -24,7 +24,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend_any_changed }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
         id: filter
         with:
@@ -44,11 +44,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v6.2.0
+        uses: actions/setup-go@v7.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
@@ -61,13 +61,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v6.2.0
+        uses: actions/setup-go@v7.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Restore go build and module cache
         uses: actions/cache@v6
@@ -99,9 +99,9 @@ jobs:
       GOPATH: /home/runner/go
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup Golang
-        uses: actions/setup-go@v6.2.0
+        uses: actions/setup-go@v7.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
