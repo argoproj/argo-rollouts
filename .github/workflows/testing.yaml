@@ -28,7 +28,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend_any_changed }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
         id: filter
         with:
@@ -60,7 +60,7 @@ jobs:
         id: go
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Restore go build and module cache
         uses: actions/cache@v6
@@ -117,7 +117,7 @@ jobs:
         uses: actions/setup-go@v7.0.0
         with:
           go-version: '1.26'
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup k3s
         env:
           INSTALL_K3S_VERSION: v${{ matrix.kubernetes.k3s_version }}
@@ -215,7 +215,7 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
         id: go
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Get e2e code coverage
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
