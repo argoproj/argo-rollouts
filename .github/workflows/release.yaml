@@ -127,7 +127,7 @@ jobs:
           make manifests IMAGE_TAG=${{ github.ref_name }} REGISTRY_NAMESPACE=${{ needs.set-registry-namespace.outputs.registry_namespace }}
 
       - name: Draft release
-        uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v0.1.15
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v0.1.15
         with:
           tag_name: ${{ github.event.inputs.tag }}
           draft: true
@@ -240,7 +240,7 @@ jobs:
             /tmp/sbom.tar.gz
 
       - name: Upload SBOM and signature assets
-        uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v0.1.15
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v0.1.15
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
