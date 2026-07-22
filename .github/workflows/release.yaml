@@ -104,7 +104,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6 # v3.5.2
+        uses: actions/checkout@v7 # v3.5.2
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -178,7 +178,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6 # v3.3.0
+        uses: actions/checkout@v7 # v3.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -258,7 +258,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6 # v3.3.0
+        uses: actions/checkout@v7 # v3.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
