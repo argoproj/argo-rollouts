@@ -429,7 +429,11 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 
 	roCtx, err := c.newRolloutContext(r)
 	if roCtx == nil {
-		logCtx.Error("newRolloutContext returned nil")
+		if k8serrors.IsConflict(err) {
+			logCtx.Warnf("newRolloutContext returned nil: %v", err)
+		} else {
+			logCtx.Errorf("newRolloutContext returned nil: %v", err)
+		}
 		return err
 	}
 	if err != nil {
