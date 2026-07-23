@@ -2,10 +2,12 @@ package datadog
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
@@ -34,6 +36,31 @@ const (
 	DatadogAppKey           = "app-key"
 	DatadogAddress          = "address"
 )
+
+const (
+	metadataHTTPStatusCode   = "httpStatusCode"
+	metadataRequestOutcome   = "requestOutcome"
+	metadataResponseReceived = "responseReceived"
+
+	requestOutcomeHTTPError         = "http_error"
+	requestOutcomeResponseError     = "response_error"
+	requestOutcomeResponseReadError = "response_read_error"
+	requestOutcomeSuccess           = "success"
+	requestOutcomeTimeout           = "timeout"
+	requestOutcomeTransportError    = "transport_error"
+)
+
+type responseReadError struct {
+	err error
+}
+
+func (e *responseReadError) Error() string {
+	return fmt.Sprintf("Failed to read Datadog API response body: %v", e.err)
+}
+
+func (e *responseReadError) Unwrap() error {
+	return e.err
+}
 
 // Provider contains all the required components to run a Datadog query
 // Implements the Provider Interface
@@ -317,24 +344,56 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 	response, err := httpClient.Do(request)
 	if err != nil {
+		measurement.Metadata = map[string]string{
+			metadataRequestOutcome:   requestOutcomeTransportError,
+			metadataResponseReceived: strconv.FormatBool(false),
+		}
+		if isTimeoutError(err) {
+			measurement.Metadata[metadataRequestOutcome] = requestOutcomeTimeout
+			err = fmt.Errorf("Datadog API request timed out after %s before receiving an HTTP response: %w", timeout, err)
+		} else {
+			err = fmt.Errorf("Datadog API request failed before receiving an HTTP response: %w", err)
+		}
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 	defer response.Body.Close()
 
+	measurement.Metadata = map[string]string{
+		metadataHTTPStatusCode:   strconv.Itoa(response.StatusCode),
+		metadataResponseReceived: strconv.FormatBool(true),
+	}
+
 	value, status, metadata, err := p.parseResponse(metric, response, dd.ApiVersion)
+	for key, value := range metadata {
+		measurement.Metadata[key] = value
+	}
 	if err != nil {
+		measurement.Metadata[metadataRequestOutcome] = requestOutcomeResponseError
+		if response.StatusCode != http.StatusOK {
+			measurement.Metadata[metadataRequestOutcome] = requestOutcomeHTTPError
+		}
+		var readErr *responseReadError
+		if errors.As(err, &readErr) {
+			measurement.Metadata[metadataRequestOutcome] = requestOutcomeResponseReadError
+		}
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
 	measurement.Value = value
 	measurement.Phase = status
-	if len(metadata) > 0 {
-		measurement.Metadata = metadata
-	}
+	measurement.Metadata[metadataRequestOutcome] = requestOutcomeSuccess
 	finishedTime := timeutil.MetaNow()
 	measurement.FinishedAt = &finishedTime
 
 	return measurement
+}
+
+func isTimeoutError(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 func (p *Provider) createRequest(dd *v1alpha1.DatadogMetric, now int64, interval int64, url *url.URL) (*http.Request, error) {
@@ -421,7 +480,7 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
+		return "", v1alpha1.AnalysisPhaseError, &responseReadError{err: err}
 	}
 
 	if response.StatusCode == http.StatusForbidden || response.StatusCode == http.StatusUnauthorized {
@@ -463,7 +522,7 @@ func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Respon
 func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, map[string]string, error) {
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("Received no bytes in response: %v", err)
+		return "", v1alpha1.AnalysisPhaseError, nil, &responseReadError{err: err}
 	}
 
 	if response.StatusCode == http.StatusForbidden || response.StatusCode == http.StatusUnauthorized {
