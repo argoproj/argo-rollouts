@@ -1039,6 +1039,24 @@ func TestIfInjectedAntiAffinityRuleNeedsUpdate(t *testing.T) {
 		}}
 
 	assert.True(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinity, ro))
+
+	// A pod affinity term keyed by the rollout unique label but with no Values
+	// (e.g. Operator: Exists) must not cause an index-out-of-range panic and
+	// should be treated as not needing an update.
+	rsAffinityExists := &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{{
+						Key:      v1alpha1.DefaultRolloutUniqueLabelKey,
+						Operator: metav1.LabelSelectorOperator("Exists"),
+					}},
+				},
+			}},
+		},
+	}
+
+	assert.False(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinityExists, ro))
 }
 
 func TestNeedsRestart(t *testing.T) {

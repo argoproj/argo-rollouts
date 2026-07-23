@@ -212,7 +212,7 @@ func IfInjectedAntiAffinityRuleNeedsUpdate(affinity *corev1.Affinity, rollout v1
 	currentPodHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	if podAffinityTerm != nil && rollout.Status.StableRS != currentPodHash {
 		for _, labelSelectorRequirement := range podAffinityTerm.LabelSelector.MatchExpressions {
-			if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey && labelSelectorRequirement.Values[0] != rollout.Status.StableRS {
+			if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey && len(labelSelectorRequirement.Values) > 0 && labelSelectorRequirement.Values[0] != rollout.Status.StableRS {
 				return true
 			}
 		}
