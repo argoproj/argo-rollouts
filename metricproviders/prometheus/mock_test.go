@@ -43,7 +43,7 @@ func (m *mockAPI) DeleteSeries(ctx context.Context, matches []string, startTime 
 	panic("Not used")
 }
 
-func (m *mockAPI) LabelNames(ctx context.Context, matches []string, startTime time.Time, endTime time.Time, _ ...v1.Option) ([]string, v1.Warnings, error) {
+func (m *mockAPI) LabelNames(ctx context.Context, matches []string, startTime time.Time, endTime time.Time, _ ...v1.Option) (model.LabelNames, v1.Warnings, error) {
 	panic("Not used")
 }
 
@@ -89,7 +89,7 @@ func (m *mockAPI) Snapshot(ctx context.Context, skipHead bool) (v1.SnapshotResul
 	panic("Not used")
 }
 
-func (m *mockAPI) Rules(ctx context.Context) (v1.RulesResult, error) {
+func (m *mockAPI) Rules(ctx context.Context, ruleNames []string) (v1.RulesResult, error) {
 	panic("Not used")
 }
 
@@ -105,10 +105,18 @@ func (m *mockAPI) TSDB(ctx context.Context, _ ...v1.Option) (v1.TSDBResult, erro
 	panic("Not used")
 }
 
+func (m *mockAPI) TSDBBlocks(ctx context.Context) (v1.TSDBBlocksResult, error) {
+	panic("Not used")
+}
+
 func (m *mockAPI) Buildinfo(ctx context.Context) (v1.BuildinfoResult, error) {
 	panic("Not used")
 }
 
 func (m *mockAPI) QueryExemplars(ctx context.Context, query string, startTime time.Time, endTime time.Time) ([]v1.ExemplarQueryResult, error) {
+	panic("Not used")
+}
+
+func (m *mockAPI) FormatQuery(ctx context.Context, query string) (string, error) {
 	panic("Not used")
 }
