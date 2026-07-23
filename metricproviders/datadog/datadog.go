@@ -2,18 +2,16 @@ package datadog
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net"
+	"maps"
 	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -37,36 +35,12 @@ const (
 	DatadogAddress          = "address"
 )
 
-const (
-	metadataHTTPStatusCode   = "httpStatusCode"
-	metadataRequestOutcome   = "requestOutcome"
-	metadataResponseReceived = "responseReceived"
-
-	requestOutcomeHTTPError         = "http_error"
-	requestOutcomeResponseError     = "response_error"
-	requestOutcomeResponseReadError = "response_read_error"
-	requestOutcomeSuccess           = "success"
-	requestOutcomeTimeout           = "timeout"
-	requestOutcomeTransportError    = "transport_error"
-)
-
-type responseReadError struct {
-	err error
-}
-
-func (e *responseReadError) Error() string {
-	return fmt.Sprintf("Failed to read Datadog API response body: %v", e.err)
-}
-
-func (e *responseReadError) Unwrap() error {
-	return e.err
-}
-
 // Provider contains all the required components to run a Datadog query
 // Implements the Provider Interface
 type Provider struct {
 	logCtx log.Entry
 	config datadogConfig
+	client *http.Client
 }
 
 type datadogQueryAttributes struct {
@@ -330,12 +304,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request.Header.Set("DD-API-KEY", p.config.ApiKey)
 	request.Header.Set("DD-APPLICATION-KEY", p.config.AppKey)
 
-	timeout, err := requestTimeout(dd)
-	if err != nil {
-		return metricutil.MarkMeasurementError(measurement, err)
-	}
-
-	response, metadata, err := sendRequest(request, timeout)
+	response, metadata, err := p.sendRequest(request)
 	measurement.Metadata = metadata
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
@@ -343,9 +312,9 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	defer response.Body.Close()
 
 	value, status, responseMetadata, err := p.parseResponse(metric, response, dd.ApiVersion)
-	mergeMetadata(measurement.Metadata, responseMetadata)
+	maps.Copy(measurement.Metadata, responseMetadata)
 	if err != nil {
-		setResponseErrorOutcome(measurement.Metadata, response.StatusCode, err)
+		measurement.Metadata[metadataRequestOutcome] = responseErrorOutcome(response.StatusCode, err)
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
@@ -356,68 +325,6 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	measurement.FinishedAt = &finishedTime
 
 	return measurement
-}
-
-func requestTimeout(dd *v1alpha1.DatadogMetric) (time.Duration, error) {
-	const defaultTimeout = 10 * time.Second
-	if dd.RequestTimeout == "" {
-		return defaultTimeout, nil
-	}
-	return dd.RequestTimeout.Duration()
-}
-
-func sendRequest(request *http.Request, timeout time.Duration) (*http.Response, map[string]string, error) {
-	response, err := (&http.Client{Timeout: timeout}).Do(request)
-	if err != nil {
-		return nil, requestErrorMetadata(err), formatRequestError(err, timeout)
-	}
-	return response, map[string]string{
-		metadataHTTPStatusCode:   strconv.Itoa(response.StatusCode),
-		metadataResponseReceived: strconv.FormatBool(true),
-	}, nil
-}
-
-func requestErrorMetadata(err error) map[string]string {
-	outcome := requestOutcomeTransportError
-	if isTimeoutError(err) {
-		outcome = requestOutcomeTimeout
-	}
-	return map[string]string{
-		metadataRequestOutcome:   outcome,
-		metadataResponseReceived: strconv.FormatBool(false),
-	}
-}
-
-func formatRequestError(err error, timeout time.Duration) error {
-	if isTimeoutError(err) {
-		return fmt.Errorf("Datadog API request timed out after %s before receiving an HTTP response: %w", timeout, err)
-	}
-	return fmt.Errorf("Datadog API request failed before receiving an HTTP response: %w", err)
-}
-
-func mergeMetadata(destination, source map[string]string) {
-	for key, value := range source {
-		destination[key] = value
-	}
-}
-
-func setResponseErrorOutcome(metadata map[string]string, statusCode int, err error) {
-	metadata[metadataRequestOutcome] = requestOutcomeResponseError
-	if statusCode != http.StatusOK {
-		metadata[metadataRequestOutcome] = requestOutcomeHTTPError
-	}
-	var readErr *responseReadError
-	if errors.As(err, &readErr) {
-		metadata[metadataRequestOutcome] = requestOutcomeResponseReadError
-	}
-}
-
-func isTimeoutError(err error) bool {
-	if errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
-	var netErr net.Error
-	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 func (p *Provider) createRequest(dd *v1alpha1.DatadogMetric, now int64, interval int64, url *url.URL) (*http.Request, error) {
@@ -694,6 +601,10 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, na
 		if err != nil {
 			return nil, err
 		}
+		client, err := newHTTPClient(metric.Provider.Datadog)
+		if err != nil {
+			return nil, err
+		}
 
 		return &Provider{
 			logCtx: logCtx,
@@ -702,6 +613,7 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, na
 				ApiKey:  apiKey,
 				AppKey:  appKey,
 			},
+			client: client,
 		}, nil
 	} else {
 		return nil, errors.New("API or App token not found")
