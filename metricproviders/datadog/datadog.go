@@ -330,52 +330,22 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request.Header.Set("DD-API-KEY", p.config.ApiKey)
 	request.Header.Set("DD-APPLICATION-KEY", p.config.AppKey)
 
-	// Send Request. The client timeout defaults to 10s and can be overridden via the
-	// metric's spec (e.g. for expensive v2 formula queries that take longer to return).
-	timeout := time.Duration(10) * time.Second
-	if dd.RequestTimeout != "" {
-		timeout, err = dd.RequestTimeout.Duration()
-		if err != nil {
-			return metricutil.MarkMeasurementError(measurement, err)
-		}
-	}
-	httpClient := &http.Client{
-		Timeout: timeout,
-	}
-	response, err := httpClient.Do(request)
+	timeout, err := requestTimeout(dd)
 	if err != nil {
-		measurement.Metadata = map[string]string{
-			metadataRequestOutcome:   requestOutcomeTransportError,
-			metadataResponseReceived: strconv.FormatBool(false),
-		}
-		if isTimeoutError(err) {
-			measurement.Metadata[metadataRequestOutcome] = requestOutcomeTimeout
-			err = fmt.Errorf("Datadog API request timed out after %s before receiving an HTTP response: %w", timeout, err)
-		} else {
-			err = fmt.Errorf("Datadog API request failed before receiving an HTTP response: %w", err)
-		}
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
+
+	response, metadata, err := sendRequest(request, timeout)
+	measurement.Metadata = metadata
+	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 	defer response.Body.Close()
 
-	measurement.Metadata = map[string]string{
-		metadataHTTPStatusCode:   strconv.Itoa(response.StatusCode),
-		metadataResponseReceived: strconv.FormatBool(true),
-	}
-
-	value, status, metadata, err := p.parseResponse(metric, response, dd.ApiVersion)
-	for key, value := range metadata {
-		measurement.Metadata[key] = value
-	}
+	value, status, responseMetadata, err := p.parseResponse(metric, response, dd.ApiVersion)
+	mergeMetadata(measurement.Metadata, responseMetadata)
 	if err != nil {
-		measurement.Metadata[metadataRequestOutcome] = requestOutcomeResponseError
-		if response.StatusCode != http.StatusOK {
-			measurement.Metadata[metadataRequestOutcome] = requestOutcomeHTTPError
-		}
-		var readErr *responseReadError
-		if errors.As(err, &readErr) {
-			measurement.Metadata[metadataRequestOutcome] = requestOutcomeResponseReadError
-		}
+		setResponseErrorOutcome(measurement.Metadata, response.StatusCode, err)
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
@@ -386,6 +356,60 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	measurement.FinishedAt = &finishedTime
 
 	return measurement
+}
+
+func requestTimeout(dd *v1alpha1.DatadogMetric) (time.Duration, error) {
+	const defaultTimeout = 10 * time.Second
+	if dd.RequestTimeout == "" {
+		return defaultTimeout, nil
+	}
+	return dd.RequestTimeout.Duration()
+}
+
+func sendRequest(request *http.Request, timeout time.Duration) (*http.Response, map[string]string, error) {
+	response, err := (&http.Client{Timeout: timeout}).Do(request)
+	if err != nil {
+		return nil, requestErrorMetadata(err), formatRequestError(err, timeout)
+	}
+	return response, map[string]string{
+		metadataHTTPStatusCode:   strconv.Itoa(response.StatusCode),
+		metadataResponseReceived: strconv.FormatBool(true),
+	}, nil
+}
+
+func requestErrorMetadata(err error) map[string]string {
+	outcome := requestOutcomeTransportError
+	if isTimeoutError(err) {
+		outcome = requestOutcomeTimeout
+	}
+	return map[string]string{
+		metadataRequestOutcome:   outcome,
+		metadataResponseReceived: strconv.FormatBool(false),
+	}
+}
+
+func formatRequestError(err error, timeout time.Duration) error {
+	if isTimeoutError(err) {
+		return fmt.Errorf("Datadog API request timed out after %s before receiving an HTTP response: %w", timeout, err)
+	}
+	return fmt.Errorf("Datadog API request failed before receiving an HTTP response: %w", err)
+}
+
+func mergeMetadata(destination, source map[string]string) {
+	for key, value := range source {
+		destination[key] = value
+	}
+}
+
+func setResponseErrorOutcome(metadata map[string]string, statusCode int, err error) {
+	metadata[metadataRequestOutcome] = requestOutcomeResponseError
+	if statusCode != http.StatusOK {
+		metadata[metadataRequestOutcome] = requestOutcomeHTTPError
+	}
+	var readErr *responseReadError
+	if errors.As(err, &readErr) {
+		metadata[metadataRequestOutcome] = requestOutcomeResponseReadError
+	}
 }
 
 func isTimeoutError(err error) bool {
