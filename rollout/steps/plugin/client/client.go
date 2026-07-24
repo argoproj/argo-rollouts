@@ -8,6 +8,7 @@ import (
 	goPlugin "github.com/hashicorp/go-plugin"
 
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/plugin"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
@@ -32,6 +33,12 @@ var pluginMap = map[string]goPlugin.Plugin{
 	"RpcStepPlugin": &rpc.RpcStepPlugin{},
 }
 
+// getPluginInfo is a package-level function variable to allow test overrides.
+var getPluginInfo = plugin.GetPluginInfo
+
+// newClient is a package-level function variable to allow test overrides.
+var newClient = goPlugin.NewClient
+
 // GetPlugin returns a singleton plugin client for the given plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the rollout object.
 func GetPlugin(pluginName string) (rpc.StepPlugin, error) {
@@ -54,16 +61,17 @@ func (t *stepPlugin) startPlugin(pluginName string) (rpc.StepPlugin, error) {
 
 	if t.client[pluginName] == nil || t.client[pluginName].Exited() {
 
-		pluginPath, args, err := plugin.GetPluginInfo(pluginName, types.PluginTypeStep)
+		pluginPath, args, err := getPluginInfo(pluginName, types.PluginTypeStep)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
 
-		t.client[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
+		t.client[pluginName] = newClient(&goPlugin.ClientConfig{
 			HandshakeConfig: handshakeConfig,
 			Plugins:         pluginMap,
 			Cmd:             exec.Command(pluginPath, args...),
 			Managed:         true,
+			Logger:          logutil.NewPluginLogger(pluginName),
 		})
 
 		rpcClient, err := t.client[pluginName].Client()
