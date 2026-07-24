@@ -64,8 +64,18 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
-	if err := c.reconcileTrafficRouting(); err != nil {
-		return err
+	if trafficErr := c.reconcileTrafficRouting(); trafficErr != nil {
+		// Even when traffic routing fails (e.g. Istio delays the destination rule switch
+		// until the canary ReplicaSet is fully available), we must still sync the rollout
+		// status so that the progress-deadline check runs. Without this, a rollout whose
+		// canary pods are stuck in CrashLoopBackOff would never be aborted by
+		// progressDeadlineAbort because syncRolloutStatusCanary() — which calls
+		// evaluateProgressDeadlineAbort() — would never be reached.
+		c.log.Warnf("Failed to reconcile traffic routing, syncing status to evaluate progress deadline: %v", trafficErr)
+		if syncErr := c.syncRolloutStatusCanary(); syncErr != nil {
+			return syncErr
+		}
+		return trafficErr
 	}
 
 	err = c.reconcileExperiments()

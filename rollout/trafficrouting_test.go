@@ -9,7 +9,11 @@ import (
 	"testing"
 	"time"
 
+	core "k8s.io/client-go/testing"
+
 	log "github.com/sirupsen/logrus"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -106,7 +110,106 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("Error message"))
+	// When traffic routing fails, status is still synced so the progress deadline can be evaluated.
+	f.expectPatchRolloutAction(ro)
 	f.runExpectError(getKey(ro, t), true)
+}
+
+// newProgressDeadlineTrafficRoutingFixture builds the shared fixture state for both
+// TestProgressDeadlineAbortWithTrafficRoutingError and
+// TestProgressDeadlineSyncStatusErrorWithTrafficRoutingError: a canary rollout whose
+// progress deadline has already expired and whose UpdateHash call keeps failing (simulating
+// Istio delaying the destination-rule switch until the canary RS is fully scaled).
+// Returns (fixture, rollout r2, stable rs, canary rs).
+func newProgressDeadlineTrafficRoutingFixture(t *testing.T) (*fixture, *v1alpha1.Rollout, *appsv1.ReplicaSet, *appsv1.ReplicaSet) {
+	f := newFixture(t)
+
+	// Use SetWeight(50%) — needs 5 canary replicas. rs2 has only 3 available, so the step is
+	// not yet complete. This prevents completedCurrentCanaryStep() from advancing the step
+	// index, ensuring we reach persistRolloutStatus() where the deadline check runs.
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](50)},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	progressDeadlineSeconds := int32(1)
+	r1.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
+	r1.Spec.ProgressDeadlineAbort = true
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
+	// rs2 has 3 spec replicas, 3 available — partially up but below the desired count for
+	// 50% weight (which needs 5 of 10). Simulates Istio's subset-routing reconciler delaying.
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 3, 3)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	// Set old status to exactly match what calculateBaseStatus will compute, so that
+	// RolloutProgressing() sees no delta and returns false (allowing the deadline to fire).
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 13, 3, 13, false)
+	r2.Status.CurrentPodHash = rs2PodHash
+
+	// Inject a timed-out progressing condition so that RolloutTimedOut() returns true immediately.
+	msg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rs2.Name)
+	timedOutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+	conditions.SetRolloutCondition(&r2.Status, *timedOutCond)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	// Simulate Istio's UpdateHash refusing to proceed — the exact error path from issue #4626.
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(
+		fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs2.Name),
+	)
+
+	return f, r2, rs1, rs2
+}
+
+// TestProgressDeadlineAbortWithTrafficRoutingError verifies that progressDeadlineAbort fires even
+// when reconcileTrafficRouting() keeps returning an error on every reconciliation cycle (e.g. Istio
+// delaying a destination rule switch until the canary ReplicaSet is fully available). Without the
+// fix for https://github.com/argoproj/argo-rollouts/issues/4626 the deadline could never fire
+// because syncRolloutStatusCanary() was never reached when traffic routing failed.
+func TestProgressDeadlineAbortWithTrafficRoutingError(t *testing.T) {
+	f, r2, _, rs2 := newProgressDeadlineTrafficRoutingFixture(t)
+	defer f.Close()
+
+	// The status patch (including the abort) should be applied even though traffic routing failed.
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.runExpectError(getKey(r2, t), true)
+
+	// Verify the rollout was aborted by the progress deadline.
+	f.verifyPatchedRolloutAborted(patchIndex, rs2.Name)
+}
+
+// TestProgressDeadlineSyncStatusErrorWithTrafficRoutingError verifies that when both
+// reconcileTrafficRouting() and syncRolloutStatusCanary() return errors, the sync error is
+// surfaced (not silently dropped), so the controller requeues the reconcile.
+func TestProgressDeadlineSyncStatusErrorWithTrafficRoutingError(t *testing.T) {
+	f, r2, _, _ := newProgressDeadlineTrafficRoutingFixture(t)
+	defer f.Close()
+
+	// Initialize the controller first (creates f.client), then inject a reactor that makes
+	// the rollout status patch fail. This causes syncRolloutStatusCanary() to return an error,
+	// exercising the double-error branch: trafficErr != nil AND syncErr != nil → return syncErr.
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.client.PrependReactor("patch", "rollouts", func(action core.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("injected patch failure")
+	})
+
+	f.expectPatchRolloutAction(r2)
+	f.runController(getKey(r2, t), true, true, c, i, k8sI)
 }
 
 // verify error is not returned when VerifyWeight returns error (so that we can continue reconciling)
@@ -185,6 +288,9 @@ func TestReconcileTrafficRoutingVerifyWeightEndOfRollout(t *testing.T) {
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), nil)
+	// When traffic routing fails (weight not yet verified), status is still synced so the
+	// progress deadline can be evaluated.
+	f.expectPatchRolloutAction(r2)
 	f.runExpectError(getKey(r2, t), true)
 }
 
@@ -2022,6 +2128,8 @@ func TestTrafficRoutingErrorsWhenNewCanaryHasNoReplicas(t *testing.T) {
 			f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(tc.removeManagedRoutesErr)
 			f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 
+			// When traffic routing fails, status is still synced so the progress deadline can be evaluated.
+			f.expectPatchRolloutAction(r2)
 			f.runExpectError(getKey(r2, t), true)
 
 			f.fakeTrafficRouting.AssertCalled(t, tc.expectedCall, mock.Anything, mock.Anything)
