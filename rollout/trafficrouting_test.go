@@ -856,10 +856,17 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	rs1Patch := f.expectPatchReplicaSetAction(rs1) // set scale-down-deadline annotation
+	rs1Patch := f.expectPatchReplicaSetAction(rs1)      // set scale-down-deadline annotation
+	rolloutPatchIndex := f.expectPatchRolloutAction(r2) // patch to update scale subresource replica count
 	f.run(getKey(r2, t))
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
+	updatedRollout := f.getPatchedRollout(rolloutPatchIndex)
+	// status.HPAReplicas reports only the stable ReplicaSet's pod count with traffic
+	// routing, excluding the old ReplicaSet still draining (issue #4847). The selector
+	// is intentionally not narrowed alongside it.
+	expectedRolloutPatch := `{"status":{"HPAReplicas":1}}`
+	assert.JSONEq(t, expectedRolloutPatch, updatedRollout)
 }
 
 // Verifies with a canary using traffic routing, we scale down old ReplicaSets which exceed our limit

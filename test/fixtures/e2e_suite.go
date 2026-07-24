@@ -89,6 +89,11 @@ var (
 		Version:  "v1",
 		Resource: "jobs",
 	}
+	hpaGVR = schema.GroupVersionResource{
+		Group:    "autoscaling",
+		Version:  "v2",
+		Resource: "horizontalpodautoscalers",
+	}
 )
 
 func init() {
@@ -231,6 +236,7 @@ func (s *E2ESuite) deleteResources(req *labels.Requirement, propagationPolicy me
 		istioutil.GetIstioVirtualServiceGVR(),
 		istioutil.GetIstioDestinationRuleGVR(),
 		jobGVR,
+		hpaGVR,
 	}
 	deleteOpts := metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	listOpts := metav1.ListOptions{LabelSelector: req.String()}
