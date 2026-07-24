@@ -15,6 +15,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -127,6 +128,25 @@ func (c *rolloutContext) removeScaleDownDeadlines() error {
 	return nil
 }
 
+// syncNewRSReplicasAnnotation updates the newRS desired-replicas annotation to spec.replicas
+// without changing its scale. The paths that intentionally hold the newRS at size during an
+// abort scale-down delay must still do this: isScalingEvent() treats a stale desired-replicas
+// annotation on the newRS as an in-progress scaling event and short-circuits every reconcile
+// to syncReplicasOnly(), which never reconciles traffic routing or services. Without the
+// annotation sync, a spec.replicas change (e.g. HPA) mid-abort freezes traffic reconciliation
+// until the scale-down deadline elapses.
+func (c *rolloutContext) syncNewRSReplicasAnnotation() error {
+	if !annotations.ReplicasAnnotationsNeedUpdate(c.newRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)) {
+		return nil
+	}
+	_, newRS, err := c.scaleReplicaSetAndRecordEvent(c.newRS, *c.newRS.Spec.Replicas)
+	if err != nil {
+		return fmt.Errorf("failed to sync replicas annotations in syncNewRSReplicasAnnotation: %w", err)
+	}
+	c.newRS = newRS
+	return nil
+}
+
 func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	if c.newRS == nil {
 		return false, nil
@@ -156,6 +176,9 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 						logCtx := logutil.WithRollout(c.rollout)
 						logCtx.Info("rollout enqueue due to scaleDownDelay")
 						c.enqueueRolloutAfter(c.rollout, remainingTime)
+						if err := c.syncNewRSReplicasAnnotation(); err != nil {
+							return false, err
+						}
 						return false, nil
 					}
 				} else {
@@ -164,6 +187,11 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 				}
 			}
 		} else if abortScaleDownDelaySeconds != nil {
+			// Sync annotations before addScaleDownDelay's patch so a subsequent update of the
+			// stale newRS object cannot clobber the scale-down-deadline annotation.
+			if err := c.syncNewRSReplicasAnnotation(); err != nil {
+				return false, err
+			}
 			// Don't annotate until the stable RS is fully scaled, i.e. able to serve 100%
 			// of traffic, since the deadline scales the canary to zero unconditionally.
 			// With dynamicStableScale this holds once the abort weight has stepped down to
