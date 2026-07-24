@@ -3,12 +3,13 @@ import * as React from 'react';
 import {useParams} from 'react-router';
 import {Key, KeybindingContext} from 'react-keyhooks';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
+import {AuthContext} from '../../shared/context/auth';
 
 import './header.scss';
 import {Link, useHistory} from 'react-router-dom';
 import {AutoComplete, Button, Input, notification, Tooltip} from 'antd';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
+import {faBook, faKeyboard, faSignOutAlt} from '@fortawesome/free-solid-svg-icons';
 
 const Logo = () => <img src='assets/images/argo-icon-color-square.png' style={{width: '37px', height: '37px', margin: '0 12px'}} alt='Argo Logo' />;
 
@@ -17,6 +18,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
     const namespaceInfo = React.useContext(NamespaceContext);
     const {namespace} = useParams<{namespace: string}>();
     const api = React.useContext(RolloutAPIContext);
+    const {token, logout} = React.useContext(AuthContext);
     const [version, setVersion] = React.useState('v?');
     const [nsInput, setNsInput] = React.useState(namespaceInfo.namespace);
     const {useKeybinding} = React.useContext(KeybindingContext);
@@ -81,6 +83,11 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                         <Button icon={<FontAwesomeIcon icon={faBook} />} style={{marginRight: '10px'}} />
                     </a>
                 </Tooltip>
+                {token && (
+                    <Tooltip title='Logout'>
+                        <Button onClick={logout} icon={<FontAwesomeIcon icon={faSignOutAlt} />} style={{marginRight: '10px'}} />
+                    </Tooltip>
+                )}
                 <div className='rollouts-header__namespace'>
                     <div className='rollouts-header__label'>NAMESPACE</div>
                     {(namespaceInfo.availableNamespaces || []).length == 0 ? (

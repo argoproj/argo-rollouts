@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {bufferTime, debounceTime, delay, filter, map, mergeMap, repeat, retryWhen, scan, timeout} from 'rxjs/operators';
+import {AuthContext, appendTokenToUrl} from '../context/auth';
 
 enum ReadyState {
     CONNECTING = 0,
@@ -96,10 +97,12 @@ interface WatchEvent {
 // NOTE: findItem and getItem must be React.useCallback functions
 export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (item: T, change: E) => boolean, getItem: (change: E) => T, init?: T[]): T[] {
     const [items, setItems] = React.useState(init as T[]);
+    const {token} = React.useContext(AuthContext);
 
     React.useEffect(() => {
         setItems(init);
-        const stream = fromEventSource(url).pipe(map((res) => JSON.parse(res).result as E));
+        const authUrl = appendTokenToUrl(url, token);
+        const stream = fromEventSource(authUrl).pipe(map((res) => JSON.parse(res).result as E));
         let watch = stream.pipe(
             repeat(),
             retryWhen((errors) => errors.pipe(delay(500))),
@@ -139,17 +142,19 @@ export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (it
             sub.unsubscribe();
             watch = null;
         };
-    }, [init, url, findItem, getItem]);
+    }, [init, url, findItem, getItem, token]);
     return items;
 }
 
 export function useWatch<T>(url: string, subscribe: boolean, isEqual: (a: T, b: T) => boolean, timeoutAfter?: number) {
     const [item, setItem] = React.useState({} as T);
+    const {token} = React.useContext(AuthContext);
     React.useEffect(() => {
         if (!subscribe) {
             return;
         }
-        const stream = fromEventSource(url).pipe(map((res) => JSON.parse(res).result as T));
+        const authUrl = appendTokenToUrl(url, token);
+        const stream = fromEventSource(authUrl).pipe(map((res) => JSON.parse(res).result as T));
         let watch = stream.pipe(
             repeat(),
             retryWhen((errors) => errors.pipe(delay(500))),
@@ -179,6 +184,6 @@ export function useWatch<T>(url: string, subscribe: boolean, isEqual: (a: T, b: 
             liveStream = null;
             sub.unsubscribe();
         };
-    }, [url, subscribe, timeoutAfter, isEqual]);
+    }, [url, subscribe, timeoutAfter, isEqual, token]);
     return item;
 }
