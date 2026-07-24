@@ -8,12 +8,13 @@ import {useWatchRollouts} from '../../shared/services/rollout';
 import {RolloutsToolbar, defaultDisplayMode, Filters} from '../rollouts-toolbar/rollouts-toolbar';
 import {RolloutsTable} from '../rollouts-table/rollouts-table';
 import {RolloutsGrid} from '../rollouts-grid/rollouts-grid';
+import {getRolloutsHomeView} from './rollouts-home-state';
 import './rollouts-home.scss';
 
 export const RolloutsHome = () => {
     const rolloutsList = useWatchRollouts();
     const rollouts = rolloutsList.items;
-    const loading = rolloutsList.loading;
+    const view = getRolloutsHomeView(rolloutsList);
     const namespaceCtx = React.useContext(NamespaceContext);
 
     const [filters, setFilters] = React.useState<Filters>({
@@ -139,12 +140,14 @@ export const RolloutsHome = () => {
         <div className='rollouts-home'>
             <RolloutsToolbar rollouts={rollouts} favorites={favorites} onFilterChange={handleFilterChange} />
             <div className='rollouts-list'>
-                {loading ? (
+                {view === 'loading' ? (
                     <div style={{fontSize: '20px', padding: '20px', margin: '0 auto'}}>
                         <FontAwesomeIcon icon={faCircleNotch} spin={true} style={{marginRight: '5px'}} />
                         Loading...
                     </div>
-                ) : (rollouts || []).length > 0 ? (
+                ) : view === 'error' ? (
+                    <ErrorMessage error={rolloutsList.error} />
+                ) : view === 'rollouts' ? (
                     <React.Fragment>
                         {filters.displayMode === 'table' && <RolloutsTable rollouts={filteredRollouts} onFavoriteChange={handleFavoriteChange} favorites={favorites} />}
                         {filters.displayMode !== 'table' && <RolloutsGrid rollouts={filteredRollouts} onFavoriteChange={handleFavoriteChange} favorites={favorites} />}
@@ -156,6 +159,13 @@ export const RolloutsHome = () => {
         </div>
     );
 };
+
+const ErrorMessage = (props: {error: Error | null}) => (
+    <div className='rollouts-list__error-message' role='alert'>
+        <h1>Unable to load Rollouts</h1>
+        <div>{props.error?.message || 'An unexpected error occurred while fetching Rollouts.'}</div>
+    </div>
+);
 
 const EmptyMessage = (props: {namespace: string}) => {
     const CodeLine = (props: {children: string}) => {

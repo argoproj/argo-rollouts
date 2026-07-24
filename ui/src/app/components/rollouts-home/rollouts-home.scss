@@ -98,6 +98,18 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
         }
     }
 
+    &__error-message {
+        padding-top: 70px;
+        width: 50%;
+        margin: 0 auto;
+        color: $argo-failed-color;
+        text-align: center;
+
+        h1 {
+            margin-bottom: 1em;
+        }
+    }
+
     &__toolbar {
         width: 100%;
         padding: 1em 0;
