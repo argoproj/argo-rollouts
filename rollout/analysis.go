@@ -347,6 +347,21 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 	return currentAr, nil
 }
 
+// canaryWeightReached reports whether the canary is actually receiving the traffic the current
+// step calls for: the recorded weight is for the current canary ReplicaSet, has reached the
+// current setWeight, and (for routers that verify weights) has been verified.
+func (c *rolloutContext) canaryWeightReached() bool {
+	weights := c.rollout.Status.Canary.Weights
+	if weights == nil {
+		return false
+	}
+	if weights.Canary.PodTemplateHash != replicasetutil.GetPodTemplateHash(c.newRS) {
+		return false
+	}
+	return weights.Canary.Weight >= replicasetutil.GetCurrentSetWeight(c.rollout) &&
+		(weights.Verified == nil || *weights.Verified)
+}
+
 func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun, error) {
 	currentAr := c.currentArs.CanaryBackground
 	if c.rollout.Spec.Strategy.Canary.Analysis == nil || len(c.rollout.Spec.Strategy.Canary.Analysis.Templates) == 0 {
@@ -364,6 +379,12 @@ func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun
 	}
 
 	if needsNewAnalysisRun(currentAr, c.rollout) {
+		// Don't start analysis until the canary is actually receiving traffic, else it can run
+		// (and pass or fail) against a ReplicaSet that has 0 weight.
+		if c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && !c.canaryWeightReached() {
+			c.log.Info("Delaying background analysis until the canary has received traffic")
+			return currentAr, nil
+		}
 		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
 		instanceID := analysisutil.GetInstanceID(c.rollout)
 		backgroundLabels := analysisutil.BackgroundLabels(podHash, instanceID)
@@ -421,6 +442,12 @@ func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun,
 	}
 	c.log.Infof("Reconciling analysis step (stepIndex: %d)", *index)
 	if needsNewAnalysisRun(currentAr, c.rollout) {
+		// Don't start analysis until the canary is actually receiving traffic, else it can run
+		// (and pass or fail) against a ReplicaSet that has 0 weight.
+		if c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && !c.canaryWeightReached() {
+			c.log.Infof("Delaying step analysis (stepIndex: %d) until the canary has received traffic", *index)
+			return currentAr, nil
+		}
 		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
 		instanceID := analysisutil.GetInstanceID(c.rollout)
 		stepLabels := analysisutil.StepLabels(*index, podHash, instanceID)
