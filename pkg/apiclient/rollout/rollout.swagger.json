@@ -2621,6 +2621,10 @@
         "roleArn": {
           "type": "string",
           "title": "RoleARN is the IAM role used to sign the SIgV4 Request"
+        },
+        "service": {
+          "type": "string",
+          "title": "Service is the AWS service name used when signing the SigV4 Request, e.g. \"aps\"\nfor Amazon Managed Prometheus or \"monitoring\" for Amazon CloudWatch's\nPrometheus-compatible query API. When empty it defaults to \"aps\" for Amazon\nManaged Prometheus workspace addresses.\n+optional"
         }
       }
     },

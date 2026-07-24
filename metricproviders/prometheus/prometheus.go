@@ -16,7 +16,6 @@ import (
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
-	"github.com/prometheus/common/sigv4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
@@ -278,14 +277,12 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 			roundTripper)
 	}
 
-	//Check if using Amazon Managed Prometheus if true build sigv4 client
-	if strings.Contains(metric.Provider.Prometheus.Address, "aps-workspaces") && (v1alpha1.Sigv4Config{}) != metric.Provider.Prometheus.Authentication.Sigv4 {
-		cfg := sigv4.SigV4Config{
-			Region:  metric.Provider.Prometheus.Authentication.Sigv4.Region,
-			Profile: metric.Provider.Prometheus.Authentication.Sigv4.Profile,
-			RoleARN: metric.Provider.Prometheus.Authentication.Sigv4.RoleARN,
-		}
-		sigv4RoundTripper, err := sigv4.NewSigV4RoundTripper(&cfg, roundTripper)
+	// Sign requests with AWS SigV4 when configured. The service defaults to "aps"
+	// (Amazon Managed Prometheus) for AMP workspace addresses, and can be set
+	// explicitly (e.g. "monitoring") to target other AWS Prometheus-compatible APIs
+	// such as Amazon CloudWatch, regardless of the address.
+	if service, ok := sigV4Service(metric.Provider.Prometheus); ok {
+		sigv4RoundTripper, err := newSigV4RoundTripper(metric.Provider.Prometheus.Authentication.Sigv4, service, roundTripper)
 		if err != nil {
 			log.Errorf("Error creating SigV4 RoundTripper: %v", err)
 			return nil, err
@@ -323,6 +320,34 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	}
 
 	return v1.NewAPI(client), nil
+}
+
+const (
+	// defaultSigV4Service is the AWS service name used for SigV4 signing when none is
+	// specified. It corresponds to Amazon Managed Prometheus.
+	defaultSigV4Service = "aps"
+	// ampWorkspaceHost is the substring identifying an Amazon Managed Prometheus
+	// workspace address, used to preserve the historical default-on behavior.
+	ampWorkspaceHost = "aps-workspaces"
+)
+
+// sigV4Service reports whether SigV4 signing should be enabled for the given
+// Prometheus metric and, if so, which AWS service name to sign for. An explicitly
+// configured service always wins; otherwise signing defaults on (for the "aps"
+// service) only when the address points at an Amazon Managed Prometheus workspace,
+// preserving prior behavior.
+func sigV4Service(p *v1alpha1.PrometheusMetric) (string, bool) {
+	sig := p.Authentication.Sigv4
+	if (v1alpha1.Sigv4Config{}) == sig {
+		return "", false
+	}
+	if sig.Service != "" {
+		return sig.Service, true
+	}
+	if strings.Contains(p.Address, ampWorkspaceHost) {
+		return defaultSigV4Service, true
+	}
+	return "", false
 }
 
 func IsUrl(str string) bool {
