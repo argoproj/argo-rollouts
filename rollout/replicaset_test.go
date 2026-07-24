@@ -347,6 +347,116 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 	}
 }
 
+// TestScaleDownOnAbortWaitsForCanaryTrafficShift verifies that, on an aborted traffic-routed
+// canary, the scale-down-delay annotation is only added to the canary RS once traffic has shifted
+// off it (canary weight 0) -- not while the canary is still receiving traffic. Also verifies the
+// safety-valve firing and the re-enqueue timing.
+func TestScaleDownOnAbortWaitsForCanaryTrafficShift(t *testing.T) {
+	type result struct {
+		patchCount       int
+		enqueueCount     int
+		lastEnqueueDelay time.Duration
+	}
+	// runReconcile sets up an aborted, traffic-routed canary with the stable RS fully scaled and
+	// reconciles it once. Returns how many times reconcileNewReplicaSet patched the canary RS
+	// (i.e. added the scale-down-delay annotation) plus what it re-enqueued.
+	runReconcile := func(abortedAt time.Time, resyncPeriod time.Duration, weights func(newHash, stableHash string) *v1alpha1.TrafficWeights) result {
+		steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](50)}, {Pause: &v1alpha1.RolloutPause{}}}
+		r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
+		r1.Spec.Strategy.Canary.CanaryService = "canary"
+		r1.Spec.Strategy.Canary.StableService = "stable"
+		r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{SMI: &v1alpha1.SMITrafficRouting{}}
+		abortDelay := int32(30)
+		r1.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = &abortDelay
+		r2 := bumpVersion(r1)
+		r2.Status.Abort = true
+		r2.Status.AbortedAt = &metav1.Time{Time: abortedAt}
+
+		stableRS := newReplicaSetWithStatus(r1, 5, 5)
+		newRS := newReplicaSetWithStatus(r2, 5, 5)
+		stableHash := stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		newHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		r2.Status.StableRS = stableHash
+		r2.Status.Canary.Weights = weights(newHash, stableHash)
+
+		f := newFixture(t)
+		defer f.Close()
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, stableRS, newRS)
+		f.replicaSetLister = append(f.replicaSetLister, stableRS, newRS)
+		c, informers, _ := f.newController(noResyncPeriodFunc)
+		stopCh := make(chan struct{})
+		informers.Start(stopCh)
+		informers.WaitForCacheSync(stopCh)
+		close(stopCh)
+
+		roCtx := rolloutContext{
+			log:            logutil.WithRollout(r2),
+			rollout:        r2,
+			newRS:          newRS,
+			stableRS:       stableRS,
+			allRSs:         []*appsv1.ReplicaSet{newRS, stableRS},
+			newStatus:      r2.Status,
+			reconcilerBase: c.reconcilerBase,
+			pauseContext:   &pauseContext{rollout: r2},
+		}
+		roCtx.resyncPeriod = resyncPeriod
+		res := result{}
+		roCtx.enqueueRolloutAfter = func(_ any, d time.Duration) {
+			res.enqueueCount++
+			res.lastEnqueueDelay = d
+		}
+		_, err := roCtx.reconcileNewReplicaSet()
+		assert.NoError(t, err)
+
+		for _, a := range f.kubeclient.Actions() {
+			if a.GetVerb() == "patch" && a.GetResource().Resource == "replicasets" {
+				res.patchCount++
+			}
+		}
+		return res
+	}
+
+	// weightsAt records the canary at the given weight on the current canary RS, optionally verified.
+	weightsAt := func(canaryWeight int32, verified *bool) func(string, string) *v1alpha1.TrafficWeights {
+		return func(newHash, stableHash string) *v1alpha1.TrafficWeights {
+			return &v1alpha1.TrafficWeights{
+				Canary:   v1alpha1.WeightDestination{Weight: canaryWeight, PodTemplateHash: newHash},
+				Stable:   v1alpha1.WeightDestination{Weight: 100 - canaryWeight, PodTemplateHash: stableHash},
+				Verified: verified,
+			}
+		}
+	}
+	nilWeights := func(string, string) *v1alpha1.TrafficWeights { return nil }
+
+	now := timeutil.Now()
+	// Annotation decisions.
+	assert.Equal(t, 0, runReconcile(now, 0, weightsAt(50, nil)).patchCount, "canary still has traffic -> no scale-down delay")
+	assert.Equal(t, 1, runReconcile(now, 0, weightsAt(0, nil)).patchCount, "traffic shifted off canary (router doesn't verify) -> annotate")
+	assert.Equal(t, 0, runReconcile(now, 0, weightsAt(0, ptr.To(false))).patchCount, "weight 0 but router hasn't verified the shift -> wait")
+	assert.Equal(t, 1, runReconcile(now, 0, weightsAt(0, ptr.To(true))).patchCount, "weight 0 and verified -> annotate")
+	assert.Equal(t, 1, runReconcile(now, 0, nilWeights).patchCount, "no recorded weights (abort before any canary traffic) -> annotate")
+
+	// Safety valve: a wedged router keeps the canary at weight 50, but once the abort outlives
+	// progressDeadlineSeconds the scale-down must proceed anyway so the abort terminates.
+	wedged := now.Add(-time.Hour)
+	assert.Equal(t, 1, runReconcile(wedged, 0, weightsAt(50, nil)).patchCount, "wedged abort past progressDeadlineSeconds -> scale down anyway")
+
+	// Re-enqueue: when the remaining grace is within resyncPeriod, we must re-enqueue so the
+	// valve fires on the deadline instead of at most one resync period past it. The default
+	// progressDeadlineSeconds is 600s; with AbortedAt=5min ago, grace ~= 5min, which is well
+	// within a 1h resyncPeriod.
+	fiveMinsAgo := now.Add(-5 * time.Minute)
+	r := runReconcile(fiveMinsAgo, time.Hour, weightsAt(50, nil))
+	assert.Equal(t, 0, r.patchCount, "grace not yet elapsed -> no annotation")
+	assert.Equal(t, 1, r.enqueueCount, "grace within resyncPeriod -> re-enqueue")
+	assert.InDelta(t, 5*time.Minute, r.lastEnqueueDelay, float64(2*time.Second), "re-enqueue duration ~= remaining grace")
+
+	// When resyncPeriod is 0 (unit-test default), the re-enqueue predicate `grace < resyncPeriod`
+	// is false, so no re-enqueue -- normal resync would drive the next reconcile.
+	assert.Equal(t, 0, runReconcile(fiveMinsAgo, 0, weightsAt(50, nil)).enqueueCount, "resyncPeriod=0 -> no explicit re-enqueue")
+}
+
 func TestReconcileOldReplicaSet(t *testing.T) {
 	tests := []struct {
 		name                string
