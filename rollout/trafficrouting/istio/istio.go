@@ -405,10 +405,45 @@ func (r *Reconciler) shouldDelayDestinationRuleUpdate(canaryHash, stableHash str
 	return false, ""
 }
 
+// shouldSkipDestinationRuleUpdate returns true if updating the DestinationRule should be
+// skipped (without failing the reconcile) because the target canary ReplicaSet has not been
+// scaled up yet (spec.replicas == 0). Re-pointing the canary subset at a hash with zero pods
+// de-selects the previous, still-healthy canary pods while the VirtualService weight reset and
+// the DestinationRule subset switch propagate to proxies non-atomically, causing transient
+// "no_healthy_upstream" 503s. Unlike shouldDelayDestinationRuleUpdate, this must not surface
+// as an error: ReplicaSets are scaled up after traffic routing is reconciled, so failing the
+// reconcile here would prevent the ReplicaSet from ever being scaled up.
+// See: https://github.com/argoproj/argo-rollouts/issues/4775
+func (r *Reconciler) shouldSkipDestinationRuleUpdate(canaryHash, stableHash string) (bool, string) {
+	if r.rollout.Spec.Strategy.Canary.CanaryService != "" || r.rollout.Spec.Strategy.Canary.StableService != "" {
+		return false, ""
+	}
+	if canaryHash == "" || canaryHash == stableHash {
+		return false, ""
+	}
+	if rolloututil.AbortOrDynamicRollbackToStable(r.rollout, r.replicaSets, stableHash) {
+		// on abort/rollback, traffic shifts to stable, so re-pointing the canary subset is safe
+		return false, ""
+	}
+	for _, rs := range r.replicaSets {
+		if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] != canaryHash {
+			continue
+		}
+		if rs.Spec.Replicas != nil && *rs.Spec.Replicas == 0 {
+			return true, rs.Name
+		}
+	}
+	return false, ""
+}
+
 func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
 	if shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(canaryHash, stableHash); shouldDelay {
 		r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
 		return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
+	}
+	if shouldSkip, rsName := r.shouldSkipDestinationRuleUpdate(canaryHash, stableHash); shouldSkip {
+		r.log.Infof("skipping destination rule switch: canary ReplicaSet %s is not scaled up yet", rsName)
+		return nil
 	}
 
 	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
