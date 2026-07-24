@@ -69,7 +69,9 @@ func (c *rolloutContext) reconcile() error {
 		return err
 	}
 
-	if isScalingEvent {
+	// Skip the scaling-only short-circuit while aborting: it bypasses traffic reconciliation,
+	// which would freeze the canary weight if spec.replicas changes mid-abort (e.g. HPA).
+	if isScalingEvent && !c.pauseContext.IsAborted() {
 		return c.syncReplicasOnly()
 	}
 

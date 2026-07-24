@@ -984,6 +984,70 @@ func TestDynamicScalingDontIncreaseWeightWhenAborted(t *testing.T) {
 	f.run(getKey(r1, t))
 }
 
+// TestReconcileTrafficRoutingWhenAbortedDuringScalingEvent verifies that an abort still reconciles
+// traffic routing (shifts weight off the canary) even when a concurrent scaling event (e.g. an HPA
+// changing spec.replicas) would otherwise short-circuit reconcile() to syncReplicasOnly.
+func TestReconcileTrafficRoutingWhenAbortedDuringScalingEvent(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](50)},
+		{Pause: &v1alpha1.RolloutPause{}},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{SMI: &v1alpha1.SMITrafficRouting{}}
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Status.ReadyReplicas = 5
+	r1.Status.AvailableReplicas = 5
+	r1.Status.Abort = true
+	r1.Status.AbortedAt = &metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 5, 5)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r1)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r1)
+
+	r2.Status.Abort = true
+	r2.Status.StableRS = rs1PodHash
+	r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{Weight: 50, ServiceName: "canary", PodTemplateHash: rs2PodHash},
+		Stable: v1alpha1.WeightDestination{Weight: 50, ServiceName: "stable", PodTemplateHash: rs1PodHash},
+	}
+	// HPA scaling event during the abort: spec.replicas changed but the RS desired-replicas
+	// annotation hasn't caught up, so isScalingEvent() returns true.
+	r2.Spec.Replicas = ptr.To[int32](4)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	setWeight := int32(-1)
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, _ ...v1alpha1.WeightDestination) error {
+		setWeight = desiredWeight
+		return nil
+	})
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+
+	f.expectPatchServiceAction(canarySvc, rs1PodHash) // canary service reset to stable on abort
+	f.expectUpdateReplicaSetAction(rs1)               // scaling event applied to the active RS
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r1, t))
+
+	// The abort must reconcile traffic routing (not short-circuit on the scaling event) and shift
+	// the canary weight all the way back to 0 in this single cycle -- not leave it frozen at 50.
+	assert.Equal(t, int32(0), setWeight, "aborted scaling event must reconcile the canary weight to 0")
+}
+
 // TestDynamicScalingDecreaseWeightAccordingToStepWeightsAvailabilityWhenAborted verifies we decrease the weight
 // to the canary depending on the weight in previous Step when aborting
 func TestDynamicScalingDecreaseWeightAccordingToStepWeightsAvailabilityWhenAborted(t *testing.T) {
