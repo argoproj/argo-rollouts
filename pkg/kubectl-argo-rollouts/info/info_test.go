@@ -7,7 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
@@ -177,4 +179,91 @@ func TestRolloutInfoMetadata(t *testing.T) {
 	assert.Equal(t, roInfo.ObjectMeta.Annotations, rolloutObjs.Rollouts[0].Annotations)
 	assert.Equal(t, roInfo.ObjectMeta.Labels, rolloutObjs.Rollouts[0].Labels)
 	assert.Equal(t, roInfo.ObjectMeta.Generation, rolloutObjs.Rollouts[0].Generation)
+}
+
+func TestRolloutInfoPauseStartTime(t *testing.T) {
+	start := metav1.NewTime(time.Date(2026, 7, 10, 16, 0, 0, 0, time.UTC))
+	canary := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Spec:       v1alpha1.RolloutSpec{Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{}}},
+		Status: v1alpha1.RolloutStatus{
+			PauseConditions: []v1alpha1.PauseCondition{
+				{Reason: v1alpha1.PauseReasonCanaryPauseStep, StartTime: start},
+			},
+		},
+	}
+	assert.Equal(t, "2026-07-10T16:00:00Z", NewRolloutInfo(canary, nil, nil, nil, nil, nil).PauseStartTime)
+
+	noPause := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test2", Namespace: "default"},
+		Spec:       v1alpha1.RolloutSpec{Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{}}},
+	}
+	assert.Equal(t, "", NewRolloutInfo(noPause, nil, nil, nil, nil, nil).PauseStartTime)
+
+	nonCanaryPause := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test3", Namespace: "default"},
+		Spec:       v1alpha1.RolloutSpec{Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{}}},
+		Status: v1alpha1.RolloutStatus{
+			PauseConditions: []v1alpha1.PauseCondition{
+				{Reason: v1alpha1.PauseReasonBlueGreenPause, StartTime: start},
+			},
+		},
+	}
+	assert.Equal(t, "", NewRolloutInfo(nonCanaryPause, nil, nil, nil, nil, nil).PauseStartTime)
+}
+
+func TestPauseStepRemaining(t *testing.T) {
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	timeutil.SetNowTimeFunc(func() time.Time { return now })
+	defer timeutil.SetNowTimeFunc(time.Now)
+
+	dur := intstr.FromString("40s")
+	steps := []*v1alpha1.CanaryStep{
+		{Pause: &v1alpha1.RolloutPause{}},               // index 0: indefinite pause
+		{Pause: &v1alpha1.RolloutPause{Duration: &dur}}, // index 1: timed pause (40s)
+	}
+
+	// Paused 25s ago on the timed step (index 1) -> 15s remaining.
+	roInfo := &rollout.RolloutInfo{
+		Step:           "1/2",
+		Steps:          steps,
+		PauseStartTime: now.Add(-25 * time.Second).UTC().Format(time.RFC3339),
+	}
+	remaining, ok := PauseStepRemaining(roInfo)
+	assert.True(t, ok)
+	assert.Equal(t, "15s", remaining)
+
+	// Elapsed beyond the duration -> clamps to 0s (controller not yet advanced).
+	roInfo.PauseStartTime = now.Add(-60 * time.Second).UTC().Format(time.RFC3339)
+	remaining, ok = PauseStepRemaining(roInfo)
+	assert.True(t, ok)
+	assert.Equal(t, "0s", remaining)
+
+	// No pause condition recorded -> not applicable.
+	roInfo.PauseStartTime = ""
+	_, ok = PauseStepRemaining(roInfo)
+	assert.False(t, ok)
+
+	// Paused on an indefinite pause (no duration) -> not applicable.
+	roInfo.Step = "0/2"
+	roInfo.PauseStartTime = now.UTC().Format(time.RFC3339)
+	_, ok = PauseStepRemaining(roInfo)
+	assert.False(t, ok)
+}
+
+func TestPauseStepRemainingInvalidInputs(t *testing.T) {
+	dur := intstr.FromString("40s")
+	steps := []*v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{Duration: &dur}}}
+
+	// Malformed pause start time -> not applicable.
+	_, ok := PauseStepRemaining(&rollout.RolloutInfo{Step: "0/1", Steps: steps, PauseStartTime: "not-a-timestamp"})
+	assert.False(t, ok)
+
+	// Step index past the end of the steps slice -> not applicable.
+	_, ok = PauseStepRemaining(&rollout.RolloutInfo{Step: "5/1", Steps: steps, PauseStartTime: "2026-07-13T12:00:00Z"})
+	assert.False(t, ok)
+
+	// Non-numeric step index -> not applicable.
+	_, ok = PauseStepRemaining(&rollout.RolloutInfo{Step: "", Steps: steps, PauseStartTime: "2026-07-13T12:00:00Z"})
+	assert.False(t, ok)
 }
