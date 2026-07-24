@@ -122,6 +122,7 @@ provider:
     authentication:
       sigv4:
         region: $REGION
+        profile: $PROFILE
         service: monitoring
         roleArn: $ROLEARN
 ```
