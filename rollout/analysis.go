@@ -347,6 +347,32 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 	return currentAr, nil
 }
 
+// canaryWeightReached reports whether the traffic router has given the current canary ReplicaSet
+// the weight the current step calls for, and -- for routers that verify weights -- that the shift
+// has been verified. A basic canary shifts traffic by moving service selectors, so there is
+// nothing to wait for and this is always true.
+//
+// Weights are read from newStatus because reconcileTrafficRouting runs earlier in the same
+// reconcile and records there both the weight it just programmed and the result of the
+// VerifyWeight call it just made. The persisted status is a reconcile behind.
+func (c *rolloutContext) canaryWeightReached() bool {
+	if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		return true
+	}
+	weights := c.newStatus.Canary.Weights
+	if weights == nil {
+		// The router has not been programmed for any canary yet.
+		return false
+	}
+	if weights.Canary.PodTemplateHash != replicasetutil.GetPodTemplateHash(c.newRS) {
+		// The recorded weight belongs to a previous canary, e.g. a new revision was pushed while
+		// the old one still held the traffic split.
+		return false
+	}
+	return weights.Canary.Weight >= replicasetutil.GetCurrentSetWeight(c.rollout) &&
+		(weights.Verified == nil || *weights.Verified)
+}
+
 func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun, error) {
 	currentAr := c.currentArs.CanaryBackground
 	if c.rollout.Spec.Strategy.Canary.Analysis == nil || len(c.rollout.Spec.Strategy.Canary.Analysis.Templates) == 0 {
@@ -364,6 +390,14 @@ func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun
 	}
 
 	if needsNewAnalysisRun(currentAr, c.rollout) {
+		// Wait until the canary is actually in the traffic path. Background analysis is otherwise
+		// created as soon as the new ReplicaSet exists, so a canary-scoped metric would be
+		// evaluated against a ReplicaSet receiving no traffic -- passing on no evidence, or
+		// failing on no data and aborting a healthy rollout.
+		if !c.canaryWeightReached() {
+			c.log.Info("Delaying background analysis until the canary has received traffic")
+			return currentAr, nil
+		}
 		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
 		instanceID := analysisutil.GetInstanceID(c.rollout)
 		backgroundLabels := analysisutil.BackgroundLabels(podHash, instanceID)
