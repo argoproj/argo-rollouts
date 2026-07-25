@@ -570,3 +570,43 @@ func (s *IstioSuite) TestIstioSubsetSplitInStableDownscaleAfterCanaryAbort() {
 
 	s.TearDownSuite()
 }
+
+// TestIstioCanaryBackgroundAnalysisWaitsForCanaryWeight verifies that a background AnalysisRun is
+// not started until the canary is actually receiving traffic (its recorded weight has reached the
+// step's setWeight). The new revision's canary pod is held un-ready so the canary stays at weight
+// 0; without the gate the controller would create the AnalysisRun immediately against that
+// zero-traffic ReplicaSet. Once the canary pod is marked ready the weight reaches 50 and the
+// AnalysisRun is created.
+func (s *IstioSuite) TestIstioCanaryBackgroundAnalysisWaitsForCanaryWeight() {
+	s.Given().
+		RolloutObjects("@istio/istio-canary-background-analysis.yaml").
+		When().
+		ApplyManifests("@functional/analysistemplate-sleep-job.yaml"). // reuse the shared template
+		ApplyManifests().
+		MarkPodsReady("1", 2). // revision 1 fully available
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0). // nothing rolling out yet
+		When().
+		UpdateSpec().                    // revision 2
+		WaitForRevisionPodCount("2", 1). // canary RS scaled up, but its pod is NOT marked ready
+		Then().
+		// Canary pod is not ready, so the canary weight is still 0; the background analysis must be
+		// delayed (without the fix it would already exist here, running against 0 traffic).
+		Assert(func(t *fixtures.Then) {
+			ro := t.GetRollout()
+			var canaryWeight int32
+			if ro.Status.Canary.Weights != nil {
+				canaryWeight = ro.Status.Canary.Weights.Canary.Weight
+			}
+			assert.Equal(s.T(), int32(0), canaryWeight, "canary should still be at weight 0 while its pod is not ready")
+		}).
+		ExpectAnalysisRunCount(0).
+		When().
+		MarkPodsReady("2", 1).          // canary becomes ready -> weight reaches setWeight (50)
+		WaitForRolloutStatus("Paused"). // progresses to the pause step
+		Then().
+		ExpectAnalysisRunCount(1) // background analysis is created now that the canary has traffic
+
+	s.TearDownSuite()
+}

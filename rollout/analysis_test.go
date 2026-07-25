@@ -12,6 +12,7 @@ import (
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -21,6 +22,7 @@ import (
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
@@ -860,6 +862,98 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 		}
 	}`
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
+}
+
+// TestDelayBackgroundAnalysisUntilCanaryWeightReached verifies that, for a traffic-routed canary,
+// the background AnalysisRun is not created until the canary is receiving the weight the current
+// step calls for (recorded for the current ReplicaSet, and verified when the router verifies it)
+// -- and that it is created once it is. A basic canary is unaffected.
+func TestDelayBackgroundAnalysisUntilCanaryWeightReached(t *testing.T) {
+	at := analysisTemplate("bar")
+
+	// reconcile sets up a canary sitting on step 0 (setWeight 50) with background analysis
+	// configured and the given weights recorded on newStatus, then reconciles the background
+	// analysis once. Returns whether an AnalysisRun was created.
+	reconcile := func(trafficRouted bool, weights func(canaryHash, stableHash string) *v1alpha1.TrafficWeights) bool {
+		analysis := &v1alpha1.RolloutAnalysis{Templates: []v1alpha1.AnalysisTemplateRef{{TemplateName: at.Name}}}
+		steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](50)}, {Pause: &v1alpha1.RolloutPause{}}}
+		r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
+		r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{RolloutAnalysis: *analysis}
+		if trafficRouted {
+			r1.Spec.Strategy.Canary.CanaryService = "canary"
+			r1.Spec.Strategy.Canary.StableService = "stable"
+			r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{SMI: &v1alpha1.SMITrafficRouting{}}
+		}
+		r2 := bumpVersion(r1)
+
+		stableRS := newReplicaSetWithStatus(r1, 5, 5)
+		newRS := newReplicaSetWithStatus(r2, 5, 5)
+		canaryHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		stableHash := stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		r2.Status.StableRS = stableHash
+
+		f := newFixture(t)
+		defer f.Close()
+		f.objects = append(f.objects, r2, at)
+		f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+		f.kubeobjects = append(f.kubeobjects, stableRS, newRS)
+		f.replicaSetLister = append(f.replicaSetLister, stableRS, newRS)
+		c, informers, _ := f.newController(noResyncPeriodFunc)
+		stopCh := make(chan struct{})
+		informers.Start(stopCh)
+		informers.WaitForCacheSync(stopCh)
+		close(stopCh)
+
+		// newStatus stands in for what reconcileTrafficRouting recorded earlier in this reconcile.
+		newStatus := *r2.Status.DeepCopy()
+		newStatus.Canary.Weights = weights(canaryHash, stableHash)
+		roCtx := rolloutContext{
+			log:            logutil.WithRollout(r2),
+			rollout:        r2,
+			newRS:          newRS,
+			stableRS:       stableRS,
+			allRSs:         []*appsv1.ReplicaSet{newRS, stableRS},
+			newStatus:      newStatus,
+			reconcilerBase: c.reconcilerBase,
+			pauseContext:   &pauseContext{rollout: r2},
+		}
+		_, err := roCtx.reconcileBackgroundAnalysisRun()
+		assert.NoError(t, err)
+
+		for _, a := range f.client.Actions() {
+			if a.GetVerb() == "create" && a.GetResource().Resource == "analysisruns" {
+				return true
+			}
+		}
+		return false
+	}
+
+	noWeights := func(string, string) *v1alpha1.TrafficWeights { return nil }
+	// weightsAt records the canary at the given weight; an empty hash means the current canary RS.
+	weightsAt := func(weight int32, hash string, verified *bool) func(string, string) *v1alpha1.TrafficWeights {
+		return func(canaryHash, stableHash string) *v1alpha1.TrafficWeights {
+			if hash == "" {
+				hash = canaryHash
+			}
+			return &v1alpha1.TrafficWeights{
+				Canary:   v1alpha1.WeightDestination{Weight: weight, PodTemplateHash: hash},
+				Stable:   v1alpha1.WeightDestination{Weight: 100 - weight, PodTemplateHash: stableHash},
+				Verified: verified,
+			}
+		}
+	}
+
+	// SMI never sets Verified in production; the ptr.To[bool] values below synthetically exercise
+	// the verification clause the way an ALB-style verifying router would.
+	assert.False(t, reconcile(true, noWeights), "router not programmed for any canary yet -> wait")
+	assert.False(t, reconcile(true, weightsAt(0, "", nil)), "canary still at weight 0 -> wait")
+	assert.False(t, reconcile(true, weightsAt(50, "stale", nil)), "weights belong to a previous canary -> wait")
+	assert.False(t, reconcile(true, weightsAt(50, "", ptr.To(false))), "weight shift not yet verified -> wait")
+	assert.True(t, reconcile(true, weightsAt(50, "", nil)), "weight reached, router does not verify -> create")
+	assert.True(t, reconcile(true, weightsAt(50, "", ptr.To(true))), "weight reached and verified -> create")
+
+	// A basic canary has no traffic router to wait on, so it is created regardless.
+	assert.True(t, reconcile(false, noWeights), "basic canary -> create immediately")
 }
 
 func TestCreateAnalysisRunOnPromotedAnalysisStepIfPreviousStepWasAnalysisToo(t *testing.T) {

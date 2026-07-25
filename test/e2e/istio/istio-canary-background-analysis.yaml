@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-canary-bg-analysis-canary
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: istio-canary-bg-analysis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-canary-bg-analysis-stable
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: istio-canary-bg-analysis
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-canary-bg-analysis-vsvc
+spec:
+  hosts:
+  - istio-canary-bg-analysis
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: istio-canary-bg-analysis-stable
+      weight: 100
+    - destination:
+        host: istio-canary-bg-analysis-canary
+      weight: 0
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: istio-canary-bg-analysis
+spec:
+  replicas: 2
+  strategy:
+    canary:
+      canaryService: istio-canary-bg-analysis-canary
+      stableService: istio-canary-bg-analysis-stable
+      trafficRouting:
+        istio:
+          virtualService:
+            name: istio-canary-bg-analysis-vsvc
+            routes:
+            - primary
+      analysis:
+        templates:
+        - templateName: sleep-job
+      steps:
+      - setWeight: 50
+      - pause: {}
+  selector:
+    matchLabels:
+      app: istio-canary-bg-analysis
+  template:
+    metadata:
+      labels:
+        app: istio-canary-bg-analysis
+    spec:
+      containers:
+      - name: istio-canary-bg-analysis
+        image: nginx:1.19-alpine
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
