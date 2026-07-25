@@ -1227,6 +1227,15 @@ spec:
       - setWeight: 40
       - pause: {duration: 10m}
 ```
+
+!!! note
+    When the canary uses traffic routing, background analysis is not created until Argo Rollouts
+    has given the canary the weight the current step calls for. This avoids measuring a canary
+    that is not in the traffic path yet, where metrics tend to either error on missing data or
+    pass without having tested anything. If the current step calls for a weight of 0 there is
+    nothing to wait for, and analysis starts right away. `startingStep` can still be used to
+    delay analysis further.
+
 ## Referencing Secrets
 
 AnalysisTemplates and AnalysisRuns can reference secret objects in `.spec.args`. This allows users to securely pass authentication information to Metric Providers, like login credentials or API tokens.
