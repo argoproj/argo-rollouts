@@ -521,6 +521,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authenticat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
      */
     oauth2?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
+     */
+    basicAuth?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig;
 }
 /**
  * 
@@ -546,6 +552,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResource
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef
      */
     fullName?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+     */
+    username?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+     */
+    password?: string;
 }
 /**
  * 
@@ -1067,6 +1092,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetr
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
      */
     secretRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    requestTimeout?: string;
 }
 /**
  * DryRun defines the settings for running the analysis in Dry-Run mode.

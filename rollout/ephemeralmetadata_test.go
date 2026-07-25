@@ -44,11 +44,12 @@ func TestSyncCanaryEphemeralMetadataInitialRevision(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r1)
 	f.objects = append(f.objects, r1)
 
-	f.expectUpdateRolloutStatusAction(r1)
+	f.expectUpdateRolloutStatusAction(r1) // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r1)          // second reconciliation
 	idx := f.expectCreateReplicaSetAction(rs1)
 	f.expectUpdateReplicaSetAction(rs1)
 	_ = f.expectPatchRolloutAction(r1)
-	f.run(getKey(r1, t))
+	f.runWithSyncs(getKey(r1, t), 2)
 	createdRS1 := f.getCreatedReplicaSet(idx)
 	expectedLabels := map[string]string{
 		"foo":                        "bar",
@@ -83,12 +84,13 @@ func TestSyncBlueGreenEphemeralMetadataInitialRevision(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
-	f.expectUpdateRolloutStatusAction(r1)
+	f.expectUpdateRolloutStatusAction(r1) // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r1)          // second reconciliation
 	idx := f.expectCreateReplicaSetAction(rs1)
 	f.expectPatchRolloutAction(r1)
 	f.expectPatchServiceAction(previewSvc, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 	f.expectUpdateReplicaSetAction(rs1) // scale replicaset
-	f.run(getKey(r1, t))
+	f.runWithSyncs(getKey(r1, t), 2)
 	createdRS1 := f.getCreatedReplicaSet(idx)
 	expectedLabels := map[string]string{
 		"foo":                        "bar",
@@ -141,7 +143,8 @@ func TestSyncCanaryEphemeralMetadataSecondRevision(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, &pod1, pod2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	f.expectUpdateRolloutStatusAction(r2)         // Update Rollout conditions
+	f.expectUpdateRolloutStatusAction(r2)         // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r2)                  // second reconciliation
 	rs2idx := f.expectCreateReplicaSetAction(rs2) // Create revision 2 ReplicaSet
 	rs1idx := f.expectUpdateReplicaSetAction(rs1) // update stable replicaset with stable metadata
 	pod1Idx := f.expectUpdatePodAction(&pod1)     // Update pod1 with ephemeral data
@@ -149,7 +152,7 @@ func TestSyncCanaryEphemeralMetadataSecondRevision(t *testing.T) {
 	f.expectUpdateReplicaSetAction(rs1)           // scale revision 1 ReplicaSet down
 	f.expectPatchRolloutAction(r2)                // Patch Rollout status
 
-	f.run(getKey(r2, t))
+	f.runWithSyncs(getKey(r2, t), 2)
 	// revision 2 replicaset should been updated to use canary metadata
 	createdRS2 := f.getCreatedReplicaSet(rs2idx)
 	expectedCanaryLabels := map[string]string{
@@ -223,7 +226,8 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
-	f.expectUpdateRolloutStatusAction(r2)              // Update Rollout conditions
+	f.expectUpdateRolloutStatusAction(r2)              // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r2)                       // second reconciliation
 	rs2idx := f.expectCreateReplicaSetAction(rs2)      // Create revision 2 ReplicaSet
 	f.expectPatchServiceAction(previewSvc, rs2PodHash) // Update preview service to point at revision 2 replicaset
 	f.expectUpdateReplicaSetAction(rs2)                // scale revision 2 ReplicaSet up
@@ -232,7 +236,7 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	pod2Idx := f.expectUpdatePodAction(pod2)           // Update pod2 with ephemeral data
 	f.expectPatchRolloutAction(r2)                     // Patch Rollout status
 
-	f.run(getKey(r2, t))
+	f.runWithSyncs(getKey(r2, t), 2)
 	// revision 2 replicaset should been updated to use canary metadata
 	createdRS2 := f.getCreatedReplicaSet(rs2idx)
 	expectedCanaryLabels := map[string]string{

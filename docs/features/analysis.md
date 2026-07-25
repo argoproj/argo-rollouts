@@ -4,12 +4,16 @@ Argo Rollouts provides several ways to perform analysis to drive progressive del
 This document describes how to achieve various forms of progressive delivery, varying the point in
 time analysis is performed, its frequency, and occurrence.
 
+!!! info "No new metric integrations are accepted in the core controller"
+
+    If you want to use a brand new metric integration you **must** create a [Plugin](../analysis/plugins.md). Argo Rollouts is moving to a plugin-based architecture where we want to keep the core code stable and minimal and all extensions should come in the form of plugins ([metrics](../analysis/plugins.md), [traffic](../traffic-management/plugins), [steps](../canary/plugins/)). We will only accept minor contributions and fixes for the existing metric providers that are already part of Argo Rollouts core. 
+
 ## Custom Resource Definitions
 
 | CRD                 | Description |
 |---------------------|-------------|
 | Rollout             | A `Rollout` acts as a drop-in replacement for a Deployment resource. It provides additional blueGreen and canary update strategies. These strategies can create AnalysisRuns and Experiments during the update, which will progress the update, or abort it. |
-| AnalysisTemplate    | An `AnalysisTemplate` is a template spec which defines *_how_* to perform a canary analysis, such as the metrics which it should perform, its frequency, and the values which are considered successful or failed. AnalysisTemplates may be parameterized with inputs values. |
+| AnalysisTemplate    | An `AnalysisTemplate` is a template spec which defines *_how_* to perform a canary analysis, such as the metrics which it should perform, its frequency, and the values which are considered successful or failed. AnalysisTemplates may be parameterized with input values. |
 | ClusterAnalysisTemplate    | A `ClusterAnalysisTemplate` is like an `AnalysisTemplate`, but it is not limited to its namespace. It can be used by any `Rollout` throughout the cluster. |
 | AnalysisRun         | An `AnalysisRun` is an instantiation of an `AnalysisTemplate`. AnalysisRuns are like Jobs in that they eventually complete. Completed runs are considered Successful, Failed, or Inconclusive, and the result of the run affect if the Rollout's update will continue, abort, or pause, respectively. |
 | Experiment          | An `Experiment` is limited run of one or more ReplicaSets for the purposes of analysis. Experiments typically run for a pre-determined duration, but can also run indefinitely until stopped. Experiments may reference an `AnalysisTemplate` to run during or after the experiment. The canonical use case for an Experiment is to start a baseline and canary deployment in parallel, and compare the metrics produced by the baseline and canary pods for an equal comparison. |

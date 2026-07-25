@@ -483,6 +483,14 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 
 	run, err := ec.analysisRunLister.AnalysisRuns(ec.ex.Namespace).Get(prevStatus.AnalysisRun)
 	if err != nil {
+		// We recorded a run in the experiment status, but it didn't appear in the lister.
+		// Perform a get to see if it truly exists.
+		run, err = ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace).Get(context.TODO(), prevStatus.AnalysisRun, metav1.GetOptions{})
+		if err == nil && run != nil {
+			logCtx.Infof("Found analysis run '%s' missing from informer cache", run.Name)
+		}
+	}
+	if err != nil {
 		newStatus.Phase = v1alpha1.AnalysisPhaseError
 		newStatus.Message = err.Error()
 		return

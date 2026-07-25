@@ -844,6 +844,10 @@
         "oauth2": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.OAuth2Config",
           "title": "OAuth2 config\n+optional"
+        },
+        "basicAuth": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.BasicAuthConfig",
+          "title": "BasicAuth config\n+optional"
         }
       },
       "title": "Authentication method"
@@ -860,6 +864,19 @@
         "fullName": {
           "type": "string",
           "title": "FullName is the full name of the resource\n+optional"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.BasicAuthConfig": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "title": "Username is the username in grafana cloud"
+        },
+        "password": {
+          "type": "string",
+          "title": "Password is the access policy token"
         }
       }
     },
@@ -1225,6 +1242,10 @@
         "secretRef": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SecretRef",
           "title": "Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.\n+optional"
+        },
+        "requestTimeout": {
+          "type": "string",
+          "title": "+kubebuilder:default=\"10s\"\nRequestTimeout overrides the HTTP client timeout for requests to the Datadog API (e.g. 10s, 30s; default: 10s).\n+optional"
         }
       }
     },

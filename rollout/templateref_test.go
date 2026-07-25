@@ -63,7 +63,7 @@ func newResolver(dynamicClient dynamic.Interface, discoveryClient disco.Discover
 	go rolloutsInformer.Run(stop)
 	cache.WaitForCacheSync(stop, rolloutsInformer.HasSynced)
 	return resolver, func() {
-		stop <- struct{}{}
+		close(stop)
 		resolver.Stop()
 	}
 }

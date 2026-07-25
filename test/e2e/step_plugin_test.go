@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"github.com/tj/assert"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/test/fixtures"

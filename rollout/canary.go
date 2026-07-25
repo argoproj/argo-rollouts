@@ -372,7 +372,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 			}
 		}
 
-		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
 
@@ -389,7 +388,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		if err != nil {
 			return err
 		}
-		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
 
@@ -401,7 +399,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 				newStatus.CurrentStepIndex = ptr.To[int32](0)
 			}
 		}
-		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
 
@@ -415,7 +412,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	}
 
 	newStatus.CurrentStepIndex = currentStepIndex
-	newStatus = c.calculateRolloutConditions(newStatus)
 	return c.persistRolloutStatus(&newStatus)
 }
 

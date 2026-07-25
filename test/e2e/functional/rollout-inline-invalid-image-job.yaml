@@ -1,6 +1,6 @@
-# Rollout with an inline analysis that uses a non-existent docker image
-# The job has a deadline of 10 seconds which is less than the 30 second pause, so the job should be terminated 
-# and the analysis should be failed.
+# Rollout with an inline analysis that uses a non-existent docker image.
+# The job pod stays in ErrImagePull/ImagePullBackOff/InvalidImageName, which causes the
+# analysis to be marked Inconclusive. The rollout should pause.
 
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -13,8 +13,7 @@ spec:
       - setWeight: 10
       - analysis:
           templates:
-          - templateName: invalid-image-job-deadline
-      - pause: {duration: 30s}      
+          - templateName: invalid-image-job
   selector:
     matchLabels:
       app: rollout-inline-invalid-image-job

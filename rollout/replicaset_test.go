@@ -132,6 +132,34 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 
 }
 
+// TestGetReplicaSetsForRolloutsReturnsCopy ensures that getReplicaSetsForRollouts returns fresh
+// DeepCopies of the ReplicaSets on every call, rather than the shared pointers held by the informer
+// cache. The Rollout reconciliation mutates these objects, so handing out the cached pointers would
+// corrupt the shared cache.
+func TestGetReplicaSetsForRollouts_ReturnsCopy(t *testing.T) {
+	selector := map[string]string{"app": "nginx"}
+	timestamp := metav1.Date(2016, 5, 20, 2, 0, 0, 0, time.UTC)
+	rollout := newRollout("foo", 1, int32Ptr(1), selector)
+	existingRS := rs("foo-v1", 1, selector, timestamp, newRolloutControllerRef(rollout))
+
+	f := newFixture(t)
+	defer f.Close()
+	f.rolloutLister = append(f.rolloutLister, rollout)
+	f.objects = append(f.objects, rollout)
+	f.replicaSetLister = append(f.replicaSetLister, existingRS)
+	f.kubeobjects = append(f.kubeobjects, existingRS)
+
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	first, err := c.getReplicaSetsForRollouts(rollout)
+	assert.NoError(t, err)
+	assert.Len(t, first, 1)
+
+	// The returned ReplicaSet must be a copy, not the object stored in the informer cache, so callers
+	// can mutate the result without corrupting the shared cache.
+	assert.NotSame(t, existingRS, first[0], "returned ReplicaSet must point to a different object than the one in the informer cache")
+}
+
 func TestReconcileNewReplicaSet(t *testing.T) {
 	tests := []struct {
 		name                       string

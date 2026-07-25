@@ -1276,9 +1276,6 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 	r1.Spec.TemplateResolvedFromRef = true
 	r1.Spec.Strategy.Canary.CanaryService = "canary"
 	r1.Spec.Strategy.Canary.StableService = "stable"
-	r1.Spec.Selector = &metav1.LabelSelector{
-		MatchLabels: map[string]string{"app": "test"},
-	}
 	r1.Labels = map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "testsha"}
 	r2 := bumpVersion(r1)
 
@@ -1322,11 +1319,21 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, unstructuredObj)
-	f.expectUpdateRolloutAction(r2)
-	f.expectUpdateRolloutStatusAction(r2)
+
+	// remarshalRollout strips the pod template for TemplateResolvedFromRef rollouts. In production the
+	// real workload ref resolver repopulates it from the referenced workload; mimic that here so the
+	// controller recognizes rs2 as the new ReplicaSet instead of creating a templateless one.
+	resolvedTemplate := *r2.Spec.Template.DeepCopy()
+	f.workloadRefResolveFn = func(ro *v1alpha1.Rollout) error {
+		ro.Spec.SetResolvedTemplate(*resolvedTemplate.DeepCopy())
+		return nil
+	}
+
 	f.expectPatchRolloutAction(r2)
-	f.expectCreateReplicaSetAction(rs2)
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 	f.fakeTrafficRouting.On("SetHeaderRoute", &v1alpha1.SetHeaderRoute{
 		Name: "test-header",
 		Match: []v1alpha1.HeaderRoutingMatch{
@@ -1339,6 +1346,10 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 		},
 	}).Once().Return(nil)
 	f.run(getKey(r1, t))
+
+	// Verify SetHeaderRoute was actually invoked (the whole point of this test). Without this the
+	// .Once() expectation is never checked, since the fixture does not assert mock expectations.
+	f.fakeTrafficRouting.AssertExpectations(t)
 }
 
 // This makes sure we don't set weight to zero if we are rolling back to stable with DynamicStableScale

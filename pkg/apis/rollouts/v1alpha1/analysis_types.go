@@ -264,6 +264,9 @@ type Authentication struct {
 	// OAuth2 config
 	// +optional
 	OAuth2 OAuth2Config `json:"oauth2,omitempty" protobuf:"bytes,2,opt,name=oauth2"`
+	// BasicAuth config
+	// +optional
+	BasicAuth BasicAuthConfig `json:"basicAuth,omitempty" protobuf:"bytes,3,opt,name=basicAuth"`
 }
 
 type OAuth2Config struct {
@@ -285,6 +288,13 @@ type Sigv4Config struct {
 	Profile string `json:"profile,omitempty" protobuf:"bytes,2,opt,name=profile"`
 	// RoleARN is the IAM role used to sign the SIgV4 Request
 	RoleARN string `json:"roleArn,omitempty" protobuf:"bytes,3,opt,name=roleArn"`
+}
+
+type BasicAuthConfig struct {
+	// Username is the username in grafana cloud
+	Username string `json:"username,omitempty" protobuf:"bytes,1,opt,name=username"`
+	// Password is the access policy token
+	Password string `json:"password,omitempty" protobuf:"bytes,2,opt,name=password"`
 }
 
 // WavefrontMetric defines the wavefront query to perform canary analysis
@@ -632,6 +642,10 @@ type DatadogMetric struct {
 	// Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
 	// +optional
 	SecretRef SecretRef `json:"secretRef,omitempty" protobuf:"bytes,7,opt,name=secretRef"`
+	// +kubebuilder:default="10s"
+	// RequestTimeout overrides the HTTP client timeout for requests to the Datadog API (e.g. 10s, 30s; default: 10s).
+	// +optional
+	RequestTimeout DurationString `json:"requestTimeout,omitempty" protobuf:"bytes,8,opt,name=requestTimeout,casttype=DurationString"`
 }
 
 type SecretRef struct {

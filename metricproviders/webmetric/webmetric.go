@@ -104,7 +104,10 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	response, err := p.client.Do(request)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
-	} else if response.StatusCode < 200 || response.StatusCode >= 300 {
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return metricutil.MarkMeasurementError(measurement, fmt.Errorf("received non 2xx response code: %v", response.StatusCode))
 	}
 
@@ -131,8 +134,9 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 
 	err = json.Unmarshal(bodyBytes, &data)
 	if err != nil {
-		// non JSON body return as string
-		return string(bodyBytes), v1alpha1.AnalysisPhaseSuccessful, nil
+		bodyStr := string(bodyBytes)
+		status, evalErr := evaluate.EvaluateResult(bodyStr, metric, p.logCtx)
+		return bodyStr, status, evalErr
 	}
 
 	fullResults, err := p.jsonParser.FindResults(data)

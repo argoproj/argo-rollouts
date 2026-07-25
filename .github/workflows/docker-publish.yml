@@ -5,9 +5,15 @@ on:
     branches:
       - master
       - release-*
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'    
 
   # Run tests for any PRs.
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,7 +38,7 @@ jobs:
     steps:
       - name: Docker meta (controller)
         id: controller-meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             quay.io/${{ env.REGISTRY_NAMESPACE }}/argo-rollouts
@@ -42,7 +48,7 @@ jobs:
 
       - name: Docker meta (plugin)
         id: plugin-meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             quay.io/${{ env.REGISTRY_NAMESPACE }}/kubectl-argo-rollouts

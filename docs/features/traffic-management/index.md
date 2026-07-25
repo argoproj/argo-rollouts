@@ -14,6 +14,10 @@ Core Kubernetes objects lack the fine-grained tools necessary for comprehensive 
 
 Service Meshes fill this missing functionality in Kubernetes. They introduce new concepts and functionality to control the data plane through the use of CRDs and other core Kubernetes resources.
 
+!!! info "No new traffic managers are accepted in the core controller"
+
+    If you want to use a brand new traffic manager you **must** create a [Plugin](plugins.md). Argo Rollouts is moving to a plugin-based architecture where we want to keep the core code stable and minimal and all extensions should come in the form of plugins ([metrics](../../analysis/plugins.md), [traffic](plugins.md), [steps](../canary/plugins.md)). We will only accept minor contributions and fixes for the existing traffic managers that are already part of Argo Rollouts core. 
+
 ## How does Argo Rollouts enable traffic management?
 
 Argo Rollouts enables traffic management by manipulating the Service Mesh resources to match the intent of the Rollout. Argo Rollouts currently supports the following traffic providers:
@@ -29,7 +33,7 @@ Argo Rollouts enables traffic management by manipulating the Service Mesh resour
 - [Service Mesh Interface (SMI)](smi.md)
 - [Traefik Proxy](traefik.md)
 - [Multiple Providers](mixed.md)
-- File a ticket [here](https://github.com/argoproj/argo-rollouts/issues) if you would like another implementation (or thumbs up it if that issue already exists)
+- Create a [Traffic Manager Plugin](plugins.md) if you would like to use another implementation
 
 Regardless of the Service Mesh used, the Rollout object has to set a canary Service and a stable Service in its spec. Here is an example with those fields set:
 
