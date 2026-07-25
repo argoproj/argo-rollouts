@@ -53,6 +53,9 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("failed to get REST config: %w", err)
 				}
+				if restConfig == nil {
+					return fmt.Errorf("auth mode %q requires a Kubernetes REST config, but none was resolved", server.AuthModeClient)
+				}
 				opts.RESTConfig = restConfig
 			}
 

@@ -85,7 +85,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                 </Tooltip>
                 {token && (
                     <Tooltip title='Logout'>
-                        <Button onClick={logout} icon={<FontAwesomeIcon icon={faSignOutAlt} />} style={{marginRight: '10px'}} />
+                        <Button onClick={logout} aria-label='Logout' icon={<FontAwesomeIcon icon={faSignOutAlt} />} style={{marginRight: '10px'}} />
                     </Tooltip>
                 )}
                 <div className='rollouts-header__namespace'>

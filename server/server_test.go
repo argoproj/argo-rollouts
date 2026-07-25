@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -15,12 +16,15 @@ import (
 	"google.golang.org/grpc/status"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	k8stesting "k8s.io/client-go/testing"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -180,15 +184,28 @@ func TestTokenFromHTTPRequest(t *testing.T) {
 		assert.Equal(t, "header-token", tokenFromHTTPRequest(req))
 	})
 
-	t.Run("token from query parameter", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/rollouts?token=query-token", nil)
-		assert.Equal(t, "query-token", tokenFromHTTPRequest(req))
+	t.Run("token from cookie", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/rollouts", nil)
+		req.AddCookie(&http.Cookie{Name: AuthCookieName, Value: "cookie-token"})
+		assert.Equal(t, "cookie-token", tokenFromHTTPRequest(req))
 	})
 
-	t.Run("header takes precedence over query", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/rollouts?token=query-token", nil)
+	t.Run("cookie value may carry a Bearer prefix", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/rollouts", nil)
+		req.AddCookie(&http.Cookie{Name: AuthCookieName, Value: url.QueryEscape("Bearer cookie-token")})
+		assert.Equal(t, "cookie-token", tokenFromHTTPRequest(req))
+	})
+
+	t.Run("header takes precedence over cookie", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/rollouts", nil)
+		req.AddCookie(&http.Cookie{Name: AuthCookieName, Value: "cookie-token"})
 		req.Header.Set("Authorization", "Bearer header-token")
 		assert.Equal(t, "header-token", tokenFromHTTPRequest(req))
+	})
+
+	t.Run("token is never read from the query string", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/rollouts?token=query-token", nil)
+		assert.Equal(t, "", tokenFromHTTPRequest(req))
 	})
 
 	t.Run("no token returns empty", func(t *testing.T) {
@@ -282,7 +299,26 @@ func TestClientAuthMiddleware(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
-	t.Run("client mode passes through for API route with query token", func(t *testing.T) {
+	// EventSource cannot set headers, so SSE requests authenticate with the cookie. The
+	// middleware rewrites it into an Authorization header so the gRPC side only reads one place.
+	t.Run("client mode normalizes the cookie into an Authorization header", func(t *testing.T) {
+		s := &ArgoRolloutsServer{
+			Options: ServerOptions{AuthMode: AuthModeClient},
+		}
+		var seen string
+		handler := s.newClientAuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			seen = r.Header.Get("Authorization")
+			w.WriteHeader(http.StatusOK)
+		}))
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/rollouts/watch", nil)
+		req.AddCookie(&http.Cookie{Name: AuthCookieName, Value: "my-token"})
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "Bearer my-token", seen)
+	})
+
+	t.Run("client mode returns 401 for API route with only a query token", func(t *testing.T) {
 		s := &ArgoRolloutsServer{
 			Options: ServerOptions{AuthMode: AuthModeClient},
 		}
@@ -290,7 +326,7 @@ func TestClientAuthMiddleware(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/rollouts/watch?token=my-token", nil)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
-		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("client mode passes through for static files without token", func(t *testing.T) {
@@ -351,15 +387,19 @@ func TestGetClients(t *testing.T) {
 		assert.NotNil(t, clients)
 	})
 
-	t.Run("client mode without RESTConfig returns shared clients", func(t *testing.T) {
+	// a missing REST config must never silently downgrade client mode to the server's own
+	// credentials, which would run every request as the dashboard's identity
+	t.Run("client mode without RESTConfig fails instead of using server credentials", func(t *testing.T) {
 		s := &ArgoRolloutsServer{
 			Options: ServerOptions{
-				AuthMode: AuthModeClient,
+				AuthMode:      AuthModeClient,
+				KubeClientset: k8sfake.NewSimpleClientset(),
 			},
 		}
-		clients, err := s.getClients(context.Background())
-		assert.NoError(t, err)
-		assert.NotNil(t, clients)
+		md := metadata.Pairs("authorization", "Bearer test-token")
+		_, err := s.getClients(metadata.NewIncomingContext(context.Background(), md))
+		assert.Error(t, err)
+		assert.Equal(t, codes.Internal, status.Code(err))
 	})
 
 	t.Run("client mode without token returns error", func(t *testing.T) {
@@ -394,49 +434,48 @@ func TestGetClients(t *testing.T) {
 	})
 }
 
-func TestClientsFromToken(t *testing.T) {
-	t.Run("creates clients with bearer token", func(t *testing.T) {
-		s := &ArgoRolloutsServer{
-			Options: ServerOptions{
-				RESTConfig: &rest.Config{
-					Host:     "https://localhost:6443",
-					Username: "admin",
-					Password: "password",
-					TLSClientConfig: rest.TLSClientConfig{
-						CertData: []byte("cert"),
-						CertFile: "/path/to/cert",
-						KeyData:  []byte("key"),
-						KeyFile:  "/path/to/key",
-					},
+func TestConfigForToken(t *testing.T) {
+	// whatever credentials the dashboard itself was started with must not survive into the
+	// per-request config, or a user's request could be served with the dashboard's identity
+	s := &ArgoRolloutsServer{
+		Options: ServerOptions{
+			RESTConfig: &rest.Config{
+				Host:            "https://localhost:6443",
+				Username:        "admin",
+				Password:        "password",
+				BearerToken:     "server-token",
+				BearerTokenFile: "/var/run/secrets/token",
+				TLSClientConfig: rest.TLSClientConfig{
+					CertData: []byte("cert"),
+					CertFile: "/path/to/cert",
+					KeyData:  []byte("key"),
+					KeyFile:  "/path/to/key",
+					CAData:   []byte("ca"),
 				},
+				AuthProvider: &clientcmdapi.AuthProviderConfig{Name: "gcp"},
+				ExecProvider: &clientcmdapi.ExecConfig{Command: "aws"},
 			},
-		}
-		clients, err := s.clientsFromToken("my-bearer-token")
-		require.NoError(t, err)
-		assert.NotNil(t, clients.kubeClientset)
-		assert.NotNil(t, clients.rolloutsClientset)
-		assert.NotNil(t, clients.dynamicClientset)
-	})
+		},
+	}
 
-	t.Run("returns error for invalid config", func(t *testing.T) {
-		s := &ArgoRolloutsServer{
-			Options: ServerOptions{
-				RESTConfig: &rest.Config{
-					Host:            "https://localhost:6443",
-					ContentConfig:   rest.ContentConfig{ContentType: "invalid/\x00type"},
-					RateLimiter:     nil,
-					BearerToken:     "",
-					BearerTokenFile: "",
-				},
-			},
-		}
-		// Even with an odd config, NewForConfig generally succeeds since it defers
-		// actual connection until a request is made. We just verify it doesn't panic.
-		clients, err := s.clientsFromToken("token")
-		if err == nil {
-			assert.NotNil(t, clients)
-		}
-	})
+	cfg := s.configForToken("user-token")
+
+	assert.Equal(t, "user-token", cfg.BearerToken)
+	assert.Empty(t, cfg.BearerTokenFile)
+	assert.Empty(t, cfg.Username)
+	assert.Empty(t, cfg.Password)
+	assert.Nil(t, cfg.CertData)
+	assert.Empty(t, cfg.CertFile)
+	assert.Nil(t, cfg.KeyData)
+	assert.Empty(t, cfg.KeyFile)
+	assert.Nil(t, cfg.AuthProvider)
+	assert.Nil(t, cfg.ExecProvider)
+	// the API server address and its CA still have to come from the server's config
+	assert.Equal(t, "https://localhost:6443", cfg.Host)
+	assert.Equal(t, []byte("ca"), cfg.CAData)
+	// and the server's own config must be left untouched
+	assert.Equal(t, "server-token", s.Options.RESTConfig.BearerToken)
+	assert.Equal(t, "admin", s.Options.RESTConfig.Username)
 }
 
 func TestAuthUnaryInterceptor(t *testing.T) {
@@ -530,138 +569,69 @@ func TestAuthStreamInterceptor(t *testing.T) {
 	})
 }
 
-func TestVersion(t *testing.T) {
-	t.Run("returns version in server mode", func(t *testing.T) {
-		s := &ArgoRolloutsServer{
-			Options: ServerOptions{AuthMode: AuthModeServer},
-		}
-		v, err := s.Version(context.Background(), &empty.Empty{})
-		assert.NoError(t, err)
-		assert.NotNil(t, v)
-		assert.NotEmpty(t, v.RolloutsVersion)
-	})
-}
-
-func TestGetRolloutInfoClientModeNoToken(t *testing.T) {
+// TestClientModeRequiresToken asserts that every handler goes through getClients, so that no
+// endpoint can be reached in client mode without the caller presenting a token.
+func TestClientModeRequiresToken(t *testing.T) {
 	s := &ArgoRolloutsServer{
 		Options: ServerOptions{
 			AuthMode:   AuthModeClient,
 			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
 		},
 	}
-	_, err := s.GetRolloutInfo(context.Background(), &rollout.RolloutInfoQuery{Name: "test", Namespace: "default"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
-}
+	ctx := context.Background()
 
-func TestListRolloutInfosClientModeNoToken(t *testing.T) {
-	s := &ArgoRolloutsServer{
-		Options: ServerOptions{
-			AuthMode:   AuthModeClient,
-			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
+	calls := map[string]func() error{
+		"GetRolloutInfo": func() error {
+			_, err := s.GetRolloutInfo(ctx, &rollout.RolloutInfoQuery{Name: "test", Namespace: "default"})
+			return err
+		},
+		"ListRolloutInfos": func() error {
+			_, err := s.ListRolloutInfos(ctx, &rollout.RolloutInfoListQuery{Namespace: "default"})
+			return err
+		},
+		"RestartRollout": func() error {
+			_, err := s.RestartRollout(ctx, &rollout.RestartRolloutRequest{Name: "test", Namespace: "default"})
+			return err
+		},
+		"PromoteRollout": func() error {
+			_, err := s.PromoteRollout(ctx, &rollout.PromoteRolloutRequest{Name: "test", Namespace: "default"})
+			return err
+		},
+		"AbortRollout": func() error {
+			_, err := s.AbortRollout(ctx, &rollout.AbortRolloutRequest{Name: "test", Namespace: "default"})
+			return err
+		},
+		"RetryRollout": func() error {
+			_, err := s.RetryRollout(ctx, &rollout.RetryRolloutRequest{Name: "test", Namespace: "default"})
+			return err
+		},
+		"SetRolloutImage": func() error {
+			_, err := s.SetRolloutImage(ctx, &rollout.SetImageRequest{Rollout: "test", Namespace: "default"})
+			return err
+		},
+		"UndoRollout": func() error {
+			_, err := s.UndoRollout(ctx, &rollout.UndoRolloutRequest{Rollout: "test", Namespace: "default"})
+			return err
+		},
+		"GetNamespace": func() error {
+			_, err := s.GetNamespace(ctx, &empty.Empty{})
+			return err
+		},
+		"WatchRolloutInfo": func() error {
+			return s.WatchRolloutInfo(&rollout.RolloutInfoQuery{Name: "test", Namespace: "default"}, &mockWatchRolloutInfoServer{ctx: ctx})
+		},
+		"WatchRolloutInfos": func() error {
+			return s.WatchRolloutInfos(&rollout.RolloutInfoListQuery{Namespace: "default"}, &mockWatchRolloutInfosServer{ctx: ctx})
 		},
 	}
-	_, err := s.ListRolloutInfos(context.Background(), &rollout.RolloutInfoListQuery{Namespace: "default"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
-}
 
-func TestRestartRolloutClientModeNoToken(t *testing.T) {
-	s := &ArgoRolloutsServer{
-		Options: ServerOptions{
-			AuthMode:   AuthModeClient,
-			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
-		},
+	for name, call := range calls {
+		t.Run(name, func(t *testing.T) {
+			err := call()
+			assert.Error(t, err)
+			assert.Equal(t, codes.Unauthenticated, status.Code(err))
+		})
 	}
-	_, err := s.RestartRollout(context.Background(), &rollout.RestartRolloutRequest{Name: "test", Namespace: "default"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
-}
-
-func TestPromoteRolloutClientModeNoToken(t *testing.T) {
-	s := &ArgoRolloutsServer{
-		Options: ServerOptions{
-			AuthMode:   AuthModeClient,
-			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
-		},
-	}
-	_, err := s.PromoteRollout(context.Background(), &rollout.PromoteRolloutRequest{Name: "test", Namespace: "default"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
-}
-
-func TestAbortRolloutClientModeNoToken(t *testing.T) {
-	s := &ArgoRolloutsServer{
-		Options: ServerOptions{
-			AuthMode:   AuthModeClient,
-			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
-		},
-	}
-	_, err := s.AbortRollout(context.Background(), &rollout.AbortRolloutRequest{Name: "test", Namespace: "default"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
-}
-
-func TestRetryRolloutClientModeNoToken(t *testing.T) {
-	s := &ArgoRolloutsServer{
-		Options: ServerOptions{
-			AuthMode:   AuthModeClient,
-			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
-		},
-	}
-	_, err := s.RetryRollout(context.Background(), &rollout.RetryRolloutRequest{Name: "test", Namespace: "default"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
-}
-
-func TestSetRolloutImageClientModeNoToken(t *testing.T) {
-	s := &ArgoRolloutsServer{
-		Options: ServerOptions{
-			AuthMode:   AuthModeClient,
-			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
-		},
-	}
-	_, err := s.SetRolloutImage(context.Background(), &rollout.SetImageRequest{Rollout: "test", Namespace: "default"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
-}
-
-func TestUndoRolloutClientModeNoToken(t *testing.T) {
-	s := &ArgoRolloutsServer{
-		Options: ServerOptions{
-			AuthMode:   AuthModeClient,
-			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
-		},
-	}
-	_, err := s.UndoRollout(context.Background(), &rollout.UndoRolloutRequest{Rollout: "test", Namespace: "default"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
-}
-
-func TestGetNamespaceClientModeNoToken(t *testing.T) {
-	s := &ArgoRolloutsServer{
-		Options: ServerOptions{
-			AuthMode:   AuthModeClient,
-			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
-		},
-	}
-	_, err := s.GetNamespace(context.Background(), &empty.Empty{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
-}
-
-func TestRolloutToRolloutInfoClientModeNoToken(t *testing.T) {
-	s := &ArgoRolloutsServer{
-		Options: ServerOptions{
-			AuthMode:   AuthModeClient,
-			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
-		},
-	}
-	// RolloutToRolloutInfo uses context.Background() internally, so it won't have a token
-	// in client mode and should return an error
-	_, err := s.RolloutToRolloutInfo(&v1alpha1.Rollout{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
 }
 
 // newFakeDynamicClient creates a dynamic fake client with the rollout scheme registered
@@ -761,62 +731,80 @@ func TestGetNamespaceServerMode(t *testing.T) {
 	})
 }
 
-func TestRestartRolloutServerMode(t *testing.T) {
-	s := newServerWithFakes(nil, nil, nil)
-	_, err := s.RestartRollout(context.Background(), &rollout.RestartRolloutRequest{Name: "nonexistent", Namespace: "default"})
-	// Expected: rollout not found, but this covers the code path past getClients
-	assert.Error(t, err)
-}
-
-func TestPromoteRolloutServerMode(t *testing.T) {
-	s := newServerWithFakes(nil, nil, nil)
-	_, err := s.PromoteRollout(context.Background(), &rollout.PromoteRolloutRequest{Name: "nonexistent", Namespace: "default"})
-	assert.Error(t, err)
-}
-
-func TestAbortRolloutServerMode(t *testing.T) {
-	s := newServerWithFakes(nil, nil, nil)
-	_, err := s.AbortRollout(context.Background(), &rollout.AbortRolloutRequest{Name: "nonexistent", Namespace: "default"})
-	assert.Error(t, err)
-}
-
-func TestRetryRolloutServerMode(t *testing.T) {
-	s := newServerWithFakes(nil, nil, nil)
-	_, err := s.RetryRollout(context.Background(), &rollout.RetryRolloutRequest{Name: "nonexistent", Namespace: "default"})
-	assert.Error(t, err)
-}
-
-func TestSetRolloutImageServerMode(t *testing.T) {
-	s := newServerWithFakes(nil, nil, nil)
-	_, err := s.SetRolloutImage(context.Background(), &rollout.SetImageRequest{
-		Rollout:   "nonexistent",
-		Namespace: "default",
-		Image:     "nginx",
-		Tag:       "latest",
-		Container: "main",
-	})
-	assert.Error(t, err)
-}
-
-func TestUndoRolloutServerMode(t *testing.T) {
-	s := newServerWithFakes(nil, nil, nil)
-	_, err := s.UndoRollout(context.Background(), &rollout.UndoRolloutRequest{
-		Rollout:   "nonexistent",
-		Namespace: "default",
-		Revision:  0,
-	})
-	assert.Error(t, err)
-}
-
-func TestRolloutToRolloutInfoServerMode(t *testing.T) {
-	s := newServerWithFakes(nil, nil, nil)
-	ro := &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+// GetNamespace is what the UI calls to decide whether a token is usable, so it must not report
+// success when the API server rejected the token, and must not fail a user who simply cannot list
+// rollouts cluster-wide.
+func TestGetNamespaceSurfacesRejectedToken(t *testing.T) {
+	newServerRejecting := func(err error) *ArgoRolloutsServer {
+		roClient := fakeroclient.NewSimpleClientset()
+		roClient.PrependReactor("list", "rollouts", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, err
+		})
+		return &ArgoRolloutsServer{
+			Options: ServerOptions{
+				AuthMode:          AuthModeServer,
+				Namespace:         "default",
+				RolloutsClientset: roClient,
+			},
+		}
 	}
-	ri, err := s.RolloutToRolloutInfo(ro)
-	assert.NoError(t, err)
-	assert.NotNil(t, ri)
-	assert.Equal(t, "test", ri.ObjectMeta.Name)
+
+	t.Run("rejected token returns unauthenticated", func(t *testing.T) {
+		s := newServerRejecting(apierrors.NewUnauthorized("token is invalid"))
+		_, err := s.GetNamespace(context.Background(), &empty.Empty{})
+		assert.Error(t, err)
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+	})
+
+	t.Run("forbidden cluster-wide list still returns the default namespace", func(t *testing.T) {
+		s := newServerRejecting(apierrors.NewForbidden(v1alpha1.Resource("rollouts"), "", nil))
+		ns, err := s.GetNamespace(context.Background(), &empty.Empty{})
+		assert.NoError(t, err)
+		assert.Equal(t, "default", ns.Namespace)
+		assert.Empty(t, ns.AvailableNamespaces)
+	})
+}
+
+// Operating on a rollout that does not exist must reach the caller as NotFound rather than a
+// generic error, so the dashboard can tell "you cannot do this" apart from "this is not there".
+func TestServerModeMapsNotFound(t *testing.T) {
+	s := newServerWithFakes(nil, nil, nil)
+	ctx := context.Background()
+
+	calls := map[string]func() error{
+		"RestartRollout": func() error {
+			_, err := s.RestartRollout(ctx, &rollout.RestartRolloutRequest{Name: "nonexistent", Namespace: "default"})
+			return err
+		},
+		"PromoteRollout": func() error {
+			_, err := s.PromoteRollout(ctx, &rollout.PromoteRolloutRequest{Name: "nonexistent", Namespace: "default"})
+			return err
+		},
+		"AbortRollout": func() error {
+			_, err := s.AbortRollout(ctx, &rollout.AbortRolloutRequest{Name: "nonexistent", Namespace: "default"})
+			return err
+		},
+		"RetryRollout": func() error {
+			_, err := s.RetryRollout(ctx, &rollout.RetryRolloutRequest{Name: "nonexistent", Namespace: "default"})
+			return err
+		},
+		"SetRolloutImage": func() error {
+			_, err := s.SetRolloutImage(ctx, &rollout.SetImageRequest{Rollout: "nonexistent", Namespace: "default", Image: "nginx", Tag: "latest", Container: "main"})
+			return err
+		},
+		"UndoRollout": func() error {
+			_, err := s.UndoRollout(ctx, &rollout.UndoRolloutRequest{Rollout: "nonexistent", Namespace: "default", Revision: 0})
+			return err
+		},
+	}
+
+	for name, call := range calls {
+		t.Run(name, func(t *testing.T) {
+			err := call()
+			assert.Error(t, err)
+			assert.Equal(t, codes.NotFound, status.Code(err))
+		})
+	}
 }
 
 func TestGetRolloutInfoServerMode(t *testing.T) {
@@ -879,19 +867,6 @@ func TestWatchRolloutInfoServerMode(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestWatchRolloutInfoClientModeNoToken(t *testing.T) {
-	s := &ArgoRolloutsServer{
-		Options: ServerOptions{
-			AuthMode:   AuthModeClient,
-			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
-		},
-	}
-	ws := &mockWatchRolloutInfoServer{ctx: context.Background()}
-	err := s.WatchRolloutInfo(&rollout.RolloutInfoQuery{Name: "test", Namespace: "default"}, ws)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
-}
-
 func TestWatchRolloutInfosServerMode(t *testing.T) {
 	s := newServerWithFakes(nil, nil, nil)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -899,17 +874,4 @@ func TestWatchRolloutInfosServerMode(t *testing.T) {
 	ws := &mockWatchRolloutInfosServer{ctx: ctx}
 	err := s.WatchRolloutInfos(&rollout.RolloutInfoListQuery{Namespace: "default"}, ws)
 	assert.NoError(t, err)
-}
-
-func TestWatchRolloutInfosClientModeNoToken(t *testing.T) {
-	s := &ArgoRolloutsServer{
-		Options: ServerOptions{
-			AuthMode:   AuthModeClient,
-			RESTConfig: &rest.Config{Host: "https://localhost:6443"},
-		},
-	}
-	ws := &mockWatchRolloutInfosServer{ctx: context.Background()}
-	err := s.WatchRolloutInfos(&rollout.RolloutInfoListQuery{Namespace: "default"}, ws)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing bearer token")
 }

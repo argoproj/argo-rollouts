@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/grpc/status"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -100,6 +102,10 @@ const (
 	connectAddr = "localhost"
 )
 
+// AuthCookieName is the cookie the dashboard UI stores the bearer token in. EventSource/SSE
+// cannot set custom headers, so the UI authenticates with a cookie rather than a query parameter.
+const AuthCookieName = "authorization"
+
 // extractBearerToken extracts the token from an "Authorization: Bearer <token>" header value
 func extractBearerToken(authHeader string) string {
 	if !strings.HasPrefix(authHeader, "Bearer ") {
@@ -109,14 +115,25 @@ func extractBearerToken(authHeader string) string {
 }
 
 // tokenFromHTTPRequest extracts a bearer token from an HTTP request.
-// It checks the Authorization header first, then falls back to the "token" query parameter
-// (needed for EventSource/SSE which cannot set custom headers).
+// It checks the Authorization header first, then falls back to the authorization cookie set by
+// the UI. This mirrors Argo Workflows: API clients send a header, the browser sends a cookie.
 func tokenFromHTTPRequest(r *http.Request) string {
-	token := extractBearerToken(r.Header.Get("Authorization"))
-	if token != "" {
+	if token := extractBearerToken(r.Header.Get("Authorization")); token != "" {
 		return token
 	}
-	return r.URL.Query().Get("token")
+	cookie, err := r.Cookie(AuthCookieName)
+	if err != nil {
+		return ""
+	}
+	value, err := url.QueryUnescape(cookie.Value)
+	if err != nil {
+		value = cookie.Value
+	}
+	// tolerate a "Bearer " prefix so the cookie accepts the same value as the header
+	if token := extractBearerToken(value); token != "" {
+		return token
+	}
+	return value
 }
 
 // tokenFromGRPCContext extracts a bearer token from gRPC request metadata.
@@ -136,12 +153,17 @@ func tokenFromGRPCContext(ctx context.Context) string {
 // In server mode, it returns the shared server clients.
 // In client mode, it creates per-request clients using the user's bearer token.
 func (s *ArgoRolloutsServer) getClients(ctx context.Context) (*serverClients, error) {
-	if s.Options.AuthMode != AuthModeClient || s.Options.RESTConfig == nil {
+	if s.Options.AuthMode != AuthModeClient {
 		return &serverClients{
 			kubeClientset:     s.Options.KubeClientset,
 			rolloutsClientset: s.Options.RolloutsClientset,
 			dynamicClientset:  s.Options.DynamicClientset,
 		}, nil
+	}
+	// never fall back to the server's own credentials in client mode: that would silently
+	// downgrade a misconfigured server to running every request as the dashboard's identity
+	if s.Options.RESTConfig == nil {
+		return nil, status.Error(codes.Internal, "client auth mode requires a Kubernetes REST config")
 	}
 	token := tokenFromGRPCContext(ctx)
 	if token == "" {
@@ -150,8 +172,10 @@ func (s *ArgoRolloutsServer) getClients(ctx context.Context) (*serverClients, er
 	return s.clientsFromToken(token)
 }
 
-// clientsFromToken creates new Kubernetes clients authenticated with the given bearer token.
-func (s *ArgoRolloutsServer) clientsFromToken(token string) (*serverClients, error) {
+// configForToken copies the server's REST config and swaps in the user's bearer token, stripping
+// every other credential the server holds. Anything left behind here would let a request fall back
+// to authenticating as the dashboard instead of as the user.
+func (s *ArgoRolloutsServer) configForToken(token string) *rest.Config {
 	cfg := rest.CopyConfig(s.Options.RESTConfig)
 	cfg.BearerToken = token
 	cfg.BearerTokenFile = ""
@@ -161,6 +185,14 @@ func (s *ArgoRolloutsServer) clientsFromToken(token string) (*serverClients, err
 	cfg.CertFile = ""
 	cfg.KeyData = nil
 	cfg.KeyFile = ""
+	cfg.AuthProvider = nil
+	cfg.ExecProvider = nil
+	return cfg
+}
+
+// clientsFromToken creates new Kubernetes clients authenticated with the given bearer token.
+func (s *ArgoRolloutsServer) clientsFromToken(token string) (*serverClients, error) {
+	cfg := s.configForToken(token)
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -181,6 +213,24 @@ func (s *ArgoRolloutsServer) clientsFromToken(token string) (*serverClients, err
 	}, nil
 }
 
+// k8sError maps a Kubernetes API error onto the matching gRPC code. Without it every rejection
+// reaches the dashboard as a generic 500, so a user who simply lacks RBAC to promote a rollout
+// cannot tell that apart from the server being broken.
+func k8sError(err error) error {
+	switch {
+	case err == nil:
+		return nil
+	case apierrors.IsUnauthorized(err):
+		return status.Error(codes.Unauthenticated, err.Error())
+	case apierrors.IsForbidden(err):
+		return status.Error(codes.PermissionDenied, err.Error())
+	case apierrors.IsNotFound(err):
+		return status.Error(codes.NotFound, err.Error())
+	default:
+		return err
+	}
+}
+
 // newClientAuthMiddleware returns HTTP middleware that requires a bearer token for API routes
 // when running in client auth mode.
 func (s *ArgoRolloutsServer) newClientAuthMiddleware(next http.Handler) http.Handler {
@@ -192,6 +242,9 @@ func (s *ArgoRolloutsServer) newClientAuthMiddleware(next http.Handler) http.Han
 				http.Error(w, "missing bearer token", http.StatusUnauthorized)
 				return
 			}
+			// normalize cookie-supplied tokens into the Authorization header so everything
+			// downstream of the gRPC gateway only has to look at one place
+			r.Header.Set("Authorization", "Bearer "+token)
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -376,7 +429,8 @@ func (s *ArgoRolloutsServer) GetRolloutInfo(ctx context.Context, q *rollout.Roll
 	if err != nil {
 		return nil, err
 	}
-	return s.getRolloutInfo(q.GetNamespace(), q.GetName(), clients)
+	ri, err := s.getRolloutInfo(q.GetNamespace(), q.GetName(), clients)
+	return ri, k8sError(err)
 }
 
 // WatchRolloutInfo returns a rollout stream
@@ -434,12 +488,12 @@ func (s *ArgoRolloutsServer) ListRolloutInfos(ctx context.Context, q *rollout.Ro
 	rolloutList, err := rolloutIf.List(ctx, v1.ListOptions{})
 
 	if err != nil {
-		return nil, err
+		return nil, k8sError(err)
 	}
 
 	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx, q.GetNamespace(), clients.kubeClientset)
 	if err != nil {
-		return nil, err
+		return nil, k8sError(err)
 	}
 
 	var riList []*rollout.RolloutInfo
@@ -460,7 +514,8 @@ func (s *ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.Rest
 	}
 	rolloutIf := clients.rolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	restartAt := time.Now().UTC()
-	return restart.RestartRollout(rolloutIf, q.GetName(), &restartAt)
+	ro, err := restart.RestartRollout(rolloutIf, q.GetName(), &restartAt)
+	return ro, k8sError(err)
 }
 
 // WatchRolloutInfos returns a stream of all rollouts
@@ -536,19 +591,6 @@ func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, 
 	}
 }
 
-func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollout.RolloutInfo, error) {
-	ctx := context.Background()
-	clients, err := s.getClients(ctx)
-	if err != nil {
-		return nil, err
-	}
-	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx, ro.Namespace, clients.kubeClientset)
-	if err != nil {
-		return nil, err
-	}
-	return info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil, nil), nil
-}
-
 func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (*rollout.NamespaceInfo, error) {
 	clients, err := s.getClients(ctx)
 	if err != nil {
@@ -558,6 +600,11 @@ func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (
 	var namespaces []string
 
 	rolloutList, err := clients.rolloutsClientset.ArgoprojV1alpha1().Rollouts("").List(ctx, v1.ListOptions{})
+	// A user who is not allowed to list rollouts cluster-wide still gets a usable dashboard, so
+	// only a rejected *token* is fatal here. This is what makes the call usable as a login check.
+	if apierrors.IsUnauthorized(err) {
+		return nil, status.Error(codes.Unauthenticated, "the provided token was rejected by the Kubernetes API server")
+	}
 	if err == nil {
 		for _, r := range rolloutList.Items {
 			ns := r.Namespace
@@ -577,7 +624,8 @@ func (s *ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.Prom
 		return nil, err
 	}
 	rolloutIf := clients.rolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
-	return promote.PromoteRollout(rolloutIf, q.GetName(), false, false, q.GetFull())
+	ro, err := promote.PromoteRollout(rolloutIf, q.GetName(), false, false, q.GetFull())
+	return ro, k8sError(err)
 }
 
 func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortRolloutRequest) (*v1alpha1.Rollout, error) {
@@ -586,7 +634,8 @@ func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortR
 		return nil, err
 	}
 	rolloutIf := clients.rolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
-	return abort.AbortRollout(rolloutIf, q.GetName())
+	ro, err := abort.AbortRollout(rolloutIf, q.GetName())
+	return ro, k8sError(err)
 }
 
 func (s *ArgoRolloutsServer) getRollout(namespace string, name string, clients *serverClients) (*v1alpha1.Rollout, error) {
@@ -604,7 +653,7 @@ func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.Set
 	imageString := fmt.Sprintf("%s:%s", q.GetImage(), q.GetTag())
 	_, err = set.SetImage(clients.dynamicClientset, q.GetNamespace(), q.GetRollout(), q.GetContainer(), imageString)
 	if err != nil {
-		return nil, err
+		return nil, k8sError(err)
 	}
 	return s.getRollout(q.GetNamespace(), q.GetRollout(), clients)
 }
@@ -617,7 +666,7 @@ func (s *ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoRol
 	rolloutIf := clients.dynamicClientset.Resource(v1alpha1.RolloutGVR).Namespace(q.GetNamespace())
 	_, err = undo.RunUndoRollout(rolloutIf, clients.kubeClientset, q.GetRollout(), q.GetRevision())
 	if err != nil {
-		return nil, err
+		return nil, k8sError(err)
 	}
 	return s.getRollout(q.GetNamespace(), q.GetRollout(), clients)
 }
@@ -630,7 +679,7 @@ func (s *ArgoRolloutsServer) RetryRollout(ctx context.Context, q *rollout.RetryR
 	rolloutIf := clients.rolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	ro, err := retry.RetryRollout(rolloutIf, q.GetName())
 	if err != nil {
-		return nil, err
+		return nil, k8sError(err)
 	}
 
 	return ro, nil

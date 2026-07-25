@@ -4,6 +4,7 @@ import {RolloutInfo} from '../../../models/rollout/rollout';
 import * as React from 'react';
 import {NamespaceContext, RolloutAPIContext, getApiBasePath} from '../context/api';
 import { notification } from 'antd';
+import {describeApiError} from '../utils/api-error';
 
 export const useRollouts = (): RolloutInfo[] => {
     const api = React.useContext(RolloutAPIContext);
@@ -19,7 +20,7 @@ export const useRollouts = (): RolloutInfo[] => {
                 console.error('Error fetching rollouts:', error);
                 notification.error({
                     message: 'Error fetching rollouts',
-                    description: error.message || 'An unexpected error occurred while fetching rollouts.',
+                    description: await describeApiError(error),
                     duration: 8,
                     placement: 'bottomRight',
                 });

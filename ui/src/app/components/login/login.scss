@@ -38,4 +38,20 @@
         font-family: monospace;
         font-size: 12px;
     }
+
+    &__error {
+        margin-bottom: 16px;
+        text-align: left;
+    }
+
+    &__hint {
+        margin: 16px 0 0 0;
+        color: #8c8c8c;
+        font-size: 12px;
+
+        code {
+            font-size: 11px;
+            word-break: break-all;
+        }
+    }
 }
