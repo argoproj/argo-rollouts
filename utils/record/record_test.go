@@ -43,6 +43,7 @@ var (
 
 type recordingAPIFactory struct {
 	api                       api.API
+	err                       error
 	getAPICalls               int
 	getAPIsFromNamespaceCalls int
 	namespace                 string
@@ -50,12 +51,15 @@ type recordingAPIFactory struct {
 
 func (f *recordingAPIFactory) GetAPI() (api.API, error) {
 	f.getAPICalls++
-	return f.api, nil
+	return f.api, f.err
 }
 
 func (f *recordingAPIFactory) GetAPIsFromNamespace(namespace string) (map[string]api.API, error) {
 	f.getAPIsFromNamespaceCalls++
 	f.namespace = namespace
+	if f.err != nil {
+		return nil, f.err
+	}
 	return map[string]api.API{namespace: f.api}, nil
 }
 
@@ -196,6 +200,47 @@ func TestEventRecorderNotificationAPIScope(t *testing.T) {
 
 			rec.Eventf(&rollout, EventOptions{EventReason: "FooReason"}, "something happened")
 
+			assert.Equal(t, tt.wantGetAPICalls, apiFactory.getAPICalls)
+			assert.Equal(t, tt.wantGetAPIsFromNamespaceCalls, apiFactory.getAPIsFromNamespaceCalls)
+			assert.Equal(t, tt.wantNamespace, apiFactory.namespace)
+		})
+	}
+}
+
+func TestEventRecorderNotificationAPIScopeError(t *testing.T) {
+	expectedErr := errors.New("failed to get notification api")
+
+	tests := []struct {
+		name                           string
+		selfServiceNotificationEnabled bool
+		wantGetAPICalls                int
+		wantGetAPIsFromNamespaceCalls  int
+		wantNamespace                  string
+	}{
+		{
+			name:            "self service disabled returns GetAPI error",
+			wantGetAPICalls: 1,
+		},
+		{
+			name:                           "self service enabled returns namespace API error",
+			selfServiceNotificationEnabled: true,
+			wantGetAPIsFromNamespaceCalls:  1,
+			wantNamespace:                  "team-a",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			apiFactory := &recordingAPIFactory{err: expectedErr}
+			rec := &EventRecorderAdapter{
+				apiFactory:                     apiFactory,
+				selfServiceNotificationEnabled: tt.selfServiceNotificationEnabled,
+			}
+
+			apis, err := rec.getNotificationAPIs("team-a")
+
+			assert.Nil(t, apis)
+			assert.ErrorIs(t, err, expectedErr)
 			assert.Equal(t, tt.wantGetAPICalls, apiFactory.getAPICalls)
 			assert.Equal(t, tt.wantGetAPIsFromNamespaceCalls, apiFactory.getAPIsFromNamespaceCalls)
 			assert.Equal(t, tt.wantNamespace, apiFactory.namespace)
