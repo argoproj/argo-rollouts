@@ -129,12 +129,13 @@ func (c *rolloutContext) removeScaleDownDeadlines() error {
 }
 
 // syncNewRSReplicasAnnotation updates the newRS desired-replicas annotation to spec.replicas
-// without changing its scale. The paths that intentionally hold the newRS at size during an
-// abort scale-down delay must still do this: isScalingEvent() treats a stale desired-replicas
-// annotation on the newRS as an in-progress scaling event and short-circuits every reconcile
-// to syncReplicasOnly(), which never reconciles traffic routing or services. Without the
-// annotation sync, a spec.replicas change (e.g. HPA) mid-abort freezes traffic reconciliation
-// until the scale-down deadline elapses.
+// without changing its scale. It is a no-op when the annotation already matches spec.replicas
+// (ReplicasAnnotationsNeedUpdate returns false). The paths that intentionally hold the newRS at
+// size during an abort scale-down delay must still call this: isScalingEvent() treats a stale
+// desired-replicas annotation on the newRS as an in-progress scaling event and short-circuits
+// every reconcile to syncReplicasOnly(), which never reconciles traffic routing or services.
+// Without the annotation sync, a spec.replicas change (e.g. HPA) mid-abort freezes traffic
+// reconciliation until the scale-down deadline elapses.
 func (c *rolloutContext) syncNewRSReplicasAnnotation() error {
 	if !annotations.ReplicasAnnotationsNeedUpdate(c.newRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)) {
 		return nil
@@ -177,7 +178,7 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 						logCtx.Info("rollout enqueue due to scaleDownDelay")
 						c.enqueueRolloutAfter(c.rollout, remainingTime)
 						if err := c.syncNewRSReplicasAnnotation(); err != nil {
-							return false, err
+							return false, fmt.Errorf("failed to sync newRS desired-replicas annotation while waiting for abort scale-down deadline: %w", err)
 						}
 						return false, nil
 					}
@@ -190,7 +191,7 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 			// Sync annotations before addScaleDownDelay's patch so a subsequent update of the
 			// stale newRS object cannot clobber the scale-down-deadline annotation.
 			if err := c.syncNewRSReplicasAnnotation(); err != nil {
-				return false, err
+				return false, fmt.Errorf("failed to sync newRS desired-replicas annotation before adding abort scale-down delay: %w", err)
 			}
 			// Don't annotate until the stable RS is fully scaled, i.e. able to serve 100%
 			// of traffic, since the deadline scales the canary to zero unconditionally.
