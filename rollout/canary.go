@@ -278,17 +278,10 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 				// If we are fully promoted and we encounter an old ReplicaSet, we can infer that
 				// this ReplicaSet is likely the previous stable. We should do one of two things:
 				if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-					if c.rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds != nil {
-						// Honor scaleDownDelaySeconds even with dynamicStableScale
-						annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
-						if err != nil {
-							return totalScaledDown, err
-						}
-					} else {
-						desiredReplicaCount = 0
-					}
+					// 1. if we are using dynamic scaling, then this should be scaled down to 0 now
+					desiredReplicaCount = 0
 				} else {
-					// honor scaledown delay seconds and keep replicas of the current step
+					// 2. otherwise, honor scaledown delay second and keep replicas of the current step
 					annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
 					if err != nil {
 						return totalScaledDown, err
@@ -434,7 +427,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 			}
 		}
 
-		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
 
@@ -451,7 +443,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		if err != nil {
 			return err
 		}
-		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
 
@@ -463,7 +454,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 				newStatus.CurrentStepIndex = ptr.To[int32](0)
 			}
 		}
-		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
 
@@ -477,7 +467,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	}
 
 	newStatus.CurrentStepIndex = currentStepIndex
-	newStatus = c.calculateRolloutConditions(newStatus)
 	return c.persistRolloutStatus(&newStatus)
 }
 
