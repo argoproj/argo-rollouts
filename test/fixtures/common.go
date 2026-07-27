@@ -21,6 +21,8 @@ import (
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -512,6 +514,24 @@ func (c *Common) SetLabels(obj *unstructured.Unstructured) {
 	labels := obj.GetLabels()
 	labels[E2ELabelKeyTestName] = c.t.Name()
 	obj.SetLabels(labels)
+}
+
+// GetRolloutScale returns the Rollout's scale subresource, which is the interface
+// consumed by the HorizontalPodAutoscaler
+func (c *Common) GetRolloutScale() *autoscalingv1.Scale {
+	un, err := c.dynamicClient.Resource(rov1.RolloutGVR).Namespace(c.namespace).Get(c.Context, c.rollout.GetName(), metav1.GetOptions{}, "scale")
+	c.CheckError(err)
+	var scale autoscalingv1.Scale
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &scale)
+	c.CheckError(err)
+	return &scale
+}
+
+// GetHorizontalPodAutoscaler returns the HorizontalPodAutoscaler with the given name
+func (c *Common) GetHorizontalPodAutoscaler(name string) *autoscalingv2.HorizontalPodAutoscaler {
+	hpa, err := c.kubeClient.AutoscalingV2().HorizontalPodAutoscalers(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return hpa
 }
 
 // GetServices() returns the desired (aka preview/canary) and stable (aka active) services

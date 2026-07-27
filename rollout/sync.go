@@ -308,7 +308,7 @@ func (c *rolloutContext) syncReplicasOnly() error {
 			return fmt.Errorf("failed to reconcileCanaryReplicaSets in syncReplicasOnly: %w", err)
 		}
 		newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
-		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
+		newStatus.HPAReplicas = c.calculateCanaryHPAReplicas()
 	}
 	return c.persistRolloutStatus(newStatus)
 }

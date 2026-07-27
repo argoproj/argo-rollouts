@@ -343,10 +343,29 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	return false
 }
 
+// calculateCanaryHPAReplicas returns the replica count to report through the scale
+// subresource (status.HPAReplicas). With traffic routing and dynamicStableScale disabled,
+// only the stable ReplicaSet's pods are counted: the stable ReplicaSet stays fully scaled
+// during an update while total pods reach up to 2x spec.replicas, and reporting the
+// inflated total causes HPA/KEDA scalers using per-pod averaged (Object/External
+// AverageValue, Pods) metrics to adopt it as the desired replica count and oscillate
+// (issue #4847). status.selector is not narrowed alongside this count, so metrics sampled
+// through the selector (e.g. resource Utilization) always observe every pod taking
+// traffic. In all other cases (basic canary, dynamicStableScale, no stable ReplicaSet
+// yet) the stable ReplicaSet does not represent serving capacity, and all pods owned by
+// the Rollout are counted.
+func (c *rolloutContext) calculateCanaryHPAReplicas() int32 {
+	canary := c.rollout.Spec.Strategy.Canary
+	if canary != nil && canary.TrafficRouting != nil && !canary.DynamicStableScale && c.stableRS != nil {
+		return c.stableRS.Status.Replicas
+	}
+	return replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
+}
+
 func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus := c.calculateBaseStatus()
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
-	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
+	newStatus.HPAReplicas = c.calculateCanaryHPAReplicas()
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
 
 	newStatus.Canary.StablePingPong = c.rollout.Status.Canary.StablePingPong
