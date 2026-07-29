@@ -6168,6 +6168,19 @@
                                                                 },
                                                                 "type": "object"
                                                             },
+                                                            "google": {
+                                                                "description": "Google config, an empty object enables Application Default Credentials",
+                                                                "properties": {
+                                                                    "scopes": {
+                                                                        "description": "OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "description": "OAuth2 config",
                                                                 "properties": {
@@ -6313,6 +6326,19 @@
                                                                     "username": {
                                                                         "description": "Username is the username in grafana cloud",
                                                                         "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
+                                                            "google": {
+                                                                "description": "Google config, an empty object enables Application Default Credentials",
+                                                                "properties": {
+                                                                    "scopes": {
+                                                                        "description": "OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
                                                                     }
                                                                 },
                                                                 "type": "object"
@@ -12619,6 +12645,19 @@
                                                                 },
                                                                 "type": "object"
                                                             },
+                                                            "google": {
+                                                                "description": "Google config, an empty object enables Application Default Credentials",
+                                                                "properties": {
+                                                                    "scopes": {
+                                                                        "description": "OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "description": "OAuth2 config",
                                                                 "properties": {
@@ -12764,6 +12803,19 @@
                                                                     "username": {
                                                                         "description": "Username is the username in grafana cloud",
                                                                         "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
+                                                            "google": {
+                                                                "description": "Google config, an empty object enables Application Default Credentials",
+                                                                "properties": {
+                                                                    "scopes": {
+                                                                        "description": "OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
                                                                     }
                                                                 },
                                                                 "type": "object"
@@ -19086,6 +19138,19 @@
                                                                 },
                                                                 "type": "object"
                                                             },
+                                                            "google": {
+                                                                "description": "Google config, an empty object enables Application Default Credentials",
+                                                                "properties": {
+                                                                    "scopes": {
+                                                                        "description": "OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "description": "OAuth2 config",
                                                                 "properties": {
@@ -19231,6 +19296,19 @@
                                                                     "username": {
                                                                         "description": "Username is the username in grafana cloud",
                                                                         "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
+                                                            "google": {
+                                                                "description": "Google config, an empty object enables Application Default Credentials",
+                                                                "properties": {
+                                                                    "scopes": {
+                                                                        "description": "OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
                                                                     }
                                                                 },
                                                                 "type": "object"

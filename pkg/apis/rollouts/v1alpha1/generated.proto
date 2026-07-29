@@ -336,6 +336,10 @@ message Authentication {
   // BasicAuth config
   // +optional
   optional BasicAuthConfig basicAuth = 3;
+
+  // Google config, an empty object enables Application Default Credentials
+  // +optional
+  optional GoogleConfig google = 4;
 }
 
 message AwsResourceRef {
@@ -860,6 +864,12 @@ message ExperimentStatus {
 message FieldRef {
   // Required: Path of the field to select in the specified API version
   optional string fieldPath = 1;
+}
+
+message GoogleConfig {
+  // OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+  // +optional
+  repeated string scopes = 1;
 }
 
 // GraphiteMetric defines the Graphite query to perform canary analysis
