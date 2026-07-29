@@ -5178,6 +5178,13 @@ func schema_pkg_apis_rollouts_v1alpha1_SecretKeyRef(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"controllerNamespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ControllerNamespace indicates the secret should be read from the namespace where the argo-rollouts controller is deployed.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"name", "key"},
 			},

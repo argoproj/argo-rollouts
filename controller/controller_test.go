@@ -283,7 +283,6 @@ func TestNewManager(t *testing.T) {
 				rolloutController.DefaultEphemeralMetadataPodRetries,
 				selfService,
 			)
-
 			assert.NotNil(t, cm)
 			assert.NotNil(t, cm.notificationsController)
 			assert.Equal(t, "test", cm.instanceID)
