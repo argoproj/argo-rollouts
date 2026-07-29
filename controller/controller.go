@@ -308,6 +308,7 @@ func NewManager(
 	jobInformerFactory kubeinformers.SharedInformerFactory,
 	ephemeralMetadataThreads int,
 	ephemeralMetadataPodRetries int,
+	selfServiceNotificationEnabled bool,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -333,20 +334,15 @@ func NewManager(
 	refResolver := rollout.NewInformerBasedWorkloadRefResolver(namespace, dynamicclientset, discoveryClient, argoprojclientset, rolloutsInformer.Informer())
 	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(analysisRunInformer), defaults.Namespace(), notificationSecretInformerFactory.Core().V1().Secrets().Informer(), notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer())
 	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, apiFactory)
-	notificationsController := notificationcontroller.NewControllerWithNamespaceSupport(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory,
-		notificationcontroller.WithToUnstructured(func(obj metav1.Object) (*unstructured.Unstructured, error) {
-			data, err := json.Marshal(obj)
-			if err != nil {
-				return nil, err
-			}
-			res := &unstructured.Unstructured{}
-			err = json.Unmarshal(data, res)
-			if err != nil {
-				return nil, err
-			}
-			return res, nil
-		}),
-	)
+	toUnstructured := notificationcontroller.WithToUnstructured(objectToUnstructured)
+	// The namespace-support controller reads per-namespace configs; that only makes sense with
+	// self-service notifications. Without it a single config is used, and the namespace variant
+	// logs spurious "trigger ... is not configured" errors for triggers it can't see.
+	newNotificationController := notificationcontroller.NewController
+	if selfServiceNotificationEnabled {
+		newNotificationController = notificationcontroller.NewControllerWithNamespaceSupport
+	}
+	notificationsController := newNotificationController(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory, toUnstructured)
 
 	rolloutController := rollout.NewController(rollout.ControllerConfig{
 		Namespace:                       namespace,
@@ -483,6 +479,20 @@ func NewManager(
 	}
 
 	return cm
+}
+
+// objectToUnstructured is the notifications-engine `WithToUnstructured` opt: it converts a typed
+// metav1.Object into *unstructured.Unstructured via a JSON round-trip.
+func objectToUnstructured(obj metav1.Object) (*unstructured.Unstructured, error) {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	res := &unstructured.Unstructured{}
+	if err := json.Unmarshal(data, res); err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // Run will sync informer caches and start controllers. It will block until stopCh

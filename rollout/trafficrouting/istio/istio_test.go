@@ -1489,6 +1489,46 @@ func TestHostSplitExperimentStep(t *testing.T) {
 	checkDestination(t, httpRoutes[0].Route, "canary", 10)
 }
 
+// TestHostSplitExperimentStepMultipleServicesRemoved verifies that when an
+// experiment adds more than one destination to a route, all of them are
+// removed once the experiment completes. Deleting multiple destinations used
+// to leave one behind because the deletions were applied in ascending index
+// order, so the first deletion shifted the indices of the remaining ones.
+func TestHostSplitExperimentStepMultipleServicesRemoved(t *testing.T) {
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil, nil)
+	additionalDestinations := []v1alpha1.WeightDestination{
+		{ServiceName: "exp-baseline", PodTemplateHash: "", Weight: 20},
+		{ServiceName: "exp-canary", PodTemplateHash: "", Weight: 20},
+	}
+	vsvcRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes
+
+	// Create routes for both experiment services.
+	modifiedObj, _, err := r.reconcileVirtualService(obj, vsvcRoutes, nil, nil, 10, additionalDestinations...)
+	assert.Nil(t, err)
+	httpRoutes := extractHttpRoutes(t, modifiedObj)
+	assert.Len(t, httpRoutes[0].Route, 4)
+	checkDestination(t, httpRoutes[0].Route, "stable", 50)
+	checkDestination(t, httpRoutes[0].Route, "canary", 10)
+	checkDestination(t, httpRoutes[0].Route, "exp-baseline", 20)
+	checkDestination(t, httpRoutes[0].Route, "exp-canary", 20)
+
+	// With no additionalDestinations, both experiment services must be removed,
+	// leaving only stable and canary.
+	modifiedObj, _, err = r.reconcileVirtualService(modifiedObj, vsvcRoutes, nil, nil, 10)
+	assert.Nil(t, err)
+	httpRoutes = extractHttpRoutes(t, modifiedObj)
+	assert.Len(t, httpRoutes[0].Route, 2)
+	checkDestination(t, httpRoutes[0].Route, "stable", 90)
+	checkDestination(t, httpRoutes[0].Route, "canary", 10)
+	for _, dest := range httpRoutes[0].Route {
+		assert.NotContains(t, []string{"exp-baseline", "exp-canary"}, dest.Destination.Host,
+			"experiment destination %q should have been removed", dest.Destination.Host)
+	}
+}
+
 func TestTlsReconcileNoChanges(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularTlsVsvc)
 	client := testutil.NewFakeDynamicClient(obj)

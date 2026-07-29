@@ -430,7 +430,11 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 
 	roCtx, err := c.newRolloutContext(r)
 	if roCtx == nil {
-		logCtx.Error("newRolloutContext returned nil")
+		if k8serrors.IsConflict(err) {
+			logCtx.Warnf("newRolloutContext returned nil: %v", err)
+		} else {
+			logCtx.Errorf("newRolloutContext returned nil: %v", err)
+		}
 		return err
 	}
 	if err != nil {
@@ -512,7 +516,6 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	currentArs, otherArs := analysisutil.FilterCurrentRolloutAnalysisRuns(arList, rollout)
 
 	logCtx := logutil.WithRollout(rollout)
-	rolloutStatus := rollout.Status.DeepCopy()
 	roCtx := rolloutContext{
 		rollout:    rollout,
 		log:        logCtx,
@@ -526,10 +529,14 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		currentEx:  currentEx,
 		otherExs:   otherExs,
 		newStatus: v1alpha1.RolloutStatus{
-			RestartedAt: rolloutStatus.RestartedAt,
-			ALB:         rolloutStatus.ALB,
-			ALBs:        rolloutStatus.ALBs,
-			Duration:    rolloutStatus.Duration,
+			RestartedAt: rollout.Status.RestartedAt,
+			// ALB and ALBs are copied because traffic routers mutate them on
+			// newStatus in place; if they aliased rollout.Status, the mutations
+			// would be visible on both sides of the diff in persistRolloutStatus
+			// and would never be patched.
+			ALB:      rollout.Status.ALB.DeepCopy(),
+			ALBs:     append([]v1alpha1.ALBStatus(nil), rollout.Status.ALBs...),
+			Duration: rollout.Status.Duration,
 		},
 		pauseContext: &pauseContext{
 			rollout: rollout,
