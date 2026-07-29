@@ -8626,7 +8626,8 @@ spec:
               observedGeneration:
                 description: The generation observed by the rollout controller from
                   metadata.generation
-                type: string
+                format: int64
+                type: integer
               pauseConditions:
                 description: |-
                   PauseConditions is a list of reasons why rollout became automatically paused (e.g.
@@ -8685,7 +8686,8 @@ spec:
               workloadObservedGeneration:
                 description: The generation of referenced workload observed by the
                   rollout controller
-                type: string
+                format: int64
+                type: integer
             type: object
         required:
         - spec

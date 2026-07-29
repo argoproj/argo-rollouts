@@ -2302,6 +2302,7 @@
         },
         "observedGeneration": {
           "type": "string",
+          "format": "int64",
           "title": "The generation observed by the rollout controller from metadata.generation\n+optional"
         },
         "conditions": {
@@ -2350,6 +2351,7 @@
         },
         "workloadObservedGeneration": {
           "type": "string",
+          "format": "int64",
           "title": "The generation of referenced workload observed by the rollout controller\n+optional"
         },
         "alb": {
@@ -6606,7 +6608,8 @@
           "type": "string"
         },
         "generation": {
-          "type": "string"
+          "type": "string",
+          "format": "int64"
         },
         "replicaSets": {
           "type": "array",

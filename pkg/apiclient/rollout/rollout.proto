@@ -87,7 +87,7 @@ message RolloutInfo {
   int32 updated = 12;
   int32 available = 13;
   string restartedAt = 14;
-  string generation = 15;
+  int64 generation = 15;
 
   repeated ReplicaSetInfo replicaSets = 16;
   repeated ExperimentInfo experiments = 17;

@@ -73,7 +73,7 @@ status:
   currentPodHash: 645d5dbc4c
   currentStepHash: 7d595679dd
   currentStepIndex: 0
-  observedGeneration: "13"
+  observedGeneration: 13
   readyReplicas: 5
   replicas: 5
   selector: app=canary-demo

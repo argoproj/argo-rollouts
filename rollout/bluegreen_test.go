@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1263,7 +1262,7 @@ func TestBlueGreenRolloutCompleted(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, s)
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true, true)
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -1303,7 +1302,7 @@ func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
 	previewSvc := newService("preview", 80, previewSelector, r2)
 
 	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, true)
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 
 	// Configure the rollout as already healthy and paused waiting for promotion
 	healthyCondition, _ := newHealthyCondition(true)
@@ -1659,7 +1658,7 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.ObservedGeneration = r2.Generation
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 2, 1, false, true, true)
 	completedCondition, _ := newHealthyCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
