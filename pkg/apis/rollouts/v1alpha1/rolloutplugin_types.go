@@ -35,8 +35,10 @@ type RolloutPluginSpec struct {
 	// WorkloadRef is a reference to the workload (StatefulSet, DaemonSet, etc.) being managed
 	WorkloadRef WorkloadRef `json:"workloadRef" protobuf:"bytes,1,opt,name=workloadRef"`
 
-	// Plugin contains the configuration for the resource-specific plugin
-	Plugin PluginConfig `json:"plugin" protobuf:"bytes,2,opt,name=plugin"`
+	// Plugin references the resource-specific plugin by name and carries its runtime
+	// configuration.
+	// TODO create a separate type instead of reusing PluginStep which is used by Step Plugin
+	Plugin PluginStep `json:"plugin" protobuf:"bytes,2,opt,name=plugin"`
 
 	// Strategy defines the deployment strategy
 	Strategy RolloutPluginStrategy `json:"strategy" protobuf:"bytes,3,opt,name=strategy"`
@@ -47,19 +49,6 @@ type RolloutPluginSpec struct {
 
 	// Paused pauses the rollout at its current step.
 	Paused bool `json:"paused,omitempty" protobuf:"varint,6,opt,name=paused"`
-
-	// ProgressDeadlineSeconds The maximum time in seconds for a rollout to
-	// make progress before it is considered to be failed. Argo Rollouts will
-	// continue to process failed rollouts and a condition with a
-	// ProgressDeadlineExceeded reason will be surfaced in the rollout status.
-	// Note that progress will not be estimated during the time a rollout is paused.
-	// Defaults to 600s.
-	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty" protobuf:"varint,7,opt,name=progressDeadlineSeconds"`
-
-	// ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds
-	// is exceeded.
-	// +optional
-	ProgressDeadlineAbort bool `json:"progressDeadlineAbort,omitempty" protobuf:"varint,8,opt,name=progressDeadlineAbort"`
 }
 
 // WorkloadRef references a Kubernetes resource to be managed by the RolloutPlugin
@@ -78,34 +67,41 @@ type WorkloadRef struct {
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
 }
 
-// PluginConfig contains configuration for the resource plugin
-type PluginConfig struct {
-	// Name of the plugin (e.g., "statefulset", "daemonset")
-	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-
-	// Verify enables plugin binary verification
+// RolloutPluginStrategy defines the strategy for the rollout.
+// Only canary strategy is supported for RolloutPlugin.
+type RolloutPluginStrategy struct {
+	// Canary strategy configuration.
 	// +optional
-	Verify bool `json:"verify,omitempty" protobuf:"varint,2,opt,name=verify"`
-
-	// SHA256 is the expected checksum of the plugin binary
-	// +optional
-	SHA256 string `json:"sha256,omitempty" protobuf:"bytes,3,opt,name=sha256"`
-
-	// URL is the location to download the plugin binary
-	// +optional
-	URL string `json:"url,omitempty" protobuf:"bytes,4,opt,name=url"`
-
-	// Config contains plugin-specific configuration as key-value pairs
-	// +optional
-	Config map[string]string `json:"config,omitempty" protobuf:"bytes,5,rep,name=config"`
+	Canary *PluginCanaryStrategy `json:"canary,omitempty" protobuf:"bytes,2,opt,name=canary"`
 }
 
-// RolloutPluginStrategy defines the strategy for the rollout
-// Only canary strategy is supported for RolloutPlugin
-type RolloutPluginStrategy struct {
-	// Canary strategy configuration (reuses existing CanaryStrategy type)
+// PluginCanaryStrategy is the subset of canary options honored by the RolloutPlugin
+// controller. TODO In Future, align this with the canary strategy in RolloutSpec, and support all the same options.
+type PluginCanaryStrategy struct {
+	// Steps define the sequence of steps to take during a rollout.
 	// +optional
-	Canary *CanaryStrategy `json:"canary,omitempty" protobuf:"bytes,2,opt,name=canary"`
+	Steps []PluginCanaryStep `json:"steps,omitempty" protobuf:"bytes,1,rep,name=steps"`
+
+	// Analysis runs a background analysis for the duration of the rollout.
+	// +optional
+	Analysis *RolloutAnalysisBackground `json:"analysis,omitempty" protobuf:"bytes,2,opt,name=analysis"`
+}
+
+// PluginCanaryStep defines a step in the RolloutPlugin canary rollout. It exposes only
+// the step fields honored by the RolloutPlugin controller.
+type PluginCanaryStep struct {
+	// SetWeight sets the percentage of the canary to advance to.
+	// +optional
+	SetWeight *int32 `json:"setWeight,omitempty" protobuf:"varint,1,opt,name=setWeight"`
+
+	// Pause freezes the rollout at this step until it is resumed or, if set, the
+	// pause duration elapses.
+	// +optional
+	Pause *RolloutPause `json:"pause,omitempty" protobuf:"bytes,2,opt,name=pause"`
+
+	// Analysis runs an inline analysis at this step.
+	// +optional
+	Analysis *RolloutAnalysis `json:"analysis,omitempty" protobuf:"bytes,3,opt,name=analysis"`
 }
 
 // RolloutPluginPhase are a set of phases that a RolloutPlugin can be in

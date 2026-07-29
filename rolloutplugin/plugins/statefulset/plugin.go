@@ -35,6 +35,30 @@ func NewPlugin(logCtx *log.Entry) *Plugin {
 	return &Plugin{logCtx: logCtx}
 }
 
+// patchPartition sets spec.updateStrategy.rollingUpdate.partition on the StatefulSet using
+// Server-Side Apply. The patch carries ONLY the partition field so it does not fight with
+// other owners (e.g. ArgoCD) over the rest of the spec.
+func (p *Plugin) patchPartition(ctx context.Context, name, namespace string, partition int32) error {
+	stsPatch := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "StatefulSet",
+			"metadata": map[string]any{
+				"name":      name,
+				"namespace": namespace,
+			},
+			"spec": map[string]any{
+				"updateStrategy": map[string]any{
+					"rollingUpdate": map[string]any{
+						"partition": partition,
+					},
+				},
+			},
+		},
+	}
+	return p.client.Patch(ctx, stsPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldManager))
+}
+
 // Init initializes the plugin by creating a k8s client with informer cache.
 func (p *Plugin) Init(namespace string) error {
 	p.logCtx.Info("Initializing StatefulSet plugin")
@@ -70,12 +94,10 @@ func (p *Plugin) Init(namespace string) error {
 		return fmt.Errorf("failed to create cache: %w", err)
 	}
 
-	// Start the cache in a goroutine with a context that won't be cancelled since the cache needs to run for the lifetime of the plugin
-	cacheCtx, cacheCancel := context.WithCancel(context.Background())
-	_ = cacheCancel // Keeping cancel function in case we need it for cleanup later
-
+	// The cache must run for the lifetime of the plugin (the whole controller process),
+	// so it is started on a background context that is never cancelled.
 	go func() {
-		if err := cacheInstance.Start(cacheCtx); err != nil {
+		if err := cacheInstance.Start(context.Background()); err != nil {
 			p.logCtx.WithError(err).Error("Cache failed to start")
 		}
 	}()
@@ -202,29 +224,7 @@ func (p *Plugin) SetWeight(ctx context.Context, workloadRef v1alpha1.WorkloadRef
 		"weight":           weight,
 	}).Debug("Partition needs update")
 
-	// Create an unstructured patch with ONLY the partition field so as to not interfere with any other changes to the StatefulSet spec
-	stsPatch := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "apps/v1",
-			"kind":       "StatefulSet",
-			"metadata": map[string]interface{}{
-				"name":      sts.Name,
-				"namespace": sts.Namespace,
-			},
-			"spec": map[string]interface{}{
-				"updateStrategy": map[string]interface{}{
-					"rollingUpdate": map[string]interface{}{
-						"partition": partition,
-					},
-				},
-			},
-		},
-	}
-
-	// Apply with Server-Side Apply to take ownership of partition field
-	// This prevents ArgoCD from showing the field as out-of-sync
-	err = p.client.Patch(ctx, stsPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldManager))
-	if err != nil {
+	if err := p.patchPartition(ctx, sts.Name, sts.Namespace, partition); err != nil {
 		return fmt.Errorf("failed to update StatefulSet partition: %w", err)
 	}
 
@@ -294,27 +294,7 @@ func (p *Plugin) PromoteFull(ctx context.Context, workloadRef v1alpha1.WorkloadR
 	}).Info("Promoting rollout")
 
 	partition := int32(0)
-	stsPatch := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "apps/v1",
-			"kind":       "StatefulSet",
-			"metadata": map[string]interface{}{
-				"name":      workloadRef.Name,
-				"namespace": workloadRef.Namespace,
-			},
-			"spec": map[string]interface{}{
-				"updateStrategy": map[string]interface{}{
-					"rollingUpdate": map[string]interface{}{
-						"partition": partition,
-					},
-				},
-			},
-		},
-	}
-
-	// Apply with Server-Side Apply
-	err := p.client.Patch(ctx, stsPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldManager))
-	if err != nil {
+	if err := p.patchPartition(ctx, workloadRef.Name, workloadRef.Namespace, partition); err != nil {
 		return fmt.Errorf("failed to promote StatefulSet: %w", err)
 	}
 
@@ -354,26 +334,7 @@ func (p *Plugin) Abort(ctx context.Context, workloadRef v1alpha1.WorkloadRef) er
 
 	// Set partition to replicas (block further updates)
 	partition := replicas
-	stsPatch := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "apps/v1",
-			"kind":       "StatefulSet",
-			"metadata": map[string]interface{}{
-				"name":      sts.Name,
-				"namespace": sts.Namespace,
-			},
-			"spec": map[string]interface{}{
-				"updateStrategy": map[string]interface{}{
-					"rollingUpdate": map[string]interface{}{
-						"partition": partition,
-					},
-				},
-			},
-		},
-	}
-
-	err = p.client.Patch(ctx, stsPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldManager))
-	if err != nil {
+	if err := p.patchPartition(ctx, sts.Name, sts.Namespace, partition); err != nil {
 		return fmt.Errorf("failed to update StatefulSet during abort: %w", err)
 	}
 
@@ -464,26 +425,7 @@ func (p *Plugin) Restart(ctx context.Context, workloadRef v1alpha1.WorkloadRef) 
 
 	// Set partition to replicas using SSA
 	partition := replicas
-	stsPatch := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "apps/v1",
-			"kind":       "StatefulSet",
-			"metadata": map[string]interface{}{
-				"name":      sts.Name,
-				"namespace": sts.Namespace,
-			},
-			"spec": map[string]interface{}{
-				"updateStrategy": map[string]interface{}{
-					"rollingUpdate": map[string]interface{}{
-						"partition": partition,
-					},
-				},
-			},
-		},
-	}
-
-	err = p.client.Patch(ctx, stsPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldManager))
-	if err != nil {
+	if err := p.patchPartition(ctx, sts.Name, sts.Namespace, partition); err != nil {
 		return fmt.Errorf("failed to restart StatefulSet: %w", err)
 	}
 
@@ -535,11 +477,6 @@ func (p *Plugin) waitForPodReady(ctx context.Context, namespace, podName string,
 	}
 
 	return fmt.Errorf("pod %s did not become Ready within %v", podName, timeout)
-}
-
-// Type returns the type of the resource plugin
-func (p *Plugin) Type() string {
-	return "StatefulSet"
 }
 
 // Ensure Plugin implements the controller's ResourcePlugin interface

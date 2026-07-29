@@ -3,13 +3,16 @@ package metrics
 import (
 	"net/http"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	dto "github.com/prometheus/client_model/go"
 	registry "k8s.io/component-base/metrics/legacyregistry"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	// make sure to register workqueue prometheus metrics
 	_ "k8s.io/component-base/metrics/prometheus/workqueue"
@@ -106,6 +109,17 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 		reg,
 		// contains process, golang and controller workqueues metrics
 		registry.DefaultGatherer,
+		// contains controller-runtime's built-in metrics. The RolloutPlugin manager runs with its own metrics
+		// server disabled (BindAddress "0") and shares this endpoint, so its
+		// controller_runtime_* metrics are only exposed by gathering this registry here.
+		//
+		// controller-runtime's registry also auto-registers the default Go runtime
+		// (go_*) and process (process_*) collectors, which are already provided by
+		// registry.DefaultGatherer above. Gathering both unfiltered makes
+		// prometheus.Gatherers.Gather() fail the entire scrape with duplicate-series
+		// errors, so we wrap it to expose only the controller_runtime_* families it
+		// uniquely owns.
+		filteredGatherer(ctrlmetrics.Registry, "controller_runtime_"),
 	}, promhttp.HandlerOpts{}))
 	return &MetricsServer{
 		Server: &http.Server{
@@ -130,6 +144,27 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 
 		k8sRequestsCounter: cfg.K8SRequestProvider,
 	}
+}
+
+// filteredGatherer wraps a prometheus.Gatherer and returns only the metric
+// families whose name starts with keepPrefix. It is used to expose the
+// controller_runtime_* families from controller-runtime's registry while
+// dropping the default go_*/process_* collectors it also registers, which would
+// otherwise collide with registry.DefaultGatherer and fail the whole scrape.
+func filteredGatherer(g prometheus.Gatherer, keepPrefix string) prometheus.Gatherer {
+	return prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
+		mfs, err := g.Gather()
+		if err != nil {
+			return nil, err
+		}
+		filtered := mfs[:0]
+		for _, mf := range mfs {
+			if strings.HasPrefix(mf.GetName(), keepPrefix) {
+				filtered = append(filtered, mf)
+			}
+		}
+		return filtered, nil
+	})
 }
 
 // IncRolloutReconcile increments the reconcile counter for a Rollout

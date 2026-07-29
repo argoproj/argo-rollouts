@@ -133,7 +133,7 @@ func filterOutRolloutPluginCondition(conditions []v1alpha1.RolloutPluginConditio
 	return newConditions
 }
 
-// RolloutPluginTimedOut checks if the RolloutPlugin has timed out based on progressDeadlineSeconds.
+// RolloutPluginTimedOut checks if the RolloutPlugin has timed out based on the plugin config timeoutSeconds.
 func RolloutPluginTimedOut(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus) bool {
 	condition := GetRolloutPluginCondition(*newStatus, v1alpha1.RolloutPluginConditionProgressing)
 	if condition == nil || condition.Reason == RolloutPluginAbortedReason || condition.Reason == RolloutPluginPausedReason {
@@ -150,8 +150,8 @@ func RolloutPluginTimedOut(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1a
 
 	from := condition.LastUpdateTime
 	now := timeutil.Now()
-	progressDeadlineSeconds := defaults.GetRolloutPluginProgressDeadlineSecondsOrDefault(rolloutPlugin)
-	delta := time.Duration(progressDeadlineSeconds) * time.Second
+	timeoutSeconds := defaults.GetRolloutPluginTimeoutSecondsOrDefault(rolloutPlugin)
+	delta := time.Duration(timeoutSeconds) * time.Second
 	return from.Add(delta).Before(now)
 }
 

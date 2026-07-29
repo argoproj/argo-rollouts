@@ -59,7 +59,7 @@ spec:
   
   # Plugin configuration
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
     # Optional: plugin-specific configuration
     config:
       # Any StatefulSet-specific settings

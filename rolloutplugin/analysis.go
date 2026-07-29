@@ -109,6 +109,29 @@ func (r *RolloutPluginReconciler) filterCurrentAnalysisRuns(allArs []*v1alpha1.A
 	return currArs, otherArs
 }
 
+// reconcileAnalysisRunsForStatus fetches and reconciles the RolloutPlugin's analysis runs
+// against newStatus, then writes the resulting current step/background AnalysisRun statuses
+// back into newStatus. It builds a throwaway copy of the RolloutPlugin carrying newStatus so
+// the analysis helpers observe the in-progress status without mutating the original object.
+func (r *RolloutPluginReconciler) reconcileAnalysisRunsForStatus(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, pCtx *pauseContext, logCtx *log.Entry) error {
+	rpWithNewStatus := rolloutPlugin.DeepCopy()
+	rpWithNewStatus.Status = *newStatus
+
+	allArs, err := r.getAnalysisRunsForRolloutPlugin(ctx, rpWithNewStatus)
+	if err != nil {
+		logCtx.WithError(err).Error("Failed to get analysis runs")
+		return err
+	}
+	if err := r.reconcileAnalysisRuns(ctx, rpWithNewStatus, allArs, pCtx, logCtx); err != nil {
+		logCtx.WithError(err).Error("Failed to reconcile analysis runs")
+		return err
+	}
+
+	newStatus.Canary.CurrentBackgroundAnalysisRunStatus = rpWithNewStatus.Status.Canary.CurrentBackgroundAnalysisRunStatus
+	newStatus.Canary.CurrentStepAnalysisRunStatus = rpWithNewStatus.Status.Canary.CurrentStepAnalysisRunStatus
+	return nil
+}
+
 // reconcileAnalysisRuns orchestrates all analysis run reconciliation for the RolloutPlugin
 func (r *RolloutPluginReconciler) reconcileAnalysisRuns(ctx context.Context, rp *v1alpha1.RolloutPlugin, allArs []*v1alpha1.AnalysisRun, pCtx *pauseContext, logCtx *log.Entry) error {
 	// Split current and other analysis runs

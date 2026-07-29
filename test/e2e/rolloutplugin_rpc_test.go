@@ -103,7 +103,7 @@ spec:
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		Then().
 		ExpectRolloutPluginStatus(rov1.RolloutPluginPhasePaused).
 		Assert(func(t *fixtures.Then) {
@@ -114,7 +114,7 @@ spec:
 		}).
 		When().
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()

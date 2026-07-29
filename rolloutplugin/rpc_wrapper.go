@@ -28,68 +28,54 @@ func NewRpcPlugin(pluginName, namespace string) (ResourcePlugin, error) {
 	}, nil
 }
 
-// The following methods adapt the RPC interface to the controller interface.
-// The only difference is: RpcError -> error, and context.Context is added (but ignored for RPC).
+// asError converts an RpcError into a standard error, wrapping it with %w so the
+// underlying RpcError (which implements error) stays inspectable via errors.As/Is.
+// It returns nil when the RpcError carries no error.
+func asError(e types.RpcError, verb string) error {
+	if e.HasError() {
+		return fmt.Errorf("failed to %s: %w", verb, e)
+	}
+	return nil
+}
+
+// The following methods adapt the RPC interface to the controller interface: they convert
+// RpcError -> error and accept a context.Context. The ctx is part of the ResourcePlugin
+// contract but is not forwarded — the underlying net/rpc calls are synchronous and have no
+// cancellation channel.
 
 // Init initializes the plugin
 func (r RpcPluginWrapper) Init(namespace string) error {
-	rpcErr := r.RpcResourcePlugin.InitPlugin(namespace)
-	if rpcErr.HasError() {
-		return fmt.Errorf("failed to initialize plugin: %s", rpcErr.ErrorString)
-	}
-	return nil
+	return asError(r.RpcResourcePlugin.InitPlugin(namespace), "initialize plugin")
 }
 
 // GetResourceStatus gets the current status of the workload.
 func (r RpcPluginWrapper) GetResourceStatus(ctx context.Context, workloadRef v1alpha1.WorkloadRef) (*ResourceStatus, error) {
 	status, rpcErr := r.RpcResourcePlugin.GetResourceStatus(workloadRef)
-	if rpcErr.HasError() {
-		return nil, fmt.Errorf("failed to get resource status: %s", rpcErr.ErrorString)
-	}
-	return status, nil
+	return status, asError(rpcErr, "get resource status")
 }
 
 // SetWeight sets the canary weight
 func (r RpcPluginWrapper) SetWeight(ctx context.Context, workloadRef v1alpha1.WorkloadRef, weight int32) error {
-	rpcErr := r.RpcResourcePlugin.SetWeight(workloadRef, weight)
-	if rpcErr.HasError() {
-		return fmt.Errorf("failed to set weight: %s", rpcErr.ErrorString)
-	}
-	return nil
+	return asError(r.RpcResourcePlugin.SetWeight(workloadRef, weight), "set weight")
 }
 
 // VerifyWeight verifies that the canary weight has been achieved
 func (r RpcPluginWrapper) VerifyWeight(ctx context.Context, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, error) {
 	verified, rpcErr := r.RpcResourcePlugin.VerifyWeight(workloadRef, weight)
-	if rpcErr.HasError() {
-		return false, fmt.Errorf("failed to verify weight: %s", rpcErr.ErrorString)
-	}
-	return verified, nil
+	return verified, asError(rpcErr, "verify weight")
 }
 
 // PromoteFull skips all remaining steps and promotes the new version to stable immediately
 func (r RpcPluginWrapper) PromoteFull(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
-	rpcErr := r.RpcResourcePlugin.PromoteFull(workloadRef)
-	if rpcErr.HasError() {
-		return fmt.Errorf("failed to promote: %s", rpcErr.ErrorString)
-	}
-	return nil
+	return asError(r.RpcResourcePlugin.PromoteFull(workloadRef), "promote")
 }
 
 // Abort aborts the rollout
 func (r RpcPluginWrapper) Abort(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
-	rpcErr := r.RpcResourcePlugin.Abort(workloadRef)
-	if rpcErr.HasError() {
-		return fmt.Errorf("failed to abort: %s", rpcErr.ErrorString)
-	}
-	return nil
+	return asError(r.RpcResourcePlugin.Abort(workloadRef), "abort")
 }
 
 // Restart restarts aborted rollout
 func (r RpcPluginWrapper) Restart(ctx context.Context, workloadRef v1alpha1.WorkloadRef) error {
-	rpcErr := r.RpcResourcePlugin.Restart(workloadRef)
-	if rpcErr.HasError() {
-		return fmt.Errorf("failed to restart: %s", rpcErr.ErrorString)
-	}
-	return nil
+	return asError(r.RpcResourcePlugin.Restart(workloadRef), "restart")
 }

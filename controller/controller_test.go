@@ -278,18 +278,16 @@ func TestNewManager(t *testing.T) {
 				noResyncPeriodFunc(),
 				"test",
 				metricsServer,
-				8090,
 				8080,
-				k8sRequestProvider,
-				nil,
-				nil,
+				[]string{"nginx"},
+				[]string{"alb"},
 				dynamicInformerFactory,
-				nil,
-				nil,
+				dynamicInformerFactory,
+				dynamicInformerFactory,
 				false,
-				nil,
-				nil,
-				nil,
+				k8sI,
+				k8sI,
+				k8sI,
 				rolloutController.DefaultEphemeralMetadataThreads,
 				rolloutController.DefaultEphemeralMetadataPodRetries,
 				selfService,
@@ -367,7 +365,7 @@ func TestPrimaryController(t *testing.T) {
 		time.Sleep(5 * time.Second)
 		cancel()
 	}()
-	cm.Run(ctx, 1, 1, 1, 1, 1, electOpts)
+	cm.Run(ctx, 1, 1, 1, 1, 1, electOpts, nil)
 }
 
 func TestPrimaryControllerSingleInstanceWithShutdown(t *testing.T) {
@@ -381,7 +379,7 @@ func TestPrimaryControllerSingleInstanceWithShutdown(t *testing.T) {
 		time.Sleep(5 * time.Second)
 		cancel()
 	}()
-	cm.Run(ctx, 1, 1, 1, 1, 1, electOpts)
+	cm.Run(ctx, 1, 1, 1, 1, 1, electOpts, nil)
 }
 
 func TestLeaseLockName(t *testing.T) {

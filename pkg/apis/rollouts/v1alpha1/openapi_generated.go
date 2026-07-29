@@ -96,7 +96,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ObjectRef":                                       schema_pkg_apis_rollouts_v1alpha1_ObjectRef(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition":                                  schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PingPongSpec":                                    schema_pkg_apis_rollouts_v1alpha1_PingPongSpec(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginConfig":                                    schema_pkg_apis_rollouts_v1alpha1_PluginConfig(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginCanaryStep":                                schema_pkg_apis_rollouts_v1alpha1_PluginCanaryStep(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginCanaryStrategy":                            schema_pkg_apis_rollouts_v1alpha1_PluginCanaryStrategy(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginStep":                                      schema_pkg_apis_rollouts_v1alpha1_PluginStep(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":                             schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution": schema_pkg_apis_rollouts_v1alpha1_PreferredDuringSchedulingIgnoredDuringExecution(ref),
@@ -3652,62 +3653,72 @@ func schema_pkg_apis_rollouts_v1alpha1_PingPongSpec(ref common.ReferenceCallback
 	}
 }
 
-func schema_pkg_apis_rollouts_v1alpha1_PluginConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_rollouts_v1alpha1_PluginCanaryStep(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PluginConfig contains configuration for the resource plugin",
+				Description: "PluginCanaryStep defines a step in the RolloutPlugin canary rollout. It exposes only the step fields honored by the RolloutPlugin controller.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"name": {
+					"setWeight": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the plugin (e.g., \"statefulset\", \"daemonset\")",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
+							Description: "SetWeight sets the percentage of the canary to advance to.",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
-					"verify": {
+					"pause": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Verify enables plugin binary verification",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Description: "Pause freezes the rollout at this step until it is resumed or, if set, the pause duration elapses.",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause"),
 						},
 					},
-					"sha256": {
+					"analysis": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SHA256 is the expected checksum of the plugin binary",
-							Type:        []string{"string"},
-							Format:      "",
+							Description: "Analysis runs an inline analysis at this step.",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis"),
 						},
 					},
-					"url": {
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_PluginCanaryStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PluginCanaryStrategy is the subset of canary options honored by the RolloutPlugin controller. Unlike the full CanaryStrategy, it intentionally omits traffic routing, services, anti-affinity, and scaling fields, which the RolloutPlugin controller does not act on. Exposing only the honored fields avoids the misleading UX of accepting configuration that would be silently ignored.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"steps": {
 						SchemaProps: spec.SchemaProps{
-							Description: "URL is the location to download the plugin binary",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"config": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Config contains plugin-specific configuration as key-value pairs",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
+							Description: "Steps define the sequence of steps to take during a rollout.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginCanaryStep"),
 									},
 								},
 							},
 						},
 					},
+					"analysis": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Analysis runs a background analysis for the duration of the rollout.",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground"),
+						},
+					},
 				},
-				Required: []string{"name"},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginCanaryStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground"},
 	}
 }
 
@@ -4792,9 +4803,9 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginSpec(ref common.ReferenceCal
 					},
 					"plugin": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Plugin contains the configuration for the resource-specific plugin",
+							Description: "Plugin references the resource-specific plugin by name and carries its runtime configuration. Installation/resolution of the plugin binary (location, sha256, args) is owned by the controller's argo-rollouts-config ConfigMap under 'rolloutPlugins', the same mechanism used by step, metric-provider, and traffic-router plugins.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginConfig"),
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginStep"),
 						},
 					},
 					"strategy": {
@@ -4817,26 +4828,12 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginSpec(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
-					"progressDeadlineSeconds": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ProgressDeadlineSeconds The maximum time in seconds for a rollout to make progress before it is considered to be failed. Argo Rollouts will continue to process failed rollouts and a condition with a ProgressDeadlineExceeded reason will be surfaced in the rollout status. Note that progress will not be estimated during the time a rollout is paused. Defaults to 600s.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"progressDeadlineAbort": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds is exceeded.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 				},
 				Required: []string{"workloadRef", "plugin", "strategy"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStrategy", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginConfig", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginStrategy", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WorkloadRef"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStrategy", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPluginStrategy", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WorkloadRef"},
 	}
 }
 
@@ -5041,20 +5038,20 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStrategy(ref common.Referenc
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "RolloutPluginStrategy defines the strategy for the rollout Only canary strategy is supported for RolloutPlugin",
+				Description: "RolloutPluginStrategy defines the strategy for the rollout. Only canary strategy is supported for RolloutPlugin.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"canary": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Canary strategy configuration (reuses existing CanaryStrategy type)",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy"),
+							Description: "Canary strategy configuration.",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginCanaryStrategy"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStrategy"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginCanaryStrategy"},
 	}
 }
 

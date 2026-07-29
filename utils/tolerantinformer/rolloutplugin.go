@@ -2,7 +2,6 @@ package tolerantinformer
 
 import (
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -13,74 +12,54 @@ import (
 )
 
 func NewTolerantRolloutPluginInformer(factory dynamicinformer.DynamicSharedInformerFactory) rolloutinformers.RolloutPluginInformer {
+	delegate := factory.ForResource(v1alpha1.RolloutPluginGVR)
+	newFn := func() *v1alpha1.RolloutPlugin { return &v1alpha1.RolloutPlugin{} }
+	transform := makeTransform(newFn)
+	installTransform(delegate.Informer(), transform, "RolloutPlugin")
 	return &tolerantRolloutPluginInformer{
-		delegate: factory.ForResource(v1alpha1.RolloutPluginGVR),
+		delegate:  delegate,
+		transform: transform,
+		newFn:     newFn,
 	}
 }
 
 type tolerantRolloutPluginInformer struct {
-	delegate informers.GenericInformer
+	delegate  informers.GenericInformer
+	transform cache.TransformFunc
+	newFn     func() *v1alpha1.RolloutPlugin
 }
 
 func (i *tolerantRolloutPluginInformer) Informer() cache.SharedIndexInformer {
-	return i.delegate.Informer()
+	return &transformingInformer{SharedIndexInformer: i.delegate.Informer(), transform: i.transform}
 }
 
 func (i *tolerantRolloutPluginInformer) Lister() rolloutlisters.RolloutPluginLister {
-	return &tolerantRolloutPluginLister{
-		delegate: i.delegate.Lister(),
-	}
+	return &tolerantRolloutPluginLister{indexer: i.delegate.Informer().GetIndexer(), newFn: i.newFn}
 }
 
 type tolerantRolloutPluginLister struct {
-	delegate cache.GenericLister
+	indexer cache.Indexer
+	newFn   func() *v1alpha1.RolloutPlugin
 }
 
 func (t *tolerantRolloutPluginLister) List(selector labels.Selector) ([]*v1alpha1.RolloutPlugin, error) {
-	objects, err := t.delegate.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	return convertObjectsToRolloutPlugins(objects)
+	return listTyped(t.indexer, "", selector, t.newFn)
 }
 
 func (t *tolerantRolloutPluginLister) RolloutPlugins(namespace string) rolloutlisters.RolloutPluginNamespaceLister {
-	return &tolerantRolloutPluginNamespaceLister{
-		delegate: t.delegate.ByNamespace(namespace),
-	}
+	return &tolerantRolloutPluginNamespaceLister{indexer: t.indexer, namespace: namespace, newFn: t.newFn}
 }
 
 type tolerantRolloutPluginNamespaceLister struct {
-	delegate cache.GenericNamespaceLister
+	indexer   cache.Indexer
+	namespace string
+	newFn     func() *v1alpha1.RolloutPlugin
 }
 
 func (t *tolerantRolloutPluginNamespaceLister) Get(name string) (*v1alpha1.RolloutPlugin, error) {
-	object, err := t.delegate.Get(name)
-	if err != nil {
-		return nil, err
-	}
-	v := &v1alpha1.RolloutPlugin{}
-	err = convertObject(object, v)
-	return v, err
+	return getTyped(t.indexer, v1alpha1.Resource("rolloutplugin"), t.namespace, name, t.newFn)
 }
 
 func (t *tolerantRolloutPluginNamespaceLister) List(selector labels.Selector) ([]*v1alpha1.RolloutPlugin, error) {
-	objects, err := t.delegate.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	return convertObjectsToRolloutPlugins(objects)
-}
-
-func convertObjectsToRolloutPlugins(objects []runtime.Object) ([]*v1alpha1.RolloutPlugin, error) {
-	var firstErr error
-	vs := make([]*v1alpha1.RolloutPlugin, len(objects))
-	for i, obj := range objects {
-		vs[i] = &v1alpha1.RolloutPlugin{}
-		err := convertObject(obj, vs[i])
-		if err != nil && firstErr != nil {
-			firstErr = err
-		}
-	}
-	return vs, firstErr
+	return listTyped(t.indexer, t.namespace, selector, t.newFn)
 }

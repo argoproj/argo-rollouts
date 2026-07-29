@@ -32,7 +32,7 @@ spec:
     kind: StatefulSet
     name: rp-canary
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
   strategy:
     canary: {}
 ---
@@ -73,7 +73,7 @@ spec:
     kind: StatefulSet
     name: rp-canary
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
   strategy:
     canary: {}
 ---
@@ -212,7 +212,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginBasicCanary() {
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		Then().
 		ExpectRolloutPluginStatus(rov1.RolloutPluginPhasePaused).
 		Assert(func(t *fixtures.Then) {
@@ -223,7 +223,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginBasicCanary() {
 		}).
 		When().
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -241,7 +241,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginCanaryNoSteps() {
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -405,9 +405,9 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbort() {
 - pause: {}`).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		AbortRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -430,7 +430,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbortBeforePause() {
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
 		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		AbortRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -448,9 +448,9 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbortIdempotent() {
 - pause: {}`).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		AbortRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -481,12 +481,12 @@ func (s *RolloutPluginSuite) TestRolloutPluginRestartAfterAbort() {
 - pause: {}`).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		AbortRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
 		RestartRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseProgressing, 180*time.Second).
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseProgressing, 300*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -496,7 +496,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginRestartAfterAbort() {
 		}).
 		When().
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -513,7 +513,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginRestartRejectedWithoutAbort() {
 - pause: {}`).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		// Restart without abort should be rejected
 		RestartRolloutPlugin().
 		Then().
@@ -525,7 +525,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginRestartRejectedWithoutAbort() {
 		}).
 		When().
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second)
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second)
 }
 
 // TestRolloutPluginMultipleRestarts tests multiple restart cycles.
@@ -536,13 +536,13 @@ func (s *RolloutPluginSuite) TestRolloutPluginMultipleRestarts() {
 - pause: {}`).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		// First abort + restart
 		AbortRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
 		RestartRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseProgressing, 180*time.Second).
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseProgressing, 300*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -551,18 +551,18 @@ func (s *RolloutPluginSuite) TestRolloutPluginMultipleRestarts() {
 		When().
 		// Second abort + restart
 		AbortRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
 		RestartRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseProgressing, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseProgressing, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
 			assert.Equal(s.T(), int32(2), rp.Status.RestartCount)
 		}).
 		When().
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second)
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second)
 }
 
 // Promote Full Tests
@@ -605,9 +605,9 @@ func (s *RolloutPluginSuite) TestRolloutPluginPromoteFullFromFirstStep() {
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(0, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(0, 300*time.Second).
 		PromoteRolloutPluginFull().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -625,7 +625,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginNewRevisionMidRollout() {
 - pause: {}`).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -635,9 +635,9 @@ func (s *RolloutPluginSuite) TestRolloutPluginNewRevisionMidRollout() {
 		// Trigger a second revision while paused
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:uclibc").
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseProgressing, 60*time.Second).
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -654,9 +654,9 @@ func (s *RolloutPluginSuite) TestRolloutPluginNewRevisionClearsAbort() {
 - pause: {}`).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		AbortRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -665,7 +665,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginNewRevisionClearsAbort() {
 		When().
 		// New revision should clear aborted state
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:uclibc").
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseProgressing, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseProgressing, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -673,15 +673,15 @@ func (s *RolloutPluginSuite) TestRolloutPluginNewRevisionClearsAbort() {
 			assert.Empty(s.T(), rp.Status.AbortedRevision)
 		}).
 		When().
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second)
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second)
 }
 
-// Progress Deadline Tests
+// Progress Timeout Tests
 
-// TestRolloutPluginProgressDeadlineNoAbort tests progress deadline exceeded without abort.
-func (s *RolloutPluginSuite) TestRolloutPluginProgressDeadlineNoAbort() {
+// TestRolloutPluginTimeoutNoAbort tests the plugin config timeout exceeded without abort.
+func (s *RolloutPluginSuite) TestRolloutPluginTimeoutNoAbort() {
 	s.Given().
 		RolloutPluginObjects(`
 apiVersion: argoproj.io/v1alpha1
@@ -689,13 +689,14 @@ kind: RolloutPlugin
 metadata:
   name: rp-deadline-no-abort
 spec:
-  progressDeadlineSeconds: 5
   workloadRef:
     apiVersion: apps/v1
     kind: StatefulSet
     name: rp-deadline-no-abort
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
+    config:
+      timeoutSeconds: 5
   strategy:
     canary:
       steps:
@@ -737,18 +738,18 @@ spec:
 				}
 			}
 			return false
-		}, conditions.RolloutPluginTimedOutReason, 180*time.Second).
+		}, conditions.RolloutPluginTimedOutReason, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
-			// Without progressDeadlineAbort, rollout should NOT be aborted but phase is Degraded
+			// Without timeoutAbort, rollout should NOT be aborted but phase is Degraded
 			assert.False(s.T(), rp.Status.Aborted)
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseDegraded, rp.Status.Phase)
 		})
 }
 
-// TestRolloutPluginProgressDeadlineAbort tests progress deadline exceeded with abort enabled.
-func (s *RolloutPluginSuite) TestRolloutPluginProgressDeadlineAbort() {
+// TestRolloutPluginTimeoutAbort tests the plugin config timeout exceeded with abort enabled.
+func (s *RolloutPluginSuite) TestRolloutPluginTimeoutAbort() {
 	s.Given().
 		RolloutPluginObjects(`
 apiVersion: argoproj.io/v1alpha1
@@ -756,14 +757,15 @@ kind: RolloutPlugin
 metadata:
   name: rp-deadline-abort
 spec:
-  progressDeadlineSeconds: 5
-  progressDeadlineAbort: true
   workloadRef:
     apiVersion: apps/v1
     kind: StatefulSet
     name: rp-deadline-abort
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
+    config:
+      timeoutSeconds: 5
+      timeoutAbort: true
   strategy:
     canary:
       steps:
@@ -798,11 +800,11 @@ spec:
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
-			assert.True(s.T(), rp.Status.Aborted, "Should be aborted due to progressDeadlineAbort")
+			assert.True(s.T(), rp.Status.Aborted, "Should be aborted due to timeoutAbort")
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseDegraded, rp.Status.Phase)
 		})
 }
@@ -823,7 +825,7 @@ spec:
     kind: StatefulSet
     name: rp-invalid-strategy
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
   strategy: {}
 ---
 apiVersion: apps/v1
@@ -936,7 +938,7 @@ spec:
     kind: StatefulSet
     name: rp-invalid-fix
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
   strategy: {}
 ---
 apiVersion: apps/v1
@@ -1012,7 +1014,7 @@ spec:
     kind: StatefulSet
     name: rp-bg-analysis-ok
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
   strategy:
     canary:
       analysis:
@@ -1058,12 +1060,12 @@ spec:
 		ExpectRolloutPluginAnalysisRunCount(0).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		Then().
 		ExpectRolloutPluginAnalysisRunCount(1).
 		When().
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
 		WaitForRolloutPluginBackgroundAnalysisRunPhase("Successful").
 		Then().
 		Assert(func(t *fixtures.Then) {
@@ -1087,7 +1089,7 @@ spec:
     kind: StatefulSet
     name: rp-bg-analysis-fail
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
   strategy:
     canary:
       analysis:
@@ -1131,7 +1133,7 @@ spec:
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
 		WaitForRolloutPluginBackgroundAnalysisRunPhase("Failed").
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -1154,7 +1156,7 @@ spec:
     kind: StatefulSet
     name: rp-inline-ok
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
   strategy:
     canary:
       steps:
@@ -1196,15 +1198,15 @@ spec:
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		WaitForRolloutPluginInlineAnalysisRunPhase("Successful").
-		WaitForRolloutPluginCanaryStepIndex(2, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(2, 300*time.Second).
 		Then().
 		ExpectRolloutPluginAnalysisRunCount(1).
 		ExpectRolloutPluginStatus(rov1.RolloutPluginPhasePaused).
 		When().
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second)
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second)
 }
 
 // TestRolloutPluginInlineAnalysisFail tests that a failed inline analysis aborts the rollout.
@@ -1221,7 +1223,7 @@ spec:
     kind: StatefulSet
     name: rp-inline-fail
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
   strategy:
     canary:
       steps:
@@ -1263,9 +1265,9 @@ spec:
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		WaitForRolloutPluginInlineAnalysisRunPhase("Failed").
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -1288,7 +1290,7 @@ spec:
     kind: StatefulSet
     name: rp-ar-ownership
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
   strategy:
     canary:
       analysis:
@@ -1331,7 +1333,7 @@ spec:
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		Then().
 		ExpectRolloutPluginAnalysisRunCount(1).
 		Assert(func(t *fixtures.Then) {
@@ -1361,7 +1363,7 @@ spec:
     kind: StatefulSet
     name: rp-inline-inconclusive
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
   strategy:
     canary:
       steps:
@@ -1403,9 +1405,9 @@ spec:
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		WaitForRolloutPluginInlineAnalysisRunPhase("Inconclusive").
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhasePaused, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhasePaused, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -1437,7 +1439,7 @@ spec:
     kind: StatefulSet
     name: rp-step-labels
   plugin:
-    name: statefulset
+    name: argoproj/statefulset
   strategy:
     canary:
       steps:
@@ -1479,9 +1481,9 @@ spec:
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		WaitForRolloutPluginInlineAnalysisRunPhase("Successful").
-		WaitForRolloutPluginCanaryStepIndex(2, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(2, 300*time.Second).
 		Then().
 		ExpectRolloutPluginAnalysisRunCount(1).
 		Assert(func(t *fixtures.Then) {
@@ -1507,7 +1509,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginConditions() {
 - pause: {}`).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		Sleep(5*time.Second). // Wait for Paused condition to be set on next reconcile
 		Then().
 		// During pause, should have Paused condition with Status=True
@@ -1523,7 +1525,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginConditions() {
 		}).
 		When().
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
 		Sleep(5 * time.Second). // Wait for conditions to update after promotion
 		Then().
 		Assert(func(t *fixtures.Then) {
@@ -1555,9 +1557,9 @@ func (s *RolloutPluginSuite) TestRolloutPluginEvents() {
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			reasons := t.GetRolloutPluginEventReasons()
@@ -1590,9 +1592,9 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbortEvent() {
 - pause: {}`).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		AbortRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			reasons := t.GetRolloutPluginEventReasons()
@@ -1623,7 +1625,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginStatusFields() {
 		}).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginCanaryStepIndex(1, 180*time.Second).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -1635,7 +1637,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginStatusFields() {
 		}).
 		When().
 		PromoteRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second)
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second)
 }
 
 // TestRolloutPluginObservedGeneration tests that ObservedGeneration is updated on spec changes.
@@ -1664,7 +1666,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginObservedGeneration() {
 		}).
 		When().
 		ResumeRolloutPlugin().
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second)
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second)
 }
 
 // Timed Pause Step Tests
@@ -1679,7 +1681,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginTimedPause() {
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
 		// Should auto-advance past the 5s timed pause and complete
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 180*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()

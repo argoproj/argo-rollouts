@@ -9,9 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 
@@ -91,6 +93,48 @@ rollout_reconcile_error{name="name",namespace="ns"} 1`
 	metricsServ.IncError("ns", "name", logutil.ExperimentKey)
 	metricsServ.IncError("ns", "name", logutil.RolloutKey)
 	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
+}
+
+func TestControllerRuntimeMetricsExposed(t *testing.T) {
+	// The RolloutPlugin manager runs with its own metrics server disabled and shares
+	// this metrics server, so controller-runtime's built-in metrics are only exposed
+	// if the server also gathers ctrlmetrics.Registry. controller-runtime registers its
+	// real metrics lazily when a manager starts, which doesn't happen in this unit test,
+	// so we register a sentinel metric into that registry and assert it surfaces on the
+	// endpoint — proving the gatherer is wired in. The endpoint only exposes the
+	// controller_runtime_* families from that registry (see filteredGatherer), so the
+	// sentinel must carry that prefix to mirror real behavior.
+	sentinel := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "controller_runtime_test_gatherer_sentinel",
+		Help: "sentinel to verify controller-runtime registry is gathered",
+	})
+	ctrlmetrics.Registry.MustRegister(sentinel)
+	defer ctrlmetrics.Registry.Unregister(sentinel)
+	sentinel.Set(1)
+
+	expectedResponse := `controller_runtime_test_gatherer_sentinel 1`
+	metricsServ := NewMetricsServer(newFakeServerConfig())
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
+}
+
+// TestMetricsEndpointNoDuplicateCollectorError guards against the regression where
+// gathering both registry.DefaultGatherer and controller-runtime's registry unfiltered
+// exposes the go_*/process_* collectors twice, making prometheus fail the whole scrape
+// with "was collected before with the same name and label values". The endpoint must
+// return 200 with real metrics, not an error body.
+func TestMetricsEndpointNoDuplicateCollectorError(t *testing.T) {
+	metricsServ := NewMetricsServer(newFakeServerConfig())
+	req, err := http.NewRequest("GET", "/metrics", nil)
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.NotContains(t, body, "An error has occurred while serving metrics")
+	assert.NotContains(t, body, "was collected before with the same name and label values")
+	// The default Go collector must still surface exactly once.
+	assert.Equal(t, 1, strings.Count(body, "\ngo_goroutines "))
 }
 
 func TestVersionInfo(t *testing.T) {

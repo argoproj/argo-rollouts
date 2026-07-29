@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -36,7 +37,6 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/argoproj/argo-rollouts/metricproviders"
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout"
 	"github.com/argoproj/argo-rollouts/rolloutplugin"
 	statefulset "github.com/argoproj/argo-rollouts/rolloutplugin/plugins/statefulset"
@@ -49,6 +49,7 @@ import (
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
+	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -74,17 +75,16 @@ var supportedControllers = map[string]bool{
 	controllerRolloutPlugin: true,
 }
 
-var (
-	scheme = k8sruntime.NewScheme()
-)
-
-func init() {
-	// Set controller-runtime logger to a null logger to suppress the warning
-	// We use logrus for our own logging
+// newRolloutPluginScheme builds the runtime scheme used by the RolloutPlugin
+// controller-runtime manager. It also points controller-runtime at a null logger so its
+// "log.SetLogger never called" warning is suppressed (we use logrus for our own logging).
+func newRolloutPluginScheme() *k8sruntime.Scheme {
 	ctrl.SetLogger(logr.New(ctrllog.NullLogSink{}))
 
+	scheme := k8sruntime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	return scheme
 }
 
 func newCommand() *cobra.Command {
@@ -350,9 +350,7 @@ func newCommand() *cobra.Command {
 			}
 
 			// Setup RolloutPlugin Controller if enabled (uses controller-runtime)
-			setupRolloutPlugin := enabledControllers[controllerRolloutPlugin]
-
-			if setupRolloutPlugin {
+			if enabledControllers[controllerRolloutPlugin] {
 				log.Info("Setting up RolloutPlugin controller")
 
 				// Determine leader election namespace
@@ -368,14 +366,16 @@ func newCommand() *cobra.Command {
 				}
 
 				mgrOpts := ctrl.Options{
-					Scheme: scheme,
+					Scheme: newRolloutPluginScheme(),
 					Metrics: metricsserver.Options{
 						BindAddress: "0", // Disable metrics server, use standard controller's metrics
 					},
-					HealthProbeBindAddress:  "0",   // Disable health probe, use standard controller's healthz
-					LeaderElection:          false, // Disable leader election, use standard controller's leader election
-					LeaderElectionID:        controller.GetLeaderElectionLeaseLockName(),
-					LeaderElectionNamespace: leaderElectionNamespace,
+					HealthProbeBindAddress: "0", // Disable health probe, use standard controller's healthz
+					// Leave controller-runtime's own leader election disabled. Instead, this manager is
+					// started only after the standard controllers win leadership (see the onStartedLeading
+					// hook passed to cm.Run below), so the RolloutPlugin controller runs on the same leader
+					// as the rest of the controllers using a single lease rather than a competing one.
+					LeaderElection: false,
 				}
 				if namespaced && namespace != metav1.NamespaceAll {
 					log.WithField("namespace", namespace).Info("RolloutPlugin controller running in namespaced mode")
@@ -393,17 +393,23 @@ func newCommand() *cobra.Command {
 					log.Fatalf("Failed to create controller-runtime manager: %s", err.Error())
 				}
 
-				// Get the singleton plugin manager instance
-				pluginManager := rolloutplugin.GetGlobalPluginManager()
+				// Get the singleton plugin manager instance, seeded with the controller's
+				// watch namespace so lazily loaded external RPC plugins get the right namespace.
+				pluginManager := rolloutplugin.GetGlobalPluginManager(namespace)
 
-				logrusCtx := log.WithField("plugin", "statefulset")
-				// Initialize built-in plugins
-				statefulSetPlugin := statefulset.NewPlugin(logrusCtx)
-
-				if err := pluginManager.RegisterPlugin("statefulset", statefulSetPlugin, namespace); err != nil {
-					log.Fatalf("Failed to register statefulset plugin: %s", err.Error())
+				// Built-in plugins are opt-in via the argo-rollouts-config ConfigMap (rolloutPlugins),
+				// the same as external plugins. An entry with a builtin:// location (e.g.
+				// "builtin://statefulset") registers the corresponding in-process plugin below.
+				builtinFactories := map[string]rolloutplugin.BuiltinPluginFactory{
+					"statefulset": func(logCtx *log.Entry) rolloutplugin.ResourcePlugin { return statefulset.NewPlugin(logCtx) },
 				}
-				log.Info("Registered StatefulSet plugin")
+				cfg, err := rolloutsConfig.GetConfig()
+				if err != nil {
+					log.Fatalf("Failed to get config for built-in plugin registration: %s", err.Error())
+				}
+				if err := pluginManager.RegisterBuiltinPlugins(cfg.GetAllPlugins(), builtinFactories, namespace); err != nil {
+					log.Fatalf("Failed to register built-in plugins: %s", err.Error())
+				}
 
 				// Create EventRecorder for RolloutPlugin notifications
 				rolloutPluginApiFactory := notificationapi.NewFactory(
@@ -455,39 +461,67 @@ func newCommand() *cobra.Command {
 					log.Fatalf("Failed to setup RolloutPlugin controller: %s", err.Error())
 				}
 
-				// Run both the standard controllers and the RolloutPlugin controller concurrently
+				// Run the standard controllers and the RolloutPlugin controller concurrently.
 				var wg sync.WaitGroup
+
+				// leadingCh receives the leader context once the standard controllers win leadership
+				// (or immediately, in single-instance mode). The RolloutPlugin controller-runtime
+				// manager and notifications controller are started only after this fires, so they run
+				// exclusively on the leader pod and share the standard controllers' lease instead of
+				// running on every replica.
+				leadingCh := make(chan context.Context, 1)
 
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
 					log.Info("Starting standard controllers")
-					if err := cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
+					onStartedLeading := func(leaderCtx context.Context) {
+						leadingCh <- leaderCtx
+					}
+					if err := cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts, onStartedLeading); err != nil {
 						log.WithError(err).Error("Error running standard controllers")
 						os.Exit(1)
 					}
 					log.Info("Standard controllers stopped")
 				}()
 
-				// Start NotificationController for RolloutPlugin.
+				// Wait until this instance becomes leader, then start the RolloutPlugin controllers
+				// using the leader context so they shut down if leadership is lost.
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					log.Info("Starting RolloutPlugin notifications controller")
-					rolloutPluginNotificationsController.Run(rolloutThreads, ctx.Done())
-					log.Info("RolloutPlugin notifications controller stopped")
-				}()
-
-				// Start controller-runtime manager for RolloutPlugin
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					log.Info("Starting RolloutPlugin controller (controller-runtime)")
-					if err := mgr.Start(ctx); err != nil {
-						log.WithError(err).Error("Error running RolloutPlugin controller")
-						os.Exit(1)
+					var leaderCtx context.Context
+					select {
+					case leaderCtx = <-leadingCh:
+						log.Info("Became leader, starting RolloutPlugin controllers")
+					case <-ctx.Done():
+						return // shutting down before we ever led
 					}
-					log.Info("RolloutPlugin controller stopped")
+
+					var pluginWg sync.WaitGroup
+
+					// Start NotificationController for RolloutPlugin.
+					pluginWg.Add(1)
+					go func() {
+						defer pluginWg.Done()
+						log.Info("Starting RolloutPlugin notifications controller")
+						rolloutPluginNotificationsController.Run(rolloutThreads, leaderCtx.Done())
+						log.Info("RolloutPlugin notifications controller stopped")
+					}()
+
+					// Start controller-runtime manager for RolloutPlugin
+					pluginWg.Add(1)
+					go func() {
+						defer pluginWg.Done()
+						log.Info("Starting RolloutPlugin controller (controller-runtime)")
+						if err := mgr.Start(leaderCtx); err != nil {
+							log.WithError(err).Error("Error running RolloutPlugin controller")
+							os.Exit(1)
+						}
+						log.Info("RolloutPlugin controller stopped")
+					}()
+
+					pluginWg.Wait()
 				}()
 
 				log.Info("All controllers started successfully")
@@ -503,7 +537,7 @@ func newCommand() *cobra.Command {
 				// RolloutPlugin controller is disabled, run only standard controllers
 				log.Info("RolloutPlugin controller disabled, running only standard controllers")
 				log.Info("Starting standard controllers")
-				if err := cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
+				if err := cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts, nil); err != nil {
 					log.WithError(err).Error("Error running standard controllers")
 					return err
 				}

@@ -9,5 +9,7 @@ metadata:
   namespace: argo-rollouts
 data:
   rolloutPlugins: |-
+    - name: "argoproj/statefulset"
+      location: "builtin://statefulset"
     - name: "resource/e2e-test"
       location: "file://plugin-bin/e2e-resource-plugin"
