@@ -7,14 +7,17 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	testclient "k8s.io/client-go/testing"
+	k8srecord "k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -460,6 +463,97 @@ func TestSendStateChangeEvents(t *testing.T) {
 		roCtx.sendStateChangeEvents(&test.prevStatus, &test.newStatus)
 		assert.Equal(t, test.expectedEventReasons, recorder.Events())
 	}
+}
+
+// capturingEventRecorder records the rollout object each event was emitted against, which is the
+// object notification templates are rendered from.
+type capturingEventRecorder struct {
+	objects []*v1alpha1.Rollout
+	reasons []string
+}
+
+func (r *capturingEventRecorder) Eventf(object runtime.Object, opts record.EventOptions, messageFmt string, args ...any) {
+	r.objects = append(r.objects, object.(*v1alpha1.Rollout))
+	r.reasons = append(r.reasons, opts.EventReason)
+}
+
+func (r *capturingEventRecorder) Warnf(object runtime.Object, opts record.EventOptions, messageFmt string, args ...any) {
+	r.Eventf(object, opts, messageFmt, args...)
+}
+
+func (r *capturingEventRecorder) K8sRecorder() k8srecord.EventRecorder {
+	return k8srecord.NewFakeRecorder(10)
+}
+
+// TestPersistRolloutStatusEmitsEventsWithCalculatedStatus verifies that status-derived events are
+// emitted against a rollout carrying the status which triggered them, rather than the status from
+// the start of the reconciliation. Regression test for
+// https://github.com/argoproj/argo-rollouts/issues/3535
+func TestPersistRolloutStatusEmitsEventsWithCalculatedStatus(t *testing.T) {
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+	// the pre-reconciliation status, which is what used to be reported by the notification
+	r.Status.Phase = v1alpha1.RolloutPhasePaused
+	r.Status.Message = "CanaryStepPaused"
+
+	recorder := &capturingEventRecorder{}
+	roCtx := &rolloutContext{
+		rollout: r,
+		log:     logutil.WithRollout(r),
+		reconcilerBase: reconcilerBase{
+			argoprojclientset: &fake.Clientset{},
+			recorder:          recorder,
+		},
+		pauseContext: &pauseContext{rollout: r},
+	}
+	abortMessage := `Background analysis phase error/failed: Metric "search-error-rate" assessed Failed due to failed (3) > failureLimit (2)`
+	roCtx.pauseContext.AddAbort(abortMessage)
+
+	newStatus := &v1alpha1.RolloutStatus{}
+	require.NoError(t, roCtx.persistRolloutStatus(newStatus))
+
+	require.Contains(t, recorder.reasons, conditions.RolloutAbortedReason)
+	var aborted *v1alpha1.Rollout
+	for i, reason := range recorder.reasons {
+		if reason == conditions.RolloutAbortedReason {
+			aborted = recorder.objects[i]
+		}
+	}
+
+	// the notification must see the abort, not the pre-reconciliation status
+	assert.Equal(t, v1alpha1.RolloutPhaseDegraded, aborted.Status.Phase)
+	assert.Equal(t, newStatus.Message, aborted.Status.Message)
+	assert.Contains(t, aborted.Status.Message, conditions.RolloutAbortedReason)
+	assert.Contains(t, aborted.Status.Message, abortMessage)
+
+	// the rollout being reconciled must not be mutated by the substitution
+	assert.Equal(t, v1alpha1.RolloutPhasePaused, r.Status.Phase)
+	assert.Equal(t, "CanaryStepPaused", r.Status.Message)
+}
+
+// TestFlushStatusEventsIsIdempotent verifies deferred events are emitted once and only when the
+// status has been calculated.
+func TestFlushStatusEventsIsIdempotent(t *testing.T) {
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+	recorder := &capturingEventRecorder{}
+	roCtx := &rolloutContext{
+		rollout:        r,
+		log:            logutil.WithRollout(r),
+		reconcilerBase: reconcilerBase{recorder: recorder},
+	}
+
+	newStatus := &v1alpha1.RolloutStatus{Phase: v1alpha1.RolloutPhaseDegraded, Message: "degraded"}
+	roCtx.flushStatusEvents(newStatus)
+	assert.Empty(t, recorder.reasons, "no events enqueued, so nothing should be emitted")
+
+	roCtx.enqueueStatusEvent(true, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, "aborted")
+	assert.Empty(t, recorder.reasons, "enqueued events must not be emitted before the status is calculated")
+
+	roCtx.flushStatusEvents(newStatus)
+	assert.Equal(t, []string{conditions.RolloutAbortedReason}, recorder.reasons)
+	assert.Equal(t, v1alpha1.RolloutPhaseDegraded, recorder.objects[0].Status.Phase)
+
+	roCtx.flushStatusEvents(newStatus)
+	assert.Len(t, recorder.reasons, 1, "flushing again must not re-emit")
 }
 
 // TestRollbackWindow verifies the rollback window conditions

@@ -617,7 +617,7 @@ func (c *rolloutContext) evaluateProgressDeadlineAbort(newStatus *v1alpha1.Rollo
 		msg = fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, c.newRS.Name)
 	}
 	c.pauseContext.AddAbort(msg)
-	c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
+	c.enqueueStatusEvent(true, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
 }
 
 func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutStatus) {
@@ -648,7 +648,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutS
 		}
 		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, message)
 		if conditions.SetRolloutCondition(newStatus, *condition) {
-			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, message)
+			c.enqueueStatusEvent(true, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, message)
 		}
 	}
 
@@ -750,10 +750,62 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutS
 			conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
 		if conditions.SetRolloutCondition(newStatus, *updateCompletedCond) {
 			revision, _ := replicasetutil.Revision(c.rollout)
-			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutNotCompletedReason},
+			c.enqueueStatusEvent(false, record.EventOptions{EventReason: conditions.RolloutNotCompletedReason},
 				conditions.RolloutNotCompletedMessage, revision, newStatus.CurrentPodHash)
 		}
 	}
+}
+
+// deferredStatusEvent is an event whose message describes the newly calculated rollout status.
+type deferredStatusEvent struct {
+	warn       bool
+	opts       record.EventOptions
+	messageFmt string
+	args       []any
+}
+
+// enqueueStatusEvent defers an event until the new rollout status has been fully calculated.
+//
+// Notification templates are rendered against the rollout object handed to the recorder, so
+// emitting these events as the status is being built renders them against the status from the
+// start of the reconciliation -- i.e. the notification describes the state *before* the event it
+// is reporting. An on-analysis-run-failed or on-rollout-aborted notification would report
+// `.status.phase` as Progressing and `.status.message` as e.g. "CanaryStepPaused" rather than the
+// failure that triggered it. See https://github.com/argoproj/argo-rollouts/issues/3535
+func (c *rolloutContext) enqueueStatusEvent(warn bool, opts record.EventOptions, messageFmt string, args ...any) {
+	c.deferredStatusEvents = append(c.deferredStatusEvents, deferredStatusEvent{
+		warn:       warn,
+		opts:       opts,
+		messageFmt: messageFmt,
+		args:       args,
+	})
+}
+
+// flushStatusEvents emits the events deferred by enqueueStatusEvent against a rollout carrying the
+// fully calculated status.
+func (c *rolloutContext) flushStatusEvents(newStatus *v1alpha1.RolloutStatus) {
+	events := c.deferredStatusEvents
+	c.deferredStatusEvents = nil
+	if len(events) == 0 {
+		return
+	}
+	ro := c.rolloutWithStatus(newStatus)
+	for _, e := range events {
+		if e.warn {
+			c.recorder.Warnf(ro, e.opts, e.messageFmt, e.args...)
+		} else {
+			c.recorder.Eventf(ro, e.opts, e.messageFmt, e.args...)
+		}
+	}
+}
+
+// rolloutWithStatus returns a copy of the rollout being reconciled with the given status applied.
+// Only the status is substituted, so the object reference used for the Kubernetes Event is
+// unchanged.
+func (c *rolloutContext) rolloutWithStatus(status *v1alpha1.RolloutStatus) *v1alpha1.Rollout {
+	ro := c.rollout.DeepCopy()
+	ro.Status = *status
+	return ro
 }
 
 // persistRolloutStatus persists updates to rollout status. If no changes were made, it is a no-op
@@ -785,6 +837,10 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 
 	// Calculate the phase. This requires the conditions to be calculated first
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(c.rollout.Spec, *newStatus)
+
+	// The status is now final, so the events describing it can be emitted. Nothing else emits
+	// events between here and where they were enqueued, so their ordering is unaffected.
+	c.flushStatusEvents(newStatus)
 
 	prevStatus := c.rollout.Status
 	patch, modified, err := diff.CreateTwoWayMergePatch(
@@ -822,12 +878,13 @@ func (c *rolloutContext) sendStateChangeEvents(prevStatus, newStatus *v1alpha1.R
 	currPaused := len(newStatus.PauseConditions) > 0
 	currAborted := newStatus.AbortedAt != nil
 	if prevPaused != currPaused {
+		ro := c.rolloutWithStatus(newStatus)
 		if currPaused {
-			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutPausedReason}, conditions.RolloutPausedMessage+fmt.Sprintf(" (%s)", newStatus.PauseConditions[0].Reason))
+			c.recorder.Eventf(ro, record.EventOptions{EventReason: conditions.RolloutPausedReason}, conditions.RolloutPausedMessage+fmt.Sprintf(" (%s)", newStatus.PauseConditions[0].Reason))
 		} else if !currAborted {
 			// we check currAborted, because an abort will also clear status.pauseConditions
 			// which should not be mistaken as a RolloutResumed
-			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutResumedReason}, conditions.RolloutResumedMessage)
+			c.recorder.Eventf(ro, record.EventOptions{EventReason: conditions.RolloutResumedReason}, conditions.RolloutResumedMessage)
 		}
 	}
 }

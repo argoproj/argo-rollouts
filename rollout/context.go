@@ -40,6 +40,11 @@ type rolloutContext struct {
 	pauseContext      *pauseContext
 	stepPluginContext *stepPluginContext
 
+	// deferredStatusEvents are events whose message describes the newly calculated status. They are
+	// held until that status is fully calculated so that they are emitted against a rollout which
+	// reflects the state being reported. See enqueueStatusEvent.
+	deferredStatusEvents []deferredStatusEvent
+
 	// targetsVerified indicates if the pods targets have been verified with underlying LoadBalancer.
 	// This is used in pod-aware flat networks where LoadBalancers target Pods and not Nodes.
 	// nil indicates the check was unnecessary or not performed.
