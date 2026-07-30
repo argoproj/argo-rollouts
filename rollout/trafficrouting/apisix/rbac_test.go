@@ -18,15 +18,28 @@ func TestAPISIXRouteRBAC(t *testing.T) {
 	require.True(t, ok)
 
 	repositoryRoot := filepath.Join(filepath.Dir(testFile), "..", "..", "..")
-	manifestPaths := []string{
-		filepath.Join(repositoryRoot, "manifests", "role", "argo-rollouts-clusterrole.yaml"),
-		filepath.Join(repositoryRoot, "manifests", "install.yaml"),
-		filepath.Join(repositoryRoot, "manifests", "namespace-install.yaml"),
+	manifestCases := []struct {
+		path         string
+		expectedKind string
+	}{
+		{
+			path:         filepath.Join(repositoryRoot, "manifests", "role", "argo-rollouts-clusterrole.yaml"),
+			expectedKind: "ClusterRole",
+		},
+		{
+			path:         filepath.Join(repositoryRoot, "manifests", "install.yaml"),
+			expectedKind: "ClusterRole",
+		},
+		{
+			path:         filepath.Join(repositoryRoot, "manifests", "namespace-install.yaml"),
+			expectedKind: "Role",
+		},
 	}
 
-	for _, manifestPath := range manifestPaths {
-		t.Run(filepath.Base(manifestPath), func(t *testing.T) {
-			role := readArgoRolloutsRole(t, manifestPath)
+	for _, manifestCase := range manifestCases {
+		t.Run(filepath.Base(manifestCase.path), func(t *testing.T) {
+			role := readArgoRolloutsRole(t, manifestCase.path)
+			assert.Equal(t, manifestCase.expectedKind, role.Kind)
 			assertAPISIXRouteRBAC(t, role.Rules)
 		})
 	}
@@ -56,16 +69,27 @@ func assertAPISIXRouteRBAC(t *testing.T, rules []rbacv1.PolicyRule) {
 
 	var matchingRules []rbacv1.PolicyRule
 	for _, rule := range rules {
-		if assert.ObjectsAreEqual([]string{"apisix.apache.org"}, rule.APIGroups) &&
-			assert.ObjectsAreEqual([]string{"apisixroutes"}, rule.Resources) {
+		if covers(rule.APIGroups, "apisix.apache.org") &&
+			covers(rule.Resources, "apisixroutes") {
 			matchingRules = append(matchingRules, rule)
 		}
 	}
 
 	require.Len(t, matchingRules, 1)
+	assert.Equal(t, []string{"apisix.apache.org"}, matchingRules[0].APIGroups)
+	assert.Equal(t, []string{"apisixroutes"}, matchingRules[0].Resources)
 	assert.Equal(
 		t,
 		[]string{"watch", "get", "update", "create", "delete"},
 		matchingRules[0].Verbs,
 	)
+}
+
+func covers(values []string, target string) bool {
+	for _, value := range values {
+		if value == target || value == "*" {
+			return true
+		}
+	}
+	return false
 }

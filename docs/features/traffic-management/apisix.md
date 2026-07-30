@@ -204,10 +204,13 @@ kubectl port-forward --namespace ingress-apisix \
 Verify that the initial version is blue:
 
 ```bash
-curl --silent --show-error \
+curl --fail --silent --show-error \
+  --write-out '\n' \
   --header 'Host: rollouts-demo.apisix.local' \
   http://127.0.0.1:9080/color
 ```
+
+The response should be `"blue"`.
 
 ## Trigger a rollout
 
@@ -231,16 +234,18 @@ When the rollout shows `Paused`, press `Ctrl+C` to stop watching.
 A request without the `trace` header still goes to the stable version:
 
 ```bash
-curl --silent --show-error \
+curl --fail --silent --show-error \
+  --write-out '\n' \
   --header 'Host: rollouts-demo.apisix.local' \
   http://127.0.0.1:9080/color
 ```
 
-The response should be `blue`. The same request with `trace: debug` goes to the
-canary and should return `yellow`:
+The response should be `"blue"`. The same request with `trace: debug` goes to
+the canary and should return `"yellow"`:
 
 ```bash
-curl --silent --show-error \
+curl --fail --silent --show-error \
+  --write-out '\n' \
   --header 'Host: rollouts-demo.apisix.local' \
   --header 'trace: debug' \
   http://127.0.0.1:9080/color
@@ -275,13 +280,14 @@ observe the actual responses:
 
 ```bash
 for i in $(seq 1 100); do
-  curl --silent --show-error \
+  curl --fail --silent --show-error \
+    --write-out '\n' \
     --header 'Host: rollouts-demo.apisix.local' \
     http://127.0.0.1:9080/color
 done | sort | uniq -c
 ```
 
-Both `blue` and `yellow` should appear, with a distribution close to the
+Both `"blue"` and `"yellow"` should appear, with a distribution close to the
 configured weights. A small sample is not expected to produce an exact 80/20
 split.
 
@@ -301,10 +307,13 @@ to 100% stable traffic. Verify the weights and request result:
 kubectl get apisixroute rollouts-apisix-route \
   --output=jsonpath='{range .spec.http[0].backends[*]}{.serviceName}={.weight}{"\n"}{end}'
 
-curl --silent --show-error \
+curl --fail --silent --show-error \
+  --write-out '\n' \
   --header 'Host: rollouts-demo.apisix.local' \
   http://127.0.0.1:9080/color
 ```
+
+The response should be `"blue"`.
 
 An aborted Rollout remains `Degraded` until its desired state is changed back
 to the stable version. Restore the blue image:
