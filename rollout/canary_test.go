@@ -395,7 +395,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 			"phase": "Healthy",
 			"message": null,
 			"duration": {
-				"completionStatus": "promoted",
+				"completionStatus": "Promoted",
 				"finishedAt": "%s"
 			}
 		}
@@ -981,7 +981,7 @@ func TestRollBackToStable(t *testing.T) {
 			"currentStepIndex":1,
 			"conditions": %s,
 			"duration": {
-				"completionStatus": "fast-rollbacked"
+				"completionStatus": "FastRolledBack"
 			}
 		}
 	}`
@@ -1123,7 +1123,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 			"currentStepIndex":1,
 			"conditions": %s,
 			"duration": {
-				"completionStatus": "fast-rollbacked"
+				"completionStatus": "FastRolledBack"
 			}
 		}
 	}`
@@ -2052,7 +2052,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 				"abortedAt": null,
 				"conditions": %s,
 				"duration": {
-					"completionStatus": "promoted",
+					"completionStatus": "Promoted",
 					"finishedAt": "%s"
 				}
 			}

@@ -1026,46 +1026,52 @@ type RolloutDurationStatus struct {
 	// +optional
 	ManualPauseStartedAt *metav1.Time `json:"manualPauseStartedAt,omitempty" protobuf:"bytes,2,opt,name=manualPauseStartedAt"`
 
-	// TotalManualPauseDuration is the accumulated time spent in manual pauses (in seconds)
+	// TotalManualPauseDurationSeconds is the accumulated time spent in manual pauses, in seconds
 	// +optional
-	TotalManualPauseDuration *int64 `json:"totalManualPauseDuration,omitempty" protobuf:"varint,3,opt,name=totalManualPauseDuration"`
+	TotalManualPauseDurationSeconds *int64 `json:"totalManualPauseDurationSeconds,omitempty" protobuf:"varint,3,opt,name=totalManualPauseDurationSeconds"`
 
-	// FinishedAt is when the rollout reached its final stable state and metrics were emitted
-	// Set after: (1) rollout promoted and stable, OR (2) aborted, OR (3) superseded
-	// Nil means rollout is in-progress or just promoted but metrics not yet emitted
+	// FinishedAt is when this rollout attempt reached its terminal state:
+	// (1) promoted and stable, (2) aborted, or (3) superseded.
+	// Nil means the attempt is still in progress.
 	// +optional
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,4,opt,name=finishedAt"`
 
-	// CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)
+	// CompletionStatus is the outcome of this rollout attempt. It is set as soon as the
+	// outcome becomes known, which may be before the attempt finishes (e.g. a rollback is
+	// classified while it is still progressing). FinishedAt, not this field, is the
+	// terminal signal.
 	// +optional
 	CompletionStatus *CompletionStatus `json:"completionStatus,omitempty" protobuf:"bytes,5,opt,name=completionStatus"`
 }
 
-// CompletionStatus is a label for the outcome of a rollout (used in metrics and status)
+// CompletionStatus is the outcome of a rollout attempt
 type CompletionStatus string
 
 const (
 	// CompletionStatusPromoted indicates the rollout completed successfully through normal progression
-	CompletionStatusPromoted CompletionStatus = "promoted"
+	CompletionStatusPromoted CompletionStatus = "Promoted"
 	// CompletionStatusFastPromoted indicates the rollout was manually promoted (skipping remaining steps)
-	CompletionStatusFastPromoted CompletionStatus = "fast-promoted"
+	CompletionStatusFastPromoted CompletionStatus = "FastPromoted"
 	// CompletionStatusAborted indicates the rollout was aborted before completion
-	CompletionStatusAborted CompletionStatus = "aborted"
-	// CompletionStatusSuperseded indicates the rollout was superseded by a new rollout
-	CompletionStatusSuperseded CompletionStatus = "superseded"
-	// CompletionStatusRollbacked indicates the rollout was explicitly rolled back to a previous version
-	CompletionStatusRollbacked CompletionStatus = "rollbacked"
-	// CompletionStatusFastRollbacked indicates rollback within the rollback window (immediate promotion)
-	CompletionStatusFastRollbacked CompletionStatus = "fast-rollbacked"
+	CompletionStatusAborted CompletionStatus = "Aborted"
+	// CompletionStatusSuperseded indicates the rollout was superseded by a new rollout.
+	// Note: this value is observable in metrics and logs only; in the status it is
+	// immediately replaced by the new attempt's duration tracking in the same update.
+	CompletionStatusSuperseded CompletionStatus = "Superseded"
+	// CompletionStatusRolledBack indicates the rollout was explicitly rolled back to a previous version
+	CompletionStatusRolledBack CompletionStatus = "RolledBack"
+	// CompletionStatusFastRolledBack indicates rollback within the rollback window (immediate promotion)
+	CompletionStatusFastRolledBack CompletionStatus = "FastRolledBack"
 )
 
-// IsCompleted returns true if completion metrics have been emitted for this rollout attempt
-// Determined by checking if FinishedAt timestamp is set (metrics published)
+// IsCompleted returns true if this rollout attempt has reached its terminal state,
+// determined by the FinishedAt timestamp being set
 func (d *RolloutDurationStatus) IsCompleted() bool {
 	return d != nil && d.RolloutStartedAt != nil && d.FinishedAt != nil
 }
 
-// GetCompletionStatus returns the completion status (outcome that was or will be emitted), empty string if not set
+// GetCompletionStatus returns the outcome of this rollout attempt (which may be set
+// before the attempt finishes), or empty string if not yet known
 func (d *RolloutDurationStatus) GetCompletionStatus() CompletionStatus {
 	if d != nil && d.CompletionStatus != nil {
 		return *d.CompletionStatus
@@ -1086,11 +1092,11 @@ func (d *RolloutDurationStatus) CompleteRollout(now metav1.Time, status Completi
 		currentPauseDuration := now.Sub(d.ManualPauseStartedAt.Time)
 		currentPauseSeconds := int64(currentPauseDuration.Seconds())
 
-		if d.TotalManualPauseDuration == nil {
-			d.TotalManualPauseDuration = &currentPauseSeconds
+		if d.TotalManualPauseDurationSeconds == nil {
+			d.TotalManualPauseDurationSeconds = &currentPauseSeconds
 		} else {
-			total := *d.TotalManualPauseDuration + currentPauseSeconds
-			d.TotalManualPauseDuration = &total
+			total := *d.TotalManualPauseDurationSeconds + currentPauseSeconds
+			d.TotalManualPauseDurationSeconds = &total
 		}
 		d.ManualPauseStartedAt = nil
 	}
@@ -1118,8 +1124,8 @@ func (d *RolloutDurationStatus) GetCompletionLogFields() map[string]interface{} 
 
 	// Calculate manual pause time
 	manualPause := time.Duration(0)
-	if d.TotalManualPauseDuration != nil {
-		manualPause = time.Duration(*d.TotalManualPauseDuration) * time.Second
+	if d.TotalManualPauseDurationSeconds != nil {
+		manualPause = time.Duration(*d.TotalManualPauseDurationSeconds) * time.Second
 	}
 
 	// Calculate progression time

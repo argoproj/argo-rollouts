@@ -4277,22 +4277,22 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutDurationStatus(ref common.Referenc
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
-					"totalManualPauseDuration": {
+					"totalManualPauseDurationSeconds": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TotalManualPauseDuration is the accumulated time spent in manual pauses (in seconds)",
+							Description: "TotalManualPauseDurationSeconds is the accumulated time spent in manual pauses, in seconds",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
 					},
 					"finishedAt": {
 						SchemaProps: spec.SchemaProps{
-							Description: "FinishedAt is when the rollout reached its final stable state and metrics were emitted Set after: (1) rollout promoted and stable, OR (2) aborted, OR (3) superseded Nil means rollout is in-progress or just promoted but metrics not yet emitted",
+							Description: "FinishedAt is when this rollout attempt reached its terminal state: (1) promoted and stable, (2) aborted, or (3) superseded. Nil means the attempt is still in progress.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"completionStatus": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)",
+							Description: "CompletionStatus is the outcome of this rollout attempt. It is set as soon as the outcome becomes known, which may be before the attempt finishes (e.g. a rollback is classified while it is still progressing). FinishedAt, not this field, is the terminal signal.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

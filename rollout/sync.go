@@ -487,9 +487,9 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 			if c.isRollback() {
 				// If the rollout is a rollback, we keep the the current duration
 				// The user explicitly reverted the rollout to the previous pod spec
-				status := v1alpha1.CompletionStatusRollbacked
+				status := v1alpha1.CompletionStatusRolledBack
 				if c.isFastRollback() {
-					status = v1alpha1.CompletionStatusFastRollbacked
+					status = v1alpha1.CompletionStatusFastRolledBack
 				}
 				durationStatus.CompletionStatus = &status
 				c.log.WithField("event", "rollout_rollback").
@@ -600,11 +600,11 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 		if durationStatus.ManualPauseStartedAt != nil {
 			pauseDuration := now.Sub(durationStatus.ManualPauseStartedAt.Time)
 			accumulated := int64(0)
-			if durationStatus.TotalManualPauseDuration != nil {
-				accumulated = *durationStatus.TotalManualPauseDuration
+			if durationStatus.TotalManualPauseDurationSeconds != nil {
+				accumulated = *durationStatus.TotalManualPauseDurationSeconds
 			}
 			accumulated += int64(pauseDuration.Seconds())
-			durationStatus.TotalManualPauseDuration = &accumulated
+			durationStatus.TotalManualPauseDurationSeconds = &accumulated
 			durationStatus.ManualPauseStartedAt = nil
 			c.log.WithField("pause_duration_seconds", pauseDuration.Seconds()).
 				WithField("event", "rollout_resumed").

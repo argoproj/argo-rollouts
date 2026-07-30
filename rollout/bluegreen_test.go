@@ -85,7 +85,7 @@ func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 			"phase": "Progressing",
 			"message": "more replicas need to be updated",
 			"duration": {
-				"completionStatus": "promoted"
+				"completionStatus": "Promoted"
 			}
 		}
 	}`
@@ -140,7 +140,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 			"phase": "Progressing",
 			"message": "more replicas need to be updated",
 			"duration": {
-				"completionStatus": "promoted"
+				"completionStatus": "Promoted"
 			}
 		}
 	}`
@@ -589,7 +589,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"phase": "Healthy",
 				"message": null,
 				"duration": {
-					"completionStatus": "promoted",
+					"completionStatus": "Promoted",
 					"finishedAt": "%s"
 				}
 			}
@@ -694,7 +694,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"phase": "Healthy",
 				"message": null,
 				"duration": {
-					"completionStatus": "promoted",
+					"completionStatus": "Promoted",
 					"finishedAt": "%s"
 				}
 			}
@@ -795,7 +795,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"phase": "Healthy",
 				"message": null,
 				"duration": {
-					"completionStatus": "promoted",
+					"completionStatus": "Promoted",
 					"finishedAt": "%s"
 				}
 			}
@@ -866,7 +866,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 			"status": {
 				"conditions": %s,
 				"duration": {
-					"totalManualPauseDuration": %d,
+					"totalManualPauseDurationSeconds": %d,
 					"manualPauseStartedAt": null
 				}
 			}
@@ -893,7 +893,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"message": null,
 				"duration": {
 					"finishedAt": "%s",
-					"completionStatus": "promoted"
+					"completionStatus": "Promoted"
 				}
 			}
 		}`
@@ -945,7 +945,7 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 			"message": null,
 			"duration": {
 				"finishedAt": "%s",
-				"completionStatus": "promoted"
+				"completionStatus": "Promoted"
 			}
 		}
 	}`

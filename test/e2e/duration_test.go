@@ -61,7 +61,7 @@ func (s *DurationSuite) TestCanaryDuration_InitialRollout() {
 			// Initial rollout should have started and completed
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusPromoted, *ro.Status.Duration.CompletionStatus)
-			assert.Nil(s.T(), ro.Status.Duration.TotalManualPauseDuration)
+			assert.Nil(s.T(), ro.Status.Duration.TotalManualPauseDurationSeconds)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
 		})
 }
@@ -100,8 +100,8 @@ func (s *DurationSuite) TestCanaryDuration_SpecPaused() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusPromoted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			// TotalManualPauseDuration should be non-zero
-			assert.Greater(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0), "TotalManualPauseDuration should be greater than 0")
+			// TotalManualPauseDurationSeconds should be non-zero
+			assert.Greater(s.T(), *ro.Status.Duration.TotalManualPauseDurationSeconds, int64(0), "TotalManualPauseDurationSeconds should be greater than 0")
 		})
 }
 
@@ -125,7 +125,7 @@ func (s *DurationSuite) TestCanaryDuration_PauseStep() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusPromoted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			assert.Nil(s.T(), ro.Status.Duration.TotalManualPauseDuration)
+			assert.Nil(s.T(), ro.Status.Duration.TotalManualPauseDurationSeconds)
 		})
 }
 
@@ -158,7 +158,7 @@ func (s *DurationSuite) TestCanaryDuration_IndefinitePauseStep() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusPromoted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			assert.Greater(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0), "TotalManualPauseDuration should be greater than 0")
+			assert.Greater(s.T(), *ro.Status.Duration.TotalManualPauseDurationSeconds, int64(0), "TotalManualPauseDurationSeconds should be greater than 0")
 		})
 }
 
@@ -189,7 +189,7 @@ func (s *DurationSuite) TestCanaryDuration_FullyPromoted() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusFastPromoted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0))
+			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDurationSeconds, int64(0))
 		})
 }
 
@@ -215,7 +215,7 @@ func (s *DurationSuite) TestCanaryDuration_Abort() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusAborted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0))
+			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDurationSeconds, int64(0))
 		})
 }
 
@@ -322,9 +322,9 @@ func (s *DurationSuite) TestCanaryDuration_SupersededRollback() {
 			// Should be completed with fast rollback status
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), initialStartedAt, *ro.Status.Duration.RolloutStartedAt)
-			assert.Equal(s.T(), v1alpha1.CompletionStatusFastRollbacked, *ro.Status.Duration.CompletionStatus)
+			assert.Equal(s.T(), v1alpha1.CompletionStatusFastRolledBack, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0))
+			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDurationSeconds, int64(0))
 		})
 }
 
@@ -363,9 +363,9 @@ func (s *DurationSuite) TestCanaryDuration_RollbackOutsideWindow() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ro := t.GetRollout()
-			// Should be completed with rollbacked status
+			// Should be completed with rolled-back status
 			assertDurationFieldsConsistency(s.T(), ro)
-			assert.Equal(s.T(), v1alpha1.CompletionStatusRollbacked, *ro.Status.Duration.CompletionStatus)
+			assert.Equal(s.T(), v1alpha1.CompletionStatusRolledBack, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
 		})
 }
@@ -398,9 +398,9 @@ func (s *DurationSuite) TestCanaryDuration_RollbackInsideWindow() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ro := t.GetRollout()
-			// Should be completed with rollbacked status
+			// Should be completed with rolled-back status
 			assertDurationFieldsConsistency(s.T(), ro)
-			assert.Equal(s.T(), v1alpha1.CompletionStatusFastRollbacked, *ro.Status.Duration.CompletionStatus)
+			assert.Equal(s.T(), v1alpha1.CompletionStatusFastRolledBack, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
 		})
 }
@@ -450,7 +450,7 @@ func (s *DurationSuite) TestBlueGreenDuration_InitialRollout() {
 			// Initial rollout should have started and completed
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusPromoted, *ro.Status.Duration.CompletionStatus)
-			assert.Nil(s.T(), ro.Status.Duration.TotalManualPauseDuration)
+			assert.Nil(s.T(), ro.Status.Duration.TotalManualPauseDurationSeconds)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
 		})
 }
@@ -484,8 +484,8 @@ func (s *DurationSuite) TestBlueGreenDuration_SpecPaused() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusPromoted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			// TotalManualPauseDuration should be non-zero
-			assert.Greater(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0), "TotalManualPauseDuration should be greater than 0")
+			// TotalManualPauseDurationSeconds should be non-zero
+			assert.Greater(s.T(), *ro.Status.Duration.TotalManualPauseDurationSeconds, int64(0), "TotalManualPauseDurationSeconds should be greater than 0")
 		})
 }
 
@@ -505,7 +505,7 @@ func (s *DurationSuite) TestBlueGreenDuration_AutoPromotion() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusPromoted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			assert.Nil(s.T(), ro.Status.Duration.TotalManualPauseDuration)
+			assert.Nil(s.T(), ro.Status.Duration.TotalManualPauseDurationSeconds)
 		})
 }
 
@@ -526,7 +526,7 @@ func (s *DurationSuite) TestBlueGreenDuration_ManualPromotion() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusPromoted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0), "TotalManualPauseDuration should be greater than 0")
+			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDurationSeconds, int64(0), "TotalManualPauseDurationSeconds should be greater than 0")
 		})
 }
 
@@ -547,7 +547,7 @@ func (s *DurationSuite) TestBlueGreenDuration_FullyPromoted() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusFastPromoted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0), "TotalManualPauseDuration should be greater than 0")
+			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDurationSeconds, int64(0), "TotalManualPauseDurationSeconds should be greater than 0")
 		})
 }
 
@@ -569,7 +569,7 @@ func (s *DurationSuite) TestBlueGreenDuration_Abort() {
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), v1alpha1.CompletionStatusAborted, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0))
+			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDurationSeconds, int64(0))
 		})
 }
 
@@ -666,9 +666,9 @@ func (s *DurationSuite) TestBlueGreenDuration_SupersededRollbackToStable() {
 			// Should be completed with fast rollback status
 			assertDurationFieldsConsistency(s.T(), ro)
 			assert.Equal(s.T(), initialStartedAt, *ro.Status.Duration.RolloutStartedAt)
-			assert.Equal(s.T(), v1alpha1.CompletionStatusFastRollbacked, *ro.Status.Duration.CompletionStatus)
+			assert.Equal(s.T(), v1alpha1.CompletionStatusFastRolledBack, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
-			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDuration, int64(0))
+			assert.GreaterOrEqual(s.T(), *ro.Status.Duration.TotalManualPauseDurationSeconds, int64(0))
 		})
 }
 
@@ -696,9 +696,9 @@ func (s *DurationSuite) TestBlueGreenDuration_SupersededRollback() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ro := t.GetRollout()
-			// Should be completed with rollbacked status
+			// Should be completed with rolled-back status
 			assertDurationFieldsConsistency(s.T(), ro)
-			assert.Equal(s.T(), v1alpha1.CompletionStatusFastRollbacked, *ro.Status.Duration.CompletionStatus)
+			assert.Equal(s.T(), v1alpha1.CompletionStatusFastRolledBack, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
 		})
 }
@@ -736,9 +736,9 @@ func (s *DurationSuite) TestBlueGreenDuration_RollbackOutsideWindow() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ro := t.GetRollout()
-			// Should be completed with rollbacked status
+			// Should be completed with rolled-back status
 			assertDurationFieldsConsistency(s.T(), ro)
-			assert.Equal(s.T(), v1alpha1.CompletionStatusRollbacked, *ro.Status.Duration.CompletionStatus)
+			assert.Equal(s.T(), v1alpha1.CompletionStatusRolledBack, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
 		})
 }
@@ -769,9 +769,9 @@ func (s *DurationSuite) TestBlueGreenDuration_RollbackInsideWindow() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ro := t.GetRollout()
-			// Should be completed with rollbacked status
+			// Should be completed with rolled-back status
 			assertDurationFieldsConsistency(s.T(), ro)
-			assert.Equal(s.T(), v1alpha1.CompletionStatusFastRollbacked, *ro.Status.Duration.CompletionStatus)
+			assert.Equal(s.T(), v1alpha1.CompletionStatusFastRolledBack, *ro.Status.Duration.CompletionStatus)
 			assert.NotNil(s.T(), ro.Status.Duration.FinishedAt)
 		})
 }

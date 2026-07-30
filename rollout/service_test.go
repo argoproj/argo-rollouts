@@ -401,7 +401,7 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 			"phase":"Healthy",
 			"stableRS":"%s",
 			"duration": {
-				"completionStatus": "promoted",
+				"completionStatus": "Promoted",
 				"finishedAt": "%s"
 			}
 		}

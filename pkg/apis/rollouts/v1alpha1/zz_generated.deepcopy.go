@@ -2303,8 +2303,8 @@ func (in *RolloutDurationStatus) DeepCopyInto(out *RolloutDurationStatus) {
 		in, out := &in.ManualPauseStartedAt, &out.ManualPauseStartedAt
 		*out = (*in).DeepCopy()
 	}
-	if in.TotalManualPauseDuration != nil {
-		in, out := &in.TotalManualPauseDuration, &out.TotalManualPauseDuration
+	if in.TotalManualPauseDurationSeconds != nil {
+		in, out := &in.TotalManualPauseDurationSeconds, &out.TotalManualPauseDurationSeconds
 		*out = new(int64)
 		**out = **in
 	}
