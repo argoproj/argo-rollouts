@@ -156,34 +156,34 @@ func TestEmitRolloutDuration_Promoted(t *testing.T) {
 	// Progression: 5 minutes - 1 minute pause = 240 seconds
 	// Manual pause: 1 minute = 60 seconds
 	expected := `
-# HELP rollout_duration_seconds_manual_pause Time spent in manual pause waiting for human intervention
-# TYPE rollout_duration_seconds_manual_pause histogram
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="0"} 0
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="60"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="300"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="600"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="1800"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="3600"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="7200"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="14400"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="28800"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="+Inf"} 1
-rollout_duration_seconds_manual_pause_sum{status="promoted"} 60
-rollout_duration_seconds_manual_pause_count{status="promoted"} 1
+# HELP rollout_manual_pause_duration_seconds Time spent in manual pause waiting for human intervention
+# TYPE rollout_manual_pause_duration_seconds histogram
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="0"} 0
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="60"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="300"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="1800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="3600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="7200"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="14400"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="28800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="+Inf"} 1
+rollout_manual_pause_duration_seconds_sum{status="promoted"} 60
+rollout_manual_pause_duration_seconds_count{status="promoted"} 1
 
-# HELP rollout_duration_seconds_progression Active progression time for a rollout (excluding manual pause time)
-# TYPE rollout_duration_seconds_progression histogram
-rollout_duration_seconds_progression_bucket{status="promoted",le="30"} 0
-rollout_duration_seconds_progression_bucket{status="promoted",le="60"} 0
-rollout_duration_seconds_progression_bucket{status="promoted",le="120"} 0
-rollout_duration_seconds_progression_bucket{status="promoted",le="300"} 1
-rollout_duration_seconds_progression_bucket{status="promoted",le="600"} 1
-rollout_duration_seconds_progression_bucket{status="promoted",le="900"} 1
-rollout_duration_seconds_progression_bucket{status="promoted",le="1800"} 1
-rollout_duration_seconds_progression_bucket{status="promoted",le="3600"} 1
-rollout_duration_seconds_progression_bucket{status="promoted",le="+Inf"} 1
-rollout_duration_seconds_progression_sum{status="promoted"} 240
-rollout_duration_seconds_progression_count{status="promoted"} 1
+# HELP rollout_progression_duration_seconds Active progression time for a rollout (excluding manual pause time)
+# TYPE rollout_progression_duration_seconds histogram
+rollout_progression_duration_seconds_bucket{status="promoted",le="30"} 0
+rollout_progression_duration_seconds_bucket{status="promoted",le="60"} 0
+rollout_progression_duration_seconds_bucket{status="promoted",le="120"} 0
+rollout_progression_duration_seconds_bucket{status="promoted",le="300"} 1
+rollout_progression_duration_seconds_bucket{status="promoted",le="600"} 1
+rollout_progression_duration_seconds_bucket{status="promoted",le="900"} 1
+rollout_progression_duration_seconds_bucket{status="promoted",le="1800"} 1
+rollout_progression_duration_seconds_bucket{status="promoted",le="3600"} 1
+rollout_progression_duration_seconds_bucket{status="promoted",le="+Inf"} 1
+rollout_progression_duration_seconds_sum{status="promoted"} 240
+rollout_progression_duration_seconds_count{status="promoted"} 1
 
 # HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
 # TYPE rollout_duration_seconds histogram
@@ -204,7 +204,7 @@ rollout_duration_seconds_count{status="promoted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -235,34 +235,34 @@ func TestEmitRolloutDuration_ManuallyPromoted(t *testing.T) {
 	// Progression: 3 minutes (no pause) = 180 seconds
 	// Manual pause: 0 seconds
 	expected := `
-# HELP rollout_duration_seconds_manual_pause Time spent in manual pause waiting for human intervention
-# TYPE rollout_duration_seconds_manual_pause histogram
-rollout_duration_seconds_manual_pause_bucket{status="fast-promoted",le="0"} 1
-rollout_duration_seconds_manual_pause_bucket{status="fast-promoted",le="60"} 1
-rollout_duration_seconds_manual_pause_bucket{status="fast-promoted",le="300"} 1
-rollout_duration_seconds_manual_pause_bucket{status="fast-promoted",le="600"} 1
-rollout_duration_seconds_manual_pause_bucket{status="fast-promoted",le="1800"} 1
-rollout_duration_seconds_manual_pause_bucket{status="fast-promoted",le="3600"} 1
-rollout_duration_seconds_manual_pause_bucket{status="fast-promoted",le="7200"} 1
-rollout_duration_seconds_manual_pause_bucket{status="fast-promoted",le="14400"} 1
-rollout_duration_seconds_manual_pause_bucket{status="fast-promoted",le="28800"} 1
-rollout_duration_seconds_manual_pause_bucket{status="fast-promoted",le="+Inf"} 1
-rollout_duration_seconds_manual_pause_sum{status="fast-promoted"} 0
-rollout_duration_seconds_manual_pause_count{status="fast-promoted"} 1
+# HELP rollout_manual_pause_duration_seconds Time spent in manual pause waiting for human intervention
+# TYPE rollout_manual_pause_duration_seconds histogram
+rollout_manual_pause_duration_seconds_bucket{status="fast-promoted",le="0"} 1
+rollout_manual_pause_duration_seconds_bucket{status="fast-promoted",le="60"} 1
+rollout_manual_pause_duration_seconds_bucket{status="fast-promoted",le="300"} 1
+rollout_manual_pause_duration_seconds_bucket{status="fast-promoted",le="600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="fast-promoted",le="1800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="fast-promoted",le="3600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="fast-promoted",le="7200"} 1
+rollout_manual_pause_duration_seconds_bucket{status="fast-promoted",le="14400"} 1
+rollout_manual_pause_duration_seconds_bucket{status="fast-promoted",le="28800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="fast-promoted",le="+Inf"} 1
+rollout_manual_pause_duration_seconds_sum{status="fast-promoted"} 0
+rollout_manual_pause_duration_seconds_count{status="fast-promoted"} 1
 
-# HELP rollout_duration_seconds_progression Active progression time for a rollout (excluding manual pause time)
-# TYPE rollout_duration_seconds_progression histogram
-rollout_duration_seconds_progression_bucket{status="fast-promoted",le="30"} 0
-rollout_duration_seconds_progression_bucket{status="fast-promoted",le="60"} 0
-rollout_duration_seconds_progression_bucket{status="fast-promoted",le="120"} 0
-rollout_duration_seconds_progression_bucket{status="fast-promoted",le="300"} 1
-rollout_duration_seconds_progression_bucket{status="fast-promoted",le="600"} 1
-rollout_duration_seconds_progression_bucket{status="fast-promoted",le="900"} 1
-rollout_duration_seconds_progression_bucket{status="fast-promoted",le="1800"} 1
-rollout_duration_seconds_progression_bucket{status="fast-promoted",le="3600"} 1
-rollout_duration_seconds_progression_bucket{status="fast-promoted",le="+Inf"} 1
-rollout_duration_seconds_progression_sum{status="fast-promoted"} 180
-rollout_duration_seconds_progression_count{status="fast-promoted"} 1
+# HELP rollout_progression_duration_seconds Active progression time for a rollout (excluding manual pause time)
+# TYPE rollout_progression_duration_seconds histogram
+rollout_progression_duration_seconds_bucket{status="fast-promoted",le="30"} 0
+rollout_progression_duration_seconds_bucket{status="fast-promoted",le="60"} 0
+rollout_progression_duration_seconds_bucket{status="fast-promoted",le="120"} 0
+rollout_progression_duration_seconds_bucket{status="fast-promoted",le="300"} 1
+rollout_progression_duration_seconds_bucket{status="fast-promoted",le="600"} 1
+rollout_progression_duration_seconds_bucket{status="fast-promoted",le="900"} 1
+rollout_progression_duration_seconds_bucket{status="fast-promoted",le="1800"} 1
+rollout_progression_duration_seconds_bucket{status="fast-promoted",le="3600"} 1
+rollout_progression_duration_seconds_bucket{status="fast-promoted",le="+Inf"} 1
+rollout_progression_duration_seconds_sum{status="fast-promoted"} 180
+rollout_progression_duration_seconds_count{status="fast-promoted"} 1
 
 # HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
 # TYPE rollout_duration_seconds histogram
@@ -283,7 +283,7 @@ rollout_duration_seconds_count{status="fast-promoted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -314,34 +314,34 @@ func TestEmitRolloutDuration_Aborted(t *testing.T) {
 	// Progression: 2 minutes (no pause) = 120 seconds
 	// Manual pause: 0 seconds
 	expected := `
-# HELP rollout_duration_seconds_manual_pause Time spent in manual pause waiting for human intervention
-# TYPE rollout_duration_seconds_manual_pause histogram
-rollout_duration_seconds_manual_pause_bucket{status="aborted",le="0"} 1
-rollout_duration_seconds_manual_pause_bucket{status="aborted",le="60"} 1
-rollout_duration_seconds_manual_pause_bucket{status="aborted",le="300"} 1
-rollout_duration_seconds_manual_pause_bucket{status="aborted",le="600"} 1
-rollout_duration_seconds_manual_pause_bucket{status="aborted",le="1800"} 1
-rollout_duration_seconds_manual_pause_bucket{status="aborted",le="3600"} 1
-rollout_duration_seconds_manual_pause_bucket{status="aborted",le="7200"} 1
-rollout_duration_seconds_manual_pause_bucket{status="aborted",le="14400"} 1
-rollout_duration_seconds_manual_pause_bucket{status="aborted",le="28800"} 1
-rollout_duration_seconds_manual_pause_bucket{status="aborted",le="+Inf"} 1
-rollout_duration_seconds_manual_pause_sum{status="aborted"} 0
-rollout_duration_seconds_manual_pause_count{status="aborted"} 1
+# HELP rollout_manual_pause_duration_seconds Time spent in manual pause waiting for human intervention
+# TYPE rollout_manual_pause_duration_seconds histogram
+rollout_manual_pause_duration_seconds_bucket{status="aborted",le="0"} 1
+rollout_manual_pause_duration_seconds_bucket{status="aborted",le="60"} 1
+rollout_manual_pause_duration_seconds_bucket{status="aborted",le="300"} 1
+rollout_manual_pause_duration_seconds_bucket{status="aborted",le="600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="aborted",le="1800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="aborted",le="3600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="aborted",le="7200"} 1
+rollout_manual_pause_duration_seconds_bucket{status="aborted",le="14400"} 1
+rollout_manual_pause_duration_seconds_bucket{status="aborted",le="28800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="aborted",le="+Inf"} 1
+rollout_manual_pause_duration_seconds_sum{status="aborted"} 0
+rollout_manual_pause_duration_seconds_count{status="aborted"} 1
 
-# HELP rollout_duration_seconds_progression Active progression time for a rollout (excluding manual pause time)
-# TYPE rollout_duration_seconds_progression histogram
-rollout_duration_seconds_progression_bucket{status="aborted",le="30"} 0
-rollout_duration_seconds_progression_bucket{status="aborted",le="60"} 0
-rollout_duration_seconds_progression_bucket{status="aborted",le="120"} 1
-rollout_duration_seconds_progression_bucket{status="aborted",le="300"} 1
-rollout_duration_seconds_progression_bucket{status="aborted",le="600"} 1
-rollout_duration_seconds_progression_bucket{status="aborted",le="900"} 1
-rollout_duration_seconds_progression_bucket{status="aborted",le="1800"} 1
-rollout_duration_seconds_progression_bucket{status="aborted",le="3600"} 1
-rollout_duration_seconds_progression_bucket{status="aborted",le="+Inf"} 1
-rollout_duration_seconds_progression_sum{status="aborted"} 120
-rollout_duration_seconds_progression_count{status="aborted"} 1
+# HELP rollout_progression_duration_seconds Active progression time for a rollout (excluding manual pause time)
+# TYPE rollout_progression_duration_seconds histogram
+rollout_progression_duration_seconds_bucket{status="aborted",le="30"} 0
+rollout_progression_duration_seconds_bucket{status="aborted",le="60"} 0
+rollout_progression_duration_seconds_bucket{status="aborted",le="120"} 1
+rollout_progression_duration_seconds_bucket{status="aborted",le="300"} 1
+rollout_progression_duration_seconds_bucket{status="aborted",le="600"} 1
+rollout_progression_duration_seconds_bucket{status="aborted",le="900"} 1
+rollout_progression_duration_seconds_bucket{status="aborted",le="1800"} 1
+rollout_progression_duration_seconds_bucket{status="aborted",le="3600"} 1
+rollout_progression_duration_seconds_bucket{status="aborted",le="+Inf"} 1
+rollout_progression_duration_seconds_sum{status="aborted"} 120
+rollout_progression_duration_seconds_count{status="aborted"} 1
 
 # HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
 # TYPE rollout_duration_seconds histogram
@@ -362,7 +362,7 @@ rollout_duration_seconds_count{status="aborted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -393,34 +393,34 @@ func TestEmitRolloutDuration_Superseded(t *testing.T) {
 	// Progression: 1 minute (no pause) = 60 seconds
 	// Manual pause: 0 seconds
 	expected := `
-# HELP rollout_duration_seconds_manual_pause Time spent in manual pause waiting for human intervention
-# TYPE rollout_duration_seconds_manual_pause histogram
-rollout_duration_seconds_manual_pause_bucket{status="superseded",le="0"} 1
-rollout_duration_seconds_manual_pause_bucket{status="superseded",le="60"} 1
-rollout_duration_seconds_manual_pause_bucket{status="superseded",le="300"} 1
-rollout_duration_seconds_manual_pause_bucket{status="superseded",le="600"} 1
-rollout_duration_seconds_manual_pause_bucket{status="superseded",le="1800"} 1
-rollout_duration_seconds_manual_pause_bucket{status="superseded",le="3600"} 1
-rollout_duration_seconds_manual_pause_bucket{status="superseded",le="7200"} 1
-rollout_duration_seconds_manual_pause_bucket{status="superseded",le="14400"} 1
-rollout_duration_seconds_manual_pause_bucket{status="superseded",le="28800"} 1
-rollout_duration_seconds_manual_pause_bucket{status="superseded",le="+Inf"} 1
-rollout_duration_seconds_manual_pause_sum{status="superseded"} 0
-rollout_duration_seconds_manual_pause_count{status="superseded"} 1
+# HELP rollout_manual_pause_duration_seconds Time spent in manual pause waiting for human intervention
+# TYPE rollout_manual_pause_duration_seconds histogram
+rollout_manual_pause_duration_seconds_bucket{status="superseded",le="0"} 1
+rollout_manual_pause_duration_seconds_bucket{status="superseded",le="60"} 1
+rollout_manual_pause_duration_seconds_bucket{status="superseded",le="300"} 1
+rollout_manual_pause_duration_seconds_bucket{status="superseded",le="600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="superseded",le="1800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="superseded",le="3600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="superseded",le="7200"} 1
+rollout_manual_pause_duration_seconds_bucket{status="superseded",le="14400"} 1
+rollout_manual_pause_duration_seconds_bucket{status="superseded",le="28800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="superseded",le="+Inf"} 1
+rollout_manual_pause_duration_seconds_sum{status="superseded"} 0
+rollout_manual_pause_duration_seconds_count{status="superseded"} 1
 
-# HELP rollout_duration_seconds_progression Active progression time for a rollout (excluding manual pause time)
-# TYPE rollout_duration_seconds_progression histogram
-rollout_duration_seconds_progression_bucket{status="superseded",le="30"} 0
-rollout_duration_seconds_progression_bucket{status="superseded",le="60"} 1
-rollout_duration_seconds_progression_bucket{status="superseded",le="120"} 1
-rollout_duration_seconds_progression_bucket{status="superseded",le="300"} 1
-rollout_duration_seconds_progression_bucket{status="superseded",le="600"} 1
-rollout_duration_seconds_progression_bucket{status="superseded",le="900"} 1
-rollout_duration_seconds_progression_bucket{status="superseded",le="1800"} 1
-rollout_duration_seconds_progression_bucket{status="superseded",le="3600"} 1
-rollout_duration_seconds_progression_bucket{status="superseded",le="+Inf"} 1
-rollout_duration_seconds_progression_sum{status="superseded"} 60
-rollout_duration_seconds_progression_count{status="superseded"} 1
+# HELP rollout_progression_duration_seconds Active progression time for a rollout (excluding manual pause time)
+# TYPE rollout_progression_duration_seconds histogram
+rollout_progression_duration_seconds_bucket{status="superseded",le="30"} 0
+rollout_progression_duration_seconds_bucket{status="superseded",le="60"} 1
+rollout_progression_duration_seconds_bucket{status="superseded",le="120"} 1
+rollout_progression_duration_seconds_bucket{status="superseded",le="300"} 1
+rollout_progression_duration_seconds_bucket{status="superseded",le="600"} 1
+rollout_progression_duration_seconds_bucket{status="superseded",le="900"} 1
+rollout_progression_duration_seconds_bucket{status="superseded",le="1800"} 1
+rollout_progression_duration_seconds_bucket{status="superseded",le="3600"} 1
+rollout_progression_duration_seconds_bucket{status="superseded",le="+Inf"} 1
+rollout_progression_duration_seconds_sum{status="superseded"} 60
+rollout_progression_duration_seconds_count{status="superseded"} 1
 
 # HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
 # TYPE rollout_duration_seconds histogram
@@ -441,7 +441,7 @@ rollout_duration_seconds_count{status="superseded"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -474,34 +474,34 @@ func TestEmitRolloutDuration_WithManualPause(t *testing.T) {
 	// Progression: 10 minutes - 5 minutes pause = 300 seconds
 	// Manual pause: 5 minutes = 300 seconds
 	expected := `
-# HELP rollout_duration_seconds_manual_pause Time spent in manual pause waiting for human intervention
-# TYPE rollout_duration_seconds_manual_pause histogram
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="0"} 0
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="60"} 0
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="300"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="600"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="1800"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="3600"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="7200"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="14400"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="28800"} 1
-rollout_duration_seconds_manual_pause_bucket{status="promoted",le="+Inf"} 1
-rollout_duration_seconds_manual_pause_sum{status="promoted"} 300
-rollout_duration_seconds_manual_pause_count{status="promoted"} 1
+# HELP rollout_manual_pause_duration_seconds Time spent in manual pause waiting for human intervention
+# TYPE rollout_manual_pause_duration_seconds histogram
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="0"} 0
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="60"} 0
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="300"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="1800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="3600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="7200"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="14400"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="28800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="promoted",le="+Inf"} 1
+rollout_manual_pause_duration_seconds_sum{status="promoted"} 300
+rollout_manual_pause_duration_seconds_count{status="promoted"} 1
 
-# HELP rollout_duration_seconds_progression Active progression time for a rollout (excluding manual pause time)
-# TYPE rollout_duration_seconds_progression histogram
-rollout_duration_seconds_progression_bucket{status="promoted",le="30"} 0
-rollout_duration_seconds_progression_bucket{status="promoted",le="60"} 0
-rollout_duration_seconds_progression_bucket{status="promoted",le="120"} 0
-rollout_duration_seconds_progression_bucket{status="promoted",le="300"} 1
-rollout_duration_seconds_progression_bucket{status="promoted",le="600"} 1
-rollout_duration_seconds_progression_bucket{status="promoted",le="900"} 1
-rollout_duration_seconds_progression_bucket{status="promoted",le="1800"} 1
-rollout_duration_seconds_progression_bucket{status="promoted",le="3600"} 1
-rollout_duration_seconds_progression_bucket{status="promoted",le="+Inf"} 1
-rollout_duration_seconds_progression_sum{status="promoted"} 300
-rollout_duration_seconds_progression_count{status="promoted"} 1
+# HELP rollout_progression_duration_seconds Active progression time for a rollout (excluding manual pause time)
+# TYPE rollout_progression_duration_seconds histogram
+rollout_progression_duration_seconds_bucket{status="promoted",le="30"} 0
+rollout_progression_duration_seconds_bucket{status="promoted",le="60"} 0
+rollout_progression_duration_seconds_bucket{status="promoted",le="120"} 0
+rollout_progression_duration_seconds_bucket{status="promoted",le="300"} 1
+rollout_progression_duration_seconds_bucket{status="promoted",le="600"} 1
+rollout_progression_duration_seconds_bucket{status="promoted",le="900"} 1
+rollout_progression_duration_seconds_bucket{status="promoted",le="1800"} 1
+rollout_progression_duration_seconds_bucket{status="promoted",le="3600"} 1
+rollout_progression_duration_seconds_bucket{status="promoted",le="+Inf"} 1
+rollout_progression_duration_seconds_sum{status="promoted"} 300
+rollout_progression_duration_seconds_count{status="promoted"} 1
 
 # HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
 # TYPE rollout_duration_seconds histogram
@@ -522,7 +522,7 @@ rollout_duration_seconds_count{status="promoted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -544,7 +544,7 @@ func TestEmitRolloutDuration_NilDurationStatus(t *testing.T) {
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
 	expected := ``
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -568,7 +568,7 @@ func TestEmitRolloutDuration_NilRolloutStartedAt(t *testing.T) {
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
 	expected := ``
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -596,6 +596,6 @@ func TestEmitRolloutDuration_NilFinishedAt(t *testing.T) {
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
 	expected := ``
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_duration_seconds_progression", "rollout_duration_seconds_manual_pause")
+	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
