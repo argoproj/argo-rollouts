@@ -425,10 +425,13 @@ func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 	return newStatus
 }
 
-// calculateStatusDuration handles all duration tracking state transitions and metric emission.
+// calculateStatusDuration handles all duration tracking state transitions.
 // This includes: new rollout detection, superseded rollout handling, abort detection,
 // completion detection, manual pause tracking, and retry detection.
 // Returns the updated status with duration field calculated.
+// When a completion transition is detected, the duration metric is stashed on
+// c.pendingDurationMetric and emitted by emitPendingRolloutDuration only after
+// the corresponding status change has been persisted.
 //
 // Transition Detection Strategy:
 // - prevStatus = Status currently persisted in Kubernetes (the "before" state)
@@ -487,7 +490,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 			} else {
 				// Rollout was interrupted mid-execution
 				durationStatus.CompleteRollout(now, v1alpha1.CompletionStatusSuperseded)
-				c.metricsServer.EmitRolloutDuration(durationStatus)
+				c.pendingDurationMetric = durationStatus.DeepCopy()
 
 				completionReason := "Pod template changed mid-rollout"
 				if c.rollout.Spec.Strategy.Canary != nil {
@@ -508,7 +511,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 				completionStatus = v1alpha1.CompletionStatusPromoted
 			}
 			durationStatus.CompleteRollout(now, completionStatus)
-			c.metricsServer.EmitRolloutDuration(durationStatus)
+			c.pendingDurationMetric = durationStatus.DeepCopy()
 			c.log.WithFields(durationStatus.GetCompletionLogFields()).
 				WithField("event", "rollout_completed").
 				WithField("reason", "rollout reached desired replicas").
@@ -516,14 +519,16 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 			// We can return immediately because we know that we are not starting a new rollout
 			// if we just reached desired replicas.
 			return durationStatus
-		} else if isAborted {
-			// Rollout was just aborted
+		} else if isAborted && !durationStatus.IsCompleted() {
+			// Rollout was just aborted. The IsCompleted check avoids recording the
+			// completion twice when the rollout was already completed as superseded
+			// in this same reconciliation.
 			completionStatus := durationStatus.GetCompletionStatus()
 			if completionStatus == "" {
 				completionStatus = v1alpha1.CompletionStatusAborted
 			}
 			durationStatus.CompleteRollout(now, completionStatus)
-			c.metricsServer.EmitRolloutDuration(durationStatus)
+			c.pendingDurationMetric = durationStatus.DeepCopy()
 			c.log.WithFields(durationStatus.GetCompletionLogFields()).
 				WithField("event", "rollout_completed").
 				WithField("completion_reason", c.pauseContext.abortMessage).
@@ -606,6 +611,20 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 	}
 
 	return durationStatus
+}
+
+// emitPendingRolloutDuration emits the rollout duration metric stashed by
+// calculateStatusDuration. It must only be called once the status recording the
+// completion transition has been persisted (or when the computed status did not
+// differ from the persisted one). Emitting before persisting would double-count
+// the completion if the status patch fails and the same transition is
+// re-detected on the next reconcile.
+func (c *rolloutContext) emitPendingRolloutDuration() {
+	if c.pendingDurationMetric == nil {
+		return
+	}
+	c.metricsServer.EmitRolloutDuration(c.pendingDurationMetric)
+	c.pendingDurationMetric = nil
 }
 
 // reconcileRevisionHistoryLimit is responsible for cleaning up a rollout ie. retains all but the latest N old replica sets
@@ -749,6 +768,7 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 	}
 	if !modified {
 		logCtx.Info("No status changes. Skipping patch conditions")
+		c.emitPendingRolloutDuration()
 		return nil
 	}
 	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{}, "status")
@@ -758,6 +778,7 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 	}
 	logCtx.Infof("Patched conditions: %s", string(patch))
 	c.newRollout = newRollout
+	c.emitPendingRolloutDuration()
 	return nil
 }
 
@@ -989,7 +1010,8 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	// Calculate the phase. This requires the conditions to be calculated first
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(c.rollout.Spec, *newStatus)
 
-	// Calculate duration status - handles all duration tracking state transitions and metric emission
+	// Calculate duration status - handles all duration tracking state transitions.
+	// Completion metrics are stashed here and emitted only after the patch succeeds.
 	newStatus.Duration = c.calculateStatusDuration(newStatus)
 
 	prevStatus := c.rollout.Status
@@ -1006,6 +1028,7 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	}
 	if !modified {
 		logCtx.Info("No status changes. Skipping patch")
+		c.emitPendingRolloutDuration()
 		c.requeueStuckRollout(*newStatus)
 		return nil
 	}
@@ -1019,6 +1042,7 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	c.sendStateChangeEvents(&prevStatus, newStatus)
 	logCtx.Infof("Patched: %s", patch)
 	c.newRollout = newRollout
+	c.emitPendingRolloutDuration()
 	return nil
 }
 
