@@ -67,7 +67,6 @@ func testHttpResponse(t *testing.T, handler http.Handler, expectedResponse strin
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, rr.Code, http.StatusOK)
 	body := rr.Body.String()
-	// log.Println(body)
 	for _, line := range strings.Split(expectedResponse, "\n") {
 		testFunc(t, body, line)
 	}
