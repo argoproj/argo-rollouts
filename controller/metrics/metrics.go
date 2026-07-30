@@ -23,7 +23,9 @@ import (
 type MetricsServer struct {
 	*http.Server
 
-	Registry                  *prometheus.Registry
+	// registry is exposed to in-package tests (e.g. testutil.GatherAndCompare);
+	// it is deliberately unexported to keep it out of the public API.
+	registry                  *prometheus.Registry
 	reconcileRolloutHistogram *prometheus.HistogramVec
 	errorRolloutCounter       *prometheus.CounterVec
 
@@ -138,7 +140,7 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 			Addr:    cfg.Addr,
 			Handler: mux,
 		},
-		Registry:                  reg,
+		registry:                  reg,
 		reconcileRolloutHistogram: MetricRolloutReconcile,
 		errorRolloutCounter:       MetricRolloutReconcileError,
 

@@ -204,7 +204,7 @@ rollout_duration_seconds_count{status="promoted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -283,7 +283,7 @@ rollout_duration_seconds_count{status="fast-promoted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -362,7 +362,7 @@ rollout_duration_seconds_count{status="aborted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -441,7 +441,7 @@ rollout_duration_seconds_count{status="superseded"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -522,7 +522,7 @@ rollout_duration_seconds_count{status="promoted"} 1
 `
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -544,7 +544,7 @@ func TestEmitRolloutDuration_NilDurationStatus(t *testing.T) {
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
 	expected := ``
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -568,7 +568,7 @@ func TestEmitRolloutDuration_NilRolloutStartedAt(t *testing.T) {
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
 	expected := ``
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
 
@@ -596,6 +596,6 @@ func TestEmitRolloutDuration_NilFinishedAt(t *testing.T) {
 	m.EmitRolloutDuration(rollout.Status.Duration)
 
 	expected := ``
-	err := testutil.GatherAndCompare(m.Registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
 }
