@@ -536,7 +536,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			// and would never be patched.
 			ALB:      rollout.Status.ALB.DeepCopy(),
 			ALBs:     append([]v1alpha1.ALBStatus(nil), rollout.Status.ALBs...),
-			Duration: rollout.Status.Duration,
+			Duration: rollout.Status.Duration.DeepCopy(),
 		},
 		pauseContext: &pauseContext{
 			rollout: rollout,
