@@ -84,12 +84,16 @@ Install Argo Rollouts using the
 
 ```bash
 kubectl create namespace argo-rollouts
-kubectl apply --namespace argo-rollouts \
+kubectl apply --server-side \
+  --namespace argo-rollouts \
   --filename https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
 
 kubectl wait --namespace argo-rollouts \
   --for=condition=Available deployment/argo-rollouts --timeout=180s
 ```
+
+Server-side apply avoids the client-side `last-applied-configuration` annotation
+size limit for the bundled CRDs.
 
 If you maintain custom controller RBAC, verify the permissions required for
 managed APISIX routes:
