@@ -23,7 +23,9 @@ import (
 type MetricsServer struct {
 	*http.Server
 
-	Registry                  *prometheus.Registry
+	// registry is exposed to in-package tests (e.g. testutil.GatherAndCompare);
+	// it is deliberately unexported to keep it out of the public API.
+	registry                  *prometheus.Registry
 	reconcileRolloutHistogram *prometheus.HistogramVec
 	errorRolloutCounter       *prometheus.CounterVec
 
@@ -85,7 +87,7 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 
 	rolloutDurationProgression := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "rollout_duration_seconds_progression",
+			Name:    "rollout_progression_duration_seconds",
 			Help:    "Active progression time for a rollout (excluding manual pause time)",
 			Buckets: []float64{30, 60, 120, 300, 600, 900, 1800, 3600},
 		},
@@ -94,7 +96,7 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 
 	rolloutDurationManualPause := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "rollout_duration_seconds_manual_pause",
+			Name:    "rollout_manual_pause_duration_seconds",
 			Help:    "Time spent in manual pause waiting for human intervention",
 			Buckets: []float64{0, 60, 300, 600, 1800, 3600, 7200, 14400, 28800},
 		},
@@ -138,7 +140,7 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 			Addr:    cfg.Addr,
 			Handler: mux,
 		},
-		Registry:                  reg,
+		registry:                  reg,
 		reconcileRolloutHistogram: MetricRolloutReconcile,
 		errorRolloutCounter:       MetricRolloutReconcileError,
 
