@@ -146,7 +146,7 @@ func (s *DurationSuite) TestCanaryDuration_IndefinitePauseStep() {
 		Assert(func(t *fixtures.Then) {
 			ro := t.GetRollout()
 			assertDurationFieldsConsistency(s.T(), ro)
-			assert.NotNil(s.T(), ro.Status.Duration.ManualPauseStartedAt, "ManualPauseStartedAt should be nil for step pause")
+			assert.NotNil(s.T(), ro.Status.Duration.ManualPauseStartedAt, "ManualPauseStartedAt should be set for an indefinite pause step")
 		}).
 		When().
 		Sleep(2*time.Second).
@@ -376,7 +376,7 @@ func (s *DurationSuite) TestCanaryDuration_RollbackInsideWindow() {
 - pause: {}`
 
 	s.Given().
-		RolloutTemplate("@functional/canary-duration-template.yaml", map[string]string{"ROLLOUT_NAME": "canary-duration-rollback-outside"}).
+		RolloutTemplate("@functional/canary-duration-template.yaml", map[string]string{"ROLLOUT_NAME": "canary-duration-rollback-inside"}).
 		SetSteps(canarySteps).
 		SetVersion("1").
 		RevisionHistoryLimit(5).
@@ -606,7 +606,6 @@ func (s *DurationSuite) TestBlueGreenDuration_Retry() {
 		})
 }
 
-// TODO
 func (s *DurationSuite) TestBlueGreenDuration_SupersededRollout() {
 	initialStartedAt := metav1.Time{}
 	s.Given().

@@ -435,6 +435,15 @@ func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 // - newStatus = Status being calculated in this reconciliation (the "after" state)
 // Most duration tracking involves detecting state transitions (events), not just states.
 // For example: "rollout just started" requires comparing old (completed) vs new (in-progress).
+//
+// NOTE: this function is reachable from two paths: persistRolloutStatus (full
+// reconcile, after getAllReplicaSetsAndSyncRevision has found or created
+// c.newRS) and patchCondition via checkPausedConditions (before RS sync).
+// The generation gate in checkPausedConditions guarantees the spec has NOT
+// changed when we run on the patchCondition path. This matters because:
+//  1. isRollback() path would misclassify a rollback as superseded.
+//  2. patchCondition path would re-fire the superseded transition
+//     (and re-emit its metric) on the next reconcile.
 func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStatus) *v1alpha1.RolloutDurationStatus {
 	if newStatus == nil {
 		return nil
@@ -671,7 +680,10 @@ func (c *rolloutContext) checkPausedConditions() error {
 
 	if strconv.Itoa(int(c.rollout.Generation)) != c.rollout.Status.ObservedGeneration {
 		// If the generation has changed, we need to reconcile the full rollout status
-		// so the status is consistent with the conditions
+		// so the status is consistent with the conditions.
+		// Do not remove this gate: duration tracking relies on spec-change
+		// transitions being evaluated only in the full reconcile. See the NOTE in
+		// calculateStatusDuration.
 		c.log.Infof("Rollout generation has changed, skipping checkPausedConditions")
 		return nil
 	}
@@ -1138,8 +1150,13 @@ func (c *rolloutContext) resetRolloutStatus(newStatus *v1alpha1.RolloutStatus) {
 	newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(c.rollout)
 }
 
-// isRollback returns true if we are deploying to a previous revision.
-// When a rollout is promoted, this function will always return true
+// isRollback reports whether the desired pod template is consistent with a
+// rollback: it matches either the stable ReplicaSet or a ReplicaSet older than
+// stable. This is a state check, not an event check — it also returns true on
+// every reconcile of an already-promoted rollout (newRS == stableRS), because
+// that end state is indistinguishable from a completed rollback. Only rely on
+// the result while an update is in flight (e.g. a spec change was just
+// detected); on an idle rollout a true result is meaningless.
 func (c *rolloutContext) isRollback() bool {
 	if c.newRS == nil || c.stableRS == nil {
 		return false
@@ -1155,9 +1172,11 @@ func (c *rolloutContext) isRollback() bool {
 	return rollbackToStable || rollbackToPreviousRevision
 }
 
-// isFastRollback returns true if we are fast-rolling back to a previous revision.
-// In this case, steps might be skipped to accelerate the rollback.
-// When a rollout is promoted, this function will always return true
+// isFastRollback returns true if we are fast-rolling back to a previous
+// revision, in which case steps may be skipped to accelerate the rollback.
+// It inherits isRollback's caveat: a fully promoted rollout always returns
+// true, which is relied upon (e.g. to skip the blue-green pause after
+// promotion) — see isBlueGreenFastTracked.
 func (c *rolloutContext) isFastRollback() bool {
 	if !c.isRollback() {
 		return false
