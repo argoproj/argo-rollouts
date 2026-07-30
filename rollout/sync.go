@@ -441,11 +441,8 @@ func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 // c.newRS) and patchCondition via checkPausedConditions (before RS sync).
 // The generation gate in checkPausedConditions guarantees the spec has NOT
 // changed when we run on the patchCondition path. This matters because:
-//  1. isRollback() returns false when c.newRS == nil, so evaluating a spec
-//     change before RS sync could misclassify a rollback as superseded.
-//  2. patchCondition does not persist currentPodHash/currentStepHash — the
-//     fields whose update suppresses re-detecting the same spec change — so
-//     completing the duration there would re-fire the superseded transition
+//  1. isRollback() path would misclassify a rollback as superseded.
+//  2. patchCondition path would re-fire the superseded transition
 //     (and re-emit its metric) on the next reconcile.
 func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStatus) *v1alpha1.RolloutDurationStatus {
 	if newStatus == nil {
