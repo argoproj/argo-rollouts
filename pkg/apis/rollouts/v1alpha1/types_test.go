@@ -90,9 +90,9 @@ func TestRolloutDurationStatus_CompleteRollout(t *testing.T) {
 		previousPause := int64(180) // 3 minutes
 
 		ds := &RolloutDurationStatus{
-			RolloutStartedAt:         &startTime,
-			ManualPauseStartedAt:     &pauseStartTime,
-			TotalManualPauseDuration: &previousPause,
+			RolloutStartedAt:                &startTime,
+			ManualPauseStartedAt:            &pauseStartTime,
+			TotalManualPauseDurationSeconds: &previousPause,
 		}
 
 		ds.CompleteRollout(now, CompletionStatusPromoted)
@@ -100,10 +100,10 @@ func TestRolloutDurationStatus_CompleteRollout(t *testing.T) {
 		// ManualPauseStartedAt should be cleared
 		assert.Nil(t, ds.ManualPauseStartedAt)
 
-		// TotalManualPauseDuration should include the active pause (~2 minutes = ~120 seconds)
-		assert.NotNil(t, ds.TotalManualPauseDuration)
-		assert.Greater(t, *ds.TotalManualPauseDuration, int64(290)) // 180 + ~120
-		assert.Less(t, *ds.TotalManualPauseDuration, int64(310))
+		// TotalManualPauseDurationSeconds should include the active pause (~2 minutes = ~120 seconds)
+		assert.NotNil(t, ds.TotalManualPauseDurationSeconds)
+		assert.Greater(t, *ds.TotalManualPauseDurationSeconds, int64(290)) // 180 + ~120
+		assert.Less(t, *ds.TotalManualPauseDurationSeconds, int64(310))
 	})
 
 	t.Run("CompleteRollout with no previous pause duration", func(t *testing.T) {
@@ -121,10 +121,10 @@ func TestRolloutDurationStatus_CompleteRollout(t *testing.T) {
 		// ManualPauseStartedAt should be cleared
 		assert.Nil(t, ds.ManualPauseStartedAt)
 
-		// TotalManualPauseDuration should be set to current pause (~1 minute = ~60 seconds)
-		assert.NotNil(t, ds.TotalManualPauseDuration)
-		assert.Greater(t, *ds.TotalManualPauseDuration, int64(55))
-		assert.Less(t, *ds.TotalManualPauseDuration, int64(65))
+		// TotalManualPauseDurationSeconds should be set to current pause (~1 minute = ~60 seconds)
+		assert.NotNil(t, ds.TotalManualPauseDurationSeconds)
+		assert.Greater(t, *ds.TotalManualPauseDurationSeconds, int64(55))
+		assert.Less(t, *ds.TotalManualPauseDurationSeconds, int64(65))
 	})
 
 	t.Run("CompleteRollout on nil durationStatus is safe", func(t *testing.T) {
@@ -197,14 +197,14 @@ func TestRolloutDurationStatus_GetCompletionLogFields(t *testing.T) {
 	t.Run("returns correct fields including status", func(t *testing.T) {
 		now := metav1.Now()
 		startTime := metav1.NewTime(now.Add(-5 * time.Minute))
-		totalManualPauseDuration := int64(60) // 1 minute
+		totalManualPauseDurationSeconds := int64(60) // 1 minute
 		completionStatus := CompletionStatusPromoted
 
 		status := &RolloutDurationStatus{
-			RolloutStartedAt:         &startTime,
-			FinishedAt:               &now,
-			CompletionStatus:         &completionStatus,
-			TotalManualPauseDuration: &totalManualPauseDuration,
+			RolloutStartedAt:                &startTime,
+			FinishedAt:                      &now,
+			CompletionStatus:                &completionStatus,
+			TotalManualPauseDurationSeconds: &totalManualPauseDurationSeconds,
 		}
 
 		fields := status.GetCompletionLogFields()

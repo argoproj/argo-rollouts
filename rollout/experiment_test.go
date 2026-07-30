@@ -312,7 +312,7 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 			"phase": "Degraded",
 			"message": "%s: %s",
 			"duration": {
-				"completionStatus": "aborted",
+				"completionStatus": "Aborted",
 				"finishedAt": "%s"
 			}
 		}

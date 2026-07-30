@@ -1611,7 +1611,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 			"phase": "Degraded",
 			"message": "RolloutAborted: %s",
 			"duration": {
-				"completionStatus": "aborted",
+				"completionStatus": "Aborted",
 				"finishedAt": "%s"
 			}
 		}
@@ -1692,7 +1692,7 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 			"phase": "Degraded",
 			"message": "RolloutAborted: %s",
 			"duration": {
-				"completionStatus": "aborted",
+				"completionStatus": "Aborted",
 				"finishedAt": "%s"
 			}
 		}
@@ -1763,7 +1763,7 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 			},
 			"message": "RolloutAborted: %s",
 			"duration": {
-				"completionStatus": "aborted",
+				"completionStatus": "Aborted",
 				"finishedAt": "%s"
 			}
 		}
@@ -2302,7 +2302,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 			"phase": "Healthy",
 			"message": null,
 			"duration": {
-				"completionStatus": "promoted",
+				"completionStatus": "Promoted",
 				"finishedAt": "%s"
 			}
 		}
@@ -2374,7 +2374,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 			"phase": "Healthy",
 			"message": null,
 			"duration": {
-				"completionStatus": "promoted",
+				"completionStatus": "Promoted",
 				"finishedAt": "%s"
 			}
 		}
@@ -2501,10 +2501,10 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 			"phase": "Degraded",
 			"message": "%s: %s",
 			"duration": {
-				"completionStatus": "aborted",
+				"completionStatus": "Aborted",
 				"finishedAt": "%s",
 				"manualPauseStartedAt": null,
-				"totalManualPauseDuration": 5
+				"totalManualPauseDurationSeconds": 5
 			}
 		}
 	}`
@@ -2616,7 +2616,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 			"phase": "Healthy",
 			"message": null,
 			"duration": {
-				"completionStatus": "promoted",
+				"completionStatus": "Promoted",
 				"finishedAt": "%s"
 			}
 		}
@@ -2757,7 +2757,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 			"phase": "Degraded",
 			"message": "%s: %s",
 			"duration": {
-				"completionStatus": "aborted",
+				"completionStatus": "Aborted",
 				"finishedAt": "%s"
 			}
 		}

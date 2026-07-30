@@ -205,14 +205,15 @@ func (m *MetricsServer) EmitRolloutDuration(ds *v1alpha1.RolloutDurationStatus) 
 
 	// Calculate manual pause time from accumulated duration
 	manualPause := time.Duration(0)
-	if ds.TotalManualPauseDuration != nil {
-		manualPause = time.Duration(*ds.TotalManualPauseDuration) * time.Second
+	if ds.TotalManualPauseDurationSeconds != nil {
+		manualPause = time.Duration(*ds.TotalManualPauseDurationSeconds) * time.Second
 	}
 
 	// Progression = total - manual pause
 	progression := total - manualPause
 
-	// Emit metrics with status label
+	// Emit metrics with the CompletionStatus value as the status label, consistent
+	// with how phase enums label rollout_info/analysis_run_info/experiment_info
 	statusLabel := string(status)
 	m.rolloutDurationTotal.WithLabelValues(statusLabel).Observe(total.Seconds())
 	m.rolloutDurationProgression.WithLabelValues(statusLabel).Observe(progression.Seconds())

@@ -2075,18 +2075,18 @@
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
           "title": "ManualPauseStartedAt is when the current manual pause began (nil if not in manual pause)\n+optional"
         },
-        "totalManualPauseDuration": {
+        "totalManualPauseDurationSeconds": {
           "type": "string",
           "format": "int64",
-          "title": "TotalManualPauseDuration is the accumulated time spent in manual pauses (in seconds)\n+optional"
+          "title": "TotalManualPauseDurationSeconds is the accumulated time spent in manual pauses, in seconds\n+optional"
         },
         "finishedAt": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
-          "title": "FinishedAt is when the rollout reached its final stable state and metrics were emitted\nSet after: (1) rollout promoted and stable, OR (2) aborted, OR (3) superseded\nNil means rollout is in-progress or just promoted but metrics not yet emitted\n+optional"
+          "title": "FinishedAt is when this rollout attempt reached its terminal state:\n(1) promoted and stable, (2) aborted, or (3) superseded.\nNil means the attempt is still in progress.\n+optional"
         },
         "completionStatus": {
           "type": "string",
-          "title": "CompletionStatus is the rollout outcome (set when final state reached, persists for visibility)\n+optional"
+          "title": "CompletionStatus is the outcome of this rollout attempt. It is set as soon as the\noutcome becomes known, which may be before the attempt finishes (e.g. a rollback is\nclassified while it is still progressing). FinishedAt, not this field, is the\nterminal signal.\n+optional"
         }
       },
       "title": "RolloutDurationStatus tracks timing for a rollout attempt"

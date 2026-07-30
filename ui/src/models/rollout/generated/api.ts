@@ -2209,7 +2209,7 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDura
      * @type {string}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
      */
-    totalManualPauseDuration?: string;
+    totalManualPauseDurationSeconds?: string;
     /**
      * 
      * @type {K8sIoApimachineryPkgApisMetaV1Time}
