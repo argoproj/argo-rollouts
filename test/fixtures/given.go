@@ -58,6 +58,55 @@ func (g *Given) SetSteps(text string) *Given {
 	return g
 }
 
+func (g *Given) RevisionHistoryLimit(limit int) *Given {
+	err := unstructured.SetNestedField(g.rollout.Object, int64(limit), "spec", "revisionHistoryLimit")
+	g.CheckError(err)
+	return g
+}
+
+func (g *Given) ScaleDownDelaySeconds(seconds int) *Given {
+	strategy, found, err := unstructured.NestedMap(g.rollout.Object, "spec", "strategy")
+	g.CheckError(err)
+	if !found {
+		g.t.Fatal("strategy not found")
+	}
+
+	// Check if it's canary or blueGreen
+	if _, ok := strategy["canary"]; ok {
+		err = unstructured.SetNestedField(g.rollout.Object, int64(seconds), "spec", "strategy", "canary", "scaleDownDelaySeconds")
+	} else if _, ok := strategy["blueGreen"]; ok {
+		err = unstructured.SetNestedField(g.rollout.Object, int64(seconds), "spec", "strategy", "blueGreen", "scaleDownDelaySeconds")
+	} else {
+		g.t.Fatal("unknown strategy type")
+	}
+	g.CheckError(err)
+	return g
+}
+
+func (g *Given) AutoPromotionSeconds(seconds int) *Given {
+	err := unstructured.SetNestedField(g.rollout.Object, int64(seconds), "spec", "strategy", "blueGreen", "autoPromotionSeconds")
+	g.CheckError(err)
+	return g
+}
+
+func (g *Given) AutoPromotionEnabled(enabled bool) *Given {
+	err := unstructured.SetNestedField(g.rollout.Object, enabled, "spec", "strategy", "blueGreen", "autoPromotionEnabled")
+	g.CheckError(err)
+	return g
+}
+
+func (g *Given) SetVersion(version string) *Given {
+	err := unstructured.SetNestedField(g.rollout.Object, map[string]interface{}{"version": version}, "spec", "template", "metadata", "annotations")
+	g.CheckError(err)
+	return g
+}
+
+func (g *Given) SetRollbackWindow(revisions int) *Given {
+	err := unstructured.SetNestedField(g.rollout.Object, int64(revisions), "spec", "rollbackWindow", "revisions")
+	g.CheckError(err)
+	return g
+}
+
 // HealthyRollout is a convenience around creating a rollout and waiting for it to become healthy
 func (g *Given) HealthyRollout(text string) *Given {
 	return g.RolloutObjects(text).

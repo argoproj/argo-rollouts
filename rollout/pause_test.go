@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -207,4 +208,97 @@ func TestCompletedCanaryPauseStepInProgress(t *testing.T) {
 
 	result := work.CompletedCanaryPauseStep(pause)
 	assert.Equal(t, false, result)
+}
+
+// TestRequiresManualAction_InconclusiveAnalysis tests that inconclusive analysis is manual pause
+func TestRequiresManualAction_InconclusiveAnalysis(t *testing.T) {
+	rollout := &v1alpha1.Rollout{}
+	result := requiresManualAction(v1alpha1.PauseReasonInconclusiveAnalysis, rollout)
+	assert.True(t, result)
+}
+
+// TestRequiresManualAction_InconclusiveExperiment tests that inconclusive experiment is manual pause
+func TestRequiresManualAction_InconclusiveExperiment(t *testing.T) {
+	rollout := &v1alpha1.Rollout{}
+	result := requiresManualAction(v1alpha1.PauseReasonInconclusiveExperiment, rollout)
+	assert.True(t, result)
+}
+
+// TestRequiresManualAction_CanaryPauseStep_IndefinitePause tests indefinite canary pause
+func TestRequiresManualAction_CanaryPauseStep_IndefinitePause(t *testing.T) {
+	rollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					Steps: []v1alpha1.CanaryStep{
+						{
+							Pause: &v1alpha1.RolloutPause{}, // no duration = indefinite
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.RolloutStatus{
+			CurrentStepIndex: ptr.To(int32(0)),
+		},
+	}
+	result := requiresManualAction(v1alpha1.PauseReasonCanaryPauseStep, rollout)
+	assert.True(t, result)
+}
+
+// TestRequiresManualAction_CanaryPauseStep_TimedPause tests timed canary pause (not manual)
+func TestRequiresManualAction_CanaryPauseStep_TimedPause(t *testing.T) {
+	duration := intstr.FromInt(60)
+	rollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					Steps: []v1alpha1.CanaryStep{
+						{
+							Pause: &v1alpha1.RolloutPause{
+								Duration: &duration, // has duration = timed pause
+							},
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.RolloutStatus{
+			CurrentStepIndex: ptr.To(int32(0)),
+		},
+	}
+	result := requiresManualAction(v1alpha1.PauseReasonCanaryPauseStep, rollout)
+	assert.False(t, result)
+}
+
+// TestRequiresManualAction_BlueGreen_AutoPromotionDisabled tests BG with autoPromotion disabled
+func TestRequiresManualAction_BlueGreen_AutoPromotionDisabled(t *testing.T) {
+	autoPromotionEnabled := false
+	rollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					AutoPromotionEnabled: &autoPromotionEnabled,
+				},
+			},
+		},
+	}
+	result := requiresManualAction(v1alpha1.PauseReasonBlueGreenPause, rollout)
+	assert.True(t, result)
+}
+
+// TestRequiresManualAction_BlueGreen_AutoPromotionEnabled tests BG with autoPromotion enabled (not manual)
+func TestRequiresManualAction_BlueGreen_AutoPromotionEnabled(t *testing.T) {
+	autoPromotionEnabled := true
+	rollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					AutoPromotionEnabled: &autoPromotionEnabled,
+				},
+			},
+		},
+	}
+	result := requiresManualAction(v1alpha1.PauseReasonBlueGreenPause, rollout)
+	assert.False(t, result)
 }
