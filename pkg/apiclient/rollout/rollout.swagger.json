@@ -844,6 +844,10 @@
         "oauth2": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.OAuth2Config",
           "title": "OAuth2 config\n+optional"
+        },
+        "basicAuth": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.BasicAuthConfig",
+          "title": "BasicAuth config\n+optional"
         }
       },
       "title": "Authentication method"
@@ -860,6 +864,19 @@
         "fullName": {
           "type": "string",
           "title": "FullName is the full name of the resource\n+optional"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.BasicAuthConfig": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "title": "Username is the username in grafana cloud"
+        },
+        "password": {
+          "type": "string",
+          "title": "Password is the access policy token"
         }
       }
     },
@@ -1225,6 +1242,10 @@
         "secretRef": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SecretRef",
           "title": "Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.\n+optional"
+        },
+        "requestTimeout": {
+          "type": "string",
+          "title": "+kubebuilder:default=\"10s\"\nRequestTimeout overrides the HTTP client timeout for requests to the Datadog API (e.g. 10s, 30s; default: 10s).\n+optional"
         }
       }
     },
@@ -2043,6 +2064,33 @@
       },
       "description": "RolloutCondition describes the state of a rollout at a certain point."
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutDurationStatus": {
+      "type": "object",
+      "properties": {
+        "rolloutStartedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "RolloutStartedAt is when the current rollout attempt started (StableRS diverged from CurrentPodHash)\n+optional"
+        },
+        "manualPauseStartedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "ManualPauseStartedAt is when the current manual pause began (nil if not in manual pause)\n+optional"
+        },
+        "totalManualPauseDurationSeconds": {
+          "type": "string",
+          "format": "int64",
+          "title": "TotalManualPauseDurationSeconds is the accumulated time spent in manual pauses, in seconds\n+optional"
+        },
+        "finishedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "FinishedAt is when this rollout attempt reached its terminal state:\n(1) promoted and stable, (2) aborted, or (3) superseded.\nNil means the attempt is still in progress.\n+optional"
+        },
+        "completionStatus": {
+          "type": "string",
+          "title": "CompletionStatus is the outcome of this rollout attempt. It is set as soon as the\noutcome becomes known, which may be before the attempt finishes (e.g. a rollback is\nclassified while it is still progressing). FinishedAt, not this field, is the\nterminal signal.\n+optional"
+        }
+      },
+      "title": "RolloutDurationStatus tracks timing for a rollout attempt"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutExperimentStep": {
       "type": "object",
       "properties": {
@@ -2341,6 +2389,10 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBStatus"
           },
           "title": "/ ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario"
+        },
+        "duration": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutDurationStatus",
+          "title": "Duration tracks timing information for the current rollout attempt\n+optional"
         }
       },
       "title": "RolloutStatus is the status for a Rollout resource"

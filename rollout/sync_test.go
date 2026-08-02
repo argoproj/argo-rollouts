@@ -3,12 +3,14 @@ package rollout
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
@@ -20,6 +22,7 @@ import (
 	testclient "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
+	metricsmocks "github.com/argoproj/argo-rollouts/controller/metrics/mocks"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -272,6 +275,69 @@ func TestPersistWorkloadRefGeneration(t *testing.T) {
 	}
 }
 
+// TestPersistRolloutStatusDurationMetricEmittedAfterPatch verifies that the rollout
+// completion duration metric is not emitted when the status patch recording the
+// completion fails (the transition is re-detected and retried on the next reconcile),
+// and is emitted exactly once when the patch succeeds.
+func TestPersistRolloutStatusDurationMetricEmittedAfterPatch(t *testing.T) {
+	startedAt := metav1.NewTime(timeutil.MetaNow().Add(-5 * time.Minute))
+	newAbortedRollout := func() *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: metav1.NamespaceDefault},
+			Spec:       v1alpha1.RolloutSpec{Replicas: ptr.To(int32(1))},
+			Status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123", // non-empty so this is not treated as an initial rollout
+				Abort:          true,
+				Duration: &v1alpha1.RolloutDurationStatus{
+					RolloutStartedAt: &startedAt,
+				},
+			},
+		}
+	}
+	newCtx := func(r *v1alpha1.Rollout, clientset *fake.Clientset, recorder *metricsmocks.MetricsRecorder) *rolloutContext {
+		return &rolloutContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+			reconcilerBase: reconcilerBase{
+				argoprojclientset: clientset,
+				recorder:          record.NewFakeEventRecorder(),
+				metricsServer:     recorder,
+			},
+			pauseContext: &pauseContext{rollout: r},
+		}
+	}
+
+	t.Run("does not emit when the status patch fails", func(t *testing.T) {
+		r := newAbortedRollout()
+		clientset := fake.NewSimpleClientset(r)
+		clientset.PrependReactor("patch", "rollouts", func(action testclient.Action) (bool, runtime.Object, error) {
+			return true, nil, errors.New("patch failed")
+		})
+		recorder := metricsmocks.NewMetricsRecorder(t)
+		roCtx := newCtx(r, clientset, recorder)
+
+		newStatus := r.Status.DeepCopy()
+		err := roCtx.persistRolloutStatus(newStatus)
+		assert.Error(t, err)
+		recorder.AssertNotCalled(t, "EmitRolloutDuration", mock.Anything)
+	})
+
+	t.Run("emits exactly once when the status patch succeeds", func(t *testing.T) {
+		r := newAbortedRollout()
+		clientset := fake.NewSimpleClientset(r)
+		recorder := metricsmocks.NewMetricsRecorder(t)
+		recorder.On("EmitRolloutDuration", mock.Anything).Return().Once()
+		roCtx := newCtx(r, clientset, recorder)
+
+		newStatus := r.Status.DeepCopy()
+		err := roCtx.persistRolloutStatus(newStatus)
+		assert.NoError(t, err)
+		recorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
+		assert.True(t, newStatus.Duration.IsCompleted())
+		assert.Equal(t, v1alpha1.CompletionStatusAborted, newStatus.Duration.GetCompletionStatus())
+	})
+}
+
 func TestPingPongCanaryPromoteStable(t *testing.T) {
 	ro := &v1alpha1.Rollout{}
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{PingPong: &v1alpha1.PingPongSpec{}}
@@ -336,12 +402,12 @@ func TestCanaryPromoteFull(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // create new ReplicaSet (size 0)
-	f.expectUpdateRolloutAction(r2)                        // update rollout revision
-	f.expectUpdateRolloutStatusAction(r2)                  // update rollout conditions, then exit early
-	f.expectGetRolloutAction(r2)                           // second reconciliation
-	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // scale new ReplicaSet to 10
-	patchedRolloutIndex := f.expectPatchRolloutAction(r2)
+	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // sync 1: create new ReplicaSet (size 0)
+	f.expectUpdateRolloutAction(r2)                        // sync 1: update rollout revision
+	f.expectUpdateRolloutStatusAction(r2)                  // sync 1: update rollout conditions
+	f.expectGetRolloutAction(r2)                           // re-seed between syncs
+	patchedRolloutIndex := f.expectPatchRolloutAction(r2)  // sync 2: patch status
+	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // sync 2: scale new ReplicaSet to 10
 	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
@@ -661,7 +727,8 @@ func TestShouldFullPromoteWithReplicaProgressThreshold(t *testing.T) {
 			// Create stable RS and new RS
 			stableRS := &appsv1.ReplicaSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "stable",
+					Name:   "stable",
+					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "stablehash"},
 				},
 				Spec: appsv1.ReplicaSetSpec{
 					Replicas: int32Ptr(10),
@@ -673,7 +740,8 @@ func TestShouldFullPromoteWithReplicaProgressThreshold(t *testing.T) {
 
 			newRS := &appsv1.ReplicaSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "new",
+					Name:   "new",
+					Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "newhash"},
 				},
 				Spec: appsv1.ReplicaSetSpec{
 					Replicas: int32Ptr(10),
@@ -712,6 +780,7 @@ func TestShouldFullPromoteWithReplicaProgressThreshold(t *testing.T) {
 
 			// Set to last step to trigger full promotion check
 			ctx.rollout.Status.CurrentStepIndex = int32Ptr(1)
+			ctx.rollout.Status.StableRS = "stablehash"
 			newStatus := v1alpha1.RolloutStatus{}
 
 			result := ctx.shouldFullPromote(newStatus)
@@ -754,12 +823,12 @@ func TestShouldFullPromoteCanaryAvailableVsDesired(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stableRS := &appsv1.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "stable"},
+				ObjectMeta: metav1.ObjectMeta{Name: "stable", Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "stablehash"}},
 				Spec:       appsv1.ReplicaSetSpec{Replicas: &tt.rolloutReplicas},
 				Status:     v1.ReplicaSetStatus{AvailableReplicas: tt.rolloutReplicas},
 			}
 			newRS := &appsv1.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "new"},
+				ObjectMeta: metav1.ObjectMeta{Name: "new", Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "newhash"}},
 				Spec:       appsv1.ReplicaSetSpec{Replicas: &tt.rolloutReplicas},
 				Status:     v1.ReplicaSetStatus{AvailableReplicas: tt.canaryAvailableReplicas},
 			}
@@ -784,6 +853,7 @@ func TestShouldFullPromoteCanaryAvailableVsDesired(t *testing.T) {
 			ctx.pauseContext = &pauseContext{rollout: ctx.rollout}
 			ctx.log = logutil.WithRollout(ctx.rollout)
 			ctx.rollout.Status.CurrentStepIndex = int32Ptr(1)
+			ctx.rollout.Status.StableRS = "stablehash"
 
 			result := ctx.shouldFullPromote(v1alpha1.RolloutStatus{})
 			assert.Equal(t, tt.expectedPromotionMessage, result)
@@ -854,12 +924,12 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, oldRs, stableRs)
 	f.replicaSetLister = append(f.replicaSetLister, oldRs, stableRs)
 
-	f.expectUpdateRolloutAction(r2) // update rollout revision
-	f.expectUpdateRolloutStatusAction(r2)
-	f.expectGetRolloutAction(r2) // second reconciliation
-	updatedROIndex := f.expectPatchRolloutAction(r2)
-	createdRS2Index := f.expectCreateReplicaSetAction(stableRs)
-	updatedRS2Index := f.expectUpdateReplicaSetAction(stableRs)
+	createdRS2Index := f.expectCreateReplicaSetAction(stableRs) // sync 1: create RS
+	f.expectUpdateRolloutAction(r2)                             // sync 1: update rollout revision
+	f.expectUpdateRolloutStatusAction(r2)                       // sync 1: update status
+	f.expectGetRolloutAction(r2)                                // re-seed between syncs
+	updatedROIndex := f.expectPatchRolloutAction(r2)            // sync 2: patch status
+	updatedRS2Index := f.expectUpdateReplicaSetAction(stableRs) // sync 2: scale RS
 	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)

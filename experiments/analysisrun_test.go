@@ -1,6 +1,7 @@
 package experiments
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 )
 
 func generateClusterAnalysisTemplates(names ...string) []v1alpha1.ClusterAnalysisTemplate {
@@ -116,6 +118,45 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
 	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
+}
+
+// TestAnalysisRunMissingFromCacheFallsBackToAPI verifies that when an AnalysisRun already exists in the API
+// but not in the informer cache, the controller falls back to the direct API get instead of erroring the analysis
+func TestAnalysisRunMissingFromCacheFallsBackToAPI(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+	ar.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
+
+	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			Name:        "success-rate",
+			AnalysisRun: ar.Name,
+			Phase:       v1alpha1.AnalysisPhaseRunning,
+		},
+	}
+
+	exCtx := newTestContext(e)
+
+	_, err := exCtx.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(e.Namespace).Create(context.TODO(), ar, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	exCtx.reconcileAnalysisRun(e.Spec.Analyses[0], nil, nil, nil)
+
+	status := experimentutil.GetAnalysisRunStatus(*exCtx.newStatus, "success-rate")
+	assert.NotNil(t, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status.Phase)
+	assert.Empty(t, status.Message)
 }
 
 // TestCreateAnalysisRunWithInstanceID ensures we add an instance ID to the AnalysisRun

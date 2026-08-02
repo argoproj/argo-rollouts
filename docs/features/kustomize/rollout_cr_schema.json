@@ -331,6 +331,11 @@
                                                     "query": {
                                                         "type": "string"
                                                     },
+                                                    "requestTimeout": {
+                                                        "default": "10s",
+                                                        "description": "RequestTimeout overrides the HTTP client timeout for requests to the Datadog API (e.g. 10s, 30s; default: 10s).",
+                                                        "type": "string"
+                                                    },
                                                     "secretRef": {
                                                         "description": "Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.",
                                                         "properties": {
@@ -6149,6 +6154,20 @@
                                                     "authentication": {
                                                         "description": "Authentication details",
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "description": "BasicAuth config",
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "description": "Password is the access policy token",
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "description": "Username is the username in grafana cloud",
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "description": "OAuth2 config",
                                                                 "properties": {
@@ -6284,6 +6303,20 @@
                                                     "authentication": {
                                                         "description": "Authentication details",
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "description": "BasicAuth config",
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "description": "Password is the access policy token",
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "description": "Username is the username in grafana cloud",
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "description": "OAuth2 config",
                                                                 "properties": {
@@ -6749,6 +6782,11 @@
                                                     "query": {
                                                         "type": "string"
                                                     },
+                                                    "requestTimeout": {
+                                                        "default": "10s",
+                                                        "description": "RequestTimeout overrides the HTTP client timeout for requests to the Datadog API (e.g. 10s, 30s; default: 10s).",
+                                                        "type": "string"
+                                                    },
                                                     "secretRef": {
                                                         "description": "Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.",
                                                         "properties": {
@@ -12567,6 +12605,20 @@
                                                     "authentication": {
                                                         "description": "Authentication details",
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "description": "BasicAuth config",
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "description": "Password is the access policy token",
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "description": "Username is the username in grafana cloud",
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "description": "OAuth2 config",
                                                                 "properties": {
@@ -12702,6 +12754,20 @@
                                                     "authentication": {
                                                         "description": "Authentication details",
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "description": "BasicAuth config",
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "description": "Password is the access policy token",
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "description": "Username is the username in grafana cloud",
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "description": "OAuth2 config",
                                                                 "properties": {
@@ -13183,6 +13249,11 @@
                                                     "query": {
                                                         "type": "string"
                                                     },
+                                                    "requestTimeout": {
+                                                        "default": "10s",
+                                                        "description": "RequestTimeout overrides the HTTP client timeout for requests to the Datadog API (e.g. 10s, 30s; default: 10s).",
+                                                        "type": "string"
+                                                    },
                                                     "secretRef": {
                                                         "description": "Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.",
                                                         "properties": {
@@ -19001,6 +19072,20 @@
                                                     "authentication": {
                                                         "description": "Authentication details",
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "description": "BasicAuth config",
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "description": "Password is the access policy token",
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "description": "Username is the username in grafana cloud",
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "description": "OAuth2 config",
                                                                 "properties": {
@@ -19136,6 +19221,20 @@
                                                     "authentication": {
                                                         "description": "Authentication details",
                                                         "properties": {
+                                                            "basicAuth": {
+                                                                "description": "BasicAuth config",
+                                                                "properties": {
+                                                                    "password": {
+                                                                        "description": "Password is the access policy token",
+                                                                        "type": "string"
+                                                                    },
+                                                                    "username": {
+                                                                        "description": "Username is the username in grafana cloud",
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "oauth2": {
                                                                 "description": "OAuth2 config",
                                                                 "properties": {

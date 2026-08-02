@@ -40,6 +40,13 @@ type rolloutContext struct {
 	pauseContext      *pauseContext
 	stepPluginContext *stepPluginContext
 
+	// pendingDurationMetric holds a completed rollout duration stashed by
+	// calculateStatusDuration. It is emitted by emitPendingRolloutDuration only
+	// after the status change recording the completion transition has been
+	// persisted, so that a failed status patch does not double-count the
+	// completion when the transition is re-detected on the next reconcile.
+	pendingDurationMetric *v1alpha1.RolloutDurationStatus
+
 	// targetsVerified indicates if the pods targets have been verified with underlying LoadBalancer.
 	// This is used in pod-aware flat networks where LoadBalancers target Pods and not Nodes.
 	// nil indicates the check was unnecessary or not performed.
@@ -47,6 +54,11 @@ type rolloutContext struct {
 	// (e.g. a setWeight step, after a blue-green active switch, after stable service switch),
 	// since we do not want to continually verify weight in case it could incur rate-limiting or other expenses.
 	targetsVerified *bool
+
+	// newRSWithinDelay indicates if the newRS has a valid (non-expired) scale-down-deadline
+	// annotation at the start of reconciliation (before it may be removed).
+	// Used to detect fast rollbacks where we skip pause/analysis steps.
+	newRSWithinDelay bool
 }
 
 func (c *rolloutContext) reconcile() error {

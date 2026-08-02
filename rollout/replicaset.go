@@ -15,6 +15,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -36,12 +37,13 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 		return nil
 	}
 	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
-	rs, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("error removing scale-down-deadline annotation from RS '%s': %w", rs.Name, err)
 	}
 	c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
-	return err
+	delete(rs.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+	return nil
 }
 
 // addScaleDownDelay injects the `scale-down-deadline` annotation to the ReplicaSet, or if
@@ -94,7 +96,15 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 		return fresh, nil
 	})
 	cm := controller.NewReplicaSetControllerRefManager(c.replicaSetControl, r, replicaSetSelector, controllerKind, canAdoptFunc)
-	return cm.ClaimReplicaSets(ctx, rsList)
+	rsList, err = cm.ClaimReplicaSets(ctx, rsList)
+	if err != nil {
+		return nil, err
+	}
+	// Create a copy of the object in the informer since Rollout may modify them during the reconciliation
+	for i := range rsList {
+		rsList[i] = rsList[i].DeepCopy()
+	}
+	return rsList, nil
 }
 
 // removeScaleDownDeadlines removes the scale-down-deadline annotation from the new/stable ReplicaSets,
@@ -115,6 +125,26 @@ func (c *rolloutContext) removeScaleDownDeadlines() error {
 			return err
 		}
 	}
+	return nil
+}
+
+// syncNewRSReplicasAnnotation updates the newRS desired-replicas annotation to spec.replicas
+// without changing its scale. It is a no-op when the annotation already matches spec.replicas
+// (ReplicasAnnotationsNeedUpdate returns false). The paths that intentionally hold the newRS at
+// size during an abort scale-down delay must still call this: isScalingEvent() treats a stale
+// desired-replicas annotation on the newRS as an in-progress scaling event and short-circuits
+// every reconcile to syncReplicasOnly(), which never reconciles traffic routing or services.
+// Without the annotation sync, a spec.replicas change (e.g. HPA) mid-abort freezes traffic
+// reconciliation until the scale-down deadline elapses.
+func (c *rolloutContext) syncNewRSReplicasAnnotation() error {
+	if !annotations.ReplicasAnnotationsNeedUpdate(c.newRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)) {
+		return nil
+	}
+	_, newRS, err := c.scaleReplicaSetAndRecordEvent(c.newRS, *c.newRS.Spec.Replicas)
+	if err != nil {
+		return fmt.Errorf("failed to sync replicas annotations in syncNewRSReplicasAnnotation: %w", err)
+	}
+	c.newRS = newRS
 	return nil
 }
 
@@ -147,6 +177,9 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 						logCtx := logutil.WithRollout(c.rollout)
 						logCtx.Info("rollout enqueue due to scaleDownDelay")
 						c.enqueueRolloutAfter(c.rollout, remainingTime)
+						if err := c.syncNewRSReplicasAnnotation(); err != nil {
+							return false, fmt.Errorf("failed to sync newRS desired-replicas annotation while waiting for abort scale-down deadline: %w", err)
+						}
 						return false, nil
 					}
 				} else {
@@ -155,8 +188,17 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 				}
 			}
 		} else if abortScaleDownDelaySeconds != nil {
-			// Don't annotate until need to ensure the stable RS is fully scaled
-			if c.stableRS.Status.AvailableReplicas == *c.rollout.Spec.Replicas {
+			// Sync annotations before addScaleDownDelay's patch so a subsequent update of the
+			// stale newRS object cannot clobber the scale-down-deadline annotation.
+			if err := c.syncNewRSReplicasAnnotation(); err != nil {
+				return false, fmt.Errorf("failed to sync newRS desired-replicas annotation before adding abort scale-down delay: %w", err)
+			}
+			// Don't annotate until the stable RS is fully scaled, i.e. able to serve 100%
+			// of traffic, since the deadline scales the canary to zero unconditionally.
+			// With dynamicStableScale this holds once the abort weight has stepped down to
+			// zero (see GetDesiredCanaryWeight). >= tolerates stable transiently exceeding
+			// spec.Replicas (e.g. HPA scale-in).
+			if c.stableRS.Status.AvailableReplicas >= *c.rollout.Spec.Replicas {
 				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
 				if err != nil {
 					return false, err
@@ -219,13 +261,13 @@ func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
 		// basic canary should not use this
 		return false
 	}
-	abortDelay, abortDelayWasSet := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
+	abortDelay, _ := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
 	if abortDelay == nil {
 		// user explicitly set abortScaleDownDelaySeconds: 0, and wishes to leave canary/preview up indefinitely
 		return false
 	}
 	usesDynamicStableScaling := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.DynamicStableScale
-	if usesDynamicStableScaling && !abortDelayWasSet {
+	if usesDynamicStableScaling && !defaults.HasExplicitAbortScaleDownDelay(c.rollout) {
 		// we are using dynamic stable/canary scaling and user did not explicitly set abortScaleDownDelay
 		return false
 	}

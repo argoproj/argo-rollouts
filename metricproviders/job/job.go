@@ -4,16 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	batchlisters "k8s.io/client-go/listers/batch/v1"
+	coreListers "k8s.io/client-go/listers/core/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -46,16 +50,18 @@ var (
 type JobProvider struct {
 	kubeclientset       kubernetes.Interface
 	jobLister           batchlisters.JobLister
+	podLister           coreListers.PodLister
 	logCtx              log.Entry
 	jobNamespace        string
 	customJobKubeconfig bool
 }
 
-func NewJobProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, jobLister batchlisters.JobLister, jobNS string, customJobKubeconfig bool) *JobProvider {
+func NewJobProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, jobLister batchlisters.JobLister, podLister coreListers.PodLister, jobNS string, customJobKubeconfig bool) *JobProvider {
 	return &JobProvider{
 		kubeclientset:       kubeclientset,
 		logCtx:              logCtx,
 		jobLister:           jobLister,
+		podLister:           podLister,
 		jobNamespace:        jobNS,
 		customJobKubeconfig: customJobKubeconfig,
 	}
@@ -119,6 +125,14 @@ func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, jobNS strin
 
 	ownerRef := []metav1.OwnerReference{*metav1.NewControllerRef(run, analysisRunGVK)}
 
+	podLabels := metric.Provider.Job.Spec.Template.GetLabels()
+	if podLabels == nil {
+		podLabels = make(map[string]string)
+	}
+	// this label is used by the pod informer to cache metric job pods
+	podLabels[AnalysisRunUIDLabelKey] = string(run.UID)
+	metric.Provider.Job.Spec.Template.SetLabels(podLabels)
+
 	if ns != run.Namespace || customJobKubeconfig {
 		ownerRef = nil
 	}
@@ -132,6 +146,7 @@ func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, jobNS strin
 		},
 		Spec: metric.Provider.Job.Spec,
 	}
+
 	return &job, nil
 }
 
@@ -181,6 +196,8 @@ func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1a
 		JobNameKey:      createdJob.Name,
 		JobNamespaceKey: createdJob.Namespace,
 	}
+	// activates the Resume function immediately to capture short-lived rollouts
+	measurement.ResumeAt = &now
 	p.logCtx.Infof("job %s/%s created", createdJob.Namespace, createdJob.Name)
 	return measurement
 }
@@ -207,7 +224,29 @@ func (p *JobProvider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, 
 	}
 	if measurement.Phase.Completed() {
 		p.logCtx.Infof("job %s/%s completed: %s", job.Namespace, job.Name, measurement.Phase)
+		return measurement
 	}
+
+	selector, err := metav1.LabelSelectorAsSelector(job.Spec.Selector)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
+	pods, err := p.podLister.Pods(jobName.Namespace).List(selector)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
+	if err := processJobPods(pods); err != nil {
+		measurement.FinishedAt = &now
+		measurement.Message = err.Error()
+		measurement.Phase = v1alpha1.AnalysisPhaseInconclusive
+		return measurement
+	}
+	elapsed := timeutil.MetaNow().Sub(measurement.StartedAt.Time)
+	// growing delay with respect to the elapsed time since the job started
+	delay := time.Duration(math.Sqrt(2*elapsed.Seconds()) * float64(time.Second))
+	resumeTime := metav1.Time{Time: timeutil.MetaNow().Add(delay)}
+	measurement.ResumeAt = &resumeTime
+	p.logCtx.Infof("job %s/%s resumed", job.Namespace, job.Name)
 	return measurement
 }
 
@@ -225,6 +264,38 @@ func (p *JobProvider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metri
 	measurement.Phase = v1alpha1.AnalysisPhaseInconclusive
 	p.logCtx.Infof("job %s/%s terminated", jobName.Namespace, jobName.Name)
 	return measurement
+}
+
+// terminalWaitingReasons lists pod container waiting reasons that we treat as
+// non-recoverable for an analysis job. When a container is stuck in one of these
+// states (e.g. the image cannot be pulled), the job will never make progress on
+// its own, so we surface it as an inconclusive measurement. This causes the
+// rollout to be paused waiting for human intervention rather than failing right away
+var terminalWaitingReasons = map[string]bool{
+	"ErrImagePull":     true,
+	"ImagePullBackOff": true,
+	"InvalidImageName": true,
+}
+
+// processJobPods checks if the job should be considered as failed
+// this can happen because of any terminal condition that stops the container from starting
+// such as ErrImagePull in one of the pod containers
+func processJobPods(pods []*v1.Pod) error {
+	for _, pod := range pods {
+		for _, cs := range pod.Status.InitContainerStatuses {
+			if cs.State.Waiting != nil && terminalWaitingReasons[cs.State.Waiting.Reason] {
+				return fmt.Errorf("Pod %s, container %s has terminal error (%s): %s\n",
+					pod.Name, cs.Name, cs.State.Waiting.Reason, cs.State.Waiting.Message)
+			}
+		}
+		for _, cs := range pod.Status.ContainerStatuses {
+			if cs.State.Waiting != nil && terminalWaitingReasons[cs.State.Waiting.Reason] {
+				return fmt.Errorf("Pod %s, container %s has terminal error (%s): %s\n",
+					pod.Name, cs.Name, cs.State.Waiting.Reason, cs.State.Waiting.Message)
+			}
+		}
+	}
+	return nil
 }
 
 func getJobNamespacedName(measurement v1alpha1.Measurement, defaultNS string) (types.NamespacedName, error) {

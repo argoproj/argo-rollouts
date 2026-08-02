@@ -308,6 +308,12 @@ spec:
                               type: object
                             query:
                               type: string
+                            requestTimeout:
+                              default: 10s
+                              description: 'RequestTimeout overrides the HTTP client
+                                timeout for requests to the Datadog API (e.g. 10s,
+                                30s; default: 10s).'
+                              type: string
                             secretRef:
                               description: Secret refers to the name of the secret
                                 that should be used for an analysis and should exists
@@ -7635,6 +7641,17 @@ spec:
                             authentication:
                               description: Authentication details
                               properties:
+                                basicAuth:
+                                  description: BasicAuth config
+                                  properties:
+                                    password:
+                                      description: Password is the access policy token
+                                      type: string
+                                    username:
+                                      description: Username is the username in grafana
+                                        cloud
+                                      type: string
+                                  type: object
                                 oauth2:
                                   description: OAuth2 config
                                   properties:
@@ -7746,6 +7763,17 @@ spec:
                             authentication:
                               description: Authentication details
                               properties:
+                                basicAuth:
+                                  description: BasicAuth config
+                                  properties:
+                                    password:
+                                      description: Password is the access policy token
+                                      type: string
+                                    username:
+                                      description: Username is the username in grafana
+                                        cloud
+                                      type: string
+                                  type: object
                                 oauth2:
                                   description: OAuth2 config
                                   properties:
@@ -8377,6 +8405,12 @@ spec:
                               type: object
                             query:
                               type: string
+                            requestTimeout:
+                              default: 10s
+                              description: 'RequestTimeout overrides the HTTP client
+                                timeout for requests to the Datadog API (e.g. 10s,
+                                30s; default: 10s).'
+                              type: string
                             secretRef:
                               description: Secret refers to the name of the secret
                                 that should be used for an analysis and should exists
@@ -15704,6 +15738,17 @@ spec:
                             authentication:
                               description: Authentication details
                               properties:
+                                basicAuth:
+                                  description: BasicAuth config
+                                  properties:
+                                    password:
+                                      description: Password is the access policy token
+                                      type: string
+                                    username:
+                                      description: Username is the username in grafana
+                                        cloud
+                                      type: string
+                                  type: object
                                 oauth2:
                                   description: OAuth2 config
                                   properties:
@@ -15815,6 +15860,17 @@ spec:
                             authentication:
                               description: Authentication details
                               properties:
+                                basicAuth:
+                                  description: BasicAuth config
+                                  properties:
+                                    password:
+                                      description: Password is the access policy token
+                                      type: string
+                                    username:
+                                      description: Username is the username in grafana
+                                        cloud
+                                      type: string
+                                  type: object
                                 oauth2:
                                   description: OAuth2 config
                                   properties:
@@ -16241,6 +16297,12 @@ spec:
                               type: object
                             query:
                               type: string
+                            requestTimeout:
+                              default: 10s
+                              description: 'RequestTimeout overrides the HTTP client
+                                timeout for requests to the Datadog API (e.g. 10s,
+                                30s; default: 10s).'
+                              type: string
                             secretRef:
                               description: Secret refers to the name of the secret
                                 that should be used for an analysis and should exists
@@ -23568,6 +23630,17 @@ spec:
                             authentication:
                               description: Authentication details
                               properties:
+                                basicAuth:
+                                  description: BasicAuth config
+                                  properties:
+                                    password:
+                                      description: Password is the access policy token
+                                      type: string
+                                    username:
+                                      description: Username is the username in grafana
+                                        cloud
+                                      type: string
+                                  type: object
                                 oauth2:
                                   description: OAuth2 config
                                   properties:
@@ -23679,6 +23752,17 @@ spec:
                             authentication:
                               description: Authentication details
                               properties:
+                                basicAuth:
+                                  description: BasicAuth config
+                                  properties:
+                                    password:
+                                      description: Password is the access policy token
+                                      type: string
+                                    username:
+                                      description: Username is the username in grafana
+                                        cloud
+                                      type: string
+                                  type: object
                                 oauth2:
                                   description: OAuth2 config
                                   properties:
@@ -39381,6 +39465,40 @@ spec:
                   controller will execute the rollout.
                 format: int32
                 type: integer
+              duration:
+                description: Duration tracks timing information for the current rollout
+                  attempt
+                properties:
+                  completionStatus:
+                    description: |-
+                      CompletionStatus is the outcome of this rollout attempt. It is set as soon as the
+                      outcome becomes known, which may be before the attempt finishes (e.g. a rollback is
+                      classified while it is still progressing). FinishedAt, not this field, is the
+                      terminal signal.
+                    type: string
+                  finishedAt:
+                    description: |-
+                      FinishedAt is when this rollout attempt reached its terminal state:
+                      (1) promoted and stable, (2) aborted, or (3) superseded.
+                      Nil means the attempt is still in progress.
+                    format: date-time
+                    type: string
+                  manualPauseStartedAt:
+                    description: ManualPauseStartedAt is when the current manual pause
+                      began (nil if not in manual pause)
+                    format: date-time
+                    type: string
+                  rolloutStartedAt:
+                    description: RolloutStartedAt is when the current rollout attempt
+                      started (StableRS diverged from CurrentPodHash)
+                    format: date-time
+                    type: string
+                  totalManualPauseDurationSeconds:
+                    description: TotalManualPauseDurationSeconds is the accumulated
+                      time spent in manual pauses, in seconds
+                    format: int64
+                    type: integer
+                type: object
               message:
                 description: Message provides details on why the rollout is in its
                   current phase

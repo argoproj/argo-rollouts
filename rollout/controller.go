@@ -73,8 +73,6 @@ type Controller struct {
 	// rsControl is used for adopting/releasing replica sets.
 	replicaSetControl controller.RSControlInterface
 
-	metricsServer *metrics.MetricsServer
-
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
 	// means we can ensure we only process a fixed amount of resources at a
@@ -111,7 +109,7 @@ type ControllerConfig struct {
 	RolloutWorkQueue                workqueue.RateLimitingInterface
 	ServiceWorkQueue                workqueue.RateLimitingInterface
 	IngressWorkQueue                workqueue.RateLimitingInterface
-	MetricsServer                   *metrics.MetricsServer
+	MetricsServer                   metrics.MetricsRecorder
 	Recorder                        record.EventRecorder
 	EphemeralMetadataThreads        int
 	EphemeralMetadataPodRetries     int
@@ -158,6 +156,9 @@ type reconcilerBase struct {
 	resyncPeriod                time.Duration
 	ephemeralMetadataThreads    int
 	ephemeralMetadataPodRetries int
+
+	// metricsServer is used to emit metrics for the rollout
+	metricsServer metrics.MetricsRecorder
 }
 
 type IngressWrapper interface {
@@ -210,6 +211,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		refResolver:                   cfg.RefResolver,
 		ephemeralMetadataThreads:      cfg.EphemeralMetadataThreads,
 		ephemeralMetadataPodRetries:   cfg.EphemeralMetadataPodRetries,
+		metricsServer:                 cfg.MetricsServer,
 	}
 
 	controller := &Controller{
@@ -219,7 +221,6 @@ func NewController(cfg ControllerConfig) *Controller {
 		rolloutWorkqueue:      cfg.RolloutWorkQueue,
 		serviceWorkqueue:      cfg.ServiceWorkQueue,
 		ingressWorkqueue:      cfg.IngressWorkQueue,
-		metricsServer:         cfg.MetricsServer,
 		rolloutVersionTracker: resourceversionutil.NewTracker(),
 	}
 	controller.enqueueRollout = func(obj any) {
@@ -429,7 +430,11 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 
 	roCtx, err := c.newRolloutContext(r)
 	if roCtx == nil {
-		logCtx.Error("newRolloutContext returned nil")
+		if k8serrors.IsConflict(err) {
+			logCtx.Warnf("newRolloutContext returned nil: %v", err)
+		} else {
+			logCtx.Errorf("newRolloutContext returned nil: %v", err)
+		}
 		return err
 	}
 	if err != nil {
@@ -525,8 +530,13 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		otherExs:   otherExs,
 		newStatus: v1alpha1.RolloutStatus{
 			RestartedAt: rollout.Status.RestartedAt,
-			ALB:         rollout.Status.ALB,
-			ALBs:        rollout.Status.ALBs,
+			// ALB and ALBs are copied because traffic routers mutate them on
+			// newStatus in place; if they aliased rollout.Status, the mutations
+			// would be visible on both sides of the diff in persistRolloutStatus
+			// and would never be patched.
+			ALB:      rollout.Status.ALB.DeepCopy(),
+			ALBs:     append([]v1alpha1.ALBStatus(nil), rollout.Status.ALBs...),
+			Duration: rollout.Status.Duration.DeepCopy(),
 		},
 		pauseContext: &pauseContext{
 			rollout: rollout,
@@ -537,6 +547,17 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			log:      logCtx,
 		},
 		reconcilerBase: c.reconcilerBase,
+	}
+
+	// Detect if newRS has a valid (non-expired) scale-down delay annotation
+	if roCtx.newRS != nil {
+		timeRemaining, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(roCtx.newRS)
+		if err != nil {
+			logCtx.Warnf("Failed to parse scale-down-deadline annotation: %v", err)
+		}
+		if timeRemaining != nil {
+			roCtx.newRSWithinDelay = true
+		}
 	}
 
 	if resolveErr != nil {

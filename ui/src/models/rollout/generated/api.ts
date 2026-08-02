@@ -521,6 +521,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authenticat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
      */
     oauth2?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
+     */
+    basicAuth?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig;
 }
 /**
  * 
@@ -546,6 +552,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResource
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef
      */
     fullName?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+     */
+    username?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+     */
+    password?: string;
 }
 /**
  * 
@@ -1067,6 +1092,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetr
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
      */
     secretRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    requestTimeout?: string;
 }
 /**
  * DryRun defines the settings for running the analysis in Dry-Run mode.
@@ -2158,6 +2189,43 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutCond
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus {
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    rolloutStartedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    manualPauseStartedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    totalManualPauseDurationSeconds?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    finishedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    completionStatus?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep {
@@ -2544,6 +2612,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
      */
     albs?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    duration?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus;
 }
 /**
  * 
