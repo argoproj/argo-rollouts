@@ -40,6 +40,13 @@ type rolloutContext struct {
 	pauseContext      *pauseContext
 	stepPluginContext *stepPluginContext
 
+	// pendingDurationMetric holds a completed rollout duration stashed by
+	// calculateStatusDuration. It is emitted by emitPendingRolloutDuration only
+	// after the status change recording the completion transition has been
+	// persisted, so that a failed status patch does not double-count the
+	// completion when the transition is re-detected on the next reconcile.
+	pendingDurationMetric *v1alpha1.RolloutDurationStatus
+
 	// targetsVerified indicates if the pods targets have been verified with underlying LoadBalancer.
 	// This is used in pod-aware flat networks where LoadBalancers target Pods and not Nodes.
 	// nil indicates the check was unnecessary or not performed.

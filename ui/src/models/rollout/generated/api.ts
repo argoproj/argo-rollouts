@@ -2189,6 +2189,43 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutCond
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus {
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    rolloutStartedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    manualPauseStartedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    totalManualPauseDurationSeconds?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    finishedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    completionStatus?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep {
@@ -2575,6 +2612,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
      */
     albs?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    duration?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus;
 }
 /**
  * 
