@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/bombsimon/logrusr/v4"
-
+	hclog "github.com/hashicorp/go-hclog"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -124,5 +124,19 @@ func WithVersionFields(entry *log.Entry, r *v1alpha1.Rollout) *log.Entry {
 	return entry.WithFields(map[string]any{
 		"resourceVersion": r.ResourceVersion,
 		"generation":      r.Generation,
+	})
+}
+
+// NewPluginLogger creates an hclog.Logger for use with go-plugin's ClientConfig.Logger.
+// It mirrors the log format of the controller: JSON when the controller runs with
+// --logformat=json, plain text otherwise. Without this, go-plugin spawns its own
+// default logger and plugin subprocess logs always render as plain text regardless
+// of the controller's log format setting.
+func NewPluginLogger(pluginName string) hclog.Logger {
+	_, jsonFormat := log.StandardLogger().Formatter.(*log.JSONFormatter)
+	return hclog.New(&hclog.LoggerOptions{
+		Name:       pluginName,
+		Level:      hclog.Trace,
+		JSONFormat: jsonFormat,
 	})
 }

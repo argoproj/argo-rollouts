@@ -8,6 +8,7 @@ import (
 	goPlugin "github.com/hashicorp/go-plugin"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/plugin"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 )
@@ -77,6 +78,7 @@ func (t *trafficPlugin) startPluginLocked(pluginName string) (rpc.TrafficRouterP
 			Plugins:         pluginMap,
 			Cmd:             exec.Command(pluginPath, args...),
 			Managed:         true,
+			Logger:          logutil.NewPluginLogger(pluginName),
 		})
 
 		rpcClient, err := t.pluginClient[pluginName].Client()
