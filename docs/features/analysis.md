@@ -1229,8 +1229,9 @@ spec:
 ```
 
 A background analysis run normally starts as soon as the rollout does. For a canary that uses
-traffic routing, `startOn: CanaryTraffic` instead holds it back until Argo Rollouts has programmed
-the traffic router to give the canary the weight the current step calls for:
+traffic routing, `startOn: CanaryTraffic` instead holds it back until the canary is actually
+serving traffic, meaning the traffic router has been given a non-zero weight for it that has
+reached what the current step calls for:
 
 ```yaml hl_lines="7"
 spec:
@@ -1246,8 +1247,13 @@ spec:
 ```
 
 This avoids measuring a canary that is not in the traffic path yet, where metrics tend to either
-error on missing data or pass without having tested anything. It applies only to a canary with a
-traffic router; without one there is no recorded weight to wait for and analysis starts as usual.
+error on missing data or pass without having tested anything. Steps that call for no traffic do not
+satisfy it: a `pause` before the first `setWeight`, or an explicit `setWeight: 0`, leaves the
+analysis waiting until a later step shifts traffic to the canary.
+
+It applies only to a canary with a traffic router; without one there is no recorded weight to wait
+for and analysis starts as usual. If the canary never becomes ready the analysis never starts, and
+the rollout is failed by `progressDeadlineSeconds` in the usual way rather than by the analysis.
 
 !!! note
     Leave `startOn` unset, or set it to `Immediately`, for analysis that is not measuring the

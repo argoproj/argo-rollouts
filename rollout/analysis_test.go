@@ -874,9 +874,8 @@ func TestDelayBackgroundAnalysisUntilCanaryWeightReached(t *testing.T) {
 	// reconcile sets up a canary sitting on step 0 (setWeight 50) with background analysis
 	// configured and the given weights recorded on newStatus, then reconciles the background
 	// analysis once. Returns whether an AnalysisRun was created.
-	reconcile := func(startOn v1alpha1.BackgroundAnalysisStartPolicy, trafficRouted bool, weights func(canaryHash, stableHash string) *v1alpha1.TrafficWeights) bool {
+	reconcileSteps := func(steps []v1alpha1.CanaryStep, startOn v1alpha1.BackgroundAnalysisStartPolicy, trafficRouted bool, weights func(canaryHash, stableHash string) *v1alpha1.TrafficWeights) bool {
 		analysis := &v1alpha1.RolloutAnalysis{Templates: []v1alpha1.AnalysisTemplateRef{{TemplateName: at.Name}}}
-		steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](50)}, {Pause: &v1alpha1.RolloutPause{}}}
 		r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
 		r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{RolloutAnalysis: *analysis, StartOn: startOn}
 		if trafficRouted {
@@ -932,6 +931,11 @@ func TestDelayBackgroundAnalysisUntilCanaryWeightReached(t *testing.T) {
 		return false
 	}
 
+	// reconcile uses the common shape: a setWeight step first, so the step calls for real traffic.
+	reconcile := func(startOn v1alpha1.BackgroundAnalysisStartPolicy, trafficRouted bool, weights func(canaryHash, stableHash string) *v1alpha1.TrafficWeights) bool {
+		return reconcileSteps([]v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](50)}, {Pause: &v1alpha1.RolloutPause{}}}, startOn, trafficRouted, weights)
+	}
+
 	noWeights := func(string, string) *v1alpha1.TrafficWeights { return nil }
 	// weightsAt records the canary at the given weight; an empty hash means the current canary RS.
 	weightsAt := func(weight int32, hash string, verified *bool) func(string, string) *v1alpha1.TrafficWeights {
@@ -947,7 +951,7 @@ func TestDelayBackgroundAnalysisUntilCanaryWeightReached(t *testing.T) {
 		}
 	}
 
-	// SMI never sets Verified in production; the ptr.To[bool] values below synthetically exercise
+	// Istio never sets Verified in production; the ptr.To[bool] values below synthetically
 	// the verification clause the way an ALB-style verifying router would.
 	assert.False(t, reconcile(v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, true, noWeights), "router not programmed for any canary yet -> wait")
 	assert.False(t, reconcile(v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, true, weightsAt(0, "", nil)), "canary still at weight 0 -> wait")
@@ -964,6 +968,20 @@ func TestDelayBackgroundAnalysisUntilCanaryWeightReached(t *testing.T) {
 	assert.True(t, reconcile("", true, weightsAt(0, "", nil)), "unset startOn -> create immediately")
 	assert.True(t, reconcile(v1alpha1.BackgroundAnalysisStartImmediately, true, weightsAt(0, "", nil)), "startOn Immediately -> create immediately")
 	assert.True(t, reconcile("", true, noWeights), "unset startOn with no weights -> create immediately")
+
+	// A step that calls for no traffic must not satisfy the gate. GetCurrentSetWeight returns 0
+	// both for an explicit setWeight: 0 and for any step before the first setWeight, so comparing
+	// the recorded weight against it alone would let the run start against a canary serving
+	// nothing -- which is exactly what opting in is meant to prevent.
+	leadingPause := []v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{}}, {SetWeight: ptr.To[int32](20)}}
+	assert.False(t, reconcileSteps(leadingPause, v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, true, weightsAt(0, "", nil)),
+		"pause before the first setWeight, canary at 0 -> wait")
+	assert.True(t, reconcileSteps(leadingPause, v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, true, weightsAt(20, "", nil)),
+		"pause before the first setWeight, canary now serving -> create")
+
+	explicitZero := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](0)}, {Pause: &v1alpha1.RolloutPause{}}}
+	assert.False(t, reconcileSteps(explicitZero, v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, true, weightsAt(0, "", nil)),
+		"explicit setWeight 0 -> wait, there is no canary traffic to measure")
 }
 
 func TestCreateAnalysisRunOnPromotedAnalysisStepIfPreviousStepWasAnalysisToo(t *testing.T) {

@@ -348,67 +348,63 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 }
 
 // deferBackgroundAnalysisRun reports whether creating the background AnalysisRun should be held
-// off for now, in the spirit of skipPrePromotionAnalysisRun / skipPostPromotionAnalysisRun above.
+// off for now, and if so why, for logging.
 //
 // Background analysis is otherwise created as soon as the new ReplicaSet exists, so for a
 // traffic-routed canary a canary-scoped metric can be evaluated against a ReplicaSet receiving no
-// traffic: passing on no evidence, or failing on no data and aborting a healthy rollout. Opting
-// in with startOn: CanaryTraffic waits for the traffic to arrive first.
+// traffic: passing on no evidence, or failing on no data and aborting a healthy rollout. Opting in
+// with startOn: CanaryTraffic waits for the traffic to arrive first.
 //
 // This is opt-in because analysis is not always canary-scoped. An approval or incident check run
 // through the job or web providers deliberately wants to run before traffic shifts, and gating it
 // would defeat its purpose, so Immediately remains the default.
-func (c *rolloutContext) deferBackgroundAnalysisRun() bool {
-	if c.rollout.Spec.Strategy.Canary.Analysis.StartOn != v1alpha1.BackgroundAnalysisStartOnCanaryTraffic {
-		return false
+func (c *rolloutContext) deferBackgroundAnalysisRun() (bool, string) {
+	analysis := c.rollout.Spec.Strategy.Canary.Analysis
+	if analysis == nil || analysis.StartOn != v1alpha1.BackgroundAnalysisStartOnCanaryTraffic {
+		return false, ""
 	}
-	return !c.canaryWeightReached()
+	receiving, reason := c.canaryReceivingStepTraffic()
+	return !receiving, reason
 }
 
-// canaryWeightReached reports whether the traffic router has given the current canary ReplicaSet
-// the weight the current step calls for, and -- for routers that verify weights -- that the shift
-// has been verified.
+// canaryReceivingStepTraffic reports whether the canary is serving the traffic the current step
+// calls for, and when it is not, why not. The reason is only meaningful when the first return
+// value is false.
 //
 // A basic canary has no traffic router. It shifts traffic by adjusting the stable and canary
 // replica counts behind a shared Service and leaves Status.Canary.Weights nil (see
-// reconcileTrafficRouting), so there is no recorded weight to wait for and this is always true.
+// reconcileTrafficRouting), so there is no recorded weight to wait for.
 //
 // Weights are read from newStatus because reconcileTrafficRouting runs earlier in the same
 // reconcile and records there both the weight it just programmed and the result of the
 // VerifyWeight call it just made. The persisted status is a reconcile behind.
-func (c *rolloutContext) canaryWeightReached() bool {
+func (c *rolloutContext) canaryReceivingStepTraffic() (bool, string) {
 	if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
-		return true
+		return true, ""
 	}
 	weights := c.newStatus.Canary.Weights
 	if weights == nil {
-		// The router has not been programmed for any canary yet.
-		return false
-	}
-	if weights.Canary.PodTemplateHash != replicasetutil.GetPodTemplateHash(c.newRS) {
-		// The recorded weight belongs to a previous canary, e.g. a new revision was pushed while
-		// the old one still held the traffic split.
-		return false
-	}
-	return weights.Canary.Weight >= replicasetutil.GetCurrentSetWeight(c.rollout) &&
-		(weights.Verified == nil || *weights.Verified)
-}
-
-// canaryWeightStatus explains, for logging, why canaryWeightReached is not yet satisfied.
-func (c *rolloutContext) canaryWeightStatus() string {
-	desired := replicasetutil.GetCurrentSetWeight(c.rollout)
-	weights := c.newStatus.Canary.Weights
-	if weights == nil {
-		return fmt.Sprintf("no weights recorded yet, want %d", desired)
+		return false, "the traffic router has not been programmed for any canary yet"
 	}
 	canaryHash := replicasetutil.GetPodTemplateHash(c.newRS)
 	if weights.Canary.PodTemplateHash != canaryHash {
-		return fmt.Sprintf("recorded weight is for ReplicaSet %s, want %s", weights.Canary.PodTemplateHash, canaryHash)
+		// The recorded weight belongs to a previous canary, e.g. a new revision was pushed while
+		// the old one still held the traffic split.
+		return false, fmt.Sprintf("the recorded weight is for ReplicaSet %s, not %s", weights.Canary.PodTemplateHash, canaryHash)
+	}
+	// A weight of zero means no traffic, whatever the current step asks for. GetCurrentSetWeight
+	// returns 0 both for an explicit setWeight: 0 and for any step before the first setWeight, so
+	// comparing against it alone would let the run start against a canary serving nothing.
+	if weights.Canary.Weight == 0 {
+		return false, "the canary is not receiving traffic yet"
+	}
+	if desired := replicasetutil.GetCurrentSetWeight(c.rollout); weights.Canary.Weight < desired {
+		return false, fmt.Sprintf("the canary is at weight %d, the current step calls for %d", weights.Canary.Weight, desired)
 	}
 	if weights.Verified != nil && !*weights.Verified {
-		return fmt.Sprintf("weight %d not yet verified by the traffic router", weights.Canary.Weight)
+		return false, fmt.Sprintf("the traffic router has not verified weight %d yet", weights.Canary.Weight)
 	}
-	return fmt.Sprintf("weight is %d, want %d", weights.Canary.Weight, desired)
+	return true, ""
 }
 
 func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun, error) {
@@ -428,8 +424,8 @@ func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun
 	}
 
 	if needsNewAnalysisRun(currentAr, c.rollout) {
-		if c.deferBackgroundAnalysisRun() {
-			c.log.Infof("Delaying background analysis until the canary has received traffic (%s)", c.canaryWeightStatus())
+		if wait, reason := c.deferBackgroundAnalysisRun(); wait {
+			c.log.Infof("Delaying background analysis until the canary receives traffic: %s", reason)
 			return currentAr, nil
 		}
 		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
