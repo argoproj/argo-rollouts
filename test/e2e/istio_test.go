@@ -590,16 +590,24 @@ func (s *IstioSuite) TestIstioCanaryBackgroundAnalysisWaitsForCanaryWeight() {
 		When().
 		UpdateSpec().                    // revision 2
 		WaitForRevisionPodCount("2", 1). // canary RS scaled up, but its pod is NOT marked ready
+		Sleep(2*time.Second).            // give the controller room to create the run if the gate were absent
 		Then().
 		// Canary pod is not ready, so the canary weight is still 0; the background analysis must be
 		// delayed (without the fix it would already exist here, running against 0 traffic).
 		Assert(func(t *fixtures.Then) {
 			ro := t.GetRollout()
-			var canaryWeight int32
-			if ro.Status.Canary.Weights != nil {
-				canaryWeight = ro.Status.Canary.Weights.Canary.Weight
+			// Assert the router was programmed for *this* canary at weight 0, rather than simply
+			// having no recorded weights: otherwise the analysis would be held back by the
+			// "no weights recorded yet" branch of the gate and this would not be exercising the
+			// weight comparison it is meant to.
+			canaryHash := t.GetReplicaSetByRevision("2").Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			weights := ro.Status.Canary.Weights
+			assert.NotNil(s.T(), weights, "weights should be recorded for the new canary")
+			if weights != nil {
+				assert.Equal(s.T(), canaryHash, weights.Canary.PodTemplateHash)
+				assert.Equal(s.T(), int32(0), weights.Canary.Weight,
+					"canary should still be at weight 0 while its pod is not ready")
 			}
-			assert.Equal(s.T(), int32(0), canaryWeight, "canary should still be at weight 0 while its pod is not ready")
 		}).
 		ExpectAnalysisRunCount(0).
 		When().
