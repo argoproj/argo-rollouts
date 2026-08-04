@@ -77,9 +77,7 @@ spec:
               plugin:
                 description: |-
                   Plugin references the resource-specific plugin by name and carries its runtime
-                  configuration. Installation/resolution of the plugin binary (location, sha256, args)
-                  is owned by the controller's argo-rollouts-config ConfigMap under 'rolloutPlugins',
-                  the same mechanism used by step, metric-provider, and traffic-router plugins.
+                  configuration.
                 properties:
                   config:
                     description: Config is the configuration object for the specified
