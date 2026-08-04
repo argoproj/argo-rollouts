@@ -45,7 +45,7 @@ func main() {
 			MagicCookieValue: "resourceplugin",
 		},
 		Plugins: map[string]goPlugin.Plugin{
-			"RpcResourcePlugin": &rolloutsRpc.GoPluginImpl{Impl: &testPlugin{failInit: failInit}},
+			"RpcResourcePlugin": &rolloutsRpc.ResourcePluginImpl{Impl: &testPlugin{failInit: failInit}},
 		},
 	})
 }
