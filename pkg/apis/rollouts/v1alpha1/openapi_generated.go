@@ -111,6 +111,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground":                       schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus":                        schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisRunStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition":                                schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutDurationStatus":                           schema_pkg_apis_rollouts_v1alpha1_RolloutDurationStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep":                           schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef":        schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate":                       schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref),
@@ -4335,6 +4336,53 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref common.ReferenceCall
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_RolloutDurationStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutDurationStatus tracks timing for a rollout attempt",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"rolloutStartedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RolloutStartedAt is when the current rollout attempt started (StableRS diverged from CurrentPodHash)",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"manualPauseStartedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManualPauseStartedAt is when the current manual pause began (nil if not in manual pause)",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"totalManualPauseDurationSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TotalManualPauseDurationSeconds is the accumulated time spent in manual pauses, in seconds",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"finishedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FinishedAt is when this rollout attempt reached its terminal state: (1) promoted and stable, (2) aborted, or (3) superseded. Nil means the attempt is still in progress.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"completionStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CompletionStatus is the outcome of this rollout attempt. It is set as soon as the outcome becomes known, which may be before the attempt finishes (e.g. a rollback is classified while it is still progressing). FinishedAt, not this field, is the terminal signal.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -5363,11 +5411,17 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							},
 						},
 					},
+					"duration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Duration tracks timing information for the current rollout attempt",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutDurationStatus"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutDurationStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

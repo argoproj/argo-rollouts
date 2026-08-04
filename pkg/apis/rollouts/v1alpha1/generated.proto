@@ -1427,6 +1427,34 @@ message RolloutCondition {
   optional string message = 6;
 }
 
+// RolloutDurationStatus tracks timing for a rollout attempt
+message RolloutDurationStatus {
+  // RolloutStartedAt is when the current rollout attempt started (StableRS diverged from CurrentPodHash)
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time rolloutStartedAt = 1;
+
+  // ManualPauseStartedAt is when the current manual pause began (nil if not in manual pause)
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time manualPauseStartedAt = 2;
+
+  // TotalManualPauseDurationSeconds is the accumulated time spent in manual pauses, in seconds
+  // +optional
+  optional int64 totalManualPauseDurationSeconds = 3;
+
+  // FinishedAt is when this rollout attempt reached its terminal state:
+  // (1) promoted and stable, (2) aborted, or (3) superseded.
+  // Nil means the attempt is still in progress.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 4;
+
+  // CompletionStatus is the outcome of this rollout attempt. It is set as soon as the
+  // outcome becomes known, which may be before the attempt finishes (e.g. a rollback is
+  // classified while it is still progressing). FinishedAt, not this field, is the
+  // terminal signal.
+  // +optional
+  optional string completionStatus = 5;
+}
+
 // RolloutExperimentStep defines a template that is used to create a experiment for a step
 message RolloutExperimentStep {
   // Templates what templates that should be added to the experiment. Should be non-nil
@@ -1871,6 +1899,10 @@ message RolloutStatus {
 
   // / ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario
   repeated ALBStatus albs = 26;
+
+  // Duration tracks timing information for the current rollout attempt
+  // +optional
+  optional RolloutDurationStatus duration = 27;
 }
 
 // RolloutStrategy defines strategy to apply during next rollout
