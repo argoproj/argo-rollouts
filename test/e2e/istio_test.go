@@ -590,7 +590,15 @@ func (s *IstioSuite) TestIstioCanaryBackgroundAnalysisWaitsForCanaryWeight() {
 		When().
 		UpdateSpec().                    // revision 2
 		WaitForRevisionPodCount("2", 1). // canary RS scaled up, but its pod is NOT marked ready
-		Sleep(2*time.Second).            // give the controller room to create the run if the gate were absent
+		// Wait for the controller to record weights for the new canary rather than sleeping.
+		// reconcileTrafficRouting runs before reconcileAnalysisRuns in the same reconcile, so once
+		// these weights are persisted the controller has already had its chance to create the
+		// background run for this ReplicaSet and declined. Asserting its absence below is then a
+		// statement about the gate, not about how fast the test ran.
+		WaitForRolloutCondition(func(ro *v1alpha1.Rollout) bool {
+			w := ro.Status.Canary.Weights
+			return w != nil && w.Canary.PodTemplateHash == ro.Status.CurrentPodHash && w.Canary.Weight == 0
+		}, "canary weights recorded at 0 for the new ReplicaSet").
 		Then().
 		// Canary pod is not ready, so the canary weight is still 0; the background analysis must be
 		// delayed (without the fix it would already exist here, running against 0 traffic).
