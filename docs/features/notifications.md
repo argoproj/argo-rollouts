@@ -10,7 +10,7 @@ by the end users. The end-users can subscribe to the configured triggers by addi
 ## Configuration
 
 The trigger defines the condition when the notification should be sent as well as the notification content template.
-Default Argo Rollouts comes with a list of built-in triggers that cover the most important events of Argo Rollout live-cycle.
+By default, Argo Rollouts comes with a list of built-in triggers that cover the most important events of Argo Rollout life-cycle.
 Both triggers and templates are configured in the `argo-rollouts-notification-configmap` ConfigMap. In order to get
 started quickly, you can use pre-configured notification templates defined in [notifications-install.yaml](https://github.com/argoproj/argo-rollouts/blob/master/manifests/notifications-install.yaml).
 
@@ -35,6 +35,8 @@ kind: ConfigMap
 metadata:
   name: argo-rollouts-notification-configmap
 data:
+  # detail of the templates is omitted
+  # detail of the triggers is omitted
   service.slack: |
     token: $slack-token
 ---
@@ -47,6 +49,36 @@ stringData:
 ```
 
 Learn more about supported services and configuration settings in services [documentation](../generated/notification-services/overview.md).
+
+## Namespace based configuration
+
+!!! important
+Available since v1.6
+
+A common installation method for Argo Rollouts is to install it in a dedicated namespace to manage a whole cluster. In this case, the administrator is the only
+person who can configure notifications in that namespace generally. However, in some cases, it is required to allow end-users to configure notifications
+for their Rollout resources. For example, the end-user can configure notifications for their Rollouts in the namespace where they have access to and their rollout is running in.
+
+To use this feature all you need to do is create the same configmap named `argo-rollouts-notification-configmap` and possibly 
+a secret `argo-rollouts-notification-secret` in the namespace where the rollout object lives. When it is configured this way the controller
+will send notifications using both the controller level configuration (the configmap located in the same namespaces as the controller) as well as 
+the configmap located in the same namespaces where the rollout object is at.
+
+To enable you need to add a flag to the controller `--self-service-notification-enabled`
+
+## Default Trigger templates
+
+Currently, the following triggers have [built-in templates](https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications).
+
+* `on-analysis-run-error` when an error occurs during the execution of an analysis run
+* `on-analysis-run-failed` when an analysis run fails
+* `on-analysis-run-running` when an analysis run is running
+* `on-rollout-aborted` when a rollout process is aborted before completion.
+* `on-rollout-completed` when a rollout is finished and all its steps are completed
+* `on-rollout-paused` when a rollout is paused
+* `on-rollout-step-completed` when an individual step inside a rollout definition is completed
+* `on-rollout-updated` when a rollout definition is changed
+* `on-scaling-replica-set` when the number of replicas in a rollout is changed
 
 ## Subscriptions
 
@@ -114,8 +146,8 @@ add blocks and attachments for Slack, subject for Email or URL path, and body fo
 In addition to custom notification template administrator and configure custom triggers. Custom trigger defines the
 condition when the notification should be sent. The definition includes name, condition and notification templates reference.
 The condition is a predicate expression that returns true if the notification should be sent. The trigger condition
-evaluation is powered by [antonmedv/expr](https://github.com/antonmedv/expr).
-The condition language syntax is described at [Language-Definition.md](https://github.com/antonmedv/expr/blob/master/docs/Language-Definition.md).
+evaluation is powered by [expr-lang/expr](https://github.com/expr-lang/expr).
+The condition language syntax is described at [Language-Definition.md](https://github.com/expr-lang/expr/blob/master/docs/language-definition.md).
 
 The trigger is configured in `argo-rollouts-notification-configmap` ConfigMap. For example the following trigger sends a notification
 when rollout pod spec uses `argoproj/rollouts-demo:purple` image:
@@ -124,7 +156,7 @@ when rollout pod spec uses `argoproj/rollouts-demo:purple` image:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-notifications-cm
+  name: argo-rollouts-notification-configmap
 data:
   trigger.on-purple: |
     - send: [my-purple-template]
@@ -132,3 +164,11 @@ data:
 ```
 
 Each condition might use several templates. Typically each template is responsible for generating a service-specific notification part.
+
+### Notification Metrics
+
+The following prometheus metrics are emitted when notifications are enabled in argo-rollouts.
+
+- `notification_send_success` is a counter that measures how many times the notification is sent successfully.
+- `notification_send_error` is a counter that measures how many times the notification failed to send.
+- `notification_send` is a histogram that measures performance of sending notification.

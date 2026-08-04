@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -7,11 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 )
 
@@ -45,7 +49,7 @@ func (s *CanarySuite) TestCanarySetCanaryScale() {
 - pause: {duration: 5s}
 `
 	s.Given().
-		RolloutTemplate("@functional/nginx-template.yaml", "set-canary-scale").
+		RolloutTemplate("@functional/nginx-template.yaml", map[string]string{"REPLACEME": "set-canary-scale"}).
 		SetSteps(canarySteps).
 		When().
 		ApplyManifests().
@@ -112,7 +116,6 @@ func (s *CanarySuite) TestRolloutScalingWhenPaused() {
 		ExpectCanaryStablePodCount(1, 3)
 }
 
-
 // TestRolloutWithMaxSurgeScalingDuringUpdate verifies behavior when scaling a rollout up/down in middle of update and with maxSurge 100%
 func (s *CanarySuite) TestRolloutWithMaxSurgeScalingDuringUpdate() {
 	s.Given().
@@ -148,7 +151,10 @@ spec:
     spec:
       containers:
       - name: updatescaling
-        command: [/bad-command]`).
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 2m`).
 		WaitForRolloutReplicas(7).
 		Then().
 		ExpectCanaryStablePodCount(4, 3).
@@ -213,7 +219,7 @@ spec:
 		ExpectCanaryStablePodCount(6, 4).
 		When().
 		ScaleRollout(4).
-	    WaitForRolloutReplicas(6).
+		WaitForRolloutReplicas(6).
 		Then().
 		ExpectCanaryStablePodCount(2, 4)
 }
@@ -443,7 +449,7 @@ spec:
             port: 80
           periodSeconds: 30
   strategy:
-    canary: 
+    canary:
       steps:
       - setWeight: 20
       - pause: {}
@@ -462,6 +468,31 @@ spec:
 		PromoteRollout().
 		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Healthy")
+}
+
+// TestCanaryScaleDownDelayWithProgressDeadline verifies that a rollout with a pending scale down doesn't trigger a ProgressDeadlineExceeded event and renders the rollout degraded
+func (s *CanarySuite) TestCanaryScaleDownDelayWithProgressDeadline() {
+	s.Given().
+		HealthyRollout(`@functional/canary-scaledowndelay.yaml`).
+		When().
+		UpdateSpec(`
+spec:
+  progressDeadlineSeconds: 5`).
+		Then().
+		When().
+		UpdateSpec(`
+spec:
+  template:
+    metadata:
+      annotations:
+        rev: two`). // update to revision 2
+		WaitForRolloutStatus("Healthy").
+		Sleep(10 * time.Second). // sleep > progressDeadlineSeconds
+		Then().
+		Assert(func(t *fixtures.Then) {
+			status := string(t.GetRollout().Status.Phase)
+			assert.Equal(s.T(), "Healthy", status)
+		})
 }
 
 // TestCanaryScaleDownDelay verifies canary uses a scaleDownDelay when traffic routing is used,
@@ -538,9 +569,48 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
 		WaitForRolloutStatus("Paused").
 		AbortRollout().
 		WaitForRolloutStatus("Degraded").
+		Then().
+		// Expect that the canary service selector has been moved back to stable
+		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "674d8cf959"}, false).
+		When().
 		Sleep(3*time.Second).
 		Then().
 		ExpectRevisionPodCount("2", 0)
+}
+
+func (s *CanarySuite) TestCanaryScaleDownOnAbortNoTrafficRouting() {
+	s.Given().
+		HealthyRollout(`@functional/canary-scaledownonabortnotrafficrouting.yaml`).
+		When().
+		UpdateSpec(). // update to revision 2
+		WaitForRolloutStatus("Paused").
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Then().
+		// Expect that the canary service selector has been moved back to stable
+		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "674d8cf959"}, false).
+		When().
+		Sleep(3*time.Second).
+		Then().
+		ExpectRevisionPodCount("2", 0)
+}
+
+func (s *CanarySuite) TestCanaryWithPausedRollout() {
+	(s.Given().
+		HealthyRollout(`@functional/rollout-canary-with-pause.yaml`).
+		When().
+		ApplyManifests().
+		MarkPodsReady("1", 3). // mark all 3 pods ready
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec(). // update to revision 2
+		WaitForRolloutStatus("Paused").
+		UpdateSpec(). // update to revision 3
+		WaitForRolloutStatus("Paused").
+		Sleep(1*time.Second).
+		Then().
+		ExpectRevisionPodCount("1", 3).
+		ExpectRevisionPodCount("2", 0).
+		ExpectRevisionPodCount("3", 1))
 }
 
 func (s *CanarySuite) TestCanaryUnScaleDownOnAbort() {
@@ -555,4 +625,225 @@ func (s *CanarySuite) TestCanaryUnScaleDownOnAbort() {
 		Then().
 		ExpectRevisionPodCount("2", 1).
 		ExpectRevisionScaleDown("2", false)
+}
+
+func (s *CanarySuite) TestCanaryDynamicStableScale() {
+	s.Given().
+		RolloutObjects(`@functional/canary-dynamic-stable-scale.yaml`).
+		When().
+		ApplyManifests().
+		MarkPodsReady("1", 4). // mark all 4 pods ready
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().          // update to revision 2
+		MarkPodsReady("2", 1). // mark 1 of 1 canary pods ready
+		WaitForRolloutStatus("Paused").
+		Sleep(2*time.Second).
+		Then().
+		ExpectRevisionPodCount("1", 3).
+		ExpectRevisionPodCount("2", 1).
+		When().
+		PromoteRollout().
+		MarkPodsReady("2", 2). // mark two more canary pods ready (3/3 canaries ready)
+		WaitForRolloutCanaryStepIndex(3).
+		Sleep(2*time.Second).
+		Then().
+		ExpectRevisionPodCount("1", 1).
+		ExpectRevisionPodCount("2", 3).
+		When().
+		// Abort rollout and ensure we scale down the canary as stable scales up
+		AbortRollout().
+		MarkPodsReady("1", 2). // mark 2 stable pods as ready (3/4 stable are ready)
+		WaitForRevisionPodCount("2", 1).
+		WaitForRevisionPodCount("1", 4).
+		Then().
+		// Assert that the canary service selector is still not set to stable rs because of dynamic stable scale still in progress
+		Assert(func(t *fixtures.Then) {
+			canarySvc, stableSvc := t.GetServices()
+			assert.NotEqual(s.T(), canarySvc.Spec.Selector["rollouts-pod-template-hash"], stableSvc.Spec.Selector["rollouts-pod-template-hash"])
+		}).
+		When().
+		MarkPodsReady("1", 1). // mark last remaining stable pod as ready (4/4 stable are ready)
+		WaitForRevisionPodCount("2", 0).
+		Sleep(2*time.Second). //WaitForRevisionPodCount does not wait for terminating pods and so ExpectServiceSelector fails sleep a bit for the terminating pods to be deleted
+		Then().
+		// Expect that the canary service selector is now set to stable because of dynamic stable scale is over and we have all pods up on stable rs
+		// NOTE: This must be updated for every k8s version upgrade
+		ExpectServiceSelector("dynamic-stable-scale-canary", map[string]string{"app": "dynamic-stable-scale", "rollouts-pod-template-hash": "6b56c8cdb4"}, false).
+		ExpectRevisionPodCount("1", 4)
+}
+
+// TestCanaryDynamicStableScaleAbortScaleDownDelay verifies that an abort with
+// dynamicStableScale and an explicitly set abortScaleDownDelaySeconds (1) does not deadlock
+// (issue #4898): traffic steps back to stable and the canary eventually scales down, and
+// (2) stays safe: the canary keeps its pods and is not annotated with a scale-down deadline
+// until traffic weight has fully shifted back to stable (weight 0), so the deadline never
+// scales down a canary that is still serving traffic.
+func (s *CanarySuite) TestCanaryDynamicStableScaleAbortScaleDownDelay() {
+	s.Given().
+		RolloutObjects(`@functional/canary-dynamic-stable-scale-abort-delay.yaml`).
+		When().
+		ApplyManifests().
+		MarkPodsReady("1", 4). // mark all 4 pods ready
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().          // update to revision 2
+		MarkPodsReady("2", 1). // mark 1 of 1 canary pods ready
+		WaitForRolloutStatus("Paused").
+		PromoteRollout().
+		MarkPodsReady("2", 2). // mark two more canary pods ready (3/3 canaries ready)
+		WaitForRolloutCanaryStepIndex(3).
+		Sleep(2*time.Second).
+		Then().
+		ExpectRevisionPodCount("1", 1).
+		ExpectRevisionPodCount("2", 3).
+		When().
+		AbortRollout().
+		Sleep(2*time.Second).
+		Then().
+		// While stable is still scaling up (its new pods are not yet ready), the canary must
+		// keep its pods, must NOT yet have a scale-down deadline, and must keep its traffic
+		// weight (75%), since stable cannot yet serve that traffic.
+		ExpectRevisionPodCount("2", 3).
+		Assert(func(t *fixtures.Then) {
+			rs2 := t.GetReplicaSetByRevision("2")
+			assert.NotContains(s.T(), rs2.Annotations, rov1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+			ro := t.GetRollout()
+			assert.Equal(s.T(), int32(75), ro.Status.Canary.Weights.Canary.Weight)
+		}).
+		When().
+		MarkPodsReady("1", 2).           // mark 2 new stable pods as ready (3/4 stable are ready)
+		WaitForRevisionPodCount("1", 4). // weight steps down to 25, stable scales up for the rest
+		MarkPodsReady("1", 1).           // mark last remaining stable pod as ready (4/4 stable are ready)
+		Sleep(2*time.Second).
+		Then().
+		// All traffic is back on stable, and only now should the canary get its scale-down
+		// deadline. It still holds its pods for the duration of abortScaleDownDelaySeconds.
+		ExpectRevisionPodCount("2", 3).
+		Assert(func(t *fixtures.Then) {
+			ro := t.GetRollout()
+			assert.Equal(s.T(), int32(0), ro.Status.Canary.Weights.Canary.Weight)
+			assert.Equal(s.T(), int32(100), ro.Status.Canary.Weights.Stable.Weight)
+			rs2 := t.GetReplicaSetByRevision("2")
+			assert.Contains(s.T(), rs2.Annotations, rov1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+		}).
+		When().
+		WaitForRevisionPodCount("2", 0). // canary drains once the scale-down deadline elapses
+		Then().
+		ExpectRevisionPodCount("1", 4).
+		Assert(func(t *fixtures.Then) {
+			// canary service selector has been reset to stable
+			canarySvc, stableSvc := t.GetServices()
+			assert.Equal(s.T(), stableSvc.Spec.Selector["rollouts-pod-template-hash"], canarySvc.Spec.Selector["rollouts-pod-template-hash"])
+		})
+}
+
+// TestCanaryDynamicStableScaleRollbackToStable verifies when we rollback to stable with
+// DynamicStableScale enabled, we do so in a safe manner without shifting traffic back to stable
+// before it can handle it
+func (s *CanarySuite) TestCanaryDynamicStableScaleRollbackToStable() {
+	s.Given().
+		RolloutObjects(`@functional/canary-dynamic-stable-scale.yaml`).
+		When().
+		ApplyManifests().
+		MarkPodsReady("1", 4). // mark all 4 pods ready
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		MarkPodsReady("2", 1). // mark 1 of 1 canary pods ready
+		WaitForRolloutStatus("Paused").
+		Sleep(2*time.Second).
+		Then().
+		ExpectRevisionPodCount("1", 3).
+		ExpectRevisionPodCount("2", 1).
+		When().
+		UndoRollout(1). // Rollback to stable (revision 1)
+		Sleep(2*time.Second).
+		Then().
+		ExpectRevisionPodCount("3", 4). // Ensure we fully scale up the stable (now revision 3)
+		ExpectRevisionPodCount("2", 1). // And do not scale down the previous desired (revision 2)
+		Assert(func(t *fixtures.Then) {
+			// Make sure canary service is still pointing to the previous desired (revision 2)
+			rs3 := t.GetReplicaSetByRevision("3")
+			rs2 := t.GetReplicaSetByRevision("2")
+			canarySvc, stableSvc := t.GetServices()
+			assert.Equal(s.T(), rs2.Labels[rov1.DefaultRolloutUniqueLabelKey], canarySvc.Spec.Selector["rollouts-pod-template-hash"])
+			assert.Equal(s.T(), rs3.Labels[rov1.DefaultRolloutUniqueLabelKey], stableSvc.Spec.Selector["rollouts-pod-template-hash"])
+
+			// Ensure we did not touch the weights even though we are "fully promoted"
+			ro := t.GetRollout()
+			assert.Equal(s.T(), rs2.Labels[rov1.DefaultRolloutUniqueLabelKey], ro.Status.Canary.Weights.Canary.PodTemplateHash)
+			assert.Equal(s.T(), int32(25), ro.Status.Canary.Weights.Canary.Weight)
+			assert.Equal(s.T(), rs3.Labels[rov1.DefaultRolloutUniqueLabelKey], ro.Status.Canary.Weights.Stable.PodTemplateHash)
+			assert.Equal(s.T(), int32(75), ro.Status.Canary.Weights.Stable.Weight)
+		}).
+		When().
+		MarkPodsReady("3", 1).           // marks the 4th pod of stableRS/newRS (revision 3) ready
+		WaitForRevisionPodCount("2", 0). // make sure we scale down the previous desired (revision 2)
+		Then().
+		Assert(func(t *fixtures.Then) {
+			// Make sure canary/stable service is updated to point to revision 3
+			rs3 := t.GetReplicaSetByRevision("3")
+			canarySvc, stableSvc := t.GetServices()
+			assert.Equal(s.T(), rs3.Labels[rov1.DefaultRolloutUniqueLabelKey], canarySvc.Spec.Selector["rollouts-pod-template-hash"])
+			assert.Equal(s.T(), rs3.Labels[rov1.DefaultRolloutUniqueLabelKey], stableSvc.Spec.Selector["rollouts-pod-template-hash"])
+
+			// Ensure we are 100% back to stable
+			ro := t.GetRollout()
+			assert.Equal(s.T(), rs3.Labels[rov1.DefaultRolloutUniqueLabelKey], ro.Status.Canary.Weights.Canary.PodTemplateHash)
+			assert.Equal(s.T(), int32(0), ro.Status.Canary.Weights.Canary.Weight)
+			assert.Equal(s.T(), rs3.Labels[rov1.DefaultRolloutUniqueLabelKey], ro.Status.Canary.Weights.Stable.PodTemplateHash)
+			assert.Equal(s.T(), int32(100), ro.Status.Canary.Weights.Stable.Weight)
+
+		})
+}
+
+// TestCanaryWithSpecPause This tests that we do not go into a update loop where we flap back updating condition patches.
+func (s *CanarySuite) TestCanaryWithSpecPause() {
+	s.Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-canary-with-pause
+spec:
+  replicas: 3
+  revisionHistoryLimit: 2
+  progressDeadlineSeconds: 5
+  selector:
+    matchLabels:
+      app: rollout-canary-with-pause
+  template:
+    metadata:
+      labels:
+        app: rollout-canary-with-pause
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 30
+  strategy:
+    canary:
+      steps:
+      - setWeight: 20
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
+		WaitForRolloutReplicas(3).
+		UpdateSpec(`{"spec":{"paused": true}}`).
+		WaitForRolloutConditionToNotExist(func(ro *v1alpha1.Rollout) bool {
+			for _, c := range ro.Status.Conditions {
+				if c.Type == v1alpha1.RolloutProgressing && c.Reason == conditions.RolloutPausedReason && c.Status == corev1.ConditionUnknown {
+					return true
+				}
+			}
+			return false
+		}, "ProgressingPausedUnknown", 5*time.Second).
+		WaitForRolloutStatus("Paused")
 }

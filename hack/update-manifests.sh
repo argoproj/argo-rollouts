@@ -6,17 +6,16 @@ set -e
 SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P )"
 AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
-if [ ! -z "${IMAGE_NAMESPACE}" ]; then
-  SET_IMAGE_NAMESPACE="=${IMAGE_NAMESPACE}"
-fi
+# Default to 'argoproj' if not set
+REGISTRY_NAMESPACE="${REGISTRY_NAMESPACE:-argoproj}"
 
 if [ ! -z "${IMAGE_TAG}" ]; then
   SET_IMAGE_TAG=":${IMAGE_TAG}"
 fi
 
-if [ ! -z "${SET_IMAGE_NAMESPACE}" ] || [ ! -z "${SET_IMAGE_TAG}" ]; then
-  (cd ${SRCROOT}/manifests/base && kustomize edit set image quay.io/argoproj/argo-rollouts${SET_IMAGE_NAMESPACE}${SET_IMAGE_TAG})
-  (cd ${SRCROOT}/manifests/dashboard-install && kustomize edit set image quay.io/argoproj/kubectl-argo-rollouts${SET_IMAGE_NAMESPACE}${SET_IMAGE_TAG})
+if [ ! -z "${SET_IMAGE_TAG}" ]; then
+  (cd ${SRCROOT}/manifests/base && kustomize edit set image quay.io/${REGISTRY_NAMESPACE}/argo-rollouts${SET_IMAGE_TAG})
+  (cd ${SRCROOT}/manifests/dashboard-install && kustomize edit set image quay.io/${REGISTRY_NAMESPACE}/kubectl-argo-rollouts${SET_IMAGE_TAG})
 fi
 
 kust_cmd="kustomize build --load-restrictor LoadRestrictionsNone"

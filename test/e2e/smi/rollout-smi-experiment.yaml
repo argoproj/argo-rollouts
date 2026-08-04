@@ -28,7 +28,7 @@ spec:
     # This selector will be updated with the pod-template-hash of the stable ReplicaSet. e.g.:
     # rollouts-pod-template-hash: 789746c88d
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: rollout-smi-experiment-stable
@@ -40,10 +40,13 @@ spec:
       http:
         paths:
           - path: /
+            pathType: ImplementationSpecific
             backend:
               # Reference to a Service name, also specified in the Rollout spec.strategy.canary.stableService field
-              serviceName: rollout-smi-experiment-stable
-              servicePort: 80
+              service:
+                name: rollout-smi-experiment-stable
+                port:
+                  number: 80
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout

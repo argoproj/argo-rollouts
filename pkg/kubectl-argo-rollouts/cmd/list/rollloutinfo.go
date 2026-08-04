@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -85,15 +86,15 @@ func (ri *rolloutInfo) key() infoKey {
 
 func (ri *rolloutInfo) String(timestamp, namespace bool) string {
 	fmtString := columnFmtString
-	args := []interface{}{ri.name, ri.strategy, ri.status, ri.step, ri.setWeight, ri.readyCurrent, ri.desired, ri.upToDate, ri.available}
+	args := []any{ri.name, ri.strategy, ri.status, ri.step, ri.setWeight, ri.readyCurrent, ri.desired, ri.upToDate, ri.available}
 	if namespace {
 		fmtString = "%-9s\t" + fmtString
-		args = append([]interface{}{ri.namespace}, args...)
+		args = append([]any{ri.namespace}, args...)
 	}
 	if timestamp {
 		fmtString = "%-20s\t" + fmtString
-		timestampStr := time.Now().UTC().Truncate(time.Second).Format("2006-01-02T15:04:05Z")
-		args = append([]interface{}{timestampStr}, args...)
+		timestampStr := timeutil.Now().UTC().Truncate(time.Second).Format("2006-01-02T15:04:05Z")
+		args = append([]any{timestampStr}, args...)
 	}
 	return fmt.Sprintf(fmtString, args...)
 }

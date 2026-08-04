@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -18,11 +17,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/hash"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 // generateRollout creates a rollout, with the input image as its template
@@ -35,7 +37,7 @@ func generateRollout(image string) v1alpha1.Rollout {
 			Annotations: make(map[string]string),
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: ptr.To[int32](1),
 			Selector: &metav1.LabelSelector{MatchLabels: podLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -59,14 +61,14 @@ func generateRollout(image string) v1alpha1.Rollout {
 // generateRS creates a replica set, with the input rollout's template as its template
 func generateRS(rollout v1alpha1.Rollout) appsv1.ReplicaSet {
 	template := rollout.Spec.Template.DeepCopy()
-	podTemplateHash := controller.ComputeHash(&rollout.Spec.Template, nil)
+	podTemplateHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, nil)
 	template.Labels = map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podTemplateHash,
 	}
 	return appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:    uuid.NewUUID(),
-			Name:   fmt.Sprintf("%s-%s", rollout.Name, controller.ComputeHash(&rollout.Spec.Template, nil)),
+			Name:   fmt.Sprintf("%s-%s", rollout.Name, podTemplateHash),
 			Labels: template.Labels,
 		},
 		Spec: appsv1.ReplicaSetSpec{
@@ -77,6 +79,26 @@ func generateRS(rollout v1alpha1.Rollout) appsv1.ReplicaSet {
 	}
 }
 
+func TestFindNewReplicaSet(t *testing.T) {
+	ro := generateRollout("red")
+	rs1 := generateRS(ro)
+	rs1.Labels["name"] = "red"
+	*(rs1.Spec.Replicas) = 1
+
+	t.Run("FindNewReplicaSet by hash", func(t *testing.T) {
+		// rs has the current hash
+		rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = hash.ComputePodTemplateHash(&ro.Spec.Template, ro.Status.CollisionCount)
+		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs1})
+		assert.Equal(t, &rs1, actual)
+	})
+	t.Run("FindNewReplicaSet by deprecated hash", func(t *testing.T) {
+		// rs has the deprecated hash
+		rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = controller.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
+		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs1})
+		assert.Equal(t, &rs1, actual)
+	})
+}
+
 func TestFindOldReplicaSets(t *testing.T) {
 	now := metav1.Now()
 	before := metav1.Time{Time: now.Add(-time.Minute)}
@@ -84,7 +106,7 @@ func TestFindOldReplicaSets(t *testing.T) {
 	rollout := generateRollout("nginx")
 	newRS := generateRS(rollout)
 	*(newRS.Spec.Replicas) = 1
-	newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "hash"
+	newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	newRS.CreationTimestamp = now
 
 	oldRollout := generateRollout("nginx")
@@ -121,7 +143,7 @@ func TestFindOldReplicaSets(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			allRS := FindOldReplicaSets(&test.rollout, test.rsList)
+			allRS := FindOldReplicaSets(&test.rollout, test.rsList, &newRS)
 			sort.Sort(controller.ReplicaSetsByCreationTimestamp(allRS))
 			sort.Sort(controller.ReplicaSetsByCreationTimestamp(test.expected))
 			if !reflect.DeepEqual(allRS, test.expected) {
@@ -129,6 +151,18 @@ func TestFindOldReplicaSets(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIsActive(t *testing.T) {
+	rs1 := generateRS(generateRollout("foo"))
+	*(rs1.Spec.Replicas) = 1
+
+	rs2 := generateRS(generateRollout("foo"))
+	*(rs2.Spec.Replicas) = 0
+
+	assert.False(t, IsActive(nil))
+	assert.True(t, IsActive(&rs1))
+	assert.False(t, IsActive(&rs2))
 }
 
 func TestGetReplicaCountForReplicaSets(t *testing.T) {
@@ -193,12 +227,12 @@ func TestGetReplicaCountForReplicaSets(t *testing.T) {
 func TestNewRSNewReplicas(t *testing.T) {
 	ro := generateRollout("test")
 	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
-	blueGreenNewRSCount, err := NewRSNewReplicas(&ro, nil, nil)
+	blueGreenNewRSCount, err := NewRSNewReplicas(&ro, nil, nil, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, blueGreenNewRSCount, *ro.Spec.Replicas)
 
 	ro.Spec.Strategy.BlueGreen = nil
-	_, err = NewRSNewReplicas(&ro, nil, nil)
+	_, err = NewRSNewReplicas(&ro, nil, nil, nil)
 	assert.Error(t, err, "no rollout strategy provided")
 }
 
@@ -285,7 +319,7 @@ func TestNewRSNewReplicasWitPreviewReplicaCount(t *testing.T) {
 			if test.overrideCurrentPodHash != "" {
 				r.Status.CurrentPodHash = test.overrideCurrentPodHash
 			}
-			count, err := NewRSNewReplicas(r, []*appsv1.ReplicaSet{rs, rs2}, rs)
+			count, err := NewRSNewReplicas(r, []*appsv1.ReplicaSet{rs, rs2}, rs, nil)
 			assert.Nil(t, err)
 			assert.Equal(t, test.expectReplicaCount, count)
 		})
@@ -636,7 +670,7 @@ func TestCheckPodSpecChange(t *testing.T) {
 	ro := generateRollout("nginx")
 	rs := generateRS(ro)
 	assert.False(t, CheckPodSpecChange(&ro, &rs))
-	ro.Status.CurrentPodHash = controller.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
+	ro.Status.CurrentPodHash = hash.ComputePodTemplateHash(&ro.Spec.Template, ro.Status.CollisionCount)
 	assert.False(t, CheckPodSpecChange(&ro, &rs))
 
 	ro.Status.CurrentPodHash = "different-hash"
@@ -659,12 +693,12 @@ func TestResetCurrentStepIndex(t *testing.T) {
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		Steps: []v1alpha1.CanaryStep{
 			{
-				SetWeight: pointer.Int32Ptr(1),
+				SetWeight: ptr.To[int32](1),
 			},
 		},
 	}
 	newStepIndex := ResetCurrentStepIndex(&ro)
-	assert.Equal(t, pointer.Int32Ptr(0), newStepIndex)
+	assert.Equal(t, ptr.To[int32](0), newStepIndex)
 
 	ro.Spec.Strategy.Canary.Steps = nil
 	newStepIndex = ResetCurrentStepIndex(&ro)
@@ -827,7 +861,7 @@ func TestGenerateReplicaSetAffinity(t *testing.T) {
 	assert.Equal(t, "", ro.Status.StableRS)
 	assert.Nil(t, GenerateReplicaSetAffinity(ro))
 	// StableRS is equal to CurrentPodHash
-	ro.Status.StableRS = controller.ComputeHash(&ro.Spec.Template, nil)
+	ro.Status.StableRS = hash.ComputePodTemplateHash(&ro.Spec.Template, nil)
 	assert.Nil(t, GenerateReplicaSetAffinity(ro))
 
 	// Injects anti-affinity rule with RequiredDuringSchedulingIgnoredDuringExecution into empty RS Affinity object
@@ -1005,6 +1039,24 @@ func TestIfInjectedAntiAffinityRuleNeedsUpdate(t *testing.T) {
 		}}
 
 	assert.True(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinity, ro))
+
+	// A pod affinity term keyed by the rollout unique label but with no Values
+	// (e.g. Operator: Exists) must not cause an index-out-of-range panic and
+	// should be treated as not needing an update.
+	rsAffinityExists := &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{{
+						Key:      v1alpha1.DefaultRolloutUniqueLabelKey,
+						Operator: metav1.LabelSelectorOperator("Exists"),
+					}},
+				},
+			}},
+		},
+	}
+
+	assert.False(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinityExists, ro))
 }
 
 func TestNeedsRestart(t *testing.T) {
@@ -1042,48 +1094,6 @@ func TestNeedsRestart(t *testing.T) {
 		}
 		assert.True(t, NeedsRestart(ro))
 	})
-}
-
-func TestIsStillReferenced(t *testing.T) {
-	newRSWithPodTemplateHash := func(hash string) *appsv1.ReplicaSet {
-		return &appsv1.ReplicaSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{
-					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
-				},
-			},
-		}
-	}
-	{
-		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
-		rs := &appsv1.ReplicaSet{}
-		assert.False(t, IsStillReferenced(status, rs))
-	}
-	{
-		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
-		rs := newRSWithPodTemplateHash("")
-		assert.False(t, IsStillReferenced(status, rs))
-	}
-	{
-		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
-		rs := newRSWithPodTemplateHash("abc123")
-		assert.True(t, IsStillReferenced(status, rs))
-	}
-	{
-		status := v1alpha1.RolloutStatus{CurrentPodHash: "abc123"}
-		rs := newRSWithPodTemplateHash("abc123")
-		assert.True(t, IsStillReferenced(status, rs))
-	}
-	{
-		status := v1alpha1.RolloutStatus{BlueGreen: v1alpha1.BlueGreenStatus{ActiveSelector: "abc123"}}
-		rs := newRSWithPodTemplateHash("abc123")
-		assert.True(t, IsStillReferenced(status, rs))
-	}
-	{
-		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
-		rs := newRSWithPodTemplateHash("def456")
-		assert.False(t, IsStillReferenced(status, rs))
-	}
 }
 
 func TestHasScaleDownDeadline(t *testing.T) {
@@ -1184,13 +1194,13 @@ func TestGetTimeRemainingBeforeScaleDownDeadline(t *testing.T) {
 		assert.Nil(t, remainingTime)
 	}
 	{
-		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: metav1.Now().Add(-600 * time.Second).UTC().Format(time.RFC3339)}
+		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: timeutil.Now().Add(-600 * time.Second).UTC().Format(time.RFC3339)}
 		remainingTime, err := GetTimeRemainingBeforeScaleDownDeadline(&rs)
 		assert.Nil(t, err)
 		assert.Nil(t, remainingTime)
 	}
 	{
-		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: metav1.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)}
+		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: timeutil.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)}
 		remainingTime, err := GetTimeRemainingBeforeScaleDownDeadline(&rs)
 		assert.Nil(t, err)
 		assert.NotNil(t, remainingTime)
@@ -1248,53 +1258,108 @@ spec:
 	assert.True(t, PodTemplateEqualIgnoreHash(&live, &desired))
 }
 
-func TestIsReplicaSetReady(t *testing.T) {
+func TestIsReplicaSetAvailable(t *testing.T) {
 	{
-		assert.False(t, IsReplicaSetReady(nil))
+		assert.False(t, IsReplicaSetAvailable(nil))
 	}
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			},
 			Status: appsv1.ReplicaSetStatus{
-				ReadyReplicas: 0,
+				ReadyReplicas:     0,
+				AvailableReplicas: 0,
 			},
 		}
-		assert.False(t, IsReplicaSetReady(&rs))
+		assert.False(t, IsReplicaSetAvailable(&rs))
 	}
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			},
 			Status: appsv1.ReplicaSetStatus{
-				ReadyReplicas: 1,
+				ReadyReplicas:     1,
+				AvailableReplicas: 1,
 			},
 		}
-		assert.True(t, IsReplicaSetReady(&rs))
+		assert.True(t, IsReplicaSetAvailable(&rs))
 	}
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			},
 			Status: appsv1.ReplicaSetStatus{
-				ReadyReplicas: 2,
+				ReadyReplicas:     2,
+				AvailableReplicas: 2,
 			},
 		}
-		assert.True(t, IsReplicaSetReady(&rs))
+		assert.True(t, IsReplicaSetAvailable(&rs))
 	}
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(0),
+				Replicas: ptr.To[int32](0),
 			},
 			Status: appsv1.ReplicaSetStatus{
-				ReadyReplicas: 0,
+				ReadyReplicas:     0,
+				AvailableReplicas: 0,
 			},
 		}
-		// NOTE: currently consider scaled down replicas as not ready
-		assert.False(t, IsReplicaSetReady(&rs))
+		// NOTE: currently consider scaled down replicas as not available
+		assert.False(t, IsReplicaSetAvailable(&rs))
 	}
+	{
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: ptr.To[int32](0),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas:     1,
+				AvailableReplicas: 0,
+			},
+		}
+		assert.False(t, IsReplicaSetAvailable(&rs))
+	}
+}
+
+func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
+	t.Run("No Availability", func(t *testing.T) {
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: ptr.To[int32](2),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas:     0,
+				AvailableReplicas: 0,
+			},
+		}
+		assert.False(t, IsReplicaSetPartiallyAvailable(&rs))
+	})
+	t.Run("Partial Availability", func(t *testing.T) {
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: ptr.To[int32](2),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas:     2,
+				AvailableReplicas: 1,
+			},
+		}
+		assert.True(t, IsReplicaSetPartiallyAvailable(&rs))
+	})
+	t.Run("Full Availability", func(t *testing.T) {
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: ptr.To[int32](2),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas:     2,
+				AvailableReplicas: 2,
+			},
+		}
+		assert.True(t, IsReplicaSetPartiallyAvailable(&rs))
+	})
 }

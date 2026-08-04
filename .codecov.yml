@@ -1,3 +1,8 @@
+flags:
+  unit-tests:
+    carryforward: true
+  e2e:
+    carryforward: true
 coverage:
   status:
     # allow test coverage to drop by 0.1%, assume that it's typically due to CI problems
@@ -8,13 +13,16 @@ coverage:
       default:
         threshold: 0.1
 ignore:
-  - "pkg/apis/rollouts/v1alpha1"
-  - "test"
-  - "**/*.pb.go"
-  - "**/*.pb.gw.go"
-  - "**/*generated.go"
-  - "**/*generated.deepcopy.go"
-  - "**/*_test.go"
-  - "pkg/apis/client/.*"
-  - "pkg/client/.*"
-  - "vendor/.*"
+  - 'pkg/apis/rollouts/v1alpha1'
+  - 'test'
+  - '**/*.pb.go'
+  - '**/*.pb.gw.go'
+  - '**/*generated.go'
+  - '**/*generated.deepcopy.go'
+  - '**/*_test.go'
+  - 'pkg/apis/client/.*'
+  - 'pkg/client/.*'
+  - 'vendor/.*'
+  - '**/mocks/*'
+  - 'hack/gen-crd-spec/main.go'
+  - 'hack/gen-docs/main.go'

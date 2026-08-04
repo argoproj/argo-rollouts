@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/utils/pointer"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutslisters "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
@@ -17,14 +15,18 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -44,7 +46,7 @@ type experimentContext struct {
 	replicaSetLister              appslisters.ReplicaSetLister
 	serviceLister                 v1.ServiceLister
 	recorder                      record.EventRecorder
-	enqueueExperimentAfter        func(obj interface{}, duration time.Duration)
+	enqueueExperimentAfter        func(obj any, duration time.Duration)
 	resyncPeriod                  time.Duration
 
 	// calculated values during reconciliation
@@ -68,9 +70,8 @@ func newExperimentContext(
 	serviceLister v1.ServiceLister,
 	recorder record.EventRecorder,
 	resyncPeriod time.Duration,
-	enqueueExperimentAfter func(obj interface{}, duration time.Duration),
+	enqueueExperimentAfter func(obj any, duration time.Duration),
 ) *experimentContext {
-
 	exCtx := experimentContext{
 		ex:                            experiment,
 		templateRSs:                   templateRSs,
@@ -99,7 +100,7 @@ func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
 	}
 
 	for _, analysis := range ec.ex.Spec.Analyses {
-		ec.reconcileAnalysisRun(analysis)
+		ec.reconcileAnalysisRun(analysis, ec.ex.Spec.DryRun, ec.ex.Spec.MeasurementRetention, &ec.ex.Spec.AnalysisRunMetadata)
 	}
 
 	newStatus := ec.calculateStatus()
@@ -123,7 +124,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	}
 	prevStatus := templateStatus.DeepCopy()
 	desiredReplicaCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 
 	rs := ec.templateRSs[template.Name]
 
@@ -136,7 +137,14 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			// Create service for template if service field is set
 			if desiredReplicaCount != 0 {
 				ec.createTemplateService(&template, templateStatus, rs)
+			} else {
+				if rs.Status.AvailableReplicas == 0 {
+					// Check if service should be deleted when ReplicaSet has scaled down to 0 available replicas
+					svc := ec.templateServices[template.Name]
+					ec.deleteTemplateService(svc, templateStatus, template.Name)
+				}
 			}
+
 		} else {
 			// If service field nil but service exists, then delete it
 			// Code should not enter this path
@@ -156,6 +164,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			ec.scaleTemplateRS(rs, template, templateStatus, desiredReplicaCount, experimentReplicas)
 			templateStatus.LastTransitionTime = &now
 		}
+
 	}
 
 	if rs == nil {
@@ -271,11 +280,6 @@ func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, template v1a
 	if err != nil {
 		templateStatus.Status = v1alpha1.TemplateStatusError
 		templateStatus.Message = fmt.Sprintf("Unable to scale ReplicaSet for template '%s' to desired replica count '%v': %v", templateStatus.Name, desiredReplicaCount, err)
-	} else {
-		if desiredReplicaCount == 0 && template.Service != nil {
-			svc := ec.templateServices[template.Name]
-			ec.deleteTemplateService(svc, templateStatus, template.Name)
-		}
 	}
 }
 
@@ -284,11 +288,29 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 	// Create service with has same name, podTemplateHash, and labels as RS
 	podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	svc := ec.templateServices[template.Name]
-	if svc == nil || svc.Name != rs.Name {
-		newService, err := ec.CreateService(rs.Name, *template, rs.Labels)
+	var ports []corev1.ServicePort
+	for _, ctr := range rs.Spec.Template.Spec.Containers {
+		for _, port := range ctr.Ports {
+			servicePort := corev1.ServicePort{
+				Protocol:   port.Protocol,
+				Port:       port.ContainerPort,
+				TargetPort: intstr.FromInt(int(port.ContainerPort)),
+			}
+			if port.Name != "" {
+				servicePort.Name = port.Name
+			}
+			ports = append(ports, servicePort)
+		}
+	}
+	if (svc == nil || svc.Name != rs.Name) && len(ports) > 0 {
+		serviceName := rs.Name
+		if template.Service.Name != "" {
+			serviceName = template.Service.Name
+		}
+		newService, err := ec.CreateService(serviceName, *template, rs.Labels, ports)
 		if err != nil {
 			templateStatus.Status = v1alpha1.TemplateStatusError
-			templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)
+			templateStatus.Message = fmt.Sprintf("Failed to create Service %s for template '%s': %v", serviceName, template.Name, err)
 		} else {
 			ec.templateServices[template.Name] = newService
 			templateStatus.ServiceName = newService.Name
@@ -299,7 +321,7 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 
 // createReplicaSetForTemplate initializes ReplicaSet with zero replicas for given experiment template
 func (ec *experimentContext) createReplicaSetForTemplate(template v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, logCtx *log.Entry, now metav1.Time) {
-	template.Replicas = pointer.Int32Ptr(0)
+	template.Replicas = ptr.To[int32](0)
 	rs, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
 	if err != nil {
 		logCtx.Warnf("Failed to create ReplicaSet: %v", err)
@@ -348,7 +370,7 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.Exper
 		}
 	}
 	deadlineSeconds := defaults.GetExperimentProgressDeadlineSecondsOrDefault(ex)
-	now := time.Now()
+	now := timeutil.Now()
 	for _, template := range ex.Spec.Templates {
 		// Set candidate to the earliest of LastTransitionTime + progressDeadlineSeconds
 		ts := experimentutil.GetTemplateStatus(ex.Status, template.Name)
@@ -370,7 +392,7 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.Exper
 
 // reconcileAnalysisRun reconciles a single analysis run, creating or terminating it as necessary.
 // Updates the analysis run statuses, which may subsequently fail the experiment.
-func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) {
+func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, analysisRunMetadata *v1alpha1.AnalysisRunMetadata) {
 	logCtx := ec.log.WithField("analysis", analysis.Name)
 	logCtx.Infof("Reconciling analysis")
 	prevStatus := experimentutil.GetAnalysisRunStatus(ec.ex.Status, analysis.Name)
@@ -396,13 +418,26 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 				eventType = corev1.EventTypeWarning
 			}
 			ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(newStatus.Phase)}, msg)
+
+			// Handle the case where the Analysis Run belongs to an Experiment, and the Experiment is a Step in the Rollout
+			// This makes sure the rollout gets the Analysis Run events, which will then trigger any subscribed notifications
+			// #4009
+			roRef := experimentutil.GetRolloutOwnerRef(ec.ex)
+			if roRef != nil {
+				rollout, err := ec.argoProjClientset.ArgoprojV1alpha1().Rollouts(ec.ex.Namespace).Get(context.TODO(), roRef.Name, metav1.GetOptions{})
+				if err != nil {
+					ec.log.Warnf("Failed to get parent Rollout of the Experiment '%s': %v", roRef.Name, err)
+				} else {
+					ec.recorder.Eventf(rollout, record.EventOptions{EventType: corev1.EventTypeWarning, EventReason: "AnalysisRun" + string(newStatus.Phase)}, msg)
+				}
+			}
 		}
 		experimentutil.SetAnalysisRunStatus(ec.newStatus, *newStatus)
 	}()
 
 	if ec.ex.Status.AvailableAt == nil {
 		// If we are not not available yet, don't start any runs
-		if analysis.ClusterScope {
+		if analysis.IsClusterScope() {
 			if err := ec.verifyClusterAnalysisTemplate(analysis); err != nil {
 				msg := fmt.Sprintf("ClusterAnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
 				newStatus.Phase = v1alpha1.AnalysisPhaseError
@@ -426,7 +461,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 			logCtx.Warnf("Skipping AnalysisRun creation for analysis %s: experiment is terminating", analysis.Name)
 			return
 		}
-		run, err := ec.createAnalysisRun(analysis)
+		run, err := ec.createAnalysisRun(analysis, dryRunMetrics, measurementRetentionMetrics, analysisRunMetadata)
 		if err != nil {
 			msg := fmt.Sprintf("Failed to create AnalysisRun for analysis '%s': %v", analysis.Name, err.Error())
 			newStatus.Phase = v1alpha1.AnalysisPhaseError
@@ -447,6 +482,14 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	}
 
 	run, err := ec.analysisRunLister.AnalysisRuns(ec.ex.Namespace).Get(prevStatus.AnalysisRun)
+	if err != nil {
+		// We recorded a run in the experiment status, but it didn't appear in the lister.
+		// Perform a get to see if it truly exists.
+		run, err = ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace).Get(context.TODO(), prevStatus.AnalysisRun, metav1.GetOptions{})
+		if err == nil && run != nil {
+			logCtx.Infof("Found analysis run '%s' missing from informer cache", run.Name)
+		}
+	}
 	if err != nil {
 		newStatus.Phase = v1alpha1.AnalysisPhaseError
 		newStatus.Message = err.Error()
@@ -473,13 +516,13 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 // createAnalysisRun creates the analysis run. If an existing runs exists with same name, is
 // semantically equal, and is not complete, returns the existing one, otherwise creates a new
 // run with a collision counter increase.
-func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) (*v1alpha1.AnalysisRun, error) {
+func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, analysisRunMetadata *v1alpha1.AnalysisRunMetadata) (*v1alpha1.AnalysisRun, error) {
 	analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
 	args, err := ec.ResolveAnalysisRunArgs(analysis.Args)
 	if err != nil {
 		return nil, err
 	}
-	run, err := ec.newAnalysisRun(analysis, args)
+	run, err := ec.newAnalysisRun(analysis, args, dryRunMetrics, measurementRetentionMetrics, analysisRunMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +546,6 @@ func (ec *experimentContext) ResolveAnalysisRunArgs(args []v1alpha1.Argument) ([
 }
 
 func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
-	prevStatus := ec.newStatus.DeepCopy()
 	switch ec.newStatus.Phase {
 	case "":
 		ec.newStatus.Phase = v1alpha1.AnalysisPhasePending
@@ -511,7 +553,7 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 		templateStatus, templateMessage := ec.assessTemplates()
 		analysesStatus, analysesMessage := ec.assessAnalysisRuns()
 		if templateStatus == v1alpha1.AnalysisPhaseRunning && ec.newStatus.AvailableAt == nil {
-			now := metav1.Now()
+			now := timeutil.MetaNow()
 			ec.newStatus.AvailableAt = &now
 			ec.log.Infof("Marked AvailableAt: %v", now)
 		}
@@ -548,14 +590,6 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 		}
 	}
 	ec.newStatus = calculateExperimentConditions(ec.ex, *ec.newStatus)
-	if prevStatus.Phase != ec.newStatus.Phase {
-		eventType := corev1.EventTypeNormal
-		switch ec.newStatus.Phase {
-		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive:
-			eventType = corev1.EventTypeWarning
-		}
-		ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "Experiment" + string(ec.newStatus.Phase)}, "Experiment transitioned from %s -> %s", prevStatus.Phase, ec.newStatus.Phase)
-	}
 	return ec.newStatus
 }
 
@@ -615,43 +649,154 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 }
 
 // newAnalysisRun generates an AnalysisRun from the experiment and template
-func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument) (*v1alpha1.AnalysisRun, error) {
-
-	if analysis.ClusterScope {
-		clusterTemplate, err := ec.clusterAnalysisTemplateLister.Get(analysis.TemplateName)
+func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, analysisRunMetadata *v1alpha1.AnalysisRunMetadata) (*v1alpha1.AnalysisRun, error) {
+	if analysis.IsClusterScope() {
+		analysisTemplates, clusterAnalysisTemplates, err := ec.getAnalysisTemplatesFromClusterAnalysis(analysis)
 		if err != nil {
 			return nil, err
 		}
 		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
-		run, err := analysisutil.NewAnalysisRunFromClusterTemplate(clusterTemplate, args, name, "", ec.ex.Namespace)
+		runLabels := map[string]string{}
+		runAnnotations := map[string]string{}
+
+		instanceID := analysisutil.GetInstanceID(ec.ex)
+		if instanceID != "" {
+			runLabels[v1alpha1.LabelKeyControllerInstanceID] = ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]
+		}
+		if analysisRunMetadata != nil {
+			for k, v := range analysisRunMetadata.Labels {
+				runLabels[k] = v
+			}
+			for k, v := range analysisRunMetadata.Annotations {
+				runAnnotations[k] = v
+			}
+		}
+		run, err := analysisutil.NewAnalysisRunFromTemplates(analysisTemplates, clusterAnalysisTemplates, args, dryRunMetrics, measurementRetentionMetrics, runLabels, runAnnotations, name, "", ec.ex.Namespace)
 		if err != nil {
 			return nil, err
 		}
-		instanceID := analysisutil.GetInstanceID(ec.ex)
-		if instanceID != "" {
-			run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
-		}
+
 		run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
 		return run, nil
 	} else {
-		template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
+		analysisTemplates, clusterAnalysisTemplates, err := ec.getAnalysisTemplatesFromAnalysis(analysis)
 		if err != nil {
 			return nil, err
 		}
 		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
-		run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", ec.ex.Namespace)
+		runLabels := map[string]string{}
+		runAnnotations := map[string]string{}
+		instanceID := analysisutil.GetInstanceID(ec.ex)
+		if instanceID != "" {
+			runLabels[v1alpha1.LabelKeyControllerInstanceID] = ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]
+		}
+		if analysisRunMetadata != nil {
+			for k, v := range analysisRunMetadata.Labels {
+				runLabels[k] = v
+			}
+			for k, v := range analysisRunMetadata.Annotations {
+				runAnnotations[k] = v
+			}
+		}
+
+		run, err := analysisutil.NewAnalysisRunFromTemplates(analysisTemplates, clusterAnalysisTemplates, args, dryRunMetrics, measurementRetentionMetrics, runLabels, runAnnotations, name, "", ec.ex.Namespace)
 		if err != nil {
 			return nil, err
 		}
-		instanceID := analysisutil.GetInstanceID(ec.ex)
-		if instanceID != "" {
-			run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
-		}
+
 		run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
 		return run, nil
 	}
+}
+
+func (ec *experimentContext) getAnalysisTemplatesFromClusterAnalysis(analysis v1alpha1.ExperimentAnalysisTemplateRef) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate, error) {
+	clusterTemplate, err := ec.clusterAnalysisTemplateLister.Get(analysis.TemplateName)
+	if err != nil {
+		return nil, nil, err
+	}
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	clusterTemplates = append(clusterTemplates, clusterTemplate)
+
+	if clusterTemplate.Spec.Templates != nil {
+		innerTemplates, innerClusterTemplates, innerErr := ec.getAnalysisTemplatesFromRefs(&clusterTemplate.Spec.Templates)
+		if innerErr != nil {
+			return nil, nil, innerErr
+		}
+		clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+		templates = append(templates, innerTemplates...)
+	}
+	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
+	return uniqueTemplates, uniqueClusterTemplates, nil
+}
+
+func (ec *experimentContext) getAnalysisTemplatesFromAnalysis(analysis v1alpha1.ExperimentAnalysisTemplateRef) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate, error) {
+	template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
+	if err != nil {
+		return nil, nil, err
+	}
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	templates = append(templates, template)
+
+	if template.Spec.Templates != nil {
+		innerTemplates, innerClusterTemplates, innerErr := ec.getAnalysisTemplatesFromRefs(&template.Spec.Templates)
+		if innerErr != nil {
+			return nil, nil, innerErr
+		}
+		clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+		templates = append(templates, innerTemplates...)
+	}
+	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
+	return uniqueTemplates, uniqueClusterTemplates, nil
+}
+
+func (ec *experimentContext) getAnalysisTemplatesFromRefs(templateRefs *[]v1alpha1.AnalysisTemplateRef) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate, error) {
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	for _, templateRef := range *templateRefs {
+		if templateRef.IsClusterScope() {
+			template, err := ec.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					ec.log.Warnf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName)
+				}
+				return nil, nil, err
+			}
+			clusterTemplates = append(clusterTemplates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerTemplates, innerClusterTemplates, innerErr := ec.getAnalysisTemplatesFromRefs(&template.Spec.Templates)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
+		} else {
+			template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					ec.log.Warnf("AnalysisTemplate '%s' not found", templateRef.TemplateName)
+				}
+				return nil, nil, err
+			}
+			templates = append(templates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerTemplates, innerClusterTemplates, innerErr := ec.getAnalysisTemplatesFromRefs(&template.Spec.Templates)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
+		}
+	}
+	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
+	return uniqueTemplates, uniqueClusterTemplates, nil
 }
 
 // verifyAnalysisTemplate verifies an AnalysisTemplate. For now, it simply means that it exists

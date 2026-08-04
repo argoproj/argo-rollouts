@@ -11,13 +11,15 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
-	"github.com/stretchr/testify/assert"
 )
 
 type Then struct {
@@ -54,7 +56,19 @@ func (t *Then) ExpectRolloutStatus(expectedStatus string) *Then {
 	return t
 }
 
-func (t *Then) ExpectReplicaCounts(desired, current, updated, ready, available interface{}) *Then {
+func (t *Then) ExpectRolloutMessage(expectedMessage string) *Then {
+	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
+	t.CheckError(err)
+	_, message := rolloututil.GetRolloutPhase(ro)
+	if message != expectedMessage {
+		t.log.Errorf("Rollout message expected to be '%s'. actual: %s", expectedMessage, message)
+		t.t.FailNow()
+	}
+	t.log.Infof("Rollout expectation status=%s met", expectedMessage)
+	return t
+}
+
+func (t *Then) ExpectReplicaCounts(desired, current, updated, ready, available any) *Then {
 	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
 	t.CheckError(err)
 	if desired != nil && desired.(int) != int(defaults.GetReplicasOrDefault(ro.Spec.Replicas)) {
@@ -207,6 +221,52 @@ func (t *Then) ExpectExperimentTemplateReplicaSet(expectation string, experiment
 		t.t.FailNow()
 	}
 	t.log.Infof("Experiment template replicaset '%s' expectation '%s' met", rs.Name, expectation)
+	return t
+}
+
+func (t *Then) ExpectExperimentDryRunSummary(expectedCount, expectedErrorCount, expectedFailureCount int32, experiment string) *Then {
+	expectation := v1alpha1.RunSummary{
+		Count:  expectedCount,
+		Error:  expectedErrorCount,
+		Failed: expectedFailureCount,
+	}
+	t.log.Infof("Expected Dry-Run Summary: Count=%d, Successful=%d, Failed=%d, Error=%d, Inconclusive=%d", expectation.Count, expectation.Successful, expectation.Failed, expectation.Error, expectation.Inconclusive)
+	ex, err := t.rolloutClient.ArgoprojV1alpha1().Experiments(t.namespace).Get(t.Context, experiment, metav1.GetOptions{})
+	t.CheckError(err)
+	ar := t.GetExperimentAnalysisRun(ex)
+	dryRunSummary := ar.Status.DryRunSummary
+	if dryRunSummary != nil {
+		t.log.Infof("Analysis Dry-Run Summary: Count=%d, Successful=%d, Failed=%d, Error=%d, Inconclusive=%d", dryRunSummary.Count, dryRunSummary.Successful, dryRunSummary.Failed, dryRunSummary.Error, dryRunSummary.Inconclusive)
+		if expectation == *dryRunSummary {
+			t.log.Infof("Expectation Matches!")
+		} else {
+			t.log.Errorf("Dry-Run Summary of AnalysisRun: '%s' doesn't match the expectations", ar.Name)
+			t.t.FailNow()
+		}
+	} else {
+		t.log.Errorf("Dry-Run Summary not found in the AnalysisRun: '%s'", ar.Name)
+		t.t.FailNow()
+	}
+	return t
+}
+
+func (t *Then) ExpectExperimentMeasurementsLength(metricResultsIndex, expectedMeasurementsLength int, experiment string) *Then {
+	t.log.Infof("Expected Measurements Length '%d' for MetricResults index '%d'", expectedMeasurementsLength, metricResultsIndex)
+	ex, err := t.rolloutClient.ArgoprojV1alpha1().Experiments(t.namespace).Get(t.Context, experiment, metav1.GetOptions{})
+	t.CheckError(err)
+	ar := t.GetExperimentAnalysisRun(ex)
+	if len(ar.Status.MetricResults) <= metricResultsIndex {
+		t.log.Errorf("MetricResults Array doesn't have given index '%d' in the AnalysisRun: '%s'", metricResultsIndex, ar.Name)
+		t.t.FailNow()
+	}
+	measurementsLength := len(ar.Status.MetricResults[metricResultsIndex].Measurements)
+	t.log.Infof("Actual Measurements Length at index '%d': '%d'", metricResultsIndex, measurementsLength)
+	if measurementsLength == expectedMeasurementsLength {
+		t.log.Infof("Expectation Matches!")
+	} else {
+		t.log.Errorf("Measurements Length at index '%d' of AnalysisRun: '%s' doesn't match the expectations", metricResultsIndex, ar.Name)
+		t.t.FailNow()
+	}
 	return t
 }
 
@@ -447,6 +507,15 @@ func (t *Then) ExpectRolloutEvents(reasons []string) *Then {
 	return t
 }
 
+func (t *Then) ExpectRolloutEventsContains(reasons []string) *Then {
+	t.t.Helper()
+	eventReasons := t.GetRolloutEventReasons()
+	for _, r := range reasons {
+		assert.Contains(t.Common.t, eventReasons, r)
+	}
+	return t
+}
+
 func (t *Then) When() *When {
 	return &When{
 		Common: t.Common,
@@ -457,4 +526,31 @@ func (t *Then) Given() *Given {
 	return &Given{
 		Common: t.Common,
 	}
+}
+
+type DeploymentExpectation func(*appsv1.Deployment) bool
+
+func (t *Then) ExpectDeploymentReplicasCount(expectation string, deploymentName string, expectedReplicaCount int) *Then {
+	t.t.Helper()
+	checkDeploymentReplicas := func() (done bool, err error) {
+		deployment, err := t.kubeClient.AppsV1().Deployments(t.namespace).Get(t.Context, deploymentName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == int32(expectedReplicaCount) {
+			t.log.Infof("Deployment replicas count expectation '%s' met", expectation)
+			return true, nil
+		}
+		t.log.Errorf("Deployment replicas count expectation '%s' failed. Expected: %d, Actual: %d", expectation, expectedReplicaCount, *deployment.Spec.Replicas)
+		return false, nil
+	}
+
+	pollInterval := 5 * time.Second
+	pollTimeout := 1 * time.Minute
+	if err := wait.PollImmediate(pollInterval, pollTimeout, checkDeploymentReplicas); err != nil {
+		t.log.Errorf("Failed to meet deployment replicas count expectation '%s'", expectation)
+		t.t.FailNow()
+	}
+
+	return t
 }

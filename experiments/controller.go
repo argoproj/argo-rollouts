@@ -2,10 +2,10 @@ package experiments
 
 import (
 	"context"
+	"sync"
 	"time"
 
-	informersv1 "k8s.io/client-go/informers/core/v1"
-	listersv1 "k8s.io/client-go/listers/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -15,8 +15,10 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
+	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
+	listersv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/controller"
@@ -33,6 +35,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -62,8 +65,8 @@ type Controller struct {
 	metricsServer *metrics.MetricsServer
 
 	// used for unit testing
-	enqueueExperiment      func(obj interface{})
-	enqueueExperimentAfter func(obj interface{}, duration time.Duration)
+	enqueueExperiment      func(obj any)
+	enqueueExperimentAfter func(obj any, duration time.Duration)
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -78,7 +81,7 @@ type Controller struct {
 	resyncPeriod time.Duration
 }
 
-// ControllerConfig describes the data required to instantiate a new analysis controller
+// ControllerConfig describes the data required to instantiate a new experiments controller
 type ControllerConfig struct {
 	KubeClientSet                   kubernetes.Interface
 	ArgoProjClientset               clientset.Interface
@@ -97,7 +100,6 @@ type ControllerConfig struct {
 
 // NewController returns a new experiment controller
 func NewController(cfg ControllerConfig) *Controller {
-
 	replicaSetControl := controller.RealRSControl{
 		KubeClient: cfg.KubeClientSet,
 		Recorder:   cfg.Recorder.K8sRecorder(),
@@ -126,10 +128,10 @@ func NewController(cfg ControllerConfig) *Controller {
 		resyncPeriod:                  cfg.ResyncPeriod,
 	}
 
-	controller.enqueueExperiment = func(obj interface{}) {
+	controller.enqueueExperiment = func(obj any) {
 		controllerutil.Enqueue(obj, cfg.ExperimentWorkQueue)
 	}
-	controller.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
+	controller.enqueueExperimentAfter = func(obj any, duration time.Duration) {
 		controllerutil.EnqueueAfter(obj, duration, cfg.ExperimentWorkQueue)
 	}
 
@@ -137,20 +139,20 @@ func NewController(cfg ControllerConfig) *Controller {
 	// Set up an event handler for when experiment resources change
 	cfg.ExperimentsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueExperiment,
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			controller.enqueueExperiment(new)
 		},
 		DeleteFunc: controller.enqueueExperiment,
 	})
 
 	cfg.ExperimentsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			enqueueRollout := func(obj interface{}) {
+		AddFunc: func(obj any) {
+			enqueueRollout := func(obj any) {
 				controllerutil.Enqueue(obj, cfg.RolloutWorkQueue)
 			}
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, enqueueRollout)
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			oldAcc, err := meta.Accessor(old)
 			if err != nil {
 				return
@@ -164,24 +166,29 @@ func NewController(cfg ControllerConfig) *Controller {
 				// Two different versions of the same Replica will always have different RVs.
 				return
 			}
-			enqueueRollout := func(obj interface{}) {
+			enqueueRollout := func(obj any) {
 				controllerutil.Enqueue(obj, cfg.RolloutWorkQueue)
 			}
 			controllerutil.EnqueueParentObject(new, register.RolloutKind, enqueueRollout)
 		},
-		DeleteFunc: func(obj interface{}) {
-			enqueueRollout := func(obj interface{}) {
+		DeleteFunc: func(obj any) {
+			enqueueRollout := func(obj any) {
 				controllerutil.Enqueue(obj, cfg.RolloutWorkQueue)
 			}
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, enqueueRollout)
+			if ex := unstructuredutil.ObjectToExperiment(obj); ex != nil {
+				logCtx := logutil.WithExperiment(ex)
+				logCtx.Info("experiment deleted")
+				controller.metricsServer.Remove(ex.Namespace, ex.Name, logutil.ExperimentKey)
+			}
 		},
 	})
 
 	cfg.ReplicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.enqueueExperiment)
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			newRS := new.(*appsv1.ReplicaSet)
 			oldRS := old.(*appsv1.ReplicaSet)
 			if newRS.ResourceVersion == oldRS.ResourceVersion {
@@ -198,19 +205,19 @@ func NewController(cfg ControllerConfig) *Controller {
 			}
 			controllerutil.EnqueueParentObject(new, register.ExperimentKind, controller.enqueueExperiment)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.enqueueExperiment)
 		},
 	})
 
 	cfg.AnalysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controller.enqueueIfCompleted(obj)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			controller.enqueueIfCompleted(newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controller.enqueueIfCompleted(obj)
 		},
 	})
@@ -218,22 +225,27 @@ func NewController(cfg ControllerConfig) *Controller {
 }
 
 // Run starts the controller threads
-func (ec *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (ec *Controller) Run(ctx context.Context, threadiness int) error {
 	log.Info("Starting Experiment workers")
+	wg := sync.WaitGroup{}
 	for i := 0; i < threadiness; i++ {
+		wg.Add(1)
 		go wait.Until(func() {
-			controllerutil.RunWorker(ec.experimentWorkqueue, logutil.ExperimentKey, ec.syncHandler, ec.metricsServer)
-		}, time.Second, stopCh)
+			controllerutil.RunWorker(ctx, ec.experimentWorkqueue, logutil.ExperimentKey, ec.syncHandler, ec.metricsServer)
+			log.Debug("Experiment worker has stopped")
+			wg.Done()
+		}, time.Second, ctx.Done())
 	}
 	log.Info("Started Experiment workers")
-	<-stopCh
-	log.Info("Shutting down experiment workers")
+	<-ctx.Done()
+	wg.Wait()
+	log.Info("All experiment workers have stopped")
 
 	return nil
 }
 
-func (ec *Controller) syncHandler(key string) error {
-	startTime := time.Now()
+func (ec *Controller) syncHandler(ctx context.Context, key string) error {
+	startTime := timeutil.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -307,6 +319,7 @@ func (ec *Controller) syncHandler(key string) error {
 }
 
 func (ec *Controller) persistExperimentStatus(orig *v1alpha1.Experiment, newStatus *v1alpha1.ExperimentStatus) error {
+	prevStatus := orig.Status
 	ctx := context.TODO()
 	logCtx := logutil.WithExperiment(orig)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
@@ -325,17 +338,29 @@ func (ec *Controller) persistExperimentStatus(orig *v1alpha1.Experiment, newStat
 		return nil
 	}
 	logCtx.Debugf("Experiment Patch: %s", patch)
-	_, err = ec.argoProjClientset.ArgoprojV1alpha1().Experiments(orig.Namespace).Patch(ctx, orig.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	patched, err := ec.argoProjClientset.ArgoprojV1alpha1().Experiments(orig.Namespace).Patch(ctx, orig.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warningf("Error updating experiment: %v", err)
 		return err
 	}
 	logCtx.Info("Patch status successfully")
+	ec.recordEvent(patched, prevStatus, newStatus)
 	return nil
 }
 
+func (ec *Controller) recordEvent(ex *v1alpha1.Experiment, prevStatus v1alpha1.ExperimentStatus, newStatus *v1alpha1.ExperimentStatus) {
+	if prevStatus.Phase != newStatus.Phase {
+		eventType := corev1.EventTypeNormal
+		switch newStatus.Phase {
+		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive:
+			eventType = corev1.EventTypeWarning
+		}
+		ec.recorder.Eventf(ex, record.EventOptions{EventType: eventType, EventReason: "Experiment" + string(newStatus.Phase)}, "Experiment transitioned from %s -> %s", prevStatus.Phase, newStatus.Phase)
+	}
+}
+
 // enqueueIfCompleted conditionally enqueues the AnalysisRun's Experiment if the run is complete
-func (ec *Controller) enqueueIfCompleted(obj interface{}) {
+func (ec *Controller) enqueueIfCompleted(obj any) {
 	run := unstructuredutil.ObjectToAnalysisRun(obj)
 	if run == nil {
 		return

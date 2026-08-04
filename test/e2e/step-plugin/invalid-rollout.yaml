@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: invalid-step-plugin
+spec:
+  progressDeadlineSeconds: 15
+  selector:
+    matchLabels:
+      app: invalid-step-plugin
+  strategy:
+    canary:
+      steps:
+        - plugin:
+            name: step/e2e-test-invalid-name
+  template:
+    metadata:
+      labels:
+        app: invalid-step-plugin
+    spec:
+      containers:
+        - name: basic
+          image: nginx:1.19-alpine
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 1m

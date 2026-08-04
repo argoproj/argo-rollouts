@@ -9,6 +9,7 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 )
 
 const (
@@ -40,6 +41,7 @@ func NewCmdPause(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			return nil
 		},
+		ValidArgsFunction: completionutil.RolloutNameCompletionFunc(o),
 	}
 	return cmd
 }

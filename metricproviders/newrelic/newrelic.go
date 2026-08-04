@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/newrelic/newrelic-client-go/newrelic"
-	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
+	"github.com/newrelic/newrelic-client-go/v2/newrelic"
+	"github.com/newrelic/newrelic-client-go/v2/pkg/nrdb"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -17,35 +17,87 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	"github.com/argoproj/argo-rollouts/utils/version"
 )
 
 const (
-	//ProviderType indicates the provider is wavefront
+	// ProviderType indicates the provider is newrelic
 	ProviderType                     = "NewRelic"
 	DefaultNewRelicProfileSecretName = "newrelic"
 	repoURL                          = "https://github.com/argoproj/argo-rollouts"
+	resolvedNewRelicQuery            = "ResolvedNewRelicQuery"
+	defaultNrqlTimeout               = 5
 )
+
+var (
+	ErrNegativeTimeout = errors.New("timeout value needs to be a positive value")
+)
+
+type gqlNrglQueryResponse struct {
+	Actor struct {
+		Account struct {
+			NRQL nrdb.NRDBResultContainer
+		}
+	}
+}
+
+const gqlNrqlQuery = `query (
+  $query: Nrql!, 
+  $accountId: Int!,
+  $timeout: Seconds!
+)
+{
+  actor {
+    account(id: $accountId) {
+      nrql(query: $query, timeout: $timeout) {
+        results
+      }
+    }
+  }
+}
+`
 
 var userAgent = fmt.Sprintf("argo-rollouts/%s (%s)", version.GetVersion(), repoURL)
 
 type NewRelicClientAPI interface {
-	Query(query string) ([]nrdb.NrdbResult, error)
+	Query(metric v1alpha1.Metric) ([]nrdb.NRDBResult, error)
+}
+
+type nerdGraphClient interface {
+	QueryWithResponse(query string, variables map[string]interface{}, respBody interface{}) error
 }
 
 type NewRelicClient struct {
-	*newrelic.NewRelic
-	AccountID int
+	NerdGraphClient nerdGraphClient
+	AccountID       int
 }
 
-//Query executes a NRQL query against the given New Relic account
-func (n *NewRelicClient) Query(query string) ([]nrdb.NrdbResult, error) {
-	results, err := n.Nrdb.Query(n.AccountID, nrdb.Nrql(query))
-	if err != nil {
+// Query executes a NRQL query against the given New Relic account
+func (n *NewRelicClient) Query(metric v1alpha1.Metric) ([]nrdb.NRDBResult, error) {
+	var timeout int64 = defaultNrqlTimeout
+	respBody := gqlNrglQueryResponse{}
+
+	if metric.Provider.NewRelic.Timeout != nil {
+		timeout = *metric.Provider.NewRelic.Timeout
+	}
+
+	if timeout < 0 {
+		return nil, ErrNegativeTimeout
+	}
+
+	args := map[string]any{
+		"accountId": n.AccountID,
+		"query":     metric.Provider.NewRelic.Query,
+		"timeout":   timeout,
+	}
+
+	if err := n.NerdGraphClient.QueryWithResponse(gqlNrqlQuery, args, &respBody); err != nil {
 		return nil, err
 	}
+
 	// TODO(jwelch) return metadata from NRDBResultContainer to include on the measurement
-	return results.Results, nil
+	return respBody.Actor.Account.NRQL.Results, nil
 }
 
 type Provider struct {
@@ -55,12 +107,12 @@ type Provider struct {
 
 // Run queries NewRelic for the metric
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
-	startTime := metav1.Now()
+	startTime := timeutil.MetaNow()
 	newMeasurement := v1alpha1.Measurement{
 		StartedAt: &startTime,
 	}
 
-	results, err := p.api.Query(metric.Provider.NewRelic.Query)
+	results, err := p.api.Query(metric)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -72,12 +124,12 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	newMeasurement.Value = valueStr
 	newMeasurement.Phase = newStatus
 
-	finishedTime := metav1.Now()
+	finishedTime := timeutil.MetaNow()
 	newMeasurement.FinishedAt = &finishedTime
 	return newMeasurement
 }
 
-func toJSONString(v interface{}) (string, error) {
+func toJSONString(v any) (string, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return "", err
@@ -85,7 +137,7 @@ func toJSONString(v interface{}) (string, error) {
 	return string(b), nil
 }
 
-func (p *Provider) processResponse(metric v1alpha1.Metric, results []nrdb.NrdbResult) (string, v1alpha1.AnalysisPhase, error) {
+func (p *Provider) processResponse(metric v1alpha1.Metric, results []nrdb.NRDBResult) (string, v1alpha1.AnalysisPhase, error) {
 	if len(results) == 1 {
 		result := results[0]
 		if len(result) == 0 {
@@ -130,7 +182,16 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
-//NewNewRelicProvider creates a new NewRelic provider
+// GetMetadata returns any additional metadata which needs to be stored & displayed as part of the metrics result.
+func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
+	metricsMetadata := make(map[string]string)
+	if metric.Provider.NewRelic.Query != "" {
+		metricsMetadata[resolvedNewRelicQuery] = metric.Provider.NewRelic.Query
+	}
+	return metricsMetadata
+}
+
+// NewNewRelicProvider creates a new NewRelic provider
 func NewNewRelicProvider(api NewRelicClientAPI, logCtx log.Entry) *Provider {
 	return &Provider{
 		logCtx: logCtx,
@@ -138,7 +199,7 @@ func NewNewRelicProvider(api NewRelicClientAPI, logCtx log.Entry) *Provider {
 	}
 }
 
-//NewNewRelicAPIClient creates a new NewRelic API client from metric configuration
+// NewNewRelicAPIClient creates a new NewRelic API client from metric configuration
 func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (NewRelicClientAPI, error) {
 	ns := defaults.Namespace()
 	profileSecret := DefaultNewRelicProfileSecretName
@@ -180,7 +241,7 @@ func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Inter
 		if err != nil {
 			return nil, fmt.Errorf("could not parse account ID: %w", err)
 		}
-		return &NewRelicClient{NewRelic: nrClient, AccountID: accID}, nil
+		return &NewRelicClient{NerdGraphClient: &nrClient.NerdGraph, AccountID: accID}, nil
 	} else {
 		return nil, errors.New("account ID or personal API key not found")
 	}

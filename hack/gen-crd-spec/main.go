@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,10 +13,11 @@ import (
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
 	"github.com/blang/semver"
-	"github.com/ghodss/yaml"
-	"github.com/go-openapi/spec"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	kubeopenapiutil "k8s.io/kube-openapi/pkg/util"
+	spec "k8s.io/kube-openapi/pkg/validation/spec"
+	"sigs.k8s.io/yaml"
 )
 
 const metadataValidation = `properties:
@@ -30,7 +31,7 @@ const metadataValidation = `properties:
    type: object
 type: object`
 
-var preserveUnknownFields = map[string]interface{}{
+var preserveUnknownFields = map[string]any{
 	"x-kubernetes-preserve-unknown-fields": true,
 }
 
@@ -42,7 +43,7 @@ var crdPaths = map[string]string{
 	"AnalysisRun":             "manifests/crds/analysis-run-crd.yaml",
 }
 
-func setValidationOverride(un *unstructured.Unstructured, fieldOverride map[string]interface{}, path string) {
+func setValidationOverride(un *unstructured.Unstructured, fieldOverride map[string]any, path string) {
 	// Prepare variables
 	preSchemaPath := []string{"spec", "versions"}
 	objVersions, _, _ := unstructured.NestedSlice(un.Object, preSchemaPath...)
@@ -58,11 +59,11 @@ func setValidationOverride(un *unstructured.Unstructured, fieldOverride map[stri
 	}
 
 	// Loop over version's slice
-	var finalOverride []interface{}
+	var finalOverride []any
 	for _, v := range objVersions {
-		unstructured.SetNestedMap(v.(map[string]interface{}), fieldOverride, schemaPath...)
+		unstructured.SetNestedMap(v.(map[string]any), fieldOverride, schemaPath...)
 
-		_, ok, err := unstructured.NestedFieldNoCopy(v.(map[string]interface{}), schemaPath...)
+		_, ok, err := unstructured.NestedFieldNoCopy(v.(map[string]any), schemaPath...)
 		checkErr(err)
 		if !ok {
 			panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
@@ -79,14 +80,10 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
 		"controller-gen",
 		"paths=./pkg/apis/rollouts/...",
-		"crd:trivialVersions=true",
-		// The only possible value is 'false' since 'apiextensions.k8s.io/v1'
-		// https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#field-pruning
-		// It is possible though to opt-out of pruning for specifc sub-trees of fields by adding x-kubernetes-preserve-unknown-fields: true
-		// by using the 'setValidationOverride' function in this file.
-		"crd:preserveUnknownFields=false",
+		// maxDescLen removed to preserve Go doc comments as CRD field descriptions,
+		// enabling kubectl explain to display meaningful schema info (fixes #4383).
+		// CRDs are applied with --server-side to bypass the 262KB annotation limit.
 		"crd:crdVersions=v1",
-		"crd:maxDescLen=0",
 		"output:crd:stdout",
 	).Output()
 	if err != nil {
@@ -102,11 +99,12 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	// clean up stuff left by controller-gen
 	deleteFile("config/webhook/manifests.yaml")
 	deleteFile("config/webhook")
-	deleteFile("config/argoproj.io_analysisruns.yaml")
-	deleteFile("config/argoproj.io_analysistemplates.yaml")
-	deleteFile("config/argoproj.io_clusteranalysistemplates.yaml")
-	deleteFile("config/argoproj.io_experiments.yaml")
-	deleteFile("config/argoproj.io_rollouts.yaml")
+	deleteFile("config/crd/argoproj.io_analysisruns.yaml")
+	deleteFile("config/crd/argoproj.io_analysistemplates.yaml")
+	deleteFile("config/crd/argoproj.io_clusteranalysistemplates.yaml")
+	deleteFile("config/crd/argoproj.io_experiments.yaml")
+	deleteFile("config/crd/argoproj.io_rollouts.yaml")
+	deleteFile("config/crd")
 	deleteFile("config")
 
 	crds := []*extensionsobj.CustomResourceDefinition{}
@@ -118,12 +116,6 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		removeK8S118Fields(obj)
 		createMetadataValidation(obj)
 		crd := toCRD(obj)
-
-		if crd.Name == "clusteranalysistemplates.argoproj.io" {
-			crd.Spec.Scope = "Cluster"
-		} else {
-			crd.Spec.Scope = "Namespaced"
-		}
 		crds = append(crds, crd)
 	}
 
@@ -165,7 +157,7 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 
 	switch kind {
 	case "Rollout":
-		var roValidated []interface{}
+		var roValidated []any
 		roPath := []string{
 			"template",
 			"properties",
@@ -173,12 +165,12 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 		}
 		roPath = append(path, roPath...)
 		for _, v := range objVersions {
-			unstructured.SetNestedMap(v.(map[string]interface{}), metadataValidationObj.Object, roPath...)
+			unstructured.SetNestedMap(v.(map[string]any), metadataValidationObj.Object, roPath...)
 			roValidated = append(roValidated, v)
 		}
 		unstructured.SetNestedSlice(un.Object, roValidated, prePath...)
 	case "Experiment":
-		var exValidated []interface{}
+		var exValidated []any
 		exPath := []string{
 			"templates",
 			"items",
@@ -189,12 +181,12 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 		}
 		exPath = append(path, exPath...)
 		for _, v := range objVersions {
-			unstructured.SetNestedMap(v.(map[string]interface{}), metadataValidationObj.Object, exPath...)
+			unstructured.SetNestedMap(v.(map[string]any), metadataValidationObj.Object, exPath...)
 			exValidated = append(exValidated, v)
 		}
 		unstructured.SetNestedSlice(un.Object, exValidated, prePath...)
 	case "ClusterAnalysisTemplate", "AnalysisTemplate", "AnalysisRun":
-		var analysisValidated []interface{}
+		var analysisValidated []any
 		analysisPath := []string{
 			"metrics",
 			"items",
@@ -208,12 +200,12 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 
 		analysisPathJobMetadata := append(analysisPath, "metadata")
 		for _, v := range objVersions {
-			unstructured.SetNestedMap(v.(map[string]interface{}), metadataValidationObj.Object, analysisPathJobMetadata...)
+			unstructured.SetNestedMap(v.(map[string]any), metadataValidationObj.Object, analysisPathJobMetadata...)
 			analysisValidated = append(analysisValidated, v)
 		}
 		unstructured.SetNestedSlice(un.Object, analysisValidated, prePath...)
 
-		var analysisJobValidated []interface{}
+		var analysisJobValidated []any
 		analysisPathJobTemplateMetadata := []string{
 			"spec",
 			"properties",
@@ -223,7 +215,7 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 		}
 		analysisPathJobTemplateMetadata = append(analysisPath, analysisPathJobTemplateMetadata...)
 		for _, v := range objVersions {
-			unstructured.SetNestedMap(v.(map[string]interface{}), metadataValidationObj.Object, analysisPathJobTemplateMetadata...)
+			unstructured.SetNestedMap(v.(map[string]any), metadataValidationObj.Object, analysisPathJobTemplateMetadata...)
 			analysisJobValidated = append(analysisJobValidated, v)
 		}
 		unstructured.SetNestedSlice(un.Object, analysisJobValidated, prePath...)
@@ -304,7 +296,7 @@ func loadK8SDefinitions() (spec.Definitions, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -334,11 +326,12 @@ var patchAnnotationKeys = map[string]bool{
 	"x-kubernetes-patch-strategy":  true,
 	"x-kubernetes-list-map-keys":   true,
 	"x-kubernetes-list-type":       true,
+	"x-kubernetes-map-type":        true,
 }
 
 // injectPatchAnnotations injects patch annotations from given schema definitions and drop properties that don't have
 // patch annotations injected
-func injectPatchAnnotations(prop map[string]interface{}, propSchema spec.Schema, schemaDefinitions spec.Definitions) (bool, error) {
+func injectPatchAnnotations(prop map[string]any, propSchema spec.Schema, schemaDefinitions spec.Definitions) (bool, error) {
 	injected := false
 	for k, v := range propSchema.Extensions {
 		if patchAnnotationKeys[k] {
@@ -361,13 +354,13 @@ func injectPatchAnnotations(prop map[string]interface{}, propSchema spec.Schema,
 		propSchemas = schema.Properties
 	}
 
-	childProps, ok := prop["properties"].(map[string]interface{})
+	childProps, ok := prop["properties"].(map[string]any)
 	if !ok {
-		childProps = map[string]interface{}{}
+		childProps = map[string]any{}
 	}
 
 	for k, v := range childProps {
-		childInjected, err := injectPatchAnnotations(v.(map[string]interface{}), propSchemas[k], schemaDefinitions)
+		childInjected, err := injectPatchAnnotations(v.(map[string]any), propSchemas[k], schemaDefinitions)
 		if err != nil {
 			return false, err
 		}
@@ -402,11 +395,8 @@ func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, out
 		schemaDefinitions[normalizeRef(k)] = v.Schema
 	}
 
-	definitions := map[string]interface{}{}
+	definitions := map[string]any{}
 	for _, crd := range crds {
-		if crd.Spec.Names.Kind != "Rollout" {
-			continue
-		}
 		var version string
 		var props map[string]extensionsobj.JSONSchemaProps
 		for _, v := range crd.Spec.Versions {
@@ -421,7 +411,7 @@ func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, out
 		if err != nil {
 			return err
 		}
-		propsMap := map[string]interface{}{}
+		propsMap := map[string]any{}
 		err = json.Unmarshal(data, &propsMap)
 		if err != nil {
 			return err
@@ -429,7 +419,7 @@ func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, out
 
 		crdSchema := schemaDefinitions[normalizeRef(fmt.Sprintf("%s/%s.%s", rolloutsDefinitionsPrefix, version, crd.Spec.Names.Kind))]
 		for k, p := range propsMap {
-			injected, err := injectPatchAnnotations(p.(map[string]interface{}), crdSchema.Properties[k], schemaDefinitions)
+			injected, err := injectPatchAnnotations(p.(map[string]any), crdSchema.Properties[k], schemaDefinitions)
 			if err != nil {
 				return err
 			}
@@ -440,7 +430,8 @@ func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, out
 			}
 		}
 
-		definitions[fmt.Sprintf("%s.%s", version, crd.Spec.Names.Kind)] = map[string]interface{}{
+		definitionName := kubeopenapiutil.ToRESTFriendlyName(fmt.Sprintf("%s/%s.%s", crd.Spec.Group, version, crd.Spec.Names.Kind))
+		definitions[definitionName] = map[string]any{
 			"properties": propsMap,
 			"x-kubernetes-group-version-kind": []map[string]string{{
 				"group":   crd.Spec.Group,
@@ -449,13 +440,13 @@ func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, out
 			}},
 		}
 	}
-	data, err := json.MarshalIndent(map[string]interface{}{
+	data, err := json.MarshalIndent(map[string]any{
 		"definitions": definitions,
 	}, "", "    ")
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(outputPath, data, 0644)
+	return os.WriteFile(outputPath, data, 0644)
 }
 
 // Generate CRD spec for Rollout Resource
@@ -475,11 +466,6 @@ func main() {
 		err = json.Unmarshal(jsonBytes, &r.Object)
 		checkErr(err)
 
-		// Need to explicitly set spec.preserveUnknownFields to false, despite false being the
-		// default value in v1, in order to facilitate upgrades from apiextensions.k8s.io/v1beta1 v1.
-		// See https://github.com/argoproj/argo-rollouts/issues/1067
-		unstructured.SetNestedField(r.Object, false, "spec", "preserveUnknownFields")
-
 		// clean up crd yaml before marshalling
 		unstructured.RemoveNestedField(r.Object, "status")
 		unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
@@ -493,7 +479,7 @@ func main() {
 		if path == "" {
 			panic(fmt.Sprintf("unknown kind: %s", crdKind))
 		}
-		err = ioutil.WriteFile(path, yamlBytes, 0644)
+		err = os.WriteFile(path, yamlBytes, 0644)
 		checkErr(err)
 	}
 }

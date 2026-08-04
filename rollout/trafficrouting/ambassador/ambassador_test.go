@@ -31,7 +31,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080`
+  service: main-service:8080`
 
 	baseMappingNoPort = `
 apiVersion: getambassador.io/v2
@@ -42,7 +42,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp`
+  service: main-service`
 
 	baseMappingWithWeight = `
 apiVersion: getambassador.io/v2
@@ -53,7 +53,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080
+  service: main-service:8080
   weight: 20`
 
 	baseV3Mapping = `
@@ -66,7 +66,7 @@ spec:
   hostname: 'example.com'
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080`
+  service: main-service:8080`
 
 	canaryMapping = `
 apiVersion: getambassador.io/v2
@@ -77,7 +77,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080
+  service: main-service:8080
   weight: 20`
 
 	canaryMappingWithZeroWeight = `
@@ -89,7 +89,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080
+  service: main-service:8080
   weight: 0`
 )
 
@@ -136,8 +136,9 @@ type getReturn struct {
 func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	invokation := &getInvokation{name: name}
 	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.getInvokations = append(f.getInvokations, invokation)
-	f.mu.Unlock()
+
 	if len(f.getReturns) == 0 {
 		return nil, nil
 	}
@@ -145,7 +146,8 @@ func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOpt
 	if len(f.getReturns) >= len(f.getInvokations) {
 		ret = f.getReturns[len(f.getInvokations)-1]
 	}
-	return ret.obj, ret.err
+	// We clone the object before returning it, to prevent modification of the fake object in memory by the calling function
+	return ret.obj.DeepCopy(), ret.err
 }
 
 func (f *fakeClient) Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
@@ -491,7 +493,7 @@ func TestReconciler_SetWeight(t *testing.T) {
 		})
 	})
 	t.Run("VerifyWeight", func(t *testing.T) {
-		t.Run("verify weight will always return true", func(t *testing.T) {
+		t.Run("verify weight will always return nil", func(t *testing.T) {
 			// given
 			t.Parallel()
 			f := setup()
@@ -501,7 +503,7 @@ func TestReconciler_SetWeight(t *testing.T) {
 
 			// then
 			assert.Nil(t, err)
-			assert.True(t, verified)
+			assert.Nil(t, verified)
 		})
 	})
 	t.Run("UpdateHash", func(t *testing.T) {
@@ -514,6 +516,105 @@ func TestReconciler_SetWeight(t *testing.T) {
 			err := f.reconciler.UpdateHash("", "")
 
 			// then
+			assert.Nil(t, err)
+		})
+	})
+}
+
+func TestReconcilerSetHeaderRoute(t *testing.T) {
+	type fixture struct {
+		rollout    *v1alpha1.Rollout
+		fakeClient *fakeClient
+		recorder   record.EventRecorder
+		reconciler *ambassador.Reconciler
+	}
+
+	setup := func() *fixture {
+		r := rollout("main-service", "canary-service", []string{"myapp-mapping"})
+		fakeClient := &fakeClient{}
+		rec := record.NewFakeEventRecorder()
+		l, _ := test.NewNullLogger()
+		return &fixture{
+			rollout:    r,
+			fakeClient: fakeClient,
+			recorder:   rec,
+			reconciler: &ambassador.Reconciler{
+				Rollout:  r,
+				Client:   fakeClient,
+				Recorder: rec,
+				Log:      l.WithContext(context.TODO()),
+			},
+		}
+	}
+	t.Run("SetHeaderRoute", func(t *testing.T) {
+		t.Run("will always return nil", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+
+			// when
+			err := f.reconciler.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+				Name: "set-header",
+				Match: []v1alpha1.HeaderRoutingMatch{{
+					HeaderName: "header-name",
+					HeaderValue: &v1alpha1.StringMatch{
+						Exact: "value",
+					},
+				}},
+			})
+
+			// then
+			assert.Nil(t, err)
+
+			err = f.reconciler.RemoveManagedRoutes()
+			assert.Nil(t, err)
+		})
+	})
+}
+
+func TestReconcilerSetMirrorRoute(t *testing.T) {
+	type fixture struct {
+		rollout    *v1alpha1.Rollout
+		fakeClient *fakeClient
+		recorder   record.EventRecorder
+		reconciler *ambassador.Reconciler
+	}
+
+	setup := func() *fixture {
+		r := rollout("main-service", "canary-service", []string{"myapp-mapping"})
+		fakeClient := &fakeClient{}
+		rec := record.NewFakeEventRecorder()
+		l, _ := test.NewNullLogger()
+		return &fixture{
+			rollout:    r,
+			fakeClient: fakeClient,
+			recorder:   rec,
+			reconciler: &ambassador.Reconciler{
+				Rollout:  r,
+				Client:   fakeClient,
+				Recorder: rec,
+				Log:      l.WithContext(context.TODO()),
+			},
+		}
+	}
+	t.Run("SetMirrorRoute", func(t *testing.T) {
+		t.Run("will always return nil", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+
+			// when
+			err := f.reconciler.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+				Name: "mirror-route",
+				Match: []v1alpha1.RouteMatch{{
+					Method: &v1alpha1.StringMatch{Exact: "GET"},
+				}},
+			})
+
+			// then
+			assert.Nil(t, err)
+
+			err = f.reconciler.RemoveManagedRoutes()
 			assert.Nil(t, err)
 		})
 	})

@@ -1,0 +1,32 @@
+@import '../theme/theme.scss';
+
+.metric-table {
+    border: 1px solid $gray-4;
+}
+
+.error-message {
+    font-style: italic;
+}
+
+.condition {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: $space-unit;
+    font-size: 12px;
+
+    &::before {
+        content: '';
+        display: block;
+        height: 2px;
+        width: 12px;
+        margin-right: $space-unit;
+    }
+
+    &.is-ERROR::before {
+        background: $error-foreground;
+    }
+    &.is-SUCCESS::before {
+        background: $success-foreground;
+    }
+}

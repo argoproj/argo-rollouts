@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
-	"github.com/stretchr/testify/assert"
 )
 
 const noWatch = "--watch=false"
@@ -66,7 +67,7 @@ func TestStatusBlueGreenRollout(t *testing.T) {
 	assert.NoError(t, err)
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
-	assert.Equal(t, "Paused\n", stdout)
+	assert.Equal(t, "Paused - BlueGreenPause\n", stdout)
 	assert.Empty(t, stderr)
 }
 
@@ -81,11 +82,11 @@ func TestStatusInvalidRollout(t *testing.T) {
 	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, noWatch})
 	err := cmd.Execute()
 
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, "Degraded\n", stdout)
-	assert.Empty(t, stderr)
+	assert.Equal(t, "Error: The rollout is in a degraded state with message: InvalidSpec: The Rollout \"rollout-invalid\" is invalid: spec.template.metadata.labels: Invalid value: map[string]string{\"app\":\"doesnt-match\"}: `selector` does not match template `labels`\n", stderr)
 }
 
 func TestStatusAbortedRollout(t *testing.T) {
@@ -99,11 +100,11 @@ func TestStatusAbortedRollout(t *testing.T) {
 	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, noWatch})
 	err := cmd.Execute()
 
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, "Degraded\n", stdout)
-	assert.Empty(t, stderr)
+	assert.Equal(t, "Error: The rollout is in a degraded state with message: RolloutAborted: metric \"web\" assessed Failed due to failed (1) > failureLimit (0)\n", stderr)
 }
 
 func TestWatchAbortedRollout(t *testing.T) {
@@ -120,7 +121,7 @@ func TestWatchAbortedRollout(t *testing.T) {
 	assert.Error(t, err)
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
-	assert.Equal(t, "Degraded\n", stdout)
+	assert.Equal(t, "Degraded - RolloutAborted: metric \"web\" assessed Failed due to failed (1) > failureLimit (0)\n", stdout)
 	assert.Equal(t, "Error: The rollout is in a degraded state with message: RolloutAborted: metric \"web\" assessed Failed due to failed (1) > failureLimit (0)\n", stderr)
 }
 
@@ -139,5 +140,5 @@ func TestWatchTimeoutRollout(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, "Paused - BlueGreenPause\n", stdout)
-	assert.Equal(t, "Error: Rollout progress exceeded timeout\n", stderr)
+	assert.Equal(t, "Error: Rollout status watch exceeded timeout\n", stderr)
 }

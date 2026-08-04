@@ -15,21 +15,24 @@ spec:
   selector:
     app: rollout-canary
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: rollouts-demo-stable
   annotations:
     kubernetes.io/ingress.class: nginx
+  name: rollouts-demo-stable
 spec:
   rules:
-    - http:
-        paths:
-          - path: /
-            backend:
-              # Reference to a Service name, also specified in the Rollout spec.strategy.canary.stableService field
-              serviceName: rollouts-canary
-              servicePort: 8080
+  - http:
+      paths:
+      - backend:
+          service:
+            # Reference to a Service name, also specified in the Rollout spec.strategy.canary.stableService field
+            name: rollouts-canary
+            port:
+              number: 8080
+        path: /
+        pathType: ImplementationSpecific
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout

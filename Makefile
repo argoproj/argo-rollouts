@@ -12,16 +12,25 @@ GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ;
 GIT_REMOTE_REPO=upstream
 VERSION=$(shell if [ ! -z "${GIT_TAG}" ] ; then echo "${GIT_TAG}" | sed -e "s/^v//"  ; else cat VERSION ; fi)
 
+
+TARGET_ARCH?=linux/amd64
+
 # docker image publishing options
-DOCKER_PUSH=false
-IMAGE_TAG=latest
+DOCKER_PUSH ?= false
+IMAGE_TAG ?= latest
 # build development images
-DEV_IMAGE=false
+DEV_IMAGE ?= false
 
 # E2E variables
+E2E_K8S_CONTEXT ?= rancher-desktop
 E2E_INSTANCE_ID ?= argo-rollouts-e2e
-E2E_TEST_OPTIONS ?= 
+E2E_TEST_OPTIONS ?=
 E2E_PARALLEL ?= 1
+E2E_WAIT_TIMEOUT ?= 90
+GOPATH ?= $(shell go env GOPATH)
+
+# Global toolchain configuration
+NODE_OPTIONS=""
 
 override LDFLAGS += \
   -X ${PACKAGE}/utils/version.version=${VERSION} \
@@ -44,18 +53,19 @@ ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
-# protoc,my.proto
+## protoc,my.proto
 define protoc
 	# protoc $(1)
     PATH=${DIST_DIR}:$$PATH protoc \
       -I /usr/local/include \
+      -I ${DIST_DIR}/protoc-include \
       -I . \
       -I ./vendor \
       -I ${GOPATH}/src \
-      -I ${GOPATH}/pkg/mod/github.com/gogo/protobuf@v1.3.1/gogoproto \
+      -I ${GOPATH}/pkg/mod/github.com/gogo/protobuf@v1.3.2/gogoproto \
       -I ${GOPATH}/pkg/mod/github.com/grpc-ecosystem/grpc-gateway@v1.16.0/third_party/googleapis \
-      --gogofast_out=plugins=grpc:${GOPATH}/src \
-      --grpc-gateway_out=logtostderr=true:${GOPATH}/src \
+      --gogofast_out=plugins=grpc:${CURDIR} \
+      --grpc-gateway_out=logtostderr=true:${CURDIR} \
       --swagger_out=logtostderr=true,fqn_for_swagger_name=true:. \
       $(1)
 endef
@@ -63,69 +73,44 @@ endef
 .PHONY: all
 all: controller image
 
-# downloads vendor files needed by tools.go (i.e. go_install)
+##@ Development
 .PHONY: go-mod-vendor
-go-mod-vendor:
+go-mod-vendor: ## downloads vendor files needed by tools.go (i.e. go_install)
 	go mod tidy
 	go mod vendor
 
-# go_get,path
-# use go_get to install a toolchain binary for a package which is *not* vendored in go.mod
-define go_get
-	cd /tmp && GOBIN=${DIST_DIR} go get $(1)
-endef
+.PHONY: lint
+lint: go-mod-vendor ## run all linters
+	golangci-lint run --fix
 
-# go_install,path
-# use go_install to install a toolchain binary for a package which *is* vendored in go.mod
-define go_install
-	GOBIN=${DIST_DIR} go install -mod=vendor ./vendor/$(1)
-endef
+.PHONY: install-go-tools-local
+install-go-tools-local: go-mod-vendor ## install all go tools
+	./hack/installers/install-codegen-go-tools.sh
 
-.PHONY: $(DIST_DIR)/controller-gen
-$(DIST_DIR)/controller-gen:
-	$(call go_get,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.5.0)
+.PHONY: install-protoc-local
+install-protoc-local: ## install protoc tool
+	./hack/installers/install-protoc.sh
 
-.PHONY: $(DIST_DIR)/bin/goimports
-$(DIST_DIR)/bin/goimports:
-	$(call go_get,golang.org/x/tools/cmd/goimports)
+.PHONY: install-devtools-local
+install-devtools-local: ## install dev tools
+	./hack/installers/install-dev-tools.sh
 
-.PHONY: $(DIST_DIR)/go-to-protobuf
-$(DIST_DIR)/go-to-protobuf: go-mod-vendor
-	$(call go_install,k8s.io/code-generator/cmd/go-to-protobuf)
-
-.PHONY: $(DIST_DIR)/protoc-gen-gogo
-$(DIST_DIR)/protoc-gen-gogo: go-mod-vendor
-	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogo)
-
-.PHONY: $(DIST_DIR)/protoc-gen-gogofast
-$(DIST_DIR)/protoc-gen-gogofast:
-	$(call go_install,github.com/gogo/protobuf/protoc-gen-gogofast)
-
-.PHONY: $(DIST_DIR)/protoc-gen-grpc-gateway
-$(DIST_DIR)/protoc-gen-grpc-gateway: go-mod-vendor
-	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway)
-
-.PHONY: $(DIST_DIR)/protoc-gen-swagger
-$(DIST_DIR)/protoc-gen-swagger: go-mod-vendor
-	$(call go_install,github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger)
-
-.PHONY: $(DIST_DIR)/openapi-gen
-$(DIST_DIR)/openapi-gen: go-mod-vendor
-	$(call go_install,k8s.io/kube-openapi/cmd/openapi-gen)
-
-.PHONY: $(DIST_DIR)/mockery
-$(DIST_DIR)/mockery:
-	$(call go_get,github.com/vektra/mockery/v2@v2.6.0)
+# Installs all tools required to build and test locally
+.PHONY: install-tools-local
+install-tools-local: install-go-tools-local install-protoc-local install-devtools-local
 
 TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name openapi_generated.go -not -name '*generated*' -not -name '*test.go')
 APIMACHINERY_PKGS=k8s.io/apimachinery/pkg/util/intstr,+k8s.io/apimachinery/pkg/api/resource,+k8s.io/apimachinery/pkg/runtime/schema,+k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/api/batch/v1
+PKG := $(shell go list ./pkg/apis/rollouts/v1alpha1)
 
 .PHONY: install-toolchain
-install-toolchain: go-mod-vendor $(DIST_DIR)/controller-gen $(DIST_DIR)/bin/goimports $(DIST_DIR)/go-to-protobuf $(DIST_DIR)/protoc-gen-gogo $(DIST_DIR)/protoc-gen-gogofast $(DIST_DIR)/protoc-gen-grpc-gateway $(DIST_DIR)/protoc-gen-swagger $(DIST_DIR)/openapi-gen $(DIST_DIR)/mockery
+install-toolchain: install-go-tools-local install-protoc-local
+
+##@ Code Generation
 
 # generates all auto-generated code
 .PHONY: codegen
-codegen: gen-proto gen-k8scodegen gen-openapi gen-mocks gen-crd manifests
+codegen: go-mod-vendor gen-proto gen-k8scodegen gen-openapi gen-mocks gen-crd manifests docs
 
 # generates all files related to proto files
 .PHONY: gen-proto
@@ -133,153 +118,234 @@ gen-proto: k8s-proto api-proto ui-proto
 
 # generates the .proto files affected by changes to types.go
 .PHONY: k8s-proto
-k8s-proto: go-mod-vendor install-toolchain $(TYPES)
-	PATH=${DIST_DIR}:$$PATH go-to-protobuf \
+k8s-proto: go-mod-vendor install-protoc-local install-go-tools-local $(TYPES) ## generate kubernetes protobuf files
+	mkdir -p ${PKG}
+	# Remove old generated files (including any symlinks)
+	rm -f pkg/apis/rollouts/v1alpha1/generated.proto
+	rm -f pkg/apis/rollouts/v1alpha1/generated.pb.go
+	cp -f $(CURDIR)/pkg/apis/rollouts/v1alpha1/*.* ${PKG}/
+	# Create symlink to work around go-to-protobuf path resolution issue in k8s.io/code-generator v0.34+
+	ln -sf $(CURDIR)/pkg/apis/rollouts/v1alpha1/generated.proto ${PKG}/generated.proto
+	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} go-to-protobuf \
 		--go-header-file=./hack/custom-boilerplate.go.txt \
-		--packages=github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
+		--packages=${PKG} \
 		--apimachinery-packages=${APIMACHINERY_PKGS} \
-		--proto-import $(CURDIR)/vendor
-	touch pkg/apis/rollouts/v1alpha1/generated.proto
+		--proto-import=${CURDIR}/vendor \
+		--proto-import=${GOPATH}/src \
+		--proto-import=${DIST_DIR}/protoc-include
+	# Remove the symlink before copying back
+	rm -f ${PKG}/generated.proto
+	cp -Rf $(CURDIR)/github.com/argoproj/argo-rollouts/pkg . | true
+	# cleaning up
+	rm -Rf $(CURDIR)/github.com/
+	rm -Rf $(CURDIR)/k8s.io/
 
 # generates *.pb.go, *.pb.gw.go, swagger from .proto files
 .PHONY: api-proto
-api-proto: go-mod-vendor install-toolchain k8s-proto
+api-proto: go-mod-vendor k8s-proto ## generate api protobuf files
+	mkdir -p ${PKG}
+	cp -f $(CURDIR)/pkg/apis/rollouts/v1alpha1/generated.proto ${PKG}
 	$(call protoc,pkg/apiclient/rollout/rollout.proto)
+	cp -Rf $(CURDIR)/github.com/argoproj/argo-rollouts/pkg . | true
+	# cleaning up
+	rm -Rf $(CURDIR)/github.com/
 
 # generates ui related proto files
 .PHONY: ui-proto
-	yarn --cwd ui run protogen
+ui-proto: ## generate ui protobuf files
+	pnpm --dir ui run protogen
 
 # generates k8s client, informer, lister, deepcopy from types.go
 .PHONY: gen-k8scodegen
-gen-k8scodegen: go-mod-vendor
+gen-k8scodegen: go-mod-vendor ## generate kubernetes codegen files
 	./hack/update-codegen.sh
 
 # generates ./manifests/crds/
 .PHONY: gen-crd
-gen-crd: $(DIST_DIR)/controller-gen
-	go run ./hack/gen-crd-spec/main.go
+gen-crd: go-mod-vendor install-go-tools-local ## generate crd manifests
+	go run -mod=mod ./hack/gen-crd-spec/main.go
 
 # generates mock files from interfaces
 .PHONY: gen-mocks
-gen-mocks: $(DIST_DIR)/mockery
+gen-mocks: install-go-tools-local ## generate mock files
+	./hack/update-mocks.sh
+
+gen-mocks-fast:
 	./hack/update-mocks.sh
 
 # generates openapi_generated.go
 .PHONY: gen-openapi
-gen-openapi: $(DIST_DIR)/openapi-gen
-	PATH=${DIST_DIR}:$$PATH openapi-gen \
+gen-openapi: install-go-tools-local $(DIST_DIR)/openapi-gen ## generate openapi files
+	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} openapi-gen ${CURRENT_DIR}/pkg/apis/rollouts/v1alpha1 \
 		--go-header-file ${CURRENT_DIR}/hack/custom-boilerplate.go.txt \
-		--input-dirs github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
-		--output-package github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
-		--report-filename pkg/apis/api-rules/violation_exceptions.list
+		--output-pkg github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
+		--output-dir ${CURRENT_DIR}/pkg/apis/rollouts/v1alpha1 \
+		--output-file openapi_generated.go \
+		--report-filename ${CURRENT_DIR}/pkg/apis/api-rules/violation_exceptions.list
 
-.PHONY: controller
-controller:
-	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
+##@ Plugins
 
 .PHONY: plugin
-plugin: ui/dist
+plugin: ui/dist ## build plugin
 	cp -r ui/dist/app/* server/static
-	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME} ./cmd/kubectl-argo-rollouts
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME} ./cmd/kubectl-argo-rollouts
 
 ui/dist:
-	yarn --cwd ui install
-	yarn --cwd ui build
+	pnpm --dir ui install
+	pnpm --dir ui run build
 
 .PHONY: plugin-linux
-plugin-linux: ui/dist
+plugin-linux: ui/dist ## build plugin for linux
 	cp -r ui/dist/app/* server/static
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-linux-amd64 ./cmd/kubectl-argo-rollouts
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-linux-amd64 ./cmd/kubectl-argo-rollouts
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-linux-arm64 ./cmd/kubectl-argo-rollouts
 
 .PHONY: plugin-darwin
-plugin-darwin: ui/dist
+plugin-darwin: ui/dist ## build plugin for darwin
 	cp -r ui/dist/app/* server/static
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-darwin-amd64 ./cmd/kubectl-argo-rollouts
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-darwin-amd64 ./cmd/kubectl-argo-rollouts
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-darwin-arm64 ./cmd/kubectl-argo-rollouts
 
-.PHONY: docs
-docs:
-	go run ./hack/gen-docs/main.go
+.PHONY: plugin-windows
+plugin-windows: ui/dist  ## build plugin for windows
+	cp -r ui/dist/app/* server/static
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-windows-amd64 ./cmd/kubectl-argo-rollouts
+
+##@ Build
+
+.PHONY: controller
+controller: ## build controller binary
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
 
 .PHONY: builder-image
-builder-image:
-	docker build  -t $(IMAGE_PREFIX)argo-rollouts-ci-builder:$(IMAGE_TAG) --target builder .
+builder-image: ## build builder image
+	DOCKER_BUILDKIT=1 docker build  -t $(IMAGE_PREFIX)argo-rollouts-ci-builder:$(IMAGE_TAG) --target builder .
 		@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) ; fi
 
 .PHONY: image
 image:
 ifeq ($(DEV_IMAGE), true)
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller-linux-amd64 ./cmd/rollouts-controller
-	docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) -f Dockerfile.dev ${DIST_DIR}
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/step-plugin-e2e-linux-amd64 ./test/cmd/step-plugin-e2e
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller-linux-amd64 ./cmd/rollouts-controller
+	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) -f Dockerfile.dev ${DIST_DIR}
 else
-	docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .
+	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) ; fi
 
+
+# Build sample plugin with debug info
+# https://www.jetbrains.com/help/go/attach-to-running-go-processes-with-debugger.html
+.PHONY: build-sample-metric-plugin-debug
+build-sample-metric-plugin-debug: ## build sample metric plugin with debug info
+	go build -gcflags="all=-N -l" -o plugin-bin/metric-plugin test/cmd/metrics-plugin-sample/main.go
+
+.PHONY: build-sample-traffic-plugin-debug
+build-sample-traffic-plugin-debug: ## build sample traffic plugin with debug info
+	go build -gcflags="all=-N -l" -o plugin-bin/traffic-plugin test/cmd/trafficrouter-plugin-sample/main.go
+
+.PHONY: build-sample-step-plugin-debug
+build-sample-step-plugin-debug: ## build sample traffic plugin with debug info
+	go build -gcflags="all=-N -l" -o plugin-bin/step-plugin test/cmd/step-plugin-sample/main.go
+
 .PHONY: plugin-image
-plugin-image:
-	docker build --target kubectl-argo-rollouts -t $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) .
+plugin-image: ## build plugin image
+	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) --target kubectl-argo-rollouts -t $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) .
 	if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) ; fi
 
-.PHONY: lint
-lint: go-mod-vendor
-	golangci-lint run --fix
+##@ Test
 
 .PHONY: test
-test: test-kustomize
-	go test -covermode=count -coverprofile=coverage.out ${TEST_TARGET}
+test: test-kustomize ## run all tests
+	@make test-unit
 
 .PHONY: test-kustomize
-test-kustomize:
+test-kustomize: ## run kustomize tests
 	./test/kustomize/test.sh
 
+setup-e2e:
+	@kubectl apply --server-side --force-conflicts --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rollout-crd.yaml
+	@kubectl apply --context='${E2E_K8S_CONTEXT}' -n argo-rollouts -f test/e2e/step-plugin/argo-rollouts-config.yaml
+	@rm -rf plugin-bin
+	@go build -gcflags="all=-N -l" -o plugin-bin/e2e-step-plugin test/cmd/step-plugin-e2e/main.go
+
 .PHONY: start-e2e
-start-e2e:
-	go run ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug
+start-e2e: ## start e2e test environment
+	mkdir -p coverage-output-e2e
+	GOCOVERDIR=coverage-output-e2e go run -cover ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6
 
 .PHONY: test-e2e
-test-e2e:
-	go test -timeout 20m -v -count 1 --tags e2e -p ${E2E_PARALLEL} --short ./test/e2e ${E2E_TEST_OPTIONS}
+test-e2e: install-devtools-local
+	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-test.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e ${E2E_TEST_OPTIONS}
+
+.PHONY: test-unit
+ test-unit: install-devtools-local ## run unit tests
+	mkdir -p coverage-output-unit
+	${DIST_DIR}/gotestsum --junitfile=junit-unit-test.xml --format=testname -- `go list ./... | grep -v ./test/cmd/metrics-plugin-sample` -cover -test.gocoverdir=$(CURDIR)/coverage-output-unit
+
 
 .PHONY: coverage
-coverage: test
+coverage: test ## run coverage tests
 	go tool cover -html=coverage.out -o coverage.html
 	open coverage.html
 
 .PHONY: manifests
-manifests:
-	./hack/update-manifests.sh
+manifests: ## generate manifests e.g. CRD, RBAC etc.
+	REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) ./hack/update-manifests.sh
 
 .PHONY: clean
-clean:
+clean: ## clean up build artifacts
 	-rm -rf ${CURRENT_DIR}/dist
 	-rm -rf ${CURRENT_DIR}/ui/dist
+	-rm -Rf ${CURRENT_DIR}/github.com/
+	-rm -Rf ${CURRENT_DIR}/k8s.io/
 
 .PHONY: precheckin
 precheckin: test lint
 
+##@ Docs
+
+# convenience target to run `mkdocs serve` using a docker container
+.PHONY: serve-docs
+serve-docs: docs ## serve docs locally
+	docker run --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs squidfunk/mkdocs-material serve -a 0.0.0.0:8000
+
+.PHONY: docs
+docs: go-mod-vendor install-go-tools-local ## build docs
+	go run -mod=mod ./hack/gen-docs/main.go
+
+##@ Release
+
 .PHONY: release-docs
-release-docs: docs
+release-docs: docs ## build and deploy docs
 	docker run --rm -it \
 		-v ~/.ssh:/root/.ssh \
 		-v ${CURRENT_DIR}:/docs \
 		-v ~/.gitconfig:/root/.gitconfig \
 		squidfunk/mkdocs-material gh-deploy -r ${GIT_REMOTE_REPO}
 
-# convenience target to run `mkdocs serve` using a docker container
-.PHONY: serve-docs
-serve-docs: docs
-	docker run --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs squidfunk/mkdocs-material serve -a 0.0.0.0:8000
-
 .PHONY: release-precheck
-release-precheck: manifests
+release-precheck: manifests ## precheck release
 	@if [ "$(GIT_TREE_STATE)" != "clean" ]; then echo 'git tree state is $(GIT_TREE_STATE)' ; exit 1; fi
 	@if [ -z "$(GIT_TAG)" ]; then echo 'commit must be tagged to perform release' ; exit 1; fi
 	@if [ "$(GIT_TAG)" != "v`cat VERSION`" ]; then echo 'VERSION does not match git tag'; exit 1; fi
 
 .PHONY: release-plugins
-release-plugins:
+release-plugins: ## build and push plugins
 	./hack/build-release-plugins.sh
 
 .PHONY: release
 release: release-precheck precheckin image plugin-image release-plugins
+
+.PHONY: trivy
+trivy: ## run trivy scan
+	@trivy fs --clear-cache
+	@trivy fs .
+
+.PHONY: checksums
+checksums:
+	shasum -a 256 ./dist/kubectl-argo-rollouts-* | awk -F './dist/' '{print $$1 $$2}' > ./dist/argo-rollouts-checksums.txt
+
+
+help: ## Display this help.
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)

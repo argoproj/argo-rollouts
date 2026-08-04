@@ -12,6 +12,8 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -61,6 +63,7 @@ func NewCmdRestart(o *options.ArgoRolloutsOptions) *cobra.Command {
 			fmt.Fprintf(o.Out, "rollout '%s' restarts in %s\n", ro.Name, in)
 			return nil
 		},
+		ValidArgsFunction: completionutil.RolloutNameCompletionFunc(o),
 	}
 	cmd.Flags().StringVarP(&in, "in", "i", "", "Amount of time before a restart. (e.g. 30s, 5m, 1h)")
 	return cmd
@@ -70,7 +73,7 @@ func NewCmdRestart(o *options.ArgoRolloutsOptions) *cobra.Command {
 func RestartRollout(rolloutIf clientset.RolloutInterface, name string, restartAt *time.Time) (*v1alpha1.Rollout, error) {
 	ctx := context.TODO()
 	if restartAt == nil {
-		t := time.Now().UTC()
+		t := timeutil.Now().UTC()
 		restartAt = &t
 	}
 	patch := fmt.Sprintf(restartPatch, restartAt.Format(time.RFC3339))

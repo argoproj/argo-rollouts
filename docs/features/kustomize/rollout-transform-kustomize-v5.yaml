@@ -1,0 +1,274 @@
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/namereference.go
+nameReference:
+- kind: ConfigMap
+  version: v1
+  fieldSpecs:
+  - path: spec/template/spec/volumes/configMap/name
+    kind: Rollout
+  - path: spec/template/spec/containers/env/valueFrom/configMapKeyRef/name
+    kind: Rollout
+  - path: spec/template/spec/initContainers/env/valueFrom/configMapKeyRef/name
+    kind: Rollout
+  - path: spec/template/spec/containers/envFrom/configMapRef/name
+    kind: Rollout
+  - path: spec/template/spec/initContainers/envFrom/configMapRef/name
+    kind: Rollout
+  - path: spec/template/spec/volumes/projected/sources/configMap/name
+    kind: Rollout
+  - path: spec/templates/template/spec/volumes/configMap/name
+    kind: Experiment
+  - path: spec/templates/template/spec/containers/env/valueFrom/configMapKeyRef/name
+    kind: Experiment
+  - path: spec/templates/template/spec/initContainers/env/valueFrom/configMapKeyRef/name
+    kind: Experiment
+  - path: spec/templates/template/spec/containers/envFrom/configMapRef/name
+    kind: Experiment
+  - path: spec/templates/template/spec/initContainers/envFrom/configMapRef/name
+    kind: Experiment
+  - path: spec/templates/template/spec/volumes/projected/sources/configMap/name
+    kind: Experiment
+  - path: spec/metrics/provider/job/spec/template/spec/volumes/configMap/name
+    kind: AnalysisTemplate
+  - path: spec/metrics/provider/job/spec/template/spec/containers/env/valueFrom/configMapKeyRef/name
+    kind: AnalysisTemplate
+  - path: spec/metrics/provider/job/spec/template/spec/initContainers/env/valueFrom/configMapKeyRef/name
+    kind: AnalysisTemplate
+  - path: spec/metrics/provider/job/spec/template/spec/containers/envFrom/configMapRef/name
+    kind: AnalysisTemplate
+  - path: spec/metrics/provider/job/spec/template/spec/initContainers/envFrom/configMapRef/name
+    kind: AnalysisTemplate
+  - path: spec/metrics/provider/job/spec/template/spec/volumes/projected/sources/configMap/name
+    kind: AnalysisTemplate
+- kind: Secret
+  version: v1
+  fieldSpecs:
+  - path: spec/template/spec/volumes/secret/secretName
+    kind: Rollout
+  - path: spec/template/spec/containers/env/valueFrom/secretKeyRef/name
+    kind: Rollout
+  - path: spec/template/spec/initContainers/env/valueFrom/secretKeyRef/name
+    kind: Rollout
+  - path: spec/template/spec/containers/envFrom/secretRef/name
+    kind: Rollout
+  - path: spec/template/spec/initContainers/envFrom/secretRef/name
+    kind: Rollout
+  - path: spec/template/spec/imagePullSecrets/name
+    kind: Rollout
+  - path: spec/template/spec/volumes/projected/sources/secret/name
+    kind: Rollout
+  - path: spec/templates/template/spec/volumes/secret/secretName
+    kind: Experiment
+  - path: spec/templates/template/spec/containers/env/valueFrom/secretKeyRef/name
+    kind: Experiment
+  - path: spec/templates/template/spec/initContainers/env/valueFrom/secretKeyRef/name
+    kind: Experiment
+  - path: spec/templates/template/spec/containers/envFrom/secretRef/name
+    kind: Experiment
+  - path: spec/templates/template/spec/initContainers/envFrom/secretRef/name
+    kind: Experiment
+  - path: spec/templates/template/spec/imagePullSecrets/name
+    kind: Experiment
+  - path: spec/templates/template/spec/volumes/projected/sources/secret/name
+    kind: Experiment
+  - path: spec/metrics/provider/job/spec/template/spec/volumes/secret/secretName
+    kind: AnalysisTemplate
+  - path: spec/metrics/provider/job/spec/template/spec/containers/env/valueFrom/secretKeyRef/name
+    kind: AnalysisTemplate
+  - path: spec/metrics/provider/job/spec/template/spec/initContainers/env/valueFrom/secretKeyRef/name
+    kind: AnalysisTemplate
+  - path: spec/metrics/provider/job/spec/template/spec/containers/envFrom/secretRef/name
+    kind: AnalysisTemplate
+  - path: spec/metrics/provider/job/spec/template/spec/initContainers/envFrom/secretRef/name
+    kind: AnalysisTemplate
+  - path: spec/metrics/provider/job/spec/template/spec/imagePullSecrets/name
+    kind: AnalysisTemplate
+  - path: spec/metrics/provider/job/spec/template/spec/volumes/projected/sources/secret/name
+    kind: AnalysisTemplate
+- kind: ServiceAccount
+  version: v1
+  fieldSpecs:
+  - path: spec/template/spec/serviceAccountName
+    kind: Rollout
+  - path: spec/templates/template/spec/serviceAccountName
+    kind: Experiment
+  - path: spec/metrics/provider/job/spec/template/spec/serviceAccountName
+    kind: AnalysisTemplate
+- kind: PersistentVolumeClaim
+  version: v1
+  fieldSpecs:
+  - path: spec/template/spec/volumes/persistentVolumeClaim/claimName
+    kind: Rollout
+  - path: spec/templates/template/spec/volumes/persistentVolumeClaim/claimName
+    kind: Experiment
+  - path: spec/metrics/provider/job/spec/template/spec/volumes/persistentVolumeClaim/claimName
+    kind: AnalysisTemplate
+- kind: PriorityClass
+  version: v1
+  group: scheduling.k8s.io
+  fieldSpecs:
+  - path: spec/template/spec/priorityClassName
+    kind: Rollout
+  - path: spec/templates/template/spec/priorityClassName
+    kind: Experiment
+  - path: spec/metrics/provider/job/spec/template/spec/priorityClassName
+    kind: AnalysisTemplate
+
+# The name references below are unique to Rollouts and not applicable to Deployment
+- kind: Service
+  version: v1
+  fieldSpecs:
+  - path: spec/strategy/blueGreen/activeService
+    kind: Rollout
+  - path: spec/strategy/blueGreen/previewService
+    kind: Rollout
+  - path: spec/strategy/canary/canaryService
+    kind: Rollout
+  - path: spec/strategy/canary/stableService
+    kind: Rollout
+  - path: spec/strategy/canary/trafficRouting/alb/rootService
+    kind: Rollout
+- kind: VirtualService
+  group: networking.istio.io
+  fieldSpecs:
+  - path: spec/strategy/canary/trafficRouting/istio/virtualService/name
+    kind: Rollout
+- kind: DestinationRule
+  group: networking.istio.io
+  fieldSpecs:
+  - path: spec/strategy/canary/trafficRouting/istio/destinationRule/name
+    kind: Rollout
+- kind: Ingress
+  group: networking.k8s.io
+  fieldSpecs:
+  - path: spec/strategy/canary/trafficRouting/alb/ingress
+    kind: Rollout
+  - path: spec/strategy/canary/trafficRouting/nginx/stableIngress
+    kind: Rollout
+- kind: Ingress
+  group: extensions
+  fieldSpecs:
+  - path: spec/strategy/canary/trafficRouting/alb/ingress
+    kind: Rollout
+  - path: spec/strategy/canary/trafficRouting/nginx/stableIngress
+    kind: Rollout
+- kind: AnalysisTemplate
+  group: argoproj.io
+  fieldSpecs:
+  - path: spec/strategy/blueGreen/prePromotionAnalysis/templates/templateName
+    kind: Rollout
+  - path: spec/strategy/blueGreen/postPromotionAnalysis/templates/templateName
+    kind: Rollout
+  - path: spec/strategy/canary/analysis/templates/templateName
+    kind: Rollout
+  - path: spec/strategy/canary/steps/analysis/templates/templateName
+    kind: Rollout
+  - path: spec/strategy/canary/steps/experiment/analyses/templateName
+    kind: Rollout
+  - path: spec/analyses/templateName
+    kind: Experiment
+- kind: Rollout
+  fieldSpecs:
+  - path: spec/scaleTargetRef/name
+    kind: HorizontalPodAutoscaler
+- kind: Deployment
+  version: v1
+  group: apps
+  fieldSpecs:
+  - path: spec/workloadRef/name
+    kind: Rollout
+- kind: Mapping
+  group: getambassador.io
+  fieldSpecs:
+  - path: spec/strategy/canary/trafficRouting/ambassador/mappings
+    kind: Rollout
+
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/commonlabels.go
+commonLabels:
+- path: spec/selector/matchLabels
+  create: true
+  kind: Rollout
+- path: spec/template/metadata/labels
+  create: true
+  kind: Rollout
+- path: spec/template/spec/affinity/podAffinity/preferredDuringSchedulingIgnoredDuringExecution/podAffinityTerm/labelSelector/matchLabels
+  create: false
+  kind: Rollout
+- path: spec/template/spec/affinity/podAffinity/requiredDuringSchedulingIgnoredDuringExecution/labelSelector/matchLabels
+  create: false
+  kind: Rollout
+- path: spec/template/spec/affinity/podAntiAffinity/preferredDuringSchedulingIgnoredDuringExecution/podAffinityTerm/labelSelector/matchLabels
+  create: false
+  kind: Rollout
+- path: spec/template/spec/affinity/podAntiAffinity/requiredDuringSchedulingIgnoredDuringExecution/labelSelector/matchLabels
+  create: false
+  kind: Rollout
+
+templateLabels:
+- path: spec/template/metadata/labels
+  create: true
+  kind: Rollout
+
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/commonannotations.go
+commonAnnotations:
+- path: spec/template/metadata/annotations
+  create: true
+  kind: Rollout
+
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/varreference.go
+varReference:
+- path: spec/template/spec/containers/args
+  kind: Rollout
+- path: spec/template/spec/containers/command
+  kind: Rollout
+- path: spec/template/spec/containers/env/value
+  kind: Rollout
+- path: spec/template/spec/containers/volumeMounts/mountPath
+  kind: Rollout
+- path: spec/template/spec/initContainers/args
+  kind: Rollout
+- path: spec/template/spec/initContainers/command
+  kind: Rollout
+- path: spec/template/spec/initContainers/env/value
+  kind: Rollout
+- path: spec/template/spec/initContainers/volumeMounts/mountPath
+  kind: Rollout
+- path: spec/templates/template/spec/containers/args
+  kind: Experiment
+- path: spec/templates/template/spec/containers/command
+  kind: Experiment
+- path: spec/templates/template/spec/containers/env/value
+  kind: Experiment
+- path: spec/templates/template/spec/containers/volumeMounts/mountPath
+  kind: Experiment
+- path: spec/templates/template/spec/initContainers/args
+  kind: Experiment
+- path: spec/templates/template/spec/initContainers/command
+  kind: Experiment
+- path: spec/templates/template/spec/initContainers/env/value
+  kind: Experiment
+- path: spec/templates/template/spec/initContainers/volumeMounts/mountPath
+  kind: Experiment
+- path: spec/metrics/provider/job/spec/template/spec/containers/args
+  kind: AnalysisTemplate
+- path: spec/metrics/provider/job/spec/template/spec/containers/command
+  kind: AnalysisTemplate
+- path: spec/metrics/provider/job/spec/template/spec/containers/env/value
+  kind: AnalysisTemplate
+- path: spec/metrics/provider/job/spec/template/spec/containers/volumeMounts/mountPath
+  kind: AnalysisTemplate
+- path: spec/metrics/provider/job/spec/template/spec/initContainers/args
+  kind: AnalysisTemplate
+- path: spec/metrics/provider/job/spec/template/spec/initContainers/command
+  kind: AnalysisTemplate
+- path: spec/metrics/provider/job/spec/template/spec/initContainers/env/value
+  kind: AnalysisTemplate
+- path: spec/metrics/provider/job/spec/template/spec/initContainers/volumeMounts/mountPath
+  kind: AnalysisTemplate
+- path: spec/metrics/provider/job/spec/template/spec/volumes/nfs/server
+  kind: AnalysisTemplate
+
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/replicas.go
+replicas:
+- path: spec/replicas
+  create: true
+  kind: Rollout

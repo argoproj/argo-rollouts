@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -22,13 +23,14 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/util/workqueue"
 
+	"k8s.io/client-go/tools/cache"
+
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/log"
-	"k8s.io/client-go/tools/cache"
 )
 
 func TestProcessNextWorkItemHandlePanic(t *testing.T) {
@@ -39,46 +41,65 @@ func TestProcessNextWorkItemHandlePanic(t *testing.T) {
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
 	})
-	syncHandler := func(key string) error {
+	syncHandler := func(ctx context.Context, key string) error {
 		panic("Bad big panic :(")
 	}
-	assert.True(t, processNextWorkItem(q, log.RolloutKey, syncHandler, metricServer))
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, metricServer))
 }
 
 func TestProcessNextWorkItemShutDownQueue(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
-	syncHandler := func(key string) error {
+	syncHandler := func(ctx context.Context, key string) error {
 		return nil
 	}
 	q.ShutDown()
-	assert.False(t, processNextWorkItem(q, log.RolloutKey, syncHandler, nil))
+	assert.False(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, nil))
 }
 
 func TestProcessNextWorkItemNoTStringKey(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add(1)
-	syncHandler := func(key string) error {
+	syncHandler := func(ctx context.Context, key string) error {
 		return nil
 	}
-	assert.True(t, processNextWorkItem(q, log.RolloutKey, syncHandler, nil))
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, nil))
 }
 
 func TestProcessNextWorkItemNoValidKey(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add("invalid.key")
-	syncHandler := func(key string) error {
+	syncHandler := func(ctx context.Context, key string) error {
 		return nil
 	}
-	assert.True(t, processNextWorkItem(q, log.RolloutKey, syncHandler, nil))
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, nil))
 }
 
 func TestProcessNextWorkItemNormalSync(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add("valid/key")
-	syncHandler := func(key string) error {
+	syncHandler := func(ctx context.Context, key string) error {
 		return nil
 	}
-	assert.True(t, processNextWorkItem(q, log.RolloutKey, syncHandler, nil))
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, nil))
+}
+
+func TestProcessNextWorkItemStaleCache(t *testing.T) {
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
+	q.Add("valid/key")
+	metricServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:               "localhost:8080",
+		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
+	})
+	syncHandler := func(ctx context.Context, key string) error {
+		return StaleCacheError
+	}
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, metricServer))
+	assert.Equal(t, 0, q.Len())
+	// Stale cache uses AddAfter, not AddRateLimited, so it must not increment the rate limiter.
+	assert.Equal(t, 0, q.NumRequeues("valid/key"))
+
+	time.Sleep(StaleCacheRequeueDelay + 50*time.Millisecond)
+	assert.Equal(t, 1, q.Len())
 }
 
 func TestProcessNextWorkItemSyncHandlerReturnError(t *testing.T) {
@@ -88,10 +109,10 @@ func TestProcessNextWorkItemSyncHandlerReturnError(t *testing.T) {
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
 	})
-	syncHandler := func(key string) error {
+	syncHandler := func(ctx context.Context, key string) error {
 		return fmt.Errorf("error message")
 	}
-	assert.True(t, processNextWorkItem(q, log.RolloutKey, syncHandler, metricServer))
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, metricServer))
 }
 
 func TestEnqueue(t *testing.T) {
@@ -164,11 +185,11 @@ func TestEnqueueRateLimitedInvalidObject(t *testing.T) {
 
 func TestEnqueueParentObjectInvalidObject(t *testing.T) {
 	errorMessages := make([]error, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, utilruntime.ErrorHandler(func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err)
-	})
+	}))
 	invalidObject := "invalid-object"
-	enqueueFunc := func(obj interface{}) {}
+	enqueueFunc := func(obj any) {}
 	EnqueueParentObject(invalidObject, register.RolloutKind, enqueueFunc)
 	assert.Len(t, errorMessages, 1)
 	assert.Error(t, errorMessages[0], "error decoding object, invalid type")
@@ -176,12 +197,12 @@ func TestEnqueueParentObjectInvalidObject(t *testing.T) {
 
 func TestEnqueueParentObjectInvalidTombstoneObject(t *testing.T) {
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 
 	invalidObject := cache.DeletedFinalStateUnknown{}
-	enqueueFunc := func(obj interface{}) {}
+	enqueueFunc := func(obj any) {}
 	EnqueueParentObject(invalidObject, register.RolloutKind, enqueueFunc)
 	assert.Len(t, errorMessages, 1)
 	assert.Equal(t, "error decoding object tombstone, invalid type", errorMessages[0])
@@ -189,7 +210,7 @@ func TestEnqueueParentObjectInvalidTombstoneObject(t *testing.T) {
 
 func TestEnqueueParentObjectNoOwner(t *testing.T) {
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	rs := &appsv1.ReplicaSet{
@@ -198,8 +219,8 @@ func TestEnqueueParentObjectNoOwner(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	EnqueueParentObject(rs, register.RolloutKind, enqueueFunc)
@@ -211,7 +232,7 @@ func TestEnqueueParentObjectDifferentOwnerKind(t *testing.T) {
 	experimentKind := v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	experiment := &v1alpha1.Experiment{
@@ -227,8 +248,8 @@ func TestEnqueueParentObjectDifferentOwnerKind(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(experiment, experimentKind)},
 		},
 	}
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	EnqueueParentObject(rs, register.RolloutKind, enqueueFunc)
@@ -240,7 +261,7 @@ func TestEnqueueParentObjectOtherOwnerTypes(t *testing.T) {
 	deploymentKind := appsv1.SchemeGroupVersion.WithKind("Deployment")
 
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	deployment := &appsv1.Deployment{
@@ -256,8 +277,8 @@ func TestEnqueueParentObjectOtherOwnerTypes(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(deployment, deploymentKind)},
 		},
 	}
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	EnqueueParentObject(rs, "Deployment", enqueueFunc)
@@ -269,7 +290,7 @@ func TestEnqueueParentObjectEnqueueExperiment(t *testing.T) {
 	experimentKind := v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	experiment := &v1alpha1.Experiment{
@@ -285,8 +306,8 @@ func TestEnqueueParentObjectEnqueueExperiment(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(experiment, experimentKind)},
 		},
 	}
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	client := fake.NewSimpleClientset(experiment)
@@ -302,7 +323,7 @@ func TestEnqueueParentObjectEnqueueRollout(t *testing.T) {
 	rolloutKind := v1alpha1.SchemeGroupVersion.WithKind("Rollout")
 
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	rollout := &v1alpha1.Rollout{
@@ -318,8 +339,8 @@ func TestEnqueueParentObjectEnqueueRollout(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(rollout, rolloutKind)},
 		},
 	}
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	client := fake.NewSimpleClientset(rollout)
@@ -334,7 +355,7 @@ func TestEnqueueParentObjectEnqueueRollout(t *testing.T) {
 func TestEnqueueParentObjectRecoverTombstoneObject(t *testing.T) {
 	experimentKind := v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	experiment := &v1alpha1.Experiment{
@@ -355,8 +376,8 @@ func TestEnqueueParentObjectRecoverTombstoneObject(t *testing.T) {
 		Obj: rs,
 	}
 
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	client := fake.NewSimpleClientset(experiment)
@@ -387,10 +408,10 @@ func TestInstanceIDRequirement(t *testing.T) {
 }
 
 func newObj(name, kind, apiVersion string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	obj["apiVersion"] = apiVersion
 	obj["kind"] = kind
-	obj["metadata"] = map[string]interface{}{
+	obj["metadata"] = map[string]any{
 		"name":      name,
 		"namespace": metav1.NamespaceDefault,
 	}
@@ -436,7 +457,7 @@ func TestProcessNextWatchObj(t *testing.T) {
 	dInformer := dynamicinformers.NewDynamicSharedInformerFactory(client, func() time.Duration { return 0 }())
 	indexer := dInformer.ForResource(gvk).Informer().GetIndexer()
 	indexer.AddIndexers(cache.Indexers{
-		"testIndexer": func(obj interface{}) (strings []string, e error) {
+		"testIndexer": func(obj any) (strings []string, e error) {
 			return []string{"default/foo"}, nil
 		},
 	})

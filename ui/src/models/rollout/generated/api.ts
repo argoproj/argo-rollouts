@@ -13,7 +13,7 @@
  */
 
 import * as url from "url";
-import * as portableFetch from "portable-fetch";
+import * as isomorphicFetch from "isomorphic-fetch";
 import { Configuration } from "./configuration";
 
 const BASE_PATH = "/".replace(/\/+$/, "");
@@ -56,13 +56,13 @@ export interface FetchArgs {
 export class BaseAPI {
     protected configuration: Configuration;
 
-    constructor(configuration?: Configuration, protected basePath: string = BASE_PATH, protected fetch: FetchAPI = portableFetch) {
+    constructor(configuration?: Configuration, protected basePath: string = BASE_PATH, protected fetch: FetchAPI = isomorphicFetch) {
         if (configuration) {
             this.configuration = configuration;
             this.basePath = configuration.basePath || this.basePath;
         }
     }
-};
+}
 
 /**
  *
@@ -71,12 +71,43 @@ export class BaseAPI {
  * @extends {Error}
  */
 export class RequiredError extends Error {
-    name: "RequiredError"
+    name = "RequiredError"
     constructor(public field: string, msg?: string) {
         super(msg);
     }
 }
 
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus
+     */
+    loadBalancer?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus
+     */
+    canaryTargetGroup?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus
+     */
+    stableTargetGroup?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus
+     */
+    ingress?: string;
+}
 /**
  * 
  * @export
@@ -107,6 +138,18 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficR
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficRouting
      */
     annotationPrefix?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessConfig}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficRouting
+     */
+    stickinessConfig?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessConfig;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficRouting
+     */
+    ingresses?: Array<string>;
 }
 /**
  * 
@@ -149,6 +192,155 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRun
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata {
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata
+     */
+    labels?: { [key: string]: string; };
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata
+     */
+    annotations?: { [key: string]: string; };
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec {
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    metrics?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric>;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    args?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    terminate?: boolean;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    dryRun?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    measurementRetention?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    ttlStrategy?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    phase?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    message?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    metricResults?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult>;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    startedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    runSummary?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    dryRunSummary?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    completedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStrategy
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStrategy {
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStrategy
+     */
+    successfulRunHistoryLimit?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStrategy
+     */
+    unsuccessfulRunHistoryLimit?: number;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef
+     */
+    templateName?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef
+     */
+    clusterScope?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AntiAffinity
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AntiAffinity {
@@ -168,6 +360,133 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AntiAffinit
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixRoute
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixRoute {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixRoute
+     */
+    name?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixRoute
+     */
+    rules?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixRoute}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting
+     */
+    route?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixRoute;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshTrafficRouting
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshTrafficRouting {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualService}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshTrafficRouting
+     */
+    virtualService?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualService;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeGroup}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshTrafficRouting
+     */
+    virtualNodeGroup?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeGroup;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeGroup
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeGroup {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeReference}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeGroup
+     */
+    canaryVirtualNodeRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeReference;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeReference}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeGroup
+     */
+    stableVirtualNodeRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeReference;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeReference
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeReference {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualNodeReference
+     */
+    name?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualService
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualService {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualService
+     */
+    name?: string;
+    /**
+     * Routes is list of HTTP routes within virtual router associated with virtual service to edit. If omitted, virtual service must have a single route of this type.
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualService
+     */
+    routes?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument
+     */
+    value?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument
+     */
+    valueFrom?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ArgumentValueFrom
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ArgumentValueFrom {
@@ -183,6 +502,75 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ArgumentVal
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ArgumentValueFrom
      */
     fieldRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
+     */
+    sigv4?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
+     */
+    oauth2?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
+     */
+    basicAuth?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef
+     */
+    arn?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef
+     */
+    fullName?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+     */
+    username?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig
+     */
+    password?: string;
 }
 /**
  * 
@@ -305,6 +693,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BlueGreenSt
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BlueGreenStrategy
      */
     activeMetadata?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PodTemplateMetadata;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BlueGreenStrategy
+     */
+    abortScaleDownDelaySeconds?: number;
 }
 /**
  * 
@@ -330,6 +724,24 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStatu
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStatus
      */
     currentExperiment?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TrafficWeights}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStatus
+     */
+    weights?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TrafficWeights;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStatus
+     */
+    stablePingPong?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStatus
+     */
+    stepPluginStatuses?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus>;
 }
 /**
  * CanaryStep defines a step of a canary deployment.
@@ -367,6 +779,24 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep 
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
      */
     setCanaryScale?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanaryScale;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
+     */
+    setHeaderRoute?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
+     */
+    setMirrorRoute?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
+     */
+    plugin?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep;
 }
 /**
  * 
@@ -446,6 +876,241 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
      */
     scaleDownDelayRevisionLimit?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    abortScaleDownDelaySeconds?: number;
+    /**
+     * DynamicStableScale is a traffic routing feature which dynamically scales the stable ReplicaSet to minimize total pods which are running during an update. This is calculated by scaling down the stable as traffic is increased to canary. When disabled (the default behavior) the stable ReplicaSet remains fully scaled to support instantaneous aborts.
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    dynamicStableScale?: boolean;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PingPongSpec}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    pingPong?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PingPongSpec;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    minPodsPerReplicaSet?: number;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    replicaProgressThreshold?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric
+     */
+    interval?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric
+     */
+    metricDataQueries?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    id?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    expression?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    label?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    metricStat?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    period?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    returnData?: boolean;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat
+     */
+    metric?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat
+     */
+    period?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat
+     */
+    stat?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat
+     */
+    unit?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric {
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric
+     */
+    dimensions?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension>;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric
+     */
+    metricName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric
+     */
+    namespace?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension
+     */
+    value?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric {
+    /**
+     * +kubebuilder:default=\"5m\" Interval refers to the Interval time window in Datadog (default: 5m). Not to be confused with the polling rate for the metric.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    interval?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    query?: string;
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    queries?: { [key: string]: string; };
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    formula?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    apiVersion?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    aggregator?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    secretRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    requestTimeout?: string;
+}
+/**
+ * DryRun defines the settings for running the analysis in Dry-Run mode.
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun {
+    /**
+     * Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all the available metrics.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun
+     */
+    metricName?: string;
 }
 /**
  * 
@@ -459,6 +1124,63 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef
      */
     fieldPath?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric
+     */
+    query?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
+     */
+    headerName?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
+     */
+    headerValue?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric
+     */
+    profile?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric
+     */
+    query?: string;
 }
 /**
  * 
@@ -484,6 +1206,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestin
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestinationRule
      */
     stableSubsetName?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestinationRule
+     */
+    additionalSubsetNames?: Array<string>;
 }
 /**
  * 
@@ -503,6 +1231,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioTraffi
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioTrafficRouting
      */
     destinationRule?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestinationRule;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtualService>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioTrafficRouting
+     */
+    virtualServices?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtualService>;
 }
 /**
  * 
@@ -517,11 +1251,490 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtua
      */
     name?: string;
     /**
-     * 
+     * A list of HTTP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
      * @type {Array<string>}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtualService
      */
     routes?: Array<string>;
+    /**
+     * A list of TLS/HTTPS routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtualService
+     */
+    tlsRoutes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute>;
+    /**
+     * A list of TCP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TCPRoute>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtualService
+     */
+    tcpRoutes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TCPRoute>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric {
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1ObjectMeta}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric
+     */
+    metadata?: K8sIoApimachineryPkgApisMetaV1ObjectMeta;
+    /**
+     * 
+     * @type {K8sIoApiBatchV1JobSpec}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric
+     */
+    spec?: K8sIoApiBatchV1JobSpec;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    application?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    canaryConfigName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    metricsAccountName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    configurationAccountName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    storageAccountName?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    threshold?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    scopes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    lookback?: boolean;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope
+     */
+    name?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope
+     */
+    controlScope?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope
+     */
+    experimentScope?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold
+     */
+    pass?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold
+     */
+    marginal?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
+     */
+    name?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    phase?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    message?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    startedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    finishedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    value?: string;
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    metadata?: { [key: string]: string; };
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    resumeAt?: K8sIoApimachineryPkgApisMetaV1Time;
+}
+/**
+ * MeasurementRetention defines the settings for retaining the number of measurements during the analysis.
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention {
+    /**
+     * MetricName is the name of the metric on which this retention policy should be applied.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention
+     */
+    metricName?: string;
+    /**
+     * Limit is the maximum number of measurements to be retained for this given metric.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention
+     */
+    limit?: number;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    interval?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    initialDelay?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    count?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    successCondition?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    failureCondition?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    failureLimit?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    inconclusiveLimit?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    consecutiveErrorLimit?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    provider?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    consecutiveSuccessLimit?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    prometheus?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    kayenta?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    web?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    datadog?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    wavefront?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    newRelic?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    job?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    cloudWatch?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    graphite?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    influxdb?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    skywalking?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric;
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    plugin?: { [key: string]: string; };
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    phase?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    measurements?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement>;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    message?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    count?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    successful?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    failed?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    inconclusive?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    error?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    consecutiveError?: number;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    dryRun?: boolean;
+    /**
+     * Metadata stores additional metadata about this metric. It is used by different providers to store the final state which gets used while taking measurements. For example, Prometheus uses this field to store the final resolved query after substituting the template arguments.
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    metadata?: { [key: string]: string; };
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    consecutiveSuccess?: number;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
+     */
+    profile?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
+     */
+    query?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
+     */
+    timeout?: string;
 }
 /**
  * 
@@ -547,6 +1760,49 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTraffi
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
      */
     additionalIngressAnnotations?: { [key: string]: string; };
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
+     */
+    stableIngresses?: Array<string>;
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
+     */
+    canaryIngressAnnotations?: { [key: string]: string; };
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config
+     */
+    tokenUrl?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config
+     */
+    clientId?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config
+     */
+    clientSecret?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config
+     */
+    scopes?: Array<string>;
 }
 /**
  * 
@@ -572,6 +1828,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef
      */
     name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef
+     */
+    scaleDown?: string;
 }
 /**
  * 
@@ -591,6 +1853,44 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PauseCondit
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PauseCondition
      */
     startTime?: K8sIoApimachineryPkgApisMetaV1Time;
+}
+/**
+ * PingPongSpec holds the ping and pong service name.
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PingPongSpec
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PingPongSpec {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PingPongSpec
+     */
+    pingService?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PingPongSpec
+     */
+    pongService?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep
+     */
+    config?: string;
 }
 /**
  * 
@@ -627,9 +1927,115 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PreferredDu
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    query?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    authentication?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    timeout?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    insecure?: boolean;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    headers?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    rangeQuery?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    start?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    end?: string;
+    /**
+     * The maximum time between two slices from the start to end (e.g. 30s, 5m, 1h).
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs
+     */
+    step?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold {
+    /**
+     * Type is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold
+     */
+    type?: string;
+    /**
+     * Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step. If not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step. Value must also be greater than 0. Required.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold
+     */
+    value?: number;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RequiredDuringSchedulingIgnoredDuringExecution
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RequiredDuringSchedulingIgnoredDuringExecution {
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RollbackWindowSpec
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RollbackWindowSpec {
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RollbackWindowSpec
+     */
+    revisions?: number;
 }
 /**
  * 
@@ -664,16 +2070,34 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout {
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis {
     /**
      * 
-     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate>}
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef>}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis
      */
-    templates?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate>;
+    templates?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef>;
     /**
      * 
      * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunArgument>}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis
      */
     args?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunArgument>;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis
+     */
+    dryRun?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis
+     */
+    measurementRetention?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis
+     */
+    analysisRunMetadata?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata;
 }
 /**
  * 
@@ -718,25 +2142,6 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnal
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisRunStatus
      */
     message?: string;
-}
-/**
- * 
- * @export
- * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate
- */
-export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate {
-    /**
-     * 
-     * @type {string}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate
-     */
-    templateName?: string;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate
-     */
-    clusterScope?: boolean;
 }
 /**
  * RolloutCondition describes the state of a rollout at a certain point.
@@ -784,6 +2189,43 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutCond
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus {
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    rolloutStartedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    manualPauseStartedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    totalManualPauseDurationSeconds?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    finishedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    completionStatus?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep {
@@ -805,6 +2247,24 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExpe
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
      */
     analyses?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStepAnalysisTemplateRef>;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
+     */
+    dryRun?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
+     */
+    analysisRunMetadata?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
+     */
+    scaleDownDelaySeconds?: number;
 }
 /**
  * 
@@ -879,6 +2339,18 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExpe
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate
      */
     selector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate
+     */
+    weight?: number;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate
+     */
+    service?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService;
 }
 /**
  * 
@@ -931,6 +2403,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutSpec
     minReadySeconds?: number;
     /**
      * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RollbackWindowSpec}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutSpec
+     */
+    rollbackWindow?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RollbackWindowSpec;
+    /**
+     * 
      * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStrategy}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutSpec
      */
@@ -955,10 +2433,22 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutSpec
     progressDeadlineSeconds?: number;
     /**
      * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutSpec
+     */
+    progressDeadlineAbort?: boolean;
+    /**
+     * 
      * @type {K8sIoApimachineryPkgApisMetaV1Time}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutSpec
      */
     restartAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStrategy}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutSpec
+     */
+    analysis?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStrategy;
 }
 /**
  * 
@@ -1092,6 +2582,42 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
      */
     promoteFull?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    phase?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    message?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    workloadObservedGeneration?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    alb?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    albs?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    duration?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus;
 }
 /**
  * 
@@ -1148,6 +2674,104 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
     ambassador?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AmbassadorTrafficRouting;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshTrafficRouting}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    appMesh?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshTrafficRouting;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    traefik?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting;
+    /**
+     * ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream traffic router.
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    managedRoutes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    apisix?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting;
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    plugins?: { [key: string]: string; };
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    maxTrafficWeight?: number;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch
+     */
+    method?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch
+     */
+    path?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch;
+    /**
+     * 
+     * @type {{ [key: string]: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch
+     */
+    headers?: { [key: string]: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch; };
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary {
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+     */
+    count?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+     */
+    successful?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+     */
+    failed?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+     */
+    inconclusive?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+     */
+    error?: number;
 }
 /**
  * 
@@ -1167,6 +2791,81 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SMITrafficR
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SMITrafficRouting
      */
     trafficSplitName?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+     */
+    scope?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+     */
+    region?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+     */
+    step?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+     */
+    start?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+     */
+    end?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef
+     */
+    name?: string;
+    /**
+     * Key is the key of the secret to select from.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef
+     */
+    key?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef {
+    /**
+     * Name refers to the name of the secret that should be used to integrate with Datadog.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+     */
+    name?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretRef
+     */
+    namespaced?: boolean;
 }
 /**
  * 
@@ -1192,6 +2891,480 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanarySc
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanaryScale
      */
     matchTrafficWeight?: boolean;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute
+     */
+    name?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute
+     */
+    match?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute
+     */
+    name?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute
+     */
+    match?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch>;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute
+     */
+    percentage?: number;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config
+     */
+    profile?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config
+     */
+    roleArn?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric
+     */
+    query?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric
+     */
+    interval?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus {
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    index?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    operation?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    phase?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    message?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    startedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    updatedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    finishedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    backoff?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    executions?: number;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    disabled?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    status?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessConfig
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessConfig {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessConfig
+     */
+    enabled?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessConfig
+     */
+    durationSeconds?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch
+     */
+    exact?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch
+     */
+    prefix?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch
+     */
+    regex?: string;
+}
+/**
+ * TCPRoute holds the information on the virtual service's TCP routes that are desired to be matched for changing weights.
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TCPRoute
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TCPRoute {
+    /**
+     * Port number of the TCP Route desired to be matched in the given Istio VirtualService.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TCPRoute
+     */
+    port?: string;
+}
+/**
+ * TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights.
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute {
+    /**
+     * Port number of the TLS Route desired to be matched in the given Istio VirtualService.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute
+     */
+    port?: string;
+    /**
+     * A list of all the SNI Hosts of the TLS Route desired to be matched in the given Istio VirtualService.
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute
+     */
+    sniHosts?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy {
+    /**
+     * SecondsAfterCompletion is the number of seconds to live after completion.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+     */
+    secondsAfterCompletion?: number;
+    /**
+     * SecondsAfterFailure is the number of seconds to live after failure.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+     */
+    secondsAfterFailure?: number;
+    /**
+     * SecondsAfterSuccess is the number of seconds to live after success.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+     */
+    secondsAfterSuccess?: number;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService
+     */
+    name?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting
+     */
+    weightedTraefikServiceName?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TrafficWeights
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TrafficWeights {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TrafficWeights
+     */
+    canary?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TrafficWeights
+     */
+    stable?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TrafficWeights
+     */
+    additional?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TrafficWeights
+     */
+    verified?: boolean;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom
+     */
+    secretKeyRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom
+     */
+    fieldRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric
+     */
+    query?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    method?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    url?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    headers?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader>;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    body?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    timeoutSeconds?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    jsonPath?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    insecure?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    jsonBody?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    authentication?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader
+     */
+    key?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader
+     */
+    value?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination {
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination
+     */
+    weight?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination
+     */
+    serviceName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination
+     */
+    podTemplateHash?: string;
 }
 /**
  * 
@@ -1281,6 +3454,223 @@ export interface GrpcGatewayRuntimeStreamError {
     details?: Array<GoogleProtobufAny>;
 }
 /**
+ * JobSpec describes how the job execution will look like.
+ * @export
+ * @interface K8sIoApiBatchV1JobSpec
+ */
+export interface K8sIoApiBatchV1JobSpec {
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    parallelism?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    completions?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    activeDeadlineSeconds?: string;
+    /**
+     * 
+     * @type {K8sIoApiBatchV1PodFailurePolicy}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    podFailurePolicy?: K8sIoApiBatchV1PodFailurePolicy;
+    /**
+     * 
+     * @type {K8sIoApiBatchV1SuccessPolicy}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    successPolicy?: K8sIoApiBatchV1SuccessPolicy;
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    backoffLimit?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    backoffLimitPerIndex?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    maxFailedIndexes?: number;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1LabelSelector}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    selector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    manualSelector?: boolean;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1PodTemplateSpec}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    template?: K8sIoApiCoreV1PodTemplateSpec;
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    ttlSecondsAfterFinished?: number;
+    /**
+     * completionMode specifies how Pod completions are tracked. It can be `NonIndexed` (default) or `Indexed`.  `NonIndexed` means that the Job is considered complete when there have been .spec.completions successfully completed Pods. Each Pod completion is homologous to each other.  `Indexed` means that the Pods of a Job get an associated completion index from 0 to (.spec.completions - 1), available in the annotation batch.kubernetes.io/job-completion-index. The Job is considered complete when there is one successfully completed Pod for each index. When value is `Indexed`, .spec.completions must be specified and `.spec.parallelism` must be less than or equal to 10^5. In addition, The Pod name takes the form `$(job-name)-$(index)-$(random-string)`, the Pod hostname takes the form `$(job-name)-$(index)`.  More completion modes can be added in the future. If the Job controller observes a mode that it doesn't recognize, which is possible during upgrades due to version skew, the controller skips updates for the Job. +optional
+     * @type {string}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    completionMode?: string;
+    /**
+     * suspend specifies whether the Job controller should create Pods or not. If a Job is created with suspend set to true, no Pods are created by the Job controller. If a Job is suspended after creation (i.e. the flag goes from false to true), the Job controller will delete all active Pods associated with this Job. Users must design their workload to gracefully handle this. Suspending a Job will reset the StartTime field of the Job, effectively resetting the ActiveDeadlineSeconds timer too. Defaults to false.  +optional
+     * @type {boolean}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    suspend?: boolean;
+    /**
+     * podReplacementPolicy specifies when to create replacement Pods. Possible values are: - TerminatingOrFailed means that we recreate pods   when they are terminating (has a metadata.deletionTimestamp) or failed. - Failed means to wait until a previously created Pod is fully terminated (has phase   Failed or Succeeded) before creating a replacement Pod.  When using podFailurePolicy, Failed is the the only allowed value. TerminatingOrFailed and Failed are allowed values when podFailurePolicy is not in use. +optional
+     * @type {string}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    podReplacementPolicy?: string;
+    /**
+     * ManagedBy field indicates the controller that manages a Job. The k8s Job controller reconciles jobs which don't have this field at all or the field value is the reserved string `kubernetes.io/job-controller`, but skips reconciling Jobs with a custom value for this field. The value must be a valid domain-prefixed path (e.g. acme.io/foo) - all characters before the first \"/\" must be a valid subdomain as defined by RFC 1123. All characters trailing the first \"/\" must be valid HTTP Path characters as defined by RFC 3986. The value cannot exceed 63 characters. This field is immutable.  This field is beta-level. The job controller accepts setting the field when the feature gate JobManagedBy is enabled (enabled by default). +optional
+     * @type {string}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    managedBy?: string;
+}
+/**
+ * PodFailurePolicy describes how failed pods influence the backoffLimit.
+ * @export
+ * @interface K8sIoApiBatchV1PodFailurePolicy
+ */
+export interface K8sIoApiBatchV1PodFailurePolicy {
+    /**
+     * 
+     * @type {Array<K8sIoApiBatchV1PodFailurePolicyRule>}
+     * @memberof K8sIoApiBatchV1PodFailurePolicy
+     */
+    rules?: Array<K8sIoApiBatchV1PodFailurePolicyRule>;
+}
+/**
+ * PodFailurePolicyOnExitCodesRequirement describes the requirement for handling a failed pod based on its container exit codes. In particular, it lookups the .state.terminated.exitCode for each app container and init container status, represented by the .status.containerStatuses and .status.initContainerStatuses fields in the Pod status, respectively. Containers completed with success (exit code 0) are excluded from the requirement check.
+ * @export
+ * @interface K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement
+ */
+export interface K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement
+     */
+    containerName?: string;
+    /**
+     * - In: the requirement is satisfied if at least one container exit code   (might be multiple if there are multiple containers not restricted   by the 'containerName' field) is in the set of specified values. - NotIn: the requirement is satisfied if at least one container exit code   (might be multiple if there are multiple containers not restricted   by the 'containerName' field) is not in the set of specified values. Additional values are considered to be added in the future. Clients should react to an unknown operator by assuming the requirement is not satisfied.
+     * @type {string}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement
+     */
+    operator?: string;
+    /**
+     * 
+     * @type {Array<number>}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement
+     */
+    values?: Array<number>;
+}
+/**
+ * PodFailurePolicyOnPodConditionsPattern describes a pattern for matching an actual pod condition type.
+ * @export
+ * @interface K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern
+ */
+export interface K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern {
+    /**
+     * Specifies the required Pod condition type. To match a pod condition it is required that specified type equals the pod condition type.
+     * @type {string}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern
+     */
+    type?: string;
+    /**
+     * Specifies the required Pod condition status. To match a pod condition it is required that the specified status equals the pod condition status. Defaults to True.
+     * @type {string}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern
+     */
+    status?: string;
+}
+/**
+ * PodFailurePolicyRule describes how a pod failure is handled when the requirements are met. One of onExitCodes and onPodConditions, but not both, can be used in each rule.
+ * @export
+ * @interface K8sIoApiBatchV1PodFailurePolicyRule
+ */
+export interface K8sIoApiBatchV1PodFailurePolicyRule {
+    /**
+     * - FailJob: indicates that the pod's job is marked as Failed and all   running pods are terminated. - FailIndex: indicates that the pod's index is marked as Failed and will   not be restarted. - Ignore: indicates that the counter towards the .backoffLimit is not   incremented and a replacement pod is created. - Count: indicates that the pod is handled in the default way - the   counter towards the .backoffLimit is incremented. Additional values are considered to be added in the future. Clients should react to an unknown action by skipping the rule.
+     * @type {string}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyRule
+     */
+    action?: string;
+    /**
+     * 
+     * @type {K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyRule
+     */
+    onExitCodes?: K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement;
+    /**
+     * 
+     * @type {Array<K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern>}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyRule
+     */
+    onPodConditions?: Array<K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern>;
+}
+/**
+ * SuccessPolicy describes when a Job can be declared as succeeded based on the success of some indexes.
+ * @export
+ * @interface K8sIoApiBatchV1SuccessPolicy
+ */
+export interface K8sIoApiBatchV1SuccessPolicy {
+    /**
+     * 
+     * @type {Array<K8sIoApiBatchV1SuccessPolicyRule>}
+     * @memberof K8sIoApiBatchV1SuccessPolicy
+     */
+    rules?: Array<K8sIoApiBatchV1SuccessPolicyRule>;
+}
+/**
+ * SuccessPolicyRule describes rule for declaring a Job as succeeded. Each rule must have at least one of the \"succeededIndexes\" or \"succeededCount\" specified.
+ * @export
+ * @interface K8sIoApiBatchV1SuccessPolicyRule
+ */
+export interface K8sIoApiBatchV1SuccessPolicyRule {
+    /**
+     * succeededIndexes specifies the set of indexes which need to be contained in the actual set of the succeeded indexes for the Job. The list of indexes must be within 0 to \".spec.completions-1\" and must not contain duplicates. At least one element is required. The indexes are represented as intervals separated by commas. The intervals can be a decimal integer or a pair of decimal integers separated by a hyphen. The number are listed in represented by the first and last element of the series, separated by a hyphen. For example, if the completed indexes are 1, 3, 4, 5 and 7, they are represented as \"1,3-5,7\". When this field is null, this field doesn't default to any value and is never evaluated at any time.  +optional
+     * @type {string}
+     * @memberof K8sIoApiBatchV1SuccessPolicyRule
+     */
+    succeededIndexes?: string;
+    /**
+     * succeededCount specifies the minimal required size of the actual set of the succeeded indexes for the Job. When succeededCount is used along with succeededIndexes, the check is constrained only to the set of indexes specified by succeededIndexes. For example, given that succeededIndexes is \"1-4\", succeededCount is \"3\", and completed indexes are \"1\", \"3\", and \"5\", the Job isn't declared as succeeded because only \"1\" and \"3\" indexes are considered in that rules. When this field is null, this doesn't default to any value and is never evaluated at any time. When specified it needs to be a positive integer.  +optional
+     * @type {number}
+     * @memberof K8sIoApiBatchV1SuccessPolicyRule
+     */
+    succeededCount?: number;
+}
+/**
  * Represents a Persistent Disk resource in AWS.  An AWS EBS disk must exist before mounting to a container. The disk must also be in the same AWS zone as the kubelet. An AWS EBS disk can only be mounted as read/write once. AWS EBS volumes support ownership management and SELinux relabeling.
  * @export
  * @interface K8sIoApiCoreV1AWSElasticBlockStoreVolumeSource
@@ -1335,6 +3725,25 @@ export interface K8sIoApiCoreV1Affinity {
      * @memberof K8sIoApiCoreV1Affinity
      */
     podAntiAffinity?: K8sIoApiCoreV1PodAntiAffinity;
+}
+/**
+ * 
+ * @export
+ * @interface K8sIoApiCoreV1AppArmorProfile
+ */
+export interface K8sIoApiCoreV1AppArmorProfile {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1AppArmorProfile
+     */
+    type?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1AppArmorProfile
+     */
+    localhostProfile?: string;
 }
 /**
  * AzureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.
@@ -1411,7 +3820,7 @@ export interface K8sIoApiCoreV1AzureFileVolumeSource {
  */
 export interface K8sIoApiCoreV1CSIVolumeSource {
     /**
-     * Driver is the name of the CSI driver that handles this volume. Consult with your admin for the correct name as registered in the cluster.
+     * driver is the name of the CSI driver that handles this volume. Consult with your admin for the correct name as registered in the cluster.
      * @type {string}
      * @memberof K8sIoApiCoreV1CSIVolumeSource
      */
@@ -1535,6 +3944,43 @@ export interface K8sIoApiCoreV1CinderVolumeSource {
     secretRef?: K8sIoApiCoreV1LocalObjectReference;
 }
 /**
+ * ClusterTrustBundleProjection describes how to select a set of ClusterTrustBundle objects and project their contents into the pod filesystem.
+ * @export
+ * @interface K8sIoApiCoreV1ClusterTrustBundleProjection
+ */
+export interface K8sIoApiCoreV1ClusterTrustBundleProjection {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ClusterTrustBundleProjection
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ClusterTrustBundleProjection
+     */
+    signerName?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1LabelSelector}
+     * @memberof K8sIoApiCoreV1ClusterTrustBundleProjection
+     */
+    labelSelector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof K8sIoApiCoreV1ClusterTrustBundleProjection
+     */
+    optional?: boolean;
+    /**
+     * Relative path from the volume root to write the bundle.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ClusterTrustBundleProjection
+     */
+    path?: string;
+}
+/**
  * ConfigMapEnvSource selects a ConfigMap to populate the environment variables with.  The contents of the target ConfigMap's Data field will represent the key-value pairs as environment variables.
  * @export
  * @interface K8sIoApiCoreV1ConfigMapEnvSource
@@ -1554,7 +4000,7 @@ export interface K8sIoApiCoreV1ConfigMapEnvSource {
     optional?: boolean;
 }
 /**
- * Selects a key from a ConfigMap.
+ * 
  * @export
  * @interface K8sIoApiCoreV1ConfigMapKeySelector
  */
@@ -1696,6 +4142,24 @@ export interface K8sIoApiCoreV1Container {
     resources?: K8sIoApiCoreV1ResourceRequirements;
     /**
      * 
+     * @type {Array<K8sIoApiCoreV1ContainerResizePolicy>}
+     * @memberof K8sIoApiCoreV1Container
+     */
+    resizePolicy?: Array<K8sIoApiCoreV1ContainerResizePolicy>;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1Container
+     */
+    restartPolicy?: string;
+    /**
+     * 
+     * @type {Array<K8sIoApiCoreV1ContainerRestartRule>}
+     * @memberof K8sIoApiCoreV1Container
+     */
+    restartPolicyRules?: Array<K8sIoApiCoreV1ContainerRestartRule>;
+    /**
+     * 
      * @type {Array<K8sIoApiCoreV1VolumeMount>}
      * @memberof K8sIoApiCoreV1Container
      */
@@ -1811,6 +4275,63 @@ export interface K8sIoApiCoreV1ContainerPort {
     hostIP?: string;
 }
 /**
+ * ContainerResizePolicy represents resource resize policy for the container.
+ * @export
+ * @interface K8sIoApiCoreV1ContainerResizePolicy
+ */
+export interface K8sIoApiCoreV1ContainerResizePolicy {
+    /**
+     * Name of the resource to which this resource resize policy applies. Supported values: cpu, memory.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ContainerResizePolicy
+     */
+    resourceName?: string;
+    /**
+     * Restart policy to apply when specified resource is resized. If not specified, it defaults to NotRequired.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ContainerResizePolicy
+     */
+    restartPolicy?: string;
+}
+/**
+ * ContainerRestartRule describes how a container exit is handled.
+ * @export
+ * @interface K8sIoApiCoreV1ContainerRestartRule
+ */
+export interface K8sIoApiCoreV1ContainerRestartRule {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ContainerRestartRule
+     */
+    action?: string;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ContainerRestartRuleOnExitCodes}
+     * @memberof K8sIoApiCoreV1ContainerRestartRule
+     */
+    exitCodes?: K8sIoApiCoreV1ContainerRestartRuleOnExitCodes;
+}
+/**
+ * ContainerRestartRuleOnExitCodes describes the condition for handling an exited container based on its exit codes.
+ * @export
+ * @interface K8sIoApiCoreV1ContainerRestartRuleOnExitCodes
+ */
+export interface K8sIoApiCoreV1ContainerRestartRuleOnExitCodes {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ContainerRestartRuleOnExitCodes
+     */
+    operator?: string;
+    /**
+     * 
+     * @type {Array<number>}
+     * @memberof K8sIoApiCoreV1ContainerRestartRuleOnExitCodes
+     */
+    values?: Array<number>;
+}
+/**
  * Represents downward API info for projecting into a projected volume. Note that this is identical to a downwardAPI volume source without the default mode.
  * @export
  * @interface K8sIoApiCoreV1DownwardAPIProjection
@@ -1924,7 +4445,7 @@ export interface K8sIoApiCoreV1EnvFromSource {
  */
 export interface K8sIoApiCoreV1EnvVar {
     /**
-     * Name of the environment variable. Must be a C_IDENTIFIER.
+     * Name of the environment variable. May consist of any printable ASCII characters except '='.
      * @type {string}
      * @memberof K8sIoApiCoreV1EnvVar
      */
@@ -1972,9 +4493,15 @@ export interface K8sIoApiCoreV1EnvVarSource {
      * @memberof K8sIoApiCoreV1EnvVarSource
      */
     secretKeyRef?: K8sIoApiCoreV1SecretKeySelector;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1FileKeySelector}
+     * @memberof K8sIoApiCoreV1EnvVarSource
+     */
+    fileKeyRef?: K8sIoApiCoreV1FileKeySelector;
 }
 /**
- * An EphemeralContainer is a container that may be added temporarily to an existing pod for user-initiated activities such as debugging. Ephemeral containers have no resource or scheduling guarantees, and they will not be restarted when they exit or when a pod is removed or restarted. If an ephemeral container causes a pod to exceed its resource allocation, the pod may be evicted. Ephemeral containers may not be added by directly updating the pod spec. They must be added via the pod's ephemeralcontainers subresource, and they will appear in the pod spec once added. This is an alpha feature enabled by the EphemeralContainers feature flag.
+ * An EphemeralContainer is a temporary container that you may add to an existing Pod for user-initiated activities such as debugging. Ephemeral containers have no resource or scheduling guarantees, and they will not be restarted when they exit or when a Pod is removed or restarted. The kubelet may evict a Pod if an ephemeral container causes the Pod to exceed its resource allocation.  To add an ephemeral container, use the ephemeralcontainers subresource of an existing Pod. Ephemeral containers may not be removed or restarted.
  * @export
  * @interface K8sIoApiCoreV1EphemeralContainer
  */
@@ -1986,7 +4513,7 @@ export interface K8sIoApiCoreV1EphemeralContainer {
      */
     ephemeralContainerCommon?: K8sIoApiCoreV1EphemeralContainerCommon;
     /**
-     * 
+     * If set, the name of the container from PodSpec that this ephemeral container targets. The ephemeral container will be run in the namespaces (IPC, PID, etc) of this container. If not set then the ephemeral container uses the namespaces configured in the Pod spec.  The container runtime must implement support for this feature. If the runtime does not support namespace targeting then the result of setting this field is undefined. +optional
      * @type {string}
      * @memberof K8sIoApiCoreV1EphemeralContainer
      */
@@ -2029,7 +4556,7 @@ export interface K8sIoApiCoreV1EphemeralContainerCommon {
      */
     workingDir?: string;
     /**
-     * Ports are not allowed for ephemeral containers.
+     * 
      * @type {Array<K8sIoApiCoreV1ContainerPort>}
      * @memberof K8sIoApiCoreV1EphemeralContainerCommon
      */
@@ -2052,6 +4579,24 @@ export interface K8sIoApiCoreV1EphemeralContainerCommon {
      * @memberof K8sIoApiCoreV1EphemeralContainerCommon
      */
     resources?: K8sIoApiCoreV1ResourceRequirements;
+    /**
+     * 
+     * @type {Array<K8sIoApiCoreV1ContainerResizePolicy>}
+     * @memberof K8sIoApiCoreV1EphemeralContainerCommon
+     */
+    resizePolicy?: Array<K8sIoApiCoreV1ContainerResizePolicy>;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1EphemeralContainerCommon
+     */
+    restartPolicy?: string;
+    /**
+     * 
+     * @type {Array<K8sIoApiCoreV1ContainerRestartRule>}
+     * @memberof K8sIoApiCoreV1EphemeralContainerCommon
+     */
+    restartPolicyRules?: Array<K8sIoApiCoreV1ContainerRestartRule>;
     /**
      * 
      * @type {Array<K8sIoApiCoreV1VolumeMount>}
@@ -2143,12 +4688,6 @@ export interface K8sIoApiCoreV1EphemeralVolumeSource {
      * @memberof K8sIoApiCoreV1EphemeralVolumeSource
      */
     volumeClaimTemplate?: K8sIoApiCoreV1PersistentVolumeClaimTemplate;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof K8sIoApiCoreV1EphemeralVolumeSource
-     */
-    readOnly?: boolean;
 }
 /**
  * ExecAction describes a \"run in container\" action.
@@ -2201,13 +4740,44 @@ export interface K8sIoApiCoreV1FCVolumeSource {
     wwids?: Array<string>;
 }
 /**
+ * 
+ * @export
+ * @interface K8sIoApiCoreV1FileKeySelector
+ */
+export interface K8sIoApiCoreV1FileKeySelector {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1FileKeySelector
+     */
+    volumeName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1FileKeySelector
+     */
+    path?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1FileKeySelector
+     */
+    key?: string;
+    /**
+     * Specify whether the file or its key must be defined. If the file or key does not exist, then the env var is not published. If optional is set to true and the specified key does not exist, the environment variable will not be set in the Pod's containers.  If optional is set to false and the specified key does not exist, an error will be returned during Pod creation. +optional +default=false
+     * @type {boolean}
+     * @memberof K8sIoApiCoreV1FileKeySelector
+     */
+    optional?: boolean;
+}
+/**
  * FlexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin.
  * @export
  * @interface K8sIoApiCoreV1FlexVolumeSource
  */
 export interface K8sIoApiCoreV1FlexVolumeSource {
     /**
-     * Driver is the name of the driver to use for this volume.
+     * driver is the name of the driver to use for this volume.
      * @type {string}
      * @memberof K8sIoApiCoreV1FlexVolumeSource
      */
@@ -2288,6 +4858,25 @@ export interface K8sIoApiCoreV1GCEPersistentDiskVolumeSource {
     readOnly?: boolean;
 }
 /**
+ * GRPCAction specifies an action involving a GRPC service.
+ * @export
+ * @interface K8sIoApiCoreV1GRPCAction
+ */
+export interface K8sIoApiCoreV1GRPCAction {
+    /**
+     * Port number of the gRPC service. Number must be in the range 1 to 65535.
+     * @type {number}
+     * @memberof K8sIoApiCoreV1GRPCAction
+     */
+    port?: number;
+    /**
+     * Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).  If this is not specified, the default behavior is defined by gRPC. +optional +default=\"\"
+     * @type {string}
+     * @memberof K8sIoApiCoreV1GRPCAction
+     */
+    service?: string;
+}
+/**
  * Represents a volume that is populated with the contents of a git repository. Git repo volumes do not support ownership management. Git repo volumes support SELinux relabeling.  DEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.
  * @export
  * @interface K8sIoApiCoreV1GitRepoVolumeSource
@@ -2319,7 +4908,7 @@ export interface K8sIoApiCoreV1GitRepoVolumeSource {
  */
 export interface K8sIoApiCoreV1GlusterfsVolumeSource {
     /**
-     * 
+     * endpoints is the endpoint name that details Glusterfs topology.
      * @type {string}
      * @memberof K8sIoApiCoreV1GlusterfsVolumeSource
      */
@@ -2381,7 +4970,7 @@ export interface K8sIoApiCoreV1HTTPGetAction {
  */
 export interface K8sIoApiCoreV1HTTPHeader {
     /**
-     * 
+     * The header field name. This will be canonicalized upon output, so case-variant names will be understood as the same header.
      * @type {string}
      * @memberof K8sIoApiCoreV1HTTPHeader
      */
@@ -2394,44 +4983,19 @@ export interface K8sIoApiCoreV1HTTPHeader {
     value?: string;
 }
 /**
- * Handler defines a specific action that should be taken TODO: pass structured data to these actions, and document that data here.
- * @export
- * @interface K8sIoApiCoreV1Handler
- */
-export interface K8sIoApiCoreV1Handler {
-    /**
-     * 
-     * @type {K8sIoApiCoreV1ExecAction}
-     * @memberof K8sIoApiCoreV1Handler
-     */
-    exec?: K8sIoApiCoreV1ExecAction;
-    /**
-     * 
-     * @type {K8sIoApiCoreV1HTTPGetAction}
-     * @memberof K8sIoApiCoreV1Handler
-     */
-    httpGet?: K8sIoApiCoreV1HTTPGetAction;
-    /**
-     * 
-     * @type {K8sIoApiCoreV1TCPSocketAction}
-     * @memberof K8sIoApiCoreV1Handler
-     */
-    tcpSocket?: K8sIoApiCoreV1TCPSocketAction;
-}
-/**
  * HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the pod's hosts file.
  * @export
  * @interface K8sIoApiCoreV1HostAlias
  */
 export interface K8sIoApiCoreV1HostAlias {
     /**
-     * IP address of the host file entry.
+     * 
      * @type {string}
      * @memberof K8sIoApiCoreV1HostAlias
      */
     ip?: string;
     /**
-     * Hostnames for the above IP address.
+     * 
      * @type {Array<string>}
      * @memberof K8sIoApiCoreV1HostAlias
      */
@@ -2463,19 +5027,19 @@ export interface K8sIoApiCoreV1HostPathVolumeSource {
  */
 export interface K8sIoApiCoreV1ISCSIVolumeSource {
     /**
-     * iSCSI Target Portal. The Portal is either an IP or ip_addr:port if the port is other than default (typically TCP ports 860 and 3260).
+     * targetPortal is iSCSI Target Portal. The Portal is either an IP or ip_addr:port if the port is other than default (typically TCP ports 860 and 3260).
      * @type {string}
      * @memberof K8sIoApiCoreV1ISCSIVolumeSource
      */
     targetPortal?: string;
     /**
-     * Target iSCSI Qualified Name.
+     * iqn is the target iSCSI Qualified Name.
      * @type {string}
      * @memberof K8sIoApiCoreV1ISCSIVolumeSource
      */
     iqn?: string;
     /**
-     * iSCSI Target Lun number.
+     * lun represents iSCSI Target Lun number.
      * @type {number}
      * @memberof K8sIoApiCoreV1ISCSIVolumeSource
      */
@@ -2530,19 +5094,38 @@ export interface K8sIoApiCoreV1ISCSIVolumeSource {
     initiatorName?: string;
 }
 /**
+ * ImageVolumeSource represents a image volume resource.
+ * @export
+ * @interface K8sIoApiCoreV1ImageVolumeSource
+ */
+export interface K8sIoApiCoreV1ImageVolumeSource {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ImageVolumeSource
+     */
+    reference?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ImageVolumeSource
+     */
+    pullPolicy?: string;
+}
+/**
  * Maps a string key to a path within a volume.
  * @export
  * @interface K8sIoApiCoreV1KeyToPath
  */
 export interface K8sIoApiCoreV1KeyToPath {
     /**
-     * The key to project.
+     * key is the key to project.
      * @type {string}
      * @memberof K8sIoApiCoreV1KeyToPath
      */
     key?: string;
     /**
-     * The relative path of the file to map the key to. May not be an absolute path. May not contain the path element '..'. May not start with the string '..'.
+     * path is the relative path of the file to map the key to. May not be an absolute path. May not contain the path element '..'. May not start with the string '..'.
      * @type {string}
      * @memberof K8sIoApiCoreV1KeyToPath
      */
@@ -2562,25 +5145,62 @@ export interface K8sIoApiCoreV1KeyToPath {
 export interface K8sIoApiCoreV1Lifecycle {
     /**
      * 
-     * @type {K8sIoApiCoreV1Handler}
+     * @type {K8sIoApiCoreV1LifecycleHandler}
      * @memberof K8sIoApiCoreV1Lifecycle
      */
-    postStart?: K8sIoApiCoreV1Handler;
+    postStart?: K8sIoApiCoreV1LifecycleHandler;
     /**
      * 
-     * @type {K8sIoApiCoreV1Handler}
+     * @type {K8sIoApiCoreV1LifecycleHandler}
      * @memberof K8sIoApiCoreV1Lifecycle
      */
-    preStop?: K8sIoApiCoreV1Handler;
+    preStop?: K8sIoApiCoreV1LifecycleHandler;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1Lifecycle
+     */
+    stopSignal?: string;
 }
 /**
- * LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+ * LifecycleHandler defines a specific action that should be taken in a lifecycle hook. One and only one of the fields, except TCPSocket must be specified.
+ * @export
+ * @interface K8sIoApiCoreV1LifecycleHandler
+ */
+export interface K8sIoApiCoreV1LifecycleHandler {
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ExecAction}
+     * @memberof K8sIoApiCoreV1LifecycleHandler
+     */
+    exec?: K8sIoApiCoreV1ExecAction;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1HTTPGetAction}
+     * @memberof K8sIoApiCoreV1LifecycleHandler
+     */
+    httpGet?: K8sIoApiCoreV1HTTPGetAction;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1TCPSocketAction}
+     * @memberof K8sIoApiCoreV1LifecycleHandler
+     */
+    tcpSocket?: K8sIoApiCoreV1TCPSocketAction;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1SleepAction}
+     * @memberof K8sIoApiCoreV1LifecycleHandler
+     */
+    sleep?: K8sIoApiCoreV1SleepAction;
+}
+/**
+ * LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace. --- New uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.  1. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular     restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".     Those cannot be well described when embedded.  2. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.  3. We cannot easily change it.  Because this type is embedded in many locations, updates to this type     will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.  Instead of using this type, create a locally provided and used type that is well-focused on your reference. For example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 . +structType=atomic
  * @export
  * @interface K8sIoApiCoreV1LocalObjectReference
  */
 export interface K8sIoApiCoreV1LocalObjectReference {
     /**
-     * 
+     * Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names +optional +default=\"\" +kubebuilder:default=\"\" TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
      * @type {string}
      * @memberof K8sIoApiCoreV1LocalObjectReference
      */
@@ -2631,13 +5251,13 @@ export interface K8sIoApiCoreV1NodeAffinity {
     preferredDuringSchedulingIgnoredDuringExecution?: Array<K8sIoApiCoreV1PreferredSchedulingTerm>;
 }
 /**
- * A node selector represents the union of the results of one or more label queries over a set of nodes; that is, it represents the OR of the selectors represented by the node selector terms.
+ * 
  * @export
  * @interface K8sIoApiCoreV1NodeSelector
  */
 export interface K8sIoApiCoreV1NodeSelector {
     /**
-     * Required. A list of node selector terms. The terms are ORed.
+     * 
      * @type {Array<K8sIoApiCoreV1NodeSelectorTerm>}
      * @memberof K8sIoApiCoreV1NodeSelector
      */
@@ -2669,7 +5289,7 @@ export interface K8sIoApiCoreV1NodeSelectorRequirement {
     values?: Array<string>;
 }
 /**
- * A null or empty node selector term matches no objects. The requirements of them are ANDed. The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.
+ * 
  * @export
  * @interface K8sIoApiCoreV1NodeSelectorTerm
  */
@@ -2688,7 +5308,7 @@ export interface K8sIoApiCoreV1NodeSelectorTerm {
     matchFields?: Array<K8sIoApiCoreV1NodeSelectorRequirement>;
 }
 /**
- * ObjectFieldSelector selects an APIVersioned field of an object.
+ * 
  * @export
  * @interface K8sIoApiCoreV1ObjectFieldSelector
  */
@@ -2726,10 +5346,10 @@ export interface K8sIoApiCoreV1PersistentVolumeClaimSpec {
     selector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
     /**
      * 
-     * @type {K8sIoApiCoreV1ResourceRequirements}
+     * @type {K8sIoApiCoreV1VolumeResourceRequirements}
      * @memberof K8sIoApiCoreV1PersistentVolumeClaimSpec
      */
-    resources?: K8sIoApiCoreV1ResourceRequirements;
+    resources?: K8sIoApiCoreV1VolumeResourceRequirements;
     /**
      * 
      * @type {string}
@@ -2754,6 +5374,18 @@ export interface K8sIoApiCoreV1PersistentVolumeClaimSpec {
      * @memberof K8sIoApiCoreV1PersistentVolumeClaimSpec
      */
     dataSource?: K8sIoApiCoreV1TypedLocalObjectReference;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1TypedObjectReference}
+     * @memberof K8sIoApiCoreV1PersistentVolumeClaimSpec
+     */
+    dataSourceRef?: K8sIoApiCoreV1TypedObjectReference;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PersistentVolumeClaimSpec
+     */
+    volumeAttributesClassName?: string;
 }
 /**
  * PersistentVolumeClaimTemplate is used to produce PersistentVolumeClaim objects as part of an EphemeralVolumeSource.
@@ -2806,7 +5438,7 @@ export interface K8sIoApiCoreV1PhotonPersistentDiskVolumeSource {
      */
     pdID?: string;
     /**
-     * Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.
+     * fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.
      * @type {string}
      * @memberof K8sIoApiCoreV1PhotonPersistentDiskVolumeSource
      */
@@ -2855,6 +5487,24 @@ export interface K8sIoApiCoreV1PodAffinityTerm {
      * @memberof K8sIoApiCoreV1PodAffinityTerm
      */
     topologyKey?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1LabelSelector}
+     * @memberof K8sIoApiCoreV1PodAffinityTerm
+     */
+    namespaceSelector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
+    /**
+     * MatchLabelKeys is a set of pod label keys to select which pods will be taken into consideration. The keys are used to lookup values from the incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)` to select the group of existing pods which pods will be taken into consideration for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming pod labels will be ignored. The default value is empty. The same key is forbidden to exist in both matchLabelKeys and labelSelector. Also, matchLabelKeys cannot be set when labelSelector isn't set.  +listType=atomic +optional
+     * @type {Array<string>}
+     * @memberof K8sIoApiCoreV1PodAffinityTerm
+     */
+    matchLabelKeys?: Array<string>;
+    /**
+     * MismatchLabelKeys is a set of pod label keys to select which pods will be taken into consideration. The keys are used to lookup values from the incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)` to select the group of existing pods which pods will be taken into consideration for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming pod labels will be ignored. The default value is empty. The same key is forbidden to exist in both mismatchLabelKeys and labelSelector. Also, mismatchLabelKeys cannot be set when labelSelector isn't set.  +listType=atomic +optional
+     * @type {Array<string>}
+     * @memberof K8sIoApiCoreV1PodAffinityTerm
+     */
+    mismatchLabelKeys?: Array<string>;
 }
 /**
  * Pod anti affinity is a group of inter pod anti affinity scheduling rules.
@@ -2874,6 +5524,49 @@ export interface K8sIoApiCoreV1PodAntiAffinity {
      * @memberof K8sIoApiCoreV1PodAntiAffinity
      */
     preferredDuringSchedulingIgnoredDuringExecution?: Array<K8sIoApiCoreV1WeightedPodAffinityTerm>;
+}
+/**
+ * PodCertificateProjection provides a private key and X.509 certificate in the pod filesystem.
+ * @export
+ * @interface K8sIoApiCoreV1PodCertificateProjection
+ */
+export interface K8sIoApiCoreV1PodCertificateProjection {
+    /**
+     * Kubelet's generated CSRs will be addressed to this signer.  +required
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    signerName?: string;
+    /**
+     * The type of keypair Kubelet will generate for the pod.  Valid values are \"RSA3072\", \"RSA4096\", \"ECDSAP256\", \"ECDSAP384\", \"ECDSAP521\", and \"ED25519\".  +required
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    keyType?: string;
+    /**
+     * maxExpirationSeconds is the maximum lifetime permitted for the certificate.  Kubelet copies this value verbatim into the PodCertificateRequests it generates for this projection.  If omitted, kube-apiserver will set it to 86400(24 hours). kube-apiserver will reject values shorter than 3600 (1 hour).  The maximum allowable value is 7862400 (91 days).  The signer implementation is then free to issue a certificate with any lifetime *shorter* than MaxExpirationSeconds, but no shorter than 3600 seconds (1 hour).  This constraint is enforced by kube-apiserver. `kubernetes.io` signers will never issue certificates with a lifetime longer than 24 hours.  +optional
+     * @type {number}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    maxExpirationSeconds?: number;
+    /**
+     * Write the credential bundle at this path in the projected volume.  The credential bundle is a single file that contains multiple PEM blocks. The first PEM block is a PRIVATE KEY block, containing a PKCS#8 private key.  The remaining blocks are CERTIFICATE blocks, containing the issued certificate chain from the signer (leaf and any intermediates).  Using credentialBundlePath lets your Pod's application code make a single atomic read that retrieves a consistent key and certificate chain.  If you project them to separate files, your application code will need to additionally check that the leaf certificate was issued to the key.  +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    credentialBundlePath?: string;
+    /**
+     * Write the key at this path in the projected volume.  Most applications should use credentialBundlePath.  When using keyPath and certificateChainPath, your application needs to check that the key and leaf certificate are consistent, because it is possible to read the files mid-rotation.  +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    keyPath?: string;
+    /**
+     * Write the certificate chain at this path in the projected volume.  Most applications should use credentialBundlePath.  When using keyPath and certificateChainPath, your application needs to check that the key and leaf certificate are consistent, because it is possible to read the files mid-rotation.  +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodCertificateProjection
+     */
+    certificateChainPath?: string;
 }
 /**
  * PodDNSConfig defines the DNS parameters of a pod in addition to those generated from DNSPolicy.
@@ -2907,7 +5600,7 @@ export interface K8sIoApiCoreV1PodDNSConfig {
  */
 export interface K8sIoApiCoreV1PodDNSConfigOption {
     /**
-     * Required.
+     * Name is this DNS resolver option's name. Required.
      * @type {string}
      * @memberof K8sIoApiCoreV1PodDNSConfigOption
      */
@@ -2918,6 +5611,19 @@ export interface K8sIoApiCoreV1PodDNSConfigOption {
      * @memberof K8sIoApiCoreV1PodDNSConfigOption
      */
     value?: string;
+}
+/**
+ * PodOS defines the OS parameters of a pod.
+ * @export
+ * @interface K8sIoApiCoreV1PodOS
+ */
+export interface K8sIoApiCoreV1PodOS {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodOS
+     */
+    name?: string;
 }
 /**
  * 
@@ -2931,6 +5637,44 @@ export interface K8sIoApiCoreV1PodReadinessGate {
      * @memberof K8sIoApiCoreV1PodReadinessGate
      */
     conditionType?: string;
+}
+/**
+ * PodResourceClaim references exactly one ResourceClaim, either directly or by naming a ResourceClaimTemplate which is then turned into a ResourceClaim for the pod.  It adds a name to it that uniquely identifies the ResourceClaim inside the Pod. Containers that need access to the ResourceClaim reference it with this name.
+ * @export
+ * @interface K8sIoApiCoreV1PodResourceClaim
+ */
+export interface K8sIoApiCoreV1PodResourceClaim {
+    /**
+     * Name uniquely identifies this resource claim inside the pod. This must be a DNS_LABEL.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodResourceClaim
+     */
+    name?: string;
+    /**
+     * ResourceClaimName is the name of a ResourceClaim object in the same namespace as this pod.  Exactly one of ResourceClaimName and ResourceClaimTemplateName must be set.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodResourceClaim
+     */
+    resourceClaimName?: string;
+    /**
+     * ResourceClaimTemplateName is the name of a ResourceClaimTemplate object in the same namespace as this pod.  The template will be used to create a new ResourceClaim, which will be bound to this pod. When this pod is deleted, the ResourceClaim will also be deleted. The pod name and resource name, along with a generated component, will be used to form a unique name for the ResourceClaim, which will be recorded in pod.status.resourceClaimStatuses.  This field is immutable and no changes will be made to the corresponding ResourceClaim by the control plane after creating the ResourceClaim.  Exactly one of ResourceClaimName and ResourceClaimTemplateName must be set.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodResourceClaim
+     */
+    resourceClaimTemplateName?: string;
+}
+/**
+ * PodSchedulingGate is associated to a Pod to guard its scheduling.
+ * @export
+ * @interface K8sIoApiCoreV1PodSchedulingGate
+ */
+export interface K8sIoApiCoreV1PodSchedulingGate {
+    /**
+     * Name of the scheduling gate. Each scheduling gate must have a unique name field.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodSchedulingGate
+     */
+    name?: string;
 }
 /**
  * PodSecurityContext holds pod-level security attributes and common container settings. Some fields are also present in container.securityContext.  Field values of container.securityContext take precedence over field values of PodSecurityContext.
@@ -2975,7 +5719,13 @@ export interface K8sIoApiCoreV1PodSecurityContext {
      */
     supplementalGroups?: Array<string>;
     /**
-     * 1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw----  If unset, the Kubelet will not modify the ownership and permissions of any volume. +optional
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodSecurityContext
+     */
+    supplementalGroupsPolicy?: string;
+    /**
+     * 1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw----  If unset, the Kubelet will not modify the ownership and permissions of any volume. Note that this field cannot be set when spec.os.name is windows. +optional
      * @type {string}
      * @memberof K8sIoApiCoreV1PodSecurityContext
      */
@@ -2998,6 +5748,18 @@ export interface K8sIoApiCoreV1PodSecurityContext {
      * @memberof K8sIoApiCoreV1PodSecurityContext
      */
     seccompProfile?: K8sIoApiCoreV1SeccompProfile;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1AppArmorProfile}
+     * @memberof K8sIoApiCoreV1PodSecurityContext
+     */
+    appArmorProfile?: K8sIoApiCoreV1AppArmorProfile;
+    /**
+     * seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod. It has no effect on nodes that do not support SELinux or to volumes does not support SELinux. Valid values are \"MountOption\" and \"Recursive\".  \"Recursive\" means relabeling of all files on all Pod volumes by the container runtime. This may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.  \"MountOption\" mounts all eligible Pod volumes with `-o context` mount option. This requires all Pods that share the same volume to use the same SELinux label. It is not possible to share the same volume among privileged and unprivileged Pods. Eligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes whose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their CSIDriver instance. Other volumes are always re-labelled recursively. \"MountOption\" value is allowed only when SELinuxMount feature gate is enabled.  If not specified and SELinuxMount feature gate is enabled, \"MountOption\" is used. If not specified and SELinuxMount feature gate is disabled, \"MountOption\" is used for ReadWriteOncePod volumes and \"Recursive\" for all other volumes.  This field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.  All Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state. Note that this field cannot be set when spec.os.name is windows. +featureGate=SELinuxChangePolicy +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodSecurityContext
+     */
+    seLinuxChangePolicy?: string;
 }
 /**
  * PodSpec is a description of a pod.
@@ -3215,6 +5977,42 @@ export interface K8sIoApiCoreV1PodSpec {
      * @memberof K8sIoApiCoreV1PodSpec
      */
     setHostnameAsFQDN?: boolean;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1PodOS}
+     * @memberof K8sIoApiCoreV1PodSpec
+     */
+    os?: K8sIoApiCoreV1PodOS;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof K8sIoApiCoreV1PodSpec
+     */
+    hostUsers?: boolean;
+    /**
+     * SchedulingGates is an opaque list of values that if specified will block scheduling the pod. If schedulingGates is not empty, the pod will stay in the SchedulingGated state and the scheduler will not attempt to schedule the pod.  SchedulingGates can only be set at pod creation time, and be removed only afterwards.  +patchMergeKey=name +patchStrategy=merge +listType=map +listMapKey=name +optional
+     * @type {Array<K8sIoApiCoreV1PodSchedulingGate>}
+     * @memberof K8sIoApiCoreV1PodSpec
+     */
+    schedulingGates?: Array<K8sIoApiCoreV1PodSchedulingGate>;
+    /**
+     * ResourceClaims defines which ResourceClaims must be allocated and reserved before the Pod is allowed to start. The resources will be made available to those containers which consume them by name.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable.  +patchMergeKey=name +patchStrategy=merge,retainKeys +listType=map +listMapKey=name +featureGate=DynamicResourceAllocation +optional
+     * @type {Array<K8sIoApiCoreV1PodResourceClaim>}
+     * @memberof K8sIoApiCoreV1PodSpec
+     */
+    resourceClaims?: Array<K8sIoApiCoreV1PodResourceClaim>;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ResourceRequirements}
+     * @memberof K8sIoApiCoreV1PodSpec
+     */
+    resources?: K8sIoApiCoreV1ResourceRequirements;
+    /**
+     * HostnameOverride specifies an explicit override for the pod's hostname as perceived by the pod. This field only specifies the pod's hostname and does not affect its DNS records. When this field is set to a non-empty string: - It takes precedence over the values set in `hostname` and `subdomain`. - The Pod's hostname will be set to this value. - `setHostnameAsFQDN` must be nil or set to false. - `hostNetwork` must be set to false.  This field must be a valid DNS subdomain as defined in RFC 1123 and contain at most 64 characters. Requires the HostnameOverride feature gate to be enabled.  +featureGate=HostnameOverride +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodSpec
+     */
+    hostnameOverride?: string;
 }
 /**
  * 
@@ -3248,7 +6046,7 @@ export interface K8sIoApiCoreV1PortworxVolumeSource {
      */
     volumeID?: string;
     /**
-     * FSType represents the filesystem type to mount Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\". Implicitly inferred to be \"ext4\" if unspecified.
+     * fSType represents the filesystem type to mount Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\". Implicitly inferred to be \"ext4\" if unspecified.
      * @type {string}
      * @memberof K8sIoApiCoreV1PortworxVolumeSource
      */
@@ -3287,10 +6085,10 @@ export interface K8sIoApiCoreV1PreferredSchedulingTerm {
 export interface K8sIoApiCoreV1Probe {
     /**
      * 
-     * @type {K8sIoApiCoreV1Handler}
+     * @type {K8sIoApiCoreV1ProbeHandler}
      * @memberof K8sIoApiCoreV1Probe
      */
-    handler?: K8sIoApiCoreV1Handler;
+    handler?: K8sIoApiCoreV1ProbeHandler;
     /**
      * 
      * @type {number}
@@ -3321,6 +6119,43 @@ export interface K8sIoApiCoreV1Probe {
      * @memberof K8sIoApiCoreV1Probe
      */
     failureThreshold?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1Probe
+     */
+    terminationGracePeriodSeconds?: string;
+}
+/**
+ * ProbeHandler defines a specific action that should be taken in a probe. One and only one of the fields must be specified.
+ * @export
+ * @interface K8sIoApiCoreV1ProbeHandler
+ */
+export interface K8sIoApiCoreV1ProbeHandler {
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ExecAction}
+     * @memberof K8sIoApiCoreV1ProbeHandler
+     */
+    exec?: K8sIoApiCoreV1ExecAction;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1HTTPGetAction}
+     * @memberof K8sIoApiCoreV1ProbeHandler
+     */
+    httpGet?: K8sIoApiCoreV1HTTPGetAction;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1TCPSocketAction}
+     * @memberof K8sIoApiCoreV1ProbeHandler
+     */
+    tcpSocket?: K8sIoApiCoreV1TCPSocketAction;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1GRPCAction}
+     * @memberof K8sIoApiCoreV1ProbeHandler
+     */
+    grpc?: K8sIoApiCoreV1GRPCAction;
 }
 /**
  * 
@@ -3354,7 +6189,7 @@ export interface K8sIoApiCoreV1QuobyteVolumeSource {
      */
     registry?: string;
     /**
-     * Volume is a string that references an already created Quobyte volume by name.
+     * volume is a string that references an already created Quobyte volume by name.
      * @type {string}
      * @memberof K8sIoApiCoreV1QuobyteVolumeSource
      */
@@ -3440,6 +6275,25 @@ export interface K8sIoApiCoreV1RBDVolumeSource {
     readOnly?: boolean;
 }
 /**
+ * ResourceClaim references one entry in PodSpec.ResourceClaims.
+ * @export
+ * @interface K8sIoApiCoreV1ResourceClaim
+ */
+export interface K8sIoApiCoreV1ResourceClaim {
+    /**
+     * Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ResourceClaim
+     */
+    name?: string;
+    /**
+     * Request is the name chosen for a request in the referenced claim. If empty, everything from the claim is made available, otherwise only the result of this request.  +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ResourceClaim
+     */
+    request?: string;
+}
+/**
  * 
  * @export
  * @interface K8sIoApiCoreV1ResourceFieldSelector
@@ -3482,6 +6336,12 @@ export interface K8sIoApiCoreV1ResourceRequirements {
      * @memberof K8sIoApiCoreV1ResourceRequirements
      */
     requests?: { [key: string]: K8sIoApimachineryPkgApiResourceQuantity; };
+    /**
+     * Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This field depends on the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers.  +listType=map +listMapKey=name +featureGate=DynamicResourceAllocation +optional
+     * @type {Array<K8sIoApiCoreV1ResourceClaim>}
+     * @memberof K8sIoApiCoreV1ResourceRequirements
+     */
+    claims?: Array<K8sIoApiCoreV1ResourceClaim>;
 }
 /**
  * 
@@ -3521,13 +6381,13 @@ export interface K8sIoApiCoreV1SELinuxOptions {
  */
 export interface K8sIoApiCoreV1ScaleIOVolumeSource {
     /**
-     * The host address of the ScaleIO API Gateway.
+     * gateway is the host address of the ScaleIO API Gateway.
      * @type {string}
      * @memberof K8sIoApiCoreV1ScaleIOVolumeSource
      */
     gateway?: string;
     /**
-     * The name of the storage system as configured in ScaleIO.
+     * system is the name of the storage system as configured in ScaleIO.
      * @type {string}
      * @memberof K8sIoApiCoreV1ScaleIOVolumeSource
      */
@@ -3563,7 +6423,7 @@ export interface K8sIoApiCoreV1ScaleIOVolumeSource {
      */
     storageMode?: string;
     /**
-     * The name of a volume already created in the ScaleIO system that is associated with this volume source.
+     * volumeName is the name of a volume already created in the ScaleIO system that is associated with this volume source.
      * @type {string}
      * @memberof K8sIoApiCoreV1ScaleIOVolumeSource
      */
@@ -3620,7 +6480,7 @@ export interface K8sIoApiCoreV1SecretEnvSource {
     optional?: boolean;
 }
 /**
- * SecretKeySelector selects a key of a Secret.
+ * 
  * @export
  * @interface K8sIoApiCoreV1SecretKeySelector
  */
@@ -3772,6 +6632,12 @@ export interface K8sIoApiCoreV1SecurityContext {
      * @memberof K8sIoApiCoreV1SecurityContext
      */
     seccompProfile?: K8sIoApiCoreV1SeccompProfile;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1AppArmorProfile}
+     * @memberof K8sIoApiCoreV1SecurityContext
+     */
+    appArmorProfile?: K8sIoApiCoreV1AppArmorProfile;
 }
 /**
  * ServiceAccountTokenProjection represents a projected service account token volume. This projection can be used to insert a service account token into the pods runtime filesystem for use against APIs (Kubernetes API Server or otherwise).
@@ -3792,11 +6658,24 @@ export interface K8sIoApiCoreV1ServiceAccountTokenProjection {
      */
     expirationSeconds?: string;
     /**
-     * Path is the path relative to the mount point of the file to project the token into.
+     * path is the path relative to the mount point of the file to project the token into.
      * @type {string}
      * @memberof K8sIoApiCoreV1ServiceAccountTokenProjection
      */
     path?: string;
+}
+/**
+ * SleepAction describes a \"sleep\" action.
+ * @export
+ * @interface K8sIoApiCoreV1SleepAction
+ */
+export interface K8sIoApiCoreV1SleepAction {
+    /**
+     * Seconds is the number of seconds to sleep.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1SleepAction
+     */
+    seconds?: string;
 }
 /**
  * Represents a StorageOS persistent volume resource.
@@ -3805,7 +6684,7 @@ export interface K8sIoApiCoreV1ServiceAccountTokenProjection {
  */
 export interface K8sIoApiCoreV1StorageOSVolumeSource {
     /**
-     * VolumeName is the human-readable name of the StorageOS volume.  Volume names are only unique within a namespace.
+     * volumeName is the human-readable name of the StorageOS volume.  Volume names are only unique within a namespace.
      * @type {string}
      * @memberof K8sIoApiCoreV1StorageOSVolumeSource
      */
@@ -3917,19 +6796,19 @@ export interface K8sIoApiCoreV1Toleration {
  */
 export interface K8sIoApiCoreV1TopologySpreadConstraint {
     /**
-     * MaxSkew describes the degree to which pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`, it is the maximum permitted difference between the number of matching pods in the target topology and the global minimum. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 1/1/0: +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ |   P   |   P   |       | +-------+-------+-------+ - if MaxSkew is 1, incoming pod can only be scheduled to zone3 to become 1/1/1; scheduling it onto zone1(zone2) would make the ActualSkew(2-0) on zone1(zone2) violate MaxSkew(1). - if MaxSkew is 2, incoming pod can be scheduled onto any zone. When `whenUnsatisfiable=ScheduleAnyway`, it is used to give higher precedence to topologies that satisfy it. It's a required field. Default value is 1 and 0 is not allowed.
+     * MaxSkew describes the degree to which pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`, it is the maximum permitted difference between the number of matching pods in the target topology and the global minimum. The global minimum is the minimum number of matching pods in an eligible domain or zero if the number of eligible domains is less than MinDomains. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 2/2/1: In this case, the global minimum is 1. +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ |  P P  |  P P  |   P   | +-------+-------+-------+ - if MaxSkew is 1, incoming pod can only be scheduled to zone3 to become 2/2/2; scheduling it onto zone1(zone2) would make the ActualSkew(3-1) on zone1(zone2) violate MaxSkew(1). - if MaxSkew is 2, incoming pod can be scheduled onto any zone. When `whenUnsatisfiable=ScheduleAnyway`, it is used to give higher precedence to topologies that satisfy it. It's a required field. Default value is 1 and 0 is not allowed.
      * @type {number}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
     maxSkew?: number;
     /**
-     * TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a \"bucket\", and try to put balanced number of pods into each bucket. It's a required field.
+     * TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a \"bucket\", and try to put balanced number of pods into each bucket. We define a domain as a particular instance of a topology. Also, we define an eligible domain as a domain whose nodes meet the requirements of nodeAffinityPolicy and nodeTaintsPolicy. e.g. If TopologyKey is \"kubernetes.io/hostname\", each Node is a domain of that topology. And, if TopologyKey is \"topology.kubernetes.io/zone\", each zone is a domain of that topology. It's a required field.
      * @type {string}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
     topologyKey?: string;
     /**
-     * WhenUnsatisfiable indicates how to deal with a pod if it doesn't satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered \"Unsatisfiable\" for an incoming pod if and only if every possible node assigment for that pod would violate \"MaxSkew\" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ | P P P |   P   |   P   | +-------+-------+-------+ If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won't make it *more* imbalanced. It's a required field.
+     * WhenUnsatisfiable indicates how to deal with a pod if it doesn't satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered \"Unsatisfiable\" for an incoming pod if and only if every possible node assignment for that pod would violate \"MaxSkew\" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ | P P P |   P   |   P   | +-------+-------+-------+ If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won't make it *more* imbalanced. It's a required field.
      * @type {string}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
@@ -3940,9 +6819,33 @@ export interface K8sIoApiCoreV1TopologySpreadConstraint {
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
     labelSelector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
+    /**
+     * MinDomains indicates a minimum number of eligible domains. When the number of eligible domains with matching topology keys is less than minDomains, Pod Topology Spread treats \"global minimum\" as 0, and then the calculation of Skew is performed. And when the number of eligible domains with matching topology keys equals or greater than minDomains, this value has no effect on scheduling. As a result, when the number of eligible domains is less than minDomains, scheduler won't schedule more than maxSkew Pods to those domains. If value is nil, the constraint behaves as if MinDomains is equal to 1. Valid values are integers greater than 0. When value is not nil, WhenUnsatisfiable must be DoNotSchedule.  For example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same labelSelector spread as 2/2/2: +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ |  P P  |  P P  |  P P  | +-------+-------+-------+ The number of domains is less than 5(MinDomains), so \"global minimum\" is treated as 0. In this situation, new pod with the same labelSelector cannot be scheduled, because computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones, it will violate MaxSkew. +optional
+     * @type {number}
+     * @memberof K8sIoApiCoreV1TopologySpreadConstraint
+     */
+    minDomains?: number;
+    /**
+     * NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector when calculating pod topology spread skew. Options are: - Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations. - Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.  If this value is nil, the behavior is equivalent to the Honor policy. +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1TopologySpreadConstraint
+     */
+    nodeAffinityPolicy?: string;
+    /**
+     * NodeTaintsPolicy indicates how we will treat node taints when calculating pod topology spread skew. Options are: - Honor: nodes without taints, along with tainted nodes for which the incoming pod has a toleration, are included. - Ignore: node taints are ignored. All nodes are included.  If this value is nil, the behavior is equivalent to the Ignore policy. +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1TopologySpreadConstraint
+     */
+    nodeTaintsPolicy?: string;
+    /**
+     * MatchLabelKeys is a set of pod label keys to select the pods over which spreading will be calculated. The keys are used to lookup values from the incoming pod labels, those key-value labels are ANDed with labelSelector to select the group of existing pods over which spreading will be calculated for the incoming pod. The same key is forbidden to exist in both MatchLabelKeys and LabelSelector. MatchLabelKeys cannot be set when LabelSelector isn't set. Keys that don't exist in the incoming pod labels will be ignored. A null or empty list means only match against labelSelector.  This is a beta field and requires the MatchLabelKeysInPodTopologySpread feature gate to be enabled (enabled by default). +listType=atomic +optional
+     * @type {Array<string>}
+     * @memberof K8sIoApiCoreV1TopologySpreadConstraint
+     */
+    matchLabelKeys?: Array<string>;
 }
 /**
- * TypedLocalObjectReference contains enough information to let you locate the typed referenced object inside the same namespace.
+ * TypedLocalObjectReference contains enough information to let you locate the typed referenced object inside the same namespace. --- New uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.  1. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular     restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".     Those cannot be well described when embedded.  2. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.  3. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity     during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple     and the version of the actual struct is irrelevant.  4. We cannot easily change it.  Because this type is embedded in many locations, updates to this type     will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.  Instead of using this type, create a locally provided and used type that is well-focused on your reference. For example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 . +structType=atomic
  * @export
  * @interface K8sIoApiCoreV1TypedLocalObjectReference
  */
@@ -3965,6 +6868,37 @@ export interface K8sIoApiCoreV1TypedLocalObjectReference {
      * @memberof K8sIoApiCoreV1TypedLocalObjectReference
      */
     name?: string;
+}
+/**
+ * 
+ * @export
+ * @interface K8sIoApiCoreV1TypedObjectReference
+ */
+export interface K8sIoApiCoreV1TypedObjectReference {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1TypedObjectReference
+     */
+    apiGroup?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1TypedObjectReference
+     */
+    kind?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1TypedObjectReference
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1TypedObjectReference
+     */
+    namespace?: string;
 }
 /**
  * Volume represents a named volume in a pod that may be accessed by any container in the pod.
@@ -4023,6 +6957,12 @@ export interface K8sIoApiCoreV1VolumeMount {
      */
     readOnly?: boolean;
     /**
+     * RecursiveReadOnly specifies whether read-only mounts should be handled recursively.  If ReadOnly is false, this field has no meaning and must be unspecified.  If ReadOnly is true, and this field is set to Disabled, the mount is not made recursively read-only.  If this field is set to IfPossible, the mount is made recursively read-only, if it is supported by the container runtime.  If this field is set to Enabled, the mount is made recursively read-only if it is supported by the container runtime, otherwise the pod will not be started and an error will be generated to indicate the reason.  If this field is set to IfPossible or Enabled, MountPropagation must be set to None (or be unspecified, which defaults to None).  If this field is not specified, it is treated as an equivalent of Disabled.  +featureGate=RecursiveReadOnlyMounts +optional
+     * @type {string}
+     * @memberof K8sIoApiCoreV1VolumeMount
+     */
+    recursiveReadOnly?: string;
+    /**
      * Path within the container at which the volume should be mounted.  Must not contain ':'.
      * @type {string}
      * @memberof K8sIoApiCoreV1VolumeMount
@@ -4048,7 +6988,7 @@ export interface K8sIoApiCoreV1VolumeMount {
     subPathExpr?: string;
 }
 /**
- * 
+ * Projection that may be projected along with other supported volume types. Exactly one of these fields must be set.
  * @export
  * @interface K8sIoApiCoreV1VolumeProjection
  */
@@ -4077,6 +7017,37 @@ export interface K8sIoApiCoreV1VolumeProjection {
      * @memberof K8sIoApiCoreV1VolumeProjection
      */
     serviceAccountToken?: K8sIoApiCoreV1ServiceAccountTokenProjection;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ClusterTrustBundleProjection}
+     * @memberof K8sIoApiCoreV1VolumeProjection
+     */
+    clusterTrustBundle?: K8sIoApiCoreV1ClusterTrustBundleProjection;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1PodCertificateProjection}
+     * @memberof K8sIoApiCoreV1VolumeProjection
+     */
+    podCertificate?: K8sIoApiCoreV1PodCertificateProjection;
+}
+/**
+ * VolumeResourceRequirements describes the storage resource requirements for a volume.
+ * @export
+ * @interface K8sIoApiCoreV1VolumeResourceRequirements
+ */
+export interface K8sIoApiCoreV1VolumeResourceRequirements {
+    /**
+     * 
+     * @type {{ [key: string]: K8sIoApimachineryPkgApiResourceQuantity; }}
+     * @memberof K8sIoApiCoreV1VolumeResourceRequirements
+     */
+    limits?: { [key: string]: K8sIoApimachineryPkgApiResourceQuantity; };
+    /**
+     * 
+     * @type {{ [key: string]: K8sIoApimachineryPkgApiResourceQuantity; }}
+     * @memberof K8sIoApiCoreV1VolumeResourceRequirements
+     */
+    requests?: { [key: string]: K8sIoApimachineryPkgApiResourceQuantity; };
 }
 /**
  * Represents the source of a volume to mount. Only one of its members may be specified.
@@ -4258,6 +7229,12 @@ export interface K8sIoApiCoreV1VolumeSource {
      * @memberof K8sIoApiCoreV1VolumeSource
      */
     ephemeral?: K8sIoApiCoreV1EphemeralVolumeSource;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ImageVolumeSource}
+     * @memberof K8sIoApiCoreV1VolumeSource
+     */
+    image?: K8sIoApiCoreV1ImageVolumeSource;
 }
 /**
  * Represents a vSphere volume resource.
@@ -4333,9 +7310,15 @@ export interface K8sIoApiCoreV1WindowsSecurityContextOptions {
      * @memberof K8sIoApiCoreV1WindowsSecurityContextOptions
      */
     runAsUserName?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof K8sIoApiCoreV1WindowsSecurityContextOptions
+     */
+    hostProcess?: boolean;
 }
 /**
- * Quantity is a fixed-point representation of a number. It provides convenient marshaling/unmarshaling in JSON and YAML, in addition to String() and AsInt64() accessors.  The serialization format is:  <quantity>        ::= <signedNumber><suffix>   (Note that <suffix> may be empty, from the \"\" case in <decimalSI>.) <digit>           ::= 0 | 1 | ... | 9 <digits>          ::= <digit> | <digit><digits> <number>          ::= <digits> | <digits>.<digits> | <digits>. | .<digits> <sign>            ::= \"+\" | \"-\" <signedNumber>    ::= <number> | <sign><number> <suffix>          ::= <binarySI> | <decimalExponent> | <decimalSI> <binarySI>        ::= Ki | Mi | Gi | Ti | Pi | Ei   (International System of units; See: http://physics.nist.gov/cuu/Units/binary.html) <decimalSI>       ::= m | \"\" | k | M | G | T | P | E   (Note that 1024 = 1Ki but 1000 = 1k; I didn't choose the capitalization.) <decimalExponent> ::= \"e\" <signedNumber> | \"E\" <signedNumber>  No matter which of the three exponent forms is used, no quantity may represent a number greater than 2^63-1 in magnitude, nor may it have more than 3 decimal places. Numbers larger or more precise will be capped or rounded up. (E.g.: 0.1m will rounded up to 1m.) This may be extended in the future if we require larger or smaller quantities.  When a Quantity is parsed from a string, it will remember the type of suffix it had, and will use the same type again when it is serialized.  Before serializing, Quantity will be put in \"canonical form\". This means that Exponent/suffix will be adjusted up or down (with a corresponding increase or decrease in Mantissa) such that:   a. No precision is lost   b. No fractional digits will be emitted   c. The exponent (or suffix) is as large as possible. The sign will be omitted unless the number is negative.  Examples:   1.5 will be serialized as \"1500m\"   1.5Gi will be serialized as \"1536Mi\"  Note that the quantity will NEVER be internally represented by a floating point number. That is the whole point of this exercise.  Non-canonical values will still parse as long as they are well formed, but will be re-emitted in their canonical form. (So always use canonical form, or don't diff.)  This format is intended to make it difficult to use these numbers without writing some sort of special handling code in the hopes that that will cause implementors to also use a fixed point implementation.  +protobuf=true +protobuf.embed=string +protobuf.options.marshal=false +protobuf.options.(gogoproto.goproto_stringer)=false +k8s:deepcopy-gen=true +k8s:openapi-gen=true
+ * Quantity is a fixed-point representation of a number. It provides convenient marshaling/unmarshaling in JSON and YAML, in addition to String() and AsInt64() accessors.  The serialization format is:  ``` <quantity>        ::= <signedNumber><suffix>   (Note that <suffix> may be empty, from the \"\" case in <decimalSI>.)  <digit>           ::= 0 | 1 | ... | 9 <digits>          ::= <digit> | <digit><digits> <number>          ::= <digits> | <digits>.<digits> | <digits>. | .<digits> <sign>            ::= \"+\" | \"-\" <signedNumber>    ::= <number> | <sign><number> <suffix>          ::= <binarySI> | <decimalExponent> | <decimalSI> <binarySI>        ::= Ki | Mi | Gi | Ti | Pi | Ei   (International System of units; See: http://physics.nist.gov/cuu/Units/binary.html)  <decimalSI>       ::= m | \"\" | k | M | G | T | P | E   (Note that 1024 = 1Ki but 1000 = 1k; I didn't choose the capitalization.)  <decimalExponent> ::= \"e\" <signedNumber> | \"E\" <signedNumber> ```  No matter which of the three exponent forms is used, no quantity may represent a number greater than 2^63-1 in magnitude, nor may it have more than 3 decimal places. Numbers larger or more precise will be capped or rounded up. (E.g.: 0.1m will rounded up to 1m.) This may be extended in the future if we require larger or smaller quantities.  When a Quantity is parsed from a string, it will remember the type of suffix it had, and will use the same type again when it is serialized.  Before serializing, Quantity will be put in \"canonical form\". This means that Exponent/suffix will be adjusted up or down (with a corresponding increase or decrease in Mantissa) such that:  - No precision is lost - No fractional digits will be emitted - The exponent (or suffix) is as large as possible.  The sign will be omitted unless the number is negative.  Examples:  - 1.5 will be serialized as \"1500m\" - 1.5Gi will be serialized as \"1536Mi\"  Note that the quantity will NEVER be internally represented by a floating point number. That is the whole point of this exercise.  Non-canonical values will still parse as long as they are well formed, but will be re-emitted in their canonical form. (So always use canonical form, or don't diff.)  This format is intended to make it difficult to use these numbers without writing some sort of special handling code in the hopes that that will cause implementors to also use a fixed point implementation.  +protobuf=true +protobuf.embed=string +protobuf.options.marshal=false +protobuf.options.(gogoproto.goproto_stringer)=false +k8s:deepcopy-gen=true +k8s:openapi-gen=true
  * @export
  * @interface K8sIoApimachineryPkgApiResourceQuantity
  */
@@ -4386,7 +7369,7 @@ export interface K8sIoApimachineryPkgApisMetaV1LabelSelector {
  */
 export interface K8sIoApimachineryPkgApisMetaV1LabelSelectorRequirement {
     /**
-     * 
+     * key is the label key that the selector applies to.
      * @type {string}
      * @memberof K8sIoApimachineryPkgApisMetaV1LabelSelectorRequirement
      */
@@ -4446,6 +7429,12 @@ export interface K8sIoApimachineryPkgApisMetaV1ManagedFieldsEntry {
      * @memberof K8sIoApimachineryPkgApisMetaV1ManagedFieldsEntry
      */
     fieldsV1?: K8sIoApimachineryPkgApisMetaV1FieldsV1;
+    /**
+     * Subresource is the name of the subresource used to update that object, or empty string if the object was updated through the main resource. The value of this field is used to distinguish between managers, even if they share the same name. For example, a status update will be distinct from a regular update using the same manager name. Note that the APIVersion field is not related to the Subresource field and it always corresponds to the version of the main resource.
+     * @type {string}
+     * @memberof K8sIoApimachineryPkgApisMetaV1ManagedFieldsEntry
+     */
+    subresource?: string;
 }
 /**
  * ObjectMeta is metadata that all persisted resources must have, which includes all objects users must create.
@@ -4460,25 +7449,25 @@ export interface K8sIoApimachineryPkgApisMetaV1ObjectMeta {
      */
     name?: string;
     /**
-     * GenerateName is an optional prefix, used by the server, to generate a unique name ONLY IF the Name field has not been provided. If this field is used, the name returned to the client will be different than the name passed. This value will also be combined with a unique suffix. The provided value has the same validation rules as the Name field, and may be truncated by the length of the suffix required to make the value unique on the server.  If this field is specified and the generated name exists, the server will NOT return a 409 - instead, it will either return 201 Created or 500 with Reason ServerTimeout indicating a unique name could not be found in the time allotted, and the client should retry (optionally after the time indicated in the Retry-After header).  Applied only if Name is not specified. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency +optional
+     * GenerateName is an optional prefix, used by the server, to generate a unique name ONLY IF the Name field has not been provided. If this field is used, the name returned to the client will be different than the name passed. This value will also be combined with a unique suffix. The provided value has the same validation rules as the Name field, and may be truncated by the length of the suffix required to make the value unique on the server.  If this field is specified and the generated name exists, the server will return a 409.  Applied only if Name is not specified. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency +optional
      * @type {string}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
     generateName?: string;
     /**
-     * Namespace defines the space within which each name must be unique. An empty namespace is equivalent to the \"default\" namespace, but \"default\" is the canonical representation. Not all objects are required to be scoped to a namespace - the value of this field for those objects will be empty.  Must be a DNS_LABEL. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/namespaces +optional
+     * Namespace defines the space within which each name must be unique. An empty namespace is equivalent to the \"default\" namespace, but \"default\" is the canonical representation. Not all objects are required to be scoped to a namespace - the value of this field for those objects will be empty.  Must be a DNS_LABEL. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces +optional
      * @type {string}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
     namespace?: string;
     /**
-     * SelfLink is a URL representing this object. Populated by the system. Read-only.  DEPRECATED Kubernetes will stop propagating this field in 1.20 release and the field is planned to be removed in 1.21 release. +optional
+     * 
      * @type {string}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
     selfLink?: string;
     /**
-     * UID is the unique in time and space value for this object. It is typically generated by the server on successful creation of a resource and is not allowed to change on PUT operations.  Populated by the system. Read-only. More info: http://kubernetes.io/docs/user-guide/identifiers#uids +optional
+     * UID is the unique in time and space value for this object. It is typically generated by the server on successful creation of a resource and is not allowed to change on PUT operations.  Populated by the system. Read-only. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids +optional
      * @type {string}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
@@ -4538,20 +7527,14 @@ export interface K8sIoApimachineryPkgApisMetaV1ObjectMeta {
      */
     finalizers?: Array<string>;
     /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
-     */
-    clusterName?: string;
-    /**
-     * ManagedFields maps workflow-id and version to the set of fields that are managed by that workflow. This is mostly for internal housekeeping, and users typically shouldn't need to set or understand this field. A workflow can be the user's name, a controller's name, or the name of a specific apply path like \"ci-cd\". The set of fields is always in the version that the workflow used when modifying the object.  +optional
+     * ManagedFields maps workflow-id and version to the set of fields that are managed by that workflow. This is mostly for internal housekeeping, and users typically shouldn't need to set or understand this field. A workflow can be the user's name, a controller's name, or the name of a specific apply path like \"ci-cd\". The set of fields is always in the version that the workflow used when modifying the object.  +optional +listType=atomic
      * @type {Array<K8sIoApimachineryPkgApisMetaV1ManagedFieldsEntry>}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
     managedFields?: Array<K8sIoApimachineryPkgApisMetaV1ManagedFieldsEntry>;
 }
 /**
- * OwnerReference contains enough information to let you identify an owning object. An owning object must be in the same namespace as the dependent, or be cluster-scoped, so there is no namespace field.
+ * 
  * @export
  * @interface K8sIoApimachineryPkgApisMetaV1OwnerReference
  */
@@ -4669,17 +7652,17 @@ export interface RolloutAnalysisRunInfo {
      */
     objectMeta?: K8sIoApimachineryPkgApisMetaV1ObjectMeta;
     /**
-     * 
+     * field type from 161 -170 will be deprecated in future.
      * @type {string}
      * @memberof RolloutAnalysisRunInfo
      */
     icon?: string;
     /**
      * 
-     * @type {number}
+     * @type {string}
      * @memberof RolloutAnalysisRunInfo
      */
-    revision?: number;
+    revision?: string;
     /**
      * 
      * @type {string}
@@ -4716,6 +7699,43 @@ export interface RolloutAnalysisRunInfo {
      * @memberof RolloutAnalysisRunInfo
      */
     jobs?: Array<RolloutJobInfo>;
+    /**
+     * 
+     * @type {Array<RolloutNonJobInfo>}
+     * @memberof RolloutAnalysisRunInfo
+     */
+    nonJobInfo?: Array<RolloutNonJobInfo>;
+    /**
+     * 
+     * @type {Array<RolloutMetrics>}
+     * @memberof RolloutAnalysisRunInfo
+     */
+    metrics?: Array<RolloutMetrics>;
+    /**
+     * 
+     * @type {RolloutAnalysisRunSpecAndStatus}
+     * @memberof RolloutAnalysisRunInfo
+     */
+    specAndStatus?: RolloutAnalysisRunSpecAndStatus;
+}
+/**
+ * 
+ * @export
+ * @interface RolloutAnalysisRunSpecAndStatus
+ */
+export interface RolloutAnalysisRunSpecAndStatus {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec}
+     * @memberof RolloutAnalysisRunSpecAndStatus
+     */
+    spec?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus}
+     * @memberof RolloutAnalysisRunSpecAndStatus
+     */
+    status?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus;
 }
 /**
  * 
@@ -4756,10 +7776,10 @@ export interface RolloutExperimentInfo {
     icon?: string;
     /**
      * 
-     * @type {number}
+     * @type {string}
      * @memberof RolloutExperimentInfo
      */
-    revision?: number;
+    revision?: string;
     /**
      * 
      * @type {string}
@@ -4809,6 +7829,55 @@ export interface RolloutJobInfo {
      * @memberof RolloutJobInfo
      */
     icon?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutJobInfo
+     */
+    metricName?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof RolloutJobInfo
+     */
+    startedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+}
+/**
+ * 
+ * @export
+ * @interface RolloutMetrics
+ */
+export interface RolloutMetrics {
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutMetrics
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutMetrics
+     */
+    successCondition?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof RolloutMetrics
+     */
+    count?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RolloutMetrics
+     */
+    inconclusiveLimit?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RolloutMetrics
+     */
+    failureLimit?: number;
 }
 /**
  * 
@@ -4823,11 +7892,42 @@ export interface RolloutNamespaceInfo {
      */
     namespace?: string;
     /**
-     *
+     * 
      * @type {Array<string>}
      * @memberof RolloutNamespaceInfo
      */
     availableNamespaces?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface RolloutNonJobInfo
+ */
+export interface RolloutNonJobInfo {
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutNonJobInfo
+     */
+    value?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutNonJobInfo
+     */
+    status?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutNonJobInfo
+     */
+    metricName?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof RolloutNonJobInfo
+     */
+    startedAt?: K8sIoApimachineryPkgApisMetaV1Time;
 }
 /**
  * 
@@ -4917,10 +8017,10 @@ export interface RolloutReplicaSetInfo {
     icon?: string;
     /**
      * 
-     * @type {number}
+     * @type {string}
      * @memberof RolloutReplicaSetInfo
      */
-    revision?: number;
+    revision?: string;
     /**
      * 
      * @type {boolean}
@@ -4981,6 +8081,24 @@ export interface RolloutReplicaSetInfo {
      * @memberof RolloutReplicaSetInfo
      */
     pods?: Array<RolloutPodInfo>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RolloutReplicaSetInfo
+     */
+    ping?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RolloutReplicaSetInfo
+     */
+    pong?: boolean;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof RolloutReplicaSetInfo
+     */
+    initContainerImages?: Array<string>;
 }
 /**
  * 
@@ -5146,6 +8264,12 @@ export interface RolloutRolloutInfo {
      * @memberof RolloutRolloutInfo
      */
     steps?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep>;
+    /**
+     * 
+     * @type {Array<RolloutContainerInfo>}
+     * @memberof RolloutRolloutInfo
+     */
+    initContainers?: Array<RolloutContainerInfo>;
 }
 /**
  * 
@@ -5331,7 +8455,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutAbortRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -5355,7 +8479,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -5389,7 +8513,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -5417,7 +8541,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -5458,7 +8582,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutPromoteRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -5501,7 +8625,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutRestartRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -5544,7 +8668,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutRetryRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -5605,7 +8729,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutSetImageRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -5654,7 +8778,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutUndoRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -5678,7 +8802,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -5712,7 +8836,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -5740,7 +8864,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -5767,7 +8891,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceAbortRollout(body: RolloutAbortRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceAbortRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -5784,7 +8908,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceGetNamespace(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutNamespaceInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceGetNamespace(options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -5803,7 +8927,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceGetRolloutInfo(namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutRolloutInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceGetRolloutInfo(namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -5821,7 +8945,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceListRolloutInfos(namespace: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutRolloutInfoList> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceListRolloutInfos(namespace, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -5841,7 +8965,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServicePromoteRollout(body: RolloutPromoteRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServicePromoteRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -5861,7 +8985,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceRestartRollout(body: RolloutRestartRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceRestartRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -5881,7 +9005,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceRetryRollout(body: RolloutRetryRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceRetryRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -5904,7 +9028,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceSetRolloutImage(body: RolloutSetImageRequest, namespace: string, rollout: string, container: string, image: string, tag: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceSetRolloutImage(body, namespace, rollout, container, image, tag, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -5925,7 +9049,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceUndoRollout(body: RolloutUndoRolloutRequest, namespace: string, rollout: string, revision: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceUndoRollout(body, namespace, rollout, revision, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -5942,7 +9066,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceVersion(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutVersionInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceVersion(options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -5961,7 +9085,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceWatchRolloutInfo(namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<StreamResultOfRolloutRolloutInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceWatchRolloutInfo(namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -5979,7 +9103,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceWatchRolloutInfos(namespace: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<StreamResultOfRolloutRolloutWatchEvent> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceWatchRolloutInfos(namespace, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();

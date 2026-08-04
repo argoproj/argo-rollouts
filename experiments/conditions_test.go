@@ -5,22 +5,23 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 
 	templates := generateTemplates("bar")
-	templates[0].Replicas = pointer.Int32Ptr(2)
+	templates[0].Replicas = ptr.To[int32](2)
 	e := newExperiment("foo", templates, "")
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
 		Name: "bar",
 	}}
 	prevCond := newCondition(conditions.ReplicaSetUpdatedReason, e)
-	prevTime := metav1.NewTime(metav1.Now().Add(-10 * time.Second))
+	prevTime := metav1.NewTime(timeutil.Now().Add(-10 * time.Second))
 	prevCond.LastUpdateTime = prevTime
 	prevCond.LastTransitionTime = prevTime
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{
@@ -52,8 +53,8 @@ func TestEnterTimeoutDegradedState(t *testing.T) {
 		Name:   "bar",
 		Status: v1alpha1.TemplateStatusProgressing,
 	}}
-	e.Spec.ProgressDeadlineSeconds = pointer.Int32Ptr(30)
-	prevTime := metav1.NewTime(metav1.Now().Add(-1 * time.Minute).Truncate(time.Second))
+	e.Spec.ProgressDeadlineSeconds = ptr.To[int32](30)
+	prevTime := metav1.NewTime(timeutil.Now().Add(-1 * time.Minute).Truncate(time.Second))
 	e.Status.TemplateStatuses[0].LastTransitionTime = &prevTime
 
 	rs := templateToRS(e, templates[0], 0)

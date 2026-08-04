@@ -27,7 +27,7 @@ func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientm
 	namespace := resourceInfo.Namespace
 	kind := resourceInfo.Kind
 	statusCode := strconv.Itoa(resourceInfo.StatusCode)
-	if resourceInfo.Verb == kubeclientmetrics.List {
+	if resourceInfo.Verb == kubeclientmetrics.List || kind == "events" || kind == "replicasets" {
 		name = "N/A"
 	}
 	if resourceInfo.Verb == kubeclientmetrics.Unknown {
@@ -35,7 +35,8 @@ func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientm
 		name = "Unknown"
 		kind = "Unknown"
 	}
-
-	m.k8sRequestsCount.WithLabelValues(kind, namespace, name, string(resourceInfo.Verb), statusCode).Inc()
+	if m.k8sRequestsCount != nil {
+		m.k8sRequestsCount.WithLabelValues(kind, namespace, name, string(resourceInfo.Verb), statusCode).Inc()
+	}
 	return nil
 }

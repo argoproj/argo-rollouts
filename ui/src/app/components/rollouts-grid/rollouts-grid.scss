@@ -1,0 +1,8 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+.rollouts-grid {
+    display: flex;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+    padding-top: 20px;
+}

@@ -21,7 +21,6 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/record"
 )
@@ -435,7 +434,7 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 
 func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
-	weightDestinations := []trafficrouting.WeightDestination{
+	weightDestinations := []v1alpha1.WeightDestination{
 		{
 			ServiceName:     "ex-svc-1",
 			PodTemplateHash: "",
@@ -575,5 +574,64 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 		// check stable backend
 		assert.Equal(t, "stable-service", ts3.Spec.Backends[3].Service)
 		assert.Equal(t, 80, ts3.Spec.Backends[3].Weight)
+	})
+}
+
+func TestReconcileSetHeaderRoute(t *testing.T) {
+	t.Run("not implemented", func(t *testing.T) {
+		ro := fakeRollout("stable-service", "canary-service", "", "")
+		client := fake.NewSimpleClientset()
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+			Name: "set-header",
+			Match: []v1alpha1.HeaderRoutingMatch{{
+				HeaderName: "header-name",
+				HeaderValue: &v1alpha1.StringMatch{
+					Exact: "value",
+				},
+			}},
+		})
+		assert.Nil(t, err)
+
+		err = r.RemoveManagedRoutes()
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 0)
+	})
+}
+
+func TestReconcileSetMirrorRoute(t *testing.T) {
+	t.Run("not implemented", func(t *testing.T) {
+		ro := fakeRollout("stable-service", "canary-service", "", "")
+		client := fake.NewSimpleClientset()
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+			Name: "mirror-route",
+			Match: []v1alpha1.RouteMatch{{
+				Method: &v1alpha1.StringMatch{Exact: "GET"},
+			}},
+		})
+		assert.Nil(t, err)
+
+		err = r.RemoveManagedRoutes()
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 0)
 	})
 }

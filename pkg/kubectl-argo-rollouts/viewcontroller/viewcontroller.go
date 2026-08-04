@@ -3,14 +3,15 @@ package viewcontroller
 import (
 	"context"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/queue"
 
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/informers"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
@@ -31,7 +32,7 @@ type viewController struct {
 	name      string
 	namespace string
 
-	kubeInformerFactory     informers.SharedInformerFactory
+	kubeInformerFactory     kubeinformers.SharedInformerFactory
 	rolloutsInformerFactory rolloutinformers.SharedInformerFactory
 
 	replicaSetLister  appslisters.ReplicaSetNamespaceLister
@@ -39,13 +40,16 @@ type viewController struct {
 	rolloutLister     rolloutlisters.RolloutNamespaceLister
 	experimentLister  rolloutlisters.ExperimentNamespaceLister
 	analysisRunLister rolloutlisters.AnalysisRunNamespaceLister
+	deploymentLister  appslisters.DeploymentNamespaceLister
 
 	cacheSyncs []cache.InformerSynced
 
 	workqueue workqueue.RateLimitingInterface
-	prevObj   interface{}
-	getObj    func() (interface{}, error)
-	callbacks []func(interface{})
+	prevObj   any
+	getObj    func() (any, error)
+	callbacks []func(any)
+	// acquire 'callbacksLock' before reading/writing to 'callbacks'
+	callbacksLock sync.Mutex
 }
 
 type RolloutViewController struct {
@@ -69,7 +73,7 @@ func NewRolloutViewController(namespace string, name string, kubeClient kubernet
 	rvc := RolloutViewController{
 		viewController: vc,
 	}
-	vc.getObj = func() (interface{}, error) {
+	vc.getObj = func() (any, error) {
 		return rvc.GetRolloutInfo()
 	}
 	return &rvc
@@ -80,7 +84,7 @@ func NewExperimentViewController(namespace string, name string, kubeClient kuber
 	evc := ExperimentViewController{
 		viewController: vc,
 	}
-	vc.getObj = func() (interface{}, error) {
+	vc.getObj = func() (any, error) {
 		return evc.GetExperimentInfo()
 	}
 	return &evc
@@ -100,6 +104,7 @@ func newViewController(namespace string, name string, kubeClient kubernetes.Inte
 		rolloutLister:           rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace),
 		experimentLister:        rolloutsInformerFactory.Argoproj().V1alpha1().Experiments().Lister().Experiments(namespace),
 		analysisRunLister:       rolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns().Lister().AnalysisRuns(namespace),
+		deploymentLister:        kubeInformerFactory.Apps().V1().Deployments().Lister().Deployments(namespace),
 		workqueue:               workqueue.NewRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter()),
 	}
 
@@ -111,13 +116,13 @@ func newViewController(namespace string, name string, kubeClient kubernetes.Inte
 	)
 
 	enqueueRolloutHandlerFuncs := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controller.workqueue.Add(controller.name)
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			controller.workqueue.Add(controller.name)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controller.workqueue.Add(controller.name)
 		},
 	}
@@ -144,6 +149,7 @@ func (c *viewController) Run(ctx context.Context) error {
 		}
 	}, time.Second, ctx.Done())
 	<-ctx.Done()
+	c.DeregisterCallbacks()
 	return nil
 }
 
@@ -160,12 +166,25 @@ func (c *viewController) processNextWorkItem() bool {
 		return true
 	}
 	if !reflect.DeepEqual(c.prevObj, newObj) {
-		for _, cb := range c.callbacks {
+
+		// Acquire the mutex and make a thread-local copy of the list of callbacks
+		c.callbacksLock.Lock()
+		callbacks := append(make([]func(any), 0), c.callbacks...)
+		c.callbacksLock.Unlock()
+
+		for _, cb := range callbacks {
 			cb(newObj)
 		}
 		c.prevObj = newObj
 	}
 	return true
+}
+
+func (c *viewController) DeregisterCallbacks() {
+	c.callbacksLock.Lock()
+	defer c.callbacksLock.Unlock()
+
+	c.callbacks = nil
 }
 
 func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
@@ -194,14 +213,25 @@ func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
 		return nil, err
 	}
 
-	roInfo := info.NewRolloutInfo(ro, allReplicaSets, allPods, allExps, allAnalysisRuns)
+	var workloadRef *v1.Deployment
+	if ro.Spec.WorkloadRef != nil {
+		workloadRef, err = c.deploymentLister.Get(ro.Spec.WorkloadRef.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	roInfo := info.NewRolloutInfo(ro, allReplicaSets, allPods, allExps, allAnalysisRuns, workloadRef)
 	return roInfo, nil
 }
 
 func (c *RolloutViewController) RegisterCallback(callback RolloutInfoCallback) {
-	cb := func(i interface{}) {
+	cb := func(i any) {
 		callback(i.(*rollout.RolloutInfo))
 	}
+	c.callbacksLock.Lock()
+	defer c.callbacksLock.Unlock()
+
 	c.callbacks = append(c.callbacks, cb)
 }
 
@@ -227,8 +257,10 @@ func (c *ExperimentViewController) GetExperimentInfo() (*rollout.ExperimentInfo,
 }
 
 func (c *ExperimentViewController) RegisterCallback(callback ExperimentInfoCallback) {
-	cb := func(i interface{}) {
+	cb := func(i any) {
 		callback(i.(*rollout.ExperimentInfo))
 	}
+	c.callbacksLock.Lock()
+	defer c.callbacksLock.Unlock()
 	c.callbacks = append(c.callbacks, cb)
 }

@@ -2,15 +2,13 @@ package server
 
 import (
 	"context"
-	"embed"
 	"fmt"
-	"io/fs"
 	"net"
 	"net/http"
-	"os"
+	"path"
+	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/errors"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
@@ -24,12 +22,14 @@ import (
 	"k8s.io/client-go/dynamic"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	appslisters "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
@@ -39,12 +39,10 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	"github.com/argoproj/argo-rollouts/utils/errors"
 	"github.com/argoproj/argo-rollouts/utils/json"
 	versionutils "github.com/argoproj/argo-rollouts/utils/version"
 )
-
-//go:embed static/*
-var static embed.FS //nolint
 
 var backoff = wait.Backoff{
 	Steps:    5,
@@ -58,6 +56,7 @@ type ServerOptions struct {
 	RolloutsClientset rolloutclientset.Interface
 	DynamicClientset  dynamic.Interface
 	Namespace         string
+	RootPath          string
 }
 
 const (
@@ -76,30 +75,26 @@ func NewServer(o ServerOptions) *ArgoRolloutsServer {
 	return &ArgoRolloutsServer{Options: o}
 }
 
-type spaFileSystem struct {
-	root http.FileSystem
-}
-
-func (fs *spaFileSystem) Open(name string) (http.File, error) {
-	f, err := fs.root.Open(name)
-	if os.IsNotExist(err) {
-		return fs.root.Open("index.html")
-	}
-	return f, err
-}
+const (
+	listenAddr  = "0.0.0.0"
+	connectAddr = "localhost"
+)
 
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
 	mux := http.NewServeMux()
-	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
 
 	httpS := http.Server{
-		Addr:    endpoint,
+		Addr:    net.JoinHostPort(listenAddr, fmt.Sprintf("%d", port)),
 		Handler: mux,
 	}
 
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(json.JSONMarshaler))
 	gwmux := runtime.NewServeMux(gwMuxOpts,
-		runtime.WithIncomingHeaderMatcher(func(key string) (string, bool) { return key, true }),
+		runtime.WithIncomingHeaderMatcher(func(key string) (string, bool) {
+			// Dropping "Connection" header as a workaround for https://github.com/grpc-ecosystem/grpc-gateway/issues/2447
+			// The fix is part of grpc-gateway v2.x but not available in v1.x, so workaround should be removed after upgrading to grpc v2.x
+			return key, strings.ToLower(key) != "connection"
+		}),
 		runtime.WithProtoErrorHandler(runtime.DefaultHTTPProtoErrorHandler),
 	)
 
@@ -108,21 +103,23 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	}
 	opts = append(opts, grpc.WithInsecure())
 
+	endpoint := net.JoinHostPort(connectAddr, fmt.Sprintf("%d", port))
 	err := rollout.RegisterRolloutServiceHandlerFromEndpoint(ctx, gwmux, endpoint, opts)
 	if err != nil {
 		panic(err)
 	}
 
-	var handler http.Handler = gwmux
+	var apiHandler http.Handler = gwmux
 
-	ui, err := fs.Sub(static, "static")
-	if err != nil {
-		log.Error("Could not load UI static files")
-		panic(err)
+	// Mount API at rootPath/api/ when rootPath is configured
+	apiPath := "/api/"
+	if s.Options.RootPath != "" {
+		apiPath = path.Join("/", s.Options.RootPath, "api") + "/"
+		stripPrefix := path.Join("/", s.Options.RootPath)
+		apiHandler = http.StripPrefix(stripPrefix, gwmux)
 	}
-
-	mux.Handle("/api/", handler)
-	mux.Handle("/", http.FileServer(&spaFileSystem{http.FS(ui)}))
+	mux.Handle(apiPath, apiHandler)
+	mux.HandleFunc("/", s.staticFileHttpHandler)
 
 	return &httpS
 }
@@ -166,7 +163,7 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 
 	startupMessage := fmt.Sprintf("Argo Rollouts api-server serving on port %d (namespace: %s)", port, s.Options.Namespace)
 	if dashboard {
-		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at localhost %d", port)
+		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at http://localhost:%d/%s", port, s.Options.RootPath)
 	}
 
 	log.Info(startupMessage)
@@ -196,7 +193,10 @@ func (s *ArgoRolloutsServer) initRolloutViewController(namespace string, name st
 }
 
 func (s *ArgoRolloutsServer) getRolloutInfo(namespace string, name string) (*rollout.RolloutInfo, error) {
-	controller := s.initRolloutViewController(namespace, name, context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	controller := s.initRolloutViewController(namespace, name, ctx)
 	ri, err := controller.GetRolloutInfo()
 	if err != nil {
 		return nil, err
@@ -267,7 +267,7 @@ func (s *ArgoRolloutsServer) ListRolloutInfos(ctx context.Context, q *rollout.Ro
 	var riList []*rollout.RolloutInfo
 	for i := range rolloutList.Items {
 		cur := rolloutList.Items[i]
-		ri := info.NewRolloutInfo(&cur, nil, nil, nil, nil)
+		ri := info.NewRolloutInfo(&cur, nil, nil, nil, nil, nil)
 		ri.ReplicaSets = info.GetReplicaSetInfo(cur.UID, &cur, allReplicaSets, allPods)
 		riList = append(riList, ri)
 	}
@@ -293,65 +293,61 @@ func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, 
 		}
 	}
 	ctx := ws.Context()
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
+
+	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(q.Namespace))
+	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(q.Namespace)
+	rolloutInformer := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer()
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(s.Options.KubeClientset, 0, kubeinformers.WithNamespace(q.Namespace))
 	podsLister := kubeInformerFactory.Core().V1().Pods().Lister().Pods(q.GetNamespace())
 	rsLister := kubeInformerFactory.Apps().V1().ReplicaSets().Lister().ReplicaSets(q.GetNamespace())
 	kubeInformerFactory.Start(ws.Context().Done())
+	podsInformer := kubeInformerFactory.Core().V1().Pods().Informer()
+
+	rolloutUpdateChan := make(chan *v1alpha1.Rollout)
+
+	rolloutInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			rolloutUpdateChan <- obj.(*v1alpha1.Rollout)
+		},
+		UpdateFunc: func(oldObj, newObj any) {
+			rolloutUpdateChan <- newObj.(*v1alpha1.Rollout)
+		},
+	})
+	podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj any) {
+			podUpdated(obj.(*corev1.Pod), rsLister, rolloutsLister, rolloutUpdateChan)
+		},
+	})
+
+	go rolloutInformer.Run(ctx.Done())
 
 	cache.WaitForCacheSync(
 		ws.Context().Done(),
-		kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
+		podsInformer.HasSynced,
 		kubeInformerFactory.Apps().V1().ReplicaSets().Informer().HasSynced,
+		rolloutInformer.HasSynced,
 	)
 
-	watchIf, err := rolloutIf.Watch(ctx, v1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	var ro *v1alpha1.Rollout
-	retries := 0
-L:
 	for {
 		select {
-		case next := <-watchIf.ResultChan():
-			ro, _ = next.Object.(*v1alpha1.Rollout)
 		case <-ctx.Done():
-			break L
-		}
-		if ro == nil {
-			watchIf.Stop()
-			newWatchIf, err := rolloutIf.Watch(ctx, v1.ListOptions{})
+			return nil
+		case ro := <-rolloutUpdateChan:
+			allPods, err := podsLister.List(labels.Everything())
 			if err != nil {
-				if retries > 5 {
-					return err
-				}
-				log.Warn(err)
-				time.Sleep(time.Second)
-				retries++
-			} else {
-				watchIf = newWatchIf
-				retries = 0
+				return err
 			}
-			continue
-		}
-		allPods, err := podsLister.List(labels.Everything())
-		if err != nil {
-			return err
-		}
-		allReplicaSets, err := rsLister.List(labels.Everything())
-		if err != nil {
-			return err
-		}
+			allReplicaSets, err := rsLister.List(labels.Everything())
+			if err != nil {
+				return err
+			}
 
-		// get shallow rollout info
-		ri := info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil)
-		send(ri)
+			// get shallow rollout info
+			ri := info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil, nil)
+			send(ri)
+		}
 	}
-	watchIf.Stop()
-	return nil
 }
 
 func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollout.RolloutInfo, error) {
@@ -360,7 +356,7 @@ func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollou
 	if err != nil {
 		return nil, err
 	}
-	return info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil), nil
+	return info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil, nil), nil
 }
 
 func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (*rollout.NamespaceInfo, error) {
@@ -393,13 +389,17 @@ func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortR
 
 func (s *ArgoRolloutsServer) getRollout(namespace string, name string) (*v1alpha1.Rollout, error) {
 	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(namespace))
+	cache.WaitForCacheSync(s.stopCh, rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer().HasSynced)
 	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace)
 	return rolloutsLister.Get(name)
 }
 
 func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.SetImageRequest) (*v1alpha1.Rollout, error) {
 	imageString := fmt.Sprintf("%s:%s", q.GetImage(), q.GetTag())
-	set.SetImage(s.Options.DynamicClientset, q.GetNamespace(), q.GetRollout(), q.GetContainer(), imageString)
+	_, err := set.SetImage(s.Options.DynamicClientset, q.GetNamespace(), q.GetRollout(), q.GetContainer(), imageString)
+	if err != nil {
+		return nil, err
+	}
 	return s.getRollout(q.GetNamespace(), q.GetRollout())
 }
 
@@ -427,4 +427,23 @@ func (s *ArgoRolloutsServer) Version(ctx context.Context, _ *empty.Empty) (*roll
 	return &rollout.VersionInfo{
 		RolloutsVersion: version.String(),
 	}, nil
+}
+
+func podUpdated(pod *corev1.Pod, rsLister appslisters.ReplicaSetNamespaceLister,
+	rolloutLister listers.RolloutNamespaceLister, rolloutUpdated chan *v1alpha1.Rollout) {
+	for _, podOwner := range pod.GetOwnerReferences() {
+		if podOwner.Kind == "ReplicaSet" {
+			rs, err := rsLister.Get(podOwner.Name)
+			if err == nil {
+				for _, rsOwner := range rs.GetOwnerReferences() {
+					if rsOwner.APIVersion == v1alpha1.SchemeGroupVersion.String() && rsOwner.Kind == "Rollout" {
+						ro, err := rolloutLister.Get(rsOwner.Name)
+						if err == nil {
+							rolloutUpdated <- ro
+						}
+					}
+				}
+			}
+		}
+	}
 }

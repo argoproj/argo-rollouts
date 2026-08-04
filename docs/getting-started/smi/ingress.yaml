@@ -1,4 +1,4 @@
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: rollouts-demo-stable
@@ -16,7 +16,10 @@ spec:
     http:
       paths:
       - path: /
+        pathType: Prefix
         backend:
-          # Reference to a Service name, also specified in the Rollout spec.strategy.canary.stableService field
-          serviceName: rollouts-demo-stable
-          servicePort: 80
+          service:
+            # Reference to a Service name, also specified in the Rollout spec.strategy.canary.stableService field
+            name: rollouts-demo-stable
+            port:
+              number: 80

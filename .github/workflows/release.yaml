@@ -1,135 +1,297 @@
 name: Release
-
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Git tag to build release from
-        required: true
+  push:
+    tags:
+      - 'v*'
+
+permissions: {}
+
+env:
+  GOLANG_VERSION: '1.26' # Note: go-version must also be set in job controller-image.with.go-version & plugin-image.with.go-version.
 
 jobs:
-  release-images:
+  # Central registry namespace configuration - Allows override of the registry namespace via GitHub vars. Defaults to 'argoproj'
+  set-registry-namespace:
     runs-on: ubuntu-latest
-
+    outputs:
+      registry_namespace: ${{ steps.set.outputs.registry_namespace }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.inputs.tag }}
-
-      - name: Get SHA
-        id: get-sha
-        run: echo "::set-output name=sha::$(git log -1 --format='%H')"
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ steps.get-sha.outputs.sha }}
-
-      - name: Print Disk Usage
+      - name: Set registry namespace
+        id: set
         run: |
-          df -ah
-          docker buildx du
+          REGISTRY_NAMESPACE="${{ vars.REGISTRY_NAMESPACE }}"
+          if [ -z "$REGISTRY_NAMESPACE" ]; then
+            REGISTRY_NAMESPACE="argoproj"
+          fi
+          echo "registry_namespace=$REGISTRY_NAMESPACE" >> $GITHUB_OUTPUT
 
-      - name: Docker meta (controller)
-        id: controller-meta
-        uses: docker/metadata-action@v3
-        with:
-          images: |
-            quay.io/argoproj/argo-rollouts
-            ghcr.io/argoproj/argo-rollouts
-          tags: |
-            type=semver,pattern={{version}},prefix=v,value=${{ github.event.inputs.tag }}
-          flavor: |
-            latest=false
+  controller-image:
+    needs: set-registry-namespace
+    permissions:
+      contents: read
+      packages: write # Required and used to push images to `ghcr.io` if used.
+      id-token: write # For creating OIDC tokens for signing.
+    uses: ./.github/workflows/image-reuse.yaml
+    with:
+      quay_image_name: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts:${{ github.ref_name }}
+      # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
+      go-version: '1.26'
+      platforms: linux/amd64,linux/arm64
+      push: true
+    secrets:
+      quay_username: ${{ secrets.QUAY_USERNAME }}
+      quay_password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
-      - name: Docker meta (plugin)
-        id: plugin-meta
-        uses: docker/metadata-action@v3
-        with:
-          images: |
-            quay.io/argoproj/kubectl-argo-rollouts
-            ghcr.io/argoproj/kubectl-argo-rollouts
-          tags: |
-            type=semver,pattern={{version}},prefix=v,value=${{ github.event.inputs.tag }}
-          flavor: |
-            latest=false
+  plugin-image:
+    needs: set-registry-namespace
+    permissions:
+      contents: read
+      packages: write # Required and used to push images to `ghcr.io` if used.
+      id-token: write # For creating OIDC tokens for signing.
+    uses: ./.github/workflows/image-reuse.yaml
+    with:
+      quay_image_name: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/kubectl-argo-rollouts:${{ github.ref_name }}
+      # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
+      go-version: '1.26'
+      platforms: linux/amd64,linux/arm64
+      push: true
+      target: kubectl-argo-rollouts
+    secrets:
+      quay_username: ${{ secrets.QUAY_USERNAME }}
+      quay_password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
-      - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+  controller-image-provenance:
+    needs:
+      - controller-image
+      - set-registry-namespace
+    permissions:
+      actions: read # for detecting the Github Actions environment.
+      id-token: write # for creating OIDC tokens for signing.
+      packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
+    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
+    with:
+      image: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts
+      digest: ${{ needs.controller-image.outputs.image-digest }}
+    secrets:
+      registry-username: ${{ secrets.QUAY_USERNAME }}
+      registry-password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
-      - name: Login to Quay.io
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v1
-        with:
-          registry: quay.io
-          username: ${{ secrets.QUAY_USERNAME }}
-          password: ${{ secrets.QUAY_ROBOT_TOKEN }}
-
-      - name: Build and push (controller-image)
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.controller-meta.outputs.tags }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-
-      - name: Build and push (plugin-image)
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          target: kubectl-argo-rollouts
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.plugin-meta.outputs.tags }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
-
-        # Temp fix
-        # https://github.com/docker/build-push-action/issues/252
-        # https://github.com/moby/buildkit/issues/1896
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+  plugin-image-provenance:
+    needs:
+      - plugin-image
+      - set-registry-namespace
+    permissions:
+      actions: read # for detecting the Github Actions environment.
+      id-token: write # for creating OIDC tokens for signing.
+      packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
+    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
+    with:
+      image: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/kubectl-argo-rollouts
+      digest: ${{ needs.plugin-image.outputs.image-digest }}
+    secrets:
+      registry-username: ${{ secrets.QUAY_USERNAME }}
+      registry-password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
   release-artifacts:
+    needs: set-registry-namespace
+    permissions:
+      contents: write # for softprops/action-gh-release to create GitHub release
     runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7 # v3.5.2
         with:
-          ref: ${{ github.event.inputs.tag }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Golang
+        uses: actions/setup-go@v7.0.0 # v4.0.1
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Generate release artifacts
         run: |
           make release-plugins
-          make manifests IMAGE_TAG=${{ github.event.inputs.tag }}
+          make checksums
+          make manifests IMAGE_TAG=${{ github.ref_name }} REGISTRY_NAMESPACE=${{ needs.set-registry-namespace.outputs.registry_namespace }}
 
       - name: Draft release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v0.1.15
         with:
           tag_name: ${{ github.event.inputs.tag }}
           draft: true
           files: |
             dist/kubectl-argo-rollouts-linux-amd64
+            dist/kubectl-argo-rollouts-linux-arm64
             dist/kubectl-argo-rollouts-darwin-amd64
+            dist/kubectl-argo-rollouts-darwin-arm64
+            dist/kubectl-argo-rollouts-windows-amd64
+            dist/argo-rollouts-checksums.txt
+            manifests/dashboard-install.yaml
             manifests/install.yaml
             manifests/namespace-install.yaml
+            manifests/notifications-install.yaml
+            docs/features/kustomize/rollout_cr_schema.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate hashes for provenance
+        id: hash
+        run: |
+          echo "hashes=$(sha256sum ./dist/kubectl-argo-rollouts-* ./manifests/*.yaml | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+  release-artifacts-provenance:
+    needs:
+      - release-artifacts
+    permissions:
+      actions: read # for detecting the Github Actions environment
+      id-token: write # Needed for provenance signing and ID
+      contents: write #  Needed for release uploads
+    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: '${{ needs.release-artifacts.outputs.hashes }}'
+      provenance-name: 'argo-rollouts.intoto.jsonl'
+      upload-assets: true
+      draft-release: true
+
+  generate-sbom:
+    name: Create Sbom and sign assets
+    needs:
+      - release-artifacts
+      - release-artifacts-provenance
+      - set-registry-namespace
+    permissions:
+      contents: write # Needed for release uploads
+      id-token: write # Needed for signing Sbom
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7 # v3.3.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Golang
+        uses: actions/setup-go@v7.0.0 # v4.0.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: 'v2.2.0'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          package_json_file: ui/package.json
+
+      - name: Generate SBOM (spdx)
+        id: spdx-builder
+        env:
+          # defines the spdx/spdx-sbom-generator version to use.
+          SPDX_GEN_VERSION: v0.0.13
+          # defines the sigs.k8s.io/bom version to use.
+          SIGS_BOM_VERSION: v0.2.1
+          # full qualified name of the container image to be inspected
+          CONTAINER_IMAGE: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts:${{ github.ref_name }}
+
+        run: |
+          set -euo pipefail
+          pnpm install --dir ./ui --frozen-lockfile
+          go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
+          go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
+
+          generator -p . -o /tmp
+          pnpm --dir ./ui sbom --sbom-format spdx --prod > /tmp/bom-ui-pnpm.spdx.json
+
+          if [[ -n "${CONTAINER_IMAGE:-}" ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i "${CONTAINER_IMAGE}"
+          fi
+
+          cd /tmp
+          shopt -s nullglob
+          spdx_files=( *.spdx )
+          shopt -u nullglob
+          if [[ ${#spdx_files[@]} -eq 0 ]]; then
+            echo "No .spdx files produced under /tmp"
+            exit 1
+          fi
+          tar -zcf sbom.tar.gz "${spdx_files[@]}" bom-ui-pnpm.spdx.json
+
+      - name: Sign SBOM
+        run: |
+          cosign sign-blob \
+            --output-certificate=/tmp/sbom.tar.gz.pem \
+            --output-signature=/tmp/sbom.tar.gz.sig \
+            --yes \
+            /tmp/sbom.tar.gz
+
+      - name: Upload SBOM and signature assets
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v0.1.15
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          files: |
+            /tmp/sbom.tar.*
+
+  post-release:
+    needs:
+      - release-artifacts
+      - generate-sbom
+    permissions:
+      contents: write # Needed to push commit to update stable tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7 # v3.3.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git author information
+        run: |
+          set -ue
+          git config --global user.email 'ci@argoproj.com'
+          git config --global user.name 'CI'
+
+      - name: Check if tag is the latest version and not a pre-release
+        run: |
+          set -xue
+          # Fetch all tag information
+          git fetch --prune --tags --force
+
+          LATEST_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n1)
+
+          PRE_RELEASE=false
+          # Check if latest tag is a pre-release
+          if echo $LATEST_TAG | grep -E -- '-rc[0-9]+$';then
+            PRE_RELEASE=true
+          fi
+
+          # Ensure latest tag matches github.ref_name & not a pre-release
+          if [[ $LATEST_TAG == ${{ github.ref_name }} ]] && [[ $PRE_RELEASE != 'true' ]];then
+            echo "TAG_STABLE=true" >> $GITHUB_ENV
+          else
+            echo "TAG_STABLE=false" >> $GITHUB_ENV
+          fi
+
+      - name: Update stable tag to latest version
+        run: |
+          git tag -f stable ${{ github.ref_name }}
+          git push -f origin stable
+        if: ${{ env.TAG_STABLE == 'true' }}

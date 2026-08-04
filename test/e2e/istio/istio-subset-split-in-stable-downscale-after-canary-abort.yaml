@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-subset-split-in-stable-downscale-after-canary-abort
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: istio-subset-split-in-stable-downscale-after-canary-abort
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-subset-split-in-stable-downscale-after-canary-abort-vsvc
+spec:
+  hosts:
+  - istio-subset-split-in-stable-downscale-after-canary-abort
+  http:
+  - route:
+    - destination:
+        host: istio-subset-split-in-stable-downscale-after-canary-abort
+        subset: stable
+      weight: 100
+    - destination:
+        host: istio-subset-split-in-stable-downscale-after-canary-abort
+        subset: canary
+      weight: 0
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-subset-split-in-stable-downscale-after-canary-abort-destrule
+spec:
+  host: istio-subset-split-in-stable-downscale-after-canary-abort
+  subsets:
+  - name: stable
+    labels:
+      app: istio-subset-split-in-stable-downscale-after-canary-abort
+  - name: canary
+    labels:
+      app: istio-subset-split-in-stable-downscale-after-canary-abort
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: istio-subset-split-in-stable-downscale-after-canary-abort
+spec:
+  replicas: 4
+  strategy:
+    canary:
+      dynamicStableScale: true
+      trafficRouting:
+        istio:
+          virtualService: 
+            name: istio-subset-split-in-stable-downscale-after-canary-abort-vsvc
+          destinationRule:
+            name: istio-subset-split-in-stable-downscale-after-canary-abort-destrule
+            canarySubsetName: canary
+            stableSubsetName: stable
+      canaryMetadata:
+        labels:
+          role: canary
+      stableMetadata:
+        labels:
+          role: stable
+      maxSurge: "25%"
+      maxUnavailable: "20%"
+      steps:
+        - setWeight: 10
+        - pause: {}
+        - setWeight: 20
+        - pause: {}
+        - setWeight: 30
+        - pause: {}          
+        - setWeight: 50
+        - pause: {}
+  selector:
+    matchLabels:
+      app: istio-subset-split-in-stable-downscale-after-canary-abort
+  template:
+    metadata:
+      labels:
+        app: istio-subset-split-in-stable-downscale-after-canary-abort
+    spec:
+      containers:
+      - name: istio-subset-split-in-stable-downscale-after-canary-abort
+        image: nginx:1.19-alpine
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m

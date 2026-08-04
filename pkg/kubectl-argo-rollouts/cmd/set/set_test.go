@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -298,4 +299,85 @@ func TestSetImageConflict(t *testing.T) {
 	assert.Equal(t, stdout, "rollout \"guestbook\" image updated\n")
 	assert.Empty(t, stderr)
 	assert.True(t, updateCalls > 0)
+}
+
+func TestSetImageWorkloadRef(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			WorkloadRef: &v1alpha1.ObjectRef{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       "guestbook",
+			},
+		},
+	}
+	deploy := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						{
+							Name:  "guestbook",
+							Image: "argoproj/rollouts-demo:blue",
+						},
+					},
+					Containers: []corev1.Container{
+						{
+							Name:  "foo",
+							Image: "alpine:3.8",
+						},
+						{
+							Name:  "guestbook",
+							Image: "argoproj/rollouts-demo:blue",
+						},
+						{
+							Name:  "bar",
+							Image: "alpine:3.8",
+						},
+					},
+					EphemeralContainers: []corev1.EphemeralContainer{
+						{
+							EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+								Name:  "guestbook",
+								Image: "argoproj/rollouts-demo:blue",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tf, o := options.NewFakeArgoRolloutsOptions(&ro, &deploy)
+	defer tf.Cleanup()
+
+	cmd := NewCmdSetImage(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"guestbook", "guestbook=argoproj/rollouts-demo:NEWIMAGE"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+
+	newDeployUn, err := o.DynamicClientset().Resource(deploymentGVR).Namespace(ro.Namespace).Get(context.Background(), "guestbook", metav1.GetOptions{})
+	assert.NoError(t, err)
+	var newDeploy appsv1.Deployment
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(newDeployUn.Object, &newDeploy)
+	assert.NoError(t, err)
+	assert.Equal(t, "argoproj/rollouts-demo:NEWIMAGE", newDeploy.Spec.Template.Spec.Containers[1].Image)
+	assert.Equal(t, "alpine:3.8", newDeploy.Spec.Template.Spec.Containers[0].Image)
+	assert.Equal(t, "alpine:3.8", newDeploy.Spec.Template.Spec.Containers[2].Image)
+	assert.Equal(t, "argoproj/rollouts-demo:NEWIMAGE", newDeploy.Spec.Template.Spec.InitContainers[0].Image)
+	assert.Equal(t, "argoproj/rollouts-demo:NEWIMAGE", newDeploy.Spec.Template.Spec.EphemeralContainers[0].Image)
+
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, stdout, "deployment \"guestbook\" image updated\n")
+	assert.Empty(t, stderr)
 }

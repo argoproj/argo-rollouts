@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -18,7 +17,6 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -80,7 +78,7 @@ func NewReconciler(r *v1alpha1.Rollout, c ClientInterface, rec record.EventRecor
 // in the ambassador configuration in the traffic routing section of the rollout. If
 // the canary ambassador mapping is already present, it will be updated to the given
 // desiredWeight.
-func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 	r.sendNormalEvent(CanaryMappingWeightUpdate, fmt.Sprintf("Set canary mapping weight to %d", desiredWeight))
 	ctx := context.TODO()
 	baseMappingNameList := r.Rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings
@@ -114,6 +112,10 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...tr
 		}
 	}
 	return formatErrors(errs)
+}
+
+func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) error {
+	return nil
 }
 
 func formatErrors(errs []error) error {
@@ -211,11 +213,12 @@ func (r *Reconciler) createCanaryMapping(ctx context.Context,
 	if weight != 0 {
 		msg := fmt.Sprintf("Ambassador mapping %q can not define weight", baseMappingName)
 		r.sendWarningEvent(AmbassadorMappingConfigError, msg)
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	canarySvc := r.Rollout.Spec.Strategy.Canary.CanaryService
-	canaryMapping := buildCanaryMapping(baseMapping, canarySvc, desiredWeight)
+	stableService := r.Rollout.Spec.Strategy.Canary.StableService
+	canaryMapping := buildCanaryMapping(baseMapping, canarySvc, stableService, desiredWeight)
 	_, err = client.Create(ctx, canaryMapping, metav1.CreateOptions{})
 	if err != nil {
 		msg := fmt.Sprintf("Error creating canary mapping: %s", err)
@@ -224,9 +227,9 @@ func (r *Reconciler) createCanaryMapping(ctx context.Context,
 	return err
 }
 
-func buildCanaryMapping(baseMapping *unstructured.Unstructured, canarySvc string, desiredWeight int32) *unstructured.Unstructured {
+func buildCanaryMapping(baseMapping *unstructured.Unstructured, canarySvc string, stableService string, desiredWeight int32) *unstructured.Unstructured {
 	canaryMapping := baseMapping.DeepCopy()
-	svc := buildCanaryService(baseMapping, canarySvc)
+	svc := buildCanaryService(baseMapping, canarySvc, stableService)
 	unstructured.RemoveNestedField(canaryMapping.Object, "metadata")
 	cMappingName := buildCanaryMappingName(baseMapping.GetName())
 	canaryMapping.SetName(cMappingName)
@@ -236,23 +239,13 @@ func buildCanaryMapping(baseMapping *unstructured.Unstructured, canarySvc string
 	return canaryMapping
 }
 
-func buildCanaryService(baseMapping *unstructured.Unstructured, canarySvc string) string {
+func buildCanaryService(baseMapping *unstructured.Unstructured, canarySvc string, stableService string) string {
 	curSvc := GetMappingService(baseMapping)
-	parts := strings.Split(curSvc, ":")
-	if len(parts) < 2 {
-		return canarySvc
-	}
-	// Check if the last part is a valid int that can be used as the port
-	port := parts[len(parts)-1]
-	if _, err := strconv.Atoi(port); err != nil {
-		return canarySvc
-
-	}
-	return fmt.Sprintf("%s:%s", canarySvc, port)
+	return strings.Replace(curSvc, stableService, canarySvc, 1)
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
-	return true, nil
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
+	return nil, nil
 }
 
 func (r *Reconciler) Type() string {
@@ -325,6 +318,14 @@ func (r *Reconciler) sendEvent(eventType, id, msg string) {
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+	return nil
+}
+
+func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) error {
+	return nil
+}
+
+func (r *Reconciler) RemoveManagedRoutes() error {
 	return nil
 }

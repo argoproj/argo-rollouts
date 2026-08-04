@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/hash"
 )
 
 var (
@@ -350,7 +350,7 @@ func TestRolloutProgressing(t *testing.T) {
 
 }
 
-func TestRolloutComplete(t *testing.T) {
+func TestRolloutHealthy(t *testing.T) {
 	rollout := func(desired, current, updated, available int32, correctObservedGeneration bool) *v1alpha1.Rollout {
 		r := &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
@@ -363,7 +363,7 @@ func TestRolloutComplete(t *testing.T) {
 			},
 		}
 		r.Generation = 123
-		podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+		podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 		r.Status.CurrentPodHash = podHash
 		return r
 	}
@@ -388,7 +388,7 @@ func TestRolloutComplete(t *testing.T) {
 		r := rollout(desired, current, updated, available, correctObservedGeneration)
 		steps := []v1alpha1.CanaryStep{}
 		if hasSteps {
-			steps = append(steps, v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(30)})
+			steps = append(steps, v1alpha1.CanaryStep{SetWeight: ptr.To[int32](30)})
 		}
 		r.Spec.Strategy = v1alpha1.RolloutStrategy{
 			Canary: &v1alpha1.CanaryStrategy{
@@ -411,13 +411,13 @@ func TestRolloutComplete(t *testing.T) {
 		{
 			name: "BlueGreen complete",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 5, 5, 5, true, "85f7cf5fc7", "85f7cf5fc7"),
+			r:        blueGreenRollout(5, 5, 5, 5, true, "658c46c486", "658c46c486"),
 			expected: true,
 		},
 		{
 			name: "BlueGreen complete with extra old replicas",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 6, 5, 5, true, "85f7cf5fc7", "85f7cf5fc7"),
+			r:        blueGreenRollout(5, 6, 5, 5, true, "658c46c486", "658c46c486"),
 			expected: true,
 		},
 		{
@@ -433,12 +433,12 @@ func TestRolloutComplete(t *testing.T) {
 		},
 		{
 			name:     "CanaryWithSteps Completed",
-			r:        canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(1)),
+			r:        canaryRollout(1, 1, 1, 1, true, "active", true, ptr.To[int32](1)),
 			expected: false,
 		},
 		{
 			name:     "CanaryWithSteps Not Completed: Steps left",
-			r:        canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(0)),
+			r:        canaryRollout(1, 1, 1, 1, true, "active", true, ptr.To[int32](0)),
 			expected: false,
 		},
 		{
@@ -475,10 +475,34 @@ func TestRolloutComplete(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expected, RolloutComplete(test.r, &test.r.Status))
+			assert.Equal(t, test.expected, RolloutHealthy(test.r, &test.r.Status))
 		})
 	}
 
+}
+
+func TestRolloutComplete(t *testing.T) {
+	rollout := func(desired, current, updated, available int32) *v1alpha1.Rollout {
+		r := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Replicas: &desired,
+			},
+			Status: v1alpha1.RolloutStatus{
+				Replicas:          current,
+				UpdatedReplicas:   updated,
+				AvailableReplicas: available,
+			},
+		}
+		podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
+		r.Status.CurrentPodHash = podHash
+		r.Status.StableRS = podHash
+		return r
+	}
+	r := rollout(5, 5, 5, 5)
+	assert.Equal(t, true, RolloutCompleted(&r.Status))
+
+	r.Status.StableRS = "not-current-pod-hash"
+	assert.Equal(t, false, RolloutCompleted(&r.Status))
 }
 
 func TestRolloutTimedOut(t *testing.T) {
@@ -531,6 +555,22 @@ func TestRolloutTimedOut(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			name:                    "Rollout has not time out when paused",
+			progressDeadlineSeconds: 5,
+			newStatus: v1alpha1.RolloutStatus{
+				Conditions: conditions(RolloutPausedReason, before),
+			},
+			expected: false,
+		},
+		{
+			name:                    "Rollout has not time out when aborted",
+			progressDeadlineSeconds: 5,
+			newStatus: v1alpha1.RolloutStatus{
+				Conditions: conditions(RolloutAbortedReason, before),
+			},
+			expected: false,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
@@ -577,7 +617,7 @@ func TestComputeStepHash(t *testing.T) {
 
 	roWithSameSteps := ro.DeepCopy()
 	roWithSameSteps.Status.CurrentPodHash = "Test"
-	roWithSameSteps.Spec.Replicas = pointer.Int32Ptr(1)
+	roWithSameSteps.Spec.Replicas = ptr.To[int32](1)
 	roWithSameStepsHash := ComputeStepHash(roWithSameSteps)
 	assert.Equal(t, "6b9b86fbd5", roWithSameStepsHash)
 

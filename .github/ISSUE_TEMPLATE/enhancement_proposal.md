@@ -15,4 +15,4 @@ When would you use this?
 <!-- Issue Author: Don't delete this message to encourage other users to support your issue! -->
 **Message from the maintainers**:
 
-Impacted by this bug? Give it a 👍. We prioritize the issues with the most 👍.
+Need this enhancement? Give it a 👍. We prioritize the issues with the most 👍.

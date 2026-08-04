@@ -28,7 +28,7 @@
                 "rgba(237, 129, 40, 0.89)",
                 "#d44a3a"
             ],
-            "datasource": "Prometheus",
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                     "custom": {}
@@ -107,7 +107,7 @@
         },
         {
             "cacheTimeout": null,
-            "datasource": null,
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                     "color": {
@@ -185,7 +185,7 @@
             "cacheTimeout": null,
             "dashLength": 10,
             "dashes": false,
-            "datasource": null,
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                     "custom": {}
@@ -279,7 +279,7 @@
         },
         {
             "collapsed": true,
-            "datasource": null,
+            "datasource": "$datasource",
             "gridPos": {
                 "h": 1,
                 "w": 24,
@@ -290,7 +290,7 @@
             "panels": [
                 {
                     "cacheTimeout": null,
-                    "datasource": "Prometheus",
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "color": {
@@ -370,7 +370,7 @@
                 },
                 {
                     "cacheTimeout": null,
-                    "datasource": "Prometheus",
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "color": {
@@ -450,7 +450,7 @@
                 },
                 {
                     "cacheTimeout": null,
-                    "datasource": "Prometheus",
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "color": {
@@ -530,7 +530,7 @@
                 },
                 {
                     "cacheTimeout": null,
-                    "datasource": "Prometheus",
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "color": {
@@ -607,7 +607,7 @@
                 },
                 {
                     "cacheTimeout": null,
-                    "datasource": "Prometheus",
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "color": {
@@ -687,7 +687,7 @@
                 },
                 {
                     "cacheTimeout": null,
-                    "datasource": "Prometheus",
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "color": {
@@ -764,7 +764,7 @@
                 },
                 {
                     "cacheTimeout": null,
-                    "datasource": "Prometheus",
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "color": {
@@ -846,7 +846,7 @@
                     "bars": false,
                     "dashLength": 10,
                     "dashes": false,
-                    "datasource": null,
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "custom": {}
@@ -952,7 +952,7 @@
                         "mode": "spectrum"
                     },
                     "dataFormat": "tsbuckets",
-                    "datasource": null,
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "custom": {}
@@ -1014,7 +1014,7 @@
                     "bars": false,
                     "dashLength": 10,
                     "dashes": false,
-                    "datasource": null,
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "custom": {}
@@ -1112,7 +1112,7 @@
         },
         {
             "collapsed": true,
-            "datasource": null,
+            "datasource": "$datasource",
             "gridPos": {
                 "h": 1,
                 "w": 24,
@@ -1122,7 +1122,7 @@
             "id": 32,
             "panels": [
                 {
-                    "datasource": null,
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "color": {
@@ -1186,7 +1186,7 @@
                     "type": "table"
                 },
                 {
-                    "datasource": null,
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "color": {
@@ -1246,7 +1246,7 @@
                     "type": "stat"
                 },
                 {
-                    "datasource": null,
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "color": {
@@ -1309,7 +1309,7 @@
                     "type": "stat"
                 },
                 {
-                    "datasource": null,
+                    "datasource": "$datasource",
                     "fieldConfig": {
                         "defaults": {
                             "color": {
@@ -1383,13 +1383,32 @@
     "templating": {
         "list": [
             {
+                "current": {
+                    "selected": false,
+                    "text": "prometheus",
+                    "value": "prometheus"
+                },
+                "hide": 0,
+                "definition": "datasource(prometheus)",
+                "description": "rollout datasource",
+                "multi": false,
+                "name": "datasource",
+                "options": [],
+                "query": "prometheus",
+                "queryValue": "",
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "type": "datasource"
+            },
+            {
                 "allValue": null,
                 "current": {
                     "selected": false,
                     "text": "default",
                     "value": "default"
                 },
-                "datasource": null,
+                "datasource": "$datasource",
                 "definition": "label_values(rollout_info,namespace)",
                 "description": "rollout namespace",
                 "error": null,
@@ -1420,7 +1439,7 @@
                     "text": "",
                     "value": ""
                 },
-                "datasource": null,
+                "datasource": "$datasource",
                 "definition": "label_values(rollout_info{namespace=\"$rollout_namespace\"},name)",
                 "description": "rollout name",
                 "error": null,

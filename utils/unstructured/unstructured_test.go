@@ -155,11 +155,63 @@ spec:
 	obj, err := StrToUnstructured(arYAML)
 	assert.NotNil(t, obj)
 	assert.NoError(t, err)
-	ar := ObjectToRollout(obj)
+	ar := ObjectToAnalysisRun(obj)
 	assert.NotNil(t, ar)
-	ar2 := ObjectToRollout(ar)
+	ar2 := ObjectToAnalysisRun(ar)
 	assert.Equal(t, ar, ar2)
 	var invalid struct{}
-	ar3 := ObjectToRollout(&invalid)
+	ar3 := ObjectToAnalysisRun(&invalid)
 	assert.Nil(t, ar3)
+}
+
+func TestObjectToExpirment(t *testing.T) {
+	exYAML := `
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: experiment-with-analysis
+spec:
+  templates:
+  - name: purple
+    selector:
+      matchLabels:
+        app: rollouts-demo
+    template:
+      metadata:
+        labels:
+          app: rollouts-demo
+      spec:
+        containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:purple
+          imagePullPolicy: Always
+  - name: orange
+    selector:
+      matchLabels:
+        app: rollouts-demo
+    template:
+      metadata:
+        labels:
+          app: rollouts-demo
+      spec:
+        containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:orange
+          imagePullPolicy: Always
+  analyses:
+  - name: random-fail
+    templateName: random-fail
+  - name: pass
+    templateName: pass
+`
+	obj, err := StrToUnstructured(exYAML)
+	assert.NotNil(t, obj)
+	assert.NoError(t, err)
+	ex := ObjectToExperiment(obj)
+	assert.NotNil(t, ex)
+	ex2 := ObjectToExperiment(ex)
+	assert.Equal(t, ex, ex2)
+	var invalid struct{}
+	ex3 := ObjectToExperiment(&invalid)
+	assert.Nil(t, ex3)
 }

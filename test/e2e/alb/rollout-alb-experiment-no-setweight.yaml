@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alb-rollout-root
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: alb-rollout
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alb-rollout-canary
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: alb-rollout
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alb-rollout-stable
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: alb-rollout
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alb-rollout-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: alb-rollout-root
+                port:
+                  name: use-annotation
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: alb-rollout
+spec:
+  selector:
+    matchLabels:
+      app: alb-rollout
+  template:
+    metadata:
+      labels:
+        app: alb-rollout
+    spec:
+      containers:
+        - name: alb-rollout
+          image: nginx:1.19-alpine
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 5m
+  strategy:
+    canary:
+      canaryService: alb-rollout-canary
+      stableService: alb-rollout-stable
+      trafficRouting:
+        alb:
+          ingress: alb-rollout-ingress
+          rootService: alb-rollout-root
+          servicePort: 80
+      steps:
+      - experiment:
+          duration: 15s
+          templates:
+          - name: experiment-alb-canary
+            specRef: canary
+            weight: 20
+          - name: experiment-alb-stable
+            specRef: stable
+            weight: 20

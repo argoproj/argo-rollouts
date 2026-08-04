@@ -2,16 +2,23 @@ package metrics
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informerfactory "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -52,7 +59,7 @@ func newFakeServerConfig(objs ...runtime.Object) ServerConfig {
 	}
 }
 
-func testHttpResponse(t *testing.T, handler http.Handler, expectedResponse string) {
+func testHttpResponse(t *testing.T, handler http.Handler, expectedResponse string, testFunc func(t assert.TestingT, s any, contains any, msgAndArgs ...any) bool) {
 	t.Helper()
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
@@ -60,9 +67,8 @@ func testHttpResponse(t *testing.T, handler http.Handler, expectedResponse strin
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, rr.Code, http.StatusOK)
 	body := rr.Body.String()
-	log.Println(body)
 	for _, line := range strings.Split(expectedResponse, "\n") {
-		assert.Contains(t, body, line)
+		testFunc(t, body, line)
 	}
 }
 
@@ -77,6 +83,7 @@ func TestIncError(t *testing.T) {
 analysis_run_reconcile_error{name="name",namespace="ns"} 1
 # HELP experiment_reconcile_error Error occurring during the experiment
 # TYPE experiment_reconcile_error counter
+experiment_reconcile_error{name="name",namespace="ns"} 1
 # HELP rollout_reconcile_error Error occurring during the rollout
 # TYPE rollout_reconcile_error counter
 rollout_reconcile_error{name="name",namespace="ns"} 1`
@@ -86,5 +93,508 @@ rollout_reconcile_error{name="name",namespace="ns"} 1`
 	metricsServ.IncError("ns", "name", logutil.AnalysisRunKey)
 	metricsServ.IncError("ns", "name", logutil.ExperimentKey)
 	metricsServ.IncError("ns", "name", logutil.RolloutKey)
-	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
+}
+
+func TestVersionInfo(t *testing.T) {
+	expectedResponse := `# HELP argo_rollouts_controller_info Running Argo-rollouts version
+# TYPE argo_rollouts_controller_info gauge`
+	metricsServ := NewMetricsServer(newFakeServerConfig())
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
+}
+
+func TestRemove(t *testing.T) {
+	defaults.SetMetricCleanupDelaySeconds(1)
+
+	expectedResponse := `analysis_run_reconcile_error{name="name1",namespace="ns"} 1
+experiment_reconcile_error{name="name1",namespace="ns"} 1
+rollout_reconcile_error{name="name1",namespace="ns"} 1`
+
+	metricsServ := NewMetricsServer(newFakeServerConfig())
+
+	metricsServ.IncError("ns", "name1", logutil.RolloutKey)
+	metricsServ.IncError("ns", "name1", logutil.AnalysisRunKey)
+	metricsServ.IncError("ns", "name1", logutil.ExperimentKey)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
+
+	metricsServ.Remove("ns", "name1", logutil.AnalysisRunKey)
+	metricsServ.Remove("ns", "name1", logutil.ExperimentKey)
+	metricsServ.Remove("ns", "name1", logutil.RolloutKey)
+
+	//Sleep for 2x the cleanup delay to allow metrics to be removed
+	time.Sleep(defaults.GetMetricCleanupDelaySeconds() * 2)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.NotContains)
+}
+
+// TestEmitRolloutDuration_Promoted tests metric emission for promoted rollouts
+func TestEmitRolloutDuration_Promoted(t *testing.T) {
+	m := NewMetricsServer(newFakeServerConfig())
+
+	now := metav1.Now()
+	startTime := metav1.NewTime(now.Add(-5 * time.Minute))
+	finishedAt := now
+	totalManualPauseDurationSeconds := int64(60) // 1 minute
+	completionStatus := v1alpha1.CompletionStatusPromoted
+
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rollout",
+			Namespace: "default",
+		},
+		Status: v1alpha1.RolloutStatus{
+			Duration: &v1alpha1.RolloutDurationStatus{
+				RolloutStartedAt:                &startTime,
+				FinishedAt:                      &finishedAt,
+				CompletionStatus:                &completionStatus,
+				TotalManualPauseDurationSeconds: &totalManualPauseDurationSeconds,
+			},
+		},
+	}
+
+	// Total: 5 minutes = 300 seconds
+	// Progression: 5 minutes - 1 minute pause = 240 seconds
+	// Manual pause: 1 minute = 60 seconds
+	expected := `
+# HELP rollout_manual_pause_duration_seconds Time spent in manual pause waiting for human intervention
+# TYPE rollout_manual_pause_duration_seconds histogram
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="0"} 0
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="60"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="300"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="1800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="3600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="7200"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="14400"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="28800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="+Inf"} 1
+rollout_manual_pause_duration_seconds_sum{status="Promoted"} 60
+rollout_manual_pause_duration_seconds_count{status="Promoted"} 1
+
+# HELP rollout_progression_duration_seconds Active progression time for a rollout (excluding manual pause time)
+# TYPE rollout_progression_duration_seconds histogram
+rollout_progression_duration_seconds_bucket{status="Promoted",le="30"} 0
+rollout_progression_duration_seconds_bucket{status="Promoted",le="60"} 0
+rollout_progression_duration_seconds_bucket{status="Promoted",le="120"} 0
+rollout_progression_duration_seconds_bucket{status="Promoted",le="300"} 1
+rollout_progression_duration_seconds_bucket{status="Promoted",le="600"} 1
+rollout_progression_duration_seconds_bucket{status="Promoted",le="900"} 1
+rollout_progression_duration_seconds_bucket{status="Promoted",le="1800"} 1
+rollout_progression_duration_seconds_bucket{status="Promoted",le="3600"} 1
+rollout_progression_duration_seconds_bucket{status="Promoted",le="+Inf"} 1
+rollout_progression_duration_seconds_sum{status="Promoted"} 240
+rollout_progression_duration_seconds_count{status="Promoted"} 1
+
+# HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
+# TYPE rollout_duration_seconds histogram
+rollout_duration_seconds_bucket{status="Promoted",le="30"} 0
+rollout_duration_seconds_bucket{status="Promoted",le="60"} 0
+rollout_duration_seconds_bucket{status="Promoted",le="120"} 0
+rollout_duration_seconds_bucket{status="Promoted",le="300"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="600"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="1200"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="1800"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="3600"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="7200"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="14400"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="28800"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="+Inf"} 1
+rollout_duration_seconds_sum{status="Promoted"} 300
+rollout_duration_seconds_count{status="Promoted"} 1
+`
+	m.EmitRolloutDuration(rollout.Status.Duration)
+
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	require.NoError(t, err)
+}
+
+// TestEmitRolloutDuration_ManuallyPromoted tests metric emission for manually promoted rollouts
+func TestEmitRolloutDuration_ManuallyPromoted(t *testing.T) {
+	m := NewMetricsServer(newFakeServerConfig())
+
+	now := metav1.Now()
+	startTime := metav1.NewTime(now.Add(-3 * time.Minute))
+	finishedAt := now
+	completionStatus := v1alpha1.CompletionStatusFastPromoted
+
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rollout",
+			Namespace: "default",
+		},
+		Status: v1alpha1.RolloutStatus{
+			Duration: &v1alpha1.RolloutDurationStatus{
+				RolloutStartedAt: &startTime,
+				FinishedAt:       &finishedAt,
+				CompletionStatus: &completionStatus,
+			},
+		},
+	}
+
+	// Total: 3 minutes = 180 seconds
+	// Progression: 3 minutes (no pause) = 180 seconds
+	// Manual pause: 0 seconds
+	expected := `
+# HELP rollout_manual_pause_duration_seconds Time spent in manual pause waiting for human intervention
+# TYPE rollout_manual_pause_duration_seconds histogram
+rollout_manual_pause_duration_seconds_bucket{status="FastPromoted",le="0"} 1
+rollout_manual_pause_duration_seconds_bucket{status="FastPromoted",le="60"} 1
+rollout_manual_pause_duration_seconds_bucket{status="FastPromoted",le="300"} 1
+rollout_manual_pause_duration_seconds_bucket{status="FastPromoted",le="600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="FastPromoted",le="1800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="FastPromoted",le="3600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="FastPromoted",le="7200"} 1
+rollout_manual_pause_duration_seconds_bucket{status="FastPromoted",le="14400"} 1
+rollout_manual_pause_duration_seconds_bucket{status="FastPromoted",le="28800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="FastPromoted",le="+Inf"} 1
+rollout_manual_pause_duration_seconds_sum{status="FastPromoted"} 0
+rollout_manual_pause_duration_seconds_count{status="FastPromoted"} 1
+
+# HELP rollout_progression_duration_seconds Active progression time for a rollout (excluding manual pause time)
+# TYPE rollout_progression_duration_seconds histogram
+rollout_progression_duration_seconds_bucket{status="FastPromoted",le="30"} 0
+rollout_progression_duration_seconds_bucket{status="FastPromoted",le="60"} 0
+rollout_progression_duration_seconds_bucket{status="FastPromoted",le="120"} 0
+rollout_progression_duration_seconds_bucket{status="FastPromoted",le="300"} 1
+rollout_progression_duration_seconds_bucket{status="FastPromoted",le="600"} 1
+rollout_progression_duration_seconds_bucket{status="FastPromoted",le="900"} 1
+rollout_progression_duration_seconds_bucket{status="FastPromoted",le="1800"} 1
+rollout_progression_duration_seconds_bucket{status="FastPromoted",le="3600"} 1
+rollout_progression_duration_seconds_bucket{status="FastPromoted",le="+Inf"} 1
+rollout_progression_duration_seconds_sum{status="FastPromoted"} 180
+rollout_progression_duration_seconds_count{status="FastPromoted"} 1
+
+# HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
+# TYPE rollout_duration_seconds histogram
+rollout_duration_seconds_bucket{status="FastPromoted",le="30"} 0
+rollout_duration_seconds_bucket{status="FastPromoted",le="60"} 0
+rollout_duration_seconds_bucket{status="FastPromoted",le="120"} 0
+rollout_duration_seconds_bucket{status="FastPromoted",le="300"} 1
+rollout_duration_seconds_bucket{status="FastPromoted",le="600"} 1
+rollout_duration_seconds_bucket{status="FastPromoted",le="1200"} 1
+rollout_duration_seconds_bucket{status="FastPromoted",le="1800"} 1
+rollout_duration_seconds_bucket{status="FastPromoted",le="3600"} 1
+rollout_duration_seconds_bucket{status="FastPromoted",le="7200"} 1
+rollout_duration_seconds_bucket{status="FastPromoted",le="14400"} 1
+rollout_duration_seconds_bucket{status="FastPromoted",le="28800"} 1
+rollout_duration_seconds_bucket{status="FastPromoted",le="+Inf"} 1
+rollout_duration_seconds_sum{status="FastPromoted"} 180
+rollout_duration_seconds_count{status="FastPromoted"} 1
+`
+	m.EmitRolloutDuration(rollout.Status.Duration)
+
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	require.NoError(t, err)
+}
+
+// TestEmitRolloutDuration_Aborted tests metric emission for aborted rollouts
+func TestEmitRolloutDuration_Aborted(t *testing.T) {
+	m := NewMetricsServer(newFakeServerConfig())
+
+	now := metav1.Now()
+	startTime := metav1.NewTime(now.Add(-2 * time.Minute))
+	finishedAt := now
+	completionStatus := v1alpha1.CompletionStatusAborted
+
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rollout",
+			Namespace: "default",
+		},
+		Status: v1alpha1.RolloutStatus{
+			Duration: &v1alpha1.RolloutDurationStatus{
+				RolloutStartedAt: &startTime,
+				FinishedAt:       &finishedAt,
+				CompletionStatus: &completionStatus,
+			},
+		},
+	}
+
+	// Total: 2 minutes = 120 seconds
+	// Progression: 2 minutes (no pause) = 120 seconds
+	// Manual pause: 0 seconds
+	expected := `
+# HELP rollout_manual_pause_duration_seconds Time spent in manual pause waiting for human intervention
+# TYPE rollout_manual_pause_duration_seconds histogram
+rollout_manual_pause_duration_seconds_bucket{status="Aborted",le="0"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Aborted",le="60"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Aborted",le="300"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Aborted",le="600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Aborted",le="1800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Aborted",le="3600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Aborted",le="7200"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Aborted",le="14400"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Aborted",le="28800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Aborted",le="+Inf"} 1
+rollout_manual_pause_duration_seconds_sum{status="Aborted"} 0
+rollout_manual_pause_duration_seconds_count{status="Aborted"} 1
+
+# HELP rollout_progression_duration_seconds Active progression time for a rollout (excluding manual pause time)
+# TYPE rollout_progression_duration_seconds histogram
+rollout_progression_duration_seconds_bucket{status="Aborted",le="30"} 0
+rollout_progression_duration_seconds_bucket{status="Aborted",le="60"} 0
+rollout_progression_duration_seconds_bucket{status="Aborted",le="120"} 1
+rollout_progression_duration_seconds_bucket{status="Aborted",le="300"} 1
+rollout_progression_duration_seconds_bucket{status="Aborted",le="600"} 1
+rollout_progression_duration_seconds_bucket{status="Aborted",le="900"} 1
+rollout_progression_duration_seconds_bucket{status="Aborted",le="1800"} 1
+rollout_progression_duration_seconds_bucket{status="Aborted",le="3600"} 1
+rollout_progression_duration_seconds_bucket{status="Aborted",le="+Inf"} 1
+rollout_progression_duration_seconds_sum{status="Aborted"} 120
+rollout_progression_duration_seconds_count{status="Aborted"} 1
+
+# HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
+# TYPE rollout_duration_seconds histogram
+rollout_duration_seconds_bucket{status="Aborted",le="30"} 0
+rollout_duration_seconds_bucket{status="Aborted",le="60"} 0
+rollout_duration_seconds_bucket{status="Aborted",le="120"} 1
+rollout_duration_seconds_bucket{status="Aborted",le="300"} 1
+rollout_duration_seconds_bucket{status="Aborted",le="600"} 1
+rollout_duration_seconds_bucket{status="Aborted",le="1200"} 1
+rollout_duration_seconds_bucket{status="Aborted",le="1800"} 1
+rollout_duration_seconds_bucket{status="Aborted",le="3600"} 1
+rollout_duration_seconds_bucket{status="Aborted",le="7200"} 1
+rollout_duration_seconds_bucket{status="Aborted",le="14400"} 1
+rollout_duration_seconds_bucket{status="Aborted",le="28800"} 1
+rollout_duration_seconds_bucket{status="Aborted",le="+Inf"} 1
+rollout_duration_seconds_sum{status="Aborted"} 120
+rollout_duration_seconds_count{status="Aborted"} 1
+`
+	m.EmitRolloutDuration(rollout.Status.Duration)
+
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	require.NoError(t, err)
+}
+
+// TestEmitRolloutDuration_Superseded tests metric emission for superseded rollouts
+func TestEmitRolloutDuration_Superseded(t *testing.T) {
+	m := NewMetricsServer(newFakeServerConfig())
+
+	now := metav1.Now()
+	startTime := metav1.NewTime(now.Add(-1 * time.Minute))
+	finishedAt := now
+	completionStatus := v1alpha1.CompletionStatusSuperseded
+
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rollout",
+			Namespace: "default",
+		},
+		Status: v1alpha1.RolloutStatus{
+			Duration: &v1alpha1.RolloutDurationStatus{
+				RolloutStartedAt: &startTime,
+				FinishedAt:       &finishedAt,
+				CompletionStatus: &completionStatus,
+			},
+		},
+	}
+
+	// Total: 1 minute = 60 seconds
+	// Progression: 1 minute (no pause) = 60 seconds
+	// Manual pause: 0 seconds
+	expected := `
+# HELP rollout_manual_pause_duration_seconds Time spent in manual pause waiting for human intervention
+# TYPE rollout_manual_pause_duration_seconds histogram
+rollout_manual_pause_duration_seconds_bucket{status="Superseded",le="0"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Superseded",le="60"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Superseded",le="300"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Superseded",le="600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Superseded",le="1800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Superseded",le="3600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Superseded",le="7200"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Superseded",le="14400"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Superseded",le="28800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Superseded",le="+Inf"} 1
+rollout_manual_pause_duration_seconds_sum{status="Superseded"} 0
+rollout_manual_pause_duration_seconds_count{status="Superseded"} 1
+
+# HELP rollout_progression_duration_seconds Active progression time for a rollout (excluding manual pause time)
+# TYPE rollout_progression_duration_seconds histogram
+rollout_progression_duration_seconds_bucket{status="Superseded",le="30"} 0
+rollout_progression_duration_seconds_bucket{status="Superseded",le="60"} 1
+rollout_progression_duration_seconds_bucket{status="Superseded",le="120"} 1
+rollout_progression_duration_seconds_bucket{status="Superseded",le="300"} 1
+rollout_progression_duration_seconds_bucket{status="Superseded",le="600"} 1
+rollout_progression_duration_seconds_bucket{status="Superseded",le="900"} 1
+rollout_progression_duration_seconds_bucket{status="Superseded",le="1800"} 1
+rollout_progression_duration_seconds_bucket{status="Superseded",le="3600"} 1
+rollout_progression_duration_seconds_bucket{status="Superseded",le="+Inf"} 1
+rollout_progression_duration_seconds_sum{status="Superseded"} 60
+rollout_progression_duration_seconds_count{status="Superseded"} 1
+
+# HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
+# TYPE rollout_duration_seconds histogram
+rollout_duration_seconds_bucket{status="Superseded",le="30"} 0
+rollout_duration_seconds_bucket{status="Superseded",le="60"} 1
+rollout_duration_seconds_bucket{status="Superseded",le="120"} 1
+rollout_duration_seconds_bucket{status="Superseded",le="300"} 1
+rollout_duration_seconds_bucket{status="Superseded",le="600"} 1
+rollout_duration_seconds_bucket{status="Superseded",le="1200"} 1
+rollout_duration_seconds_bucket{status="Superseded",le="1800"} 1
+rollout_duration_seconds_bucket{status="Superseded",le="3600"} 1
+rollout_duration_seconds_bucket{status="Superseded",le="7200"} 1
+rollout_duration_seconds_bucket{status="Superseded",le="14400"} 1
+rollout_duration_seconds_bucket{status="Superseded",le="28800"} 1
+rollout_duration_seconds_bucket{status="Superseded",le="+Inf"} 1
+rollout_duration_seconds_sum{status="Superseded"} 60
+rollout_duration_seconds_count{status="Superseded"} 1
+`
+	m.EmitRolloutDuration(rollout.Status.Duration)
+
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	require.NoError(t, err)
+}
+
+// TestEmitRolloutDuration_WithManualPause tests that manual pause time is correctly calculated
+func TestEmitRolloutDuration_WithManualPause(t *testing.T) {
+	m := NewMetricsServer(newFakeServerConfig())
+
+	now := metav1.Now()
+	startTime := metav1.NewTime(now.Add(-10 * time.Minute))
+	finishedAt := now
+	totalManualPauseDurationSeconds := int64(300) // 5 minutes
+	completionStatus := v1alpha1.CompletionStatusPromoted
+
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rollout-pause",
+			Namespace: "default",
+		},
+		Status: v1alpha1.RolloutStatus{
+			Duration: &v1alpha1.RolloutDurationStatus{
+				RolloutStartedAt:                &startTime,
+				FinishedAt:                      &finishedAt,
+				CompletionStatus:                &completionStatus,
+				TotalManualPauseDurationSeconds: &totalManualPauseDurationSeconds,
+			},
+		},
+	}
+
+	// Total: 10 minutes = 600 seconds
+	// Progression: 10 minutes - 5 minutes pause = 300 seconds
+	// Manual pause: 5 minutes = 300 seconds
+	expected := `
+# HELP rollout_manual_pause_duration_seconds Time spent in manual pause waiting for human intervention
+# TYPE rollout_manual_pause_duration_seconds histogram
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="0"} 0
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="60"} 0
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="300"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="1800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="3600"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="7200"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="14400"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="28800"} 1
+rollout_manual_pause_duration_seconds_bucket{status="Promoted",le="+Inf"} 1
+rollout_manual_pause_duration_seconds_sum{status="Promoted"} 300
+rollout_manual_pause_duration_seconds_count{status="Promoted"} 1
+
+# HELP rollout_progression_duration_seconds Active progression time for a rollout (excluding manual pause time)
+# TYPE rollout_progression_duration_seconds histogram
+rollout_progression_duration_seconds_bucket{status="Promoted",le="30"} 0
+rollout_progression_duration_seconds_bucket{status="Promoted",le="60"} 0
+rollout_progression_duration_seconds_bucket{status="Promoted",le="120"} 0
+rollout_progression_duration_seconds_bucket{status="Promoted",le="300"} 1
+rollout_progression_duration_seconds_bucket{status="Promoted",le="600"} 1
+rollout_progression_duration_seconds_bucket{status="Promoted",le="900"} 1
+rollout_progression_duration_seconds_bucket{status="Promoted",le="1800"} 1
+rollout_progression_duration_seconds_bucket{status="Promoted",le="3600"} 1
+rollout_progression_duration_seconds_bucket{status="Promoted",le="+Inf"} 1
+rollout_progression_duration_seconds_sum{status="Promoted"} 300
+rollout_progression_duration_seconds_count{status="Promoted"} 1
+
+# HELP rollout_duration_seconds Total wall-clock time for a rollout from start to completion/abort/supersede
+# TYPE rollout_duration_seconds histogram
+rollout_duration_seconds_bucket{status="Promoted",le="30"} 0
+rollout_duration_seconds_bucket{status="Promoted",le="60"} 0
+rollout_duration_seconds_bucket{status="Promoted",le="120"} 0
+rollout_duration_seconds_bucket{status="Promoted",le="300"} 0
+rollout_duration_seconds_bucket{status="Promoted",le="600"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="1200"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="1800"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="3600"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="7200"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="14400"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="28800"} 1
+rollout_duration_seconds_bucket{status="Promoted",le="+Inf"} 1
+rollout_duration_seconds_sum{status="Promoted"} 600
+rollout_duration_seconds_count{status="Promoted"} 1
+`
+	m.EmitRolloutDuration(rollout.Status.Duration)
+
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	require.NoError(t, err)
+}
+
+// TestEmitRolloutDuration_NilDurationStatus tests that no metrics are emitted when durationStatus is nil
+func TestEmitRolloutDuration_NilDurationStatus(t *testing.T) {
+	m := NewMetricsServer(newFakeServerConfig())
+
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rollout",
+			Namespace: "default",
+		},
+		Status: v1alpha1.RolloutStatus{
+			Duration: nil,
+		},
+	}
+
+	// Should not panic and should not emit metrics
+	m.EmitRolloutDuration(rollout.Status.Duration)
+
+	expected := ``
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	require.NoError(t, err)
+}
+
+// TestEmitRolloutDuration_NilRolloutStartedAt tests that no metrics are emitted when rolloutStartedAt is nil
+func TestEmitRolloutDuration_NilRolloutStartedAt(t *testing.T) {
+	m := NewMetricsServer(newFakeServerConfig())
+
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rollout",
+			Namespace: "default",
+		},
+		Status: v1alpha1.RolloutStatus{
+			Duration: &v1alpha1.RolloutDurationStatus{
+				RolloutStartedAt: nil,
+			},
+		},
+	}
+
+	// Should not panic and should not emit metrics
+	m.EmitRolloutDuration(rollout.Status.Duration)
+
+	expected := ``
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	require.NoError(t, err)
+}
+
+// TestEmitRolloutDuration_NilFinishedAt tests that no metrics are emitted when finishedAt is nil (rollout still in progress)
+func TestEmitRolloutDuration_NilFinishedAt(t *testing.T) {
+	m := NewMetricsServer(newFakeServerConfig())
+
+	now := metav1.Now()
+	startTime := metav1.NewTime(now.Add(-5 * time.Minute))
+
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rollout",
+			Namespace: "default",
+		},
+		Status: v1alpha1.RolloutStatus{
+			Duration: &v1alpha1.RolloutDurationStatus{
+				RolloutStartedAt: &startTime,
+				FinishedAt:       nil, // Still in progress
+			},
+		},
+	}
+
+	// Should not panic and should not emit metrics
+	m.EmitRolloutDuration(rollout.Status.Duration)
+
+	expected := ``
+	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
+	require.NoError(t, err)
 }

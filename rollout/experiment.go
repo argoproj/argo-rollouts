@@ -4,19 +4,20 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
-	"github.com/argoproj/argo-rollouts/utils/record"
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/kubernetes/pkg/controller"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	"github.com/argoproj/argo-rollouts/utils/hash"
+	"github.com/argoproj/argo-rollouts/utils/record"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 // GetExperimentFromTemplate takes the canary experiment step and converts it to an experiment
@@ -25,7 +26,7 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	if step == nil {
 		return nil, nil
 	}
-	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+	podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 	currentStep := int32(0)
 	if r.Status.CurrentStepIndex != nil {
 		currentStep = *r.Status.CurrentStepIndex
@@ -34,14 +35,19 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	if r.Annotations != nil {
 		revision = r.Annotations[annotations.RevisionAnnotation]
 	}
+	newExperimentLabels := map[string]string{}
+	// enrich with template labels
+	for k, v := range r.Labels {
+		newExperimentLabels[k] = v
+	}
+	newExperimentLabels[v1alpha1.DefaultRolloutUniqueLabelKey] = podHash
+
 	experiment := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            fmt.Sprintf("%s-%s-%s-%d", r.Name, podHash, revision, currentStep),
 			Namespace:       r.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
-			Labels: map[string]string{
-				v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
-			},
+			Labels:          newExperimentLabels,
 			Annotations: map[string]string{
 				annotations.RevisionAnnotation: revision,
 			},
@@ -49,6 +55,9 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		Spec: v1alpha1.ExperimentSpec{
 			Duration:                step.Duration,
 			ProgressDeadlineSeconds: r.Spec.ProgressDeadlineSeconds,
+			DryRun:                  step.DryRun,
+			AnalysisRunMetadata:     step.AnalysisRunMetadata,
+			ScaleDownDelaySeconds:   step.ScaleDownDelaySeconds,
 		},
 	}
 
@@ -63,15 +72,19 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			Name:     templateStep.Name,
 			Replicas: templateStep.Replicas,
 		}
-		if templateStep.Weight != nil {
+		if templateStep.Weight != nil || templateStep.Service != nil {
 			template.Service = &v1alpha1.TemplateService{}
+			// Need to check if Service is not nil for the case where Weight is not nil and Service is
+			if templateStep.Service != nil && templateStep.Service.Name != "" {
+				template.Service.Name = templateStep.Service.Name
+			}
 		}
 		templateRS := &appsv1.ReplicaSet{}
 		switch templateStep.SpecRef {
 		case v1alpha1.CanarySpecRef:
-			templateRS = newRS
+			templateRS = newRS.DeepCopy()
 		case v1alpha1.StableSpecRef:
-			templateRS = stableRS
+			templateRS = stableRS.DeepCopy()
 		default:
 			return nil, fmt.Errorf("Invalid template step SpecRef: must be canary or stable")
 		}
@@ -106,7 +119,11 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	}
 	for i := range step.Analyses {
 		analysis := step.Analyses[i]
-		args := analysisutil.BuildArgumentsForRolloutAnalysisRun(analysis.Args, stableRS, newRS, r)
+		args, err := analysisutil.BuildArgumentsForRolloutAnalysisRun(analysis.Args, stableRS, newRS, r)
+		if err != nil {
+			return nil, err
+		}
+
 		analysisTemplate := v1alpha1.ExperimentAnalysisTemplateRef{
 			Name:                  analysis.Name,
 			TemplateName:          analysis.TemplateName,
@@ -175,7 +192,11 @@ func (c *rolloutContext) reconcileExperiments() error {
 		case v1alpha1.AnalysisPhaseInconclusive:
 			c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveExperiment)
 		case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-			c.pauseContext.AddAbort(currentEx.Status.Message)
+			message := "Experiment analysis phase is error/failed"
+			if currentEx.Status.Message != "" {
+				message += ": " + currentEx.Status.Message
+			}
+			c.pauseContext.AddAbort(message)
 		case v1alpha1.AnalysisPhaseSuccessful:
 			// Do not set current Experiment after successful experiment
 		default:
@@ -230,7 +251,7 @@ func (c *rolloutContext) createExperimentWithCollisionHandling(newEx *v1alpha1.E
 			// we likely reconciled the rollout with a stale cache (quite common).
 			return existingEx, nil
 		}
-		newEx.Name = fmt.Sprintf("%s.%d", baseName, collisionCount)
+		newEx.Name = fmt.Sprintf("%s-%d", baseName, collisionCount)
 		collisionCount++
 	}
 }

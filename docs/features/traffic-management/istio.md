@@ -7,7 +7,7 @@ different versions of the Rollout during an update.
 
 ## How it works
 
-Traffic splitting is accomplished in Istio by adjusting traffic weights defined in an 
+Traffic splitting is accomplished in Istio by adjusting traffic weights defined in an
 [Istio VirtualService](https://istio.io/latest/docs/reference/config/networking/virtual-service/).
 When using Argo Rollouts with Istio, a user deploys a VirtualService containing at least one
 [HTTP route](https://istio.io/latest/docs/reference/config/networking/virtual-service/#HTTPRoute) containing two
@@ -18,6 +18,10 @@ are available as options in Argo Rollouts:
 
 1. [Host-level traffic splitting](#host-level-traffic-splitting)
 2. [Subset-level traffic splitting](#subset-level-traffic-splitting)
+
+!!! note
+
+    When using Istio only traffic that is within the service mesh will follow the rollout strategy. Pods excluded from the service mesh (e.g., because of a `sidecar.istio.io/inject="false"` label) will follow default Kubernetes traffic routing.
 
 ## Host-level Traffic Splitting
 
@@ -46,7 +50,7 @@ spec:
       stableService: stable-svc  # required
       trafficRouting:
         istio:
-          virtualService: 
+          virtualService:
             name: rollout-vsvc   # required
             routes:
             - primary            # optional if there is a single route in VirtualService, required otherwise
@@ -57,7 +61,7 @@ spec:
 ```
 
 The VirtualService must contain an HTTP route with a name referenced in the Rollout, containing
-two route destinations with `host` values that match the `canaryService` and `stableService` 
+two route destinations with `host` values that match the `canaryService` and `stableService`
 referenced in the Rollout.  If the VirtualService is defined in a different namespace than the rollout,
 its name should be `rollout-vsvc.<vsvc namespace name>`. Note that Istio requires that all weights add to
 100, so the initial weights can be 100% to stable, and 0% to canary.
@@ -127,7 +131,7 @@ During the lifecycle of a Rollout update, Argo Rollouts will continuously:
 
 !!! note
 
-    Rollout does not make any other assumptions about the fields within the VirtualService or the Istio mesh. The user could specify additional configurations for the VirtualService like URI rewrite rules on the primary route or any other route if desired. The user can also create specific DestinationRules for each of the services. 
+    Rollout does not make any other assumptions about the fields within the VirtualService or the Istio mesh. The user could specify additional configurations for the VirtualService like URI rewrite rules on the primary route or any other route if desired. The user can also create specific DestinationRules for each of the services.
 
 
 ## Subset-level Traffic Splitting
@@ -138,8 +142,8 @@ During the lifecycle of a Rollout update, Argo Rollouts will continuously:
 
 The second approach to traffic splitting using Argo Rollouts and Istio, is splitting between two
 Istio [DestinationRule Subsets](https://istio.io/latest/docs/reference/config/networking/destination-rule/#Subset):
-a canary subset and a stable subset. When splitting by DestinationRule subsets, the user is
-required to deploy the following resources:
+a canary subset and a stable subset. User's can also specify [additional subset DestinationRule's](#additional-subset-destinationrules) to direct traffic towards.
+When splitting by DestinationRule subsets, the user is required to deploy the following resources:
 
 * Rollout
 * Service
@@ -159,7 +163,7 @@ spec:
     canary:
       trafficRouting:
         istio:
-          virtualService: 
+          virtualService:
             name: rollout-vsvc        # required
             routes:
             - primary                 # optional if there is a single route in VirtualService, required otherwise
@@ -194,7 +198,7 @@ spec:
 ```
 
 The VirtualService must contain an HTTP route with a name referenced in the Rollout, containing
-two route destinations with `subset` values that match the `canarySubsetName` and `stableSubsetName` 
+two route destinations with `subset` values that match the `canarySubsetName` and `stableSubsetName`
 referenced in the Rollout. Note that Istio requires that all weights add to 100, so the initial
 weights can be 100% to stable, and 0% to canary.
 
@@ -245,10 +249,142 @@ During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts wil
 * modify the DestinationRule `spec.subsets[].labels` to contain the `rollouts-pod-template-hash`
   label of the canary and stable ReplicaSets
 
+### Additional Subset DestinationRule's
+
+Argo Rollouts also allows users to add additional subset DestinationRule's.
+One use case could be to direct additional traffic served by an API's path (e.g. `/api/mypath`) to
+a service handled by Argo Rollouts (with a stable and canary DestinationRule) *and* a service using an experimental image.
+
+For example, you could have subsets for:
+- `canary` - the new version being tested
+- `stable` - the current production version  
+- `legacy` - an older version for backward compatibility
+- `experimental` - a version with experimental features
+
+To enable this feature, follow the steps above for a regular subset DestinationRule deployment.
+Aftewards, modify your VirtualService containing the canary and subset DestinationRule's
+to include the additional subset names and the desired traffic weight:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: rollout-vsvc
+spec:
+  ...
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: rollout-example # same as the steps above
+        subset: stable
+      weight: 100 # you can leave this as 100, Argo Rollouts will handle the adjusted total weight so that the weights add up to 100%
+    - destination:
+        host: rollout-example
+        subset: canary
+      weight: 0
+    - destination:
+        host: experiment-host # this references the host of the additional Service (or whatever is configured by the additional Service)
+        subset: experiment # new and additional subset DestinationRule, referencing the spec.subsets.name of the DestinationRule
+      weight: 20
+```
+
+Also ensure that you deploy the additional DestinationRule (alongside whatever Services, Deployments, etc. that your additional DestinationRule depends on)
+as well, with the appropriate `spec.host`, `spec.subsets.name`, and `spec.subsets.labels.app` fields:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: experimental-destrule
+spec:
+  host: experimental-host
+  exportTo:
+    - .
+    - ingress-system
+  subsets:
+    - name: experiment
+      labels:
+        app: experimental-host
+```
+
+Finally, add the names of the additional DestinationRule's to your Rollout spec as such:
+
+```yaml
+...
+destinationRule:
+  name: rollout-destrule    # required
+  canarySubsetName: canary  # required
+  stableSubsetName: stable  # required
+  additionalSubsetNames:    # not required, optional
+    ...                     # any other additional DestinationRule's
+    - "experiment"
+```
+
+The Argo Rollouts controller will manage the traffic weights between the canary and stable subsets,
+subtracting the weight directed to the additional subset DestinationRule's from the stable traffic.
+E.g.: Stable starts off at 100%, but with an additional DestinationRule taking up 20% of the traffic weight,
+it would then actually start off at 80%.
+
+## TCP Traffic Splitting
+
+!!! important
+
+    Available since v1.2.2
+
+Support for splitting TCP traffic was introduced and requires the Rollout to define the following fields:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-example
+spec:
+  ...
+  strategy:
+    canary:
+      canaryService: canary-svc  # required
+      stableService: stable-svc  # required
+      trafficRouting:
+        istio:
+          virtualService:
+            name: rollout-vsvc   # required
+            tcpRoutes:
+              # Below fields are optional but if defined, they should match exactly with at least one of the TCP route match rules in your VirtualService
+              - port: 3000 # Only required if you want to match any rule in your VirtualService which contains this port
+      steps:
+      - setWeight: 5
+      - pause:
+          duration: 10m
+```
+
+The VirtualService must contain a TCP route with a matching port referenced in the Rollout
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: rollout-vsvc
+spec:
+  gateways:
+    - istio-rollout-gateway
+  hosts:
+    - istio-rollout.dev.argoproj.io
+  tcp:
+    - match:
+        - port: 3000
+      route:
+        - destination:
+            host: stable-svc # referenced in canary.stableService
+          weight: 100
+        - destination:
+            host: canary-svc # referenced in canary.canaryService
+          weight: 0
+```
 
 ## Multicluster Setup
 If you have [Istio multicluster setup](https://istio.io/latest/docs/setup/install/multicluster/)
-where the primary Istio cluster is different than the cluster where the Argo Rollout controller
+where the primary Istio cluster is different from the cluster where the Argo Rollout controller
 is running, then you need to do the following setup:
 
 1. Create a `ServiceAccount` in the Istio primary cluster.
@@ -278,8 +414,8 @@ rules:
   - update
   - patch
 ```
-Note: If Argo Rollout controller is also installed in the Istio primary cluster, then you can reuse the 
-`argo-rollouts-clusterrole` ClusterRole instead of creating a new one. 
+Note: If Argo Rollout controller is also installed in the Istio primary cluster, then you can reuse the
+`argo-rollouts-clusterrole` ClusterRole instead of creating a new one.
 3. Link the `ClusterRole` with the `ServiceAccount` in the Istio primary cluster.
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -384,12 +520,12 @@ leverage the following Argo CD features:
       ignoreDifferences:
       - group: networking.istio.io
         kind: VirtualService
-        jsonPointers:
-        - /spec/http/0
+        jqPathExpressions:
+        - .spec.http[].route[].weight
     ```
 
-    Ignoring the differences in the VirtualServices HTTP route, prevents gitops differences
-    in the VirtualService HTTP routes to contribute to the overall sync status of the Argo CD
+    Ignoring the differences in the VirtualServices HTTP route weights, prevents GitOps differences
+    in the VirtualService HTTP route weights to contribute to the overall sync status of the Argo CD
     application. This adds the additional benefit of prevent auto-sync operations from being
     triggered.
 
@@ -404,6 +540,7 @@ leverage the following Argo CD features:
       syncPolicy:
         syncOptions:
         - ApplyOutOfSyncOnly=true
+        - RespectIgnoreDifferences=true
     ```
 
     By default, when Argo CD  syncs an application, it runs `kubectl apply` against all resources in
@@ -413,14 +550,23 @@ leverage the following Argo CD features:
     feature, provides a way to manage the conflict in the desired state of a VirtualService between
     Argo CD and Argo Rollouts.
 
-Argo CD also has an [open issue here](https://github.com/argoproj/argo-cd/issues/2913) which would
-help address this problem. The proposed solution is to introduce an annotation to resources, which
-indicates to Argo CD to respect and preserve the differences at a specified path, in order to allow
-other controllers (e.g. Argo Rollouts) controller manage them instead.
+For more information about the diffing behavior in Argo CD please see also the [managedFieldsManagers](https://argo-cd.readthedocs.io/en/release-2.4/user-guide/diffing/#application-level-configuration) option as [introduced in Argo CD version 2.3](https://blog.argoproj.io/new-sync-and-diff-strategies-in-argocd-44195d3f8b8c).
+
+## Ping Pong
+
+!!! important
+
+    Available since v1.7
+
+Argo Rollouts also supports ping pong when using Istio this was added to support configuring both ALB and
+Istio traffic routers at the same time. When using an ALB, ping-pong is generally a best practice especially with ALB readiness 
+gates enabled. However, when we change the service selectors when a rollout is aborted back to stable pod hash it causes a blip 
+of traffic outage because the ALB controller will set the pod readiness gates to false for a short while due to the label changes.
+If we configure both ALB and Istio with ping-pong this selector change does not happen and hence we do not see any outages.
 
 ## Alternatives Considered
 
-### Rollout ownership over the Virtual Service  
+### Rollout ownership over the Virtual Service
 
 An early design alternative was that instead of the controller modifying a referenced VirtualService, the Rollout controller would create, manage, and own a Virtual Service. While this approach is GitOps friendly, it introduces other issues:
 

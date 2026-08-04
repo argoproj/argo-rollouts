@@ -5,14 +5,74 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 )
+
+func TestGetRolloutOwnerRef(t *testing.T) {
+	t.Run("no owner references", func(t *testing.T) {
+		e := &v1alpha1.Experiment{}
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Nil(t, ownerRef)
+	})
+
+	t.Run("non-rollout owner reference", func(t *testing.T) {
+		e := &v1alpha1.Experiment{
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						Kind: "Deployment",
+						Name: "deploy",
+					},
+				},
+			},
+		}
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Nil(t, ownerRef)
+	})
+
+	t.Run("multiple owner references with rollout", func(t *testing.T) {
+		rolloutOwner := metav1.OwnerReference{
+			Kind: "Rollout",
+			Name: "rollout",
+		}
+		e := &v1alpha1.Experiment{
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						Kind: "Deployment",
+						Name: "deploy",
+					},
+					rolloutOwner,
+				},
+			},
+		}
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Equal(t, &rolloutOwner, ownerRef)
+	})
+
+	t.Run("only rollout owner reference", func(t *testing.T) {
+		rolloutOwner := metav1.OwnerReference{
+			Kind: "Rollout",
+			Name: "rollout",
+		}
+		e := &v1alpha1.Experiment{
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{
+					rolloutOwner,
+				},
+			},
+		}
+		ownerRef := GetRolloutOwnerRef(e)
+		assert.Equal(t, &rolloutOwner, ownerRef)
+	})
+}
 
 func TestHasFinished(t *testing.T) {
 	e := &v1alpha1.Experiment{}
@@ -41,7 +101,6 @@ func TestCalculateTemplateReplicasCount(t *testing.T) {
 		Status: v1alpha1.TemplateStatusFailed,
 	})
 	assert.Equal(t, int32(0), CalculateTemplateReplicasCount(e, template))
-
 }
 
 func TestPassedDurations(t *testing.T) {
@@ -69,7 +128,6 @@ func TestPassedDurations(t *testing.T) {
 	e.Status.AvailableAt = &metav1.Time{Time: now.Add(-2 * time.Second)}
 	passedDuration, _ = PassedDurations(e)
 	assert.True(t, passedDuration)
-
 }
 
 func TestGetTemplateStatusMapping(t *testing.T) {
@@ -90,6 +148,7 @@ func TestGetTemplateStatusMapping(t *testing.T) {
 	assert.Equal(t, int32(1), mapping["test"].Replicas)
 	assert.Equal(t, int32(2), mapping["test2"].Replicas)
 }
+
 func TestReplicaSetNameFromExperiment(t *testing.T) {
 	templateName := "template"
 	template := v1alpha1.TemplateSpec{
@@ -100,18 +159,19 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 			Name: "foo",
 		},
 	}
-	assert.Equal(t, "foo-template-85f7cf5fc7", ReplicasetNameFromExperiment(e, template))
+	// NOTE: The hash must be updated for every k8s library upgrade
+	assert.Equal(t, "foo-template-658c46c486", ReplicasetNameFromExperiment(e, template))
 
 	newTemplateStatus := v1alpha1.TemplateStatus{
 		Name:           templateName,
-		CollisionCount: pointer.Int32Ptr(1),
+		CollisionCount: ptr.To[int32](1),
 	}
 	e.Status.TemplateStatuses = append(e.Status.TemplateStatuses, newTemplateStatus)
-	assert.Equal(t, "foo-template-56ccbc9b64", ReplicasetNameFromExperiment(e, template))
+	// NOTE: The hash must be updated for every k8s library upgrade
+	assert.Equal(t, "foo-template-6746d5bbc", ReplicasetNameFromExperiment(e, template))
 }
 
 func TestExperimentByCreationTimestamp(t *testing.T) {
-
 	now := metav1.Now()
 	before := metav1.NewTime(metav1.Now().Add(-5 * time.Second))
 
@@ -365,7 +425,7 @@ func TestIsSemanticallyEqual(t *testing.T) {
 	right := left.DeepCopy()
 	right.Terminate = true
 	assert.True(t, IsSemanticallyEqual(*left, *right))
-	right.Templates[0].Replicas = pointer.Int32Ptr(1)
+	right.Templates[0].Replicas = ptr.To[int32](1)
 	assert.False(t, IsSemanticallyEqual(*left, *right))
 }
 

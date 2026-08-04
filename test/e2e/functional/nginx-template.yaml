@@ -26,7 +26,7 @@ spec:
   selector:
     app: REPLACEME
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: REPLACEME-ingress
@@ -37,9 +37,12 @@ spec:
     - http:
         paths:
           - path: /*
+            pathType: Prefix
             backend:
-              serviceName: REPLACEME-stable
-              servicePort: 80
+              service:
+                name: REPLACEME-stable
+                port:
+                  number: 80
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout

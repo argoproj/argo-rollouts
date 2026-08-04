@@ -4,13 +4,17 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/utils/pointer"
-
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
+
+func TestGetStringOrDefault(t *testing.T) {
+	assert.Equal(t, "some value", GetStringOrDefault("some value", "default value"))
+	assert.Equal(t, "default value", GetStringOrDefault("", "default value"))
+}
 
 func TestGetReplicasOrDefault(t *testing.T) {
 	replicas := int32(2)
@@ -21,7 +25,7 @@ func TestGetReplicasOrDefault(t *testing.T) {
 func TestGetExperimentScaleDownDelaySecondsOrDefault(t *testing.T) {
 	exp := v1alpha1.Experiment{
 		Spec: v1alpha1.ExperimentSpec{
-			ScaleDownDelaySeconds: pointer.Int32Ptr(0),
+			ScaleDownDelaySeconds: ptr.To[int32](0),
 		},
 	}
 	// Custom value
@@ -222,7 +226,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, time.Duration(abortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(blueGreenNonDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(blueGreenNonDefaultValue)
+		assert.Equal(t, time.Duration(abortScaleDownDelaySeconds)*time.Second, *abortDelay)
+		assert.True(t, wasSet)
 	}
 	{
 		// dont scale down preview
@@ -236,7 +242,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Nil(t, GetAbortScaleDownDelaySecondsOrDefault(blueGreenZeroValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(blueGreenZeroValue)
+		assert.Nil(t, abortDelay)
+		assert.True(t, wasSet)
 	}
 	{
 		blueGreenDefaultValue := &v1alpha1.Rollout{
@@ -246,7 +254,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, time.Duration(DefaultAbortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(blueGreenDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(blueGreenDefaultValue)
+		assert.Equal(t, time.Duration(DefaultAbortScaleDownDelaySeconds)*time.Second, *abortDelay)
+		assert.False(t, wasSet)
 	}
 	{
 		abortScaleDownDelaySeconds := int32(60)
@@ -260,7 +270,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, time.Duration(abortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(canaryNonDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(canaryNonDefaultValue)
+		assert.Equal(t, time.Duration(abortScaleDownDelaySeconds)*time.Second, *abortDelay)
+		assert.True(t, wasSet)
 	}
 	{
 		// dont scale down canary
@@ -275,11 +287,15 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Nil(t, GetAbortScaleDownDelaySecondsOrDefault(canaryZeroValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(canaryZeroValue)
+		assert.Nil(t, abortDelay)
+		assert.True(t, wasSet)
 	}
 	{
 		rolloutNoStrategyDefaultValue := &v1alpha1.Rollout{}
-		assert.Equal(t, time.Duration(0), *GetAbortScaleDownDelaySecondsOrDefault(rolloutNoStrategyDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(rolloutNoStrategyDefaultValue)
+		assert.Equal(t, time.Duration(0), *abortDelay)
+		assert.False(t, wasSet)
 	}
 	{
 		canaryDefaultValue := &v1alpha1.Rollout{
@@ -291,7 +307,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, time.Duration(DefaultAbortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue)
+		assert.Equal(t, time.Duration(DefaultAbortScaleDownDelaySeconds)*time.Second, *abortDelay)
+		assert.False(t, wasSet)
 	}
 	{
 		// basic canary should not have scaledown delay seconds
@@ -302,7 +320,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, time.Duration(0), *GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue)
+		assert.Equal(t, time.Duration(0), *abortDelay)
+		assert.False(t, wasSet)
 	}
 
 }
@@ -377,8 +397,36 @@ func TestSetDefaults(t *testing.T) {
 	SetSMIAPIVersion(DefaultSMITrafficSplitVersion)
 	assert.Equal(t, DefaultSMITrafficSplitVersion, GetSMIAPIVersion())
 
+	SetTraefikAPIGroup("traefik.containo.us")
+	assert.Equal(t, "traefik.containo.us", GetTraefikAPIGroup())
+	SetTraefikAPIGroup(DefaultTraefikAPIGroup)
+	assert.Equal(t, DefaultTraefikAPIGroup, GetTraefikAPIGroup())
+
+	SetTraefikVersion("traefik.containo.us/v1alpha1")
+	assert.Equal(t, "traefik.containo.us/v1alpha1", GetTraefikVersion())
+	SetTraefikVersion(DefaultTraefikVersion)
+	assert.Equal(t, DefaultTraefikVersion, GetTraefikVersion())
+
 	SetTargetGroupBindingAPIVersion("v1alpha9")
 	assert.Equal(t, "v1alpha9", GetTargetGroupBindingAPIVersion())
 	SetTargetGroupBindingAPIVersion(DefaultTargetGroupBindingAPIVersion)
 	assert.Equal(t, DefaultTargetGroupBindingAPIVersion, GetTargetGroupBindingAPIVersion())
+
+	SetalbTagKeyResourceID("ingress.amazonaws.com/resource")
+	assert.Equal(t, "ingress.amazonaws.com/resource", GetalbTagKeyResourceID())
+	SetalbTagKeyResourceID(DefaultAlbTagKeyResourceID)
+	assert.Equal(t, DefaultAlbTagKeyResourceID, GetalbTagKeyResourceID())
+
+	assert.Equal(t, DefaultAppMeshCRDVersion, GetAppMeshCRDVersion())
+	SetAppMeshCRDVersion("v1beta3")
+	assert.Equal(t, "v1beta3", GetAppMeshCRDVersion())
+	SetAppMeshCRDVersion(DefaultAmbassadorVersion)
+
+	assert.Equal(t, DefaultMetricCleanupDelay, int32(GetMetricCleanupDelaySeconds().Seconds()))
+	SetMetricCleanupDelaySeconds(24)
+	assert.Equal(t, time.Duration(24)*time.Second, GetMetricCleanupDelaySeconds())
+
+	assert.Equal(t, DefaultDescribeTagsLimit, GetDescribeTagsLimit())
+	SetDescribeTagsLimit(2)
+	assert.Equal(t, 2, GetDescribeTagsLimit())
 }

@@ -3,6 +3,8 @@ package metrics
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/argoproj/pkg/kubeclientmetrics"
 )
 
@@ -24,5 +26,5 @@ func TestIncKubernetesRequest(t *testing.T) {
 		Verb:       kubeclientmetrics.Unknown,
 		StatusCode: 200,
 	})
-	testHttpResponse(t, metricsServ.Handler, expectedKubernetesRequest)
+	testHttpResponse(t, metricsServ.Handler, expectedKubernetesRequest, assert.Contains)
 }

@@ -7,6 +7,7 @@ $POD_SIZE: 30px;
         font-size: 16px;
         font-weight: 500;
         display: flex;
+        max-width: 100%;
         align-items: center;
         &__tags {
             margin-left: auto;
@@ -25,13 +26,10 @@ $POD_SIZE: 30px;
         .pod-icon {
             margin: 3px;
         }
-        &--dark {
-            border-color: $silver-lining;
-            background-color: $space;
-        }
     }
 }
 
+/*This is used as an icon in pod, analysis job and analysis nonjob */
 .pod-icon {
     width: $POD_SIZE;
     height: $POD_SIZE;
@@ -42,6 +40,7 @@ $POD_SIZE: 30px;
     background-color: $fog;
     color: $shine;
     border-radius: 3px;
+    margin: 2px;
     cursor: pointer;
 
     &--success {

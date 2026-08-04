@@ -5,10 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ghodss/yaml"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -54,12 +56,19 @@ metadata:
   namespace: jesse-test
 spec:
   metrics:
-  - name: webmetric
+  - name: web-metric-1
     provider:
       web:
         jsonPath: .
         url: https://www.google.com
     successCondition: "true"
+  - name: web-metric-2
+    dryRun: true
+    provider:
+      web:
+        jsonPath: .
+        url: https://www.msn.com
+    successCondition: "false"
 `
 
 	fakeClusterAnalysisTemplate = `
@@ -67,15 +76,22 @@ apiVersion: argoproj.io/v1alpha1
 kind: ClusterAnalysisTemplate
 metadata:
   creationTimestamp: "2020-03-16T20:01:13Z"
-  name: http-benchmark-test
+  name: http-benchmark-cluster-test
 spec:
   metrics:
-  - name: webmetric
+  - name: web-metric-1
     provider:
       web:
         jsonPath: .
         url: https://www.google.com
     successCondition: "true"
+  - name: web-metric-2
+    dryRun: true
+    provider:
+      web:
+        jsonPath: .
+        url: https://www.msn.com
+    successCondition: "false"
 `
 )
 const expectedAnalysisRunResponse = `# HELP analysis_run_info Information about analysis run.
@@ -83,12 +99,12 @@ const expectedAnalysisRunResponse = `# HELP analysis_run_info Information about 
 analysis_run_info{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error"} 1
 # HELP analysis_run_metric_phase Information on the duration of a specific metric in the Analysis Run
 # TYPE analysis_run_metric_phase gauge
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error",type="Web"} 1
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed",type="Web"} 0
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Inconclusive",type="Web"} 0
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending",type="Web"} 0
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running",type="Web"} 0
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Successful",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error",type="Web"} 1
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Inconclusive",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Successful",type="Web"} 0
 # HELP analysis_run_metric_type Information on the type of a specific metric in the Analysis Runs
 # TYPE analysis_run_metric_type gauge
 analysis_run_metric_type{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",type="Web"} 1
@@ -148,7 +164,7 @@ func testAnalysisRunDescribe(t *testing.T, fakeAnalysisRun string, expectedRespo
 	registry.MustRegister(NewAnalysisRunCollector(serverCfg.AnalysisRunLister, serverCfg.AnalysisTemplateLister, serverCfg.ClusterAnalysisTemplateLister))
 	mux := http.NewServeMux()
 	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
-	testHttpResponse(t, mux, expectedResponse)
+	testHttpResponse(t, mux, expectedResponse, assert.Contains)
 }
 
 func TestIncAnalysisRunReconcile(t *testing.T) {
@@ -170,17 +186,20 @@ analysis_run_reconcile_count{name="ar-test",namespace="ar-namespace"} 1`
 		},
 	}
 	metricsServ.IncAnalysisRunReconcile(ar, time.Millisecond)
-	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }
 
 func TestAnalysisTemplateDescribe(t *testing.T) {
-	expectedResponse := `# TYPE analysis_template_info gauge
-analysis_template_info{name="http-benchmark-test",namespace=""} 1
+	expectedResponse := `# HELP analysis_template_info Information about analysis templates.
+# TYPE analysis_template_info gauge
+analysis_template_info{name="http-benchmark-cluster-test",namespace=""} 1
 analysis_template_info{name="http-benchmark-test",namespace="jesse-test"} 1
 # HELP analysis_template_metric_info Information on metrics in analysis templates.
 # TYPE analysis_template_metric_info gauge
-analysis_template_metric_info{metric="webmetric",name="http-benchmark-test",namespace="",type="Web"} 1
-analysis_template_metric_info{metric="webmetric",name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-1",name="http-benchmark-cluster-test",namespace="",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-1",name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-2",name="http-benchmark-cluster-test",namespace="",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-2",name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
 `
 	registry := prometheus.NewRegistry()
 	at := newFakeAnalysisTemplate(fakeAnalysisTemplate)
@@ -189,5 +208,5 @@ analysis_template_metric_info{metric="webmetric",name="http-benchmark-test",name
 	registry.MustRegister(NewAnalysisRunCollector(serverCfg.AnalysisRunLister, serverCfg.AnalysisTemplateLister, serverCfg.ClusterAnalysisTemplateLister))
 	mux := http.NewServeMux()
 	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
-	testHttpResponse(t, mux, expectedResponse)
+	testHttpResponse(t, mux, expectedResponse, assert.Contains)
 }

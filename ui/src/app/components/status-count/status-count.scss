@@ -1,0 +1,31 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+.status-count {
+    display: flex;
+    align-items: center;
+    border: 1px solid $argo-color-gray-4;
+    border-radius: 5px;
+    padding: 2px;
+    margin: 1px;
+
+    &__icon {
+        font-size: 15px;
+        color: $argo-color-gray-8;
+        margin: 5px;
+
+        text-align: center;
+        flex: 0 0 auto;
+    }
+
+    &__count {
+        font-size: 15px;
+        font-weight: 500;
+        color: $argo-color-gray-8;
+        margin-right: 5px;
+        text-align: right;
+        flex: 1;
+    }
+}
+.status-count.active {
+    background-color: $argo-color-teal-2;
+}

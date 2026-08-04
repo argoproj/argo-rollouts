@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	wavefrontapi "github.com/spaceapegames/go-wavefront"
 	"github.com/stretchr/testify/assert"
@@ -13,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
@@ -57,6 +58,9 @@ func TestRunSuccessfully(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "10.00", measurement.Value)
@@ -81,6 +85,9 @@ func TestRunWithQueryError(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, expectedErr.Error(), measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)
@@ -107,6 +114,9 @@ func TestRunWithEvaluationError(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, "No TimeSeries found in response from Wavefront", measurement.Message)
 	assert.Equal(t, "No query provided", measurement.Metadata["warnings"])

@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -42,7 +43,7 @@ const (
 type IstioControllerConfig struct {
 	ArgoprojClientSet       roclientset.Interface
 	DynamicClientSet        dynamic.Interface
-	EnqueueRollout          func(ro interface{})
+	EnqueueRollout          func(ro any)
 	RolloutsInformer        informers.RolloutInformer
 	VirtualServiceInformer  cache.SharedIndexInformer
 	DestinationRuleInformer cache.SharedIndexInformer
@@ -66,7 +67,7 @@ func NewIstioController(cfg IstioControllerConfig) *IstioController {
 
 	// Add a Rollout index against referenced VirtualServices and DestinationRules
 	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
-		virtualServiceIndexName: func(obj interface{}) (strings []string, e error) {
+		virtualServiceIndexName: func(obj any) (strings []string, e error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return istioutil.GetRolloutVirtualServiceKeys(ro), nil
 			}
@@ -74,7 +75,7 @@ func NewIstioController(cfg IstioControllerConfig) *IstioController {
 		},
 	}))
 	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
-		destinationRuleIndexName: func(obj interface{}) (strings []string, e error) {
+		destinationRuleIndexName: func(obj any) (strings []string, e error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return istioutil.GetRolloutDesinationRuleKeys(ro), nil
 			}
@@ -84,27 +85,27 @@ func NewIstioController(cfg IstioControllerConfig) *IstioController {
 
 	// When a VirtualService changes, simply enqueue the referencing rollout
 	c.VirtualServiceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.EnqueueRolloutFromIstioVirtualService(obj)
 		},
 		// TODO: DeepEquals on httpRoutes
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			c.EnqueueRolloutFromIstioVirtualService(new)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.EnqueueRolloutFromIstioVirtualService(obj)
 		},
 	})
 
 	// When a DestinationRule changes, enqueue the DestinationRule for processing
 	c.DestinationRuleInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.EnqueueDestinationRule(obj)
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			c.EnqueueDestinationRule(new)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.EnqueueDestinationRule(obj)
 		},
 	})
@@ -114,7 +115,7 @@ func NewIstioController(cfg IstioControllerConfig) *IstioController {
 // Run starts the Istio informers. If Istio is not installed, will periodically check for presence
 // of Istio, then start informers once detected. This allows Argo Rollouts to be installed in any
 // order during cluster bootstrapping.
-func (c *IstioController) Run(stopCh <-chan struct{}) {
+func (c *IstioController) Run(ctx context.Context) {
 	ns := defaults.Namespace()
 	waitForIstioInstall := !istioutil.DoesIstioExist(c.DynamicClientSet, ns)
 	if waitForIstioInstall {
@@ -122,7 +123,7 @@ func (c *IstioController) Run(stopCh <-chan struct{}) {
 		for !istioutil.DoesIstioExist(c.DynamicClientSet, ns) {
 			// Should only execute if Istio is not installed on cluster
 			select {
-			case <-stopCh:
+			case <-ctx.Done():
 				ticker.Stop()
 				return
 			case <-ticker.C:
@@ -130,34 +131,40 @@ func (c *IstioController) Run(stopCh <-chan struct{}) {
 		}
 		ticker.Stop()
 		log.Info("Istio install detected. Starting informers")
-		go c.VirtualServiceInformer.Run(stopCh)
-		go c.DestinationRuleInformer.Run(stopCh)
+		go c.VirtualServiceInformer.Run(ctx.Done())
+		go c.DestinationRuleInformer.Run(ctx.Done())
 	} else {
 		log.Info("Istio detected")
 	}
 
-	cache.WaitForCacheSync(stopCh, c.VirtualServiceInformer.HasSynced, c.DestinationRuleInformer.HasSynced)
+	cache.WaitForCacheSync(ctx.Done(), c.VirtualServiceInformer.HasSynced, c.DestinationRuleInformer.HasSynced)
 
+	log.Info("Starting istio workers")
+	wg := sync.WaitGroup{}
 	for i := 0; i < destinationRuleWorkers; i++ {
+		wg.Add(1)
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.destinationRuleWorkqueue, "destinationrule", c.syncDestinationRule, nil)
-		}, time.Second, stopCh)
+			controllerutil.RunWorker(ctx, c.destinationRuleWorkqueue, "destinationrule", c.syncDestinationRule, nil)
+			wg.Done()
+			log.Debug("Istio worker has stopped")
+		}, time.Second, ctx.Done())
 	}
 	log.Infof("Istio workers (%d) started", destinationRuleWorkers)
 
-	<-stopCh
-	log.Info("Istio controller stopped")
+	<-ctx.Done()
+	wg.Wait()
+	log.Info("All istio workers have stopped")
 }
 
 // EnqueueDestinationRule examines a VirtualService, finds the Rollout referencing
 // that VirtualService, and enqueues the corresponding Rollout for reconciliation
-func (c *IstioController) EnqueueDestinationRule(obj interface{}) {
+func (c *IstioController) EnqueueDestinationRule(obj any) {
 	controllerutil.EnqueueRateLimited(obj, c.destinationRuleWorkqueue)
 }
 
 // EnqueueRolloutFromIstioVirtualService examines a VirtualService, finds the Rollout referencing
 // that VirtualService, and enqueues the corresponding Rollout for reconciliation
-func (c *IstioController) EnqueueRolloutFromIstioVirtualService(vsvc interface{}) {
+func (c *IstioController) EnqueueRolloutFromIstioVirtualService(vsvc any) {
 	acc, err := meta.Accessor(vsvc)
 	if err != nil {
 		log.Errorf("Error processing istio VirtualService from watch: %v: %v", err, vsvc)
@@ -188,7 +195,7 @@ func (c *IstioController) GetReferencedVirtualServices(ro *v1alpha1.Rollout) (*[
 				vsvcs = canary.TrafficRouting.Istio.VirtualServices
 				fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualServices", "name")
 			} else {
-				vsvcs = []v1alpha1.IstioVirtualService{canary.TrafficRouting.Istio.VirtualService}
+				vsvcs = []v1alpha1.IstioVirtualService{*canary.TrafficRouting.Istio.VirtualService}
 				fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
 			}
 
@@ -223,7 +230,7 @@ func (c *IstioController) GetReferencedVirtualServices(ro *v1alpha1.Rollout) (*[
 // `rollouts-pod-template-hash` label and the managed-by annotation. This handles the case when a
 // Rollout has either been deleted, or modified such that it is longer referencing the
 // DestinationRule.
-func (c *IstioController) syncDestinationRule(key string) error {
+func (c *IstioController) syncDestinationRule(ctx context.Context, key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -296,4 +303,8 @@ func getManagingRolloutName(un *unstructured.Unstructured) string {
 		return ""
 	}
 	return annots[v1alpha1.ManagedByRolloutsKey]
+}
+
+func (c *IstioController) ShutDownWithDrain() {
+	c.destinationRuleWorkqueue.ShutDownWithDrain()
 }

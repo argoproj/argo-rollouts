@@ -3,7 +3,7 @@
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM golang:1.16.3 as builder
+FROM --platform=$BUILDPLATFORM golang:1.26 AS builder
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -12,9 +12,7 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install golangci-lint
-RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  && \
-    chmod +x ./golangci-lint.sh && \
-    ./golangci-lint.sh -b $GOPATH/bin && \
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.11.1 && \
     golangci-lint linters
 
 COPY .golangci.yml ${GOPATH}/src/dummy/.golangci.yml
@@ -26,23 +24,24 @@ RUN cd ${GOPATH}/src/dummy && \
 ####################################################################################################
 # UI build stage
 ####################################################################################################
-FROM docker.io/library/node:12.18.4 as argo-rollouts-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:22 AS argo-rollouts-ui
 
 WORKDIR /src
-ADD ["ui/package.json", "ui/yarn.lock", "./"]
+RUN npm install -g corepack@0.34.6 && corepack enable
+ADD ["ui/package.json", "ui/pnpm-lock.yaml", "ui/pnpm-workspace.yaml", "./"]
 
-RUN yarn install --network-timeout 300000
+RUN pnpm install --frozen-lockfile
 
 ADD ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
-RUN NODE_ENV='production' yarn build
+RUN NODE_ENV='production' pnpm run build
 
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM golang:1.16.3 as argo-rollouts-build
+FROM --platform=$BUILDPLATFORM golang:1.26 AS argo-rollouts-build
 
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
 
@@ -57,21 +56,23 @@ COPY --from=argo-rollouts-ui /src/dist/app ./ui/dist/app
 # Perform the build
 COPY . .
 
-# stop make from trying to re-build this without yarn installed
+# stop make from trying to re-build this without node_modules present
 RUN touch ui/dist/node_modules.marker && \
     mkdir -p ui/dist/app && \
     touch ui/dist/app/index.html && \
     find ui/dist
 
-ARG MAKE_TARGET="controller plugin-linux plugin-darwin"
-RUN make ${MAKE_TARGET}
+ARG TARGETOS
+ARG TARGETARCH
+ARG MAKE_TARGET="controller plugin"
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make ${MAKE_TARGET}
 
 ####################################################################################################
 # Kubectl plugin image
 ####################################################################################################
-FROM docker.io/library/ubuntu:20.10 as kubectl-argo-rollouts
+FROM gcr.io/distroless/static-debian12 AS kubectl-argo-rollouts
 
-COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts-linux-amd64 /bin/kubectl-argo-rollouts
+COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts /bin/kubectl-argo-rollouts
 
 USER 999
 
@@ -84,7 +85,7 @@ CMD ["dashboard"]
 ####################################################################################################
 # Final image
 ####################################################################################################
-FROM scratch
+FROM gcr.io/distroless/static-debian12
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/

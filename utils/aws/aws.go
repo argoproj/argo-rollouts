@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/aws/aws-sdk-go-v2/aws"
+
 	"github.com/aws/aws-sdk-go-v2/config"
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
@@ -16,16 +17,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/dynamic"
-)
 
-// AWSLoadBalancerV2TagKeyResourceID is the tag applied to an AWS resource by the AWS Load Balancer
-// controller, to associate it to the corresponding kubernetes resource. This is used by the rollout
-// controller to identify the correct TargetGroups associated with the LoadBalancer. For AWS
-// target group service references, the format is: <namespace>/<ingress-name>-<service-name>:<port>
-// Example: ingress.k8s.aws/resource: default/alb-rollout-ingress-alb-rollout-stable:80
-// See: https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/guide/ingress/annotations/#resource-tags
-// https://github.com/kubernetes-sigs/aws-load-balancer-controller/blob/da8951f80521651e0a1ffe1361c011d6baad7706/pkg/deploy/tracking/provider.go#L19
-const AWSLoadBalancerV2TagKeyResourceID = "ingress.k8s.aws/resource"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+)
 
 // TargetType is the targetType of your ELBV2 TargetGroup.
 //
@@ -128,13 +122,18 @@ func FakeNewClientFunc(elbClient ELBv2APIClient) func() (Client, error) {
 }
 
 func (c *ClientAdapter) FindLoadBalancerByDNSName(ctx context.Context, dnsName string) (*elbv2types.LoadBalancer, error) {
-	lbOutput, err := c.ELBV2.DescribeLoadBalancers(ctx, &elbv2.DescribeLoadBalancersInput{})
-	if err != nil {
-		return nil, err
-	}
-	for _, lb := range lbOutput.LoadBalancers {
-		if lb.DNSName != nil && *lb.DNSName == dnsName {
-			return &lb, nil
+	paginator := elbv2.NewDescribeLoadBalancersPaginator(c.ELBV2, &elbv2.DescribeLoadBalancersInput{
+		PageSize: aws.Int32(defaults.DefaultAwsLoadBalancerPageSize),
+	})
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, lb := range output.LoadBalancers {
+			if lb.DNSName != nil && *lb.DNSName == dnsName {
+				return &lb, nil
+			}
 		}
 	}
 	return nil, nil
@@ -163,17 +162,27 @@ func (c *ClientAdapter) GetTargetGroupMetadata(ctx context.Context, loadBalancer
 	}
 
 	// Enrich TargetGroups with tag information
-	tagsIn := elbv2.DescribeTagsInput{
-		ResourceArns: tgARNs,
-	}
-	tagsOut, err := c.ELBV2.DescribeTags(ctx, &tagsIn)
-	if err != nil {
-		return nil, err
-	}
-	for _, tagDesc := range tagsOut.TagDescriptions {
-		for _, tag := range tagDesc.Tags {
-			if _, ok := tgMetaMap[*tagDesc.ResourceArn]; ok {
-				tgMetaMap[*tagDesc.ResourceArn].Tags[*tag.Key] = *tag.Value
+	describeTagsLimit := defaults.GetDescribeTagsLimit()
+	tgARNsCount := len(tgARNs)
+	for i := 0; i < tgARNsCount; i += describeTagsLimit {
+		j := i + describeTagsLimit
+		if j > tgARNsCount {
+			// last batch
+			j = tgARNsCount
+		}
+
+		tagsIn := elbv2.DescribeTagsInput{
+			ResourceArns: tgARNs[i:j],
+		}
+		tagsOut, err := c.ELBV2.DescribeTags(ctx, &tagsIn)
+		if err != nil {
+			return nil, err
+		}
+		for _, tagDesc := range tagsOut.TagDescriptions {
+			for _, tag := range tagDesc.Tags {
+				if _, ok := tgMetaMap[*tagDesc.ResourceArn]; ok {
+					tgMetaMap[*tagDesc.ResourceArn].Tags[*tag.Key] = *tag.Value
+				}
 			}
 		}
 	}
@@ -283,7 +292,7 @@ func GetTargetGroupBindingsByService(ctx context.Context, dynamicClient dynamic.
 	return tgbs, nil
 }
 
-func toTargetGroupBinding(obj map[string]interface{}) (*TargetGroupBinding, error) {
+func toTargetGroupBinding(obj map[string]any) (*TargetGroupBinding, error) {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err
@@ -351,7 +360,7 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 		logCtx.Warn("Unable to match TargetGroupBinding spec.serviceRef.port to Service spec.ports")
 		return nil, nil
 	}
-	logCtx = logCtx.WithFields(map[string]interface{}{
+	logCtx = logCtx.WithFields(map[string]any{
 		"service":            svc.Name,
 		"targetgroupbinding": tgb.Name,
 		"tg":                 tgb.Spec.TargetGroupARN,

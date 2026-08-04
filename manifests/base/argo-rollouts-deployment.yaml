@@ -7,6 +7,7 @@ metadata:
     app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: argo-rollouts
@@ -23,24 +24,39 @@ spec:
         ports:
           - containerPort: 8090
             name: metrics
+          - containerPort: 8080
+            name: healthz
         livenessProbe:
           httpGet:
-            path: /metrics
-            port: 8090
+            path: /healthz
+            port: healthz
           initialDelaySeconds: 30
           periodSeconds: 20
           failureThreshold: 3
           successThreshold: 1
           timeoutSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /metrics
-            port: 8090
-          periodSeconds: 5
-          failureThreshold: 3
-          successThreshold: 1
-          timeoutSeconds: 4
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          seccompProfile:
+            type: RuntimeDefault
+        resources:
+          limits:
+            ephemeral-storage: 1Gi
+        volumeMounts:
+        - name: plugin-bin
+          mountPath: /home/argo-rollouts/plugin-bin
+        - name: tmp
+          mountPath: /tmp
       securityContext:
         runAsNonRoot: true
+      volumes:
+      - name: plugin-bin
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
   strategy:
-    type: Recreate
+    type: RollingUpdate

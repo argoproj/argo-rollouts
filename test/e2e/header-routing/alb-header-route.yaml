@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: canary-service
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: alb-rollout
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stable-service
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: alb-rollout
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alb-rollout-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: action1
+                port:
+                  name: use-annotation
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollouts-demo
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: alb-rollout
+  template:
+    metadata:
+      labels:
+        app: alb-rollout
+    spec:
+      containers:
+        - name: alb-rollout
+          image: "argoproj/rollouts-demo:yellow"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+  strategy:
+    canary:
+      scaleDownDelaySeconds: 5
+      stableService: stable-service
+      canaryService: canary-service
+      trafficRouting:
+        managedRoutes:
+          - name: header-route
+        alb:
+          ingress: alb-rollout-ingress
+          rootService: action1
+          servicePort: 8080
+      steps:
+        - setWeight: 20
+        - pause: {}
+        - setHeaderRoute:
+            name: header-route
+            match:
+              - headerName: Custom-Header
+                headerValue:
+                  exact: Mozilla*
+        - pause: {}
+        - setHeaderRoute:
+            name: header-route
+        - pause: {}

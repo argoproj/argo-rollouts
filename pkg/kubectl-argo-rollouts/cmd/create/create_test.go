@@ -2,7 +2,7 @@ package create
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,9 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	core "k8s.io/client-go/testing"
 
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
 
 func TestCreateRollout(t *testing.T) {
@@ -207,7 +208,7 @@ func TestCreateJSON(t *testing.T) {
 
 func TestCreateAnalysisRunFromTemplateInCluster(t *testing.T) {
 	var template unstructured.Unstructured
-	fileBytes, err := ioutil.ReadFile("testdata/analysis-template.yaml")
+	fileBytes, err := os.ReadFile("testdata/analysis-template.yaml")
 	assert.NoError(t, err)
 	err = unmarshal(fileBytes, &template)
 	assert.NoError(t, err)
@@ -245,7 +246,7 @@ func TestCreateAnalysisRunFromTemplateNotFoundInCluster(t *testing.T) {
 
 func TestCreateAnalysisRunFromClusterTemplateInCluster(t *testing.T) {
 	var template unstructured.Unstructured
-	fileBytes, err := ioutil.ReadFile("testdata/cluster-analysis-template.yaml")
+	fileBytes, err := os.ReadFile("testdata/cluster-analysis-template.yaml")
 	assert.NoError(t, err)
 	err = unmarshal(fileBytes, &template)
 	assert.NoError(t, err)

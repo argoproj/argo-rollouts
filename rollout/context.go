@@ -1,11 +1,8 @@
 package rollout
 
 import (
-	"time"
-
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -39,8 +36,16 @@ type rolloutContext struct {
 	currentEx *v1alpha1.Experiment
 	otherExs  []*v1alpha1.Experiment
 
-	newStatus    v1alpha1.RolloutStatus
-	pauseContext *pauseContext
+	newStatus         v1alpha1.RolloutStatus
+	pauseContext      *pauseContext
+	stepPluginContext *stepPluginContext
+
+	// pendingDurationMetric holds a completed rollout duration stashed by
+	// calculateStatusDuration. It is emitted by emitPendingRolloutDuration only
+	// after the status change recording the completion transition has been
+	// persisted, so that a failed status patch does not double-count the
+	// completion when the transition is re-detected on the next reconcile.
+	pendingDurationMetric *v1alpha1.RolloutDurationStatus
 
 	// targetsVerified indicates if the pods targets have been verified with underlying LoadBalancer.
 	// This is used in pod-aware flat networks where LoadBalancers target Pods and not Nodes.
@@ -49,24 +54,21 @@ type rolloutContext struct {
 	// (e.g. a setWeight step, after a blue-green active switch, after stable service switch),
 	// since we do not want to continually verify weight in case it could incur rate-limiting or other expenses.
 	targetsVerified *bool
+
+	// newRSWithinDelay indicates if the newRS has a valid (non-expired) scale-down-deadline
+	// annotation at the start of reconciliation (before it may be removed).
+	// Used to detect fast rollbacks where we skip pause/analysis steps.
+	newRSWithinDelay bool
 }
 
 func (c *rolloutContext) reconcile() error {
-	// Get Rollout Validation errors
-	err := c.getRolloutValidationErrors()
+	err := c.checkPausedConditions()
 	if err != nil {
-		if vErr, ok := err.(*field.Error); ok {
-			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
-			// condition might be timing related (e.g. the Rollout was applied before the Service).
-			c.enqueueRolloutAfter(c.rollout, 20*time.Second)
-			return c.createInvalidRolloutCondition(vErr, c.rollout)
-		}
 		return err
 	}
-
-	err = c.checkPausedConditions()
-	if err != nil {
-		return err
+	if c.newRollout != nil {
+		// exit early since we modified the rollout
+		return nil
 	}
 
 	isScalingEvent, err := c.isScalingEvent()
@@ -74,8 +76,8 @@ func (c *rolloutContext) reconcile() error {
 		return err
 	}
 
-	if getPauseCondition(c.rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil || c.rollout.Spec.Paused || isScalingEvent {
-		return c.syncReplicasOnly(isScalingEvent)
+	if isScalingEvent {
+		return c.syncReplicasOnly()
 	}
 
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
@@ -140,4 +142,17 @@ func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnal
 			}
 		}
 	}
+}
+
+// haltProgress returns a reason on whether or not we should halt all progress with an update
+// to ReplicaSet counts (e.g. due to canary steps or blue-green promotion). This is either because
+// user explicitly paused the rollout by setting `spec.paused`, or the analysis was inconclusive
+func (c *rolloutContext) haltProgress() string {
+	if c.rollout.Spec.Paused {
+		return "user paused"
+	}
+	if getPauseCondition(c.rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+		return "inconclusive analysis"
+	}
+	return ""
 }

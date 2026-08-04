@@ -1,0 +1,84 @@
+@import '../theme/theme.scss';
+
+@mixin indicator($background, $foreground) {
+    background: $background;
+    border-color: $foreground;
+
+    &,
+    svg {
+        color: $foreground;
+    }
+}
+
+.indicator-wrapper {
+    position: relative;
+    border-radius: 50%;
+}
+
+.indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border-style: solid;
+    border-width: 1px;
+
+    &.is-small {
+        width: 14px;
+        min-width: 14px;
+        height: 14px;
+    }
+
+    &.is-large {
+        width: 28px;
+        min-width: 28px;
+        height: 28px;
+    }
+
+    &,
+    &.is-INACTIVE {
+        @include indicator($inactive-background, $inactive-foreground);
+    }
+
+    &.is-IN_PROGRESS {
+        @include indicator($in-progress-background, $in-progress-foreground);
+    }
+
+    &.is-SUCCESS {
+        @include indicator($success-background, $success-foreground);
+    }
+
+    &.is-WARNING {
+        @include indicator($warning-background, $warning-foreground);
+    }
+
+    &.is-ERROR {
+        @include indicator($error-background, $error-foreground);
+    }
+}
+
+.substatus {
+    position: absolute;
+    border: 1px solid white;
+    border-radius: 50%;
+    top: -3px;
+    left: -2px;
+
+    &.is-small {
+        width: 8px;
+        height: 8px;
+    }
+
+    &.is-large {
+        width: 12px;
+        height: 12px;
+    }
+
+    &.is-WARNING {
+        background: $warning-foreground;
+    }
+
+    &.is-ERROR {
+        background: $error-foreground;
+    }
+}

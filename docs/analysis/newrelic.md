@@ -3,7 +3,7 @@
 !!! important
     Available since v0.10.0
 
-A [New Relic](https://newrelic.com/) query using [NRQL](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/introduction-nrql-new-relics-query-language) can be used to obtain measurements for analysis.  
+A [New Relic](https://newrelic.com/) query using [NRQL](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/introduction-nrql-new-relics-query-language) can be used to obtain measurements for analysis.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -21,6 +21,7 @@ spec:
         profile: my-newrelic-secret  # optional, defaults to 'newrelic'
         query: |
           FROM Transaction SELECT percentage(count(*), WHERE httpResponseCode != 500) as successRate where appName = '{{ args.application-name }}'
+        timeout: 10 # NRQL query timeout in seconds. Optional, defaults to 5
 ```
 
 The `result` evaluated for the condition will always be map or list of maps. The name will follow the pattern of either `function` or `function.field`, e.g. `SELECT average(duration) from Transaction` will yield `average.duration`. In this case the field result cannot be accessed with dot notation and instead should be accessed like `result['average.duration']`. Query results can be renamed using the [NRQL clause `AS`](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/nrql-syntax-clauses-functions#sel-as) as seen above.
@@ -33,7 +34,7 @@ kind: Secret
 metadata:
   name: newrelic
 type: Opaque
-data:
+stringData:
   personal-api-key: <newrelic-personal-api-key>
   account-id: <newrelic-account-id>
   region: "us" # optional, defaults to "us" if not set. Only set to "eu" if you use EU New Relic
@@ -47,10 +48,18 @@ kind: Secret
 metadata:
   name: newrelic
 type: Opaque
-data:
+stringData:
   personal-api-key: <newrelic-personal-api-key>
   account-id: <newrelic-account-id>
   region: "us" # optional, defaults to "us" if not set. Only set to "eu" if you use EU New Relic
   base-url-rest: <your-base-url>
   base-url-nerdgraph: <your-base-url>
 ```
+
+## Additional Metadata
+
+The New Relic provider returns the below metadata under the `Metadata` map in the `MetricsResult` object of `AnalysisRun`.
+
+| KEY                   | Description |
+|-----------------------|-------------|
+| ResolvedNewRelicQuery | Resolved query after substituting the template's arguments |

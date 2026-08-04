@@ -1,8 +1,5 @@
 # Datadog Metrics
 
-!!! important
-    Available since v0.10.0
-
 A [Datadog](https://www.datadoghq.com/) query can be used to obtain measurements for analysis.
 
 ```yaml
@@ -20,11 +17,13 @@ spec:
     failureLimit: 3
     provider:
       datadog:
+        apiVersion: v2
         interval: 5m
         query: |
-          sum:requests.error.count{service:{{args.service-name}}} /
-          sum:requests.request.count{service:{{args.service-name}}}
+          sum:requests.error.rate{service:{{args.service-name}}}
 ```
+
+The field `apiVersion` refers to the API version of Datadog (v1 or v2). Default value is `v1` if this is omitted. See "Working with Datadog API v2" below for more information.
 
 Datadog api and app tokens can be configured in a kubernetes secret in argo-rollouts namespace.
 
@@ -34,8 +33,265 @@ kind: Secret
 metadata:
   name: datadog
 type: Opaque
-data:
+stringData:
   address: https://api.datadoghq.com
   api-key: <datadog-api-key>
   app-key: <datadog-app-key>
 ```
+
+`apiVersion` here is different from the `apiVersion` from the Datadog configuration above.
+
+!!! important
+    ###### Namespaced secret
+    Datadog integration supports referring to secrets inside the same namespace as argo-rollouts (by default)
+    or referring to a secret in the same namespace as the `AnalysisTemplate`.
+
+    To use a secret from the `AnalysisTemplate` namespace, include a `secretRef` section in the template, specifying the `name` of the secret and setting the `namespaced` property to `true`.
+
+    The process for retrieving Datadog credentials is as follows:
+    1. **If a `secretRef` is defined in the `AnalysisTemplate`:** Argo Rollouts will search for the secret with the specified name in the namespace where the template resides.
+    2. **If the secret is not found in the specified namespace:** Argo Rollouts will then check the environment variables.
+    3. **If the credentials are not found in environment variables:** Argo Rollouts will look for a secret named "Datadog" in the namespace where Argo Rollouts itself is deployed.
+
+--- 
+
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: loq-error-rate
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: error-rate
+    interval: 5m
+    successCondition: result <= 0.01
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
+        interval: 5m
+        secretRef:
+          name: "mysecret"
+          namespaced: true
+        query: |
+          sum:requests.error.rate{service:{{args.service-name}}}
+  ```
+
+
+
+### Working with Datadog API v2
+
+!!! important
+    While some basic v2 functionality is working in earlier versions, the new properties of `formula` and `queries` are only available as of v1.7
+
+#### Moving to v2
+
+If your old v1 was just a simple metric query - no formula as part of the query - then you can just move to v2 by updating the `apiVersion` in your existing Analysis Template, and everything should work.
+
+If you have a formula, you will need to update how you configure your metric. Here is a before/after example of what your Analysis Template should look like:
+
+Before:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: log-error-rate
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: error-rate
+    interval: 30s
+    successCondition: default(result, 0) < 10
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v1
+        interval: 5m
+        query: "moving_rollup(sum:requests.errors{service:{{args.service-name}}}.as_count(), 60, 'sum') / sum:requests{service:{{args.service-name}}}.as_count()"
+```
+
+After:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: loq-error-rate
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: error-rate
+    # Polling rate against the Datadog API
+    interval: 30s
+    successCondition: default(result, 0) < 10
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
+        # The window of time we are looking at in DD. Basically we will fetch data from (now-5m) to now.
+        interval: 5m
+        queries:
+          a: sum:requests.errors{service:{{args.service-name}}}.as_count()
+          b: sum:requests{service:{{args.service-name}}}.as_count()
+        formula: "moving_rollup(a, 60, 'sum') / b"
+```
+
+#### Examples
+
+Simple v2 query with no formula
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: canary-container-restarts
+spec:
+  args:
+    # This is set in rollout using the valueFrom: podTemplateHashValue functionality
+    - name: canary-hash
+    - name: service-name
+    - name: restarts.initial-delay
+      value: "60s"
+    - name: restarts.max-restarts
+      value: "4"
+  metrics:
+    - name: kubernetes.containers.restarts
+      initialDelay: "{{ args.restarts.initial-delay }}"
+      interval: 15s
+      failureCondition: default(result, 0) > {{ args.restarts.max-restarts }}
+      failureLimit: 0
+      provider:
+        datadog:
+          apiVersion: v2
+          interval: 5m
+          queries:
+            # The key is arbitrary - you will use this key to refer to the query if you use a formula.
+            q: "max:kubernetes.containers.restarts{service-name:{{args.service-name}},rollouts_pod_template_hash:{{args.canary-hash}}}"
+```
+
+### Tips
+
+#### Datadog Results
+
+Datadog queries can return empty results if the query takes place during a time interval with no metrics. The Datadog provider will return a `nil` value yielding an error during the evaluation phase like:
+
+```
+invalid operation: < (mismatched types <nil> and float64)
+```
+
+However, empty query results yielding a `nil` value can be handled using the `default()` function. Here is a succeeding example using the `default()` function:
+
+```yaml
+successCondition: default(result, 0) < 0.05
+```
+
+#### Metric aggregation (v2 only)
+
+By default, Datadog analysis run is configured to use `last` metric aggregator when querying Datadog v2 API. This value can be overridden by specifying a new `aggregator` value from a list of supported aggregators (`avg,min,max,sum,last,percentile,mean,l2norm,area`) for the V2 API ([docs](https://docs.datadoghq.com/api/latest/metrics/#query-scalar-data-across-multiple-products)).
+
+For example, using count-based distribution metric (`count:metric{*}.as_count()`) with values `1,9,3,7,5` in a given `interval` will make `last` aggregator return `5`. To return a sum of all values (`25`), set `aggregator: sum` in Datadog provider block and use `moving_rollup()` function to aggregate values in the specified rollup interval. These functions can be combined in a `formula` to perform additional calculations:
+
+```yaml
+...<snip>
+  metrics:
+  - name: error-percentage
+    interval: 30s
+    successCondition: default(result, 0) < 5
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
+        interval: 5m
+        aggregator: sum # override default aggregator
+        queries:
+          a: count:requests.errors{service:my-service}.as_count()
+          b: count:requests{service:my-service}.as_count()
+        formula: "moving_rollup(a, 300, 'sum') / moving_rollup(b, 300, 'sum') * 100" # percentage of requests with errors
+```
+
+#### Request timeout
+
+By default, requests to the Datadog API use a 10 second HTTP client timeout. Expensive
+queries — for example a v2 `formula` built from many sub-queries — can occasionally take
+longer than that to return, surfacing as:
+
+```
+Post "https://api.datadoghq.com/api/v2/query/scalar": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+```
+
+You can raise (or lower) this timeout with the `requestTimeout` field. It accepts a duration
+string (e.g. `30s`, `1m`) and defaults to `10s` when omitted:
+
+```yaml
+...<snip>
+  metrics:
+  - name: error-percentage
+    interval: 30s
+    successCondition: default(result, 0) < 5
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
+        interval: 5m
+        requestTimeout: 30s # override the default 10s HTTP client timeout
+        queries:
+          a: count:requests.errors{service:my-service}.as_count()
+          b: count:requests{service:my-service}.as_count()
+        formula: "moving_rollup(a, 300, 'sum') / moving_rollup(b, 300, 'sum') * 100"
+```
+
+#### Grouped queries with `by {tag}` (v2 only)
+
+Datadog queries that use a `by {tag}` clause return one scalar per group rather than a single value. The Datadog provider detects a grouped query from the response shape (a `group` column is present), exactly as the Prometheus provider dispatches on its response type — so a grouped query is always exposed as a `result` slice, even when it matches only a single group. Use any of the standard [Expr](https://expr-lang.org/docs/language-definition) functions in the success or failure condition to reduce the slice — for example `max(result)`, `mean(result)`, `sum(result)`, `all(result, # < X)`, or `any(result, # >= X)`.
+
+This is useful for detecting regressions in a subset of entities (e.g. a specific `resource_name`) that would otherwise be diluted by a global aggregate:
+
+```yaml
+...<snip>
+  metrics:
+  - name: per-endpoint-error-rate
+    interval: 30s
+    successCondition: max(result) < 0.05 # fail if ANY endpoint exceeds the threshold
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
+        interval: 5m
+        query: "sum:trace.http.request.errors{service:my-service} by {resource_name}.as_count()"
+```
+
+When the query is grouped, the measurement's `metadata.groups` field is populated with a JSON array of `{"name": "...", "value": ...}` pairs, so the operator can map an outlier in `result` back to the entity that produced it. JSON is used so tag values containing `,` or `=` survive without escaping. When the query groups by more than one tag (`by {env, resource_name}`), Datadog returns a separate column per tag; the `name` is those tag values joined with `,` (e.g. `prod,GET /a`), so every dimension is preserved. Visible in `kubectl describe analysisrun`, the rollouts dashboard, and notification templates (which can parse it via `fromJson`).
+
+`metadata.groups` is intended for **low-cardinality** tags such as `resource_name` or `endpoint`. It is display-only — evaluation always uses the full `result` slice — and is capped at the 100 highest-valued groups to keep the AnalysisRun status from exceeding the Kubernetes object-size limit. When the cap is hit, `metadata.groups_truncated` is set to `"true"`. Avoid grouping by an unbounded tag like `host` or `pod` on a large fleet: the `result` slice itself is not capped, so a query returning many thousands of groups can still bloat the stored measurement.
+
+#### Templates and Helm
+
+Helm and Argo Rollouts both try to parse things between `{{ ... }}` when rendering templates. If you use Helm to deliver your manifests, you will need to escape `{{ args.whatever }}`. Using the example above, here it is set up for Helm:
+
+```yaml
+...<snip>
+metrics:
+  - name: kubernetes.containers.restarts
+      initialDelay: "{{ `{{ args.restarts.initial-delay }}` }}"
+    interval: 15s
+      failureCondition: default(result, 0) > {{ `{{ args.restarts.max-restarts }}` }}
+    failureLimit: 0
+    provider:
+      datadog:
+        apiVersion: v2
+        interval: 5m
+        queries:
+          q: "{{ `max:kubernetes.containers.restarts{kube_app_name:{{args.kube_app_name}},rollouts_pod_template_hash:{{args.canary-hash}}}` }}"
+```
+
+#### Rate Limits
+
+For the `v1` API, you ask for an increase on the `api/v1/query` route.
+
+For the `v2` API, the Ratelimit-Name you ask for an increase in is the `query_scalar_public`.

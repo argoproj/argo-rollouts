@@ -9,11 +9,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -30,7 +30,7 @@ type CloudWatchClient struct {
 }
 
 func (c *CloudWatchClient) Query(interval time.Duration, query []types.MetricDataQuery) (*cloudwatch.GetMetricDataOutput, error) {
-	endTime := time.Now()
+	endTime := timeutil.Now()
 	startTime := endTime.Add(-interval)
 	return c.client.GetMetricData(context.TODO(), &cloudwatch.GetMetricDataInput{
 		StartTime:         &startTime,
@@ -50,9 +50,14 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
+// GetMetadata returns any additional metadata which needs to be stored & displayed as part of the metrics result.
+func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
+	return nil
+}
+
 // Run queries with CloudWatch provider for the metric
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
-	startTime := metav1.Now()
+	startTime := timeutil.MetaNow()
 	measurement := v1alpha1.Measurement{
 		StartedAt: &startTime,
 		Metadata:  map[string]string{},
@@ -92,7 +97,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 
 	measurement.Phase = status
-	finishedTime := metav1.Now()
+	finishedTime := timeutil.MetaNow()
 	measurement.FinishedAt = &finishedTime
 
 	return measurement
@@ -110,7 +115,7 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
-//NewCloudWatchProvider creates a new CloudWatch provider
+// NewCloudWatchProvider creates a new CloudWatch provider
 func NewCloudWatchProvider(api CloudWatchClientAPI, logCtx log.Entry) *Provider {
 	return &Provider{
 		api:    api,
@@ -149,9 +154,11 @@ func convertType(data []v1alpha1.CloudWatchMetricDataQuery) []types.MetricDataQu
 			if v.MetricStat.Metric.Dimensions != nil {
 				metricStat.Metric.Dimensions = make([]types.Dimension, len(v.MetricStat.Metric.Dimensions))
 				for j, d := range v.MetricStat.Metric.Dimensions {
+					name := d.Name
+					value := d.Value
 					metricStat.Metric.Dimensions[j] = types.Dimension{
-						Name:  &d.Name,
-						Value: &d.Value,
+						Name:  &name,
+						Value: &value,
 					}
 				}
 			}

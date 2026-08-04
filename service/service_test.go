@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/queue"
 
@@ -14,11 +16,12 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/util/workqueue"
 
+	"k8s.io/client-go/tools/cache"
+
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
-	"k8s.io/client-go/tools/cache"
 )
 
 func newService(name string, port int, selector map[string]string) *corev1.Service {
@@ -84,7 +87,7 @@ func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*
 		MetricsServer:     metricsServer,
 	})
 	enqueuedObjects := map[string]int{}
-	c.enqueueRollout = func(obj interface{}) {
+	c.enqueueRollout = func(obj any) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
@@ -110,7 +113,7 @@ func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*
 func TestSyncMissingService(t *testing.T) {
 	ctrl, _, _, _ := newFakeServiceController(nil, nil)
 
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 }
 
@@ -122,7 +125,7 @@ func TestSyncMissingServiceInCache(t *testing.T) {
 	})
 	ctrl, _, _, _ := newFakeServiceController(svc, nil)
 	ctrl.kubeclientset = k8sfake.NewSimpleClientset()
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 }
 
@@ -133,7 +136,7 @@ func TestSyncServiceNotReferencedByRollout(t *testing.T) {
 
 	ctrl, kubeclient, _, _ := newFakeServiceController(svc, nil)
 
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 1)
@@ -164,7 +167,7 @@ func TestSyncServiceWithNoManagedBy(t *testing.T) {
 
 	ctrl, kubeclient, client, _ := newFakeServiceController(svc, ro)
 
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)
@@ -192,7 +195,7 @@ func TestSyncServiceWithManagedByWithNoRolloutReference(t *testing.T) {
 
 	ctrl, kubeclient, client, _ := newFakeServiceController(svc, ro)
 
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	patch, ok := actions[0].(k8stesting.PatchAction)
@@ -227,9 +230,22 @@ func TestSyncServiceReferencedByRollout(t *testing.T) {
 
 	ctrl, kubeclient, _, enqueuedObjects := newFakeServiceController(svc, rollout)
 
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)
 	assert.Equal(t, 1, enqueuedObjects["default/rollout"])
+}
+
+func TestRun(t *testing.T) {
+	// make sure we can start and top the controller
+	c, _, _, _ := newFakeServiceController(nil, nil)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.serviceWorkqueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }

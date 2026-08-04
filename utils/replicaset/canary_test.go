@@ -1,6 +1,7 @@
 package replicaset
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -96,6 +98,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 
 		abortScaleDownDelaySeconds *int32
 		statusAbort                bool
+		minPodsPerReplicaSet       *int32
 	}{
 		{
 			name:                "Do not add extra RSs in scaleDownCount when .Spec.Replica < AvailableReplicas",
@@ -274,7 +277,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 10,
 		},
 		{
-			name:                "Do not scale newRS down to zero on non-zero weight",
+			name:                "Do not scale canaryRS down to zero on non-zero weight",
 			rolloutSpecReplicas: 1,
 			setWeight:           20,
 			maxSurge:            intstr.FromInt(1),
@@ -306,7 +309,55 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 1,
 		},
 		{
-			name:                "Scale up Stable before newRS",
+			name:                "Scale canaryRS to zero on <50 weight without surge",
+			rolloutSpecReplicas: 1,
+			setWeight:           49,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 0,
+		},
+		{
+			name:                "Scale stableRS down to zero on >=50 weight without surge",
+			rolloutSpecReplicas: 1,
+			setWeight:           51,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 0,
+			expectedCanaryReplicaCount: 0,
+		},
+		{
+			name:                "Scale canaryRS to one on >=50 weight without surge and stable replicas",
+			rolloutSpecReplicas: 1,
+			setWeight:           51,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
+
+			stableSpecReplica:      0,
+			stableAvailableReplica: 0,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 0,
+			expectedCanaryReplicaCount: 1,
+		},
+		{
+			name:                "Scale up Stable before canaryRS",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
 			maxSurge:            intstr.FromInt(1),
@@ -324,7 +375,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			olderRS: newRS("older", 3, 3),
 		},
 		{
-			name:                "Scale down newRS and stable",
+			name:                "Scale down canaryRS and stable",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
 			maxSurge:            intstr.FromInt(0),
@@ -356,7 +407,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 9,
 		},
 		{
-			name:                "Do not scale down newRS or stable when older RS count >= scaleDownCount",
+			name:                "Do not scale down canaryRS or stable when older RS count >= scaleDownCount",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
 			maxSurge:            intstr.FromInt(0),
@@ -374,7 +425,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			olderRS: newRS("older", 3, 3),
 		},
 		{
-			name:                "Add an extra replica to surge when the setWeight rounding adds another instance",
+			name:                "Do not round past maxSurge with uneven setWeight divisor",
 			rolloutSpecReplicas: 10,
 			setWeight:           5,
 			maxSurge:            intstr.FromInt(0),
@@ -386,7 +437,23 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
-			expectedStableReplicaCount: 10,
+			expectedStableReplicaCount: 9,
+			expectedCanaryReplicaCount: 0,
+		},
+		{
+			name:                "Do not round past maxSurge with uneven setWeight divisor (part 2)",
+			rolloutSpecReplicas: 10,
+			setWeight:           5,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
+
+			stableSpecReplica:      9,
+			stableAvailableReplica: 9,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 9,
 			expectedCanaryReplicaCount: 1,
 		},
 		{
@@ -487,6 +554,37 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 1, // should only surge by 1 to honor maxSurge: 1
 		},
 		{
+			name:                "scale down to maxunavailable without exceeding maxSurge",
+			rolloutSpecReplicas: 3,
+			setWeight:           99,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(2),
+
+			stableSpecReplica:      3,
+			stableAvailableReplica: 3,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 0,
+		},
+		{
+			name:                "scale down to maxunavailable without exceeding maxSurge (part 2)",
+			rolloutSpecReplicas: 3,
+			setWeight:           99,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(2),
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 2,
+		}, {
 			// verify we scale down stableRS while honoring maxUnavailable even when stableRS unavailable
 			name:                "honor maxUnavailable during scale down stableRS unavailable",
 			rolloutSpecReplicas: 4,
@@ -626,6 +724,41 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedStableReplicaCount: 1,
 			expectedCanaryReplicaCount: 0,
 		},
+		{
+			name:                "Honor MinPodsPerReplicaSet when using trafficRouting and starting canary",
+			rolloutSpecReplicas: 10,
+			setWeight:           5,
+
+			stableSpecReplica:      10,
+			stableAvailableReplica: 10,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			trafficRouting:       &v1alpha1.RolloutTrafficRouting{},
+			minPodsPerReplicaSet: intPnt(2),
+
+			expectedStableReplicaCount: 10,
+			expectedCanaryReplicaCount: 2,
+		},
+		{
+			name:                "Cap MinPodsPerReplicaSet when it exceeds rollout replicas with trafficRouting",
+			rolloutSpecReplicas: 1,
+			setWeight:           100,
+			promoteFull:         true,
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			trafficRouting:       &v1alpha1.RolloutTrafficRouting{},
+			minPodsPerReplicaSet: intPnt(2),
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 1,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
@@ -636,18 +769,112 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			stableRS := newRS("stable", test.stableSpecReplica, test.stableAvailableReplica)
 			canaryRS := newRS("canary", test.canarySpecReplica, test.canaryAvailableReplica)
 			rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = test.abortScaleDownDelaySeconds
-			newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
+			if test.minPodsPerReplicaSet != nil {
+				rollout.Spec.Strategy.Canary.MinPodsPerReplicaSet = test.minPodsPerReplicaSet
+			}
+			var newRSReplicaCount, stableRSReplicaCount int32
+			if test.trafficRouting != nil {
+				newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForTrafficRoutedCanary(rollout, nil, nil, nil)
+			} else {
+				newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForBasicCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
+			}
 			assert.Equal(t, test.expectedCanaryReplicaCount, newRSReplicaCount, "check canary replica count")
 			assert.Equal(t, test.expectedStableReplicaCount, stableRSReplicaCount, "check stable replica count")
 		})
 	}
 }
 
+func TestApproximateWeightedNewStableReplicaCounts(t *testing.T) {
+	tests := []struct {
+		replicas  int32
+		weight    int32
+		maxWeight int32
+		maxSurge  int32
+		expCanary int32
+		expStable int32
+	}{
+		{replicas: 0, weight: 0, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 0},   // 0%
+		{replicas: 0, weight: 50, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 0},  // 0%
+		{replicas: 0, weight: 100, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 0}, // 0%
+
+		{replicas: 0, weight: 0, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 0},   // 0%
+		{replicas: 0, weight: 50, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 0},  // 0%
+		{replicas: 0, weight: 100, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 0}, // 0%
+
+		{replicas: 1, weight: 0, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 1},   // 0%
+		{replicas: 1, weight: 1, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 1},   // 0%
+		{replicas: 1, weight: 49, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 1},  // 0%
+		{replicas: 1, weight: 50, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 0},  // 100%
+		{replicas: 1, weight: 99, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 0},  // 100%
+		{replicas: 1, weight: 100, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 0}, // 100%
+
+		{replicas: 1, weight: 0, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 1},   // 0%
+		{replicas: 1, weight: 1, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 1},   // 50%
+		{replicas: 1, weight: 49, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 1, weight: 50, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 1, weight: 99, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 1, weight: 100, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 0}, // 100%
+
+		{replicas: 2, weight: 0, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 2},   // 0%
+		{replicas: 2, weight: 1, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 1},   // 50%
+		{replicas: 2, weight: 50, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 2, weight: 99, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 2, weight: 100, maxWeight: 100, maxSurge: 0, expCanary: 2, expStable: 0}, // 100%
+
+		{replicas: 2, weight: 0, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 2},   // 0%
+		{replicas: 2, weight: 1, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 2},   // 33.3%
+		{replicas: 2, weight: 50, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 2, weight: 99, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 1},  // 66.6%
+		{replicas: 2, weight: 100, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 0}, // 100%
+
+		{replicas: 3, weight: 10, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 25, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 33, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 34, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 49, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 50, maxWeight: 100, maxSurge: 0, expCanary: 2, expStable: 1}, // 66.6%
+
+		{replicas: 3, weight: 10, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 3}, // 25%
+		{replicas: 3, weight: 25, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 3}, // 25%
+		{replicas: 3, weight: 33, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 34, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 49, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 2}, // 50%
+		{replicas: 3, weight: 50, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 2}, // 50%
+
+		{replicas: 10, weight: 0, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 10},   // 0%
+		{replicas: 10, weight: 1, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 9},    // 10%
+		{replicas: 10, weight: 14, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 9},   // 10%
+		{replicas: 10, weight: 15, maxWeight: 100, maxSurge: 0, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 16, maxWeight: 100, maxSurge: 0, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 99, maxWeight: 100, maxSurge: 0, expCanary: 9, expStable: 1},   // 90%
+		{replicas: 10, weight: 100, maxWeight: 100, maxSurge: 1, expCanary: 10, expStable: 0}, // 100%
+
+		{replicas: 10, weight: 0, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 10},   // 0%
+		{replicas: 10, weight: 1, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 10},   // 9.1%
+		{replicas: 10, weight: 18, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 9},   // 18.1%
+		{replicas: 10, weight: 19, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 9},   // 18.1%
+		{replicas: 10, weight: 20, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 23, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 24, maxWeight: 100, maxSurge: 1, expCanary: 3, expStable: 8},   // 27.2%
+		{replicas: 10, weight: 25, maxWeight: 100, maxSurge: 1, expCanary: 3, expStable: 8},   // 27.2%
+		{replicas: 10, weight: 99, maxWeight: 100, maxSurge: 1, expCanary: 10, expStable: 1},  // 90.9%
+		{replicas: 10, weight: 100, maxWeight: 100, maxSurge: 1, expCanary: 10, expStable: 0}, // 100%
+
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(fmt.Sprintf("%s_replicas:%d_weight:%d_maxweight:%d_surge:%d", t.Name(), test.replicas, test.weight, test.maxWeight, test.maxSurge), func(t *testing.T) {
+			newRSReplicaCount, stableRSReplicaCount := approximateWeightedCanaryStableReplicaCounts(test.replicas, test.weight, test.maxWeight, test.maxSurge)
+			assert.Equal(t, test.expCanary, newRSReplicaCount, "check canary replica count")
+			assert.Equal(t, test.expStable, stableRSReplicaCount, "check stable replica count")
+		})
+	}
+}
 func TestCalculateReplicaCountsForNewDeployment(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
 	stableRS := newRS("stable", 10, 0)
 	newRS := newRS("stable", 10, 0)
-	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, nil)
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForBasicCanary(rollout, newRS, stableRS, nil)
 	assert.Equal(t, int32(10), newRSReplicaCount)
 	assert.Equal(t, int32(0), stableRSReplicaCount)
 }
@@ -655,23 +882,179 @@ func TestCalculateReplicaCountsForNewDeployment(t *testing.T) {
 func TestCalculateReplicaCountsForCanaryTrafficRouting(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
 	rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
-	stableRS := newRS("stable", 10, 10)
-	newRS := newRS("canary", 0, 0)
-	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, nil)
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, nil, nil, rollout.Status.Canary.Weights)
 	assert.Equal(t, int32(1), newRSReplicaCount)
 	assert.Equal(t, int32(10), stableRSReplicaCount)
+}
+
+func TestCalculateReplicaCountsForCanaryTrafficRoutingDynamicScale(t *testing.T) {
+	tests := []struct {
+		name                    string
+		rolloutReplicas         int32
+		rolloutMaxReplicas      int32
+		rolloutAbort            bool
+		steps                   []v1alpha1.CanaryStep
+		canaryWeight            int32
+		stableWeight            int32
+		canaryRSReplicas        int32
+		availableCanaryReplicas int32
+		stableRSReplicas        int32
+		availableStableReplicas int32
+		expectedCanaryReplicas  int32
+		expectedStableReplicas  int32
+	}{
+		{
+			// E.g. if next step is to scale canary down to 2 and we have 10 replicas, we should scale stable up to 8
+			name:                    "Should scale stable replica up depending on next expected canary downscale step, if abort is true",
+			rolloutReplicas:         10,
+			rolloutMaxReplicas:      20,
+			canaryWeight:            60,
+			stableWeight:            40,
+			canaryRSReplicas:        6,
+			availableCanaryReplicas: 6,
+			stableRSReplicas:        4,
+			availableStableReplicas: 4,
+			expectedCanaryReplicas:  6,
+			expectedStableReplicas:  8,
+			rolloutAbort:            true,
+			steps:                   []v1alpha1.CanaryStep{{SetWeight: pointer.Int32Ptr(60)}},
+		},
+		{
+			name:                    "Should scale stable replica up depending on available canary replicas, if actual number of canaries is less than expected and abort is true",
+			rolloutReplicas:         10,
+			rolloutMaxReplicas:      20,
+			rolloutAbort:            true,
+			canaryWeight:            60,
+			stableWeight:            40,
+			canaryRSReplicas:        1,
+			availableCanaryReplicas: 1,
+			stableRSReplicas:        4,
+			availableStableReplicas: 4,
+			expectedCanaryReplicas:  6,
+			expectedStableReplicas:  8,
+			steps:                   []v1alpha1.CanaryStep{{SetWeight: pointer.Int32Ptr(60)}},
+		},
+		{
+			name:                    "Should scale stable replica up depending on available stable replicas, if abort is true",
+			rolloutReplicas:         10,
+			rolloutMaxReplicas:      20,
+			rolloutAbort:            true,
+			canaryWeight:            60,
+			stableWeight:            40,
+			canaryRSReplicas:        2,
+			availableCanaryReplicas: 2,
+			stableRSReplicas:        8,
+			availableStableReplicas: 4,
+			expectedCanaryReplicas:  6,
+			expectedStableReplicas:  8,
+			steps:                   []v1alpha1.CanaryStep{{SetWeight: pointer.Int32Ptr(60)}},
+		},
+		{
+			name:                   "Should scale stable up as if canaries are scaled down to 0 if stable and canary replicas not passed, and abort is true",
+			rolloutReplicas:        10,
+			rolloutMaxReplicas:     20,
+			rolloutAbort:           true,
+			canaryWeight:           60,
+			stableWeight:           40,
+			expectedCanaryReplicas: 6,
+			expectedStableReplicas: 10,
+			steps:                  []v1alpha1.CanaryStep{{SetWeight: pointer.Int32Ptr(60)}},
+		},
+
+		// without steps
+		{
+			name:                   "Should scale down stable",
+			rolloutReplicas:        10,
+			rolloutMaxReplicas:     10,
+			rolloutAbort:           false,
+			canaryWeight:           10,
+			stableWeight:           90,
+			expectedCanaryReplicas: 1,
+			expectedStableReplicas: 9,
+		},
+		{
+			name:                   "Should take max of desired canary (20) > actual (10)",
+			rolloutReplicas:        10,
+			rolloutMaxReplicas:     20,
+			rolloutAbort:           false,
+			canaryWeight:           10,
+			stableWeight:           90,
+			expectedCanaryReplicas: 2,
+			expectedStableReplicas: 9,
+		},
+		{
+			name:                   "Should leave canary scaled up if there is still traffic to it on abort",
+			rolloutReplicas:        10,
+			rolloutMaxReplicas:     20,
+			rolloutAbort:           true,
+			canaryWeight:           20,
+			stableWeight:           80,
+			expectedCanaryReplicas: 2,
+			expectedStableReplicas: 10,
+		},
+		{
+			name:                   "Should reduce canary when there is less traffic to it on abort",
+			rolloutReplicas:        10,
+			rolloutMaxReplicas:     20,
+			rolloutAbort:           true,
+			canaryWeight:           10,
+			stableWeight:           90,
+			expectedCanaryReplicas: 1,
+			expectedStableReplicas: 10,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rollout := newRollout(test.rolloutReplicas, test.rolloutMaxReplicas, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
+			rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+			rollout.Spec.Strategy.Canary.DynamicStableScale = true
+			rollout.Status.Abort = test.rolloutAbort
+			if len(test.steps) > 0 {
+				rollout.Spec.Strategy.Canary.Steps = append(rollout.Spec.Strategy.Canary.Steps, test.steps...)
+			}
+			weights := v1alpha1.TrafficWeights{
+				Canary: v1alpha1.WeightDestination{
+					Weight: test.canaryWeight,
+				},
+				Stable: v1alpha1.WeightDestination{
+					Weight: test.stableWeight,
+				},
+			}
+			var stableRS, canaryRS *appsv1.ReplicaSet
+			if test.stableRSReplicas > 0 {
+				stableRS = newRS("stable", test.stableRSReplicas, test.availableStableReplicas)
+			}
+			if test.canaryRSReplicas > 0 {
+				canaryRS = newRS("canary", test.canaryRSReplicas, test.canaryRSReplicas)
+			}
+			newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, canaryRS, stableRS, &weights)
+			assert.Equal(t, test.expectedCanaryReplicas, newRSReplicaCount)
+			assert.Equal(t, test.expectedStableReplicas, stableRSReplicaCount)
+		})
+	}
 }
 
 func TestCalculateReplicaCountsForCanaryStableRSdEdgeCases(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "", nil, nil)
 	newRS := newRS("stable", 9, 9)
-	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, nil, []*appsv1.ReplicaSet{})
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForBasicCanary(rollout, newRS, nil, []*appsv1.ReplicaSet{})
 	assert.Equal(t, int32(10), newRSReplicaCount)
 	assert.Equal(t, int32(0), stableRSReplicaCount)
 
-	newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForCanary(rollout, newRS, newRS, []*appsv1.ReplicaSet{})
+	newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForBasicCanary(rollout, newRS, newRS, []*appsv1.ReplicaSet{})
 	assert.Equal(t, int32(10), newRSReplicaCount)
 	assert.Equal(t, int32(0), stableRSReplicaCount)
+}
+
+func TestTrafficWeightToReplicas(t *testing.T) {
+	assert.Equal(t, int32(0), trafficWeightToReplicas(10, 0, 100))
+	assert.Equal(t, int32(2), trafficWeightToReplicas(10, 20, 100))
+	assert.Equal(t, int32(3), trafficWeightToReplicas(10, 25, 100))
+	assert.Equal(t, int32(4), trafficWeightToReplicas(10, 33, 100))
+	assert.Equal(t, int32(10), trafficWeightToReplicas(10, 99, 100))
+	assert.Equal(t, int32(10), trafficWeightToReplicas(10, 100, 100))
+	assert.Equal(t, int32(23), trafficWeightToReplicas(23, 100000000, 100000000))
 }
 
 func TestGetOtherRSs(t *testing.T) {
@@ -741,19 +1124,19 @@ func TestBeforeStartingStep(t *testing.T) {
 	}
 	assert.False(t, BeforeStartingStep(ro))
 
-	ro.Spec.Strategy.Canary.Analysis.StartingStep = pointer.Int32Ptr(1)
+	ro.Spec.Strategy.Canary.Analysis.StartingStep = ptr.To[int32](1)
 	assert.False(t, BeforeStartingStep(ro))
 	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
 		{
-			SetWeight: pointer.Int32Ptr(1),
+			SetWeight: ptr.To[int32](1),
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{},
 		},
 	}
-	ro.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	ro.Status.CurrentStepIndex = ptr.To[int32](0)
 	assert.True(t, BeforeStartingStep(ro))
-	ro.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+	ro.Status.CurrentStepIndex = ptr.To[int32](1)
 	assert.False(t, BeforeStartingStep(ro))
 
 }
@@ -796,6 +1179,130 @@ func TestGetCurrentSetWeight(t *testing.T) {
 
 }
 
+func TestAtDesiredReplicaCountsForCanary(t *testing.T) {
+
+	t.Run("we are at desired replica counts and availability", func(t *testing.T) {
+		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
+			Weight:             ptr.To[int32](2),
+			Replicas:           ptr.To[int32](2),
+			MatchTrafficWeight: false,
+		}, nil)
+
+		newReplicaSet := newRS("", 2, 2)
+		newReplicaSet.Name = "newRS"
+		newReplicaSet.Status.Replicas = 2
+
+		stableReplicaSet := newRS("", 2, 2)
+		stableReplicaSet.Name = "stableRS"
+		stableReplicaSet.Status.Replicas = 2
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+		})
+		assert.Equal(t, true, atDesiredReplicaCounts)
+	})
+
+	t.Run("new replicaset is not at desired counts or availability", func(t *testing.T) {
+		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
+			Weight:             ptr.To[int32](2),
+			Replicas:           ptr.To[int32](2),
+			MatchTrafficWeight: false,
+		}, nil)
+
+		newReplicaSet := newRS("", 2, 1)
+		newReplicaSet.Name = "newRS"
+		newReplicaSet.Status.Replicas = 2
+
+		stableReplicaSet := newRS("", 2, 2)
+		stableReplicaSet.Name = "stableRS"
+		stableReplicaSet.Status.Replicas = 2
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+		})
+		assert.Equal(t, false, atDesiredReplicaCounts)
+	})
+
+	t.Run("stable replicaset is not at desired counts or availability", func(t *testing.T) {
+		rollout := newRollout(4, 75, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{}, nil)
+		newReplicaSet := newRS("", 3, 3)
+		newReplicaSet.Name = "newRS"
+		newReplicaSet.Status.Replicas = 3
+
+		stableReplicaSet := newRS("", 2, 2)
+		stableReplicaSet.Name = "stableRS"
+		stableReplicaSet.Status.Replicas = 2
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 75,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 25,
+			},
+		})
+		assert.Equal(t, false, atDesiredReplicaCounts)
+	})
+
+	t.Run("stable replicaset is not at desired availability but is at correct count", func(t *testing.T) {
+		// This test returns true because for stable replicasets we only check the count of the pods but not availability
+		rollout := newRollout(4, 75, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{}, nil)
+		newReplicaSet := newRS("", 3, 3)
+		newReplicaSet.Name = "newRS"
+		newReplicaSet.Status.Replicas = 1
+
+		stableReplicaSet := newRS("", 1, 0)
+		stableReplicaSet.Name = "stableRS"
+		stableReplicaSet.Status.Replicas = 1
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 75,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 25,
+			},
+		})
+		assert.Equal(t, true, atDesiredReplicaCounts)
+	})
+
+	t.Run("test that when status field lags behind spec.replicas we fail", func(t *testing.T) {
+		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
+			Weight:             ptr.To[int32](2),
+			Replicas:           ptr.To[int32](2),
+			MatchTrafficWeight: false,
+		}, nil)
+
+		newReplicaSet := newRS("", 2, 2)
+		newReplicaSet.Name = "newRS"
+		newReplicaSet.Status.Replicas = 2
+
+		stableReplicaSet := newRS("", 2, 2)
+		stableReplicaSet.Name = "stableRS"
+		stableReplicaSet.Status.Replicas = 3
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+		})
+		assert.Equal(t, false, atDesiredReplicaCounts)
+	})
+}
+
 func TestGetCurrentExperiment(t *testing.T) {
 	rollout := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
@@ -814,22 +1321,22 @@ func TestGetCurrentExperiment(t *testing.T) {
 			},
 		},
 	}
-	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	rollout.Status.CurrentStepIndex = ptr.To[int32](0)
 
 	e := GetCurrentExperimentStep(rollout)
 	assert.Equal(t, v1alpha1.DurationString("1s"), e.Duration)
 
-	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+	rollout.Status.CurrentStepIndex = ptr.To[int32](1)
 
 	e = GetCurrentExperimentStep(rollout)
 	assert.Equal(t, v1alpha1.DurationString("1s"), e.Duration)
 
-	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(2)
+	rollout.Status.CurrentStepIndex = ptr.To[int32](2)
 
 	assert.Nil(t, GetCurrentExperimentStep(rollout))
 
-	rollout.Spec.Strategy.Canary.Steps[0] = v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(10)}
-	rollout.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+	rollout.Spec.Strategy.Canary.Steps[0] = v1alpha1.CanaryStep{SetWeight: ptr.To[int32](10)}
+	rollout.Status.CurrentStepIndex = ptr.To[int32](1)
 
 	assert.Nil(t, GetCurrentExperimentStep(rollout))
 
@@ -926,14 +1433,19 @@ func TestSyncEphemeralPodMetadata(t *testing.T) {
 			"ddd": "444",
 		},
 	}
-	{
-		// verify modified is false if there are no changes
+	t.Run("verify modified is false if there are no changes", func(t *testing.T) {
 		newMetadata, modified := SyncEphemeralPodMetadata(&meta, &existing, &existing)
 		assert.False(t, modified)
 		assert.Equal(t, meta, *newMetadata)
-	}
-	{
-		// verify we don't touch metadata that we did not inject ourselves
+	})
+	t.Run("verify modified is false if there are no actual deletions", func(t *testing.T) {
+		existingWithExtraLabel := existing.DeepCopy()
+		existingWithExtraLabel.Labels["foo"] = "bar"
+		newMetadata, modified := SyncEphemeralPodMetadata(&meta, existingWithExtraLabel, &existing)
+		assert.False(t, modified)
+		assert.Equal(t, meta, *newMetadata)
+	})
+	t.Run("verify we don't touch metadata that we did not inject ourselves", func(t *testing.T) {
 		desired := v1alpha1.PodTemplateMetadata{
 			Labels: map[string]string{
 				"aaa": "222",
@@ -943,7 +1455,6 @@ func TestSyncEphemeralPodMetadata(t *testing.T) {
 			},
 		}
 		newMetadata, modified := SyncEphemeralPodMetadata(&meta, &existing, &desired)
-		assert.True(t, modified)
 		expected := metav1.ObjectMeta{
 			Labels: map[string]string{
 				"aaa":    "222",
@@ -956,6 +1467,508 @@ func TestSyncEphemeralPodMetadata(t *testing.T) {
 		}
 		assert.True(t, modified)
 		assert.Equal(t, expected, *newMetadata)
+	})
+}
+
+func TestGetReplicasForScaleDown(t *testing.T) {
+	tests := []struct {
+		rs                 *appsv1.ReplicaSet
+		ignoreAvailability bool
+		name               string
+		want               int32
+	}{
+		{
+			name: "test rs is nil",
+			want: 0,
+		},
+		{
+			name: "test expected replicas is less than actual replicas",
+			rs: &appsv1.ReplicaSet{
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](3),
+				},
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 5,
+				},
+			},
+			want: 3,
+		},
+		{
+			name: "test ignore availability",
+			rs: &appsv1.ReplicaSet{
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](3),
+				},
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 2,
+				},
+			},
+			ignoreAvailability: true,
+			want:               3,
+		},
+		{
+			name: "test not ignore availability",
+			rs: &appsv1.ReplicaSet{
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](3),
+				},
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 2,
+				},
+			},
+			ignoreAvailability: false,
+			want:               2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, GetReplicasForScaleDown(tt.rs, tt.ignoreAvailability), "GetReplicasForScaleDown(%v, %v)", tt.rs, tt.ignoreAvailability)
+		})
+	}
+}
+
+func TestGetCanaryReplicasOrWeight(t *testing.T) {
+	tests := []struct {
+		name     string
+		rollout  *v1alpha1.Rollout
+		replicas *int32
+		weight   int32
+	}{
+		{
+			name: "test full promote rollout",
+			rollout: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{
+					PromoteFull: true,
+				},
+			},
+			replicas: nil,
+			weight:   100,
+		},
+		{
+			name: "test canary step weight",
+			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							Steps: []v1alpha1.CanaryStep{
+								{
+									SetWeight: ptr.To[int32](10),
+								},
+								{
+									SetCanaryScale: &v1alpha1.SetCanaryScale{
+										Weight: ptr.To[int32](20),
+									},
+								},
+							},
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					CurrentStepIndex: ptr.To[int32](1),
+					StableRS:         "stable-rs",
+				},
+			},
+			replicas: nil,
+			weight:   20,
+		},
+		{
+			name: "test canary step replicas",
+			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							Steps: []v1alpha1.CanaryStep{
+								{
+									SetWeight: ptr.To[int32](10),
+								},
+								{
+									SetCanaryScale: &v1alpha1.SetCanaryScale{
+										Replicas: ptr.To[int32](5),
+									},
+								},
+							},
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					CurrentStepIndex: ptr.To[int32](1),
+					StableRS:         "stable-rs",
+				},
+			},
+			replicas: ptr.To[int32](5),
+			weight:   0,
+		},
+		{
+			name: "test get current step weight",
+			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						BlueGreen: &v1alpha1.BlueGreenStrategy{},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					Abort: true,
+				},
+			},
+			replicas: nil,
+			weight:   100,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotReplicas, gotWeight := GetCanaryReplicasOrWeight(tt.rollout, nil, nil)
+			assert.Equalf(t, tt.replicas, gotReplicas, "GetCanaryReplicasOrWeight(%v)", tt.rollout)
+			assert.Equalf(t, tt.weight, gotWeight, "GetCanaryReplicasOrWeight(%v)", tt.rollout)
+		})
+	}
+}
+
+func TestParseExistingPodMetadata(t *testing.T) {
+	tests := []struct {
+		name string
+		rs   *appsv1.ReplicaSet
+		want *v1alpha1.PodTemplateMetadata
+	}{
+		{
+			name: "test no metadata",
+			rs:   &appsv1.ReplicaSet{},
+			want: nil,
+		},
+		{
+			name: "test no ephemeral metadata key",
+			rs: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"foo": "bar",
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "test invalid ephemeral metadata",
+			rs: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						EphemeralMetadataAnnotation: "foo",
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "test valid ephemeral metadata",
+			rs: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						EphemeralMetadataAnnotation: `{"labels":{"foo":"bar"},"annotations":{"bar":"baz"}}`,
+					},
+				},
+			},
+			want: &v1alpha1.PodTemplateMetadata{
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+				Annotations: map[string]string{
+					"bar": "baz",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, ParseExistingPodMetadata(tt.rs), "ParseExistingPodMetadata(%v)", tt.rs)
+		})
+	}
+}
+
+func TestAllDesiredAreAvailable(t *testing.T) {
+	tests := []struct {
+		name    string
+		rs      *appsv1.ReplicaSet
+		desired int32
+		want    bool
+	}{
+		{
+			name: "test correct return (true) when all desired pods are available",
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 10,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](10),
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+		{
+			name: "test correct return (false) when not all desired pods are available",
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 9,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](10),
+				},
+			},
+			desired: 10,
+			want:    false,
+		},
+		{
+			name:    "test correct return (false) when all ReplicaSet is nil",
+			rs:      nil,
+			desired: 10,
+			want:    false,
+		},
+		{
+			name: "test correct return (false) when rs.Spec.Replicas is nil and desired != 1 (GetReplicasOrDefault returns 1)",
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 10,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: nil, // nil replicas defaults to 1 by GetReplicasOrDefault
+				},
+			},
+			desired: 10,
+			want:    false,
+		},
+		{
+			name: "test correct return (true) when rs.Spec.Replicas is nil and desired is 1",
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 1,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: nil, // nil replicas defaults to 1
+				},
+			},
+			desired: 1,
+			want:    true,
+		},
 	}
 
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, allDesiredAreAvailable(tt.rs, tt.desired), "allDesiredAreAvailable(%v, %v)", tt.rs, tt.desired)
+		})
+	}
+}
+
+func TestAllReplicaProgressThresholdMet(t *testing.T) {
+	tests := []struct {
+		name      string
+		threshold *v1alpha1.ReplicaProgressThreshold
+		rs        *appsv1.ReplicaSet
+		desired   int32
+		want      bool
+	}{
+		{
+			name: "test using percentage that 90% availability of pods passes",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 9,
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+		{
+			name: "test using pod values that 90% availability of pods correctly passes",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePods,
+				Value: 9,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 9,
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+		{
+			name: "test using percentage that under 90% availability of pods correctly fails",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 8,
+				},
+			},
+			desired: 10,
+			want:    false,
+		},
+		{
+			name: "test using pod values that under 8 pods correctly fails",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePods,
+				Value: 8,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 7,
+				},
+			},
+			desired: 10,
+			want:    false,
+		},
+		{
+			name: "test that when threshold is under 0, it defaults to 100% of pods being available to return true",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePods,
+				Value: -100,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 10,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](10),
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+		{
+			name:      "test that when threshold is nil, it defaults to 100% of pods being available to return true",
+			threshold: nil,
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 10,
+				},
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](5), // this is why we want to return false
+				},
+			},
+			desired: 10,
+			want:    false,
+		},
+		{
+			name: "test that when the replicaset is nil, it always returns false",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePods,
+				Value: 5,
+			},
+			rs:      nil,
+			desired: 10,
+			want:    false,
+		},
+		{
+			name: "test that percentages well above the required threshold correctly pass",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 100,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 100,
+				},
+			},
+			desired: 10,
+			want:    true,
+		},
+		{
+			name: "test that when desired is 0, threshold is always met (percentage type only)",
+			threshold: &v1alpha1.ReplicaProgressThreshold{
+				Type:  v1alpha1.ProgressTypePercentage,
+				Value: 90,
+			},
+			rs: &appsv1.ReplicaSet{
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 0,
+				},
+			},
+			desired: 0,
+			want:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, ReplicaProgressThresholdMet(tt.threshold, tt.rs, tt.desired), "allDesiredAreAvailable(%v, %v, %v)", tt.threshold, tt.rs, tt.desired)
+		})
+	}
+}
+
+// TestGetDesiredCanaryWeightOnAbortWithScaleDownDelay verifies that when an explicit
+// abortScaleDownDelaySeconds keeps the canary at full scale on abort, the canary's size
+// does not hold the abort weight up. Without this, the abort deadlocks: the weight can
+// never step below the smallest setWeight step (bounded by newRS availability), so the
+// stable RS never reaches spec.Replicas, so the scale-down-deadline annotation is never
+// added, so the canary never scales down (issue #4898).
+func TestGetDesiredCanaryWeightOnAbortWithScaleDownDelay(t *testing.T) {
+	newAbortedRollout := func(abortDelay *int32) *v1alpha1.Rollout {
+		rollout := newRollout(10, 50, intstr.FromInt(1), intstr.FromInt(0), "canary", "stable", nil, &v1alpha1.RolloutTrafficRouting{})
+		rollout.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
+			{SetWeight: pointer.Int32Ptr(10)},
+			{SetWeight: pointer.Int32Ptr(50)},
+		}
+		rollout.Spec.Strategy.Canary.DynamicStableScale = true
+		rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = abortDelay
+		rollout.Status.Abort = true
+		return rollout
+	}
+
+	tests := []struct {
+		name            string
+		abortDelay      *int32
+		stableAvailable int32
+		expectedWeight  int32
+	}{
+		{
+			name:            "no explicit delay: weight is held up by canary size (progressive drain unchanged)",
+			abortDelay:      nil,
+			stableAvailable: 9,
+			expectedWeight:  10,
+		},
+		{
+			name:            "explicit delay: weight steps down gradually while stable is scaling up",
+			abortDelay:      pointer.Int32Ptr(30),
+			stableAvailable: 5,
+			expectedWeight:  10,
+		},
+		{
+			name:            "explicit delay: weight reaches zero once stable nearly covers spec.Replicas (deadlock case)",
+			abortDelay:      pointer.Int32Ptr(30),
+			stableAvailable: 9,
+			expectedWeight:  0,
+		},
+		{
+			name:            "explicit zero delay (leave canary up indefinitely): weight is held up by canary size",
+			abortDelay:      pointer.Int32Ptr(0),
+			stableAvailable: 9,
+			expectedWeight:  10,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rollout := newAbortedRollout(test.abortDelay)
+			canaryRS := newRS("canary", 5, 5)
+			stableRS := newRS("stable", test.stableAvailable, test.stableAvailable)
+			assert.Equal(t, test.expectedWeight, GetDesiredCanaryWeight(rollout, canaryRS, stableRS))
+		})
+	}
+
+	t.Run("stable scales to spec.Replicas once weight reaches zero", func(t *testing.T) {
+		rollout := newAbortedRollout(pointer.Int32Ptr(30))
+		canaryRS := newRS("canary", 5, 5)
+		stableRS := newRS("stable", 9, 9)
+		weights := v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{Weight: 10},
+			Stable: v1alpha1.WeightDestination{Weight: 90},
+		}
+		_, stableRSReplicaCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, canaryRS, stableRS, &weights)
+		assert.Equal(t, int32(10), stableRSReplicaCount)
+	})
 }

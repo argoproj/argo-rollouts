@@ -1,6 +1,8 @@
 package rollout
 
 import (
+	"context"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -8,15 +10,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/dynamic/dynamiclister"
+	k8sinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
+	testutil "github.com/argoproj/argo-rollouts/test/util"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 func newRolloutControllerRef(r *v1alpha1.Rollout) *metav1.OwnerReference {
@@ -120,6 +132,34 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 
 }
 
+// TestGetReplicaSetsForRolloutsReturnsCopy ensures that getReplicaSetsForRollouts returns fresh
+// DeepCopies of the ReplicaSets on every call, rather than the shared pointers held by the informer
+// cache. The Rollout reconciliation mutates these objects, so handing out the cached pointers would
+// corrupt the shared cache.
+func TestGetReplicaSetsForRollouts_ReturnsCopy(t *testing.T) {
+	selector := map[string]string{"app": "nginx"}
+	timestamp := metav1.Date(2016, 5, 20, 2, 0, 0, 0, time.UTC)
+	rollout := newRollout("foo", 1, int32Ptr(1), selector)
+	existingRS := rs("foo-v1", 1, selector, timestamp, newRolloutControllerRef(rollout))
+
+	f := newFixture(t)
+	defer f.Close()
+	f.rolloutLister = append(f.rolloutLister, rollout)
+	f.objects = append(f.objects, rollout)
+	f.replicaSetLister = append(f.replicaSetLister, existingRS)
+	f.kubeobjects = append(f.kubeobjects, existingRS)
+
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	first, err := c.getReplicaSetsForRollouts(rollout)
+	assert.NoError(t, err)
+	assert.Len(t, first, 1)
+
+	// The returned ReplicaSet must be a copy, not the object stored in the informer cache, so callers
+	// can mutate the result without corrupting the shared cache.
+	assert.NotSame(t, existingRS, first[0], "returned ReplicaSet must point to a different object than the one in the informer cache")
+}
+
 func TestReconcileNewReplicaSet(t *testing.T) {
 	tests := []struct {
 		name                       string
@@ -130,8 +170,9 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 		abortScaleDownAnnotated    bool
 		abortScaleDownDelayPassed  bool
 		expectedNewReplicas        int
+		failRSUpdate               bool
+		abort                      bool
 	}{
-
 		{
 			name:            "New Replica Set matches rollout replica: No scale",
 			rolloutReplicas: 10,
@@ -159,6 +200,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			newReplicas:     10,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    true,
 			abortScaleDownDelayPassed:  true,
 			scaleExpected:              true,
@@ -170,6 +212,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			newReplicas:     8,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    true,
 			abortScaleDownDelayPassed:  false,
 			scaleExpected:              false,
@@ -180,55 +223,104 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			rolloutReplicas:            10,
 			newReplicas:                10,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    false,
 			scaleExpected:              false,
 			expectedNewReplicas:        0,
+		},
+		{
+			name:                       "Fail to update RS: No scale and add default annotation",
+			rolloutReplicas:            10,
+			newReplicas:                10,
+			scaleExpected:              false,
+			failRSUpdate:               true,
+			abort:                      true,
+			abortScaleDownDelaySeconds: -1,
 		},
 	}
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			test := tests[i]
+			oldRS := rs("foo-v1", test.newReplicas, nil, noTimestamp, nil)
 			newRS := rs("foo-v2", test.newReplicas, nil, noTimestamp, nil)
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
+
+			if test.failRSUpdate {
+				k8sfake.PrependReactor("patch", "replicasets", func(action core.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &appsv1.ReplicaSet{}, fmt.Errorf("should not patch replica set")
+				})
+			}
+
+			f := newFixture(t)
+			defer f.Close()
+			f.objects = append(f.objects, rollout)
+			f.replicaSetLister = append(f.replicaSetLister, oldRS, newRS)
+			f.kubeobjects = append(f.kubeobjects, oldRS, newRS)
+			_, informers, k8sInformer := f.newController(noResyncPeriodFunc)
+			stopCh := make(chan struct{})
+			informers.Start(stopCh)
+			informers.WaitForCacheSync(stopCh)
+			close(stopCh)
+
 			roCtx := rolloutContext{
-				log:     logutil.WithRollout(rollout),
-				rollout: rollout,
-				newRS:   newRS,
+				log:      logutil.WithRollout(rollout),
+				rollout:  rollout,
+				newRS:    newRS,
+				stableRS: oldRS,
 				reconcilerBase: reconcilerBase{
-					argoprojclientset: &fake,
-					kubeclientset:     &k8sfake,
-					recorder:          record.NewFakeEventRecorder(),
-					resyncPeriod:      30 * time.Second,
+					argoprojclientset:  &fake,
+					kubeclientset:      &k8sfake,
+					recorder:           record.NewFakeEventRecorder(),
+					resyncPeriod:       30 * time.Second,
+					replicaSetInformer: k8sInformer.Apps().V1().ReplicaSets().Informer(),
 				},
 				pauseContext: &pauseContext{
 					rollout: rollout,
 				},
 			}
-			roCtx.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {}
+			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
+
+			rollout.Status.Abort = test.abort
+			roCtx.stableRS.Status.AvailableReplicas = int32(test.rolloutReplicas)
+			rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
+				},
+			}
+
 			if test.abortScaleDownDelaySeconds > 0 {
-				rollout.Status.Abort = true
-				// rollout.Spec.ScaleDownOnAbort = true
 				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
 					BlueGreen: &v1alpha1.BlueGreenStrategy{
 						AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
 					},
 				}
-
 				if test.abortScaleDownAnnotated {
 					var deadline string
 					if test.abortScaleDownDelayPassed {
-						deadline = metav1.Now().Add(-time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+						deadline = timeutil.Now().Add(-time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 					} else {
-						deadline = metav1.Now().Add(time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+						deadline = timeutil.Now().Add(time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 					}
 					roCtx.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
 				}
 			}
 
+			if test.abortScaleDownDelaySeconds < 0 {
+				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+					BlueGreen: &v1alpha1.BlueGreenStrategy{
+						AbortScaleDownDelaySeconds: nil,
+					},
+				}
+			}
+
 			scaled, err := roCtx.reconcileNewReplicaSet()
+			if test.failRSUpdate {
+				assert.Error(t, err)
+				return
+			}
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
@@ -253,6 +345,142 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestReconcileNewReplicaSetAbortDelaySyncsReplicasAnnotation verifies that the abort
+// scale-down-delay paths, which intentionally hold the newRS at its current size, still sync
+// the desired-replicas annotation with spec.replicas. isScalingEvent() compares that
+// annotation to spec.replicas, so leaving it stale would short-circuit every reconcile to
+// syncReplicasOnly() (which skips traffic routing) until the scale-down deadline elapsed.
+func TestReconcileNewReplicaSetAbortDelaySyncsReplicasAnnotation(t *testing.T) {
+	tests := []struct {
+		name              string
+		deadlineAnnotated bool
+	}{
+		{name: "before the scale-down deadline is added", deadlineAnnotated: false},
+		{name: "while waiting out the scale-down deadline", deadlineAnnotated: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stableRS := rs("foo-v1", 5, nil, noTimestamp, nil)
+			newRS := rs("foo-v2", 5, nil, noTimestamp, nil)
+			// HPA scaled the rollout from 5 to 4 mid-abort: the newRS desired-replicas
+			// annotation (5) no longer matches spec.replicas (4)
+			rollout := newBlueGreenRollout("foo", 4, nil, "", "")
+			rollout.Status.Abort = true
+			abortScaleDownDelaySeconds := int32(30)
+			rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					AbortScaleDownDelaySeconds: &abortScaleDownDelaySeconds,
+				},
+			}
+			stableRS.Status.AvailableReplicas = 4
+			if test.deadlineAnnotated {
+				deadline := timeutil.Now().Add(time.Duration(abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+				newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
+			}
+
+			fake := fake.Clientset{}
+			k8sfake := k8sfake.Clientset{}
+			f := newFixture(t)
+			defer f.Close()
+			f.objects = append(f.objects, rollout)
+			f.replicaSetLister = append(f.replicaSetLister, stableRS, newRS)
+			f.kubeobjects = append(f.kubeobjects, stableRS, newRS)
+			_, informers, k8sInformer := f.newController(noResyncPeriodFunc)
+			stopCh := make(chan struct{})
+			informers.Start(stopCh)
+			informers.WaitForCacheSync(stopCh)
+			close(stopCh)
+
+			roCtx := rolloutContext{
+				log:      logutil.WithRollout(rollout),
+				rollout:  rollout,
+				newRS:    newRS,
+				stableRS: stableRS,
+				reconcilerBase: reconcilerBase{
+					argoprojclientset:  &fake,
+					kubeclientset:      &k8sfake,
+					recorder:           record.NewFakeEventRecorder(),
+					resyncPeriod:       15 * time.Minute,
+					replicaSetInformer: k8sInformer.Apps().V1().ReplicaSets().Informer(),
+				},
+				pauseContext: &pauseContext{
+					rollout: rollout,
+				},
+			}
+			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
+
+			scaled, err := roCtx.reconcileNewReplicaSet()
+			assert.NoError(t, err)
+			assert.False(t, scaled)
+
+			actions := k8sfake.Actions()
+			assert.NotEmpty(t, actions, "expected an update syncing the desired-replicas annotation")
+			updated := actions[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+			assert.Equal(t, int32(5), *updated.Spec.Replicas, "newRS must be held at scale during the abort delay")
+			assert.Equal(t, "4", updated.Annotations[annotations.DesiredReplicasAnnotation], "desired-replicas annotation must track spec.replicas so isScalingEvent() terminates")
+		})
+	}
+}
+
+// TestAbortScaleDownDelayDoesNotWedgeScalingEvent reconciles an aborted traffic-routed canary
+// that received a spec.replicas change (e.g. from an HPA) mid-abort. reconcile() short-circuits
+// to syncReplicasOnly, which must terminate the scaling event by syncing the newRS
+// desired-replicas annotation even though the canary is held at scale by the abort
+// scale-down delay. If the annotation stayed stale, every subsequent reconcile would
+// short-circuit too, freezing traffic routing at the pre-abort weight until the delay elapsed.
+func TestAbortScaleDownDelayDoesNotWedgeScalingEvent(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](50)},
+		{Pause: &v1alpha1.RolloutPause{}},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{SMI: &v1alpha1.SMITrafficRouting{}}
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Status.ReadyReplicas = 5
+	r1.Status.AvailableReplicas = 5
+	r2 := bumpVersion(r1)
+
+	// stable RS was already synced to the new size on a previous reconcile; the canary RS is
+	// held at 5 by the abort scale-down delay with a stale desired-replicas annotation, so
+	// isScalingEvent() is true
+	rs1 := newReplicaSetWithStatus(r1, 4, 4)
+	rs2 := newReplicaSetWithStatus(r2, 5, 5)
+	rs1.Annotations[annotations.DesiredReplicasAnnotation] = "4"
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r1)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r1)
+
+	r2.Status.Abort = true
+	r2.Status.AbortedAt = &metav1.Time{Time: timeutil.Now().Add(-1 * time.Minute)}
+	r2.Status.StableRS = rs1PodHash
+	r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{Weight: 50, ServiceName: "canary", PodTemplateHash: rs2PodHash},
+		Stable: v1alpha1.WeightDestination{Weight: 50, ServiceName: "stable", PodTemplateHash: rs1PodHash},
+	}
+	// HPA scaling event during the abort
+	r2.Spec.Replicas = ptr.To[int32](4)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2) // desired-replicas annotation sync
+	f.expectPatchReplicaSetAction(rs2)                    // scale-down-deadline added
+	f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, int32(5), *updatedRS.Spec.Replicas, "canary RS must be held at scale during the abort delay")
+	assert.Equal(t, "4", updatedRS.Annotations[annotations.DesiredReplicasAnnotation], "desired-replicas annotation must be synced so the scaling event terminates and the next reconcile takes the full path")
 }
 
 func TestReconcileOldReplicaSet(t *testing.T) {
@@ -307,14 +535,21 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			oldRS := rs("foo-old", test.oldReplicas, oldSelector, noTimestamp, nil)
 			oldRS.Annotations = map[string]string{annotations.DesiredReplicasAnnotation: strconv.Itoa(test.oldReplicas)}
 			oldRS.Status.AvailableReplicas = int32(test.readyPodsFromOldRS)
-			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
-			rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(0)
+
+			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "active-service", "preview-service")
+			rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit = ptr.To[int32](0)
 			rollout.Spec.Selector = &metav1.LabelSelector{MatchLabels: newSelector}
+
+			activeService := newService("active-service", 80, nil, nil)
+			previewService := newService("preview-service", 80, nil, nil)
+			rollout.Spec.Template.Labels["foo"] = "new"
+
 			f := newFixture(t)
 			defer f.Close()
 			f.objects = append(f.objects, rollout)
 			f.replicaSetLister = append(f.replicaSetLister, oldRS, newRS)
-			f.kubeobjects = append(f.kubeobjects, oldRS, newRS)
+			f.serviceLister = append(f.serviceLister, activeService, previewService)
+			f.kubeobjects = append(f.kubeobjects, oldRS, newRS, activeService, previewService)
 			c, informers, _ := f.newController(noResyncPeriodFunc)
 			stopCh := make(chan struct{})
 			informers.Start(stopCh)
@@ -335,6 +570,493 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 				t.Errorf("expected scaling to occur")
 				return
 			}
+		})
+	}
+}
+
+func TestIsReplicaSetReferenced(t *testing.T) {
+	newRSWithPodTemplateHash := func(hash string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
+			},
+		}
+	}
+
+	testCases := []struct {
+		name           string
+		status         v1alpha1.RolloutStatus
+		canaryService  string
+		stableService  string
+		activeService  string
+		previewService string
+		services       []runtime.Object
+		rsHash         string
+		expectedResult bool
+	}{
+		{
+			name:           "empty hash",
+			status:         v1alpha1.RolloutStatus{StableRS: "abc123"},
+			rsHash:         "",
+			expectedResult: false,
+		},
+		{
+			name:           "not referenced",
+			status:         v1alpha1.RolloutStatus{StableRS: "abc123"},
+			rsHash:         "def456",
+			expectedResult: false,
+		},
+		{
+			name:           "stable rs referenced",
+			status:         v1alpha1.RolloutStatus{StableRS: "abc123"},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name:           "current rs referenced",
+			status:         v1alpha1.RolloutStatus{CurrentPodHash: "abc123"},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name:           "active referenced",
+			status:         v1alpha1.RolloutStatus{BlueGreen: v1alpha1.BlueGreenStatus{ActiveSelector: "abc123"}},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name:           "active referenced",
+			status:         v1alpha1.RolloutStatus{BlueGreen: v1alpha1.BlueGreenStatus{PreviewSelector: "abc123"}},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name: "traffic routed canary current pod hash",
+			status: v1alpha1.RolloutStatus{Canary: v1alpha1.CanaryStatus{Weights: &v1alpha1.TrafficWeights{
+				Canary: v1alpha1.WeightDestination{
+					PodTemplateHash: "abc123",
+				},
+			}}},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name: "traffic routed canary current pod hash",
+			status: v1alpha1.RolloutStatus{Canary: v1alpha1.CanaryStatus{Weights: &v1alpha1.TrafficWeights{
+				Stable: v1alpha1.WeightDestination{
+					PodTemplateHash: "abc123",
+				},
+			}}},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+		{
+			name: "canary service still referenced",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+			},
+			canaryService:  "mysvc",
+			services:       []runtime.Object{newService("mysvc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"}, nil)},
+			rsHash:         "def456",
+			expectedResult: true,
+		},
+		{
+			name: "stable service still referenced",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+			},
+			stableService:  "mysvc",
+			services:       []runtime.Object{newService("mysvc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"}, nil)},
+			rsHash:         "def456",
+			expectedResult: true,
+		},
+		{
+			name: "active service still referenced",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+			},
+			activeService:  "mysvc",
+			services:       []runtime.Object{newService("mysvc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"}, nil)},
+			rsHash:         "def456",
+			expectedResult: true,
+		},
+		{
+			name: "preview service still referenced",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+			},
+			activeService:  "mysvc",
+			previewService: "mysvc2",
+			services:       []runtime.Object{newService("mysvc2", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "def456"}, nil)},
+			rsHash:         "def456",
+			expectedResult: true,
+		},
+		{
+			name: "service not found",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+			},
+			activeService:  "mysvc",
+			previewService: "mysvc2",
+			rsHash:         "def456",
+			expectedResult: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			fake := fake.Clientset{}
+			k8sfake := k8sfake.NewSimpleClientset(tc.services...)
+			informers := k8sinformers.NewSharedInformerFactory(k8sfake, 0)
+			servicesLister := informers.Core().V1().Services().Lister()
+			stopchan := make(chan struct{})
+			defer close(stopchan)
+			informers.Start(stopchan)
+			informers.WaitForCacheSync(stopchan)
+
+			var r *v1alpha1.Rollout
+			if tc.activeService != "" {
+				r = newBlueGreenRollout("test", 1, nil, tc.activeService, tc.previewService)
+			} else {
+				r = newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+				r.Spec.Strategy.Canary.CanaryService = tc.canaryService
+				r.Spec.Strategy.Canary.StableService = tc.stableService
+			}
+			r.Status = tc.status
+
+			roCtx := &rolloutContext{
+				rollout: r,
+				log:     logutil.WithRollout(r),
+				reconcilerBase: reconcilerBase{
+					servicesLister:    servicesLister,
+					argoprojclientset: &fake,
+					kubeclientset:     k8sfake,
+					recorder:          record.NewFakeEventRecorder(),
+				},
+			}
+			rs := newRSWithPodTemplateHash(tc.rsHash)
+			stillReferenced := roCtx.isReplicaSetReferenced(rs)
+
+			assert.Equal(
+				t,
+				tc.expectedResult,
+				stillReferenced,
+			)
+		})
+	}
+}
+
+func TestIsReplicaSetReferencedByIstioDestinationRule(t *testing.T) {
+	const testDestRuleName = "test-destrule"
+
+	newRSWithPodTemplateHash := func(hash string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
+			},
+		}
+	}
+
+	// Helper to create a rollout with Istio traffic routing and destination rule
+	newRolloutWithIstioDestinationRule := func(destRuleName string) *v1alpha1.Rollout {
+		r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Istio: &v1alpha1.IstioTrafficRouting{
+				VirtualService: &v1alpha1.IstioVirtualService{
+					Name: "vsvc",
+				},
+				DestinationRule: &v1alpha1.IstioDestinationRule{
+					Name:             destRuleName,
+					CanarySubsetName: "canary",
+					StableSubsetName: "stable",
+				},
+			},
+		}
+		return r
+	}
+
+	// Helper to create a rollout with Istio virtual service only (no destination rule)
+	newRolloutWithIstioVSvcOnly := func() *v1alpha1.Rollout {
+		r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Istio: &v1alpha1.IstioTrafficRouting{
+				VirtualService: &v1alpha1.IstioVirtualService{
+					Name: "vsvc",
+				},
+			},
+		}
+		return r
+	}
+
+	// Helper to create destination rule YAML with given subsets
+	newDestinationRuleYAML := func(name, stableHash, canaryHash string) string {
+		return fmt.Sprintf(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: %s
+  namespace: default
+spec:
+  host: test-service
+  subsets:
+  - name: stable
+    labels:
+      rollouts-pod-template-hash: %s
+  - name: canary
+    labels:
+      rollouts-pod-template-hash: %s
+`, name, stableHash, canaryHash)
+	}
+
+	// Helper to create a rollout with TrafficRouting but no Istio config
+	newRolloutWithTrafficRoutingNoIstio := func() *v1alpha1.Rollout {
+		r := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+		return r
+	}
+
+	testCases := []struct {
+		name              string
+		rollout           *v1alpha1.Rollout
+		destinationRule   string
+		rsHash            string
+		expectedResult    bool
+		noIstioController bool
+	}{
+		{
+			name:           "no istio traffic routing configured",
+			rollout:        newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1)),
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+		{
+			name:           "traffic routing configured but no istio",
+			rollout:        newRolloutWithTrafficRoutingNoIstio(),
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+		{
+			name:           "no destination rule configured",
+			rollout:        newRolloutWithIstioVSvcOnly(),
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+		{
+			name:            "destination rule references hash - should return true",
+			rollout:         newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "abc123", "def456"),
+			rsHash:          "abc123",
+			expectedResult:  true,
+		},
+		{
+			name:            "destination rule does not reference hash - should return false",
+			rollout:         newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "abc123", "def456"),
+			rsHash:          "xyz789",
+			expectedResult:  false,
+		},
+		{
+			name:            "destination rule not found - should return false",
+			rollout:         newRolloutWithIstioDestinationRule("non-existent-destrule"),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "abc123", "def456"),
+			rsHash:          "abc123",
+			expectedResult:  false,
+		},
+		{
+			name:              "no istio controller - should return false",
+			rollout:           newRolloutWithIstioDestinationRule(testDestRuleName),
+			noIstioController: true,
+			rsHash:            "abc123",
+			expectedResult:    false,
+		},
+		{
+			name:            "canary subset references hash - should return true",
+			rollout:         newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: newDestinationRuleYAML(testDestRuleName, "stable-hash", "canary-hash"),
+			rsHash:          "canary-hash",
+			expectedResult:  true,
+		},
+		{
+			name:    "destination rule with no subsets - should return false",
+			rollout: newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: `
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: ` + testDestRuleName + `
+  namespace: default
+spec:
+  host: test-service
+`,
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+		{
+			name:    "destination rule with subset missing labels - should return false",
+			rollout: newRolloutWithIstioDestinationRule(testDestRuleName),
+			destinationRule: `
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: ` + testDestRuleName + `
+  namespace: default
+spec:
+  host: test-service
+  subsets:
+  - name: stable
+`,
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var objs []runtime.Object
+			if tc.destinationRule != "" {
+				dRule := unstructuredutil.StrToUnstructuredUnsafe(tc.destinationRule)
+				objs = append(objs, dRule)
+			}
+
+			dynamicClient := testutil.NewFakeDynamicClient(objs...)
+			var istioController *istio.IstioController
+
+			if !tc.noIstioController {
+				druleGVR := istioutil.GetIstioDestinationRuleGVR()
+				vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
+				dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
+				destinationRuleInformer := dynamicInformerFactory.ForResource(druleGVR).Informer()
+				virtualServiceInformer := dynamicInformerFactory.ForResource(vsvcGVR).Informer()
+				stopCh := make(chan struct{})
+				dynamicInformerFactory.Start(stopCh)
+				dynamicInformerFactory.WaitForCacheSync(stopCh)
+				close(stopCh)
+				druleLister := dynamiclister.New(destinationRuleInformer.GetIndexer(), druleGVR)
+
+				istioController = &istio.IstioController{
+					IstioControllerConfig: istio.IstioControllerConfig{
+						DynamicClientSet:        dynamicClient,
+						DestinationRuleInformer: destinationRuleInformer,
+						VirtualServiceInformer:  virtualServiceInformer,
+					},
+				}
+				istioController.DestinationRuleLister = druleLister
+			}
+
+			roCtx := &rolloutContext{
+				rollout: tc.rollout,
+				log:     logutil.WithRollout(tc.rollout),
+				reconcilerBase: reconcilerBase{
+					argoprojclientset: &fake.Clientset{},
+					kubeclientset:     k8sfake.NewSimpleClientset(),
+					recorder:          record.NewFakeEventRecorder(),
+					IstioController:   istioController,
+				},
+			}
+
+			rs := newRSWithPodTemplateHash(tc.rsHash)
+			result := roCtx.isReplicaSetReferencedByIstioDestinationRule(tc.rsHash)
+
+			assert.Equal(t, tc.expectedResult, result, "Test case: %s", tc.name)
+
+			// Also test via isReplicaSetReferenced which should call the Istio check
+			if tc.expectedResult {
+				stillReferenced := roCtx.isReplicaSetReferenced(rs)
+				assert.True(t, stillReferenced, "isReplicaSetReferenced should return true when DestinationRule references hash")
+			}
+		})
+	}
+}
+
+func TestScaleDownProgressively(t *testing.T) {
+
+	tests := []struct {
+		name                       string
+		deploymentReplicas         int32
+		newRSReplicas              int
+		newRSRevision              string
+		rolloutReplicas            int32
+		rolloutReadyReplicas       int32
+		rolloutPhase               v1alpha1.RolloutPhase
+		abortScaleDownDelaySeconds int32
+		expectedDeploymentReplicas int32
+	}{
+		{
+			name:                       "Scale down deployment",
+			deploymentReplicas:         5,
+			newRSReplicas:              5,
+			newRSRevision:              "1",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       3,
+			rolloutPhase:               v1alpha1.RolloutPhaseProgressing,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 2,
+		},
+		{
+			name:                       "Scale up deployment",
+			deploymentReplicas:         0,
+			newRSReplicas:              5,
+			newRSRevision:              "1",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       1,
+			rolloutPhase:               v1alpha1.RolloutPhaseProgressing,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 4,
+		},
+		{
+			name:                       "Do not scale deployment",
+			deploymentReplicas:         5,
+			newRSReplicas:              5,
+			newRSRevision:              "2",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       3,
+			rolloutPhase:               v1alpha1.RolloutPhaseHealthy,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 5,
+		},
+		{
+			name:                       "Rollout healthy - Deployment scaled to 0",
+			deploymentReplicas:         2,
+			newRSReplicas:              5,
+			newRSRevision:              "1",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       5,
+			rolloutPhase:               v1alpha1.RolloutPhaseHealthy,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 0,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownProgressively, test.deploymentReplicas, true, nil)
+			ctx.rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
+				},
+			}
+			ctx.newRS = rs("foo-v2", test.newRSReplicas, nil, noTimestamp, nil)
+			ctx.newRS.ObjectMeta.Annotations[annotations.RevisionAnnotation] = test.newRSRevision
+			ctx.pauseContext.removeAbort = true
+			ctx.rollout.Spec.Replicas = &test.rolloutReplicas
+			ctx.rollout.Status.ReadyReplicas = test.rolloutReadyReplicas
+			ctx.rollout.Status.Phase = test.rolloutPhase // Set the appropriate phase
+
+			_, err := ctx.reconcileNewReplicaSet()
+			assert.Nil(t, err)
+			k8sfakeClient := ctx.kubeclientset.(*k8sfake.Clientset)
+			updatedDeployment, err := k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
+			assert.Nil(t, err)
+			assert.Equal(t, test.expectedDeploymentReplicas, *updatedDeployment.Spec.Replicas)
 		})
 	}
 }

@@ -1,13 +1,13 @@
 package util
 
 import (
-	"io/ioutil"
+	"os"
 
-	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -16,7 +16,7 @@ import (
 
 // ObjectFromYAML returns a runtime.Object from a yaml string
 func ObjectFromYAML(yamlStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(yamlStr), &obj)
 	if err != nil {
 		panic(err)
@@ -27,7 +27,7 @@ func ObjectFromYAML(yamlStr string) *unstructured.Unstructured {
 // ObjectFromPath returns a runtime.Object from the given path. Path is a relative path from source root
 func ObjectFromPath(path string) *unstructured.Unstructured {
 	path = "../../" + path
-	body, err := ioutil.ReadFile(path)
+	body, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}

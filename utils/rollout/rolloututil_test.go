@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/tj/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
 func newCanaryRollout() *v1alpha1.Rollout {
@@ -20,12 +21,12 @@ func newCanaryRollout() *v1alpha1.Rollout {
 			Namespace: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(5),
+			Replicas: ptr.To[int32](5),
 			Strategy: v1alpha1.RolloutStrategy{
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(10),
+							SetWeight: ptr.To[int32](10),
 						},
 						{
 							Pause: &v1alpha1.RolloutPause{
@@ -33,14 +34,14 @@ func newCanaryRollout() *v1alpha1.Rollout {
 							},
 						},
 						{
-							SetWeight: pointer.Int32Ptr(20),
+							SetWeight: ptr.To[int32](20),
 						},
 					},
 				},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex:  pointer.Int32Ptr(1),
+			CurrentStepIndex:  ptr.To[int32](1),
 			Replicas:          4,
 			ReadyReplicas:     1,
 			UpdatedReplicas:   3,
@@ -56,13 +57,13 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 			Namespace: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(5),
+			Replicas: ptr.To[int32](5),
 			Strategy: v1alpha1.RolloutStrategy{
 				BlueGreen: &v1alpha1.BlueGreenStrategy{},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex:  pointer.Int32Ptr(1),
+			CurrentStepIndex:  ptr.To[int32](1),
 			Replicas:          4,
 			ReadyReplicas:     1,
 			UpdatedReplicas:   3,
@@ -115,7 +116,7 @@ func TestRolloutStatusPaused(t *testing.T) {
 func TestRolloutStatusProgressing(t *testing.T) {
 	{
 		ro := newCanaryRollout()
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.UpdatedReplicas = 4
 		ro.Status.AvailableReplicas = 4
 		ro.Status.Replicas = 5
@@ -125,7 +126,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 	}
 	{
 		ro := newCanaryRollout()
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.UpdatedReplicas = 5
 		ro.Status.AvailableReplicas = 4
 		ro.Status.Replicas = 5
@@ -135,7 +136,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 	}
 	{
 		ro := newCanaryRollout()
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.UpdatedReplicas = 5
 		ro.Status.AvailableReplicas = 5
 		ro.Status.Replicas = 7
@@ -148,7 +149,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro.Status.BlueGreen.ActiveSelector = "abc1234"
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "def5678"
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.Replicas = 5
 		ro.Status.UpdatedReplicas = 5
 		ro.Status.AvailableReplicas = 5
@@ -162,7 +163,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro.Status.BlueGreen.ActiveSelector = "def5678"
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "def5678"
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.Replicas = 5
 		ro.Status.UpdatedReplicas = 5
 		ro.Status.AvailableReplicas = 5
@@ -175,7 +176,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		ro.Status.BlueGreen.ActiveSelector = "def5678"
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "def5678"
-		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Spec.Replicas = ptr.To[int32](5)
 		ro.Status.Replicas = 5
 		ro.Status.UpdatedReplicas = 5
 		ro.Status.AvailableReplicas = 5
@@ -256,7 +257,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		assert.Equal(t, "rollout is restarting", message)
 	}
 	{
-		//Rollout observed workload generation is not updated
+		// Rollout observed workload generation is not updated
 		ro := newCanaryRollout()
 		ro.Spec.TemplateResolvedFromRef = true
 		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
@@ -330,7 +331,7 @@ func TestRolloutStatusHealthy(t *testing.T) {
 		assert.Equal(t, "", message)
 	}
 	{
-		//Rollout observed workload generation is updated
+		// Rollout observed workload generation is updated
 		ro := newCanaryRollout()
 		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
 		ro.Status.Replicas = 5
@@ -354,7 +355,7 @@ func TestCanaryStepString(t *testing.T) {
 		expectedString string
 	}{
 		{
-			step:           v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(20)},
+			step:           v1alpha1.CanaryStep{SetWeight: ptr.To[int32](20)},
 			expectedString: "setWeight: 20",
 		},
 		{
@@ -378,7 +379,7 @@ func TestCanaryStepString(t *testing.T) {
 			expectedString: "analysis",
 		},
 		{
-			step:           v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Weight: pointer.Int32Ptr(20)}},
+			step:           v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Weight: ptr.To[int32](20)}},
 			expectedString: "setCanaryScale{weight: 20}",
 		},
 		{
@@ -386,11 +387,128 @@ func TestCanaryStepString(t *testing.T) {
 			expectedString: "setCanaryScale{matchTrafficWeight: true}",
 		},
 		{
-			step:           v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: pointer.Int32Ptr(5)}},
+			step:           v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: ptr.To[int32](5)}},
 			expectedString: "setCanaryScale{replicas: 5}",
+		},
+		{
+			step:           v1alpha1.CanaryStep{Plugin: &v1alpha1.PluginStep{Name: "foo"}},
+			expectedString: "plugin: foo",
+		},
+		{
+			step:           v1alpha1.CanaryStep{SetHeaderRoute: &v1alpha1.SetHeaderRoute{Name: "foo"}},
+			expectedString: "setHeaderRoute: foo",
+		},
+		{
+			step:           v1alpha1.CanaryStep{SetMirrorRoute: &v1alpha1.SetMirrorRoute{Name: "foo"}},
+			expectedString: "setMirrorRoute: foo",
 		},
 	}
 	for _, test := range tests {
 		assert.Equal(t, test.expectedString, CanaryStepString(test.step))
+	}
+}
+
+func TestIsUnpausing(t *testing.T) {
+	ro := newCanaryRollout()
+	ro.Status.Phase = v1alpha1.RolloutPhasePaused
+	ro.Status.Message = "canary pause"
+	ro.Status.PauseConditions = []v1alpha1.PauseCondition{
+		{
+			Reason: v1alpha1.PauseReasonCanaryPauseStep,
+		},
+	}
+	ro.Status.ControllerPause = true
+	status, message := GetRolloutPhase(ro)
+	assert.Equal(t, v1alpha1.RolloutPhasePaused, status)
+	assert.Equal(t, "canary pause", message)
+
+	ro.Status.PauseConditions = nil
+	status, message = GetRolloutPhase(ro)
+	assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
+	assert.Equal(t, "waiting for rollout to unpause", message)
+}
+
+func TestShouldVerifyWeight(t *testing.T) {
+	ro := newCanaryRollout()
+	ro.Status.StableRS = "34feab23f"
+	ro.Status.CurrentStepIndex = ptr.To[int32](0)
+	ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+		SetWeight: ptr.To[int32](20),
+	}}
+	assert.Equal(t, true, ShouldVerifyWeight(ro, 20))
+
+	ro.Status.StableRS = ""
+	assert.Equal(t, false, ShouldVerifyWeight(ro, 20))
+
+	ro.Status.StableRS = "34feab23f"
+	ro.Status.CurrentStepIndex = nil
+	ro.Spec.Strategy.Canary.Steps = nil
+	assert.Equal(t, false, ShouldVerifyWeight(ro, 20))
+
+	// Test when the weight is 100, because we are at end of rollout
+	ro.Status.StableRS = "34feab23f"
+	ro.Status.CurrentStepIndex = nil
+	ro.Spec.Strategy.Canary.Steps = nil
+	assert.Equal(t, true, ShouldVerifyWeight(ro, 100))
+}
+
+func Test_isGenerationObserved(t *testing.T) {
+	tests := []struct {
+		name string
+		ro   *v1alpha1.Rollout
+		want bool
+	}{
+		{
+			name: "test parse generation failed",
+			ro: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "invalid",
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test status.generation more than spec.generation",
+			ro: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Generation: 9,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test status.generation equal to spec.generation",
+			ro: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Generation: 10,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test status.generation less than spec.generation",
+			ro: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Generation: 11,
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isGenerationObserved(tt.ro); got != tt.want {
+				t.Errorf("isGenerationObserved() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

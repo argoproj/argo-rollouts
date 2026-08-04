@@ -15,7 +15,7 @@ spec:
     # limits the number of successful analysis runs and experiments to be stored in a history
     # Defaults to 5.
     successfulRunHistoryLimit: 10
-    # limits the number of unsuccessful analysis runs and experiments to be stored in a history. 
+    # limits the number of unsuccessful analysis runs and experiments to be stored in a history.
     # Stages for unsuccessful: "Error", "Failed", "Inconclusive"
     # Defaults to 5.
     unsuccessfulRunHistoryLimit: 10
@@ -27,12 +27,27 @@ spec:
     matchLabels:
       app: guestbook
 
-  # Template describes the pods that will be created. Same as deployment
+  # WorkloadRef holds a reference to a workload that provides Pod template
+  # (e.g. Deployment). If used, then do not use Rollout template property.
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rollout-ref-deployment
+    # Specifies if the workload (Deployment) is scaled down after migrating to Rollout.
+    # The possible options are:
+    # "never": the Deployment is not scaled down
+    # "onsuccess": the Deployment is scaled down after the Rollout becomes healthy
+    # "progressively": as the Rollout is scaled up the Deployment is scaled down
+    # If the Rollout fails the Deployment will be scaled back up.
+    scaleDown: never|onsuccess|progressively
+
+  # Template describes the pods that will be created. Same as deployment.
+  # If used, then do not use Rollout workloadRef property.
   template:
     spec:
       containers:
-      - name: guestbook
-        image: argoproj/rollouts-demo:blue
+        - name: guestbook
+          image: argoproj/rollouts-demo:blue
 
   # Minimum number of seconds for which a newly created pod should be ready
   # without any of its container crashing, for it to be considered available.
@@ -45,7 +60,7 @@ spec:
 
   # Pause allows a user to manually pause a rollout at any time. A rollout
   # will not advance through its steps while it is manually paused, but HPA
-  # auto-scaling will still occur. Typically not explicitly set the manifest,
+  # auto-scaling will still occur. Typically not explicitly set in the manifest,
   # but controlled via tools (e.g. kubectl argo rollouts pause). If true at
   # initial creation of Rollout, replicas are not scaled up automatically
   # from zero unless manually promoted.
@@ -60,8 +75,7 @@ spec:
   # Defaults to 600s
   progressDeadlineSeconds: 600
 
-  # Whether to abort the update when ProgressDeadlineSeconds
-  # is exceeded if analysis or experiment is not used.
+  # Whether to abort the update when ProgressDeadlineSeconds is exceeded.
   # Optional and default is false.
   progressDeadlineAbort: false
 
@@ -69,13 +83,17 @@ spec:
   # its pods. Used by the `kubectl argo rollouts restart ROLLOUT` command.
   # The controller will ensure all pods have a creationTimestamp greater
   # than or equal to this value.
-  restartAt: "2020-03-30T21:19:35Z"
+  restartAt: '2020-03-30T21:19:35Z'
+
+  # The rollback window provides a way to fast track deployments to
+  # previously deployed versions.
+  # Optional, and by default is not set.
+  rollbackWindow:
+    revisions: 3
 
   strategy:
-
     # Blue-green update strategy
     blueGreen:
-
       # Reference to service that the rollout modifies as the active service.
       # Required.
       activeService: active-service
@@ -84,19 +102,19 @@ spec:
       # cutover. +optional
       prePromotionAnalysis:
         templates:
-        - templateName: success-rate
+          - templateName: success-rate
         args:
-        - name: service-name
-          value: guestbook-svc.default.svc.cluster.local
+          - name: service-name
+            value: guestbook-svc.default.svc.cluster.local
 
       # Post-promotion analysis run which performs analysis after the service
       # cutover. +optional
       postPromotionAnalysis:
         templates:
-        - templateName: success-rate
+          - templateName: success-rate
         args:
-        - name: service-name
-          value: guestbook-svc.default.svc.cluster.local
+          - name: service-name
+            value: guestbook-svc.default.svc.cluster.local
 
       # Name of the service that the rollout modifies as the preview service.
       # +optional
@@ -139,9 +157,20 @@ spec:
         preferredDuringSchedulingIgnoredDuringExecution:
           weight: 1 # Between 1 - 100
 
+      # activeMetadata will be merged and updated in-place into the ReplicaSet's spec.template.metadata
+      # of the active pods. +optional
+      activeMetadata:
+        labels:
+          role: active
+
+      # Metadata which will be attached to the preview pods only during their preview phase.
+      # +optional
+      previewMetadata:
+        labels:
+          role: preview
+
     # Canary update strategy
     canary:
-
       # Reference to a service which the controller will update to select
       # canary pods. Required for traffic routing.
       canaryService: canary-service
@@ -149,6 +178,17 @@ spec:
       # Reference to a service which the controller will update to select
       # stable pods. Required for traffic routing.
       stableService: stable-service
+
+      # Ping-pong spec allows zero-downtime rollouts for long-lived TCP/gRPC
+      # connections by avoiding service selector swaps at promotion time.
+      # Instead of swapping selectors between canaryService/stableService,
+      # the rollout alternates which of the two persistent services is
+      # "stable" via Status.Canary.StablePingPong. Supported with ALB,
+      # Istio, and plugin-based traffic routers.
+      # When pingPong is set, canaryService and stableService are not required.
+      pingPong:
+        pingService: ping-service
+        pongService: pong-service
 
       # Metadata which will be attached to the canary pods. This metadata will
       # only exist during an update, since there are no canary pods in a fully
@@ -188,7 +228,7 @@ spec:
       # killed, new RC can be scaled up further, ensuring that total number
       # of pods running at any time during the update is at most 130% of
       # original pods. +optional
-      maxSurge: "20%"
+      maxSurge: '20%'
 
       # Adds a delay before scaling down the previous ReplicaSet when the
       # canary strategy is used with traffic routing (default 30 seconds).
@@ -197,82 +237,171 @@ spec:
       # in order to give time for traffic providers to re-target the new pods.
       # This value is ignored with basic, replica-weighted canary without
       # traffic routing.
-      ScaleDownDelaySeconds: 30
+      scaleDownDelaySeconds: 30
+
+      # The minimum number of pods that will be requested for each ReplicaSet
+      # when using traffic routed canary. This is to ensure high availability
+      # of each ReplicaSet. spec.replicas should be >= minPodsPerReplicaSet
+      # for it to take full effect; otherwise it is capped at the rollout
+      # replica count. Defaults to 1. +optional
+      minPodsPerReplicaSet: 2
 
       # Limits the number of old RS that can run at one time before getting
       # scaled down. Defaults to nil
-      ScaleDownDelayRevisionLimit: 2
+      scaleDownDelayRevisionLimit: 2
 
       # Background analysis to run during a rollout update. Skipped upon
       # initial deploy of a rollout. +optional
       analysis:
         templates:
-        - templateName: success-rate
+          - templateName: success-rate
         args:
-        - name: service-name
-          value: guestbook-svc.default.svc.cluster.local
+          - name: service-name
+            value: guestbook-svc.default.svc.cluster.local
 
-        # valueFrom.podTemplateHashValue is a convenience to supply the
-        # rollouts-pod-template-hash value of either the Stable ReplicaSet
-        # or the Latest ReplicaSet
-        - name: stable-hash
-          valueFrom:
-            podTemplateHashValue: Stable
-        - name: latest-hash
-          valueFrom:
-            podTemplateHashValue: Latest
+          # valueFrom.podTemplateHashValue is a convenience to supply the
+          # rollouts-pod-template-hash value of either the Stable ReplicaSet
+          # or the Latest ReplicaSet
+          - name: stable-hash
+            valueFrom:
+              podTemplateHashValue: Stable
+          - name: latest-hash
+            valueFrom:
+              podTemplateHashValue: Latest
 
-        # valueFrom.fieldRef allows metadata about the rollout to be
-        # supplied as arguments to analysis.
-        - name: region
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.labels['region']
+          # valueFrom.fieldRef allows metadata about the rollout to be
+          # supplied as arguments to analysis.
+          - name: region
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.labels['region']
 
       # Steps define sequence of steps to take during an update of the
       # canary. Skipped upon initial deploy of a rollout. +optional
       steps:
+        # Sets the ratio of canary ReplicaSet to 20%
+        - setWeight: 20
 
-      # Sets the ratio of canary ReplicaSet to 20%
-      - setWeight: 20
+        # Pauses the rollout for an hour. Supported units: s, m, h
+        - pause:
+            duration: 1h
 
-      # Pauses the rollout for an hour. Supported units: s, m, h
-      - pause:
-          duration: 1h
+        # Pauses indefinitely until manually resumed
+        - pause: {}
 
-      # Pauses indefinitely until manually resumed
-      - pause: {}
+        # set canary scale to an explicit count without changing traffic weight
+        # (supported only with trafficRouting)
+        - setCanaryScale:
+            replicas: 3
 
-      # set canary scale to a explicit count without changing traffic weight
-      # (supported only with trafficRouting)
-      - setCanaryScale:
-          replicas: 3
+        # set canary scale to spec.Replica * (setweight / maxTrafficWeight) without changing traffic weight
+        # if maxTrafficWeight unspecified, it defaults to 100
+        # (supported only with trafficRouting)
+        - setCanaryScale:
+            weight: 25
 
-      # set canary scale to a percentage of spec.replicas without changing traffic weight
-      # (supported only with trafficRouting)
-      - setCanaryScale:
-          weight: 25
+        # set canary scale to match the canary traffic weight (default behavior)
+        - setCanaryScale:
+            matchTrafficWeight: true
 
-      # set canary scale to match the canary traffic weight (default behavior)
-      - setCanaryScale:
-          matchTrafficWeight: true
+        # The percentage or number of replica pods within the applications ReplicaSet
+        # that are available and ready when a rollout is ready to be promoted. Useful if your application
+        # configured an HPA to help handle different loads of traffic, but you still want quick promotions.
+        # Defaults to 100% if replicaProgressThreshold is not specified.
+        # The 'type' field should be either "Percent" | "Pod"
+        # Current percentage that is checked against the input percent value is calculated by the following:
+        # CURRENT PERCENTAGE = available replicas / desired replicas for the current step
+        # +optional
+        - replicaProgressThreshold:
+            type: Percent
+            value: 90
 
-      # an inline analysis step
-      - analysis:
-          templates:
-          - templateName: success-rate
 
-      # an inline experiment step
-      - experiment:
-          duration: 1h
-          templates:
-          - name: baseline
-            specRef: stable
-          - name: canary
-            specRef: canary
-          analyses:
-          - name : mann-whitney
-            templateName: mann-whitney
+        # executes the configured plugin by name with the provided configuration
+        - plugin:
+            name: example
+            config:
+              key: value
+
+        # Sets header based route with specified header values
+        # Setting header based route will send all traffic to the canary for the requests
+        # with a specified header, in this case request header "version":"2"
+        # (supported only with trafficRouting, for Istio only at the moment and any supported Gateway API providers via the plugin)
+        - setHeaderRoute:
+            # Name of the route that will be created by argo rollouts this must also be configured
+            # in spec.strategy.canary.trafficRouting.managedRoutes
+            name: 'header-route-1'
+            # The matching rules for the header route, if this is missing it acts as a removal of the route.
+            match:
+              # headerName The name of the header to apply the match rules to.
+              - headerName: 'version'
+                # headerValue must contain exactly one field of exact, regex, or prefix. Not all traffic routers support
+                # all types
+                headerValue:
+                  # Exact will only match if the header value is exactly the same
+                  exact: '2'
+                  # Will match the rule if the regular expression matches
+                  regex: '2.0.(.*)'
+                  # prefix will be a prefix match of the header value
+                  prefix: '2.0'
+
+          # Sets up a mirror/shadow based route with the specified match rules
+          # The traffic will be mirrored at the configured percentage to the canary service
+          # during the rollout
+          # (supported only with trafficRouting, for Istio only at the moment)
+        - setMirrorRoute:
+            # Name of the route that will be created by argo rollouts this must also be configured
+            # in spec.strategy.canary.trafficRouting.managedRoutes
+            name: 'header-route-1'
+            # The percentage of the matched traffic to mirror to the canary
+            percentage: 100
+            # The matching rules for the header route, if this is missing it acts as a removal of the route.
+            # All conditions inside a single match block have AND semantics, while the list of match blocks have OR semantics.
+            # Each type within a match (method, path, headers) must have one and only one match type (exact, regex, prefix)
+            # Not all match types (exact, regex, prefix) will be supported by all traffic routers.
+            match:
+              - method: # What HTTP method to match
+                  exact: 'GET'
+                  regex: 'P.*'
+                  prefix: 'POST'
+                path: # What HTTP url paths to match.
+                  exact: '/test'
+                  regex: '/test/.*'
+                  prefix: '/'
+                headers:
+                  agent-1b: # What HTTP header name to use in the match.
+                    exact: 'firefox'
+                    regex: 'firefox2(.*)'
+                    prefix: 'firefox'
+
+        # an inline analysis step
+        - analysis:
+            templates:
+              - templateName: success-rate
+
+        # an inline experiment step
+        - experiment:
+            duration: 1h
+            templates:
+              - name: baseline
+                specRef: stable
+                # optional, creates a service for the experiment if set
+                service:
+                  # optional, service: {} is also acceptable if name is not included
+                  name: test-service
+              - name: canary
+                specRef: canary
+                # optional, set the weight of traffic routed to this version
+                weight: 10
+            analyses:
+              - name: mann-whitney
+                templateName: mann-whitney
+                # Metadata which will be attached to the AnalysisRun.
+            analysisRunMetadata:
+              labels:
+                app.service.io/analysisType: smoke-test
+              annotations:
+                link.argocd.argoproj.io/external-link: http://my-loggin-platform.com/pre-generated-link
 
       # Anti-affinity configuration between desired and previous ReplicaSet.
       # Only one must be specified.
@@ -286,36 +415,54 @@ spec:
       # will achieve traffic split via a weighted replica counts between
       # the canary and stable ReplicaSet.
       trafficRouting:
-
+        # Supports nginx and plugins only: This lets you control the denominator or total weight of traffic.
+        # The total weight of traffic. If unspecified, it defaults to 100
+        maxTrafficWeight: 1000
+        # This is a list of routes that Argo Rollouts has the rights to manage it is currently only required for
+        # setMirrorRoute and setHeaderRoute. The order of managedRoutes array also sets the precedence of the route
+        # in the traffic router. Argo Rollouts will place these routes in the order specified above any routes already
+        # defined in the used traffic router if something exists. The names here must match the names from the
+        # setHeaderRoute and setMirrorRoute steps.
+        managedRoutes:
+          - name: set-header
+          - name: mirror-route
         # Istio traffic routing configuration
         istio:
           # Either virtualService or virtualServices can be configured.
-          virtualService: 
-            name: rollout-vsvc  # required
-            routes:
-            - primary # optional if there is a single route in VirtualService, required otherwise
-          virtualServices:
-          # One or more virtualServices can be configured
-          - name: rollouts-vsvc1  # required
+          virtualService:
+            name: rollout-vsvc # required
             routes:
               - primary # optional if there is a single route in VirtualService, required otherwise
-          - name: rollouts-vsvc2  # required
-            routes:
-              - secondary # optional if there is a single route in VirtualService, required otherwise
+          virtualServices:
+            # One or more virtualServices can be configured
+            - name: rollouts-vsvc1 # required
+              routes:
+                - primary # optional if there is a single route in VirtualService, required otherwise
+            - name: rollouts-vsvc2 # required
+              routes:
+                - secondary # optional if there is a single route in VirtualService, required otherwise
 
         # NGINX Ingress Controller routing configuration
         nginx:
-          stableIngress: primary-ingress  # required
+          # Either stableIngress or stableIngresses must be configured, but not both.
+          stableIngress: primary-ingress
+          stableIngresses:
+            - primary-ingress
+            - secondary-ingress
+            - tertiary-ingress
           annotationPrefix: customingress.nginx.ingress.kubernetes.io # optional
-          additionalIngressAnnotations:   # optional
+          additionalIngressAnnotations: # optional
             canary-by-header: X-Canary
             canary-by-header-value: iwantsit
+          canaryIngressAnnotations: # optional
+            my-custom-annotation.mygroup.com/key: value
 
         # ALB Ingress Controller routing configuration
         alb:
-          ingress: ingress  # required
-          servicePort: 443  # required
+          ingress: ingress # required
+          servicePort: 443 # required
           annotationPrefix: custom.alb.ingress.kubernetes.io # optional
+          rootService: root-service # required when ping-pong is enabled
 
         # Service Mesh Interface routing configuration
         smi:
@@ -327,18 +474,24 @@ spec:
       # 0 means canary pods are not scaled down. Default is 30 seconds.
       abortScaleDownDelaySeconds: 30
 
+      # Automatically reduce the number of stable pods as the number of canary pods increases
+      # Only available when traffic routing is used. Default value is false meaning that as more canary pods
+      # are created the number of stable pods stays the same. 
+      dynamicStableScale: false
+
 status:
   pauseConditions:
-  - reason: StepPause
-    startTime: 2019-10-00T1234
-  - reason: BlueGreenPause
-    startTime: 2019-10-00T1234
-  - reason: AnalysisRunInconclusive
-    startTime: 2019-10-00T1234 
+    - reason: StepPause
+      startTime: 2019-10-00T1234
+    - reason: BlueGreenPause
+      startTime: 2019-10-00T1234
+    - reason: AnalysisRunInconclusive
+      startTime: 2019-10-00T1234
 ```
+
 ## Examples
 
 You can find examples of Rollouts at:
 
- * The [example directory](https://github.com/argoproj/argo-rollouts/tree/master/examples)
- * The [Argo Rollouts Demo application](https://github.com/argoproj/rollouts-demo)
+- The [example directory](https://github.com/argoproj/argo-rollouts/tree/master/examples)
+- The [Argo Rollouts Demo application](https://github.com/argoproj/rollouts-demo)

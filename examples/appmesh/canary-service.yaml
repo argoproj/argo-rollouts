@@ -1,0 +1,187 @@
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: Mesh
+metadata:
+  name: argo-examples
+spec:
+  namespaceSelector:
+    matchLabels:
+      mesh: argo-examples
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argo-examples
+  labels:
+    mesh: argo-examples
+    appmesh.k8s.aws/sidecarInjectorWebhook: enabled
+
+---
+# This service is used by virtual-service to resolve initial dns requests done by app container
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc
+  namespace: argo-examples
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: my-app
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc-canary
+  namespace: argo-examples
+spec:
+  clusterIP: None
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    # This selector will be updated with the pod-template-hash of the canary ReplicaSet.
+    app: my-app
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc-stable
+  namespace: argo-examples
+spec:
+  clusterIP: None
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    # This selector will be updated with the pod-template-hash of the stable ReplicaSet.
+    app: my-app
+
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  name: my-svc
+  namespace: argo-examples
+spec:
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: my-vrouter
+
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  name: my-vrouter
+  namespace: argo-examples
+spec:
+  listeners:
+    - portMapping:
+        port: 80
+        protocol: http
+  routes:
+    - name: primary
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: my-vn-canary
+              weight: 0
+            - virtualNodeRef:
+                name: my-vn-stable
+              weight: 100
+
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualNode
+metadata:
+  name: my-vn-canary
+  namespace: argo-examples
+spec:
+  podSelector:
+    matchLabels:
+      app: my-app
+      rollouts-pod-template-hash: canary-tbd
+  listeners:
+    - portMapping:
+        port: 8080
+        protocol: http
+  serviceDiscovery:
+    dns:
+      hostname: my-svc-canary.argo-examples.svc.cluster.local
+      responseType: ENDPOINTS
+
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualNode
+metadata:
+  name: my-vn-stable
+  namespace: argo-examples
+spec:
+  podSelector:
+    matchLabels:
+      app: my-app
+      rollouts-pod-template-hash: stable-tbd
+  listeners:
+    - portMapping:
+        port: 8080
+        protocol: http
+  serviceDiscovery:
+    dns:
+      hostname: my-svc-stable.argo-examples.svc.cluster.local
+      responseType: ENDPOINTS
+
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualNode
+metadata:
+  name: wrk-tester
+  namespace: argo-examples
+spec:
+  podSelector:
+    matchLabels:
+      app: wrk-tester
+  backends:
+    - virtualService:
+        virtualServiceRef:
+          name: my-svc
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wrk-tester
+  namespace: argo-examples
+  labels:
+    app: wrk-tester
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wrk-tester
+  template:
+    metadata:
+      name: wrk-tester
+      labels:
+        app: wrk-tester
+    spec:
+      containers:
+        - name: wrk
+          image: argoproj/load-tester:latest
+          command:
+            - /bin/sh
+            - -c
+            - -x
+            - "while true; do wrk -t10 -c40 -d2m -s report.lua http://my-svc.argo-examples/color; jq -e '.errors_ratio <= 0.35 and .latency_avg_ms < 100' report.json; done"

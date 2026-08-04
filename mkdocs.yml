@@ -1,3 +1,11 @@
+extra:
+  analytics:
+    property: G-5Z1VTPDL73
+    provider: google
+extra_css:
+- assets/versions.css
+extra_javascript:
+- assets/versions.js
 markdown_extensions:
 - codehilite
 - admonition
@@ -15,18 +23,24 @@ nav:
   - Basic Usage: getting-started.md
   - Ambassador: getting-started/ambassador/index.md
   - AWS ALB: getting-started/alb/index.md
+  - AWS App Mesh: getting-started/appmesh/index.md
   - Istio: getting-started/istio/index.md
   - NGINX: getting-started/nginx/index.md
   - SMI: getting-started/smi/index.md
+  - Multiple Providers: getting-started/mixed/index.md
 - Dashboard: dashboard.md
 - Rollout:
   - Deployment Strategies:
     - BlueGreen: features/bluegreen.md
-    - Canary: features/canary.md
+    - Canary: features/canary/index.md
   - Rollout Spec: features/specification.md
+  - Canary Step Plugin: features/canary/plugins.md
   - HPA: features/hpa-support.md
+  - VPA: features/vpa-support.md
   - Ephemeral Metadata: features/ephemeral-metadata.md
   - Restarting Rollouts: features/restart.md
+  - Scaledown Aborted Rollouts: features/scaledown-aborted-rs.md
+  - Rollback Window: features/rollback.md
   - Anti Affinity: features/anti-affinity/anti-affinity.md
   - Helm: features/helm.md
   - Kustomize: features/kustomize.md
@@ -34,34 +48,54 @@ nav:
 - Traffic Management:
   - Overview: features/traffic-management/index.md
   - Ambassador: features/traffic-management/ambassador.md
+  - APISIX: features/traffic-management/apisix.md
   - AWS ALB: features/traffic-management/alb.md
+  - Google Cloud: features/traffic-management/google-cloud.md
   - Istio: features/traffic-management/istio.md
+  - Kong: features/traffic-management/kong.md
   - NGINX: features/traffic-management/nginx.md
+  - Plugins: features/traffic-management/plugins.md
   - SMI: features/traffic-management/smi.md
+  - Traefik: features/traffic-management/traefik.md
 - Analysis:
   - Overview: features/analysis.md
+  - Plugins: analysis/plugins.md
   - Prometheus: analysis/prometheus.md
-  - DataDog: analysis/datadog.md
+  - Datadog: analysis/datadog.md
   - NewRelic: analysis/newrelic.md
   - Wavefront: analysis/wavefront.md
   - Job: analysis/job.md
   - Web: analysis/web.md
   - Kayenta: analysis/kayenta.md
   - CloudWatch: analysis/cloudwatch.md
+  - Graphite: analysis/graphite.md
+  - InfluxDB: analysis/influxdb.md
+  - Apache SkyWalking: analysis/skywalking.md
 - Experiments: features/experiment.md
 - Notifications:
   - Overview: features/notifications.md
   - Services:
+    - generated/notification-services/alertmanager.md
+    - generated/notification-services/awssqs.md
     - generated/notification-services/email.md
+    - generated/notification-services/gcppubsub.md
     - generated/notification-services/github.md
+    - generated/notification-services/googlechat.md
     - generated/notification-services/grafana.md
     - generated/notification-services/mattermost.md
+    - generated/notification-services/nats.md
+    - generated/notification-services/newrelic.md
     - generated/notification-services/opsgenie.md
     - generated/notification-services/overview.md
+    - generated/notification-services/pagerduty.md
+    - generated/notification-services/pagerduty_v2.md
+    - generated/notification-services/pushover.md
     - generated/notification-services/rocketchat.md
     - generated/notification-services/slack.md
+    - generated/notification-services/teams-workflows.md
     - generated/notification-services/teams.md
     - generated/notification-services/telegram.md
+    - generated/notification-services/webex.md
     - generated/notification-services/webhook.md
 - Kubectl Plugin:
   - Overview: features/kubectl-plugin.md
@@ -103,22 +137,33 @@ nav:
 - Best Practices: best-practices.md
 - Migrating: migrating.md
 - FAQ: FAQ.md
-- Security: security.md
-- Roadmap: roadmap.md
+- Security:
+  - Security Policy: security/security.md
+  - Verify Release Artifacts: security/signed-release-assets.md
 - Contributing:
   - Contribution Guide: CONTRIBUTING.md
   - Environment Setup: getting-started/setup/index.md
   - Releasing: releasing.md
+  - Backporting Fixes: backporting.md
+  - Plugins: plugins.md
 - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
-- Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
+- Roadmap: roadmap.md
 - Blog ⧉: https://blog.argoproj.io/
 repo_url: https://github.com/argoproj/argo-rollouts
 site_name: Argo Rollouts - Kubernetes Progressive Delivery Controller
-site_url: https://argoproj.github.io/argo-rollouts
+site_url: https://argo-rollouts.readthedocs.io/
 theme:
   font:
     text: Work Sans
   logo: assets/logo.png
   name: material
   palette:
-    primary: teal
+  - primary: teal
+    scheme: default
+    toggle:
+      icon: material/toggle-switch-off-outline
+      name: Switch to dark mode
+  - scheme: slate
+    toggle:
+      icon: material/toggle-switch
+      name: Switch to light mode

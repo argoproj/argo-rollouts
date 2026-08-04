@@ -5,105 +5,99 @@ on:
     branches:
       - master
       - release-*
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'    
 
   # Run tests for any PRs.
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+env:
+  # Registry namespace - defaults to 'argoproj', override via GitHub vars
+  REGISTRY_NAMESPACE: ${{ vars.REGISTRY_NAMESPACE || 'argoproj' }}
 
 jobs:
-  docker:
+  set-vars:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
+    outputs:
+      controller-meta-tags: ${{ steps.controller-meta.outputs.tags }}
+      plugin-meta-tags: ${{ steps.plugin-meta.outputs.tags }}
+      platforms: ${{ steps.platform-matrix.outputs.platform-matrix }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
       - name: Docker meta (controller)
         id: controller-meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v6
         with:
           images: |
-            quay.io/argoproj/argo-rollouts
-            ghcr.io/argoproj/argo-rollouts
+            quay.io/${{ env.REGISTRY_NAMESPACE }}/argo-rollouts
           tags: |
-            type=ref,event=branch
-          flavor: |
-            latest=${{ github.ref == 'refs/heads/master' }}
+            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
       - name: Docker meta (plugin)
         id: plugin-meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v6
         with:
           images: |
-            quay.io/argoproj/kubectl-argo-rollouts
-            ghcr.io/argoproj/kubectl-argo-rollouts
+            quay.io/${{ env.REGISTRY_NAMESPACE }}/kubectl-argo-rollouts
           tags: |
-            type=ref,event=branch
-          flavor: |
-            latest=${{ github.ref == 'refs/heads/master' }}
-
-      - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v1 
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Login to Quay.io
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v1
-        with:
-          registry: quay.io
-          username: ${{ secrets.QUAY_USERNAME }}
-          password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
       # avoid building linux/arm64 for PRs since it takes so long
       - name: Set Platform Matrix
         id: platform-matrix
         run: |
           PLATFORM_MATRIX=linux/amd64
-          if [ ${{ github.event_name != 'pull_request' }} = true ]; then
+          if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
+          then
             PLATFORM_MATRIX=$PLATFORM_MATRIX,linux/arm64
           fi
-          echo "::set-output name=platform-matrix::$PLATFORM_MATRIX"
+          echo "platform-matrix=$PLATFORM_MATRIX" >> $GITHUB_OUTPUT
 
-      - name: Build and push (controller-image)
-        uses: docker/build-push-action@v2
-        with:
-          platforms: ${{ steps.platform-matrix.outputs.platform-matrix }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.controller-meta.outputs.tags }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+  build-and-push-controller-image:
+    needs: [set-vars]
+    permissions:
+      contents: read
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      id-token: write # for creating OIDC tokens for signing.
+    uses: ./.github/workflows/image-reuse.yaml
+    with:
+      quay_image_name: ${{ needs.set-vars.outputs.controller-meta-tags }}
+      # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
+      go-version: '1.26'
+      platforms: ${{ needs.set-vars.outputs.platforms }}
+      push: ${{ github.event_name != 'pull_request' }}
+    secrets:
+      quay_username: ${{ secrets.QUAY_USERNAME }}
+      quay_password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
-      - name: Build and push (plugin-image)
-        uses: docker/build-push-action@v2
-        with:
-          target: kubectl-argo-rollouts
-          platforms: ${{ steps.platform-matrix.outputs.platform-matrix }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.plugin-meta.outputs.tags }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
-
-        # Temp fix
-        # https://github.com/docker/build-push-action/issues/252
-        # https://github.com/moby/buildkit/issues/1896
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+  build-and-push-plugin-image:
+    needs: [set-vars]
+    permissions:
+      contents: read
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      id-token: write # for creating OIDC tokens for signing.
+    uses: ./.github/workflows/image-reuse.yaml
+    with:
+      quay_image_name: ${{ needs.set-vars.outputs.plugin-meta-tags }}
+      # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
+      go-version: '1.26'
+      platforms: ${{ needs.set-vars.outputs.platforms }}
+      push: ${{ github.event_name != 'pull_request' }}
+      target: kubectl-argo-rollouts
+    secrets:
+      quay_username: ${{ secrets.QUAY_USERNAME }}
+      quay_password: ${{ secrets.QUAY_ROBOT_TOKEN }}

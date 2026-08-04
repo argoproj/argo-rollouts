@@ -1,0 +1,71 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: argo-examples
+spec:
+  args:
+  - name: envoy_cluster_name
+  metrics:
+  - name: success-rate
+    interval: 5m
+    successCondition: result[0] >= 0.99
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://appmesh-prometheus.appmesh-system:9090
+        query: |
+          sum(irate(envoy_cluster_upstream_rq_xx{app="wrk-tester",envoy_cluster_name="{{args.envoy_cluster_name}}",envoy_response_code_class!~"5.*"}[5m])) /
+          sum(irate(envoy_cluster_upstream_rq_xx{app="wrk-tester",envoy_cluster_name="{{args.envoy_cluster_name}}"}[5m]))
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: my-rollout
+  namespace: argo-examples
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8080
+  strategy:
+    canary:
+      canaryService: my-svc-canary
+      stableService: my-svc-stable
+      trafficRouting:
+        appMesh:
+          virtualService: 
+            name: my-svc
+          virtualNodeGroup:
+            canaryVirtualNodeRef:
+              name: my-vn-canary
+            stableVirtualNodeRef:
+              name: my-vn-stable
+      steps:
+      - setWeight: 25
+      - pause: {}
+      - setWeight: 50
+      - pause: {duration: 10m}
+      - setWeight: 75
+      - pause: {duration: 10m}
+      # Uncomment below to enable analysis
+#      analysis:
+#        templates:
+#        - templateName: success-rate
+#        startingStep: 2
+#        args:
+#        - name: envoy_cluster_name
+#          value: cds_egress_argo-examples_my-vn-canary_argo-examples_http_80

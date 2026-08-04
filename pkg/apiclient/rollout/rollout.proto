@@ -96,12 +96,14 @@ message RolloutInfo {
   repeated ContainerInfo containers = 19;
 
   repeated github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep steps = 20;
+
+  repeated ContainerInfo initContainers = 21;
 }
 
 message ExperimentInfo {
   k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
   string icon = 2;
-  int32 revision = 3;
+  int64 revision = 3;
   string status = 4;
   string message = 5;
   repeated ReplicaSetInfo replicaSets = 6;
@@ -112,7 +114,7 @@ message ReplicaSetInfo {
   k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
   string status = 2;
   string icon = 3;
-  int32 revision = 4;
+  int64 revision = 4;
   bool stable = 5;
   bool canary = 6;
   bool active = 7;
@@ -123,6 +125,9 @@ message ReplicaSetInfo {
   string scaleDownDeadline = 12;
   repeated string images = 13;
   repeated PodInfo pods = 14;
+  bool ping = 15;
+  bool pong = 16;
+  repeated string initContainerImages = 17;
 }
 
 message PodInfo {
@@ -142,19 +147,48 @@ message JobInfo {
   k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
   string status = 2;
   string icon = 3;
+  string metricName = 4;
+  k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 5;
+}
+
+message AnalysisRunSpecAndStatus {
+  github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunSpec spec = 1;
+  github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStatus status = 2;
 }
 
 message AnalysisRunInfo {
   k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
+  /*
+   field type from 161 -170 will be deprecated in future.
+  */
   string icon = 2;
-  int32 revision = 3;
+  int64 revision = 3;
   string status = 4;
   int32 successful = 5;
   int32 failed = 6;
   int32 inconclusive = 7;
   int32 error = 8;
   repeated JobInfo jobs = 9;
+  repeated NonJobInfo nonJobInfo = 10;
+  repeated Metrics metrics = 11;
+  /* The new API changes should use SpecAndStatus field type. */
+  AnalysisRunSpecAndStatus specAndStatus = 12;
 }
+
+message NonJobInfo {
+  string value = 1;
+  string status = 2;
+  string metricName = 3;
+  k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt =4;
+}
+
+message Metrics {
+    string name=1;
+    string successCondition = 2;
+    int32  count = 3;
+    int32  inconclusiveLimit = 4;
+    int32  failureLimit = 5;
+  }
 
 service RolloutService {
     rpc GetRolloutInfo(RolloutInfoQuery) returns (RolloutInfo) {

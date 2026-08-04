@@ -19,7 +19,7 @@ To install the controller in your cluster and get started with Progressive Deliv
 The Rollout resource is a custom Kubernetes resource introduced and managed by Argo Rollouts. It is mostly compatible with the native Kubernetes Deployment resource but with extra
 fields that control the stages, thresholds and methods of advanced deployment methods such as canaries and blue/green deployments.
 
-Note that the Argo Rollouts controller will only respond to those changes that happen in Rollout sources. It will do nothing for normal deployment resources. This means that you need to [migrate your Deployments to Rollouts](../migrating/) if you want to manage them with Argo Rollouts.
+Note that the Argo Rollouts controller will only respond to those changes that happen in Rollout resources. It will do nothing for normal deployment resources. This means that you need to [migrate your Deployments to Rollouts](../migrating/) if you want to manage them with Argo Rollouts.
 
 You can see all possible options of a Rollout in the [full specification page](../features/specification/).
 
@@ -34,7 +34,7 @@ Note also that the replica sets that take part in a Rollout are fully managed by
 This is the mechanism that traffic from live users enters your cluster and is redirected to the appropriate version. Argo Rollouts use the [standard Kubernetes service resource](https://kubernetes.io/docs/concepts/services-networking/service/), but with some extra metadata needed for management.
 
 Argo Rollouts is very flexible on networking options. First of all you can have different services during a Rollout, that go only to the new version, only to the old version or both.
-Specifically for Canary deployments, Argo Rollouts supports several [service mesh and ingress solutions](../features/traffic-management/) for splitting traffic with specific percentages instead of simple balancing based on pod counts.
+Specifically for Canary deployments, Argo Rollouts supports several [service mesh and ingress solutions](../features/traffic-management/) for splitting traffic with specific percentages instead of simple balancing based on pod counts and it is possible to use multiple routing providers simultaneously.
 
 ## AnalysisTemplate and AnalysisRun
 

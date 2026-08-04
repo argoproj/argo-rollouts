@@ -10,6 +10,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -28,6 +29,8 @@ const (
 	InfoTagStable  = "stable"
 	InfoTagActive  = "active"
 	InfoTagPreview = "preview"
+	InfoTagPing    = "ping"
+	InfoTagPong    = "pong"
 )
 
 type Metadata v1.ObjectMeta
@@ -38,7 +41,7 @@ type ImageInfo struct {
 }
 
 func Age(m v1.ObjectMeta) string {
-	return duration.HumanDuration(metav1.Now().Sub(m.CreationTimestamp.Time))
+	return duration.HumanDuration(timeutil.MetaNow().Sub(m.CreationTimestamp.Time))
 }
 
 func ownerRef(ownerRefs []metav1.OwnerReference, uids []types.UID) *metav1.OwnerReference {

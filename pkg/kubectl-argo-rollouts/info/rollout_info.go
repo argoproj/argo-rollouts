@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
 func NewRolloutInfo(
@@ -22,13 +23,17 @@ func NewRolloutInfo(
 	allPods []*corev1.Pod,
 	allExperiments []*v1alpha1.Experiment,
 	allARs []*v1alpha1.AnalysisRun,
+	workloadRef *appsv1.Deployment,
 ) *rollout.RolloutInfo {
 
 	roInfo := rollout.RolloutInfo{
 		ObjectMeta: &v1.ObjectMeta{
 			Name:              ro.Name,
 			Namespace:         ro.Namespace,
+			Labels:            ro.Labels,
+			Annotations:       ro.Annotations,
 			UID:               ro.UID,
+			Generation:        ro.Generation,
 			CreationTimestamp: ro.CreationTimestamp,
 			ResourceVersion:   ro.ObjectMeta.ResourceVersion,
 		},
@@ -55,16 +60,20 @@ func NewRolloutInfo(
 		currentStep, _ := replicasetutil.GetCurrentCanaryStep(ro)
 
 		if currentStep == nil {
-			roInfo.ActualWeight = "100"
+			roInfo.ActualWeight = fmt.Sprintf("%d", weightutil.MaxTrafficWeight(ro))
 		} else if ro.Status.AvailableReplicas > 0 {
 			if ro.Spec.Strategy.Canary.TrafficRouting == nil {
 				for _, rs := range roInfo.ReplicaSets {
 					if rs.Canary {
-						roInfo.ActualWeight = fmt.Sprintf("%d", (rs.Available*100)/ro.Status.AvailableReplicas)
+						roInfo.ActualWeight = fmt.Sprintf("%d", (rs.Available*weightutil.MaxTrafficWeight(ro))/ro.Status.AvailableReplicas)
 					}
 				}
 			} else {
-				roInfo.ActualWeight = roInfo.SetWeight
+				if ro.Status.Canary.Weights != nil {
+					roInfo.ActualWeight = fmt.Sprintf("%d", ro.Status.Canary.Weights.Canary.Weight)
+				} else {
+					roInfo.ActualWeight = roInfo.SetWeight
+				}
 			}
 		}
 	} else if ro.Spec.Strategy.BlueGreen != nil {
@@ -75,9 +84,23 @@ func NewRolloutInfo(
 	roInfo.Message = message
 	roInfo.Icon = rolloutIcon(roInfo.Status)
 	roInfo.Containers = []*rollout.ContainerInfo{}
-	for c := range ro.Spec.Template.Spec.Containers {
-		curContainer := ro.Spec.Template.Spec.Containers[c]
-		roInfo.Containers = append(roInfo.Containers, &rollout.ContainerInfo{Name: curContainer.Name, Image: curContainer.Image})
+
+	var containerList []corev1.Container
+	var initContainerList []corev1.Container
+	if workloadRef != nil {
+		containerList = workloadRef.Spec.Template.Spec.Containers
+		initContainerList = workloadRef.Spec.Template.Spec.InitContainers
+	} else {
+		containerList = ro.Spec.Template.Spec.Containers
+		initContainerList = ro.Spec.Template.Spec.InitContainers
+	}
+
+	for _, c := range containerList {
+		roInfo.Containers = append(roInfo.Containers, &rollout.ContainerInfo{Name: c.Name, Image: c.Image})
+	}
+
+	for _, c := range initContainerList {
+		roInfo.InitContainers = append(roInfo.InitContainers, &rollout.ContainerInfo{Name: c.Name, Image: c.Image})
 	}
 
 	if ro.Status.RestartedAt != nil {
@@ -138,6 +161,12 @@ func Images(r *rollout.RolloutInfo) []ImageInfo {
 				}
 				if rsInfo.Preview {
 					newImage.Tags = append(newImage.Tags, InfoTagPreview)
+				}
+				if rsInfo.Ping {
+					newImage.Tags = append(newImage.Tags, InfoTagPing)
+				}
+				if rsInfo.Pong {
+					newImage.Tags = append(newImage.Tags, InfoTagPong)
 				}
 				images = mergeImageAndTags(newImage, images)
 			}
@@ -211,7 +240,7 @@ func Revisions(r *rollout.RolloutInfo) []int {
 func ReplicaSetsByRevision(r *rollout.RolloutInfo, rev int) []*rollout.ReplicaSetInfo {
 	var replicaSets []*rollout.ReplicaSetInfo
 	for _, rs := range r.ReplicaSets {
-		if rs.Revision == int32(rev) {
+		if rs.Revision == int64(rev) {
 			replicaSets = append(replicaSets, rs)
 		}
 	}

@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 	"github.com/tj/assert"
+
+	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
 
 func TestShellNotFound(t *testing.T) {

@@ -7,9 +7,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -17,9 +15,10 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-func (c *Controller) syncALBIngress(ingress *extensionsv1beta1.Ingress, rollouts []*v1alpha1.Rollout) error {
+func (c *Controller) syncALBIngress(ingress *ingressutil.Ingress, rollouts []*v1alpha1.Rollout) error {
 	ctx := context.TODO()
-	managedActions, err := ingressutil.NewManagedALBActions(ingress.Annotations[ingressutil.ManagedActionsAnnotation])
+	annotations := ingress.GetAnnotations()
+	managedActions, err := ingressutil.NewManagedALBAnnotations(annotations[ingressutil.ManagedAnnotations])
 	if err != nil {
 		return nil
 	}
@@ -36,36 +35,51 @@ func (c *Controller) syncALBIngress(ingress *extensionsv1beta1.Ingress, rollouts
 	for roName := range managedActions {
 		if _, ok := actionHasExistingRollout[roName]; !ok {
 			modified = true
-			actionKey := managedActions[roName]
+			actionKeys := managedActions[roName]
 			delete(managedActions, roName)
-			resetALBAction, err := getResetALBActionStr(ingress, actionKey)
-			if err != nil {
-				log.WithField(logutil.RolloutKey, roName).WithField(logutil.IngressKey, ingress.Name).WithField(logutil.NamespaceKey, ingress.Namespace).Error(err)
-				return nil
+			for _, actionKey := range actionKeys {
+				if !strings.Contains(actionKey, ingressutil.ALBActionPrefix) {
+					continue
+				}
+				resetALBAction, err := getResetALBActionStr(ingress, actionKey)
+				if err != nil {
+					log.WithField(logutil.RolloutKey, roName).
+						WithField(logutil.IngressKey, ingress.GetName()).
+						WithField(logutil.NamespaceKey, ingress.GetNamespace()).
+						Error(err)
+					return nil
+				}
+				annotations := newIngress.GetAnnotations()
+				annotations[actionKey] = resetALBAction
+				newIngress.SetAnnotations(annotations)
 			}
-			newIngress.Annotations[actionKey] = resetALBAction
 		}
 	}
 	if !modified {
 		return nil
 	}
-	newManagedStr := managedActions.String()
-	newIngress.Annotations[ingressutil.ManagedActionsAnnotation] = newManagedStr
-	if newManagedStr == "" {
-		delete(newIngress.Annotations, ingressutil.ManagedActionsAnnotation)
+	newAnnotations := newIngress.GetAnnotations()
+	if len(managedActions) == 0 {
+		delete(newAnnotations, ingressutil.ManagedAnnotations)
+	} else {
+		newAnnotations[ingressutil.ManagedAnnotations] = managedActions.String()
 	}
-	_, err = c.client.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(ctx, newIngress, metav1.UpdateOptions{})
+	// delete leftovers from old implementation ManagedActionsAnnotation
+	delete(newAnnotations, ingressutil.ManagedActionsAnnotation)
+	newIngress.SetAnnotations(newAnnotations)
+	_, err = c.ingressWrapper.Update(ctx, ingress.GetNamespace(), newIngress)
 	return err
 }
 
-func getResetALBActionStr(ingress *extensionsv1beta1.Ingress, action string) (string, error) {
+func getResetALBActionStr(ingress *ingressutil.Ingress, action string) (string, error) {
 	parts := strings.Split(action, ingressutil.ALBActionPrefix)
 	if len(parts) != 2 {
 		return "", fmt.Errorf("unable to parse action to get the service %s", action)
 	}
 	service := parts[1]
 
-	previousActionStr := ingress.Annotations[action]
+	annotations := ingress.GetAnnotations()
+	previousActionStr := annotations[action]
 	var previousAction ingressutil.ALBAction
 	err := json.Unmarshal([]byte(previousActionStr), &previousAction)
 	if err != nil {
@@ -89,11 +103,19 @@ func getResetALBActionStr(ingress *extensionsv1beta1.Ingress, action string) (st
 				{
 					ServiceName: service,
 					ServicePort: port,
-					Weight:      pointer.Int64Ptr(int64(100)),
+					Weight:      ptr.To[int64](int64(100)),
 				},
 			},
 		},
 	}
+
+	if previousAction.ForwardConfig.TargetGroupStickinessConfig != nil {
+		albAction.ForwardConfig.TargetGroupStickinessConfig = &ingressutil.ALBTargetGroupStickinessConfig{
+			Enabled:         previousAction.ForwardConfig.TargetGroupStickinessConfig.Enabled,
+			DurationSeconds: previousAction.ForwardConfig.TargetGroupStickinessConfig.DurationSeconds,
+		}
+	}
+
 	bytes := jsonutil.MustMarshal(albAction)
 	return string(bytes), nil
 }

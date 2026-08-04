@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
+	"github.com/newrelic/newrelic-client-go/v2/pkg/nrdb"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +31,7 @@ func TestType(t *testing.T) {
 func TestRunSuccessfully(t *testing.T) {
 	e := log.Entry{}
 	mock := &mockAPI{
-		response: []nrdb.NrdbResult{map[string]interface{}{"count": 10}},
+		response: []nrdb.NRDBResult{map[string]any{"count": 10}},
 	}
 	p := NewNewRelicProvider(mock, e)
 	metric := v1alpha1.Metric{
@@ -40,10 +40,14 @@ func TestRunSuccessfully(t *testing.T) {
 		FailureCondition: "result.count != 10",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query: "test",
+				Query: "resolved-query",
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.NotNil(t, metricsMetadata)
+	assert.Equal(t, "resolved-query", metricsMetadata[resolvedNewRelicQuery])
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, `{"count":10}`, measurement.Value)
@@ -54,10 +58,11 @@ func TestRunSuccessfully(t *testing.T) {
 func TestRunWithTimeseries(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := &mockAPI{
-		response: []nrdb.NrdbResult{
-			map[string]interface{}{"count": 10},
-			map[string]interface{}{"count": 20},
-			map[string]interface{}{"count": 30}},
+		response: []nrdb.NRDBResult{
+			map[string]any{"count": 10},
+			map[string]any{"count": 20},
+			map[string]any{"count": 30},
+		},
 	}
 	p := NewNewRelicProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -66,10 +71,14 @@ func TestRunWithTimeseries(t *testing.T) {
 		FailureCondition: "result[2].count < 20",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query: "test",
+				Query: "resolved-query",
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.NotNil(t, metricsMetadata)
+	assert.Equal(t, "resolved-query", metricsMetadata[resolvedNewRelicQuery])
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, `[{"count":10},{"count":20},{"count":30}]`, measurement.Value)
@@ -80,7 +89,7 @@ func TestRunWithTimeseries(t *testing.T) {
 func TestRunWithFacet(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := &mockAPI{
-		response: []nrdb.NrdbResult{map[string]interface{}{"count": 10, "average.duration": 12.34}},
+		response: []nrdb.NRDBResult{map[string]any{"count": 10, "average.duration": 12.34}},
 	}
 	p := NewNewRelicProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -89,10 +98,14 @@ func TestRunWithFacet(t *testing.T) {
 		FailureCondition: "result.count != 10 or result['average.duration'] >= 15.0",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query: "test",
+				Query: "resolved-query",
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.NotNil(t, metricsMetadata)
+	assert.Equal(t, "resolved-query", metricsMetadata[resolvedNewRelicQuery])
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, `{"average.duration":12.34,"count":10}`, measurement.Value)
@@ -103,7 +116,7 @@ func TestRunWithFacet(t *testing.T) {
 func TestRunWithMultipleSelectTerms(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := &mockAPI{
-		response: []nrdb.NrdbResult{map[string]interface{}{"count": 10}},
+		response: []nrdb.NRDBResult{map[string]any{"count": 10}},
 	}
 	p := NewNewRelicProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -112,10 +125,14 @@ func TestRunWithMultipleSelectTerms(t *testing.T) {
 		FailureCondition: "result.count != 10",
 		Provider: v1alpha1.MetricProvider{
 			NewRelic: &v1alpha1.NewRelicMetric{
-				Query: "test",
+				Query: "resolved-query",
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.NotNil(t, metricsMetadata)
+	assert.Equal(t, "resolved-query", metricsMetadata[resolvedNewRelicQuery])
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, `{"count":10}`, measurement.Value)
@@ -127,7 +144,7 @@ func TestRunWithEmptyResult(t *testing.T) {
 	e := log.NewEntry(log.New())
 	expectedErr := fmt.Errorf("no results returned from NRQL query")
 	mock := &mockAPI{
-		response: []nrdb.NrdbResult{make(map[string]interface{})},
+		response: []nrdb.NRDBResult{make(map[string]any)},
 	}
 	p := NewNewRelicProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -233,7 +250,7 @@ func TestRunWithInvalidJSON(t *testing.T) {
 	}
 	t.Run("with a single result map", func(t *testing.T) {
 		mock := &mockAPI{
-			response: []nrdb.NrdbResult{map[string]interface{}{"func": func() {}}},
+			response: []nrdb.NRDBResult{map[string]any{"func": func() {}}},
 		}
 		p := NewNewRelicProvider(mock, *e)
 		measurement := p.Run(newAnalysisRun(), metric)
@@ -246,7 +263,7 @@ func TestRunWithInvalidJSON(t *testing.T) {
 	t.Run("with multiple results", func(t *testing.T) {
 		// cover branch where results slice is longer than 1
 		mock := &mockAPI{
-			response: []nrdb.NrdbResult{map[string]interface{}{"key": "value"}, map[string]interface{}{"func": func() {}}},
+			response: []nrdb.NRDBResult{map[string]any{"key": "value"}, map[string]any{"func": func() {}}},
 		}
 		p := NewNewRelicProvider(mock, *e)
 		measurement := p.Run(newAnalysisRun(), metric)
@@ -389,4 +406,74 @@ func TestNewNewRelicAPIClient(t *testing.T) {
 		_, err := NewNewRelicAPIClient(metric, fakeClient)
 		assert.NotNil(t, err)
 	})
+}
+
+func TestNewRelicClient_Query(t *testing.T) {
+	accountId := 1234567
+	sevenTo := int64(7)
+	negativeTo := int64(-1)
+	defaultTo := int64(defaultNrqlTimeout)
+	theQuery := "FROM K8sContainerSample SELECT percentile(`cpuCoresUtilization`, 95)"
+
+	mockNGC := &mockNerdGraphClient{}
+	nrc := &NewRelicClient{NerdGraphClient: mockNGC, AccountID: accountId}
+
+	tests := map[string]struct {
+		timeoutProvided *int64
+		timeoutUsed     *int64
+		query           string
+		want            []nrdb.NRDBResult
+		errMsg          string
+		gqlErr          error
+	}{
+		`returns results`: {
+			timeoutUsed: &defaultTo,
+			query:       theQuery,
+			want:        []nrdb.NRDBResult{map[string]any{"count": 10}},
+		},
+		`uses default timeout when one is not provided`: {
+			timeoutUsed: &defaultTo,
+			query:       theQuery,
+		},
+		`uses provided timeout`: {
+			timeoutUsed:     &sevenTo,
+			timeoutProvided: &sevenTo,
+			query:           theQuery,
+		},
+		`errors when timeout is negative`: {
+			timeoutProvided: &negativeTo,
+			query:           theQuery,
+			errMsg:          ErrNegativeTimeout.Error(),
+		},
+		`errors when nerdgraph returns error`: {
+			timeoutUsed: &defaultTo,
+			query:       theQuery,
+			errMsg:      "boom",
+			gqlErr:      errors.New("boom"),
+		},
+	}
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			defer mockNGC.Clear()
+			mockNGC.Err(tc.gqlErr)
+			mockNGC.Response(tc.want)
+			metric := v1alpha1.Metric{
+				Provider: v1alpha1.MetricProvider{
+					NewRelic: &v1alpha1.NewRelicMetric{
+						Timeout: tc.timeoutProvided,
+						Query:   tc.query,
+					},
+				},
+			}
+			results, err := nrc.Query(metric)
+			if len(tc.errMsg) > 0 {
+				assert.EqualError(t, err, tc.errMsg)
+				return
+			}
+			assert.Equal(t, *tc.timeoutUsed, mockNGC.LastArgs()["timeout"])
+			assert.Equal(t, tc.query, mockNGC.LastArgs()["query"])
+			assert.Equal(t, accountId, mockNGC.LastArgs()["accountId"])
+			assert.Equal(t, tc.want, results)
+		})
+	}
 }

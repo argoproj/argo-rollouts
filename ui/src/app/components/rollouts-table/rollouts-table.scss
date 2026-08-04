@@ -1,0 +1,18 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+.rollouts-table {
+    width: 100%;
+}
+
+.rollouts-table__row__selected {
+    background-color: $argo-color-gray-2;
+  }
+
+.rollouts-table_widget_actions {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.rollouts-table_widget_actions_button {
+    margin-top: 10px;
+}

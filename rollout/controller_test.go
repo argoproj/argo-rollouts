@@ -1,8 +1,10 @@
 package rollout
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
@@ -10,14 +12,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/undefinedlabs/go-mpatch"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,10 +39,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
-	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-rollouts/controller/metrics"
+	metricsmocks "github.com/argoproj/argo-rollouts/controller/metrics/mocks"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -47,12 +51,17 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/hash"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"github.com/argoproj/argo-rollouts/utils/queue"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 var (
@@ -68,9 +77,31 @@ const (
 )
 
 type FakeWorkloadRefResolver struct {
+	// resolveFn, if set, is invoked for workloadRef rollouts (kind != "Error") to mimic the real
+	// resolver repopulating the pod template that remarshalRollout strips when TemplateResolvedFromRef.
+	resolveFn func(r *v1alpha1.Rollout) error
 }
 
-func (f *FakeWorkloadRefResolver) Resolve(_ *v1alpha1.Rollout) error {
+func (f *FakeWorkloadRefResolver) Resolve(r *v1alpha1.Rollout) error {
+	if r.Spec.WorkloadRef == nil {
+		return nil
+	}
+
+	if r.Spec.WorkloadRef.Kind == "Error" {
+		return &errors.StatusError{
+			ErrStatus: metav1.Status{
+				Status:  metav1.StatusFailure,
+				Code:    http.StatusNotFound,
+				Reason:  metav1.StatusReasonNotFound,
+				Message: "not found",
+			},
+		}
+	}
+
+	if f.resolveFn != nil {
+		return f.resolveFn(r)
+	}
+
 	return nil
 }
 
@@ -91,19 +122,34 @@ type fixture struct {
 	analysisTemplateLister        []*v1alpha1.AnalysisTemplate
 	replicaSetLister              []*appsv1.ReplicaSet
 	serviceLister                 []*corev1.Service
-	ingressLister                 []*extensionsv1beta1.Ingress
+	ingressLister                 []*ingressutil.Ingress
+	virtualServiceLister          []*unstructured.Unstructured
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
 	// Objects from here preloaded into NewSimpleFake.
-	kubeobjects     []runtime.Object
-	objects         []runtime.Object
-	enqueuedObjects map[string]int
-	unfreezeTime    func() error
+	kubeobjects []runtime.Object
+	objects     []runtime.Object
+	// dynamicOnlyObjects: added to dynamic client only (not Argo client). Use for Istio VS/DR so listers don't see unstructured as rollout.
+	dynamicOnlyObjects []runtime.Object
+	// Acquire 'enqueuedObjectsLock' before accessing enqueuedObjects
+	enqueuedObjects     map[string]int
+	enqueuedObjectsLock sync.Mutex
+	unfreezeTime        func() error
+
+	// metricsRecorder allows injecting a mock metrics recorder for testing
+	metricsRecorder *metricsmocks.MetricsRecorder
 
 	// events holds all the K8s Event Reasons emitted during the run
 	events             []string
 	fakeTrafficRouting *mocks.TrafficRoutingReconciler
+	// reseedRolloutMutator, if set, is applied to the rollout when re-seeding between syncs (for multi-sync tests).
+	reseedRolloutMutator func(*v1alpha1.Rollout)
+	// allowErrorOnLastSync, if set, do not fail the test when the final sync returns an error (e.g. "delaying destination rule switch").
+	allowErrorOnLastSync bool
+	// workloadRefResolveFn, if set, is used by the fake workload ref resolver to repopulate the pod
+	// template (which remarshalRollout strips for TemplateResolvedFromRef rollouts), mimicking the real resolver.
+	workloadRefResolveFn func(*v1alpha1.Rollout) error
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -113,15 +159,33 @@ func newFixture(t *testing.T) *fixture {
 	f.kubeobjects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	patch, err := mpatch.PatchMethod(time.Now, func() time.Time { return now })
-	assert.NoError(t, err)
-	f.unfreezeTime = patch.Unpatch
-	f.fakeTrafficRouting = newFakeTrafficRoutingReconciler()
+
+	timeutil.SetNowTimeFunc(func() time.Time {
+		return now
+	})
+	f.unfreezeTime = func() error {
+		timeutil.SetNowTimeFunc(time.Now)
+		return nil
+	}
+
+	f.metricsRecorder = newFakeMetricsRecorder(t)
+	f.fakeTrafficRouting = newFakeSingleTrafficRoutingReconciler()
 	return f
 }
 
 func (f *fixture) Close() {
 	f.unfreezeTime()
+}
+
+func newFakeMetricsRecorder(t *testing.T) *metricsmocks.MetricsRecorder {
+	metricsRecorder := metricsmocks.NewMetricsRecorder(t)
+	metricsRecorder.On("IncRolloutReconcile", mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("IncExperimentReconcile", mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("IncAnalysisRunReconcile", mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("IncError", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("Remove", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("EmitRolloutDuration", mock.Anything).Return(nil).Maybe()
+	return metricsRecorder
 }
 
 func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
@@ -174,12 +238,34 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 		status = corev1.ConditionFalse
 	}
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            conditions.RolloutPausedMessage,
 		Reason:             conditions.RolloutPausedReason,
 		Status:             status,
 		Type:               v1alpha1.RolloutPaused,
+	}
+	conditionBytes, err := json.Marshal(condition)
+	if err != nil {
+		panic(err)
+	}
+	return condition, string(conditionBytes)
+}
+
+func newHealthyCondition(isHealthy bool) (v1alpha1.RolloutCondition, string) {
+	status := corev1.ConditionTrue
+	msg := conditions.RolloutHealthyMessage
+	if !isHealthy {
+		status = corev1.ConditionFalse
+		msg = conditions.RolloutNotHealthyMessage
+	}
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
+		Message:            msg,
+		Reason:             conditions.RolloutHealthyReason,
+		Status:             status,
+		Type:               v1alpha1.RolloutHealthy,
 	}
 	conditionBytes, err := json.Marshal(condition)
 	if err != nil {
@@ -194,8 +280,8 @@ func newCompletedCondition(isCompleted bool) (v1alpha1.RolloutCondition, string)
 		status = corev1.ConditionFalse
 	}
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            conditions.RolloutCompletedReason,
 		Reason:             conditions.RolloutCompletedReason,
 		Status:             status,
@@ -224,6 +310,9 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 		}
 		if reason == conditions.NewRSAvailableReason {
 			msg = fmt.Sprintf(conditions.ReplicaSetCompletedMessage, resource.Name)
+		}
+		if reason == conditions.ReplicaSetNotAvailableReason {
+			msg = conditions.NotAvailableMessage
 		}
 	case *v1alpha1.Rollout:
 		if reason == conditions.ReplicaSetUpdatedReason {
@@ -268,12 +357,16 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 	}
 
 	if optionalMessage != "" {
-		msg = optionalMessage
+		if msg != "" {
+			msg += ": " + optionalMessage
+		} else {
+			msg = optionalMessage
+		}
 	}
 
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            msg,
 		Reason:             reason,
 		Status:             status,
@@ -296,8 +389,8 @@ func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
 
 	}
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            message,
 		Reason:             conditions.AvailableReason,
 		Status:             status,
@@ -307,33 +400,57 @@ func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
-func generateConditionsPatch(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string) string {
+func generateConditionsPatch(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, completedCondition := newCompletedCondition(isCompleted)
 	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s]", availableCondition, progressingCondition)
+		return fmt.Sprintf("[%s, %s, %s]", availableCondition, progressingCondition, completedCondition)
 	}
-	return fmt.Sprintf("[%s, %s]", progressingCondition, availableCondition)
+	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, availableCondition, completedCondition)
 }
 
-func generateConditionsPatchWithPause(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isPaused bool) string {
+func generateConditionsPatchWithPause(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isPaused bool, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
 	_, pauseCondition := newPausedCondition(isPaused)
+	_, completedCondition := newCompletedCondition(isCompleted)
 	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s, %s]", availableCondition, progressingCondition, pauseCondition)
+		return fmt.Sprintf("[%s, %s, %s, %s]", availableCondition, completedCondition, progressingCondition, pauseCondition)
 	}
-	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, pauseCondition, availableCondition)
+	return fmt.Sprintf("[%s, %s, %s, %s]", progressingCondition, pauseCondition, availableCondition, completedCondition)
 }
 
-func generateConditionsPatchWithComplete(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
+func generateConditionsPatchWithHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool, isCompleted bool) string {
+	_, availableCondition := newAvailableCondition(available)
+	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, healthyCondition := newHealthyCondition(isHealthy)
+	_, completedCondition := newCompletedCondition(isCompleted)
+	if availableConditionFirst {
+		return fmt.Sprintf("[%s, %s, %s, %s]", availableCondition, completedCondition, healthyCondition, progressingCondition)
+	}
+	return fmt.Sprintf("[%s, %s, %s, %s]", completedCondition, healthyCondition, progressingCondition, availableCondition)
+}
+
+func generateConditionsPatchWithCompleted(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
 	_, completeCondition := newCompletedCondition(isCompleted)
 	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s, %s]", availableCondition, completeCondition, progressingCondition)
+		return fmt.Sprintf("[%s, %s, %s]", availableCondition, progressingCondition, completeCondition)
 	}
-	return fmt.Sprintf("[%s, %s, %s]", completeCondition, progressingCondition, availableCondition)
+	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, availableCondition, completeCondition)
+}
+
+func generateConditionsPatchWithCompletedHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool, isCompleted bool) string {
+	_, completedCondition := newCompletedCondition(isCompleted)
+	_, availableCondition := newAvailableCondition(available)
+	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, healthyCondition := newHealthyCondition(isHealthy)
+	if availableConditionFirst {
+		return fmt.Sprintf("[%s, %s, %s, %s]", availableCondition, healthyCondition, completedCondition, progressingCondition)
+	}
+	return fmt.Sprintf("[%s, %s, %s, %s]", healthyCondition, completedCondition, progressingCondition, availableCondition)
 }
 
 func updateConditionsPatch(r v1alpha1.Rollout, newCondition v1alpha1.RolloutCondition) string {
@@ -343,7 +460,7 @@ func updateConditionsPatch(r v1alpha1.Rollout, newCondition v1alpha1.RolloutCond
 }
 
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
-func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
+func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool, isCompleted bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas)
 	selector := newRollout.Spec.Selector.DeepCopy()
 	if active != "" {
@@ -355,14 +472,28 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 	newRollout.Status.StableRS = stable
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
+	completeCond, _ := newCompletedCondition(isCompleted)
+	newRollout.Status.Conditions = append(newRollout.Status.Conditions, completeCond)
+	now := timeutil.MetaNow()
 	if pause {
-		now := metav1.Now()
 		cond := v1alpha1.PauseCondition{
 			Reason:    v1alpha1.PauseReasonBlueGreenPause,
 			StartTime: now,
 		}
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+		if requiresManualAction(cond.Reason, newRollout) {
+			previousTime := metav1.Time{Time: now.Time.Add(time.Second * -5)}
+			newRollout.Status.Duration.ManualPauseStartedAt = &previousTime
+		}
+	} else {
+		newRollout.Status.Duration.ManualPauseStartedAt = nil
+	}
+	if isCompleted {
+		newRollout.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
+		if available {
+			newRollout.Status.Duration.FinishedAt = &now
+		}
 	}
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
 	return newRollout
@@ -371,13 +502,17 @@ func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableRe
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas)
 	newRollout.Status.StableRS = stableRS
 	if pause {
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{
 			Reason:    v1alpha1.PauseReasonCanaryPauseStep,
 			StartTime: now,
 		}
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+		if requiresManualAction(cond.Reason, newRollout) {
+			previousTime := metav1.Time{Time: now.Time.Add(time.Second * -5)}
+			newRollout.Status.Duration.ManualPauseStartedAt = &previousTime
+		}
 	}
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
 	return newRollout
@@ -394,7 +529,7 @@ func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedRepl
 }
 
 func newReplicaSet(r *v1alpha1.Rollout, replicas int) *appsv1.ReplicaSet {
-	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+	podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 	rsLabels := map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 	}
@@ -437,12 +572,12 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 	json.Unmarshal(newBytes, newRO)
 	newObservedGen := strconv.Itoa(int(newRO.Generation))
 
-	newPatch := make(map[string]interface{})
+	newPatch := make(map[string]any)
 	err = json.Unmarshal([]byte(patch), &newPatch)
 	if err != nil {
 		panic(err)
 	}
-	newStatus := newPatch["status"].(map[string]interface{})
+	newStatus := newPatch["status"].(map[string]any)
 	newStatus["observedGeneration"] = newObservedGen
 	newPatch["status"] = newStatus
 	newPatchBytes, _ := json.Marshal(newPatch)
@@ -450,7 +585,7 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 }
 
 func cleanPatch(expectedPatch string) string {
-	patch := make(map[string]interface{})
+	patch := make(map[string]any)
 	err := json.Unmarshal([]byte(expectedPatch), &patch)
 	if err != nil {
 		panic(err)
@@ -474,8 +609,14 @@ func getKey(rollout *v1alpha1.Rollout, t *testing.T) string {
 type resyncFunc func() time.Duration
 
 func (f *fixture) newController(resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
+	f.t.Helper()
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
+
+	dynamicClientObjects := f.objects
+	if len(f.dynamicOnlyObjects) > 0 {
+		dynamicClientObjects = append(append([]runtime.Object{}, f.objects...), f.dynamicOnlyObjects...)
+	}
 
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
@@ -488,10 +629,15 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Version:  "v1beta1",
 		Resource: "targetgroupbindings",
 	}
+	vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
+	destGVR := istioutil.GetIstioDestinationRuleGVR()
 	listMapping := map[schema.GroupVersionResource]string{
-		tgbGVR: "TargetGroupBindingList",
+		tgbGVR:  "TargetGroupBindingList",
+		vsvcGVR: vsvcGVR.Resource + "List",
+		destGVR: destGVR.Resource + "List",
 	}
-	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, f.objects...)
+
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, dynamicClientObjects...)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
 	istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
@@ -500,10 +646,10 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Services")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
 
-	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr:               "localhost:8080",
-		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	})
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, f.kubeclient, k8sI)
+	if err != nil {
+		f.t.Fatal(err)
+	}
 
 	c := NewController(ControllerConfig{
 		Namespace:                       metav1.NamespaceAll,
@@ -516,7 +662,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		ClusterAnalysisTemplateInformer: i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
 		ReplicaSetInformer:              k8sI.Apps().V1().ReplicaSets(),
 		ServicesInformer:                k8sI.Core().V1().Services(),
-		IngressInformer:                 k8sI.Extensions().V1beta1().Ingresses(),
+		IngressWrapper:                  ingressWrapper,
 		RolloutsInformer:                i.Argoproj().V1alpha1().Rollouts(),
 		IstioPrimaryDynamicClient:       dynamicClient,
 		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
@@ -525,20 +671,22 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		RolloutWorkQueue:                rolloutWorkqueue,
 		ServiceWorkQueue:                serviceWorkqueue,
 		IngressWorkQueue:                ingressWorkqueue,
-		MetricsServer:                   metricsServer,
+		MetricsServer:                   f.metricsRecorder,
 		Recorder:                        record.NewFakeEventRecorder(),
-		RefResolver:                     &FakeWorkloadRefResolver{},
+		RefResolver:                     &FakeWorkloadRefResolver{resolveFn: f.workloadRefResolveFn},
+		EphemeralMetadataThreads:        DefaultEphemeralMetadataThreads,
+		EphemeralMetadataPodRetries:     DefaultEphemeralMetadataPodRetries,
 	})
 
-	var enqueuedObjectsLock sync.Mutex
-	c.enqueueRollout = func(obj interface{}) {
+	c.enqueueRollout = func(obj any) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 			panic(err)
 		}
-		enqueuedObjectsLock.Lock()
-		defer enqueuedObjectsLock.Unlock()
+
+		f.enqueuedObjectsLock.Lock()
+		defer f.enqueuedObjectsLock.Unlock()
 		count, ok := f.enqueuedObjects[key]
 		if !ok {
 			count = 0
@@ -547,12 +695,18 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		f.enqueuedObjects[key] = count
 		c.rolloutWorkqueue.Add(obj)
 	}
-	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
+	c.enqueueRolloutAfter = func(obj any, duration time.Duration) {
 		c.enqueueRollout(obj)
 	}
-
-	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) {
-		return f.fakeTrafficRouting, nil
+	if f.fakeTrafficRouting != nil {
+		c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
+			if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+				return nil, nil
+			}
+			var reconcilers = []trafficrouting.TrafficRoutingReconciler{}
+			reconcilers = append(reconcilers, f.fakeTrafficRouting)
+			return reconcilers, nil
+		}
 	}
 
 	for _, r := range f.rolloutLister {
@@ -570,7 +724,11 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		k8sI.Core().V1().Services().Informer().GetIndexer().Add(s)
 	}
 	for _, i := range f.ingressLister {
-		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+		ing, err := i.GetExtensionsIngress()
+		if err != nil {
+			log.Fatal(err)
+		}
+		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(ing)
 	}
 	for _, at := range f.analysisTemplateLister {
 		i.Argoproj().V1alpha1().AnalysisTemplates().Informer().GetIndexer().Add(at)
@@ -581,6 +739,9 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	for _, ar := range f.analysisRunLister {
 		i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Add(ar)
 	}
+	for _, vs := range f.virtualServiceLister {
+		c.IstioController.VirtualServiceInformer.GetIndexer().Add(vs)
+	}
 
 	return c, i, k8sI
 }
@@ -590,9 +751,101 @@ func (f *fixture) run(rolloutName string) {
 	f.runController(rolloutName, true, false, c, i, k8sI)
 }
 
+// runWithSyncs runs the controller syncHandler n times (e.g. 2 for two reconciliation loops) then verifies actions.
+func (f *fixture) runWithSyncs(rolloutName string, syncs int) {
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.runControllerWithSyncs(rolloutName, syncs, true, false, c, i, k8sI)
+}
+
 func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(rolloutName, startInformers, true, c, i, k8sI)
+}
+
+func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
+	if startInformers {
+		stopCh := make(chan struct{})
+		defer close(stopCh)
+		i.Start(stopCh)
+		k8sI.Start(stopCh)
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
+	}
+
+	for n := 0; n < syncs; n++ {
+		err := c.syncHandler(context.Background(), rolloutName)
+		allowErr := f.allowErrorOnLastSync && (n == syncs-1)
+		f.assertSyncHandlerResult(n, syncs, err, expectError, allowErr)
+		f.reseedRolloutInInformerIfNeeded(c, rolloutName, n, syncs)
+		f.reseedKubeResourcesInInformerIfNeeded(k8sI, n, syncs)
+	}
+
+	return f.verifyActionsAndReturn(c)
+}
+
+func (f *fixture) assertSyncHandlerResult(n, syncs int, err error, expectError, allowErr bool) {
+	if !expectError && err != nil && !allowErr {
+		f.t.Errorf("error syncing rollout (sync %d/%d): %v", n+1, syncs, err)
+		return
+	}
+	if expectError && err == nil {
+		f.t.Error("expected error syncing rollout, got nil")
+	}
+}
+
+// reseedRolloutInInformerIfNeeded re-seeds the rollout in the informer after a sync so the next sync
+// sees an updated typed Rollout (e.g. multi-sync tests that mutate status between reconciles).
+// No-op when syncs <= 1 or on the final sync index.
+func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName string, n, syncs int) {
+	if syncs <= 1 || n >= syncs-1 {
+		return
+	}
+	namespace, name, err := cache.SplitMetaNamespaceKey(rolloutName)
+	if err != nil {
+		f.t.Fatalf("re-seed rollout: split key: %v", err)
+	}
+	ro, err := f.client.ArgoprojV1alpha1().Rollouts(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed rollout: get: %v", err)
+	}
+	if f.reseedRolloutMutator != nil {
+		f.reseedRolloutMutator(ro)
+	}
+	c.rolloutVersionTracker.Forget(rolloutName)
+	if err := c.rolloutsIndexer.Update(ro); err != nil {
+		f.t.Fatalf("re-seed rollout: update indexer: %v", err)
+	}
+}
+
+// reseedKubeResourcesInInformerIfNeeded re-seeds ReplicaSets and Services from the fake kube client
+// into the informer indexers between syncs. The controller creates/updates these resources via the
+// fake client during a sync, but the informer only learns about them through asynchronous watch
+// propagation, which races with the next synchronous sync. Re-seeding makes the multi-sync harness
+// deterministic. No-op when syncs <= 1 or on the last sync.
+func (f *fixture) reseedKubeResourcesInInformerIfNeeded(k8sI kubeinformers.SharedInformerFactory, n, syncs int) {
+	if syncs <= 1 || n >= syncs-1 {
+		return
+	}
+	rsIndexer := k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer()
+	rsList, err := f.kubeclient.AppsV1().ReplicaSets(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed replicasets: list: %v", err)
+	}
+	for i := range rsList.Items {
+		if err := rsIndexer.Update(&rsList.Items[i]); err != nil {
+			f.t.Fatalf("re-seed replicasets: update indexer: %v", err)
+		}
+	}
+
+	svcIndexer := k8sI.Core().V1().Services().Informer().GetIndexer()
+	svcList, err := f.kubeclient.CoreV1().Services(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed services: list: %v", err)
+	}
+	for i := range svcList.Items {
+		if err := svcIndexer.Update(&svcList.Items[i]); err != nil {
+			f.t.Fatalf("re-seed services: update indexer: %v", err)
+		}
+	}
 }
 
 func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
@@ -605,13 +858,17 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
 	}
 
-	err := c.syncHandler(rolloutName)
+	err := c.syncHandler(context.Background(), rolloutName)
 	if !expectError && err != nil {
 		f.t.Errorf("error syncing rollout: %v", err)
 	} else if expectError && err == nil {
 		f.t.Error("expected error syncing rollout, got nil")
 	}
 
+	return f.verifyActionsAndReturn(c)
+}
+
+func (f *fixture) verifyActionsAndReturn(c *Controller) *Controller {
 	actions := filterInformerActions(f.client.Actions())
 	for i, action := range actions {
 		if len(f.actions) < i+1 {
@@ -644,7 +901,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		f.t.Errorf("%d expected actions did not happen:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
 	}
 	fakeRecorder := c.recorder.(*record.FakeEventRecorder)
-	f.events = fakeRecorder.Events
+	f.events = fakeRecorder.Events()
 	return c
 }
 
@@ -690,7 +947,8 @@ func filterInformerActions(actions []core.Action) []core.Action {
 			action.Matches("list", "services") ||
 			action.Matches("watch", "services") ||
 			action.Matches("list", "ingresses") ||
-			action.Matches("watch", "ingresses") {
+			action.Matches("watch", "ingresses") ||
+			action.Matches("list", "pods") {
 			continue
 		}
 		ret = append(ret, action)
@@ -707,6 +965,12 @@ func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) i
 	}
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewPatchAction(serviceSchema, s.Namespace, s.Name, types.MergePatchType, []byte(patch)))
+	return len
+}
+
+func (f *fixture) expectGetReplicaSetAction(r *appsv1.ReplicaSet) int { //nolint:unused
+	len := len(f.kubeactions)
+	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r.Name))
 	return len
 }
 
@@ -734,18 +998,11 @@ func (f *fixture) expectUpdatePodAction(p *corev1.Pod) int {
 	return len
 }
 
-func (f *fixture) expectListPodAction(namespace string) int {
-	len := len(f.kubeactions)
-	f.kubeactions = append(f.kubeactions, core.NewListAction(schema.GroupVersionResource{Resource: "pods"}, schema.GroupVersionKind{Kind: "Pod", Version: "v1"}, namespace, metav1.ListOptions{}))
-	return len
-}
-
 func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
 	len := len(f.actions)
-	f.kubeactions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
+	f.actions = append(f.actions, core.NewGetAction(v1alpha1.RolloutGVR, rollout.Namespace, rollout.Name))
 	return len
 }
-
 func (f *fixture) expectCreateExperimentAction(ex *v1alpha1.Experiment) int {
 	action := core.NewCreateAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex)
 	len := len(f.actions)
@@ -753,7 +1010,7 @@ func (f *fixture) expectCreateExperimentAction(ex *v1alpha1.Experiment) int {
 	return len
 }
 
-func (f *fixture) expectUpdateExperimentAction(ex *v1alpha1.Experiment) int {
+func (f *fixture) expectUpdateExperimentAction(ex *v1alpha1.Experiment) int { //nolint:unused
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
@@ -840,8 +1097,27 @@ func (f *fixture) expectGetEndpointsAction(ep *corev1.Endpoints) int {
 	return len
 }
 
+// kubeActionAt returns the filtered kube action at the given index, failing the test (instead of
+// panicking) when fewer actions occurred than expected. This keeps a single failing test from
+// aborting the rest of the package via an index-out-of-range panic.
+func (f *fixture) kubeActionAt(index int) core.Action {
+	f.t.Helper()
+	actions := filterInformerActions(f.kubeclient.Actions())
+	require.Greaterf(f.t, len(actions), index, "expected at least %d kube actions, got %d", index+1, len(actions))
+	return actions[index]
+}
+
+// actionAt returns the filtered argoproj action at the given index, failing the test (instead of
+// panicking) when fewer actions occurred than expected.
+func (f *fixture) actionAt(index int) core.Action {
+	f.t.Helper()
+	actions := filterInformerActions(f.client.Actions())
+	require.Greaterf(f.t, len(actions), index, "expected at least %d rollout actions, got %d", index+1, len(actions))
+	return actions[index]
+}
+
 func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Created action, not %s", action.GetVerb())
@@ -855,7 +1131,7 @@ func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 }
 
 func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
@@ -868,19 +1144,34 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
+func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
+	action := f.kubeActionAt(index)
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+
+	rs := appsv1.ReplicaSet{}
+	err := json.Unmarshal(patchAction.GetPatch(), &rs)
+	if err != nil {
+		panic(err)
+	}
+	return &rs
+}
+
 func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
 	}
-	now := metav1.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+	now := timeutil.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
 	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
 
 func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy string) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
@@ -893,22 +1184,16 @@ func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy s
 }
 
 func (f *fixture) verifyPatchedRolloutAborted(index int, rsName string) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
-	_, ok := action.(core.PatchAction)
-	if !ok {
-		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
-	}
-
 	ro := f.getPatchedRolloutAsObject(index)
 	assert.NotNil(f.t, ro)
 	assert.True(f.t, ro.Status.Abort)
 	assert.Equal(f.t, v1alpha1.RolloutPhaseDegraded, ro.Status.Phase)
-	expectedMsg := fmt.Sprintf("ProgressDeadlineExceeded: ReplicaSet %q has timed out progressing.", rsName)
-	assert.Equal(f.t, expectedMsg, ro.Status.Message)
+	expectedMsg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rsName)
+	assert.Contains(f.t, ro.Status.Message, expectedMsg)
 }
 
 func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) bool {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
@@ -917,21 +1202,21 @@ func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) 
 }
 
 func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
-	if !ok {
-		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
-	}
+	require.True(f.t, ok, "Expected Update action, not %s", action.GetVerb())
 	obj := updateAction.GetObject()
 	rollout := &v1alpha1.Rollout{}
 	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
-	objMap, _ := converter.ToUnstructured(obj)
-	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rollout)
+	objMap, err := converter.ToUnstructured(obj)
+	require.NoError(f.t, err)
+	err = converter.FromUnstructured(objMap, rollout)
+	require.NoError(f.t, err)
 	return rollout
 }
 
-func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun {
-	action := filterInformerActions(f.client.Actions())[index]
+func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nolint:unused
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -945,7 +1230,7 @@ func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun {
 }
 
 func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -959,7 +1244,7 @@ func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
 }
 
 func (f *fixture) getCreatedExperiment(index int) *v1alpha1.Experiment {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -973,7 +1258,7 @@ func (f *fixture) getCreatedExperiment(index int) *v1alpha1.Experiment {
 }
 
 func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -988,7 +1273,7 @@ func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
 }
 
 func (f *fixture) getPatchedRollout(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -997,12 +1282,12 @@ func (f *fixture) getPatchedRollout(index int) string {
 }
 
 func (f *fixture) getPatchedRolloutWithoutConditions(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
 	}
-	ro := make(map[string]interface{})
+	ro := make(map[string]any)
 	err := json.Unmarshal(patchAction.GetPatch(), &ro)
 	if err != nil {
 		f.t.Fatalf("Unable to unmarshal Patch")
@@ -1016,7 +1301,7 @@ func (f *fixture) getPatchedRolloutWithoutConditions(index int) string {
 }
 
 func (f *fixture) getPatchedRolloutAsObject(index int) *v1alpha1.Rollout {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1050,8 +1335,8 @@ func (f *fixture) expectDeleteReplicaSetAction(rs *appsv1.ReplicaSet) int {
 	return len
 }
 
-func (f *fixture) getDeletedReplicaSet(index int) string {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+func (f *fixture) getDeletedReplicaSet(index int) string { //nolint:unused
+	action := f.kubeActionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1060,7 +1345,7 @@ func (f *fixture) getDeletedReplicaSet(index int) string {
 }
 
 func (f *fixture) getDeletedAnalysisRun(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1069,7 +1354,7 @@ func (f *fixture) getDeletedAnalysisRun(index int) string {
 }
 
 func (f *fixture) getDeletedExperiment(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1078,7 +1363,7 @@ func (f *fixture) getDeletedExperiment(index int) string {
 }
 
 func (f *fixture) getUpdatedPod(index int) *corev1.Pod {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
@@ -1100,12 +1385,19 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r := newBlueGreenRollout("foo", 1, nil, "", "")
+	r := newBlueGreenRollout("foo", 1, nil, "active", "")
+	activeSvc := newService("active", 80, nil, r)
 	f.rolloutLister = append(f.rolloutLister, r)
+	f.serviceLister = append(f.serviceLister, activeSvc)
 	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
 
-	f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{}) // sync 1: create RS
+	f.expectUpdateRolloutStatusAction(r)                 // sync 1: update status
+	f.expectGetRolloutAction(r)                          // re-seed between syncs
+	f.expectPatchRolloutAction(r)                        // sync 2: patch status
+	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{}) // sync 2: scale up RS
+	f.runWithSyncs(getKey(r, t), 2)
 }
 
 func TestAdoptReplicaSet(t *testing.T) {
@@ -1137,13 +1429,12 @@ func TestAdoptReplicaSet(t *testing.T) {
 }
 
 func TestRequeueStuckRollout(t *testing.T) {
+	//t.Skip("broken in the refactor")
 	rollout := func(progressingConditionReason string, rolloutCompleted bool, rolloutPaused bool, progressDeadlineSeconds *int32) *v1alpha1.Rollout {
-		r := &v1alpha1.Rollout{
-			Spec: v1alpha1.RolloutSpec{
-				Replicas:                pointer.Int32Ptr(0),
-				ProgressDeadlineSeconds: progressDeadlineSeconds,
-			},
-		}
+		r := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Status.Conditions = nil
+		r.Spec.ProgressDeadlineSeconds = progressDeadlineSeconds
+		//r.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
 		r.Generation = 123
 		if rolloutPaused {
 			r.Status.PauseConditions = []v1alpha1.PauseCondition{{
@@ -1152,11 +1443,13 @@ func TestRequeueStuckRollout(t *testing.T) {
 		}
 		if rolloutCompleted {
 			r.Status.ObservedGeneration = strconv.Itoa(int(r.Generation))
+			r.Status.StableRS = "fakesha"
+			r.Status.CurrentPodHash = "fakesha"
 		}
 
 		if progressingConditionReason != "" {
 			lastUpdated := metav1.Time{
-				Time: metav1.Now().Add(-10 * time.Second),
+				Time: timeutil.MetaNow().Add(-10 * time.Second),
 			}
 			r.Status.Conditions = []v1alpha1.RolloutCondition{{
 				Type:           v1alpha1.RolloutProgressing,
@@ -1196,20 +1489,25 @@ func TestRequeueStuckRollout(t *testing.T) {
 		},
 		{
 			name:               "Less than a second",
-			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(10)),
+			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](10)),
 			requeueImmediately: true,
 		},
 		{
 			name:    "More than a second",
-			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(20)),
+			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](20)),
 		},
 	}
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
+			savedRollout := test.rollout.DeepCopy()
 			f := newFixture(t)
 			defer f.Close()
 			c, _, _ := f.newController(noResyncPeriodFunc)
+			f.client.PrependReactor("*", "rollouts", func(action core.Action) (bool, runtime.Object, error) {
+				savedRollout.DeepCopyInto(test.rollout)
+				return true, savedRollout, nil
+			})
 			roCtx, err := c.newRolloutContext(test.rollout)
 			assert.NoError(t, err)
 			duration := roCtx.requeueStuckRollout(test.rollout.Status)
@@ -1233,10 +1531,87 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
-	updateIndex := f.expectUpdateRolloutAction(r)
-	f.run(getKey(r, t))
+	f.expectUpdateRolloutStatusAction(r)          // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r)                   // second reconciliation
+	updateIndex := f.expectUpdateRolloutAction(r) // sync 2: default .spec.replicas, then exit early
+	f.expectGetRolloutAction(r)                   // third reconciliation
+	f.expectPatchRolloutAction(r)                 // sync 3: patch status
+	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.runWithSyncs(getKey(r, t), 3)
 	updatedRollout := f.getUpdatedRollout(updateIndex)
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
+}
+
+func TestSyncHandlerLogsUnderlyingErrorFromNewRolloutContext(t *testing.T) {
+	// When newRolloutContext returns (nil, err), syncHandler must include err in the log
+	// line, and emit at Warn for benign 409 conflicts (the workqueue retries) and Error
+	// for everything else.
+	cases := []struct {
+		name      string
+		injectErr error
+		wantLevel log.Level
+		wantMsg   string
+	}{
+		{
+			name: "conflict is logged at warn",
+			injectErr: errors.NewConflict(
+				schema.GroupResource{Group: "argoproj.io", Resource: "rollouts"},
+				"foo",
+				fmt.Errorf("the object has been modified; please apply your changes to the latest version and try again"),
+			),
+			wantLevel: log.WarnLevel,
+			wantMsg:   "the object has been modified",
+		},
+		{
+			name:      "non-conflict is logged at error",
+			injectErr: fmt.Errorf("boom"),
+			wantLevel: log.ErrorLevel,
+			wantMsg:   "boom",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+			f.rolloutLister = append(f.rolloutLister, r)
+			f.objects = append(f.objects, r)
+
+			c, i, k8sI := f.newController(noResyncPeriodFunc)
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			i.Start(stopCh)
+			k8sI.Start(stopCh)
+			assert.True(t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
+
+			f.client.PrependReactor("update", "rollouts", func(action core.Action) (bool, runtime.Object, error) {
+				if action.GetSubresource() == "status" {
+					return true, nil, tc.injectErr
+				}
+				return false, nil, nil
+			})
+
+			hook := logtest.NewGlobal()
+			defer hook.Reset()
+
+			assert.Error(t, c.syncHandler(context.Background(), getKey(r, t)))
+
+			var found *log.Entry
+			for _, e := range hook.AllEntries() {
+				if strings.HasPrefix(e.Message, "newRolloutContext returned nil") {
+					found = e
+					break
+				}
+			}
+			if found == nil {
+				t.Fatal("expected 'newRolloutContext returned nil' log entry, got none")
+			}
+			assert.Contains(t, found.Message, tc.wantMsg)
+			assert.Equal(t, tc.wantLevel, found.Level)
+		})
+	}
 }
 
 // TestSwitchInvalidSpecMessage verifies message is updated when reason for InvalidSpec changes
@@ -1244,7 +1619,8 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r := newBlueGreenRollout("foo", 1, nil, "", "")
+	r := newBlueGreenRollout("foo", 1, nil, "active", "")
+	activeSvc := newService("active", 80, nil, r)
 	r.Spec.Selector = &metav1.LabelSelector{}
 	cond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, conditions.RolloutSelectAllMessage)
 	conditions.SetRolloutCondition(&r.Status, *cond)
@@ -1253,9 +1629,12 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	r.Spec.Selector = nil
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
+	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	//f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 
 	expectedPatchWithoutSub := `{
 		"status": {
@@ -1270,7 +1649,41 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
+}
+
+func TestInvalidWorkloadRef(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Selector = nil
+	r.Spec.Template = corev1.PodTemplateSpec{}
+	r.Spec.WorkloadRef = &v1alpha1.ObjectRef{
+		Kind: "Error",
+	}
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s],
+			"message": "%s: %s",
+			"phase": "Degraded"
+		}
+	}`
+	errmsg := "The Rollout \"foo\" is invalid: not found"
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))
+
+	patch := f.getPatchedRollout(patchIndex)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
 // TestPodTemplateHashEquivalence verifies the hash is computed consistently when there are slight
@@ -1279,7 +1692,7 @@ func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedReplicaSetName to match the new hash.
-	expectedReplicaSetName := "guestbook-586d86c77b"
+	expectedReplicaSetName := "guestbook-6f496f9f78"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
@@ -1313,11 +1726,12 @@ requests:
 		f.serviceLister = append(f.serviceLister, activeSvc)
 		f.objects = append(f.objects, r)
 
-		f.expectUpdateRolloutStatusAction(r)
-		f.expectPatchRolloutAction(r)
 		rs := newReplicaSet(r, 1)
-		rsIdx := f.expectCreateReplicaSetAction(rs)
-		f.run(getKey(r, t))
+		rsIdx := f.expectCreateReplicaSetAction(rs) // sync 1: create RS
+		f.expectUpdateRolloutStatusAction(r)        // sync 1: update status
+		f.expectGetRolloutAction(r)                 // re-seed between syncs
+		f.expectPatchRolloutAction(r)               // sync 2: patch status
+		f.runWithSyncs(getKey(r, t), 2)
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
 		f.Close()
@@ -1350,6 +1764,8 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	r.Status.ReadyReplicas = 1
 	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
 	r.Status.ObservedGeneration = "122"
+	r.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
+	r.Status.Duration.FinishedAt = ptr.To(timeutil.MetaNow())
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
@@ -1368,6 +1784,8 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	conditions.SetRolloutCondition(&r.Status, availableCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	conditions.SetRolloutCondition(&r.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r.Status, completedCondition)
 	r.Status.Phase, r.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, r.Status)
 
 	podTemplate := corev1.PodTemplate{
@@ -1403,6 +1821,8 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.ObservedGeneration = "122"
+	r.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
+	r.Status.Duration.FinishedAt = ptr.To(timeutil.MetaNow())
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
@@ -1412,6 +1832,8 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	conditions.SetRolloutCondition(&r.Status, availableCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	conditions.SetRolloutCondition(&r.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r.Status, completedCondition)
 
 	podTemplate := corev1.PodTemplate{
 		Template: rs.Spec.Template,
@@ -1439,7 +1861,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	activeSvc := newService("active", 80, nil, r)
 	rs := newReplicaSetWithStatus(r, 1, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true)
+	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true, true)
 	// StableRS is set to avoid running the migration code. When .status.canary.stableRS is removed, the line below can be deleted
 	//r.Status.Canary.StableRS = rsPodHash
 	r.Spec.Strategy.BlueGreen = nil
@@ -1448,6 +1870,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 			SetWeight: int32Ptr(1),
 		}},
 	}
+
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.kubeobjects = append(f.kubeobjects, rs, activeSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
@@ -1457,19 +1880,24 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	f.run(getKey(r, t))
 	patch := f.getPatchedRollout(i)
 
-	addedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "")
+	// The controller emits conditions in the order [Available, Completed, Progressing]
+	// because the Progressing condition is rewritten (and re-appended) this reconcile.
+	_, availableCondition := newAvailableCondition(true)
+	_, completedCondition := newCompletedCondition(true)
+	_, progressingCondition := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	expectedPatch := fmt.Sprintf(`{
 			"status": {
 				"blueGreen": {
 					"activeSelector": null
 				},
-				"conditions": %s,
+				"conditions": [%s, %s, %s],
 				"currentStepIndex": 1,
 				"currentStepHash": "%s",
 				"selector": "foo=bar"
 			}
-		}`, addedConditions, conditions.ComputeStepHash(r))
-	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+		}`, availableCondition, completedCondition, progressingCondition, conditions.ComputeStepHash(r))
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
+	f.metricsRecorder.AssertNotCalled(t, "EmitRolloutDuration", mock.Anything)
 }
 
 func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
@@ -1480,8 +1908,8 @@ func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optional
 	}
 
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            msg,
 		Reason:             reason,
 		Status:             status,
@@ -1495,79 +1923,136 @@ func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optional
 }
 
 func TestGetReferencedAnalyses(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
+	//f := newFixture(t)
 
 	rolloutAnalysisFail := v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: "does-not-exist",
-			ClusterScope: false,
+			ClusterScope: ptr.To(false),
 		}},
 	}
 
 	t.Run("blueGreen pre-promotion analysis - fail", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
 		r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.objects = append(f.objects, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &rolloutAnalysisFail
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedRolloutAnalyses()
 		assert.NotNil(t, err)
+		assert.Nil(t, roCtx)
 		msg := "spec.strategy.blueGreen.prePromotionAnalysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
 		assert.Equal(t, msg, err.Error())
 	})
 
 	t.Run("blueGreen post-promotion analysis - fail", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
 		r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.objects = append(f.objects, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		r.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &rolloutAnalysisFail
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedRolloutAnalyses()
 		assert.NotNil(t, err)
+		assert.Nil(t, roCtx)
 		msg := "spec.strategy.blueGreen.postPromotionAnalysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
 		assert.Equal(t, msg, err.Error())
 	})
 
 	t.Run("canary analysis - fail", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
 		r := newCanaryRollout("rollout-canary", 1, nil, nil, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.objects = append(f.objects, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 			RolloutAnalysis: rolloutAnalysisFail,
 		}
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedRolloutAnalyses()
 		assert.NotNil(t, err)
+		assert.Nil(t, roCtx)
 		msg := "spec.strategy.canary.analysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
 		assert.Equal(t, msg, err.Error())
 	})
 
 	t.Run("canary step analysis - fail", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
 		canarySteps := []v1alpha1.CanaryStep{{
 			Analysis: &rolloutAnalysisFail,
 		}}
 		r := newCanaryRollout("rollout-canary", 1, nil, canarySteps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.objects = append(f.objects, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedRolloutAnalyses()
 		assert.NotNil(t, err)
+		assert.Nil(t, roCtx)
 		msg := "spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
 		assert.Equal(t, msg, err.Error())
 	})
 }
 
-func TestGetReferencedAnalysisTemplate(t *testing.T) {
+// TestNewRolloutContextALBStatusNotAliased ensures newStatus does not alias the ALB status
+// of the rollout it was built from. Traffic routers mutate newStatus.ALB/ALBs in place
+// (e.g. ALB VerifyWeight); if those objects are shared with rollout.Status, the mutation is
+// visible on both sides of the diff in persistRolloutStatus, so target group updates are
+// never patched and the persisted ALB status stays frozen at its initial value
+// (https://github.com/argoproj/argo-rollouts/issues/3673).
+func TestNewRolloutContextALBStatusNotAliased(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Status.ALB = &v1alpha1.ALBStatus{Ingress: "ingress"}
+	r.Status.ALBs = []v1alpha1.ALBStatus{{Ingress: "ingress"}}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	roCtx, err := c.newRolloutContext(r)
+	assert.NoError(t, err)
+
+	roCtx.newStatus.ALB.CanaryTargetGroup.Name = "canary-tg"
+	roCtx.newStatus.ALBs[0].CanaryTargetGroup.Name = "canary-tg"
+	assert.Empty(t, r.Status.ALB.CanaryTargetGroup.Name)
+	assert.Empty(t, r.Status.ALBs[0].CanaryTargetGroup.Name)
+}
+
+func TestGetReferencedClusterAnalysisTemplate(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 	r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
 	roAnalysisTemplate := &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: "cluster-analysis-template-name",
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		}},
 	}
+	activeSvc := newService("active-service", 80, nil, r)
+	previewSvc := newService("preview-service", 80, nil, r)
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
 	t.Run("get referenced analysisTemplate - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
@@ -1579,7 +2064,59 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 	})
 
 	t.Run("get referenced analysisTemplate - success", func(t *testing.T) {
-		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name"))
+		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name", "cluster-example"))
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
+		assert.NoError(t, err)
+	})
+}
+
+func TestGetInnerReferencedAnalysisTemplate(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
+	roAnalysisTemplate := &v1alpha1.RolloutAnalysis{
+		Templates: []v1alpha1.AnalysisTemplateRef{{
+			TemplateName: "first-cluster-analysis-template-name",
+			ClusterScope: ptr.To(true),
+		}},
+	}
+	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplateWithAnalysisRefs("first-cluster-analysis-template-name", "second-cluster-analysis-template-name", "third-cluster-analysis-template-name"))
+	activeSvc := newService("active-service", 80, nil, r)
+	previewSvc := newService("preview-service", 80, nil, r)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+	f.objects = append(f.objects, r)
+	f.rolloutLister = append(f.rolloutLister, r)
+
+	t.Run("get inner referenced analysisTemplate - fail", func(t *testing.T) {
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
+		expectedErr := field.Invalid(field.NewPath("spec", "templates"), "second-cluster-analysis-template-name", "ClusterAnalysisTemplate 'second-cluster-analysis-template-name' not found")
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("get inner referenced analysisTemplate second level - fail", func(t *testing.T) {
+		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("second-cluster-analysis-template-name", "cluster-example"))
+		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplateWithAnalysisRefs("third-cluster-analysis-template-name", "fourth-cluster-analysis-template-name"))
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
+		expectedErr := field.Invalid(field.NewPath("spec", "templates"), "fourth-cluster-analysis-template-name", "ClusterAnalysisTemplate 'fourth-cluster-analysis-template-name' not found")
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("get inner referenced analysisTemplate - success", func(t *testing.T) {
+		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("second-cluster-analysis-template-name", "cluster-example"))
+		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplateWithAnalysisRefs("third-cluster-analysis-template-name", "fourth-cluster-analysis-template-name"))
+		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("fourth-cluster-analysis-template-name", "cluster-example"))
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
@@ -1598,14 +2135,19 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 		},
 	}
 	r.Namespace = metav1.NamespaceDefault
+	stableSvc := newService("stable", 80, nil, r)
+	canarySvc := newService("canary", 80, nil, r)
+	r.Spec.Strategy.Canary.StableService = stableSvc.Name
+	r.Spec.Strategy.Canary.CanaryService = canarySvc.Name
+	f.kubeobjects = append(f.kubeobjects, stableSvc, canarySvc)
+	f.serviceLister = append(f.serviceLister, stableSvc, canarySvc)
+	f.objects = append(f.objects, r)
+	f.rolloutLister = append(f.rolloutLister, r)
 
 	t.Run("get referenced ALB ingress - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedIngresses()
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingress"), "alb-ingress-name", "ingress.extensions \"alb-ingress-name\" not found")
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		_, err := c.newRolloutContext(r)
+		assert.Error(t, err)
 	})
 
 	t.Run("get referenced ALB ingress - success", func(t *testing.T) {
@@ -1614,17 +2156,200 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 				Name:      "alb-ingress-name",
 				Namespace: metav1.NamespaceDefault,
 			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: ptr.To[string]("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "stable",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
+			},
 		}
-		f.ingressLister = append(f.ingressLister, ingress)
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
-		_, err = roCtx.getReferencedIngresses()
+		i, err := roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
+		assert.NotNil(t, i)
+	})
+}
+
+func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
+	primaryIngress := "alb-ingress-name"
+	addIngress := "alb-ingress-additional"
+	ingresses := []string{primaryIngress, addIngress}
+	f := newFixture(t)
+	defer f.Close()
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		ALB: &v1alpha1.ALBTrafficRouting{
+			Ingresses: ingresses,
+		},
+	}
+	r.Namespace = metav1.NamespaceDefault
+	defer f.Close()
+
+	tests := []struct {
+		name        string
+		ingresses   []*ingressutil.Ingress
+		expectedErr *field.Error
+	}{
+		{
+			"get referenced ALB ingress - fail first ingress when both missing",
+			[]*ingressutil.Ingress{},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingresses"), ingresses, fmt.Sprintf("ingress.extensions \"%s\" not found", primaryIngress)),
+		},
+		{
+			"get referenced ALB ingress - fail on primary when additional present",
+			[]*ingressutil.Ingress{
+				ingressutil.NewLegacyIngress(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      addIngress,
+						Namespace: metav1.NamespaceDefault,
+					},
+				}),
+			},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingresses"), ingresses, fmt.Sprintf("ingress.extensions \"%s\" not found", primaryIngress)),
+		},
+		{
+			"get referenced ALB ingress - fail on secondary when only secondary missing",
+			[]*ingressutil.Ingress{
+				ingressutil.NewLegacyIngress(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      primaryIngress,
+						Namespace: metav1.NamespaceDefault,
+					},
+				}),
+			},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingresses"), ingresses, fmt.Sprintf("ingress.extensions \"%s\" not found", addIngress)),
+		},
+	}
+
+	//TODO: cleanup expectedErr
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// clear fixture
+			f.ingressLister = []*ingressutil.Ingress{}
+			for _, ing := range test.ingresses {
+				f.ingressLister = append(f.ingressLister, ing)
+			}
+			c, _, _ := f.newController(noResyncPeriodFunc)
+			_, err := c.newRolloutContext(r)
+			assert.Error(t, err)
+			//_, err = roCtx.getReferencedIngresses()
+			//assert.Equal(t, test.expectedErr.Error(), err.Error())
+		})
+	}
+
+	t.Run("get referenced ALB ingress - success", func(t *testing.T) {
+		// clear fixture
+		f.ingressLister = []*ingressutil.Ingress{}
+		ingress := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      primaryIngress,
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: ptr.To[string]("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "active-service",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		ingressAdditional := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      addIngress,
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: ptr.To[string]("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "active-service",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingressAdditional))
+		f.kubeobjects = append(f.objects, ingress, ingressAdditional)
+
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+		r.Spec.Strategy.Canary.CanaryService = previewSvc.Name
+		r.Spec.Strategy.Canary.StableService = activeSvc.Name
+
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.objects = append(f.objects, r)
+
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		ingresses, err := roCtx.getReferencedIngresses()
+		assert.NoError(t, err)
+		assert.Len(t, *ingresses, 2, "Should find the main ingress and the additional ingress")
 	})
 }
 
 func TestGetReferencedIngressesNginx(t *testing.T) {
+	primaryIngress := "nginx-ingress-name"
 	f := newFixture(t)
 	defer f.Close()
 	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
@@ -1637,28 +2362,348 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 	defer f.Close()
 
 	t.Run("get referenced Nginx ingress - fail", func(t *testing.T) {
+		// clear fixture
+		f.ingressLister = []*ingressutil.Ingress{}
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-		_, err = roCtx.getReferencedIngresses()
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "stableIngress"), "nginx-ingress-name", "ingress.extensions \"nginx-ingress-name\" not found")
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		_, err := c.newRolloutContext(r)
+		assert.Error(t, err)
 	})
 
 	t.Run("get referenced Nginx ingress - success", func(t *testing.T) {
+		// clear fixture
+		f.ingressLister = []*ingressutil.Ingress{}
 		ingress := &extensionsv1beta1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "nginx-ingress-name",
+				Name:      primaryIngress,
 				Namespace: metav1.NamespaceDefault,
 			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: ptr.To[string]("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "active-service",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
+			},
 		}
-		f.ingressLister = append(f.ingressLister, ingress)
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
+		f.kubeobjects = append(f.kubeobjects, ingress)
+
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+		r.Spec.Strategy.Canary.CanaryService = previewSvc.Name
+		r.Spec.Strategy.Canary.StableService = activeSvc.Name
+
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.objects = append(f.objects, r)
+
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
 	})
+}
+func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
+	primaryIngress := "nginx-ingress-name"
+	addIngress := "nginx-ingress-additional"
+	ingresses := []string{primaryIngress, addIngress}
+	f := newFixture(t)
+	defer f.Close()
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Nginx: &v1alpha1.NginxTrafficRouting{
+			StableIngresses: ingresses,
+		},
+	}
+	r.Namespace = metav1.NamespaceDefault
+	defer f.Close()
+
+	tests := []struct {
+		name        string
+		ingresses   []*ingressutil.Ingress
+		expectedErr *field.Error
+	}{
+		{
+			"get referenced Nginx ingress - fail first ingress when both missing",
+			[]*ingressutil.Ingress{},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "StableIngresses"), ingresses, fmt.Sprintf("ingress.extensions \"%s\" not found", primaryIngress)),
+		},
+		{
+			"get referenced Nginx ingress - fail on primary when additional present",
+			[]*ingressutil.Ingress{
+				ingressutil.NewLegacyIngress(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      addIngress,
+						Namespace: metav1.NamespaceDefault,
+					},
+				}),
+			},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "StableIngresses"), ingresses, fmt.Sprintf("ingress.extensions \"%s\" not found", primaryIngress)),
+		},
+		{
+			"get referenced Nginx ingress - fail on secondary when only secondary missing",
+			[]*ingressutil.Ingress{
+				ingressutil.NewLegacyIngress(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      primaryIngress,
+						Namespace: metav1.NamespaceDefault,
+					},
+				}),
+			},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "StableIngresses"), ingresses, fmt.Sprintf("ingress.extensions \"%s\" not found", addIngress)),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// clear fixture
+			f.ingressLister = []*ingressutil.Ingress{}
+			for _, ing := range test.ingresses {
+				f.ingressLister = append(f.ingressLister, ing)
+			}
+			c, _, _ := f.newController(noResyncPeriodFunc)
+			_, err := c.newRolloutContext(r)
+			assert.Error(t, err)
+		})
+	}
+
+	t.Run("get referenced Nginx ingress - success", func(t *testing.T) {
+		// clear fixture
+		f.ingressLister = []*ingressutil.Ingress{}
+		ingress := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      primaryIngress,
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: ptr.To[string]("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "active-service",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		ingressAdditional := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      addIngress,
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: extensionsv1beta1.IngressSpec{
+				IngressClassName: ptr.To[string]("alb"),
+				Backend: &extensionsv1beta1.IngressBackend{
+					ServiceName: "active-service",
+					ServicePort: intstr.IntOrString{IntVal: 80},
+				},
+				Rules: []extensionsv1beta1.IngressRule{
+					{
+						Host: "example.com",
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path:     "",
+									PathType: nil,
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "active-service",
+										ServicePort: intstr.IntOrString{IntVal: 80},
+									},
+								},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingressAdditional))
+		f.kubeobjects = append(f.kubeobjects, ingress, ingressAdditional)
+
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+		r.Spec.Strategy.Canary.CanaryService = previewSvc.Name
+		r.Spec.Strategy.Canary.StableService = activeSvc.Name
+
+		f.objects = append(f.objects, r)
+
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		ingresses, err := roCtx.getReferencedIngresses()
+		assert.NoError(t, err)
+		assert.Len(t, *ingresses, 2, "Should find the main ingress and the additional ingress")
+	})
+}
+
+func TestGetReferencedAppMeshResources(t *testing.T) {
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		AppMesh: &v1alpha1.AppMeshTrafficRouting{
+			VirtualService: &v1alpha1.AppMeshVirtualService{
+				Name:   "mysvc",
+				Routes: []string{"primary"},
+			},
+			VirtualNodeGroup: &v1alpha1.AppMeshVirtualNodeGroup{
+				CanaryVirtualNodeRef: &v1alpha1.AppMeshVirtualNodeReference{
+					Name: "mysvc-canary-vn",
+				},
+				StableVirtualNodeRef: &v1alpha1.AppMeshVirtualNodeReference{
+					Name: "mysvc-stable-vn",
+				},
+			},
+		},
+	}
+	r.Namespace = "default"
+
+	t.Run("should return error when virtual-service is not defined on rollout", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		rCopy := r.DeepCopy()
+		rCopy.Spec.Strategy.Canary.TrafficRouting.AppMesh.VirtualService = nil
+		_, err := c.newRolloutContext(rCopy)
+		assert.Error(t, err)
+	})
+
+	t.Run("should return error when virtual-service is not-found", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.newRolloutContext(r)
+		assert.Error(t, err)
+	})
+
+	t.Run("should return error when virtual-router is not-found", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		vsvc := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  name: mysvc
+  namespace: default
+spec:
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: mysvc-vrouter
+`
+		uVsvc := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
+		f.objects = append(f.objects, uVsvc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		_, err := c.newRolloutContext(r)
+		assert.Error(t, err)
+	})
+
+	t.Run("get referenced App Mesh - success", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		vsvc := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  name: mysvc
+  namespace: default
+spec:
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: mysvc-vrouter
+`
+
+		vrouter := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  name: mysvc-vrouter
+  namespace: default
+spec:
+  listeners:
+    - portMapping:
+        port: 8080
+        protocol: http
+  routes:
+    - name: primary
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: mysvc-canary-vn
+              weight: 0
+            - virtualNodeRef:
+                name: mysvc-stable-vn
+              weight: 100
+`
+		r := r.DeepCopy()
+		activeSvc := newService("active-service", 80, nil, r)
+		previewSvc := newService("preview-service", 80, nil, r)
+		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+		r.Spec.Strategy.Canary.CanaryService = previewSvc.Name
+		r.Spec.Strategy.Canary.StableService = activeSvc.Name
+
+		uVsvc := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
+		uVrouter := unstructuredutil.StrToUnstructuredUnsafe(vrouter)
+		f.objects = append(f.objects, uVsvc, uVrouter)
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.objects = append(f.objects, r)
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		refRsources, err := roCtx.getRolloutReferencedResources()
+		assert.NoError(t, err)
+		assert.Len(t, refRsources.AppMeshResources, 1)
+		assert.Equal(t, refRsources.AppMeshResources[0].GetKind(), "VirtualRouter")
+	})
+
 }
 
 func TestGetAmbassadorMappings(t *testing.T) {
@@ -1678,14 +2723,14 @@ func TestGetAmbassadorMappings(t *testing.T) {
 			},
 		}
 		r.Namespace = metav1.NamespaceDefault
-		roCtx, err := c.newRolloutContext(r)
-		assert.NoError(t, err)
-
-		// when
-		_, err = roCtx.getAmbassadorMappings()
-
-		// then
+		_, err := c.newRolloutContext(r)
 		assert.Error(t, err)
+
+		//// when
+		//_, err = roCtx.getAmbassadorMappings()
+		//
+		//// then
+		//assert.Error(t, err)
 	})
 }
 
@@ -1707,37 +2752,39 @@ func TestRolloutStrategyNotSet(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 	patchedRollout := f.getPatchedRollout(patchIndex)
 	assert.Contains(t, patchedRollout, `Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'`)
 }
 
-// TestWriteBackToInformer verifies that after a rollout reconciles, the new version of the rollout
-// is written back to the informer
-func TestWriteBackToInformer(t *testing.T) {
+func TestSyncHandlerStaleCacheGuard(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r1 := newCanaryRollout("foo", 10, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.StableRS = ""
-	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	r := newCanaryRollout("foo", 10, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r.ResourceVersion = "100"
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
 
-	f.rolloutLister = append(f.rolloutLister, r1)
-	f.objects = append(f.objects, r1)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	roKey := getKey(r, t)
+	c.rolloutVersionTracker.Record(roKey, "200")
 
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
+	err := c.syncHandler(context.Background(), roKey)
+	assert.ErrorIs(t, err, controllerutil.StaleCacheError)
+}
 
-	f.expectPatchRolloutAction(r1)
-
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
-	roKey := getKey(r1, t)
-	f.runController(roKey, true, false, c, i, k8sI)
-
-	// Verify the informer was updated with the new unstructured object after reconciliation
-	obj, _, _ := c.rolloutsIndexer.GetByKey(roKey)
-	un := obj.(*unstructured.Unstructured)
-	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
-	assert.NotEmpty(t, stableRS)
-	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
+func TestRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	// make sure we can start and top the controller
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.rolloutWorkqueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }

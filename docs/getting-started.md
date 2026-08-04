@@ -91,7 +91,7 @@ kubectl argo rollouts promote rollouts-demo
 ```
 
 After promotion, Rollout will proceed to execute the remaining steps. The remaining rollout steps
-in our example are fully automated, so the Rollout will eventually complete steps until it has has
+in our example are fully automated, so the Rollout will eventually complete steps until it has
 fully transitioned to the new version. Watch the rollout again until it has completed all steps:
 
 ```shell
@@ -153,7 +153,7 @@ there is no activity with regards to new ReplicaSets becoming created.
 
 When a Rollout has not yet reached its desired state (e.g. it was aborted, or in the middle of
 an update), and the stable manifest were re-applied, the Rollout detects this as a rollback 
-and *not* a update, and will fast-track the deployment of the stable ReplicaSet by skipping
+and *not* an update, and will fast-track the deployment of the stable ReplicaSet by skipping
 analysis, and the steps.
 
 ## Summary
@@ -165,7 +165,7 @@ In this guide, we have learned basic capabilities of Argo Rollouts, including:
 * Manual promotion
 * Manual abortion 
 
-The Rollout in this basic example did not utilize a ingress controller or service mesh provider
+The Rollout in this basic example did not utilize an ingress controller or service mesh provider
 to route traffic. Instead, it used normal Kubernetes Service networking (i.e. kube-proxy) to achieve
 an *approximate* canary weight, based on the closest ratio of new to old replica counts.
 As a result, this Rollout had a limitation in that it could only achieve a minimum canary
@@ -176,7 +176,9 @@ Follow one of the traffic routing guides to see how Argo Rollouts can leverage a
 provider to achieve more advanced traffic shaping.
 
 * [ALB Guide](getting-started/alb/index.md)
+* [App Mesh Guide](getting-started/appmesh/index.md)
 * [Ambassador Guide](getting-started/ambassador/index.md)
 * [Istio Guide](getting-started/istio/index.md)
+* [Multiple Providers Guide](getting-started/mixed/index.md)
 * [NGINX Guide](getting-started/nginx/index.md)
 * [SMI Guide](getting-started/smi/index.md)

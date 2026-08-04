@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -33,6 +34,11 @@ type Provider struct {
 
 func (p *Provider) Type() string {
 	return ProviderType
+}
+
+// GetMetadata returns any additional metadata which needs to be stored & displayed as part of the metrics result.
+func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
+	return nil
 }
 
 type WavefrontClientAPI interface {
@@ -68,7 +74,7 @@ type wavefrontResponse struct {
 
 // Run queries with wavefront provider for the metric
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
-	startTime := metav1.Now()
+	startTime := timeutil.MetaNow()
 	newMeasurement := v1alpha1.Measurement{
 		StartedAt: &startTime,
 		Metadata:  map[string]string{},
@@ -103,7 +109,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	newMeasurement.Phase = result.newStatus
 	newMeasurement.Metadata["timestamps"] = result.epochsUsed
 	newMeasurement.Metadata["drift"] = result.drift
-	finishedTime := metav1.Now()
+	finishedTime := timeutil.MetaNow()
 	newMeasurement.FinishedAt = &finishedTime
 	return newMeasurement
 }

@@ -5,15 +5,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -113,7 +114,13 @@ rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 
 rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`,
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_updated The number of updated replicas per rollout.
+# TYPE rollout_info_replicas_updated gauge
+rollout_info_replicas_updated{name="guestbook-bluegreen",namespace="default"} 0`,
 		},
 
 		{
@@ -131,7 +138,13 @@ rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 
 rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`,
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_updated The number of updated replicas per rollout.
+# TYPE rollout_info_replicas_updated gauge
+rollout_info_replicas_updated{name="guestbook-bluegreen",namespace="default"} 0`,
 		},
 		{
 			fakeCanaryRollout,
@@ -148,7 +161,13 @@ rollout_info_replicas_available{name="guestbook-canary",namespace="default"} 1
 rollout_info_replicas_desired{name="guestbook-canary",namespace="default"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0`,
+rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0
+# HELP rollout_info_replicas_updated The number of updated replicas per rollout.
+# TYPE rollout_info_replicas_updated gauge
+rollout_info_replicas_updated{name="guestbook-canary",namespace="default"} 0`,
 		},
 	}
 
@@ -163,7 +182,7 @@ func testRolloutDescribe(t *testing.T, fakeRollout string, cond *v1alpha1.Rollou
 	registry.MustRegister(NewRolloutCollector(config.RolloutLister))
 	mux := http.NewServeMux()
 	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
-	testHttpResponse(t, mux, expectedResponse)
+	testHttpResponse(t, mux, expectedResponse, assert.Contains)
 }
 
 func TestIncRolloutReconcile(t *testing.T) {
@@ -188,7 +207,7 @@ rollout_reconcile_count{name="ro-test",namespace="ro-namespace"} 1
 		},
 	}
 	metricsServ.IncRolloutReconcile(ro, time.Millisecond)
-	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }
 
 func TestGetStrategyAndTrafficRouter(t *testing.T) {
@@ -271,6 +290,17 @@ func TestGetStrategyAndTrafficRouter(t *testing.T) {
 			expectedStrategy:      "canary",
 			expectedTrafficRouter: "Nginx",
 		},
+		{
+			strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						AppMesh: &v1alpha1.AppMeshTrafficRouting{},
+					},
+				},
+			},
+			expectedStrategy:      "canary",
+			expectedTrafficRouter: "AppMesh",
+		},
 	}
 
 	for _, test := range tests {
@@ -299,5 +329,5 @@ rollout_events_total{name="ro-test-2",namespace="ro-namespace",reason="BazEvent"
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-1", corev1.EventTypeNormal, "BarEvent").Inc()
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-2", corev1.EventTypeWarning, "BazEvent").Inc()
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-2", corev1.EventTypeWarning, "BazEvent").Inc()
-	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }

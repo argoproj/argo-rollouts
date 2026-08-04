@@ -3,15 +3,15 @@ package rollout
 import (
 	"context"
 	"fmt"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/aws"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -19,6 +19,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututils "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
@@ -77,6 +78,10 @@ func (c *rolloutContext) reconcilePreviewService(previewSvc *corev1.Service) err
 	if previewSvc == nil {
 		return nil
 	}
+	if haltReason := c.haltProgress(); haltReason != "" {
+		c.log.Infof("Skipping preview service reconciliation: %s", haltReason)
+		return nil
+	}
 	newPodHash := c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	err := c.switchServiceSelector(previewSvc, newPodHash, c.rollout)
 	if err != nil {
@@ -87,6 +92,10 @@ func (c *rolloutContext) reconcilePreviewService(previewSvc *corev1.Service) err
 }
 
 func (c *rolloutContext) reconcileActiveService(activeSvc *corev1.Service) error {
+	if haltReason := c.haltProgress(); haltReason != "" {
+		c.log.Infof("Skipping active service reconciliation: %s", haltReason)
+		return nil
+	}
 	if !replicasetutil.ReadyForPause(c.rollout, c.newRS, c.allRSs) || !annotations.IsSaturated(c.rollout, c.newRS) {
 		c.log.Infof("skipping active service switch: New RS '%s' is not fully saturated", c.newRS.Name)
 		return nil
@@ -122,7 +131,7 @@ func (c *rolloutContext) areTargetsVerified() bool {
 // by an ALB Ingress, which can be determined if there exists a TargetGroupBinding object in the
 // namespace that references the given service
 func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
-	if !c.shouldVerifyTargetGroup(svc) {
+	if !shouldVerifyTargetGroup(c.rollout, c.newRS, svc) {
 		return nil
 	}
 	logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
@@ -139,7 +148,7 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 		return nil
 	}
 
-	c.targetsVerified = pointer.BoolPtr(false)
+	c.targetsVerified = ptr.To[bool](false)
 
 	// get endpoints of service
 	endpoints, err := c.kubeclientset.CoreV1().Endpoints(svc.Namespace).Get(ctx, svc.Name, metav1.GetOptions{})
@@ -164,24 +173,26 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 		}
 		if !verifyRes.Verified {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered, verifyRes.EndpointsTotal)
-			c.enqueueRolloutAfter(c.rollout, 10*time.Second)
+			logCtx := logutil.WithRollout(c.rollout)
+			logCtx.Info("rollout enqueue due to awsVerifyTargetGroups")
+			c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 			return nil
 		}
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered)
 	}
-	c.targetsVerified = pointer.BoolPtr(true)
+	c.targetsVerified = ptr.To[bool](true)
 	return nil
 }
 
 // shouldVerifyTargetGroup returns whether or not we should verify the target group
-func (c *rolloutContext) shouldVerifyTargetGroup(svc *corev1.Service) bool {
+func shouldVerifyTargetGroup(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, svc *corev1.Service) bool {
 	if !defaults.VerifyTargetGroup() {
 		// feature is disabled
 		return false
 	}
-	desiredPodHash := c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	if c.rollout.Spec.Strategy.BlueGreen != nil {
-		if c.rollout.Status.StableRS == desiredPodHash {
+	desiredPodHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		if rollout.Status.StableRS == desiredPodHash {
 			// for blue-green, we only verify targets right after switching active service. So if
 			// we are fully promoted, then there is no need to verify targets.
 			// NOTE: this is the opposite of canary, where we only verify targets if stable == desired
@@ -192,17 +203,17 @@ func (c *rolloutContext) shouldVerifyTargetGroup(svc *corev1.Service) bool {
 			// we have not yet switched service selector
 			return false
 		}
-		if c.rollout.Status.BlueGreen.PostPromotionAnalysisRunStatus != nil {
+		if rollout.Status.BlueGreen.PostPromotionAnalysisRunStatus != nil {
 			// we already started post-promotion analysis, so verification already occurred
 			return false
 		}
 		return true
-	} else if c.rollout.Spec.Strategy.Canary != nil {
-		if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil || c.rollout.Spec.Strategy.Canary.TrafficRouting.ALB == nil {
+	} else if rollout.Spec.Strategy.Canary != nil {
+		if rollout.Spec.Strategy.Canary.TrafficRouting == nil || rollout.Spec.Strategy.Canary.TrafficRouting.ALB == nil {
 			// not ALB canary, so no need to verify targets
 			return false
 		}
-		if c.rollout.Status.StableRS != desiredPodHash {
+		if rollout.Status.StableRS != desiredPodHash {
 			// for canary, we only verify targets right after switching stable service, which happens
 			// after the update. So if stable != desired, we are still in the middle of an update
 			// and there is no need to verify targets.
@@ -233,25 +244,55 @@ func (c *rolloutContext) getPreviewAndActiveServices() (*corev1.Service, *corev1
 	return previewSvc, activeSvc, nil
 }
 
-func (c *rolloutContext) reconcileStableAndCanaryService() error {
-	if c.rollout.Spec.Strategy.Canary == nil {
-		return nil
-	}
-	err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS)
-	if err != nil {
-		return err
-	}
-
-	if replicasetutil.IsReplicaSetReady(c.newRS) {
-		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS)
-		if err != nil {
-			return err
-		}
+func (c *rolloutContext) reconcilePingAndPongService() error {
+	if trafficrouting.IsPingPongEnabled(c.rollout) && !rolloututils.IsFullyPromoted(c.rollout) {
+		_, canaryService := trafficrouting.GetStableAndCanaryServices(c.rollout, true)
+		return c.ensureSVCTargets(canaryService, c.newRS, false)
 	}
 	return nil
 }
 
-func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet) error {
+func (c *rolloutContext) reconcileStableAndCanaryService() error {
+	if c.rollout.Spec.Strategy.Canary == nil {
+		return nil
+	}
+	err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS, true)
+	if err != nil {
+		return err
+	}
+
+	if c.pauseContext != nil && c.pauseContext.IsAborted() && c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if dynamicallyRollingBackToStable, currSelector := rolloututils.IsDynamicallyRollingBackToStable(c.rollout, c.newRS); dynamicallyRollingBackToStable {
+		// User may have interrupted an update in order go back to stableRS, and is using dynamic
+		// stable scaling. If that is the case, the stableRS might be undersized and if we blindly
+		// switch service selector we could overwhelm stableRS pods.
+		// If we get here, we detected that the canary service needs to be pointed back to
+		// stable, but stable is not fully available. Skip the service switch for now.
+		c.log.Infof("delaying fully promoted service switch of '%s' from %s to %s: ReplicaSet '%s' not fully available",
+			c.rollout.Spec.Strategy.Canary.CanaryService, currSelector, replicasetutil.GetPodTemplateHash(c.newRS), c.newRS.Name)
+		return nil
+	}
+
+	err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS, true)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ensureSVCTargets updates the service with the given name to point to the given ReplicaSet,
+// but only if that ReplicaSet has proper availability. There is still an edge case with this function if
+// in the small window of time between a rollout being completed, and we try to update the service selector, we lose 100%
+// of the pods availability. We will not switch service selector but still go and reconcile the traffic router, setting the
+// stable weight to zero. This really only affects dynamic stable scale.
+func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet, checkRsAvailability bool) error {
 	if rs == nil || svcName == "" {
 		return nil
 	}
@@ -259,8 +300,34 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet)
 	if err != nil {
 		return err
 	}
-	if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-		err = c.switchServiceSelector(svc, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], c.rollout)
+	currSelector := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	desiredSelector := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
+
+	if currSelector != desiredSelector {
+		if _, ok := svc.Annotations[v1alpha1.ManagedByRolloutsKey]; !ok {
+			// This block will be entered only when adopting a service that already exists, because the current annotation
+			// will be empty at that point. When we are adopting a service, we want to make sure that the replicaset is fully
+			// available before we start routing traffic to it, so we do not overload it.
+			// See PR: https://github.com/argoproj/argo-rollouts/pull/1777
+
+			// ensure ReplicaSet is fully available, otherwise we will point the service to nothing or an underprovisioned ReplicaSet
+			if checkRsAvailability && !replicasetutil.IsReplicaSetAvailable(rs) {
+				logCtx.Infof("delaying service switch from %s to %s: ReplicaSet not fully available", currSelector, desiredSelector)
+				return nil
+			}
+			logCtx.Infof("adopting service %s", svc.Name)
+		}
+
+		// When we are at the end of a rollout we generally will have enough capacity to handle the traffic, so we do not
+		// need to check the full availability of the ReplicaSet. We do still want to make sure we have at least one pod
+		// available, so we do not point the service to nothing, but losing a pod or two should be tolerable to still switch service selectors.
+		if checkRsAvailability && !replicasetutil.IsReplicaSetPartiallyAvailable(rs) {
+			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet has zero availability", currSelector, desiredSelector)
+			return nil
+		}
+
+		err = c.switchServiceSelector(svc, desiredSelector, c.rollout)
 		if err != nil {
 			return err
 		}

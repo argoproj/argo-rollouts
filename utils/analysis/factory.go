@@ -3,17 +3,20 @@ package analysis
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
-
-	templateutil "github.com/argoproj/argo-rollouts/utils/template"
+	"strings"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	templateutil "github.com/argoproj/argo-rollouts/utils/template"
+
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/kubernetes/pkg/fieldpath"
 )
 
 // BuildArgumentsForRolloutAnalysisRun builds the arguments for a analysis base created by a rollout
-func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, stableRS, newRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) []v1alpha1.Argument {
+func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, stableRS, newRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) ([]v1alpha1.Argument, error) {
+	var err error
 	arguments := []v1alpha1.Argument{}
 	for i := range args {
 		arg := args[i]
@@ -26,21 +29,28 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 				case v1alpha1.Stable:
 					value = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 				}
-			} else {
-				if arg.ValueFrom.FieldRef != nil {
-					value, _ = fieldpath.ExtractFieldPathAsString(r, arg.ValueFrom.FieldRef.FieldPath)
+			} else if arg.ValueFrom.FieldRef != nil {
+				if strings.HasPrefix(arg.ValueFrom.FieldRef.FieldPath, "metadata") {
+					value, err = fieldpath.ExtractFieldPathAsString(r, arg.ValueFrom.FieldRef.FieldPath)
+					if err != nil {
+						return nil, err
+					}
+				} else {
+					// in case of error - return empty value for Validation stage, so it will pass validation
+					// returned error will only be used in Analysis stage
+					value, err = extractValueFromRollout(r, arg.ValueFrom.FieldRef.FieldPath)
 				}
 			}
-
 		}
+
 		analysisArg := v1alpha1.Argument{
 			Name:  arg.Name,
 			Value: &value,
 		}
 		arguments = append(arguments, analysisArg)
-
 	}
-	return arguments
+
+	return arguments, err
 }
 
 // PostPromotionLabels returns a map[string]string of common labels for the post promotion analysis
@@ -125,7 +135,7 @@ func ValidateMetrics(metrics []v1alpha1.Metric) error {
 	duplicateNames := make(map[string]bool)
 	for i, metric := range metrics {
 		if _, ok := duplicateNames[metric.Name]; ok {
-			return fmt.Errorf("metrics[%d]: duplicate name '%s", i, metric.Name)
+			return fmt.Errorf("metrics[%d]: duplicate name '%s'", i, metric.Name)
 		}
 		duplicateNames[metric.Name] = true
 		if err := ValidateMetric(metric); err != nil {
@@ -147,15 +157,48 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		failureLimit = metric.FailureLimit.IntValue()
 	}
 
+	consecutiveSuccessLimit := 0
+	if metric.ConsecutiveSuccessLimit != nil {
+		consecutiveSuccessLimit = metric.ConsecutiveSuccessLimit.IntValue()
+	}
+
 	inconclusiveLimit := 0
 	if metric.InconclusiveLimit != nil {
 		inconclusiveLimit = metric.InconclusiveLimit.IntValue()
 	}
 
+	// Negative value checks
+	if consecutiveSuccessLimit < 0 {
+		return fmt.Errorf("consecutiveSuccessLimit must be >= 0")
+	}
+	if failureLimit < -1 {
+		return fmt.Errorf("failureLimit must be >= 0, or -1 to be disabled")
+	}
+	// if consecutiveSuccessLimit is disabled (set to 0), AND
+	// failureLimit is disabled (set to -1), then this is invalid
+	if consecutiveSuccessLimit == 0 && failureLimit == -1 {
+		return fmt.Errorf("failureLimit and consecutiveSuccessLimit cannot both be disabled")
+	}
+
+	if inconclusiveLimit < 0 {
+		return fmt.Errorf("inconclusiveLimit must be >= 0")
+	}
+
+	if metric.ConsecutiveErrorLimit != nil && metric.ConsecutiveErrorLimit.IntValue() < 0 {
+		return fmt.Errorf("consecutiveErrorLimit must be >= 0")
+	}
+
 	if count > 0 {
-		if count < failureLimit {
-			return fmt.Errorf("count must be >= failureLimit")
+		if consecutiveSuccessLimit >= 0 && failureLimit >= 0 {
+			if count < failureLimit+consecutiveSuccessLimit {
+				return fmt.Errorf("count (%d) must be >= failureLimit + consecutiveSuccessLimit (%d + %d) if both >= 0", count, failureLimit, consecutiveSuccessLimit)
+			}
+		} else if consecutiveSuccessLimit >= 0 && failureLimit < 0 {
+			if count < consecutiveSuccessLimit {
+				return fmt.Errorf("count must be >= consecutiveSuccessLimit")
+			}
 		}
+
 		if count < inconclusiveLimit {
 			return fmt.Errorf("count must be >= inconclusiveLimit")
 		}
@@ -174,16 +217,6 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		}
 	}
 
-	if failureLimit < 0 {
-		return fmt.Errorf("failureLimit must be >= 0")
-	}
-	if inconclusiveLimit < 0 {
-		return fmt.Errorf("inconclusiveLimit must be >= 0")
-	}
-
-	if metric.ConsecutiveErrorLimit != nil && metric.ConsecutiveErrorLimit.IntValue() < 0 {
-		return fmt.Errorf("consecutiveErrorLimit must be >= 0")
-	}
 	numProviders := 0
 	if metric.Provider.Prometheus != nil {
 		numProviders++
@@ -209,6 +242,19 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.Provider.CloudWatch != nil {
 		numProviders++
 	}
+	if metric.Provider.Graphite != nil {
+		numProviders++
+	}
+	if metric.Provider.Influxdb != nil {
+		numProviders++
+	}
+	if metric.Provider.SkyWalking != nil {
+		numProviders++
+	}
+	if metric.Provider.Plugin != nil && len(metric.Provider.Plugin) > 0 {
+		// We allow exactly one plugin to be specified per analysis run template
+		numProviders = numProviders + len(metric.Provider.Plugin)
+	}
 	if numProviders == 0 {
 		return fmt.Errorf("no provider specified")
 	}
@@ -216,4 +262,43 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		return fmt.Errorf("multiple providers specified")
 	}
 	return nil
+}
+
+func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
+	j, _ := json.Marshal(r)
+	m := any(nil)
+	json.Unmarshal(j, &m)
+	sections := regexp.MustCompile("[\\.\\[\\]]+").Split(path, -1)
+	for _, section := range sections {
+		if section == "" {
+			continue // if path ends with a separator char, Split returns an empty last section
+		}
+
+		if asArray, ok := m.([]any); ok {
+			if i, err := strconv.Atoi(section); err != nil {
+				return "", fmt.Errorf("invalid index '%s'", section)
+			} else if i >= len(asArray) {
+				return "", fmt.Errorf("index %d out of range", i)
+			} else {
+				m = asArray[i]
+			}
+		} else if asMap, ok := m.(map[string]any); ok {
+			m = asMap[section]
+		} else {
+			return "", fmt.Errorf("invalid path %s in rollout", path)
+		}
+	}
+
+	if m == nil {
+		return "", fmt.Errorf("invalid path %s in rollout", path)
+	}
+
+	var isArray, isMap bool
+	_, isArray = m.([]any)
+	_, isMap = m.(map[string]any)
+	if isArray || isMap {
+		return "", fmt.Errorf("path %s in rollout must terminate in a primitive value", path)
+	}
+
+	return fmt.Sprintf("%v", m), nil
 }

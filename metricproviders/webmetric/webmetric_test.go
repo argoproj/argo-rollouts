@@ -1,26 +1,45 @@
 package webmetric
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+)
+
+const (
+	AccessToken = "MyAccessToken"
 )
 
 func TestRunSuite(t *testing.T) {
+
+	// Start OAuth server
+	oAuthServer := mockOAuthServer(AccessToken)
+	defer oAuthServer.Close()
+
 	// Test Cases
 	var tests = []struct {
-		webServerStatus      int
-		webServerResponse    string
-		metric               v1alpha1.Metric
-		expectedValue        string
-		expectedPhase        v1alpha1.AnalysisPhase
-		expectedErrorMessage string
+		webServerStatus             int
+		webServerResponse           string
+		metric                      v1alpha1.Metric
+		expectedMethod              string
+		expectedBody                string
+		expectedValue               string
+		expectedPhase               v1alpha1.AnalysisPhase
+		expectedErrorMessage        string
+		expectedJsonBody            string
+		expectedAuthorizationHeader string
 	}{
+
 		// When_noJSONPathSpecified_And_MatchesConditions_Then_Succeed
 		{
 			webServerStatus:   200,
@@ -388,7 +407,6 @@ func TestRunSuite(t *testing.T) {
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "true",
-				FailureCondition: "true",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						JSONPath: "{$.key[0].key2.value}",
@@ -398,14 +416,27 @@ func TestRunSuite(t *testing.T) {
 			expectedValue: "",
 			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
 		},
+		// When_200Response_And_EmptyBody_And_SuccessConditionNotMet_Then_Fail (#4535)
+		{
+			webServerStatus:   200,
+			webServerResponse: ``,
+			metric: v1alpha1.Metric{
+				Name:             "health-check",
+				SuccessCondition: `result == 'fail123'`,
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{},
+				},
+			},
+			expectedValue: "",
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
+		},
 		// When_200Response_And_NonJsonBody_Then_Succeed
 		{
 			webServerStatus:   200,
 			webServerResponse: `test: notJson`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "true",
-				FailureCondition: "true",
+				SuccessCondition: `result == 'test: notJson'`,
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						JSONPath: "{$.key[0].key2.value}",
@@ -414,6 +445,20 @@ func TestRunSuite(t *testing.T) {
 			},
 			expectedValue: "test: notJson",
 			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_200Response_And_NonJsonBody_And_SuccessConditionNotMet_Then_Fail (#4535)
+		{
+			webServerStatus:   200,
+			webServerResponse: `OK`,
+			metric: v1alpha1.Metric{
+				Name:             "health-check",
+				SuccessCondition: `result == 'fail123'`,
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{},
+				},
+			},
+			expectedValue: "OK",
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
 		},
 		// When_200Response_And_JsonPathHasNoMatch_Then_Error
 		{
@@ -433,14 +478,12 @@ func TestRunSuite(t *testing.T) {
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage: "Could not find JSONPath in body",
 		},
-
 		// When_200Response_And_NilBody_Then_Succeed
 		{
 			webServerStatus: 200,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "true",
-				FailureCondition: "true",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{},
 				},
@@ -477,6 +520,233 @@ func TestRunSuite(t *testing.T) {
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage: "",
 		},
+		// When_methodEmpty_Then_server_gets_GET
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+					},
+				},
+			},
+			expectedMethod: "GET",
+			expectedValue:  `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_methodGET_Then_server_gets_GET
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Method: v1alpha1.WebMetricMethodGet,
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+					},
+				},
+			},
+			expectedMethod: "GET",
+			expectedValue:  `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_methodPOST_Then_server_gets_body
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Method: v1alpha1.WebMetricMethodPost,
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						Body:    "some body",
+					},
+				},
+			},
+			expectedMethod: "POST",
+			expectedBody:   "some body",
+			expectedValue:  `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_methodPUT_Then_server_gets_body
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Method: v1alpha1.WebMetricMethodPut,
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						Body:    "some body",
+					},
+				},
+			},
+			expectedMethod: "PUT",
+			expectedBody:   "some body",
+			expectedValue:  `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_sendingBodyWithGet_Then_Failure
+		{
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						Body:    "some body",
+					},
+				},
+			},
+			expectedValue: "Body can only be used with POST or PUT WebMetric Method types",
+			expectedPhase: v1alpha1.AnalysisPhaseError,
+		},
+		// When_methodPOST_Then_server_gets_jsonBody_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Method: v1alpha1.WebMetricMethodPost,
+						// URL:      server.URL,
+						Headers:  []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						JSONBody: json.RawMessage(`{"key1": "value1", "key2": "value2"}`),
+					},
+				},
+			},
+			expectedMethod:   "POST",
+			expectedJsonBody: `{"key1": "value1", "key2": "value2"}`,
+			expectedValue:    `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:    v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_methodPUT_Then_server_gets_jsonBody_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Method: v1alpha1.WebMetricMethodPut,
+						// URL:      server.URL,
+						Headers:  []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}, {Key: ContentTypeKey, Value: ContentTypeJsonValue}},
+						JSONBody: json.RawMessage(`{"key1": "value1", "key2": { "key3" : "value3"}}`),
+					},
+				},
+			},
+			expectedMethod:   "PUT",
+			expectedJsonBody: `{"key1": "value1", "key2": { "key3" : "value3"}}`,
+			expectedValue:    `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:    v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_sendingJsonBodyWithGet_Then_Failure
+		{
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers:  []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						JSONBody: json.RawMessage(`{"key1": "value1", "key2": { "key3" : "value3"}}`),
+					},
+				},
+			},
+			expectedValue: "Body/JSONBody can only be used with POST or PUT WebMetric Method types",
+			expectedPhase: v1alpha1.AnalysisPhaseError,
+		},
+		// When_sending_BothBodyAndJsonBodyWithGet_Then_Failure
+		{
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers:  []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						JSONBody: json.RawMessage(`{"key1": "value1", "key2": { "key3" : "value3"}}`),
+						Body:     "test body",
+					},
+				},
+			},
+			expectedValue: "use either Body or JSONBody; both cannot exists for WebMetric payload",
+			expectedPhase: v1alpha1.AnalysisPhaseError,
+		},
+		// When_usingOAuth2_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						Authentication: v1alpha1.Authentication{
+							OAuth2: v1alpha1.OAuth2Config{
+								TokenURL:     oAuthServer.URL + "/ok",
+								ClientID:     "myClientID",
+								ClientSecret: "mySecret",
+								Scopes: []string{
+									"myFirstScope",
+									"mySecondScope",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedAuthorizationHeader: AccessToken,
+			expectedValue:               `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:               v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_RejectedByOAuthServer_Then_Failure
+		{
+			webServerResponse: `Missing OAuth2 token`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						Authentication: v1alpha1.Authentication{
+							OAuth2: v1alpha1.OAuth2Config{
+								TokenURL:     oAuthServer.URL + "/ko",
+								ClientID:     "myClientID",
+								ClientSecret: "mySecret",
+								Scopes: []string{
+									"myFirstScope",
+									"mySecondScope",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedAuthorizationHeader: AccessToken,
+			expectedErrorMessage:        `oauth2: cannot fetch token: 401 Unauthorized`,
+			expectedPhase:               v1alpha1.AnalysisPhaseError,
+		},
 	}
 
 	// Run
@@ -484,6 +754,34 @@ func TestRunSuite(t *testing.T) {
 	for _, test := range tests {
 		// Server setup with response
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+
+			authorizationHeader := req.Header.Get("Authorization")
+			// Reject call if we don't find the expected oauth token
+			if test.expectedAuthorizationHeader != "" && ("Bearer "+test.expectedAuthorizationHeader) != authorizationHeader {
+
+				log.StandardLogger().Infof("Authorization header not as expected, rejecting")
+				sc := http.StatusUnauthorized
+				rw.WriteHeader(sc)
+				io.WriteString(rw, test.webServerResponse)
+				return
+			}
+
+			if test.expectedMethod != "" {
+				assert.Equal(t, test.expectedMethod, req.Method)
+			}
+
+			if test.expectedBody != "" {
+				buf := new(bytes.Buffer)
+				buf.ReadFrom(req.Body)
+				assert.Equal(t, test.expectedBody, buf.String())
+			}
+
+			if test.expectedJsonBody != "" {
+				bodyBytes, _ := io.ReadAll(req.Body)
+				assert.Equal(t, test.expectedJsonBody, string(bodyBytes))
+				assert.Equal(t, ContentTypeJsonValue, req.Header.Get(ContentTypeKey))
+			}
+
 			if test.webServerStatus < 200 || test.webServerStatus >= 300 {
 				http.Error(rw, http.StatusText(test.webServerStatus), test.webServerStatus)
 			} else {
@@ -504,7 +802,12 @@ func TestRunSuite(t *testing.T) {
 
 		jsonparser, err := NewWebMetricJsonParser(test.metric)
 		assert.NoError(t, err)
-		provider := NewWebMetricProvider(*logCtx, server.Client(), jsonparser)
+		client, err := NewWebMetricHttpClient(test.metric)
+		assert.NoError(t, err)
+		provider := NewWebMetricProvider(*logCtx, client, jsonparser)
+
+		metricsMetadata := provider.GetMetadata(test.metric)
+		assert.Nil(t, metricsMetadata)
 
 		// Get our result
 		measurement := provider.Run(newAnalysisRun(), test.metric)
@@ -532,6 +835,109 @@ func TestRunSuite(t *testing.T) {
 	}
 }
 
+func TestNewPromApiErrorWithIncompleteOAuthParams(t *testing.T) {
+
+	// Missing Client Id should fail
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+		Provider: v1alpha1.MetricProvider{
+			Web: &v1alpha1.WebMetric{
+				// URL:      server.URL,
+				Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+				Authentication: v1alpha1.Authentication{
+					OAuth2: v1alpha1.OAuth2Config{
+						TokenURL:     "http://tokenurl",
+						ClientSecret: "mySecret",
+						Scopes: []string{
+							"myFirstScope",
+							"mySecondScope",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := NewWebMetricHttpClient(metric)
+	assert.Error(t, err)
+
+	// Missing Client Secret should fail
+	metric = v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+		Provider: v1alpha1.MetricProvider{
+			Web: &v1alpha1.WebMetric{
+				// URL:      server.URL,
+				Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+				Authentication: v1alpha1.Authentication{
+					OAuth2: v1alpha1.OAuth2Config{
+						TokenURL: "http://tokenurl",
+						ClientID: "myClientID",
+						Scopes: []string{
+							"myFirstScope",
+							"mySecondScope",
+						},
+					},
+				},
+			},
+		},
+	}
+	_, err = NewWebMetricHttpClient(metric)
+	assert.Error(t, err)
+
+	// Missing Scope should succeed
+	metric = v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+		Provider: v1alpha1.MetricProvider{
+			Web: &v1alpha1.WebMetric{
+				// URL:      server.URL,
+				Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+				Authentication: v1alpha1.Authentication{
+					OAuth2: v1alpha1.OAuth2Config{
+						TokenURL:     "http://tokenurl",
+						ClientID:     "myClientID",
+						ClientSecret: "mySecret",
+					},
+				},
+			},
+		},
+	}
+	_, err = NewWebMetricHttpClient(metric)
+	assert.NoError(t, err)
+
+}
+
 func newAnalysisRun() *v1alpha1.AnalysisRun {
 	return &v1alpha1.AnalysisRun{}
+}
+
+func mockOAuthServer(accessToken string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.StandardLogger().Infof("Received oauth query")
+		switch strings.TrimSpace(r.URL.Path) {
+		case "/ok":
+			mockOAuthOKResponse(w, r, accessToken)
+		case "/ko":
+			mockOAuthKOResponse(w, r)
+		default:
+			http.NotFoundHandler().ServeHTTP(w, r)
+		}
+	}))
+}
+
+func mockOAuthOKResponse(w http.ResponseWriter, r *http.Request, accessToken string) {
+
+	oAuthResponse := fmt.Sprintf(`{"token_type":"Bearer","expires_in":3599,"access_token":"%s"}`, accessToken)
+
+	sc := http.StatusOK
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(sc)
+	w.Write([]byte(oAuthResponse))
+}
+
+func mockOAuthKOResponse(w http.ResponseWriter, r *http.Request) {
+	sc := http.StatusUnauthorized
+	w.WriteHeader(sc)
 }

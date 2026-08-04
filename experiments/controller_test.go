@@ -1,6 +1,7 @@
 package experiments
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -8,10 +9,11 @@ import (
 	"testing"
 	"time"
 
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/undefinedlabs/go-mpatch"
 
 	"github.com/argoproj/argo-rollouts/utils/queue"
 
@@ -29,7 +31,7 @@ import (
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -52,12 +54,12 @@ const (
 )
 
 func now() *metav1.Time {
-	now := metav1.Time{Time: time.Now().Truncate(time.Second)}
+	now := metav1.Time{Time: timeutil.Now().Truncate(time.Second)}
 	return &now
 }
 
 func secondsAgo(seconds int) *metav1.Time {
-	ago := metav1.Time{Time: time.Now().Add(-1 * time.Second * time.Duration(seconds)).Truncate(time.Second)}
+	ago := metav1.Time{Time: timeutil.Now().Add(-1 * time.Second * time.Duration(seconds)).Truncate(time.Second)}
 	return &ago
 }
 
@@ -114,11 +116,15 @@ func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	patch, err := mpatch.PatchMethod(time.Now, func() time.Time {
+
+	timeutil.SetNowTimeFunc(func() time.Time {
 		return now
 	})
-	assert.NoError(t, err)
-	f.unfreezeTime = patch.Unpatch
+	f.unfreezeTime = func() error {
+		timeutil.SetNowTimeFunc(time.Now)
+		return nil
+	}
+
 	return f
 }
 
@@ -137,7 +143,7 @@ func generateTemplates(imageNames ...string) []v1alpha1.TemplateSpec {
 			Selector: &metav1.LabelSelector{
 				MatchLabels: selector,
 			},
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: ptr.To[int32](1),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: selector,
@@ -200,8 +206,8 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 		return &v1alpha1.ExperimentCondition{
 			Type:               v1alpha1.ExperimentProgressing,
 			Status:             corev1.ConditionTrue,
-			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
-			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			LastUpdateTime:     timeutil.MetaNow().Rfc3339Copy(),
+			LastTransitionTime: timeutil.MetaNow().Rfc3339Copy(),
 			Reason:             reason,
 			Message:            fmt.Sprintf(conditions.ExperimentProgressingMessage, experiment.Name),
 		}
@@ -210,8 +216,8 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 		return &v1alpha1.ExperimentCondition{
 			Type:               v1alpha1.ExperimentProgressing,
 			Status:             corev1.ConditionFalse,
-			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
-			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			LastUpdateTime:     timeutil.MetaNow().Rfc3339Copy(),
+			LastTransitionTime: timeutil.MetaNow().Rfc3339Copy(),
 			Reason:             reason,
 			Message:            fmt.Sprintf(conditions.ExperimentCompletedMessage, experiment.Name),
 		}
@@ -220,8 +226,8 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 		return &v1alpha1.ExperimentCondition{
 			Type:               v1alpha1.ExperimentProgressing,
 			Status:             corev1.ConditionFalse,
-			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
-			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			LastUpdateTime:     timeutil.MetaNow().Rfc3339Copy(),
+			LastTransitionTime: timeutil.MetaNow().Rfc3339Copy(),
 			Reason:             reason,
 			Message:            fmt.Sprintf(conditions.ExperimentRunningMessage, experiment.Name),
 		}
@@ -230,8 +236,8 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 		return &v1alpha1.ExperimentCondition{
 			Type:               v1alpha1.InvalidExperimentSpec,
 			Status:             corev1.ConditionTrue,
-			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
-			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			LastUpdateTime:     timeutil.MetaNow().Rfc3339Copy(),
+			LastTransitionTime: timeutil.MetaNow().Rfc3339Copy(),
 			Reason:             reason,
 			Message:            fmt.Sprintf(conditions.ExperimentTemplateNameEmpty, experiment.Name, 0),
 		}
@@ -297,19 +303,27 @@ func generateRSName(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec) str
 	return fmt.Sprintf("%s-%s", ex.Name, template.Name)
 }
 
-func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.TemplateStatus, condition *v1alpha1.ExperimentCondition) string {
-	patchMap := make(map[string]interface{})
+func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.TemplateStatus, condition *v1alpha1.ExperimentCondition, analysisRuns []*v1alpha1.ExperimentAnalysisRunStatus, message string) string {
+	patchMap := make(map[string]any)
 	err := json.Unmarshal([]byte(patch), &patchMap)
 	if err != nil {
 		panic(err)
 	}
-	newStatus := patchMap["status"].(map[string]interface{})
+	newStatus := patchMap["status"].(map[string]any)
 	if templates != nil {
 		newStatus["templateStatuses"] = templates
 		patchMap["status"] = newStatus
 	}
 	if condition != nil {
 		newStatus["conditions"] = []v1alpha1.ExperimentCondition{*condition}
+		patchMap["status"] = newStatus
+	}
+	if analysisRuns != nil {
+		newStatus["analysisRuns"] = analysisRuns
+		patchMap["status"] = newStatus
+	}
+	if message != "" {
+		newStatus["message"] = message
 		patchMap["status"] = newStatus
 	}
 
@@ -330,7 +344,7 @@ func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.
 	newEx := &v1alpha1.Experiment{}
 	json.Unmarshal(newBytes, newEx)
 
-	newPatch := make(map[string]interface{})
+	newPatch := make(map[string]any)
 	json.Unmarshal(patchBytes, &newPatch)
 	newPatchBytes, _ := json.Marshal(newPatch)
 	return string(newPatchBytes)
@@ -376,7 +390,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	})
 
 	var enqueuedObjectsLock sync.Mutex
-	c.enqueueExperiment = func(obj interface{}) {
+	c.enqueueExperiment = func(obj any) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
@@ -392,7 +406,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		f.enqueuedObjects[key] = count
 		c.experimentWorkqueue.Add(obj)
 	}
-	c.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
+	c.enqueueExperimentAfter = func(obj any, duration time.Duration) {
 		c.enqueueExperiment(obj)
 	}
 
@@ -442,7 +456,7 @@ func (f *fixture) runController(experimentName string, startInformers bool, expe
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.clusterAnalysisTemplateSynced))
 	}
 
-	err := c.syncHandler(experimentName)
+	err := c.syncHandler(context.Background(), experimentName)
 	if !expectError && err != nil {
 		f.t.Errorf("error syncing experiment: %v", err)
 	} else if expectError && err == nil {
@@ -532,7 +546,7 @@ func filterInformerActions(actions []core.Action) []core.Action {
 	return ret
 }
 
-func (f *fixture) expectCreateServiceAction(service *corev1.Service) int {
+func (f *fixture) expectCreateServiceAction(service *corev1.Service) int { //nolint:unused
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewCreateAction(schema.GroupVersionResource{Resource: "services"}, service.Namespace, service))
 	return len
@@ -556,13 +570,13 @@ func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	return len
 }
 
-func (f *fixture) expectGetExperimentAction(experiment *v1alpha1.Experiment) int {
+func (f *fixture) expectGetExperimentAction(experiment *v1alpha1.Experiment) int { //nolint:unused
 	len := len(f.actions)
 	f.actions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "experiments"}, experiment.Namespace, experiment.Name))
 	return len
 }
 
-func (f *fixture) expectUpdateExperimentAction(experiment *v1alpha1.Experiment) int {
+func (f *fixture) expectUpdateExperimentAction(experiment *v1alpha1.Experiment) int { //nolint:unused
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "experiments"}, experiment.Namespace, experiment)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
@@ -643,7 +657,7 @@ func (f *fixture) verifyPatchedReplicaSetAddScaleDownDelay(index int, scaleDownD
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
 	}
-	now := metav1.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+	now := timeutil.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
 	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
@@ -672,7 +686,7 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) getUpdatedExperiment(index int) *v1alpha1.Experiment {
+func (f *fixture) getUpdatedExperiment(index int) *v1alpha1.Experiment { //nolint:unused
 	action := filterInformerActions(f.client.Actions())[index]
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
@@ -728,7 +742,7 @@ func TestNoReconcileForDeletedExperiment(t *testing.T) {
 	defer f.Close()
 
 	e := newExperiment("foo", nil, "10s")
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	e.DeletionTimestamp = &now
 
 	f.experimentLister = append(f.experimentLister, e)
@@ -800,8 +814,8 @@ func TestAddInvalidSpec(t *testing.T) {
 	expectedPatch := calculatePatch(e, `{
 		"status":{
 		}
-	}`, nil, cond)
-	assert.Equal(t, expectedPatch, patch)
+	}`, nil, cond, nil, "")
+	assert.JSONEq(t, expectedPatch, patch)
 }
 
 func TestKeepInvalidSpec(t *testing.T) {
@@ -847,8 +861,8 @@ func TestUpdateInvalidSpec(t *testing.T) {
 	expectedPatch := calculatePatch(e, `{
 		"status":{
 		}
-	}`, nil, cond)
-	assert.Equal(t, expectedPatch, patch)
+	}`, nil, cond, nil, "")
+	assert.JSONEq(t, expectedPatch, patch)
 
 }
 
@@ -887,6 +901,21 @@ func TestRemoveInvalidSpec(t *testing.T) {
 	expectedPatch := calculatePatch(e, `{
 		"status":{
 		}
-	}`, templateStatus, cond)
-	assert.Equal(t, expectedPatch, patch)
+	}`, templateStatus, cond, nil, "")
+	assert.JSONEq(t, expectedPatch, patch)
+}
+
+func TestRun(t *testing.T) {
+	f := newFixture(t, nil)
+	defer f.Close()
+	// make sure we can start and top the controller
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.experimentWorkqueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }

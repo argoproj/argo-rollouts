@@ -23,7 +23,7 @@ type I interface {
 }
 
 func TestMustMarshalPanics(t *testing.T) {
-	test := map[string]interface{}{
+	test := map[string]any{
 		"foo": make(chan int),
 	}
 	assert.Panics(t, func() { MustMarshal(test) })

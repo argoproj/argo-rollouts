@@ -1,0 +1,55 @@
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: measurement-retention-job
+spec:
+  metrics:
+    - name: test-1
+      interval: 3s
+      failureLimit: 1
+      provider:
+        job:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: sleep
+                    image: alpine:3.8
+                    command: [sh, -c]
+                    args: [exit 0]
+                restartPolicy: Never
+            backoffLimit: 0
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: experiment-with-mr
+spec:
+  duration: 30s
+  progressDeadlineSeconds: 30
+  templates:
+  - name: baseline
+    replicas: 1
+    service: {}
+    selector:
+      matchLabels:
+        app: experiment-with-mr
+    template:
+      metadata:
+        labels:
+          app: experiment-with-mr
+      spec:
+        containers:
+          - name: experiment-with-mr
+            image: nginx:1.19-alpine
+            resources:
+              requests:
+                memory: 16Mi
+                cpu: 1m
+  analyses:
+  - name: measurement-retention-job
+    templateName: measurement-retention-job
+  measurementRetention:
+  - metricName: test.*
+    limit: 2

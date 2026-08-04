@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-background-analysis-inconclusive
+spec:
+  replicas: 2
+  strategy:
+    canary:
+      steps:
+      - setWeight: 10
+      - pause: { duration: 30s }
+      analysis:
+        templates:
+        - templateName: web-background-inconclusive
+        startingStep: 1
+  selector:
+    matchLabels:
+      app: rollout-background-analysis-inconclusive
+  template:
+    metadata:
+      labels:
+        app: rollout-background-analysis-inconclusive
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m

@@ -8,7 +8,7 @@ Argo Rollouts offers a Kubectl plugin to enrich the experience with Rollouts, Ex
 See the [installation guide](../installation.md) for instructions on installing the plugin.
 
 ## Usage
-The best way to get information on the available Argo Rollouts kubectl plugin commands is by run `kubectl argo rollouts`. The plugin lists all the available commands that the tool can execute along with a description of each commend. All the plugin's commands interact with the Kubernetes API server and use KubeConfig credentials for authentication. Since the plugin leverages the KubeConfig of the user running the command, the plugin has the permissions of those configs. 
+The best way to get information on the available Argo Rollouts kubectl plugin commands is by running `kubectl argo rollouts`. The plugin lists all the available commands that the tool can execute along with a description of each command. All the plugin's commands interact with the Kubernetes API server and use KubeConfig credentials for authentication. Since the plugin leverages the KubeConfig of the user running the command, the plugin has the permissions of those configs. 
 
 Similar to kubectl, the plugin uses many of the same flags as the kubectl. For example, the `kubectl argo rollouts get rollout canary-demo -w` command starts a watch on the `canary-demo` rollout object similar to how the `kubectl get deployment canary-demo -w` command starts a watch on a deployment.
 

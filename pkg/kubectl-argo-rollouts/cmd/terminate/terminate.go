@@ -9,6 +9,7 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 )
 
 const (
@@ -17,7 +18,7 @@ const (
 
 const (
 	terminateExample = `
-	# Terminate an analysisRun
+	# Terminate an AnalysisRun
 	%[1]s terminate analysisrun guestbook-877894d5b-4-success-rate.1
 
 	# Terminate a failed experiment
@@ -25,7 +26,7 @@ const (
 
 	terminateAnalysisRunExample = `
 	# Terminate an AnalysisRun
-	%[1]s terminate analysis guestbook-877894d5b-4-success-rate.1`
+	%[1]s terminate analysisrun guestbook-877894d5b-4-success-rate.1`
 
 	terminateExperimentExample = `
 	# Terminate an experiment
@@ -73,6 +74,7 @@ func NewCmdTerminateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			return nil
 		},
+		ValidArgsFunction: completionutil.AnalysisRunNameCompletionFunc(o),
 	}
 	return cmd
 }
@@ -101,6 +103,7 @@ func NewCmdTerminateExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			return nil
 		},
+		ValidArgsFunction: completionutil.ExperimentNameCompletionFunc(o),
 	}
 	return cmd
 }

@@ -13,17 +13,18 @@ import (
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/aws"
 	"github.com/argoproj/argo-rollouts/utils/aws/mocks"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -51,7 +52,6 @@ func newService(name string, port int, selector map[string]string, ro *v1alpha1.
 }
 
 func TestGetPreviewAndActiveServices(t *testing.T) {
-
 	f := newFixture(t)
 	defer f.Close()
 	expActive := newService("active", 80, nil, nil)
@@ -64,19 +64,16 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 	otherRoSvc := newService("other-svc", 80, nil, otherRo)
 	f.kubeobjects = append(f.kubeobjects, expActive, expPreview, otherRoSvc)
 	f.serviceLister = append(f.serviceLister, expActive, expPreview, otherRoSvc)
-	rollout := &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: metav1.NamespaceDefault,
-		},
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				BlueGreen: &v1alpha1.BlueGreenStrategy{
-					PreviewService: "preview",
-					ActiveService:  "active",
-				},
-			},
+	rollout := newRollout("foo", 1, nil, map[string]string{"foo": "bar"})
+	rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+		BlueGreen: &v1alpha1.BlueGreenStrategy{
+			PreviewService: "preview",
+			ActiveService:  "active",
 		},
 	}
+	f.rolloutLister = append(f.rolloutLister, rollout)
+	f.objects = append(f.objects, rollout)
+
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	t.Run("Get Both", func(t *testing.T) {
 		roCtx, err := c.newRolloutContext(rollout)
@@ -89,30 +86,22 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 	t.Run("Preview not found", func(t *testing.T) {
 		noPreviewSvcRollout := rollout.DeepCopy()
 		noPreviewSvcRollout.Spec.Strategy.BlueGreen.PreviewService = "not-preview"
-		roCtx, err := c.newRolloutContext(noPreviewSvcRollout)
-		assert.NoError(t, err)
-		_, _, err = roCtx.getPreviewAndActiveServices()
-		assert.NotNil(t, err)
-		assert.True(t, errors.IsNotFound(err))
+		_, err := c.newRolloutContext(noPreviewSvcRollout)
+		assert.Error(t, err)
 	})
 	t.Run("Active not found", func(t *testing.T) {
 		noActiveSvcRollout := rollout.DeepCopy()
 		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = "not-active"
-		roCtx, err := c.newRolloutContext(noActiveSvcRollout)
-		assert.NoError(t, err)
-		_, _, err = roCtx.getPreviewAndActiveServices()
-		assert.NotNil(t, err)
-		assert.True(t, errors.IsNotFound(err))
+		_, err := c.newRolloutContext(noActiveSvcRollout)
+		assert.Error(t, err)
 	})
 
 	t.Run("Invalid Spec: No Active Svc", func(t *testing.T) {
 		noActiveSvcRollout := rollout.DeepCopy()
 		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = ""
 		roCtx, err := c.newRolloutContext(noActiveSvcRollout)
-		assert.NoError(t, err)
-		_, _, err = roCtx.getPreviewAndActiveServices()
-		assert.NotNil(t, err)
-		assert.EqualError(t, err, "service \"\" not found")
+		assert.Error(t, err)
+		assert.Nil(t, roCtx)
 	})
 }
 
@@ -130,7 +119,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, previewSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 
 	patch := f.getPatchedRollout(patchIndex)
 	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.activeService: Invalid value: \"active-svc\": service \"active-svc\" not found"
@@ -142,7 +131,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 			}
 		}`
 	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedActiveSvc, errmsg)
-	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
+	assert.JSONEq(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
 }
 
 func TestPreviewServiceNotFound(t *testing.T) {
@@ -156,10 +145,9 @@ func TestPreviewServiceNotFound(t *testing.T) {
 	activeSvc := newService("active-svc", 80, nil, nil)
 	notUsedPreviewSvc := newService("preview-svc", 80, nil, nil)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
-	f.serviceLister = append(f.serviceLister)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.runExpectError(getKey(r, t), true)
 
 	patch := f.getPatchedRollout(patchIndex)
 	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.previewService: Invalid value: \"preview-svc\": service \"preview-svc\" not found"
@@ -171,7 +159,7 @@ func TestPreviewServiceNotFound(t *testing.T) {
 			}
 		}`
 	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedPreviewSvc, errmsg)
-	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
+	assert.JSONEq(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
 
 }
 
@@ -264,26 +252,26 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("1.2.3.4"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("5.6.7.8"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(81),         // wrong port
+					Id:   ptr.To[string]("2.4.6.8"), // irrelevant
+					Port: ptr.To[int32](81),         // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("9.8.7.6"), // irrelevant ip
+					Port: ptr.To[int32](80),
 				},
 			},
 		},
@@ -300,13 +288,15 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	svc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true, false)
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
-	completedCondition, _ := newCompletedCondition(true)
-	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	completedHealthyCondition, _ := newHealthyCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedHealthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, tgb)
@@ -347,26 +337,26 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("1.2.3.4"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("5.6.7.8"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("2.4.6.8"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("9.8.7.6"), // irrelevant ip
+					Port: ptr.To[int32](80),
 				},
 			},
 		},
@@ -383,13 +373,15 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	svc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true, false)
 	r2.Status.Message = "waiting for post-promotion verification to complete"
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
-	completedCondition, _ := newCompletedCondition(true)
+	completedCondition, _ := newHealthyCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
+	conditions.SetRolloutCondition(&r2.Status, *completedCond)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, tgb)
@@ -401,12 +393,25 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
-	expectedPatch := fmt.Sprintf(`{"status":{"message":null,"phase":"Healthy","stableRS":"%s"}}`, rs2PodHash)
-	assert.Equal(t, expectedPatch, patch)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	expectedPatch := fmt.Sprintf(`
+	{
+		"status":{
+			"message":null,
+			"phase":"Healthy",
+			"stableRS":"%s",
+			"duration": {
+				"completionStatus": "Promoted",
+				"finishedAt": "%s"
+			}
+		}
+	}`, rs2PodHash, now)
+	assert.Equal(t, cleanPatch(expectedPatch), patch)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
 		conditions.RolloutCompletedReason,
 	})
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 // TestCanaryAWSVerifyTargetGroupsNotYetReady verifies we don't proceed with scale down of old
@@ -431,33 +436,36 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("1.2.3.4"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("5.6.7.8"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(81),         // wrong port
+					Id:   ptr.To[string]("2.4.6.8"), // irrelevant
+					Port: ptr.To[int32](81),         // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("9.8.7.6"), // irrelevant ip
+					Port: ptr.To[int32](80),
 				},
 			},
 		},
 	}
 	fakeELB.On("DescribeTargetHealth", mock.Anything, mock.Anything).Return(&thOut, nil)
 
-	r1 := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromString("25%"), intstr.FromString("25%"))
+	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
+		SetWeight: ptr.To[int32](10),
+	}}, ptr.To[int32](0), intstr.FromString("25%"), intstr.FromString("25%"))
+
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
@@ -482,17 +490,28 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	r2.Status.StableRS = rs2PodHash
+	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-	completedCondition, _ := newCompletedCondition(false)
-	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	healthyCondition, _ := newHealthyCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, tgb)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, ing, rootSvc, canarySvc, stableSvc, ep)
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
+
+	// Duration is already completed so reconciliation makes no rollout status patch
+	finishedAt := timeutil.MetaNow()
+	promoted := v1alpha1.CompletionStatusPromoted
+	r2.Status.Duration.FinishedAt = &finishedAt
+	r2.Status.Duration.CompletionStatus = &promoted
 
 	f.expectGetEndpointsAction(ep)
 	f.run(getKey(r2, t))
@@ -523,33 +542,35 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("1.2.3.4"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("5.6.7.8"),
+					Port: ptr.To[int32](80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(80),         // wrong port
+					Id:   ptr.To[string]("2.4.6.8"), // irrelevant
+					Port: ptr.To[int32](80),         // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   ptr.To[string]("9.8.7.6"), // irrelevant ip
+					Port: ptr.To[int32](80),
 				},
 			},
 		},
 	}
 	fakeELB.On("DescribeTargetHealth", mock.Anything, mock.Anything).Return(&thOut, nil)
 
-	r1 := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromString("25%"), intstr.FromString("25%"))
+	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
+		SetWeight: ptr.To[int32](10),
+	}}, ptr.To[int32](0), intstr.FromString("25%"), intstr.FromString("25%"))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
@@ -574,20 +595,32 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	r2.Status.StableRS = rs2PodHash
+	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-	completedCondition, _ := newCompletedCondition(false)
-	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	healthyCondition, _ := newHealthyCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, tgb)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, ing, rootSvc, canarySvc, stableSvc, ep)
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
+
+	// Duration is already completed so reconciliation makes no rollout status patch
+	finishedAt := timeutil.MetaNow()
+	promoted := v1alpha1.CompletionStatusPromoted
+	r2.Status.Duration.FinishedAt = &finishedAt
+	r2.Status.Duration.CompletionStatus = &promoted
 
 	f.expectGetEndpointsAction(ep)
 	scaleDownRSIndex := f.expectPatchReplicaSetAction(rs1)
+
 	f.run(getKey(r2, t))
 	f.verifyPatchedReplicaSet(scaleDownRSIndex, 30)
 	f.assertEvents([]string{
@@ -604,7 +637,9 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r1 := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromString("25%"), intstr.FromString("25%"))
+	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
+		SetWeight: ptr.To[int32](10),
+	}}, ptr.To[int32](0), intstr.FromString("25%"), intstr.FromString("25%"))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
@@ -617,7 +652,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 
 	rs1 := newReplicaSetWithStatus(r1, 3, 3)
 	// set an annotation on old RS to cause verification to be skipped
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = metav1.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)
 	rs2 := newReplicaSetWithStatus(r2, 3, 3)
 
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -631,17 +666,28 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	r2.Status.StableRS = rs2PodHash
+	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-	completedCondition, _ := newCompletedCondition(false)
-	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	healthyCondition, _ := newHealthyCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, ing, rootSvc, canarySvc, stableSvc)
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
+
+	// Duration is already completed so reconciliation makes no rollout status patch
+	finishedAt := timeutil.MetaNow()
+	promoted := v1alpha1.CompletionStatusPromoted
+	r2.Status.Duration.FinishedAt = &finishedAt
+	r2.Status.Duration.CompletionStatus = &promoted
 
 	f.run(getKey(r2, t)) // there should be no api calls
 	f.assertEvents(nil)
@@ -652,17 +698,12 @@ func TestShouldVerifyTargetGroups(t *testing.T) {
 	defaults.SetVerifyTargetGroup(true)
 	defer defaults.SetVerifyTargetGroup(false)
 
-	f := newFixture(t)
-	defer f.Close()
-	ctrl, _, _ := f.newController(noResyncPeriodFunc)
-
 	t.Run("CanaryNotUsingTrafficRouting", func(t *testing.T) {
 		ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromString("25%"), intstr.FromString("25%"))
-		roCtx, err := ctrl.newRolloutContext(ro)
-		roCtx.newRS = newReplicaSetWithStatus(ro, 3, 3)
-		stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: roCtx.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
-		assert.NoError(t, err)
-		assert.False(t, roCtx.shouldVerifyTargetGroup(stableSvc))
+
+		newRS := newReplicaSetWithStatus(ro, 3, 3)
+		stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
+		assert.False(t, shouldVerifyTargetGroup(ro, newRS, stableSvc))
 	})
 	t.Run("CanaryNotFullyPromoted", func(t *testing.T) {
 		ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromString("25%"), intstr.FromString("25%"))
@@ -671,12 +712,10 @@ func TestShouldVerifyTargetGroups(t *testing.T) {
 				Ingress: "ingress",
 			},
 		}
-		roCtx, err := ctrl.newRolloutContext(ro)
-		roCtx.newRS = newReplicaSetWithStatus(ro, 3, 3)
-		stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: roCtx.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
+		newRS := newReplicaSetWithStatus(ro, 3, 3)
+		stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
 		ro.Status.StableRS = "somethingelse"
-		assert.NoError(t, err)
-		assert.False(t, roCtx.shouldVerifyTargetGroup(stableSvc))
+		assert.False(t, shouldVerifyTargetGroup(ro, newRS, stableSvc))
 	})
 	t.Run("CanaryFullyPromoted", func(t *testing.T) {
 		ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromString("25%"), intstr.FromString("25%"))
@@ -685,48 +724,166 @@ func TestShouldVerifyTargetGroups(t *testing.T) {
 				Ingress: "ingress",
 			},
 		}
-		roCtx, err := ctrl.newRolloutContext(ro)
-		roCtx.newRS = newReplicaSetWithStatus(ro, 3, 3)
-		stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: roCtx.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
-		ro.Status.StableRS = roCtx.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-		assert.NoError(t, err)
-		assert.True(t, roCtx.shouldVerifyTargetGroup(stableSvc))
+		newRS := newReplicaSetWithStatus(ro, 3, 3)
+		stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
+		ro.Status.StableRS = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, shouldVerifyTargetGroup(ro, newRS, stableSvc))
 	})
 	t.Run("BlueGreenFullyPromoted", func(t *testing.T) {
 		ro := newBlueGreenRollout("foo", 3, nil, "active-svc", "")
-		roCtx, err := ctrl.newRolloutContext(ro)
-		roCtx.newRS = newReplicaSetWithStatus(ro, 3, 3)
-		activeSvc := newService("active-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: roCtx.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
-		ro.Status.StableRS = roCtx.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-		assert.NoError(t, err)
-		assert.False(t, roCtx.shouldVerifyTargetGroup(activeSvc))
+
+		newRS := newReplicaSetWithStatus(ro, 3, 3)
+		activeSvc := newService("active-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
+		ro.Status.StableRS = newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, shouldVerifyTargetGroup(ro, newRS, activeSvc))
 	})
 	t.Run("BlueGreenBeforePromotion", func(t *testing.T) {
 		ro := newBlueGreenRollout("foo", 3, nil, "active-svc", "")
-		roCtx, err := ctrl.newRolloutContext(ro)
-		roCtx.newRS = newReplicaSetWithStatus(ro, 3, 3)
+		newRS := newReplicaSetWithStatus(ro, 3, 3)
 		activeSvc := newService("active-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "oldrshash"}, ro)
 		ro.Status.StableRS = "oldrshash"
-		assert.NoError(t, err)
-		assert.False(t, roCtx.shouldVerifyTargetGroup(activeSvc))
+		assert.False(t, shouldVerifyTargetGroup(ro, newRS, activeSvc))
 	})
 	t.Run("BlueGreenAfterPromotionAfterPromotionAnalysisStarted", func(t *testing.T) {
 		ro := newBlueGreenRollout("foo", 3, nil, "active-svc", "")
-		roCtx, err := ctrl.newRolloutContext(ro)
-		roCtx.newRS = newReplicaSetWithStatus(ro, 3, 3)
-		activeSvc := newService("active-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: roCtx.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
+		newRS := newReplicaSetWithStatus(ro, 3, 3)
+		activeSvc := newService("active-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
 		ro.Status.StableRS = "oldrshash"
 		ro.Status.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{}
-		assert.NoError(t, err)
-		assert.False(t, roCtx.shouldVerifyTargetGroup(activeSvc))
+		assert.False(t, shouldVerifyTargetGroup(ro, newRS, activeSvc))
 	})
 	t.Run("BlueGreenAfterPromotion", func(t *testing.T) {
 		ro := newBlueGreenRollout("foo", 3, nil, "active-svc", "")
-		roCtx, err := ctrl.newRolloutContext(ro)
-		roCtx.newRS = newReplicaSetWithStatus(ro, 3, 3)
-		activeSvc := newService("active-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: roCtx.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
+		newRS := newReplicaSetWithStatus(ro, 3, 3)
+		activeSvc := newService("active-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
 		ro.Status.StableRS = "oldrshash"
-		assert.NoError(t, err)
-		assert.True(t, roCtx.shouldVerifyTargetGroup(activeSvc))
+		assert.True(t, shouldVerifyTargetGroup(ro, newRS, activeSvc))
 	})
+}
+
+// TestDelayCanaryStableServiceLabelInjection verifies we don't inject pod hash labels to the canary
+// or stable service before the pods for them are ready.
+func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
+	ro1 := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+	ro1.Spec.Strategy.Canary.CanaryService = "canary"
+	ro1.Spec.Strategy.Canary.StableService = "stable"
+	canarySvc := newService("canary", 80, ro1.Spec.Selector.MatchLabels, nil)
+	stableSvc := newService("stable", 80, ro1.Spec.Selector.MatchLabels, nil)
+	ro2 := bumpVersion(ro1)
+
+	f := newFixture(t)
+	defer f.Close()
+	f.kubeobjects = append(f.kubeobjects, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	f.objects = append(f.objects, ro2)
+	f.rolloutLister = append(f.rolloutLister, ro2)
+
+	{
+		// first ensure we don't update service because new/stable are both not available
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 0)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 0)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		_, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, canaryInjected)
+		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, stableInjected)
+	}
+	{
+		// ensure we don't update service because new/stable are both partially available on an adoption of service reconcile
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 1)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 1)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		_, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, canaryInjected)
+		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, stableInjected)
+	}
+	{
+		// next ensure we do update service because new/stable are now available
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 3)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 3)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		_, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, canaryInjected)
+		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, stableInjected)
+	}
+
+}
+
+// TestDelayCanaryStableServiceDelayOnAdoptedService verifies allow partial readiness of pods when switching labels
+// on an adopted services, but that if there is zero readiness we will not switch
+func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
+	ro1 := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+	ro1.Spec.Strategy.Canary.CanaryService = "canary"
+	ro1.Spec.Strategy.Canary.StableService = "stable"
+	//Setup services that are already adopted by rollouts
+	stableSvc := newService("stable", 80, ro1.Spec.Selector.MatchLabels, ro1)
+	ro2 := bumpVersion(ro1)
+	canarySvc := newService("canary", 80, ro1.Spec.Selector.MatchLabels, ro2)
+
+	f := newFixture(t)
+	defer f.Close()
+	f.kubeobjects = append(f.kubeobjects, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	f.objects = append(f.objects, ro2)
+	f.rolloutLister = append(f.rolloutLister, ro2)
+
+	t.Run("AdoptedService No Availability", func(t *testing.T) {
+		// first ensure we don't update service because new/stable are both not available
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 0)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 0)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		canaryHash2, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, canaryInjected)
+		fmt.Println(canaryHash2)
+		stableHash2, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, stableInjected)
+		fmt.Println(stableHash2)
+	})
+	t.Run("AdoptedService Partial Availability", func(t *testing.T) {
+		// ensure we do change selector on partially available replica sets
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 1)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 2)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		canaryHash2, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, canaryInjected)
+		fmt.Println(canaryHash2)
+		stableHash2, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, stableInjected)
+		fmt.Println(stableHash2)
+	})
+
 }

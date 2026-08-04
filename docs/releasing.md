@@ -1,36 +1,62 @@
 # Releasing
 
-1. Tag a commit to release from using semantic versioning (e.g. v1.0.0-rc1)
+1. Ensure that the `release branch` already exist.
 
-1. Visit the [Release GitHub Action](https://github.com/argoproj/argo-rollouts/actions/workflows/release.yaml)
-   and enter the tag.
+1. Checkout the release branch. Example: `git fetch upstream && git
+   checkout release-1.5`
 
-[![GitHub Release Action](release-action.png)](release-action.png)
+1. Run the script found at `hack/trigger-release.sh` as follows:
 
-1. When the action completes, visit the generated draft [Github releases](https://github.com/argoproj/argo-rollouts/releases) and enter the details about the release:
+```shell
+./hack/trigger-release.sh <version> <remote name>
+```
+
+Example:
+```shell
+./hack/trigger-release.sh v1.6.0-rc1 upstream
+```
+
+!!! tip
+    The tag must be in one of the following formats to trigger the GH workflow:<br>
+    * GA: `v<MAJOR>.<MINOR>.<PATCH>`<br>
+    * Pre-release: `v<MAJOR>.<MINOR>.<PATCH>-rc<RC#>`
+
+Once the script is executed successfully, a GitHub workflow will start
+execution. You can follow its progress under the [Actions](https://github.com/argoproj/argo-rollouts/actions/workflows/release.yaml) tab, the name of the action is `Release`.
+
+1. When the action completes, visit the generated draft [GitHub releases](https://github.com/argoproj/argo-rollouts/releases) and enter the details about the release:
    * Getting started (copy from previous release and new version)
    * Changelog
 
-1. Update `stable` tag:
-
-    ```bash
-    git tag stable --force && git push $REPO stable --force
-    ```
+### Update Brew formula
 
 1. Update Brew formula:
 
+   * Fork the repo https://github.com/argoproj/homebrew-tap
+   * Run the following commands to update the brew formula:
     ```bash
-    git clone git@github.com:argoproj/homebrew-tap.git
     cd homebrew-tap
-    git pull
     ./update.sh kubectl-argo-rollouts $VERSION
-    git commit -am "Update kubectl-argo-rollouts to $VERSION"
-    git push
     ```
+   * If there is a new minor version we want to update the versioned formula as well:
+     * Run the following commands to update the versioned brew formula:
+          ```bash
+          ./update.sh kubectl-argo-rollouts $VERSION @<version_without_patch_and_v>
+          ```
+     * Example: If the new version is `v1.3.2`, we want to update the formula for `v1.3` as well.
+         ```bash
+         ./update.sh kubectl-argo-rollouts v1.3.2 @1.3
+         ```
+   * Commit and push the changes to your fork
+     ```bash
+     git commit -am "Update kubectl-argo-rollouts to $VERSION"
+     ```
+   * Create a PR with the modified files pointing to upstream/master
+   * Once the PR is approved by a maintainer, it can be merged.
 
 ### Verify
 
-1. Install locally using the command below and follow the [Getting Started Guide](https://argoproj.github.io/argo-rollouts/getting-started/):
+1. Install locally using the command below and follow the [Getting Started Guide](https://argo-rollouts.readthedocs.io/en/stable/getting-started/):
 
     ```bash
     kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/download/${VERSION}/install.yaml
@@ -42,3 +68,21 @@
     brew upgrade kubectl-argo-rollouts
     kubectl argo rollouts version
     ```
+
+### Releasing from your own fork of Argo Rollouts
+
+It is also possible to release from your own personal/company fork. This is useful if your organization keeps [a second copy of Argo Rollouts](https://github.com/argoproj/argo-rollouts/blob/master/docs/proposals/parameterized-build-system.md) for hot-fixes or security updates.
+
+1. Sign-up for a RedHat account so that you get acess to [Quay Registry](http://quay.io)
+2. Login and create two repositories called `argo-rollouts` and `kubectl-argo-rollouts` (for the CLI)
+3. Under "Account settings" create a "Robot account" for CI automation with any name you want. A token will be generated for you
+
+Then enter your GitHub account in your own forked repo and under Settings -> "Secrets and Variables" -> actions:
+
+* Add `QUAY_USERNAME` and `QUAY_ROBOT_TOKEN` as "Repository Secrets" with the values you created from the previous step 
+* Add `REGISTRY_NAMESPACE` with your own Quay username/organization as "Repository variables"
+
+Now follow any of the instructions from the previous section and you will see released images in your own Quay repository.
+
+!!! tip
+    The `trigger-release.sh` does some basic checks for the name of the tag. If you want to release with a tag that doesn't follow the expected naming convention you can skip this script and just push a tag on your own directly to GitHub.

@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -98,6 +99,69 @@ func (s *IstioSuite) TestIstioHostSplit() {
 					assert.Equal(s.T(), int64(100), vsvc.Spec.TLS[0].Route[0].Weight)
 					assert.Equal(s.T(), int64(0), vsvc.Spec.TLS[0].Route[1].Weight)
 				}
+
+				desired, stable := t.GetServices()
+				rs2 := t.GetReplicaSetByRevision("2")
+				assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], desired.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+				assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stable.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+			}).
+			ExpectRevisionPodCount("1", 1) // don't scale down old replicaset since it will be within scaleDownDelay
+
+		s.TearDownSuite()
+	}
+}
+
+func (s *IstioSuite) TestIstioHostSplitOnlyTls() {
+
+	tests := []struct {
+		filename string
+	}{
+		{
+			"@istio/istio-host-only-tls-split.yaml",
+		},
+	}
+
+	for _, tc := range tests {
+
+		s.Given().
+			RolloutObjects(tc.filename).
+			When().
+			ApplyManifests().
+			WaitForRolloutStatus("Healthy").
+			Then().
+			Assert(func(t *fixtures.Then) {
+				vsvc := t.GetVirtualService()
+				assert.Equal(s.T(), int64(100), vsvc.Spec.TLS[0].Route[0].Weight)
+				assert.Equal(s.T(), int64(0), vsvc.Spec.TLS[0].Route[1].Weight)
+				desired, stable := t.GetServices()
+				rs1 := t.GetReplicaSetByRevision("1")
+				assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], desired.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+				assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stable.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+			}).
+			When().
+			UpdateSpec().
+			WaitForRolloutStatus("Paused").
+			Then().
+			Assert(func(t *fixtures.Then) {
+				vsvc := t.GetVirtualService()
+				assert.Equal(s.T(), int64(90), vsvc.Spec.TLS[0].Route[0].Weight)
+				assert.Equal(s.T(), int64(10), vsvc.Spec.TLS[0].Route[1].Weight)
+
+				desired, stable := t.GetServices()
+				rs1 := t.GetReplicaSetByRevision("1")
+				rs2 := t.GetReplicaSetByRevision("2")
+				assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], desired.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+				assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stable.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+			}).
+			When().
+			PromoteRollout().
+			WaitForRolloutStatus("Healthy").
+			Sleep(1*time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+			Then().
+			Assert(func(t *fixtures.Then) {
+				vsvc := t.GetVirtualService()
+				assert.Equal(s.T(), int64(100), vsvc.Spec.TLS[0].Route[0].Weight)
+				assert.Equal(s.T(), int64(0), vsvc.Spec.TLS[0].Route[1].Weight)
 
 				desired, stable := t.GetServices()
 				rs2 := t.GetReplicaSetByRevision("2")
@@ -239,7 +303,7 @@ func (s *IstioSuite) TestIstioAbortUpdate() {
 		Then().
 		When().
 		AbortRollout().
-		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectRevisionPodCount("1", 1).
 		When().
@@ -252,9 +316,29 @@ func (s *IstioSuite) TestIstioAbortUpdate() {
 		Then().
 		When().
 		AbortRollout().
-		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectRevisionPodCount("2", 1)
+}
+
+func (s *IstioSuite) TestIstioUpdateInMiddleZeroCanaryReplicas() {
+	s.Given().
+		RolloutObjects("@istio/istio-host-split-update-in-middle.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("2", 1).
+		When().
+		UpdateSpec().
+		WaitForRevisionPodCount("3", 1).
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("3", 1)
 }
 
 func (s *IstioSuite) TestIstioAbortUpdateDeleteAllCanaryPods() {
@@ -273,10 +357,6 @@ func (s *IstioSuite) TestIstioAbortUpdateDeleteAllCanaryPods() {
 		PromoteRollout().
 		WaitForRolloutStatus("Paused").
 		Then().
-		When().
-		PromoteRollout().
-		WaitForRolloutStatus("Paused").
-		Then().
 		ExpectRevisionPodCount("2", 4).
 		When().
 		AbortRollout().
@@ -285,4 +365,208 @@ func (s *IstioSuite) TestIstioAbortUpdateDeleteAllCanaryPods() {
 		ExpectRevisionPodCount("1", 5).
 		ExpectRevisionPodCount("2", 4).    // canary pods remained scaled
 		ExpectRevisionScaleDown("2", true) // but have a scale down delay
+}
+
+func (s *IstioSuite) TestIstioHostSplitExperimentStep() {
+	s.Given().
+		RolloutObjects("@istio/istio-host-split-experiment-step.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), "istio-host-split-stable", vsvc.Spec.HTTP[0].Route[0].Destination.Host)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+			assert.Equal(s.T(), "istio-host-split-canary", vsvc.Spec.HTTP[0].Route[1].Destination.Host)
+
+			desired, stable := t.GetServices()
+			rs1 := t.GetReplicaSetByRevision("1")
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], desired.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stable.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+		}).
+		When().
+		UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).
+		Sleep(10*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(70), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), "istio-host-split-stable", vsvc.Spec.HTTP[0].Route[0].Destination.Host)
+
+			assert.Equal(s.T(), int64(10), vsvc.Spec.HTTP[0].Route[1].Weight)
+			assert.Equal(s.T(), "istio-host-split-canary", vsvc.Spec.HTTP[0].Route[1].Destination.Host)
+
+			assert.Equal(s.T(), int64(20), vsvc.Spec.HTTP[0].Route[2].Weight)
+			ex := t.GetRolloutExperiments().Items[0]
+			exServiceName := ex.Status.TemplateStatuses[0].ServiceName
+			assert.Equal(s.T(), exServiceName, vsvc.Spec.HTTP[0].Route[2].Destination.Host)
+
+			desired, stable := t.GetServices()
+			rs1 := t.GetReplicaSetByRevision("1")
+			rs2 := t.GetReplicaSetByRevision("2")
+			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], desired.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stable.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+		}).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1*time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), "istio-host-split-stable", vsvc.Spec.HTTP[0].Route[0].Destination.Host)
+
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+			assert.Equal(s.T(), "istio-host-split-canary", vsvc.Spec.HTTP[0].Route[1].Destination.Host)
+
+			desired, stable := t.GetServices()
+			rs2 := t.GetReplicaSetByRevision("2")
+			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], desired.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stable.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+		}).
+		ExpectRevisionPodCount("1", 1) // don't scale down old replicaset since it will be within scaleDownDelay
+
+	s.TearDownSuite()
+}
+
+func (s *IstioSuite) TestIstioSubsetSplitExperimentStep() {
+	s.Given().
+		RolloutObjects("@istio/istio-subset-split-experiment-step.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight) // stable
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)   // canary
+
+			rs1 := t.GetReplicaSetByRevision("1")
+			destrule := t.GetDestinationRule()
+			assert.Len(s.T(), destrule.Spec.Subsets, 2)
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // stable
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // canary
+
+		}).
+		When().
+		UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).
+		Sleep(10*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(70), vsvc.Spec.HTTP[0].Route[0].Weight) // stable
+			assert.Equal(s.T(), int64(10), vsvc.Spec.HTTP[0].Route[1].Weight) // canary
+			assert.Equal(s.T(), int64(20), vsvc.Spec.HTTP[0].Route[2].Weight)
+			ex := t.GetRolloutExperiments().Items[0]
+			assert.Equal(s.T(), ex.Status.TemplateStatuses[0].ServiceName, vsvc.Spec.HTTP[0].Route[2].Destination.Host)
+
+			rs1 := t.GetReplicaSetByRevision("1")
+			rs2 := t.GetReplicaSetByRevision("2")
+			destrule := t.GetDestinationRule()
+			assert.Len(s.T(), destrule.Spec.Subsets, 3)
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // stable
+			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // canary
+			assert.Equal(s.T(), ex.Status.TemplateStatuses[0].PodTemplateHash, destrule.Spec.Subsets[2].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+		}).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1*time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight) // stable
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)   // canary
+
+			destrule := t.GetDestinationRule()
+			rs2 := t.GetReplicaSetByRevision("2")
+			assert.Len(s.T(), destrule.Spec.Subsets, 2)
+			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // stable
+			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // canary
+		}).
+		ExpectRevisionPodCount("1", 1) // don't scale down old replicaset since it will be within scaleDownDelay
+
+	s.TearDownSuite()
+}
+
+func (s *IstioSuite) TestIstioPingPongUpdate() {
+	s.Given().
+		RolloutObjects("@istio/istio-host-split-ping-pong.yaml").
+		When().ApplyManifests().WaitForRolloutStatus("Healthy").
+		Then().
+		//Assert(assertWeights(s, "ping-service", "pong-service", 100, 0)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+		}).
+		// Update 1. Test the weight switch from ping => pong
+		When().UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).Sleep(1 * time.Second).Then().
+		//Assert(assertWeights(s, "ping-service", "pong-service", 75, 25)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(75), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(25), vsvc.Spec.HTTP[0].Route[1].Weight)
+		}).
+		When().PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
+		Then().
+		//Assert(assertWeights(s, "ping-service", "pong-service", 0, 100)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[1].Weight)
+		}).
+		// Update 2. Test the weight switch from pong => ping
+		When().UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).Sleep(1 * time.Second).Then().
+		//Assert(assertWeights(s, "ping-service", "pong-service", 25, 75)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(25), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(75), vsvc.Spec.HTTP[0].Route[1].Weight)
+		}).
+		When().PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
+		Then().
+		//Assert(assertWeights(s, "ping-service", "pong-service", 100, 0))
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+		})
+}
+
+func (s *IstioSuite) TestIstioSubsetSplitInStableDownscaleAfterCanaryAbort() {
+	s.Given().
+		RolloutObjects("@istio/istio-subset-split-in-stable-downscale-after-canary-abort.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		PromoteRolloutFull().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		ScaleRollout(1).
+		WaitForRolloutReplicas(1).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			stableWeight := vsvc.Spec.HTTP[0].Route[0].Weight
+			canaryWeight := vsvc.Spec.HTTP[0].Route[1].Weight
+
+			assert.Equal(s.T(), int64(0), canaryWeight)
+			assert.Equal(s.T(), int64(100), stableWeight)
+		})
+
+	s.TearDownSuite()
 }

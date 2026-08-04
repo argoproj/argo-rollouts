@@ -1,28 +1,34 @@
 package webmetric
 
 import (
+	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
-	"net/url"
 	"reflect"
+	"strings"
 	"time"
 
-	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 	"k8s.io/client-go/util/jsonpath"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
+	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
 	// ProviderType indicates the provider is a web metric
-	ProviderType = "Web"
+	ProviderType         = "Web"
+	ContentTypeKey       = "Content-Type"
+	ContentTypeJsonValue = "application/json"
 )
 
 // Provider contains all the required components to run a WebMetric query
@@ -38,37 +44,70 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
+// GetMetadata returns any additional metadata which needs to be stored & displayed as part of the metrics result.
+func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
+	return nil
+}
+
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
-	startTime := metav1.Now()
+	startTime := timeutil.MetaNow()
 
 	// Measurement to pass back
 	measurement := v1alpha1.Measurement{
 		StartedAt: &startTime,
 	}
 
-	// Create request
-	request := &http.Request{
-		Method: "GET", // TODO maybe make this configurable....also implies we will need body templates
+	method := v1alpha1.WebMetricMethodGet
+	if metric.Provider.Web.Method != "" {
+		method = metric.Provider.Web.Method
 	}
 
-	url, err := url.Parse(metric.Provider.Web.URL)
+	url := metric.Provider.Web.URL
+
+	stringBody := metric.Provider.Web.Body
+	jsonBody := metric.Provider.Web.JSONBody
+
+	var body io.Reader
+
+	if stringBody != "" && jsonBody != nil {
+		return metricutil.MarkMeasurementError(measurement, fmt.Errorf("use either Body or JSONBody; both cannot exists for WebMetric payload"))
+	} else if (stringBody != "" || jsonBody != nil) && method == v1alpha1.WebMetricMethodGet {
+		return metricutil.MarkMeasurementError(measurement, fmt.Errorf("Body/JSONBody can only be used with POST or PUT WebMetric Method types"))
+	}
+
+	if stringBody != "" {
+		body = strings.NewReader(stringBody)
+	} else if jsonBody != nil {
+		bodyBytes, err := jsonBody.MarshalJSON()
+		if err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
+		body = bytes.NewBuffer(bodyBytes)
+	}
+
+	// Create request
+	request, err := http.NewRequest(string(method), url, body)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
-
-	request.URL = url
 
 	request.Header = make(http.Header)
 
 	for _, header := range metric.Provider.Web.Headers {
 		request.Header.Set(header.Key, header.Value)
 	}
+	if jsonBody != nil {
+		request.Header.Set(ContentTypeKey, ContentTypeJsonValue)
+	}
 
 	// Send Request
 	response, err := p.client.Do(request)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
-	} else if response.StatusCode < 200 || response.StatusCode >= 300 {
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return metricutil.MarkMeasurementError(measurement, fmt.Errorf("received non 2xx response code: %v", response.StatusCode))
 	}
 
@@ -79,24 +118,25 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	measurement.Value = value
 	measurement.Phase = status
-	finishedTime := metav1.Now()
+	finishedTime := timeutil.MetaNow()
 	measurement.FinishedAt = &finishedTime
 
 	return measurement
 }
 
 func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
-	var data interface{}
+	var data any
 
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
 	}
 
 	err = json.Unmarshal(bodyBytes, &data)
 	if err != nil {
-		// non JSON body return as string
-		return string(bodyBytes), v1alpha1.AnalysisPhaseSuccessful, nil
+		bodyStr := string(bodyBytes)
+		status, evalErr := evaluate.EvaluateResult(bodyStr, metric, p.logCtx)
+		return bodyStr, status, evalErr
 	}
 
 	fullResults, err := p.jsonParser.FindResults(data)
@@ -112,7 +152,7 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 	return valString, status, err
 }
 
-func getValue(fullResults [][]reflect.Value) (interface{}, string, error) {
+func getValue(fullResults [][]reflect.Value) (any, string, error) {
 	for _, results := range fullResults {
 		for _, r := range results {
 			val := r.Interface()
@@ -140,8 +180,13 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
-func NewWebMetricHttpClient(metric v1alpha1.Metric) *http.Client {
+var insecureTransport *http.Transport = &http.Transport{
+	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+}
+
+func NewWebMetricHttpClient(metric v1alpha1.Metric) (*http.Client, error) {
 	var timeout time.Duration
+	var oauthCfg clientcredentials.Config
 
 	// Using a default timeout of 10 seconds
 	if metric.Provider.Web.TimeoutSeconds <= 0 {
@@ -154,12 +199,21 @@ func NewWebMetricHttpClient(metric v1alpha1.Metric) *http.Client {
 		Timeout: timeout,
 	}
 	if metric.Provider.Web.Insecure {
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		c.Transport = tr
+		c.Transport = insecureTransport
 	}
-	return c
+	if metric.Provider.Web.Authentication.OAuth2.TokenURL != "" {
+		if metric.Provider.Web.Authentication.OAuth2.ClientID == "" || metric.Provider.Web.Authentication.OAuth2.ClientSecret == "" {
+			return nil, errors.New("missing mandatory parameter in metric for OAuth2 setup")
+		}
+		oauthCfg = clientcredentials.Config{
+			ClientID:     metric.Provider.Web.Authentication.OAuth2.ClientID,
+			ClientSecret: metric.Provider.Web.Authentication.OAuth2.ClientSecret,
+			TokenURL:     metric.Provider.Web.Authentication.OAuth2.TokenURL,
+			Scopes:       metric.Provider.Web.Authentication.OAuth2.Scopes,
+		}
+		return oauthCfg.Client(context.WithValue(context.Background(), oauth2.HTTPClient, c)), nil
+	}
+	return c, nil
 }
 
 func NewWebMetricJsonParser(metric v1alpha1.Metric) (*jsonpath.JSONPath, error) {

@@ -41,10 +41,18 @@ func GetVirtualServiceNamespaceName(vsv string) (string, string) {
 	namespace := ""
 	name := ""
 
+	// Strip the well-known cluster.local DNS suffix before parsing so that a
+	// fully-qualified reference still resolves to the right name/namespace.
+	vsv = strings.TrimSuffix(vsv, ".cluster.local")
+
 	fields := strings.Split(vsv, ".")
 	if len(fields) >= 2 {
-		name = fields[0]
-		namespace = fields[1]
+		// Istio uses the "name.namespace" shorthand and a Kubernetes namespace
+		// cannot contain a period, so the last segment is the namespace and
+		// everything before it is the VirtualService name. This keeps names
+		// that legitimately contain periods intact (see issue #4709).
+		name = strings.Join(fields[:len(fields)-1], ".")
+		namespace = fields[len(fields)-1]
 	} else if len(fields) == 1 {
 		name = fields[0]
 	}
@@ -63,15 +71,15 @@ func GetRolloutVirtualServiceKeys(ro *v1alpha1.Rollout) []string {
 	canary := ro.Spec.Strategy.Canary
 
 	if canary == nil || canary.TrafficRouting == nil || canary.TrafficRouting.Istio == nil ||
-		(canary.TrafficRouting.Istio.VirtualServices == nil && canary.TrafficRouting.Istio.VirtualService.Name == "") ||
-		(canary.TrafficRouting.Istio.VirtualServices != nil && canary.TrafficRouting.Istio.VirtualService.Name != "") {
+		(canary.TrafficRouting.Istio.VirtualServices == nil && canary.TrafficRouting.Istio.VirtualService == nil) ||
+		(canary.TrafficRouting.Istio.VirtualServices != nil && canary.TrafficRouting.Istio.VirtualService != nil) {
 		return []string{}
 	}
 
 	if MultipleVirtualServiceConfigured(ro) {
 		virtualServices = ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
 	} else {
-		virtualServices = []v1alpha1.IstioVirtualService{ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
+		virtualServices = []v1alpha1.IstioVirtualService{*ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
 	}
 
 	for _, virtualService := range virtualServices {
@@ -79,6 +87,10 @@ func GetRolloutVirtualServiceKeys(ro *v1alpha1.Rollout) []string {
 		if namespace == "" {
 			namespace = ro.Namespace
 		}
+		if name == "" {
+			continue
+		}
+
 		virtualServiceKeys = append(virtualServiceKeys, fmt.Sprintf("%s/%s", namespace, name))
 	}
 

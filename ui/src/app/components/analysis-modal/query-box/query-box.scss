@@ -1,0 +1,50 @@
+@import '../theme/theme.scss';
+
+.query-box {
+    position: relative;
+    padding: $space-small 48px $space-small $space-small;
+    background-color: $gray-2;
+    border: 1px solid $gray-4;
+    max-height: 70px;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+
+    &.can-expand {
+        cursor: pointer;
+    }
+
+    .query {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        overflow: auto hidden;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        text-overflow: ellipsis;
+        line-clamp: 3;
+        -webkit-line-clamp: 3;
+        font-family: $font-family-mono;
+        font-size: 12px;
+        margin-bottom: 0;
+    }
+
+    &.is-expanded {
+        max-height: 500px;
+
+        .query {
+            line-clamp: initial;
+            -webkit-line-clamp: initial;
+        }
+    }
+}
+
+.query-copy-button {
+    position: absolute;
+    font-size: 18px;
+    line-height: 1;
+    top: 8px;
+    right: 6px;
+
+    svg {
+        color: $ant-primary;
+    }
+}

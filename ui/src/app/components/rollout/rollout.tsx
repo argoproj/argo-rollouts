@@ -1,9 +1,17 @@
-import {EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, WaitFor} from 'argo-ui/v2';
 import * as React from 'react';
+import * as YAML from 'yaml';
 import {Helmet} from 'react-helmet';
-import {Key, KeybindingContext} from 'react-keyhooks';
-import {useHistory, useParams} from 'react-router-dom';
-import {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep, RolloutReplicaSetInfo, RolloutRolloutInfo, RolloutServiceApi} from '../../../models/rollout/generated';
+import {useParams} from 'react-router-dom';
+import {
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep,
+    RolloutReplicaSetInfo,
+    RolloutRolloutInfo,
+    RolloutServiceApi,
+} from '../../../models/rollout/generated';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 import {useWatchRollout} from '../../shared/services/rollout';
@@ -12,6 +20,11 @@ import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {ContainersWidget} from './containers';
 import {Revision, RevisionWidget} from './revision';
 import './rollout.scss';
+import {Fragment} from 'react';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {faChevronCircleDown, faChevronCircleUp, faCircleNotch} from '@fortawesome/free-solid-svg-icons';
+import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
+import { notification } from 'antd';
 
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 export interface ImageInfo {
@@ -38,35 +51,7 @@ export const parseImages = (replicaSets: RolloutReplicaSetInfo[]): ImageInfo[] =
     const unknownImages: {[key: string]: boolean} = {};
     (replicaSets || []).forEach((rs) => {
         (rs.images || []).forEach((img) => {
-            const tags: ImageTag[] = [];
-
-            if (rs.canary) {
-                tags.push(ImageTag.Canary);
-            }
-            if (rs.stable) {
-                tags.push(ImageTag.Stable);
-            }
-            if (rs.active) {
-                tags.push(ImageTag.Active);
-            }
-            if (rs.preview) {
-                tags.push(ImageTag.Preview);
-            }
-
-            if (images[img]) {
-                images[img].tags = [...tags, ...images[img].tags];
-            } else {
-                images[img] = {
-                    image: img,
-                    tags: tags,
-                };
-            }
-
-            if (images[img].tags.length === 0) {
-                unknownImages[img] = true;
-            } else {
-                unknownImages[img] = false;
-            }
+            updateImageInfo(rs,img,images,unknownImages);
         });
     });
 
@@ -77,6 +62,54 @@ export const parseImages = (replicaSets: RolloutReplicaSetInfo[]): ImageInfo[] =
     return imgArray;
 };
 
+export const parseInitContainerImages = (replicaSets: RolloutReplicaSetInfo[]): ImageInfo[] => {
+    const images: {[key: string]: ImageInfo} = {};
+    const unknownImages: {[key: string]: boolean} = {};
+    (replicaSets || []).forEach((rs) => {
+        (rs.initContainerImages || []).forEach((img) => {
+            updateImageInfo(rs,img,images,unknownImages);
+        });
+    });
+
+    const imgArray = Object.values(images);
+    imgArray.sort((a, b) => {
+        return unknownImages[a.image] ? 1 : -1;
+    });
+    return imgArray;
+};
+
+const updateImageInfo = (rs: RolloutReplicaSetInfo,img: string ,images: {[key: string]: ImageInfo},unknownImages:{[key: string]: boolean}) => {
+    const tags: ImageTag[] = [];
+
+    if (rs.canary) {
+        tags.push(ImageTag.Canary);
+    }
+    if (rs.stable) {
+        tags.push(ImageTag.Stable);
+    }
+    if (rs.active) {
+        tags.push(ImageTag.Active);
+    }
+    if (rs.preview) {
+        tags.push(ImageTag.Preview);
+    }
+
+    if (images[img]) {
+        images[img].tags = [...tags, ...images[img].tags];
+    } else {
+        images[img] = {
+            image: img,
+            tags: tags,
+        };
+    }
+
+    if (images[img].tags.length === 0) {
+        unknownImages[img] = true;
+    } else {
+        unknownImages[img] = false;
+    }
+};
+
 export type ReactStatePair = [boolean, React.Dispatch<React.SetStateAction<boolean>>];
 
 export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?: {editState: ReactStatePair; api: RolloutServiceApi; namespace: string}}) => {
@@ -84,8 +117,10 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
     const curStep = parseInt(rollout.step, 10) || (rollout.steps || []).length;
     const revisions = ProcessRevisions(rollout);
 
-    const images = parseImages(rollout?.replicaSets || []);
+    const initContainerEditState =  React.useState(false);
+    const initContainerImages = parseInitContainerImages(rollout?.replicaSets || []);
 
+    const images = parseImages(rollout?.replicaSets || []);
     for (const img of images) {
         for (const container of rollout.containers || []) {
             if (img.image === container.image) {
@@ -95,74 +130,131 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
     }
 
     return (
-        <React.Fragment>
-            <div className='rollout__row rollout__row--top'>
-                <ThemeDiv className='info rollout__info'>
-                    <div className='info__title'>Summary</div>
-
-                    <InfoItemRow
-                        items={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy), kind: rollout.strategy?.toLowerCase() as InfoItemKind}}
-                        label='Strategy'
-                    />
-                    <ThemeDiv className='rollout__info__section'>
-                        {rollout.strategy === Strategy.Canary && (
-                            <React.Fragment>
-                                <InfoItemRow items={{content: rollout.step, icon: 'fa-shoe-prints'}} label='Step' />
-                                <InfoItemRow items={{content: rollout.setWeight, icon: 'fa-balance-scale-right'}} label='Set Weight' />
-                                <InfoItemRow items={{content: rollout.actualWeight, icon: 'fa-balance-scale'}} label='Actual Weight' />{' '}
-                            </React.Fragment>
-                        )}
-                    </ThemeDiv>
-                </ThemeDiv>
-                <ThemeDiv className='info rollout__info'>
-                    <ContainersWidget
-                        images={images}
-                        containers={rollout.containers || []}
-                        interactive={
-                            interactive
-                                ? {
-                                      editState: interactive.editState,
-                                      setImage: (container, image, tag) => {
-                                          interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag);
-                                      },
-                                  }
-                                : null
-                        }
-                    />
-                </ThemeDiv>
+        <div style={{display: 'flex', margin: '0 auto'}}>
+            <div style={{marginRight: '20px'}}>
+                {(rollout?.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && <Steps rollout={rollout} curStep={curStep} />}
             </div>
 
-            <div className='rollout__row rollout__row--bottom'>
-                {rollout.replicaSets && rollout.replicaSets.length > 0 && (
-                    <ThemeDiv className='info rollout__info rollout__revisions'>
-                        <div className='info__title'>Revisions</div>
-                        <div style={{marginTop: '1em'}}>
-                            {revisions.map((r, i) => (
-                                <RevisionWidget
-                                    key={i}
-                                    revision={r}
-                                    initCollapsed={false}
-                                    rollback={interactive ? (r) => interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`) : null}
-                                    current={i === 0}
-                                />
-                            ))}
+            <div>
+                <div className='rollout__row rollout__row--top'>
+                    <div className='info rollout__info'>
+                        <div className='info__title'>Summary</div>
+
+                        <InfoItemRow
+                            items={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy), kind: rollout.strategy?.toLowerCase() as InfoItemKind}}
+                            label='Strategy'
+                        />
+                        <div className='rollout__info__section'>
+                            {rollout.strategy === Strategy.Canary && (
+                                <React.Fragment>
+                                    <InfoItemRow items={{content: rollout.step, icon: 'fa-shoe-prints'}} label='Step' />
+                                    <InfoItemRow items={{content: rollout.setWeight, icon: 'fa-balance-scale-right'}} label='Set Weight' />
+                                    <InfoItemRow items={{content: rollout.actualWeight, icon: 'fa-balance-scale'}} label='Actual Weight' />{' '}
+                                </React.Fragment>
+                            )}
                         </div>
-                    </ThemeDiv>
-                )}
-                {(rollout?.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && (
-                    <ThemeDiv className='info steps'>
-                        <ThemeDiv className='info__title'>Steps</ThemeDiv>
-                        <div style={{marginTop: '1em'}}>
-                            {rollout.steps.map((step, i) => (
-                                <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === (rollout.steps || []).length - 1} />
-                            ))}
+                    </div>
+                    <div className='info rollout__info'>
+                        <ContainersWidget
+                            images={images}
+                            name='Containers'
+                            containers={rollout.containers || []}
+                            interactive={
+                                interactive
+                                    ? {
+                                          editState: interactive.editState,
+                                          setImage: (container, image, tag) => {
+                                            void interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag)
+                                                .catch((e) => {
+                                                    console.error('Error setting image:', e);
+                                                    notification.error({
+                                                        message: 'Error setting image',
+                                                        description: e.message || 'An unexpected error occurred while setting the image.',
+                                                        duration: 8,
+                                                        placement: 'bottomRight',
+                                                    });
+                                                });
+                                          },
+                                      }
+                                    : null
+                            }
+                        />
+                    </div>
+                    {rollout.initContainers && <div className='info rollout__info'>
+                        <ContainersWidget
+                            images={initContainerImages}
+                            name='Init Containers'
+                            containers={rollout.initContainers || []}
+                            interactive={
+                                interactive
+                                    ? {
+                                          editState: initContainerEditState,
+                                          setImage: (container, image, tag) => {
+                                            void interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag)
+                                                .catch((e) => {
+                                                    console.error('Error setting image:', e);
+                                                    notification.error({
+                                                        message: 'Error setting image',
+                                                        description: e.message || 'An unexpected error occurred while setting the image.',
+                                                        duration: 8,
+                                                        placement: 'bottomRight',
+                                                    });
+                                                });
+                                          },
+                                      }
+                                    : null
+                            }
+                        />
+                    </div>}
+                </div>
+
+                <div className='rollout__row rollout__row--bottom'>
+                    {rollout.replicaSets && rollout.replicaSets.length > 0 && (
+                        <div className='info rollout__info rollout__revisions'>
+                            <div className='info__title'>Revisions</div>
+                            <div style={{marginTop: '1em'}}>
+                                {revisions.map((r, i) => (
+                                    <RevisionWidget
+                                        key={i}
+                                        revision={r}
+                                        initCollapsed={false}
+                                        rollback={interactive ? async (r) => {
+                                            try {
+                                                await interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`);
+                                            } catch (e) {
+                                                console.error('Error rolling back:', e);
+                                                notification.error({
+                                                    message: 'Error rolling back',
+                                                    description: e.message || 'An unexpected error occurred while rolling back the rollout.',
+                                                    duration: 8,
+                                                    placement: 'bottomRight',
+                                                });
+                                            }
+                                        } : null}
+                                        current={i === 0}
+                                    />
+                                ))}
+                            </div>
                         </div>
-                    </ThemeDiv>
-                )}
+                    )}
+                </div>
             </div>
-        </React.Fragment>
+        </div>
     );
 };
+
+const Steps = (props: {rollout: RolloutInfo; curStep: number}) => (
+    <div className='info steps'>
+        <div className='info__title'>Steps</div>
+        <div style={{marginTop: '1em'}}>
+            {props.rollout.steps
+                .filter((step) => Object.keys(step).length)
+                .map((step, i, arr) => (
+                    <Step key={`step-${i}`} step={step} complete={i < props.curStep} current={i === props.curStep} last={i === arr.length - 1} />
+                ))}
+        </div>
+    </div>
+);
 
 export const Rollout = () => {
     const {name} = useParams<{name: string}>();
@@ -171,39 +263,25 @@ export const Rollout = () => {
     const api = React.useContext(RolloutAPIContext);
     const namespaceCtx = React.useContext(NamespaceContext);
 
-    const {useKeybinding} = React.useContext(KeybindingContext);
     const editState = React.useState(false);
-    const history = useHistory();
-
-    useKeybinding(Key.L, () => {
-        if (editState[0]) {
-            return false;
-        }
-        history.push('/rollouts');
-        return true;
-    });
 
     return (
         <div className='rollout'>
             <Helmet>
                 <title>{name} / Argo Rollouts</title>
             </Helmet>
-            <ThemeDiv className='rollout__toolbar'>
-                <ThemeDiv className='rollout__header'>
+            <div className='rollout__toolbar'>
+                <div className='rollout__header'>
                     <div style={{marginRight: '5px'}}>{name}</div> <StatusIcon status={rollout.status as RolloutStatus} />
-                </ThemeDiv>
+                </div>
                 <div className='rollout__toolbar__actions'>
-                    <React.Suspense fallback={<Spinner />}>
+                    <React.Suspense fallback={<FontAwesomeIcon icon={faCircleNotch} spin={true} />}>
                         <RolloutActions rollout={rollout} />
                     </React.Suspense>
                 </div>
-            </ThemeDiv>
+            </div>
 
-            <ThemeDiv className='rollout__body'>
-                <WaitFor loading={loading}>
-                    <RolloutWidget rollout={rollout} interactive={{api, editState, namespace: namespaceCtx.namespace}} />
-                </WaitFor>
-            </ThemeDiv>
+            <div className='rollout__body'>{!loading && <RolloutWidget rollout={rollout} interactive={{api, editState, namespace: namespaceCtx.namespace}} />}</div>
         </div>
     );
 };
@@ -221,7 +299,7 @@ const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
     if (!ri) {
         return;
     }
-    const map: {[key: number]: Revision} = {};
+    const map: {[key: string]: Revision} = {};
 
     const emptyRevision = {replicaSets: [], experiments: [], analysisRuns: []} as Revision;
 
@@ -266,10 +344,17 @@ const parseDuration = (duration: string): string => {
 };
 
 const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean}) => {
+    const [openedTemplate, setOpenedTemplate] = React.useState('');
+    const [openCanary, setOpenCanary] = React.useState(false);
+    const [openAnalysis, setOpenAnalysis] = React.useState(false);
+    const [openHeader, setOpenHeader] = React.useState(false);
+    const [openMirror, setOpenMirror] = React.useState(false);
+    const [openPlugin, setOpenPlugin] = React.useState(false);
+
     let icon: string;
     let content = '';
     let unit = '';
-    if (props.step.setWeight) {
+    if (props.step.setWeight || props.step.setWeight === 0) {
         icon = 'fa-weight';
         content = `Set Weight: ${props.step.setWeight}`;
         unit = '%';
@@ -294,13 +379,243 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
         icon = 'fa-flask';
     }
 
+    if (props.step.setMirrorRoute) {
+        content = `Set Mirror: ${props.step.setMirrorRoute.name}`;
+        if (!props.step.setMirrorRoute.match) {
+            content = `Remove Mirror: ${props.step.setMirrorRoute.name}`;
+        }
+    }
+
+    if (props.step.setHeaderRoute) {
+        content = `Set Header: ${props.step.setHeaderRoute.name}`;
+        if (!props.step.setHeaderRoute.match) {
+            content = `Remove Header: ${props.step.setHeaderRoute.name}`;
+        }
+    }
+
+    if (props.step.plugin) {
+        content = `${props.step.plugin.name}`;
+        icon = 'fa-puzzle-piece';
+    }
+
     return (
         <React.Fragment>
-            <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
-                <i className={`fa ${icon}`} /> {content}
-                {unit}
-            </EffectDiv>
-            {!props.last && <ThemeDiv className='steps__connector' />}
+            <div style={{zIndex: 1}} className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
+                <div
+                    className={`steps__step-title ${
+                        props.step.experiment ||
+                        (props.step.setCanaryScale && openCanary) ||
+                        (props.step.analysis && openAnalysis) ||
+                        (props.step.setHeaderRoute && openHeader) ||
+                        (props.step.setMirrorRoute && openMirror) ||
+                        (props.step.plugin && openPlugin)
+                            ? 'steps__step-title--experiment'
+                            : ''
+                    }`}
+                >
+                    {icon && <i className={`fa ${icon}`} />} {content}
+                    {unit}
+                    {props.step.setCanaryScale && (
+                        <div style={{marginLeft: 'auto'}} onClick={() => setOpenCanary(!openCanary)}>
+                            <i className={`fa ${openCanary ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </div>
+                    )}
+                    {props.step.analysis && (
+                        <div style={{marginLeft: 'auto'}} onClick={() => setOpenAnalysis(!openAnalysis)}>
+                            <i className={`fa ${openAnalysis ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </div>
+                    )}
+                    {props.step.setHeaderRoute && props.step.setHeaderRoute.match && (
+                        <div style={{marginLeft: 'auto'}} onClick={() => setOpenHeader(!openHeader)}>
+                            <i className={`fa ${openCanary ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </div>
+                    )}
+                    {props.step.setMirrorRoute && props.step.setMirrorRoute.match && (
+                        <div style={{marginLeft: 'auto'}} onClick={() => setOpenMirror(!openMirror)}>
+                            <i className={`fa ${openCanary ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </div>
+                    )}
+                    {props.step.plugin && props.step.plugin.config && (
+                        <div style={{marginLeft: 'auto'}} onClick={() => setOpenPlugin(!openPlugin)}>
+                            <i className={`fa ${openPlugin ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </div>
+                    )}
+                </div>
+                {props.step.experiment?.templates && (
+                    <div className='steps__step__content'>
+                        {props.step.experiment?.templates.map((template) => {
+                            return <ExperimentWidget key={template.name} template={template} opened={openedTemplate === template.name} onToggle={setOpenedTemplate} />;
+                        })}
+                    </div>
+                )}
+
+                {props.step.analysis?.templates && openAnalysis && (
+                    <div className='steps__step__content'>
+                        <div style={{paddingLeft: 15, marginTop: 12, marginBottom: 8, color: 'rgba(0,0,0, 0.5)'}}>Templates</div>
+                        <ul>
+                            {props.step.analysis?.templates.map((template) => {
+                                return (
+                                    <div style={{paddingLeft: 15, fontWeight: 600}} key={template.templateName}>
+                                        <li>{template.templateName}</li>
+                                    </div>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                )}
+                {props.step?.setCanaryScale && openCanary && <WidgetItem values={props.step.setCanaryScale} />}
+                {props.step?.plugin && openPlugin && <WidgetItemPlugin values={props.step.plugin} />}
+                {props.step?.setHeaderRoute && openHeader && <WidgetItemSetHeader values={props.step.setHeaderRoute.match} />}
+                {props.step?.setMirrorRoute && openMirror && <WidgetItemSetMirror value={props.step.setMirrorRoute} />}
+            </div>
+            {!props.last && <div className='steps__connector' />}
         </React.Fragment>
+    );
+};
+
+const ExperimentWidget = ({
+    template,
+    opened,
+    onToggle,
+}: {
+    template: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate;
+    opened: boolean;
+    onToggle: (name: string) => void;
+}) => {
+    const icon = opened ? faChevronCircleUp : faChevronCircleDown;
+    return (
+        <div className='steps__step__content-body'>
+            <div className='steps__step__content-header'>
+                {template.name}
+                <FontAwesomeIcon icon={icon} onClick={() => onToggle(opened ? '' : template.name)} style={{cursor: 'pointer'}} />
+            </div>
+            {opened && <WidgetItem values={{specRef: template.specRef, weight: template.weight}} />}
+        </div>
+    );
+};
+
+const WidgetItem = ({values}: {values: Record<string, any>}) => {
+    return (
+        <div>
+            {Object.keys(values).map((val) => {
+                if (!values[val]) return null;
+                return (
+                    <Fragment key={val}>
+                        <div className='steps__step__content-title'>{val.toUpperCase()}</div>
+                        <div className='steps__step__content-value'>{String(values[val])}</div>
+                    </Fragment>
+                );
+            })}
+        </div>
+    );
+};
+
+const WidgetItemSetMirror = ({value}: {value: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute}) => {
+    if (!value) return null;
+    return (
+        <div>
+            <Fragment key={value.name}>
+                <div className='steps__step__content-title'>Name</div>
+                <div className='steps__step__content-value'>{value.name}</div>
+                <div className='steps__step__content-title'>Percentage</div>
+                <div className='steps__step__content-value'>{value.percentage}</div>
+                {Object.values(value.match).map((val, index) => {
+                    if (!val) return null;
+                    let stringMatcherValue = '';
+                    let stringMatcherType = '';
+                    let fragments = [];
+                    if (val.path != null) {
+                        if (val.path.exact != null) {
+                            stringMatcherValue = val.path.exact;
+                            stringMatcherType = 'Exact';
+                        }
+                        if (val.path.prefix != null) {
+                            stringMatcherValue = val.path.prefix;
+                            stringMatcherType = 'Prefix';
+                        }
+                        if (val.path.regex != null) {
+                            stringMatcherValue = val.path.regex;
+                            stringMatcherType = 'Regex';
+                        }
+                        fragments.push(
+                            <Fragment key={value.name}>
+                                <div className='steps__step__content-title'>
+                                    {index} - Path ({stringMatcherType})
+                                </div>
+                                <div className='steps__step__content-value'>{stringMatcherValue}</div>
+                            </Fragment>,
+                        );
+                    }
+                    if (val.method != null) {
+                        if (val.method.exact != null) {
+                            stringMatcherValue = val.method.exact;
+                            stringMatcherType = 'Exact';
+                        }
+                        if (val.method.prefix != null) {
+                            stringMatcherValue = val.method.prefix;
+                            stringMatcherType = 'Prefix';
+                        }
+                        if (val.method.regex != null) {
+                            stringMatcherValue = val.method.regex;
+                            stringMatcherType = 'Regex';
+                        }
+                        fragments.push(
+                            <Fragment key={value.name}>
+                                <div className='steps__step__content-title'>
+                                    {index} - Method ({stringMatcherType})
+                                </div>
+                                <div className='steps__step__content-value'>{stringMatcherValue}</div>
+                            </Fragment>,
+                        );
+                    }
+                    return fragments;
+                })}
+            </Fragment>
+        </div>
+    );
+};
+
+const WidgetItemSetHeader = ({values}: {values: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch[]}) => {
+    if (!values) return null;
+    return (
+        <div>
+            {values.map((record) => {
+                if (!record.headerName) return null;
+                if (!record.headerValue) return null;
+
+                let headerValue = '';
+                let headerValueType = '';
+                if (record.headerValue.regex) {
+                    headerValue = record.headerValue.regex;
+                    headerValueType = 'Regex';
+                }
+                if (record.headerValue.prefix) {
+                    headerValue = record.headerValue.prefix;
+                    headerValueType = 'Prefix';
+                }
+                if (record.headerValue.exact) {
+                    headerValue = record.headerValue.exact;
+                    headerValueType = 'Exact';
+                }
+                return (
+                    <Fragment key={record.headerName}>
+                        <div className='steps__step__content-title'>Name</div>
+                        <div className='steps__step__content-value'>{record.headerName}</div>
+                        <div className='steps__step__content-title'>{headerValueType}</div>
+                        <div className='steps__step__content-value'>{headerValue}</div>
+                    </Fragment>
+                );
+            })}
+        </div>
+    );
+};
+
+const WidgetItemPlugin = ({values}: {values: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep}) => {
+    if (!values.config) return null;
+    return (
+        <div>
+            <div className='steps__step__content-title'>CONFIG</div>
+            <div className='steps__step__content-value'>{YAML.stringify(values.config)}</div>
+        </div>
     );
 };

@@ -7,14 +7,20 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")
@@ -32,10 +38,12 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 	}
 	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
-	if err == nil {
-		c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
+	if err != nil {
+		return fmt.Errorf("error removing scale-down-deadline annotation from RS '%s': %w", rs.Name, err)
 	}
-	return err
+	c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
+	delete(rs.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+	return nil
 }
 
 // addScaleDownDelay injects the `scale-down-deadline` annotation to the ReplicaSet, or if
@@ -53,12 +61,13 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 		}
 		return nil
 	}
-	deadline := metav1.Now().Add(scaleDownDelaySeconds).UTC().Format(time.RFC3339)
+	deadline := timeutil.MetaNow().Add(scaleDownDelaySeconds).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
-	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
-	if err == nil {
-		c.log.Infof("Set '%s' annotation on '%s' to %s (%s)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
+	rs, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("error adding scale-down-deadline annotation to RS '%s': %w", rs.Name, err)
 	}
+	c.log.Infof("Set '%s' annotation on '%s' to %s (%s)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
 	return err
 }
 
@@ -76,7 +85,7 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 	}
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing ReplicaSets (see #42639).
-	canAdoptFunc := controller.RecheckDeletionTimestamp(func() (metav1.Object, error) {
+	canAdoptFunc := controller.RecheckDeletionTimestamp(func(ctx context.Context) (metav1.Object, error) {
 		fresh, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Get(ctx, r.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
@@ -87,7 +96,15 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 		return fresh, nil
 	})
 	cm := controller.NewReplicaSetControllerRefManager(c.replicaSetControl, r, replicaSetSelector, controllerKind, canAdoptFunc)
-	return cm.ClaimReplicaSets(rsList)
+	rsList, err = cm.ClaimReplicaSets(ctx, rsList)
+	if err != nil {
+		return nil, err
+	}
+	// Create a copy of the object in the informer since Rollout may modify them during the reconciliation
+	for i := range rsList {
+		rsList[i] = rsList[i].DeepCopy()
+	}
+	return rsList, nil
 }
 
 // removeScaleDownDeadlines removes the scale-down-deadline annotation from the new/stable ReplicaSets,
@@ -111,17 +128,37 @@ func (c *rolloutContext) removeScaleDownDeadlines() error {
 	return nil
 }
 
+// syncNewRSReplicasAnnotation updates the newRS desired-replicas annotation to spec.replicas
+// without changing its scale. It is a no-op when the annotation already matches spec.replicas
+// (ReplicasAnnotationsNeedUpdate returns false). The paths that intentionally hold the newRS at
+// size during an abort scale-down delay must still call this: isScalingEvent() treats a stale
+// desired-replicas annotation on the newRS as an in-progress scaling event and short-circuits
+// every reconcile to syncReplicasOnly(), which never reconciles traffic routing or services.
+// Without the annotation sync, a spec.replicas change (e.g. HPA) mid-abort freezes traffic
+// reconciliation until the scale-down deadline elapses.
+func (c *rolloutContext) syncNewRSReplicasAnnotation() error {
+	if !annotations.ReplicasAnnotationsNeedUpdate(c.newRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)) {
+		return nil
+	}
+	_, newRS, err := c.scaleReplicaSetAndRecordEvent(c.newRS, *c.newRS.Spec.Replicas)
+	if err != nil {
+		return fmt.Errorf("failed to sync replicas annotations in syncNewRSReplicasAnnotation: %w", err)
+	}
+	c.newRS = newRS
+	return nil
+}
+
 func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	if c.newRS == nil {
 		return false, nil
 	}
-	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, c.allRSs, c.newRS)
+	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, c.allRSs, c.newRS, c.newStatus.Canary.Weights)
 	if err != nil {
 		return false, err
 	}
 
 	if c.shouldDelayScaleDownOnAbort() {
-		abortScaleDownDelaySeconds := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
+		abortScaleDownDelaySeconds, _ := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
 		c.log.Infof("Scale down new rs '%s' on abort (%v)", c.newRS.Name, abortScaleDownDelaySeconds)
 
 		// if the newRS has scale down annotation, check if it should be scaled down now
@@ -131,13 +168,18 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 			if err != nil {
 				c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", c.newRS.Name)
 			} else {
-				now := metav1.Now()
+				now := timeutil.MetaNow()
 				scaleDownAt := metav1.NewTime(scaleDownAtTime)
 				if scaleDownAt.After(now.Time) {
 					c.log.Infof("RS '%s' has not reached the scaleDownTime", c.newRS.Name)
 					remainingTime := scaleDownAt.Sub(now.Time)
 					if remainingTime < c.resyncPeriod {
+						logCtx := logutil.WithRollout(c.rollout)
+						logCtx.Info("rollout enqueue due to scaleDownDelay")
 						c.enqueueRolloutAfter(c.rollout, remainingTime)
+						if err := c.syncNewRSReplicasAnnotation(); err != nil {
+							return false, fmt.Errorf("failed to sync newRS desired-replicas annotation while waiting for abort scale-down deadline: %w", err)
+						}
 						return false, nil
 					}
 				} else {
@@ -146,20 +188,90 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 				}
 			}
 		} else if abortScaleDownDelaySeconds != nil {
-			err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
-			if err != nil {
-				return false, err
+			// Sync annotations before addScaleDownDelay's patch so a subsequent update of the
+			// stale newRS object cannot clobber the scale-down-deadline annotation.
+			if err := c.syncNewRSReplicasAnnotation(); err != nil {
+				return false, fmt.Errorf("failed to sync newRS desired-replicas annotation before adding abort scale-down delay: %w", err)
 			}
+			// Don't annotate until the stable RS is fully scaled, i.e. able to serve 100%
+			// of traffic, since the deadline scales the canary to zero unconditionally.
+			// With dynamicStableScale this holds once the abort weight has stepped down to
+			// zero (see GetDesiredCanaryWeight). >= tolerates stable transiently exceeding
+			// spec.Replicas (e.g. HPA scale-in).
+			if c.stableRS.Status.AvailableReplicas >= *c.rollout.Spec.Replicas {
+				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
+				if err != nil {
+					return false, err
+				}
+			}
+			// leave newRS scaled up until we annotate
+			return false, nil
 		}
 	}
 
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.newRS, newReplicasCount)
+
+	if err != nil {
+		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileNewReplicaSet: %w", err)
+	}
+
+	revision, _ := replicasetutil.Revision(c.newRS)
+
+	if revision == 1 && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownProgressively {
+		// NOTE: Progressive deployment scaling is designed for one-time migration from Deployment to Rollout.
+		// It only triggers on revision == 1, which has a limitation: if the initial rollout (revision 1) fails
+		// and users fix the issue causing a new revision (revision 2+), the deployment will never be scaled down.
+		// This matches the behavior of scaleDown: onSuccess and may need to be addressed in a future enhancement.
+		//
+		// When healthy: Scale deployment to 0 to prevent external controllers (HPA/KEDA) from interfering
+		// When not healthy: Scale deployment based on rollout's ready replicas to maintain availability
+		if c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy {
+			var targetScale int32 = 0
+			err = c.scaleDeployment(&targetScale)
+			if err != nil {
+				c.log.Errorf("Failed to scale deployment to 0 during progressive migration: %v", err)
+			}
+		} else {
+			// scale down the deployment when the rollout has ready replicas or scale up the deployment if rollout fails
+			oldScale := defaults.GetReplicasOrDefault(c.newRS.Spec.Replicas)
+			if c.rollout.Spec.Replicas != nil && (c.rollout.Status.ReadyReplicas > 0 || oldScale > newReplicasCount) {
+				targetScale := *c.rollout.Spec.Replicas - c.rollout.Status.ReadyReplicas
+				err = c.scaleDeployment(&targetScale)
+				if err != nil {
+					c.log.Errorf("Failed to scale deployment during progressive migration: %v", err)
+				}
+			}
+		}
+	}
+
 	return scaled, err
 }
 
-// shouldDelayScaleDownOnAbort returns if we are aborted and we should delay scaledown of canary/preview
+// shouldDelayScaleDownOnAbort returns if we are aborted and we should delay scaledown of canary or preview
 func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
-	return c.pauseContext.IsAborted() && defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout) != nil
+	if !c.pauseContext.IsAborted() {
+		// only applicable to aborted rollouts
+		return false
+	}
+	if c.stableRS == nil {
+		// if there is no stable, don't scale down
+		return false
+	}
+	if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		// basic canary should not use this
+		return false
+	}
+	abortDelay, _ := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
+	if abortDelay == nil {
+		// user explicitly set abortScaleDownDelaySeconds: 0, and wishes to leave canary/preview up indefinitely
+		return false
+	}
+	usesDynamicStableScaling := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.DynamicStableScale
+	if usesDynamicStableScaling && !defaults.HasExplicitAbortScaleDownDelay(c.rollout) {
+		// we are using dynamic stable/canary scaling and user did not explicitly set abortScaleDownDelay
+		return false
+	}
+	return true
 }
 
 // reconcileOtherReplicaSets reconciles "other" ReplicaSets.
@@ -223,7 +335,7 @@ func (c *rolloutContext) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet) (
 		}
 		_, updatedOldRS, err := c.scaleReplicaSetAndRecordEvent(targetRS, newReplicasCount)
 		if err != nil {
-			return nil, totalScaledDown, err
+			return nil, totalScaledDown, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in cleanupUnhealthyReplicas: %w", err)
 		}
 		totalScaledDown += scaledDownCount
 		oldRSs[i] = updatedOldRS
@@ -244,6 +356,8 @@ func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 			if err != nil {
 				return annotationedRSs, desiredReplicaCount, err
 			}
+			logCtx := logutil.WithRollout(c.rollout)
+			logCtx.Info("rollout enqueue due to scaleDownDelay v2")
 			c.enqueueRolloutAfter(c.rollout, scaleDownDelaySeconds)
 		}
 	} else if replicasetutil.HasScaleDownDeadline(rs) {
@@ -257,6 +371,8 @@ func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 			} else if remainingTime != nil {
 				c.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
 				if *remainingTime < c.resyncPeriod {
+					logCtx := logutil.WithRollout(c.rollout)
+					logCtx.Info("rollout enqueue due to scaleDownDelay v3")
 					c.enqueueRolloutAfter(c.rollout, *remainingTime)
 				}
 				desiredReplicaCount = rolloutReplicas
@@ -265,4 +381,123 @@ func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 	}
 
 	return annotationedRSs, desiredReplicaCount, nil
+}
+
+// isReplicaSetReferenced returns if the given ReplicaSet is still being referenced by any of
+// the current, stable, blue-green services. Used to determine if the ReplicaSet can
+// safely be scaled to zero, or deleted.
+func (c *rolloutContext) isReplicaSetReferenced(rs *appsv1.ReplicaSet) bool {
+	rsPodHash := replicasetutil.GetPodTemplateHash(rs)
+	if rsPodHash == "" {
+		return false
+	}
+	ro := c.rollout
+	referencesToCheck := []string{
+		ro.Status.StableRS,
+		ro.Status.CurrentPodHash,
+		ro.Status.BlueGreen.ActiveSelector,
+		ro.Status.BlueGreen.PreviewSelector,
+	}
+	if ro.Status.Canary.Weights != nil {
+		referencesToCheck = append(referencesToCheck, ro.Status.Canary.Weights.Canary.PodTemplateHash, ro.Status.Canary.Weights.Stable.PodTemplateHash)
+	}
+	for _, ref := range referencesToCheck {
+		if ref == rsPodHash {
+			return true
+		}
+	}
+
+	// The above are static, lightweight checks to see if the selectors we record in our status are
+	// still referencing the ReplicaSet in question. Those checks aren't always enough. Next, we do
+	// a deeper check to look up the actual service objects, and see if they are still referencing
+	// the ReplicaSet. If so, we cannot scale it down.
+	var servicesToCheck []string
+	if ro.Spec.Strategy.Canary != nil {
+		servicesToCheck = []string{ro.Spec.Strategy.Canary.CanaryService, ro.Spec.Strategy.Canary.StableService}
+	} else {
+		servicesToCheck = []string{ro.Spec.Strategy.BlueGreen.ActiveService, ro.Spec.Strategy.BlueGreen.PreviewService}
+	}
+	for _, svcName := range servicesToCheck {
+		if svcName == "" {
+			continue
+		}
+		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(svcName)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				// service doesn't exist
+				continue
+			}
+			return true
+		}
+		if serviceutil.GetRolloutSelectorLabel(svc) == rsPodHash {
+			return true
+		}
+	}
+
+	// Check if the ReplicaSet is still referenced by Istio DestinationRule subsets.
+	// This is important for subset-level traffic splitting where we don't use services.
+	if c.isReplicaSetReferencedByIstioDestinationRule(rsPodHash) {
+		return true
+	}
+
+	return false
+}
+
+// getIstioDestinationRuleSpec returns the Istio DestinationRule spec from the rollout if configured,
+// or nil if Istio traffic routing with a DestinationRule is not configured.
+func getIstioDestinationRuleSpec(ro *v1alpha1.Rollout) *v1alpha1.IstioDestinationRule {
+	if ro.Spec.Strategy.Canary == nil {
+		return nil
+	}
+	if ro.Spec.Strategy.Canary.TrafficRouting == nil {
+		return nil
+	}
+	if ro.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+		return nil
+	}
+	return ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
+}
+
+// subsetReferencesHash checks if a single subset's labels contain the given pod template hash.
+func subsetReferencesHash(subset map[string]interface{}, rsPodHash string) bool {
+	labels, found, err := unstructured.NestedStringMap(subset, "labels")
+	if err != nil || !found {
+		return false
+	}
+	hash, ok := labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	return ok && hash == rsPodHash
+}
+
+// isReplicaSetReferencedByIstioDestinationRule checks if the given pod template hash is still
+// referenced by any subset in the Istio DestinationRule. This prevents scaling down a ReplicaSet
+// that is still receiving traffic via Istio subset-level routing.
+func (c *rolloutContext) isReplicaSetReferencedByIstioDestinationRule(rsPodHash string) bool {
+	dRuleSpec := getIstioDestinationRuleSpec(c.rollout)
+	if dRuleSpec == nil || c.IstioController == nil || c.IstioController.DestinationRuleLister == nil {
+		return false
+	}
+
+	dRuleUn, err := c.IstioController.DestinationRuleLister.Namespace(c.rollout.Namespace).Get(dRuleSpec.Name)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return false
+		}
+		// For unexpected errors, err on the side of caution and assume it's still referenced.
+		c.log.Warnf("Failed to get DestinationRule %s: %v", dRuleSpec.Name, err)
+		return true
+	}
+
+	subsets, found, err := unstructured.NestedSlice(dRuleUn.UnstructuredContent(), "spec", "subsets")
+	if err != nil || !found {
+		return false
+	}
+
+	for _, subsetObj := range subsets {
+		subset, ok := subsetObj.(map[string]interface{})
+		if ok && subsetReferencesHash(subset, rsPodHash) {
+			c.log.Infof("ReplicaSet with hash %s is still referenced by DestinationRule %s", rsPodHash, dRuleSpec.Name)
+			return true
+		}
+	}
+	return false
 }

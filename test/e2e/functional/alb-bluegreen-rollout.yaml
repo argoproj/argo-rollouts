@@ -26,7 +26,7 @@ spec:
   selector:
     app: alb-bluegreen
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: alb-bluegreen-ingress
@@ -37,9 +37,12 @@ spec:
   - http:
       paths:
       - path: /*
+        pathType: Prefix
         backend:
-          serviceName: alb-bluegreen-stable
-          servicePort: 80
+          service:
+            name: alb-bluegreen-stable
+            port:
+              number: 80
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout

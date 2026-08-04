@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: canary-service
+spec:
+  selector:
+    app: rollouts-demo
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stable-service
+spec:
+  selector:
+    app: rollouts-demo
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: rollouts-demo-vsvc
+spec:
+  gateways:
+    - rollouts-demo-gateway
+  hosts:
+    - rollouts-demo.com
+  http:
+#  - name: argo-rollouts-header-route
+#    route:
+#    - destination:
+#        host: canary-service
+#      weight: 100
+  - name: primary
+    route:
+    - destination:
+        host: stable-service
+      weight: 80
+    - destination:
+        host: canary-service
+      weight: 20
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollouts-demo
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: rollouts-demo
+  template:
+    metadata:
+      labels:
+        app: rollouts-demo
+    spec:
+      containers:
+        - name: rollouts-demo
+          image: "nginx:1.19-alpine"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+  strategy:
+    canary:
+      canaryService: canary-service
+      stableService: stable-service
+      trafficRouting:
+        managedRoutes:
+          - name: set-header-1
+        istio:
+          virtualService:
+            name: rollouts-demo-vsvc
+            routes:
+            - primary
+      steps:
+        - setWeight: 20
+        - setHeaderRoute:
+            name: set-header-1
+            match:
+            - headerName: agent
+              headerValue:
+                regex: firefox(.*)
+        - pause: { }
+        - setHeaderRoute:
+            name: set-header-1
+            match:
+            - headerName: agent
+              headerValue:
+                regex: chrome(.*)
+        - pause: { }
+        - setWeight: 40
+        - setHeaderRoute:
+            name: set-header-1
+        - pause: {}
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: rollouts-demo-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - hosts:
+        - '*'
+      port:
+        name: http
+        number: 80
+        protocol: HTTP

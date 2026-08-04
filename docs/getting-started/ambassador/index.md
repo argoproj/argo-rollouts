@@ -9,7 +9,7 @@ This tutorial will walk you through the process of configuring Argo Rollouts to 
 
 ---
 **Note**
-If using Ambassador Edge Stack or Emissary-ingress 2.0+, you will need to install Argo-Rollouts version v1.1+, and you will need to supply `--ambassador-api-version x.getambassador.io/v3alpha1` to your `argo-rollouts` deployment.
+If using Ambassador Edge Stack or Emissary-ingress 2.0+, you will need to install Argo-Rollouts version v1.1+, and you will need to supply `--ambassador-api-version getambassador.io/v3alpha1` to your `argo-rollouts` deployment.
 ---
 
 ## 1. Install and configure Ambassador Edge Stack

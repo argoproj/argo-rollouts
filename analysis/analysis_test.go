@@ -3,22 +3,30 @@ package analysis
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/intstr"
+	"github.com/argoproj/argo-rollouts/metric"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/uuid"
+	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 func timePtr(t metav1.Time) *metav1.Time {
@@ -91,7 +99,12 @@ func newRun() *v1alpha1.AnalysisRun {
 }
 
 // newTerminatingRun returns a run which is terminating because of the given status
-func newTerminatingRun(status v1alpha1.AnalysisPhase) *v1alpha1.AnalysisRun {
+func newTerminatingRun(status v1alpha1.AnalysisPhase, isDryRun bool) *v1alpha1.AnalysisRun {
+	var dryRunArray []v1alpha1.DryRun
+	if isDryRun {
+		dryRunArray = append(dryRunArray, v1alpha1.DryRun{MetricName: "run-forever"})
+		dryRunArray = append(dryRunArray, v1alpha1.DryRun{MetricName: "failed-metric"})
+	}
 	run := v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{
@@ -108,21 +121,24 @@ func newTerminatingRun(status v1alpha1.AnalysisPhase) *v1alpha1.AnalysisRun {
 					},
 				},
 			},
+			DryRun: dryRunArray,
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
 			MetricResults: []v1alpha1.MetricResult{
 				{
-					Name:  "run-forever",
-					Phase: v1alpha1.AnalysisPhaseRunning,
+					Name:   "run-forever",
+					DryRun: isDryRun,
+					Phase:  v1alpha1.AnalysisPhaseRunning,
 					Measurements: []v1alpha1.Measurement{{
 						Phase:     v1alpha1.AnalysisPhaseRunning,
 						StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
 					}},
 				},
 				{
-					Name:  "failed-metric",
-					Count: 1,
+					Name:   "failed-metric",
+					Count:  1,
+					DryRun: isDryRun,
 					Measurements: []v1alpha1.Measurement{{
 						Phase:      status,
 						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
@@ -439,7 +455,7 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		status, message := c.assessRunStatus(run, run.Spec.Metrics)
+		status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{})
 		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
 		assert.Equal(t, "", message)
 	}
@@ -458,7 +474,7 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		status, message := c.assessRunStatus(run, run.Spec.Metrics)
+		status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{})
 		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 		assert.Equal(t, "", message)
 	}
@@ -512,7 +528,7 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 			},
 		},
 	}
-	status, message := c.assessRunStatus(run, run.Spec.Metrics)
+	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{})
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
 	assert.Equal(t, "", message)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, run.Status.MetricResults[1].Phase)
@@ -576,6 +592,208 @@ func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 	metric.FailureLimit = &newFailureLimit
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+}
+
+func TestAssessMetricStatusConsecutiveSuccessLimit(t *testing.T) {
+	failureLimit := intstr.FromInt(-1)
+	consecutiveSuccessLimit := intstr.FromInt(3)
+	metric := v1alpha1.Metric{
+		Name:                    "success-rate",
+		ConsecutiveSuccessLimit: &consecutiveSuccessLimit,
+		FailureLimit:            &failureLimit,
+		Interval:                "60s",
+	}
+	result := v1alpha1.MetricResult{
+		Failed:             3,
+		Successful:         4,
+		ConsecutiveSuccess: 3,
+		Count:              7,
+		Measurements: []v1alpha1.Measurement{{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseFailed,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+		}},
+	}
+
+	/////////////////////////////////////////////////////////////////////////
+	// For indefinite analysis (count is not set)
+
+	// When ConsecutiveSuccess == ConsecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	// When ConsecutiveSuccess < ConsecutiveSuccessLimit
+	consecutiveSuccessLimit = intstr.FromInt(5)
+	metric.ConsecutiveSuccessLimit = &consecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	/////////////////////////////////////////////////////////////////////////
+	// For limited analysis (count is >= 1)
+
+	/// When metric.Count is reached
+	metricCount := intstr.FromInt(7)
+	metric.Count = &metricCount
+
+	//// ConsecutiveSuccess=3 < ConsecutiveSuccessLimit=5
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	//// ConsecutiveSuccess = ConsecutiveSuccessLimit = 3
+	consecutiveSuccessLimit = intstr.FromInt(3)
+	metric.ConsecutiveSuccessLimit = &consecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	/// When metric.Count is not reached
+	metricCount = intstr.FromInt(9)
+	metric.Count = &metricCount
+
+	//// ConsecutiveSuccess = ConsecutiveSuccessLimit = 3
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// ConsecutiveSuccess=3 < ConsecutiveSuccessLimit=5
+	consecutiveSuccessLimit = intstr.FromInt(5)
+	metric.ConsecutiveSuccessLimit = &consecutiveSuccessLimit
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+}
+
+func TestAssessMetricStatusFailureLimitAndConsecutiveSuccessLimit(t *testing.T) {
+	failureLimit := intstr.FromInt(4)
+	consecutiveSuccessLimit := intstr.FromInt(4)
+	metric := v1alpha1.Metric{
+		Name:                    "success-rate",
+		ConsecutiveSuccessLimit: &consecutiveSuccessLimit,
+		FailureLimit:            &failureLimit,
+		Interval:                "60s",
+	}
+	result := v1alpha1.MetricResult{
+		Failed:             3,
+		Successful:         4,
+		ConsecutiveSuccess: 3,
+		Count:              7,
+		Measurements: []v1alpha1.Measurement{{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseFailed,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+		}},
+	}
+
+	/////////////////////////////////////////////////////////////////////////
+	// For indefinite analysis (count is not set)
+
+	// FailureLimit is not violated and consecutiveSuccessLimit not yet satisfied.
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	// FailureLimit is violated and consecutiveSuccessLimit is not yet satisfied.
+	result.Failed = 5
+	result.Successful = 9
+	result.Count = 9
+	result.ConsecutiveSuccess = 0
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	// FailureLimit is not violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 3
+	result.Successful = 5
+	result.Count = 8
+	result.ConsecutiveSuccess = 4
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	// FailureLimit is violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 5
+	result.Successful = 5
+	result.Count = 10
+	result.ConsecutiveSuccess = 4
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	/////////////////////////////////////////////////////////////////////////
+	// For limited analysis (count is >= 1)
+	metricCount := intstr.FromInt(10)
+	metric.Count = &metricCount
+
+	/// When metric.Count is reached
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit not yet satisfied.
+	result.Failed = 4
+	result.Successful = 6
+	result.Count = 10
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is not yet satisfied.
+	result.Failed = 5
+	result.Successful = 5
+	result.Count = 10
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 4
+	result.Successful = 6
+	result.Count = 10
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 5
+	result.Successful = 5
+	result.Count = 10
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	/// When metric.Count is not yet reached
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit not yet satisfied.
+	result.Failed = 3
+	result.Successful = 5
+	result.Count = 8
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is not yet satisfied.
+	result.Failed = 5
+	result.Successful = 3
+	result.Count = 8
+	result.ConsecutiveSuccess = 3
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is not violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 3
+	result.Successful = 5
+	result.Count = 8
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+
+	//// FailureLimit is violated and consecutiveSuccessLimit is satisfied.
+	result.Failed = 5
+	result.Successful = 4
+	result.Count = 9
+	result.ConsecutiveSuccess = 4
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
 }
 
 func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
@@ -885,6 +1103,7 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 		},
 	}
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
 	{
 		newRun := c.reconcileAnalysisRun(run)
 		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, newRun.Status.MetricResults[0].Phase)
@@ -938,20 +1157,20 @@ func TestReconcileAnalysisRunTerminateSiblingAfterFail(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
 	// mocks terminate to cancel the in-progress measurement
-	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseInconclusive), nil)
 
 	for _, status := range []v1alpha1.AnalysisPhase{v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive, v1alpha1.AnalysisPhaseError} {
-		run := newTerminatingRun(status)
+		run := newTerminatingRun(status, false)
 		newRun := c.reconcileAnalysisRun(run)
 
 		assert.Equal(t, status, newRun.Status.Phase)
 		assert.Equal(t, status, newRun.Status.MetricResults[1].Phase)
-		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, newRun.Status.MetricResults[0].Phase)
 		// ensure the in-progress measurement is now terminated
-		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Measurements[0].Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, newRun.Status.MetricResults[0].Measurements[0].Phase)
 		assert.NotNil(t, newRun.Status.MetricResults[0].Measurements[0].FinishedAt)
-		assert.Equal(t, "metric terminated", newRun.Status.MetricResults[0].Message)
-		assert.Equal(t, "metric terminated", newRun.Status.MetricResults[0].Measurements[0].Message)
+		assert.Equal(t, "Metric Terminated", newRun.Status.MetricResults[0].Message)
+		assert.Equal(t, "Metric Terminated", newRun.Status.MetricResults[0].Measurements[0].Message)
 	}
 }
 
@@ -1048,7 +1267,8 @@ func TestTrimMeasurementHistory(t *testing.T) {
 
 	{
 		run := newRun()
-		c.garbageCollectMeasurements(run, 2)
+		err := c.garbageCollectMeasurements(run, map[string]*v1alpha1.MeasurementRetention{}, 2)
+		assert.Nil(t, err)
 		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
 		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
 		assert.Len(t, run.Status.MetricResults[1].Measurements, 2)
@@ -1057,23 +1277,181 @@ func TestTrimMeasurementHistory(t *testing.T) {
 	}
 	{
 		run := newRun()
-		c.garbageCollectMeasurements(run, 1)
+		err := c.garbageCollectMeasurements(run, map[string]*v1alpha1.MeasurementRetention{}, 1)
+		assert.Nil(t, err)
 		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
 		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
 		assert.Len(t, run.Status.MetricResults[1].Measurements, 1)
 		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[0].Value)
 	}
+	{
+		run := newRun()
+		var measurementRetentionMetricsMap = map[string]*v1alpha1.MeasurementRetention{}
+		measurementRetentionMetricsMap["metric2"] = &v1alpha1.MeasurementRetention{MetricName: "*", Limit: 2}
+		err := c.garbageCollectMeasurements(run, measurementRetentionMetricsMap, 1)
+		assert.Nil(t, err)
+		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
+		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
+		assert.Len(t, run.Status.MetricResults[1].Measurements, 2)
+		assert.Equal(t, "2", run.Status.MetricResults[1].Measurements[0].Value)
+		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[1].Value)
+	}
+	{
+		run := newRun()
+		var measurementRetentionMetricsMap = map[string]*v1alpha1.MeasurementRetention{}
+		measurementRetentionMetricsMap["metric2"] = &v1alpha1.MeasurementRetention{MetricName: "metric2", Limit: 2}
+		err := c.garbageCollectMeasurements(run, measurementRetentionMetricsMap, 1)
+		assert.Nil(t, err)
+		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
+		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
+		assert.Len(t, run.Status.MetricResults[1].Measurements, 2)
+		assert.Equal(t, "2", run.Status.MetricResults[1].Measurements[0].Value)
+		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[1].Value)
+	}
+}
+
+func TestGarbageCollectArgResolution(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	c.newProvider = func(logCtx log.Entry, namespace string, metric v1alpha1.Metric) (metric.Provider, error) {
+		assert.Equal(t, "https://prometheus.kubeaddons:8080", metric.Provider.Prometheus.Address)
+		return f.provider, nil
+	}
+
+	f.provider.On("GarbageCollect", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "metric1",
+					Interval: "60s",
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{
+							Address: "https://prometheus.kubeaddons:{{args.port}}",
+						},
+					},
+				},
+				{
+					Name:     "metric2",
+					Interval: "60s",
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{
+							Address: "https://prometheus.kubeaddons:{{args.port}}",
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseRunning,
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:  "metric1",
+					Phase: v1alpha1.AnalysisPhaseRunning,
+					Measurements: []v1alpha1.Measurement{
+						{
+							Value:      "1",
+							Phase:      v1alpha1.AnalysisPhaseSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+						{
+							Value:      "2",
+							Phase:      v1alpha1.AnalysisPhaseSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+					},
+				},
+				{
+					Name: "metric2",
+					Measurements: []v1alpha1.Measurement{
+						{
+							Value:      "2",
+							Phase:      v1alpha1.AnalysisPhaseSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+						{
+							Value:      "3",
+							Phase:      v1alpha1.AnalysisPhaseSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+						},
+						{
+							Value:      "4",
+							Phase:      v1alpha1.AnalysisPhaseSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+						},
+					},
+				},
+			},
+		},
+	}
+	run.Spec.Args = append(run.Spec.Args, v1alpha1.Argument{
+		Name:  "port",
+		Value: ptr.To[string]("8080"),
+	})
+	var measurementRetentionMetricsMap = map[string]*v1alpha1.MeasurementRetention{}
+	measurementRetentionMetricsMap["metric2"] = &v1alpha1.MeasurementRetention{MetricName: "metric2", Limit: 2}
+	err := c.garbageCollectMeasurements(run, measurementRetentionMetricsMap, 1)
+	assert.Nil(t, err)
+	assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
+	assert.Equal(t, "2", run.Status.MetricResults[0].Measurements[0].Value)
+	assert.Len(t, run.Status.MetricResults[1].Measurements, 2)
+	assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[0].Value)
+	assert.Equal(t, "4", run.Status.MetricResults[1].Measurements[1].Value)
 }
 
 func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
+	// Dry-Run or not if the args resolution fails then we should fail the analysis
+	for _, isDryRun := range [3]bool{false, true, false} {
+		var dryRunArray []v1alpha1.DryRun
+		if isDryRun {
+			dryRunArray = append(dryRunArray, v1alpha1.DryRun{MetricName: "*"})
+		}
+		run := &v1alpha1.AnalysisRun{
+			Spec: v1alpha1.AnalysisRunSpec{
+				Metrics: []v1alpha1.Metric{{
+					Name:             "rate",
+					SuccessCondition: "{{args.does-not-exist}}",
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{
+							Query: "{{args.metric-name}}",
+						},
+					},
+				}},
+				DryRun: dryRunArray,
+			},
+		}
+		newRun := c.reconcileAnalysisRun(run)
+		assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
+		assert.Equal(t, "Unable to resolve metric arguments: failed to resolve {{args.metric-name}}", newRun.Status.Message)
+	}
+}
+
+func TestGetMetadataIsCalled(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	arg := "success-rate"
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name:  "metric-name",
+					Value: &arg,
+				},
+			},
 			Metrics: []v1alpha1.Metric{{
 				Name:             "rate",
-				SuccessCondition: "{{args.does-not-exist}}",
+				SuccessCondition: "result[0] > 0",
 				Provider: v1alpha1.MetricProvider{
 					Prometheus: &v1alpha1.PrometheusMetric{
 						Query: "{{args.metric-name}}",
@@ -1082,9 +1460,12 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 			}},
 		},
 	}
+	metricMetadata := map[string]string{"foo": "bar"}
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(metricMetadata, nil)
 	newRun := c.reconcileAnalysisRun(run)
-	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
-	assert.Equal(t, "unable to resolve metric arguments: failed to resolve {{args.metric-name}}", newRun.Status.Message)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	assert.Equal(t, metricMetadata, newRun.Status.MetricResults[0].Metadata)
 }
 
 // TestSecretContentReferenceSuccess verifies that secret arguments are properly resolved
@@ -1131,6 +1512,7 @@ func TestSecretContentReferenceSuccess(t *testing.T) {
 		},
 	}
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 }
@@ -1195,6 +1577,7 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 	measurement.Message = error.Error()
 
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(measurement)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
 	newRun := c.reconcileAnalysisRun(run)
 	logMessage := buf.String()
 
@@ -1203,7 +1586,7 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 	assert.True(t, strings.Contains(logMessage, "*****"))
 }
 
-//TestSecretContentReferenceAndMultipleArgResolutionSuccess verifies that both secret and non-secret arguments are resolved properly
+// TestSecretContentReferenceAndMultipleArgResolutionSuccess verifies that both secret and non-secret arguments are resolved properly
 func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 	f := newFixture(t)
 	secretName, secretKey, secretValue := "web-metric-secret", "apikey", "12345"
@@ -1256,6 +1639,7 @@ func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 	}
 
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 }
@@ -1396,72 +1780,280 @@ func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
 	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
 }
 
-func TestAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T) {
+func StartAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T, isDryRun bool) (v1alpha1.AnalysisPhase, string, *v1alpha1.RunSummary) {
 	f := newFixture(t)
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
-	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed)
+	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed, isDryRun)
 	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseSuccessful
-	status, message := c.assessRunStatus(run, run.Spec.Metrics)
+	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{"run-forever": isDryRun, "failed-metric": isDryRun})
+	return status, message, run.Status.DryRunSummary
+}
+
+func TestAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T) {
+	status, message, dryRunSummary := StartAssessRunStatusErrorMessageAnalysisPhaseFail(t, false)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
-	assert.Equal(t, "metric \"failed-metric\" assessed Failed due to failed (1) > failureLimit (0)", message)
+	assert.Equal(t, "Metric \"failed-metric\" assessed Failed due to failed (1) > failureLimit (0)", message)
+	expectedDryRunSummary := v1alpha1.RunSummary{
+		Count:        0,
+		Successful:   0,
+		Failed:       0,
+		Inconclusive: 0,
+		Error:        0,
+	}
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
+}
+
+func TestAssessRunStatusErrorMessageAnalysisPhaseFailInDryRunMode(t *testing.T) {
+	status, message, dryRunSummary := StartAssessRunStatusErrorMessageAnalysisPhaseFail(t, true)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+	assert.Equal(t, "", message)
+	expectedDryRunSummary := v1alpha1.RunSummary{
+		Count:        2,
+		Successful:   1,
+		Failed:       1,
+		Inconclusive: 0,
+		Error:        0,
+	}
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
+}
+
+func StartAssessRunStatusErrorMessageFromProvider(t *testing.T, providerMessage string, isDryRun bool) (v1alpha1.AnalysisPhase, string, *v1alpha1.RunSummary) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed, isDryRun)
+	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseSuccessful // All metrics must complete, or assessRunStatus will not return message
+	run.Status.MetricResults[1].Message = providerMessage
+	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{"run-forever": isDryRun, "failed-metric": isDryRun})
+	return status, message, run.Status.DryRunSummary
 }
 
 // TestAssessRunStatusErrorMessageFromProvider verifies that the message returned by assessRunStatus
 // includes the error message from the provider
 func TestAssessRunStatusErrorMessageFromProvider(t *testing.T) {
+	providerMessage := "Provider Error"
+	status, message, dryRunSummary := StartAssessRunStatusErrorMessageFromProvider(t, providerMessage, false)
+	expectedMessage := fmt.Sprintf("Metric \"failed-metric\" assessed Failed due to failed (1) > failureLimit (0): \"Error Message: %s\"", providerMessage)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
+	assert.Equal(t, expectedMessage, message)
+	expectedDryRunSummary := v1alpha1.RunSummary{
+		Count:        0,
+		Successful:   0,
+		Failed:       0,
+		Inconclusive: 0,
+		Error:        0,
+	}
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
+}
+
+func TestAssessRunStatusErrorMessageFromProviderInDryRunMode(t *testing.T) {
+	providerMessage := "Provider Error"
+	status, message, dryRunSummary := StartAssessRunStatusErrorMessageFromProvider(t, providerMessage, true)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+	assert.Equal(t, "", message)
+	expectedDryRunSummary := v1alpha1.RunSummary{
+		Count:        2,
+		Successful:   1,
+		Failed:       1,
+		Inconclusive: 0,
+		Error:        0,
+	}
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
+}
+
+func StartAssessRunStatusMultipleFailures(t *testing.T, isDryRun bool) (v1alpha1.AnalysisPhase, string, *v1alpha1.RunSummary) {
 	f := newFixture(t)
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
-	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed)
-	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseSuccessful // All metrics must complete, or assessRunStatus will not return message
-
-	providerMessage := "Provider error"
-	run.Status.MetricResults[1].Message = providerMessage
-
-	status, message := c.assessRunStatus(run, run.Spec.Metrics)
-	expectedMessage := fmt.Sprintf("metric \"failed-metric\" assessed Failed due to failed (1) > failureLimit (0): \"Error Message: %s\"", providerMessage)
-	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
-	assert.Equal(t, expectedMessage, message)
+	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed, isDryRun)
+	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseFailed
+	run.Status.MetricResults[0].Failed = 1
+	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{"run-forever": isDryRun, "failed-metric": isDryRun})
+	return status, message, run.Status.DryRunSummary
 }
 
 // TestAssessRunStatusMultipleFailures verifies that if there are multiple failed metrics, assessRunStatus returns the message
 // from the first failed metric
 func TestAssessRunStatusMultipleFailures(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-	c, _, _ := f.newController(noResyncPeriodFunc)
-
-	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed)
-	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseFailed
-	run.Status.MetricResults[0].Failed = 1
-
-	status, message := c.assessRunStatus(run, run.Spec.Metrics)
+	status, message, dryRunSummary := StartAssessRunStatusMultipleFailures(t, false)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
-	assert.Equal(t, "metric \"run-forever\" assessed Failed due to failed (1) > failureLimit (0)", message)
+	assert.Equal(t, "Metric \"run-forever\" assessed Failed due to failed (1) > failureLimit (0)", message)
+	expectedDryRunSummary := v1alpha1.RunSummary{
+		Count:        0,
+		Successful:   0,
+		Failed:       0,
+		Inconclusive: 0,
+		Error:        0,
+	}
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
 }
 
-// TestAssessRunStatusWorstMessageInReconcileAnalysisRun verifies that the worstMessage returned by assessRunStatus is set as the
-// status of the AnalysisRun returned by reconcileAnalysisRun
-func TestAssessRunStatusWorstMessageInReconcileAnalysisRun(t *testing.T) {
+func TestAssessRunStatusMultipleFailuresInDryRunMode(t *testing.T) {
+	status, message, dryRunSummary := StartAssessRunStatusMultipleFailures(t, true)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+	assert.Equal(t, "", message)
+	expectedDryRunSummary := v1alpha1.RunSummary{
+		Count:        2,
+		Successful:   0,
+		Failed:       2,
+		Inconclusive: 0,
+		Error:        0,
+	}
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
+}
+
+func StartAssessRunStatusWorstMessageInReconcileAnalysisRun(t *testing.T, isDryRun bool) *v1alpha1.AnalysisRun {
 	f := newFixture(t)
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
-	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed)
+	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed, isDryRun)
 	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseFailed
 	run.Status.MetricResults[0].Failed = 1
 
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseFailed), nil)
 
-	newRun := c.reconcileAnalysisRun(run)
-	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, newRun.Status.Phase)
-	assert.Equal(t, "metric \"run-forever\" assessed Failed due to failed (1) > failureLimit (0)", newRun.Status.Message)
+	return c.reconcileAnalysisRun(run)
 }
 
-func TestTerminateAnalysisRun(t *testing.T) {
+// TestAssessRunStatusWithOnlyDryRunMetrics verifies that if only dry-run metrics are getting evaluated then, the final
+// status of the analysis run is always successful.
+func TestAssessRunStatusWithOnlyDryRunMetrics(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-metric",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{{
+				MetricName: "success-metric",
+			}},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:       "success-metric",
+					Count:      1,
+					Successful: 1,
+					DryRun:     true,
+					Phase:      v1alpha1.AnalysisPhaseSuccessful,
+					Measurements: []v1alpha1.Measurement{{
+						Phase:      v1alpha1.AnalysisPhaseSuccessful,
+						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
+				},
+			},
+		},
+	}
+
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseFailed), nil)
+	f.provider.On("Resume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+
+	newRun := c.reconcileAnalysisRun(&run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+}
+
+// TestAssessRunStatusWithMixedMetrics verifies that the status of dry-run metrics doesn't impact the final state of the
+// analysis run.
+func TestAssessRunStatusWithMixedMetrics(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "run-forever",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
+					},
+				},
+				{
+					Name: "success-metric",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{{
+				MetricName: "success-metric",
+			}},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:         "run-forever",
+					Inconclusive: 1,
+					DryRun:       false,
+					Phase:        v1alpha1.AnalysisPhaseRunning,
+					Measurements: []v1alpha1.Measurement{{
+						Phase:     v1alpha1.AnalysisPhaseRunning,
+						StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
+				},
+				{
+					Name:   "success-metric",
+					Count:  1,
+					Failed: 1,
+					DryRun: true,
+					Phase:  v1alpha1.AnalysisPhaseSuccessful,
+					Measurements: []v1alpha1.Measurement{{
+						Phase:      v1alpha1.AnalysisPhaseFailed,
+						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
+				},
+			},
+		},
+	}
+
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseFailed), nil)
+	f.provider.On("Resume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+
+	newRun := c.reconcileAnalysisRun(&run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, newRun.Status.Phase)
+	assert.Equal(t, "Metric \"run-forever\" assessed Inconclusive due to inconclusive (1) > inconclusiveLimit (0)", newRun.Status.Message)
+}
+
+// TestAssessRunStatusWorstMessageInReconcileAnalysisRun verifies that the worstMessage returned by assessRunStatus is set as the
+// status of the AnalysisRun returned by reconcileAnalysisRun
+func TestAssessRunStatusWorstMessageInReconcileAnalysisRun(t *testing.T) {
+	newRun := StartAssessRunStatusWorstMessageInReconcileAnalysisRun(t, false)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, newRun.Status.Phase)
+	assert.Equal(t, "Metric \"run-forever\" assessed Failed due to failed (1) > failureLimit (0)", newRun.Status.Message)
+}
+
+func TestAssessRunStatusWorstMessageInReconcileAnalysisRunInDryRunMode(t *testing.T) {
+	newRun := StartAssessRunStatusWorstMessageInReconcileAnalysisRun(t, true)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	assert.Equal(t, "", newRun.Status.Message)
+	expectedDryRunSummary := v1alpha1.RunSummary{
+		Count:        2,
+		Successful:   0,
+		Failed:       2,
+		Inconclusive: 0,
+		Error:        0,
+	}
+	assert.Equal(t, &expectedDryRunSummary, newRun.Status.DryRunSummary)
+	assert.Equal(t, "Metric assessed Failed due to failed (1) > failureLimit (0)", newRun.Status.MetricResults[0].Message)
+	assert.Equal(t, "Metric assessed Failed due to failed (1) > failureLimit (0)", newRun.Status.MetricResults[1].Message)
+}
+
+func StartTerminatingAnalysisRun(t *testing.T, isDryRun bool) *v1alpha1.AnalysisRun {
 	f := newFixture(t)
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
@@ -1469,13 +2061,17 @@ func TestTerminateAnalysisRun(t *testing.T) {
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseError), nil)
 
 	now := metav1.Now()
+	var dryRunArray []v1alpha1.DryRun
+	if isDryRun {
+		dryRunArray = append(dryRunArray, v1alpha1.DryRun{MetricName: "success-rate"})
+	}
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
 			Terminate: true,
 			Args: []v1alpha1.Argument{
 				{
 					Name:  "service",
-					Value: pointer.StringPtr("rollouts-demo-canary.default.svc.cluster.local"),
+					Value: ptr.To[string]("rollouts-demo-canary.default.svc.cluster.local"),
 				},
 			},
 			Metrics: []v1alpha1.Metric{{
@@ -1487,6 +2083,66 @@ func TestTerminateAnalysisRun(t *testing.T) {
 					Web: &v1alpha1.WebMetric{},
 				},
 			}},
+			DryRun: dryRunArray,
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			StartedAt: &now,
+			Phase:     v1alpha1.AnalysisPhaseRunning,
+		},
+	}
+	return c.reconcileAnalysisRun(run)
+}
+
+func TestTerminateAnalysisRun(t *testing.T) {
+	newRun := StartTerminatingAnalysisRun(t, false)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	assert.Equal(t, "Run Terminated", newRun.Status.Message)
+}
+
+func TestTerminateAnalysisRunInDryRunMode(t *testing.T) {
+	newRun := StartTerminatingAnalysisRun(t, true)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	assert.Equal(t, "Run Terminated", newRun.Status.Message)
+	expectedDryRunSummary := v1alpha1.RunSummary{
+		Count:        1,
+		Successful:   0,
+		Failed:       0,
+		Inconclusive: 0,
+		Error:        0,
+	}
+	assert.Equal(t, &expectedDryRunSummary, newRun.Status.DryRunSummary)
+}
+
+func TestInvalidDryRunConfigThrowsError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	// Mocks terminate to cancel the in-progress measurement
+	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseInconclusive), nil)
+
+	var dryRunArray []v1alpha1.DryRun
+	dryRunArray = append(dryRunArray, v1alpha1.DryRun{MetricName: "error-rate"})
+	now := metav1.Now()
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Terminate: true,
+			Args: []v1alpha1.Argument{
+				{
+					Name:  "service",
+					Value: ptr.To[string]("rollouts-demo-canary.default.svc.cluster.local"),
+				},
+			},
+			Metrics: []v1alpha1.Metric{{
+				Name:             "success-rate",
+				InitialDelay:     "20s",
+				Interval:         "20s",
+				SuccessCondition: "result[0] > 0.90",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{},
+				},
+			}},
+			DryRun: dryRunArray,
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			StartedAt: &now,
@@ -1494,6 +2150,456 @@ func TestTerminateAnalysisRun(t *testing.T) {
 		},
 	}
 	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
+	assert.Equal(t, "Analysis spec invalid: dryRun[0]: Rule didn't match any metric name(s)", newRun.Status.Message)
+}
+
+func TestInvalidMeasurementsRetentionConfigThrowsError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	// Mocks terminate to cancel the in-progress measurement
+	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseInconclusive), nil)
+
+	var measurementsRetentionArray []v1alpha1.MeasurementRetention
+	measurementsRetentionArray = append(measurementsRetentionArray, v1alpha1.MeasurementRetention{MetricName: "error-rate"})
+	now := metav1.Now()
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Terminate: true,
+			Args: []v1alpha1.Argument{
+				{
+					Name:  "service",
+					Value: ptr.To[string]("rollouts-demo-canary.default.svc.cluster.local"),
+				},
+			},
+			Metrics: []v1alpha1.Metric{{
+				Name:             "success-rate",
+				InitialDelay:     "20s",
+				Interval:         "20s",
+				SuccessCondition: "result[0] > 0.90",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{},
+				},
+			}},
+			MeasurementRetention: measurementsRetentionArray,
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			StartedAt: &now,
+			Phase:     v1alpha1.AnalysisPhaseRunning,
+		},
+	}
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
+	assert.Equal(t, "Analysis spec invalid: measurementRetention[0]: Rule didn't match any metric name(s)", newRun.Status.Message)
+}
+
+func TestExceededTtlChecked(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	testTTLStrategy := func(
+		t *testing.T,
+		ttlStrategy *v1alpha1.TTLStrategy,
+		expiredStatus *v1alpha1.AnalysisRunStatus,
+		notExpiredStatus *v1alpha1.AnalysisRunStatus) {
+		testId := string(uuid.NewUUID())
+		ttlExpiredRun := &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "expired-run" + testId,
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: v1alpha1.AnalysisRunSpec{
+				TTLStrategy: ttlStrategy,
+			},
+			Status: *expiredStatus,
+		}
+		_ = c.reconcileAnalysisRun(ttlExpiredRun)
+		if notExpiredStatus != nil {
+			ttlNotExpiredRun := &v1alpha1.AnalysisRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "not-expired-run" + testId,
+					Namespace: metav1.NamespaceDefault,
+				},
+				Spec: v1alpha1.AnalysisRunSpec{
+					TTLStrategy: ttlStrategy,
+				},
+				Status: *notExpiredStatus,
+			}
+			_ = c.reconcileAnalysisRun(ttlNotExpiredRun)
+		}
+
+		pi := f.expectDeleteAnalysisRunAction(ttlExpiredRun)
+		assert.Equal(t, fmt.Sprintf("%s/%s", metav1.NamespaceDefault, "expired-run"+testId), f.getDeletedAnalysisRunNamespaceAndName(pi))
+		// Nothing else is deleted
+		assert.Equal(t, 1, len(filterInformerActions(f.client.Actions())))
+		// Clear actions to avoid affecting other test instances.
+		f.client.ClearActions()
+		f.actions = nil
+	}
+
+	ttlNotExpiredCompletedTime := f.now.Add(-86400 * time.Second)
+	ttlExpiredCompletedTime := ttlNotExpiredCompletedTime.Add(-1 * time.Second)
+	secondsOfOneDay := int32(86400)
+
+	// Test completed TTL.
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
+		SecondsAfterCompletion: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	})
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
+		SecondsAfterCompletion: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	})
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
+		SecondsAfterCompletion: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseError,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseError,
+	})
+	// Test successful TTL.
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
+		SecondsAfterSuccess: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	})
+	// Test failed TTL.
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
+		SecondsAfterFailure: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	})
+
+	// Test success TTL does not affect failed run.
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
+		SecondsAfterSuccess: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	})
+	// Test failed TTL does not affect successful run.
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
+		SecondsAfterFailure: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	})
+	// Test success TTL overrides completed TTL.
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
+		SecondsAfterCompletion: ptr.To[int32](100000),
+		SecondsAfterSuccess:    &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	})
+	// Test failed TTL overrides completed TTL.
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
+		SecondsAfterCompletion: ptr.To[int32](100000),
+		SecondsAfterFailure:    &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	})
+	// Test completed TTL still evaluated when non-matching overrides exist.
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
+		SecondsAfterCompletion: &secondsOfOneDay,
+		SecondsAfterFailure:    ptr.To[int32](86401),
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	})
+}
+
+func TestTtlNotGCInProgressAnalysisRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	expectedCount := intstr.FromInt(3)
+	origRun := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "metric1",
+					Interval: "60s",
+					Count:    &expectedCount,
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase:     v1alpha1.AnalysisPhaseRunning,
+			StartedAt: timePtr(metav1.NewTime(time.Now())),
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:  "metric1",
+					Phase: v1alpha1.AnalysisPhaseRunning,
+					Count: 1,
+					Measurements: []v1alpha1.Measurement{{
+						Value:      "1",
+						Phase:      v1alpha1.AnalysisPhaseSuccessful,
+						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
+				},
+			},
+		},
+	}
+	newRun := c.reconcileAnalysisRun(origRun)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, newRun.Status.Phase)
+	assert.Nil(t, newRun.Status.CompletedAt)
+	// Nothing else is deleted
+	assert.Equal(t, 0, len(filterInformerActions(f.client.Actions())))
+}
+
+func TestCompletedTimeFilled(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	expectedCount := intstr.FromInt(1)
+	origRun := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "metric1",
+					Interval: "60s",
+					Count:    &expectedCount,
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase:     v1alpha1.AnalysisPhaseRunning,
+			StartedAt: timePtr(metav1.NewTime(time.Now())),
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:  "metric1",
+					Phase: v1alpha1.AnalysisPhaseSuccessful,
+					Count: 1,
+					Measurements: []v1alpha1.Measurement{{
+						Value:      "1",
+						Phase:      v1alpha1.AnalysisPhaseSuccessful,
+						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
+				},
+			},
+		},
+	}
+	newRun := c.reconcileAnalysisRun(origRun)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
-	assert.Equal(t, "run terminated", newRun.Status.Message)
+	assert.NotNil(t, newRun.Status.CompletedAt)
+	assert.Equal(t, f.now, newRun.Status.CompletedAt.Time)
+}
+
+func TestReconcileAnalysisRunOnRunNotFound(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+
+	// Prepend since there is a default reaction that captures it.
+	f.client.Fake.PrependReactor("delete", "analysisruns", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, k8serrors.NewNotFound(k8sschema.GroupResource{Resource: "analysisruns"}, "test")
+	})
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run" + string(uuid.NewUUID()),
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			TTLStrategy: &v1alpha1.TTLStrategy{
+				SecondsAfterCompletion: ptr.To[int32](1),
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase:       v1alpha1.AnalysisPhaseSuccessful,
+			CompletedAt: timePtr(metav1.NewTime(f.now.Add(-2 * time.Second))),
+		},
+	}
+	_ = c.reconcileAnalysisRun(origRun)
+	logMessage := buf.String()
+	assert.Contains(t, logMessage, "Trying to cleanup TTL exceeded analysis run")
+	assert.NotContains(t, logMessage, "Failed to garbage collect analysis run")
+	// One deletion issued.
+	assert.Len(t, f.client.Fake.Actions(), 1)
+	assert.Equal(t, "delete", f.client.Fake.Actions()[0].GetVerb())
+	assert.Equal(t, "analysisruns", f.client.Fake.Actions()[0].GetResource().Resource)
+}
+
+func TestReconcileAnalysisRunOnOtherRunErrors(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+
+	// Prepend since there is a default reaction that captures it.
+	f.client.Fake.PrependReactor("delete", "analysisruns", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New("some error")
+	})
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run" + string(uuid.NewUUID()),
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			TTLStrategy: &v1alpha1.TTLStrategy{
+				SecondsAfterCompletion: ptr.To[int32](1),
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase:       v1alpha1.AnalysisPhaseSuccessful,
+			CompletedAt: timePtr(metav1.NewTime(f.now.Add(-2 * time.Second))),
+		},
+	}
+	_ = c.reconcileAnalysisRun(origRun)
+	logMessage := buf.String()
+	assert.Contains(t, logMessage, "Failed to garbage collect analysis run")
+	// One deletion issued.
+	assert.Len(t, f.client.Fake.Actions(), 1)
+	assert.Equal(t, "delete", f.client.Fake.Actions()[0].GetVerb())
+	assert.Equal(t, "analysisruns", f.client.Fake.Actions()[0].GetResource().Resource)
+}
+
+func TestMaybeGarbageCollectAnalysisRunNoGCIfNotCompleted(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run" + string(uuid.NewUUID()),
+			Namespace: metav1.NamespaceDefault,
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseRunning,
+		},
+	}
+	logger := logutil.WithAnalysisRun(origRun)
+	err := c.maybeGarbageCollectAnalysisRun(origRun, logger)
+	// No error, no deletion issued.
+	assert.NoError(t, err)
+	assert.Empty(t, f.client.Fake.Actions())
+}
+
+func TestMaybeGarbageCollectAnalysisRunNoGCIfNoTTLStrategy(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run" + string(uuid.NewUUID()),
+			Namespace: metav1.NamespaceDefault,
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+	}
+	logger := logutil.WithAnalysisRun(origRun)
+	err := c.maybeGarbageCollectAnalysisRun(origRun, logger)
+	// No error, no deletion issued.
+	assert.NoError(t, err)
+	assert.Empty(t, f.client.Fake.Actions())
+}
+
+func TestMaybeGarbageCollectAnalysisRunNoGCIfWithDeletionTimestamp(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "run" + string(uuid.NewUUID()),
+			Namespace:         metav1.NamespaceDefault,
+			DeletionTimestamp: timePtr(metav1.NewTime(f.now)),
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			TTLStrategy: &v1alpha1.TTLStrategy{
+				SecondsAfterCompletion: ptr.To[int32](1),
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase:       v1alpha1.AnalysisPhaseSuccessful,
+			CompletedAt: timePtr(metav1.NewTime(f.now.Add(-2 * time.Second))),
+		},
+	}
+	logger := logutil.WithAnalysisRun(origRun)
+	err := c.maybeGarbageCollectAnalysisRun(origRun, logger)
+	// No error, no deletion issued.
+	assert.NoError(t, err)
+	assert.Empty(t, f.client.Fake.Actions())
+}
+
+func TestMaybeGarbageCollectAnalysisRunNoGCIfNoCompletedAt(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run" + string(uuid.NewUUID()),
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			TTLStrategy: &v1alpha1.TTLStrategy{
+				SecondsAfterCompletion: ptr.To[int32](1),
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+	}
+	logger := logutil.WithAnalysisRun(origRun)
+	err := c.maybeGarbageCollectAnalysisRun(origRun, logger)
+	// No error, no deletion issued.
+	assert.NoError(t, err)
+	assert.Empty(t, f.client.Fake.Actions())
 }

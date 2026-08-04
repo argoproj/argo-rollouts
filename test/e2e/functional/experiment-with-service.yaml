@@ -25,3 +25,6 @@ spec:
                 requests:
                   memory: 16Mi
                   cpu: 1m
+              ports:
+                - protocol: TCP
+                  containerPort: 8080

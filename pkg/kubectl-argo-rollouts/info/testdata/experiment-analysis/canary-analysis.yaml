@@ -12,88 +12,90 @@ metadata:
   name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr
   namespace: jesse-test
   ownerReferences:
-  - apiVersion: argoproj.io/v1alpha1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Rollout
-    name: rollout-experiment-analysis
-    uid: a17d1089-fae6-11e9-a15b-42010aa80033
+    - apiVersion: argoproj.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Rollout
+      name: rollout-experiment-analysis
+      uid: a17d1089-fae6-11e9-a15b-42010aa80033
   resourceVersion: "29424124"
   selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/analysisruns/rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr
   uid: e50bceec-fae6-11e9-a15b-42010aa80033
 spec:
   metrics:
-  - interval: 10s
-    failureLimit: 5
-    name: random-fail
-    provider:
-      job:
-        metadata:
-          creationTimestamp: null
-        spec:
-          backoffLimit: 0
-          template:
-            metadata:
-              creationTimestamp: null
-            spec:
-              containers:
-              - args:
-                - FLIP=$(($(($RANDOM%10))%2)) && exit $FLIP
-                command:
-                - sh
-                - -c
-                image: alpine:3.8
-                name: sleep
-                resources: {}
-              restartPolicy: Never
+    - interval: 10s
+      count: 10
+      failureLimit: 5
+      inconclusiveLimit: 1
+      name: random-fail
+      provider:
+        job:
+          metadata:
+            creationTimestamp: null
+          spec:
+            backoffLimit: 0
+            template:
+              metadata:
+                creationTimestamp: null
+              spec:
+                containers:
+                  - args:
+                      - FLIP=$(($(($RANDOM%10))%2)) && exit $FLIP
+                    command:
+                      - sh
+                      - -c
+                    image: alpine:3.8
+                    name: sleep
+                    resources: {}
+                restartPolicy: Never
 status:
   metricResults:
-  - count: 8
-    error: 1
-    failed: 4
-    inconclusive: 1
-    measurements:
-    - finishedAt: "2019-10-30T07:28:40Z"
-      metadata:
-        job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rzl6lt
-      startedAt: "2019-10-30T07:28:38Z"
-      phase: Failed
-    - finishedAt: "2019-10-30T07:28:53Z"
-      metadata:
-        job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-r8lqpd
-      startedAt: "2019-10-30T07:28:50Z"
-      phase: Successful
-    - finishedAt: "2019-10-30T07:29:05Z"
-      metadata:
-        job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rjjsgg
-      startedAt: "2019-10-30T07:29:03Z"
-      phase: Successful
-    - finishedAt: "2019-10-30T07:29:17Z"
-      metadata:
-        job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rrnfj5
-      startedAt: "2019-10-30T07:29:15Z"
-      phase: Failed
-    - finishedAt: "2019-10-30T07:29:29Z"
-      metadata:
-        job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rx5kqk
-      startedAt: "2019-10-30T07:29:27Z"
-      phase: Failed
-    - finishedAt: "2019-10-30T07:29:41Z"
-      metadata:
-        job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rp894b
-      startedAt: "2019-10-30T07:29:39Z"
-      phase: Successful
-    - finishedAt: "2019-10-30T07:29:53Z"
-      metadata:
-        job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rmngtj
-      startedAt: "2019-10-30T07:29:51Z"
-      phase: Failed
-    - finishedAt: "2019-10-30T16:13:40Z"
-      metadata:
-        job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rsxm69
-      startedAt: "2019-10-30T16:13:38Z"
-      phase: Successful
-    name: random-fail
-    phase: Inconclusive
-    successful: 4
+    - count: 8
+      error: 1
+      failed: 4
+      inconclusive: 1
+      measurements:
+        - finishedAt: "2019-10-30T07:28:40Z"
+          metadata:
+            job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rzl6lt
+          startedAt: "2019-10-30T07:28:38Z"
+          phase: Failed
+        - finishedAt: "2019-10-30T07:28:53Z"
+          metadata:
+            job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-r8lqpd
+          startedAt: "2019-10-30T07:28:50Z"
+          phase: Successful
+        - finishedAt: "2019-10-30T07:29:05Z"
+          metadata:
+            job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rjjsgg
+          startedAt: "2019-10-30T07:29:03Z"
+          phase: Successful
+        - finishedAt: "2019-10-30T07:29:17Z"
+          metadata:
+            job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rrnfj5
+          startedAt: "2019-10-30T07:29:15Z"
+          phase: Failed
+        - finishedAt: "2019-10-30T07:29:29Z"
+          metadata:
+            job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rx5kqk
+          startedAt: "2019-10-30T07:29:27Z"
+          phase: Failed
+        - finishedAt: "2019-10-30T07:29:41Z"
+          metadata:
+            job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rp894b
+          startedAt: "2019-10-30T07:29:39Z"
+          phase: Successful
+        - finishedAt: "2019-10-30T07:29:53Z"
+          metadata:
+            job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rmngtj
+          startedAt: "2019-10-30T07:29:51Z"
+          phase: Failed
+        - finishedAt: "2019-10-30T16:13:40Z"
+          metadata:
+            job-name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr-rsxm69
+          startedAt: "2019-10-30T16:13:38Z"
+          phase: Successful
+      name: random-fail
+      phase: Inconclusive
+      successful: 4
   phase: Inconclusive

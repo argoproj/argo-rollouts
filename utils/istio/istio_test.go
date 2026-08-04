@@ -6,11 +6,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 func NewFakeDynamicClient(objects ...runtime.Object) *dynamicfake.FakeDynamicClient {
@@ -64,7 +65,7 @@ func TestGetRolloutVirtualServiceKeys(t *testing.T) {
 	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
 	ro.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{
-		VirtualService: v1alpha1.IstioVirtualService{},
+		VirtualService: &v1alpha1.IstioVirtualService{},
 	}
 	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
 	ro.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{
@@ -73,7 +74,9 @@ func TestGetRolloutVirtualServiceKeys(t *testing.T) {
 	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
 
 	multipleVirtualService := []v1alpha1.IstioVirtualService{{Name: "test1", Routes: nil}, {Name: "test2", Routes: nil}}
-	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "test"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService = &v1alpha1.IstioVirtualService{
+		Name: "test",
+	}
 	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices = multipleVirtualService
 	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
 
@@ -93,7 +96,7 @@ func TestGetRolloutVirtualServiceKeys(t *testing.T) {
 	assert.Len(t, keys, 1)
 	assert.Equal(t, keys[0], "namespace/test")
 
-	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = ""
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService = nil
 	virtualServices := []v1alpha1.IstioVirtualService{{Name: "test", Routes: nil}}
 	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices = virtualServices
 	keys = GetRolloutVirtualServiceKeys(ro)
@@ -149,4 +152,57 @@ func TestGetRolloutDesinationRuleKeys(t *testing.T) {
 	keys := GetRolloutDesinationRuleKeys(ro)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, "default/foo", keys[0])
+}
+
+func TestGetVirtualServiceNamespaceName(t *testing.T) {
+	tests := []struct {
+		name              string
+		input             string
+		expectedNamespace string
+		expectedName      string
+	}{
+		{
+			name:              "bare name, no namespace",
+			input:             "virtualservice",
+			expectedNamespace: "",
+			expectedName:      "virtualservice",
+		},
+		{
+			name:              "name.namespace cross-namespace shorthand",
+			input:             "virtualservice.istio",
+			expectedNamespace: "istio",
+			expectedName:      "virtualservice",
+		},
+		{
+			// Issue #4709: a VirtualService whose name contains a period must
+			// not have that period treated as a namespace separator. The VS
+			// "virtualservice.example" lives in namespace "istio" and is
+			// referenced as "virtualservice.example.istio". The namespace is the
+			// last segment; everything before it is the name.
+			name:              "name with period plus cross-namespace",
+			input:             "virtualservice.example.istio",
+			expectedNamespace: "istio",
+			expectedName:      "virtualservice.example",
+		},
+		{
+			name:              "multiple periods in name plus namespace",
+			input:             "my.virtual.service.istio",
+			expectedNamespace: "istio",
+			expectedName:      "my.virtual.service",
+		},
+		{
+			name:              "fully qualified with cluster.local suffix",
+			input:             "test.namespace.cluster.local",
+			expectedNamespace: "namespace",
+			expectedName:      "test",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ns, name := GetVirtualServiceNamespaceName(tc.input)
+			assert.Equal(t, tc.expectedNamespace, ns)
+			assert.Equal(t, tc.expectedName, name)
+		})
+	}
 }
