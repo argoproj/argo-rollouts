@@ -71,6 +71,8 @@ spec:
       labels:
         app: istio-canary-bg-analysis
     spec:
+      readinessGates:
+      - conditionType: argoproj.io/e2e-readiness
       containers:
       - name: istio-canary-bg-analysis
         image: nginx:1.19-alpine
