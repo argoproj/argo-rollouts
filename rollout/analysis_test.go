@@ -882,7 +882,11 @@ func TestDelayBackgroundAnalysisUntilCanaryWeightReached(t *testing.T) {
 		if trafficRouted {
 			r1.Spec.Strategy.Canary.CanaryService = "canary"
 			r1.Spec.Strategy.Canary.StableService = "stable"
-			r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{SMI: &v1alpha1.SMITrafficRouting{}}
+			r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+				Istio: &v1alpha1.IstioTrafficRouting{
+					VirtualService: &v1alpha1.IstioVirtualService{Name: "vsvc", Routes: []string{"primary"}},
+				},
+			}
 		}
 		r2 := bumpVersion(r1)
 
