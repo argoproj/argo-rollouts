@@ -874,11 +874,11 @@ func TestDelayBackgroundAnalysisUntilCanaryWeightReached(t *testing.T) {
 	// reconcile sets up a canary sitting on step 0 (setWeight 50) with background analysis
 	// configured and the given weights recorded on newStatus, then reconciles the background
 	// analysis once. Returns whether an AnalysisRun was created.
-	reconcile := func(trafficRouted bool, weights func(canaryHash, stableHash string) *v1alpha1.TrafficWeights) bool {
+	reconcile := func(startOn v1alpha1.BackgroundAnalysisStartPolicy, trafficRouted bool, weights func(canaryHash, stableHash string) *v1alpha1.TrafficWeights) bool {
 		analysis := &v1alpha1.RolloutAnalysis{Templates: []v1alpha1.AnalysisTemplateRef{{TemplateName: at.Name}}}
 		steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](50)}, {Pause: &v1alpha1.RolloutPause{}}}
 		r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
-		r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{RolloutAnalysis: *analysis}
+		r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{RolloutAnalysis: *analysis, StartOn: startOn}
 		if trafficRouted {
 			r1.Spec.Strategy.Canary.CanaryService = "canary"
 			r1.Spec.Strategy.Canary.StableService = "stable"
@@ -949,15 +949,21 @@ func TestDelayBackgroundAnalysisUntilCanaryWeightReached(t *testing.T) {
 
 	// SMI never sets Verified in production; the ptr.To[bool] values below synthetically exercise
 	// the verification clause the way an ALB-style verifying router would.
-	assert.False(t, reconcile(true, noWeights), "router not programmed for any canary yet -> wait")
-	assert.False(t, reconcile(true, weightsAt(0, "", nil)), "canary still at weight 0 -> wait")
-	assert.False(t, reconcile(true, weightsAt(50, "stale", nil)), "weights belong to a previous canary -> wait")
-	assert.False(t, reconcile(true, weightsAt(50, "", ptr.To(false))), "weight shift not yet verified -> wait")
-	assert.True(t, reconcile(true, weightsAt(50, "", nil)), "weight reached, router does not verify -> create")
-	assert.True(t, reconcile(true, weightsAt(50, "", ptr.To(true))), "weight reached and verified -> create")
+	assert.False(t, reconcile(v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, true, noWeights), "router not programmed for any canary yet -> wait")
+	assert.False(t, reconcile(v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, true, weightsAt(0, "", nil)), "canary still at weight 0 -> wait")
+	assert.False(t, reconcile(v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, true, weightsAt(50, "stale", nil)), "weights belong to a previous canary -> wait")
+	assert.False(t, reconcile(v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, true, weightsAt(50, "", ptr.To(false))), "weight shift not yet verified -> wait")
+	assert.True(t, reconcile(v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, true, weightsAt(50, "", nil)), "weight reached, router does not verify -> create")
+	assert.True(t, reconcile(v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, true, weightsAt(50, "", ptr.To(true))), "weight reached and verified -> create")
 
 	// A basic canary has no traffic router to wait on, so it is created regardless.
-	assert.True(t, reconcile(false, noWeights), "basic canary -> create immediately")
+	assert.True(t, reconcile(v1alpha1.BackgroundAnalysisStartOnCanaryTraffic, false, noWeights), "basic canary -> create immediately")
+
+	// The gate is opt-in: the default and an explicit Immediately must both keep the historical
+	// behaviour of creating the run straight away, even with the canary on zero traffic.
+	assert.True(t, reconcile("", true, weightsAt(0, "", nil)), "unset startOn -> create immediately")
+	assert.True(t, reconcile(v1alpha1.BackgroundAnalysisStartImmediately, true, weightsAt(0, "", nil)), "startOn Immediately -> create immediately")
+	assert.True(t, reconcile("", true, noWeights), "unset startOn with no weights -> create immediately")
 }
 
 func TestCreateAnalysisRunOnPromotedAnalysisStepIfPreviousStepWasAnalysisToo(t *testing.T) {

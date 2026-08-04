@@ -60,6 +60,7 @@ spec:
       analysis:
         templates:
         - templateName: sleep-job
+        startOn: CanaryTraffic
       steps:
       - setWeight: 50
       - pause: {}

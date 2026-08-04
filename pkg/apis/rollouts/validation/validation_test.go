@@ -225,6 +225,38 @@ func TestValidateRolloutStrategyCanaryMissingServiceNames(t *testing.T) {
 	}
 }
 
+// TestValidateRolloutStrategyCanaryBackgroundAnalysisStartOn covers the accepted values of
+// analysis.startOn. Unset must stay valid: the field is opt-in and existing rollouts do not set it.
+func TestValidateRolloutStrategyCanaryBackgroundAnalysisStartOn(t *testing.T) {
+	newRollout := func(startOn v1alpha1.BackgroundAnalysisStartPolicy) *v1alpha1.Rollout {
+		ro := &v1alpha1.Rollout{}
+		ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+			Steps: []v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{}}},
+			Analysis: &v1alpha1.RolloutAnalysisBackground{
+				RolloutAnalysis: v1alpha1.RolloutAnalysis{
+					Templates: []v1alpha1.AnalysisTemplateRef{{TemplateName: "success-rate"}},
+				},
+				StartOn: startOn,
+			},
+		}
+		return ro
+	}
+
+	for _, valid := range []v1alpha1.BackgroundAnalysisStartPolicy{
+		"",
+		v1alpha1.BackgroundAnalysisStartImmediately,
+		v1alpha1.BackgroundAnalysisStartOnCanaryTraffic,
+	} {
+		allErrs := ValidateRolloutStrategyCanary(newRollout(valid), field.NewPath("spec", "strategy", "canary"))
+		assert.Empty(t, allErrs, "startOn %q should be accepted", valid)
+	}
+
+	allErrs := ValidateRolloutStrategyCanary(newRollout("Whenever"), field.NewPath("spec", "strategy", "canary"))
+	assert.Len(t, allErrs, 1)
+	assert.Equal(t, "spec.strategy.canary.analysis.startOn", allErrs[0].Field)
+	assert.Equal(t, InvalidBackgroundAnalysisStartOnMessage, allErrs[0].Detail)
+}
+
 func TestValidateRolloutStrategyCanary(t *testing.T) {
 	canaryStrategy := &v1alpha1.CanaryStrategy{
 		CanaryService: "canary",

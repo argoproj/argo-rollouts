@@ -1228,13 +1228,32 @@ spec:
       - pause: {duration: 10m}
 ```
 
+A background analysis run normally starts as soon as the rollout does. For a canary that uses
+traffic routing, `startOn: CanaryTraffic` instead holds it back until Argo Rollouts has programmed
+the traffic router to give the canary the weight the current step calls for:
+
+```yaml hl_lines="7"
+spec:
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: success-rate
+        startOn: CanaryTraffic
+      steps:
+      - setWeight: 20
+      - pause: {duration: 10m}
+```
+
+This avoids measuring a canary that is not in the traffic path yet, where metrics tend to either
+error on missing data or pass without having tested anything. It applies only to a canary with a
+traffic router; without one there is no recorded weight to wait for and analysis starts as usual.
+
 !!! note
-    When the canary uses traffic routing, background analysis is not created until Argo Rollouts
-    has given the canary the weight the current step calls for. This avoids measuring a canary
-    that is not in the traffic path yet, where metrics tend to either error on missing data or
-    pass without having tested anything. If the current step calls for a weight of 0 there is
-    nothing to wait for, and analysis starts right away. `startingStep` can still be used to
-    delay analysis further.
+    Leave `startOn` unset, or set it to `Immediately`, for analysis that is not measuring the
+    canary. An approval check or an incident query run through the `job` or `web` providers is
+    usually meant to run *before* traffic shifts, and delaying it would defeat its purpose.
+    `Immediately` is the default.
 
 ## Referencing Secrets
 
