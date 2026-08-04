@@ -3692,7 +3692,7 @@ func schema_pkg_apis_rollouts_v1alpha1_PluginCanaryStrategy(ref common.Reference
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PluginCanaryStrategy is the subset of canary options honored by the RolloutPlugin controller. Unlike the full CanaryStrategy, it intentionally omits traffic routing, services, anti-affinity, and scaling fields, which the RolloutPlugin controller does not act on. Exposing only the honored fields avoids the misleading UX of accepting configuration that would be silently ignored.",
+				Description: "PluginCanaryStrategy is the subset of canary options honored by the RolloutPlugin controller. TODO In Future, align this with the canary strategy in RolloutSpec, and support all the same options.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"steps": {
@@ -4851,7 +4851,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginSpec(ref common.ReferenceCal
 					},
 					"plugin": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Plugin references the resource-specific plugin by name and carries its runtime configuration. Installation/resolution of the plugin binary (location, sha256, args) is owned by the controller's argo-rollouts-config ConfigMap under 'rolloutPlugins', the same mechanism used by step, metric-provider, and traffic-router plugins.",
+							Description: "Plugin references the resource-specific plugin by name and carries its runtime configuration.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginStep"),
 						},
