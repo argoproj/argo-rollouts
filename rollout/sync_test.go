@@ -467,6 +467,54 @@ func TestCanaryZeroReplicasSkipSteps(t *testing.T) {
 	assert.False(t, patchedRollout.Status.ControllerPause)
 }
 
+// TestCanaryZeroReplicasScaleDownDuringPause verifies scaling to 0 mid-rollout while paused
+// skips the pause and promotes, even when isScalingEvent would normally short-circuit to syncReplicasOnly.
+func TestCanaryZeroReplicasScaleDownDuringPause(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: int32Ptr(25),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 := bumpVersion(r1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2.Spec.Replicas = ptr.To[int32](0)
+	// Stale desired-replicas annotations trigger isScalingEvent.
+	rs1.Annotations[annotations.DesiredReplicasAnnotation] = "10"
+	rs2.Annotations[annotations.DesiredReplicasAnnotation] = "10"
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 11, 1, 11, true)
+	r2.Status.CurrentStepIndex = ptr.To[int32](1)
+	r2.Status.CurrentPodHash = rs2PodHash
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	f.expectUpdateReplicaSetAction(rs1)
+	patchedRolloutIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	patchedRollout := f.getPatchedRolloutAsObject(patchedRolloutIndex)
+	assert.Equal(t, int32(len(steps)), *patchedRollout.Status.CurrentStepIndex)
+	assert.Equal(t, rs2PodHash, patchedRollout.Status.StableRS)
+	assert.False(t, patchedRollout.Status.ControllerPause)
+	assert.Nil(t, patchedRollout.Status.PauseConditions)
+}
+
 // TesBlueGreenPromoteFull verifies skip pause, analysis when promote full is set for a blue-green rollout
 func TestBlueGreenPromoteFull(t *testing.T) {
 	f := newFixture(t)

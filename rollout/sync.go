@@ -1219,6 +1219,19 @@ func (c *rolloutContext) isZeroReplicaFastTrack() bool {
 	return c.rollout.Spec.Replicas != nil && *c.rollout.Spec.Replicas == 0
 }
 
+// needsZeroReplicaFastTrackReconcile returns true when a full canary reconcile is required
+// instead of syncReplicasOnly. Scaling to zero mid-rollout must still skip pause steps and
+// promote the new version as stable.
+func (c *rolloutContext) needsZeroReplicaFastTrackReconcile() bool {
+	if !c.isZeroReplicaFastTrack() || c.rollout.Spec.Strategy.Canary == nil {
+		return false
+	}
+	if c.newRS == nil || c.rollout.Status.StableRS == "" {
+		return false
+	}
+	return c.rollout.Status.StableRS != replicasetutil.GetPodTemplateHash(c.newRS)
+}
+
 func (c *rolloutContext) isRollbackWithinWindow() bool {
 	if c.newRS == nil || c.stableRS == nil {
 		return false
