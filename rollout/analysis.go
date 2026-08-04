@@ -349,8 +349,11 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 
 // canaryWeightReached reports whether the traffic router has given the current canary ReplicaSet
 // the weight the current step calls for, and -- for routers that verify weights -- that the shift
-// has been verified. A basic canary shifts traffic by moving service selectors, so there is
-// nothing to wait for and this is always true.
+// has been verified.
+//
+// A basic canary has no traffic router. It shifts traffic by adjusting the stable and canary
+// replica counts behind a shared Service and leaves Status.Canary.Weights nil (see
+// reconcileTrafficRouting), so there is no recorded weight to wait for and this is always true.
 //
 // Weights are read from newStatus because reconcileTrafficRouting runs earlier in the same
 // reconcile and records there both the weight it just programmed and the result of the
@@ -371,6 +374,23 @@ func (c *rolloutContext) canaryWeightReached() bool {
 	}
 	return weights.Canary.Weight >= replicasetutil.GetCurrentSetWeight(c.rollout) &&
 		(weights.Verified == nil || *weights.Verified)
+}
+
+// canaryWeightStatus explains, for logging, why canaryWeightReached is not yet satisfied.
+func (c *rolloutContext) canaryWeightStatus() string {
+	desired := replicasetutil.GetCurrentSetWeight(c.rollout)
+	weights := c.newStatus.Canary.Weights
+	if weights == nil {
+		return fmt.Sprintf("no weights recorded yet, want %d", desired)
+	}
+	canaryHash := replicasetutil.GetPodTemplateHash(c.newRS)
+	if weights.Canary.PodTemplateHash != canaryHash {
+		return fmt.Sprintf("recorded weight is for ReplicaSet %s, want %s", weights.Canary.PodTemplateHash, canaryHash)
+	}
+	if weights.Verified != nil && !*weights.Verified {
+		return fmt.Sprintf("weight %d not yet verified by the traffic router", weights.Canary.Weight)
+	}
+	return fmt.Sprintf("weight is %d, want %d", weights.Canary.Weight, desired)
 }
 
 func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun, error) {
@@ -395,7 +415,7 @@ func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun
 		// evaluated against a ReplicaSet receiving no traffic -- passing on no evidence, or
 		// failing on no data and aborting a healthy rollout.
 		if !c.canaryWeightReached() {
-			c.log.Info("Delaying background analysis until the canary has received traffic")
+			c.log.Infof("Delaying background analysis until the canary has received traffic (%s)", c.canaryWeightStatus())
 			return currentAr, nil
 		}
 		podHash := replicasetutil.GetPodTemplateHash(c.newRS)
