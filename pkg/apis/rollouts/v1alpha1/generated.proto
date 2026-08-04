@@ -1249,10 +1249,7 @@ message PluginCanaryStep {
 }
 
 // PluginCanaryStrategy is the subset of canary options honored by the RolloutPlugin
-// controller. Unlike the full CanaryStrategy, it intentionally omits traffic routing,
-// services, anti-affinity, and scaling fields, which the RolloutPlugin controller does
-// not act on. Exposing only the honored fields avoids the misleading UX of accepting
-// configuration that would be silently ignored.
+// controller. TODO In Future, align this with the canary strategy in RolloutSpec, and support all the same options.
 message PluginCanaryStrategy {
   // Steps define the sequence of steps to take during a rollout.
   // +optional
@@ -1600,9 +1597,8 @@ message RolloutPluginSpec {
   optional WorkloadRef workloadRef = 1;
 
   // Plugin references the resource-specific plugin by name and carries its runtime
-  // configuration. Installation/resolution of the plugin binary (location, sha256, args)
-  // is owned by the controller's argo-rollouts-config ConfigMap under 'rolloutPlugins',
-  // the same mechanism used by step, metric-provider, and traffic-router plugins.
+  // configuration.
+  // TODO create a separate type instead of reusing PluginStep which is used by Step Plugin
   optional PluginStep plugin = 2;
 
   // Strategy defines the deployment strategy
