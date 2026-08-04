@@ -347,6 +347,24 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 	return currentAr, nil
 }
 
+// deferBackgroundAnalysisRun reports whether creating the background AnalysisRun should be held
+// off for now, in the spirit of skipPrePromotionAnalysisRun / skipPostPromotionAnalysisRun above.
+//
+// Background analysis is otherwise created as soon as the new ReplicaSet exists, so for a
+// traffic-routed canary a canary-scoped metric can be evaluated against a ReplicaSet receiving no
+// traffic: passing on no evidence, or failing on no data and aborting a healthy rollout. Opting
+// in with startOn: CanaryTraffic waits for the traffic to arrive first.
+//
+// This is opt-in because analysis is not always canary-scoped. An approval or incident check run
+// through the job or web providers deliberately wants to run before traffic shifts, and gating it
+// would defeat its purpose, so Immediately remains the default.
+func (c *rolloutContext) deferBackgroundAnalysisRun() bool {
+	if c.rollout.Spec.Strategy.Canary.Analysis.StartOn != v1alpha1.BackgroundAnalysisStartOnCanaryTraffic {
+		return false
+	}
+	return !c.canaryWeightReached()
+}
+
 // canaryWeightReached reports whether the traffic router has given the current canary ReplicaSet
 // the weight the current step calls for, and -- for routers that verify weights -- that the shift
 // has been verified.
@@ -410,11 +428,7 @@ func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun
 	}
 
 	if needsNewAnalysisRun(currentAr, c.rollout) {
-		// Wait until the canary is actually in the traffic path. Background analysis is otherwise
-		// created as soon as the new ReplicaSet exists, so a canary-scoped metric would be
-		// evaluated against a ReplicaSet receiving no traffic -- passing on no evidence, or
-		// failing on no data and aborting a healthy rollout.
-		if !c.canaryWeightReached() {
+		if c.deferBackgroundAnalysisRun() {
 			c.log.Infof("Delaying background analysis until the canary has received traffic (%s)", c.canaryWeightStatus())
 			return currentAr, nil
 		}
