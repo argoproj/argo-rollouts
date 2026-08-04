@@ -93,8 +93,8 @@ func initSingleton() {
 	once.Do(func() {
 		registry = &pluginRegistry{
 			processClient: make(map[string]*goPlugin.Client),
-			rpcConnClient:    make(map[string]goPlugin.ClientProtocol),
-			instances: make(map[string]types.RpcResourcePlugin),
+			rpcConnClient: make(map[string]goPlugin.ClientProtocol),
+			instances:     make(map[string]types.RpcResourcePlugin),
 		}
 	})
 }
