@@ -133,6 +133,9 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 }
 
 func (c *rolloutContext) reconcileCanaryPause() bool {
+	if c.isZeroReplicaFastTrack() {
+		return false
+	}
 	if c.rollout.Spec.Paused {
 		return false
 	}
@@ -369,6 +372,13 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 				// Else if we get here we detected that we are within the rollback window we can skip steps and move back to the active ReplicaSet
 				c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "SkipSteps"}, "Rollback to active ReplicaSets within RollbackWindow")
 				newStatus.CurrentStepIndex = &stepCount
+			} else if c.isZeroReplicaFastTrack() {
+				if reason := c.shouldFullPromote(newStatus); reason != "" {
+					if err := c.promoteStable(&newStatus, reason); err != nil {
+						return err
+					}
+					return c.persistRolloutStatus(&newStatus)
+				}
 			}
 		}
 		return c.persistRolloutStatus(&newStatus)

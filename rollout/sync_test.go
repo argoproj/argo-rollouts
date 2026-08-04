@@ -420,6 +420,53 @@ func TestCanaryPromoteFull(t *testing.T) {
 	assert.False(t, patchedRollout.Status.PromoteFull)
 }
 
+// TestCanaryZeroReplicasSkipSteps verifies canary steps are skipped when spec.replicas is 0
+func TestCanaryZeroReplicasSkipSteps(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: int32Ptr(25),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+		{
+			SetWeight: int32Ptr(100),
+		},
+	}
+
+	r1 := newCanaryRollout("foo", 0, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	rs1 := newReplicaSetWithStatus(r1, 0, 0)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r1.Status.StableRS = rs1PodHash
+	r2 := bumpVersion(r1)
+	r2.Annotations[annotations.RevisionAnnotation] = "1"
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // sync 1: create new ReplicaSet (size 0)
+	f.expectUpdateRolloutAction(r2)                        // sync 1: update rollout revision
+	f.expectUpdateRolloutStatusAction(r2)                  // sync 1: update rollout conditions
+	f.expectGetRolloutAction(r2)                           // re-seed between syncs
+	patchedRolloutIndex := f.expectPatchRolloutAction(r2)  // sync 2: promote and patch status
+	f.runWithSyncs(getKey(r2, t), 2)
+
+	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
+	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
+
+	patchedRollout := f.getPatchedRolloutAsObject(patchedRolloutIndex)
+	assert.Equal(t, int32(len(steps)), *patchedRollout.Status.CurrentStepIndex)
+	assert.Equal(t, rs2PodHash, patchedRollout.Status.StableRS)
+	assert.False(t, patchedRollout.Status.ControllerPause)
+}
+
 // TesBlueGreenPromoteFull verifies skip pause, analysis when promote full is set for a blue-green rollout
 func TestBlueGreenPromoteFull(t *testing.T) {
 	f := newFixture(t)
@@ -683,6 +730,43 @@ func Test_shouldFullPromote(t *testing.T) {
 
 	result = ctx.shouldFullPromote(newStatus)
 	assert.Equal(t, result, "Rollback within window")
+}
+
+func TestShouldFullPromoteZeroReplicas(t *testing.T) {
+	stableRS := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "stablehash"},
+		},
+	}
+	newRS := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "newhash"},
+		},
+	}
+	ctx := &rolloutContext{
+		stableRS: stableRS,
+		newRS:    newRS,
+		rollout: &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Replicas: ptr.To[int32](0),
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{
+						Steps: []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](25)}},
+					},
+				},
+			},
+			Status: v1alpha1.RolloutStatus{
+				StableRS:         "stablehash",
+				CurrentPodHash:   "newhash",
+				CurrentStepIndex: ptr.To[int32](0),
+			},
+		},
+	}
+	ctx.pauseContext = &pauseContext{rollout: ctx.rollout}
+	ctx.log = logutil.WithRollout(ctx.rollout)
+
+	result := ctx.shouldFullPromote(v1alpha1.RolloutStatus{})
+	assert.Equal(t, "Zero replicas - skipping canary steps", result)
 }
 
 func TestShouldFullPromoteWithReplicaProgressThreshold(t *testing.T) {
