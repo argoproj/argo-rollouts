@@ -25,8 +25,32 @@ const DefaultEphemeralMetadataPodRetries = 3
 // DefaultEphemeralMetadataRetryBackoff is the base duration for exponential backoff between retry attempts
 const DefaultEphemeralMetadataRetryBackoff = 100 * time.Millisecond
 
+func hasEphemeralMetadataConfigured(rollout *v1alpha1.Rollout) bool {
+	if rollout.Spec.Strategy.Canary != nil {
+		return rollout.Spec.Strategy.Canary.CanaryMetadata != nil || rollout.Spec.Strategy.Canary.StableMetadata != nil
+	}
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		return rollout.Spec.Strategy.BlueGreen.PreviewMetadata != nil || rollout.Spec.Strategy.BlueGreen.ActiveMetadata != nil
+	}
+	return false
+}
+
+func isZeroReplicaReplicaSet(rs *appsv1.ReplicaSet) bool {
+	if rs == nil {
+		return true
+	}
+	if rs.Spec.Replicas != nil && *rs.Spec.Replicas == 0 {
+		return true
+	}
+	return false
+}
+
 // reconcileEphemeralMetadata syncs canary/stable ephemeral metadata to ReplicaSets and pods
 func (c *rolloutContext) reconcileEphemeralMetadata() error {
+	if !hasEphemeralMetadataConfigured(c.rollout) {
+		return nil
+	}
+
 	ctx := context.TODO()
 	var newMetadata, stableMetadata *v1alpha1.PodTemplateMetadata
 	if c.rollout.Spec.Strategy.Canary != nil {
@@ -89,6 +113,10 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 			return fmt.Errorf("failed to sync ephemeral metadata: %w", err)
 		}
 		c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
+	}
+
+	if isZeroReplicaReplicaSet(rs) {
+		return nil
 	}
 
 	// 2. Sync ephemeral metadata to pods (always do this, even if replicaset wasn't modified so that we handle cases where
