@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ROLLOUT_NAME-active
+spec:
+  selector:
+    app: ROLLOUT_NAME
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ROLLOUT_NAME-preview
+spec:
+  selector:
+    app: ROLLOUT_NAME
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: ROLLOUT_NAME
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ROLLOUT_NAME
+  template:
+    metadata:
+      labels:
+        app: ROLLOUT_NAME
+    spec:
+      containers:
+      - name: ROLLOUT_NAME
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+  strategy:
+    blueGreen:
+      activeService: ROLLOUT_NAME-active
+      previewService: ROLLOUT_NAME-preview

@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
@@ -131,6 +132,28 @@ func getPauseCondition(rollout *v1alpha1.Rollout, reason v1alpha1.PauseReason) *
 		}
 	}
 	return nil
+}
+
+// requiresManualAction returns true if the given pause reason requires manual intervention
+func requiresManualAction(reason v1alpha1.PauseReason, ro *v1alpha1.Rollout) bool {
+	switch reason {
+	case v1alpha1.PauseReasonInconclusiveAnalysis, v1alpha1.PauseReasonInconclusiveExperiment:
+		return true
+	case v1alpha1.PauseReasonCanaryPauseStep:
+		// Find current canary step to check if it's indefinite pause
+		if ro.Spec.Strategy.Canary != nil {
+			currentStep, _ := replicasetutil.GetCurrentCanaryStep(ro)
+			if currentStep != nil && currentStep.Pause != nil {
+				return currentStep.Pause.Duration == nil // indefinite pause
+			}
+		}
+	case v1alpha1.PauseReasonBlueGreenPause:
+		bg := ro.Spec.Strategy.BlueGreen
+		if bg != nil {
+			return bg.AutoPromotionEnabled != nil && !*bg.AutoPromotionEnabled
+		}
+	}
+	return false
 }
 
 // completedPrePromotionAnalysis checks if the Pre Promotion Analysis has completed successfully
