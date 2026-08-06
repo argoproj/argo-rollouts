@@ -83,9 +83,10 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 		}
 	}
 
-	// Iterate all other ReplicaSets and verify we don't have injected metadata for them
+	// Iterate all other ReplicaSets and verify we don't have injected metadata for them.
+	// Only the RS template needs cleanup; active pods live on newRS/stableRS.
 	for _, rs := range c.otherRSs {
-		err := c.syncEphemeralMetadata(ctx, rs, nil)
+		err := c.syncEphemeralMetadataReplicaSetOnly(ctx, rs, nil)
 		if err != nil {
 			return err
 		}
@@ -93,7 +94,22 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 	return nil
 }
 
+func replicaSetNeedsPodMetadataSync(modified bool, rs *appsv1.ReplicaSet) bool {
+	if modified {
+		return true
+	}
+	return replicasetutil.ParseExistingPodMetadata(rs) != nil
+}
+
 func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) error {
+	return c.syncEphemeralMetadataInternal(ctx, rs, podMetadata, true)
+}
+
+func (c *rolloutContext) syncEphemeralMetadataReplicaSetOnly(ctx context.Context, rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) error {
+	return c.syncEphemeralMetadataInternal(ctx, rs, podMetadata, false)
+}
+
+func (c *rolloutContext) syncEphemeralMetadataInternal(ctx context.Context, rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata, syncPods bool) error {
 	if rs == nil {
 		return nil
 	}
@@ -115,13 +131,20 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 		c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
 	}
 
+	if !syncPods {
+		return nil
+	}
+
 	if isZeroReplicaReplicaSet(rs) {
 		return nil
 	}
 
-	// 2. Sync ephemeral metadata to pods (always do this, even if replicaset wasn't modified so that we handle cases where
-	// the replicaset already had the correct metadata but some pods don't: e.g. a crash/OOM of the controller between the two steps,
-	// or simply a failure to update some pods in a previous attempt)
+	if !replicaSetNeedsPodMetadataSync(modified, originalRSCopy) {
+		return nil
+	}
+
+	// 2. Sync ephemeral metadata to pods when the ReplicaSet was updated or previously had
+	// injected metadata (handles crash/OOM between RS and pod updates, or partial pod sync).
 	pods, err := replicasetutil.GetPodsOwnedByReplicaSet(ctx, c.kubeclientset, rs)
 	if err != nil {
 		return err

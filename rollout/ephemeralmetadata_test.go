@@ -21,6 +21,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 // TestSyncCanaryEphemeralMetadataInitialRevision verifies when we create a revision 1 ReplicaSet
@@ -652,6 +653,176 @@ func TestSyncEphemeralMetadataSkipsPodListOnZeroReplicaRS(t *testing.T) {
 	}
 
 	err := ctx.syncEphemeralMetadata(context.Background(), rs, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, podListCalls)
+}
+
+func TestSyncEphemeralMetadataSkipsPodListWhenUnchanged(t *testing.T) {
+	testPodHash := "abc123"
+	replicas := int32(3)
+	rs := &v1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "stable-rs",
+			Namespace: "default",
+		},
+		Spec: v1.ReplicaSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"rollouts-pod-template-hash": testPodHash,
+				},
+			},
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"role":                       "stable",
+						"rollouts-pod-template-hash": testPodHash,
+					},
+				},
+			},
+		},
+	}
+	stableMetadata := &v1alpha1.PodTemplateMetadata{
+		Labels: map[string]string{"role": "stable"},
+	}
+
+	kubeclient := k8sfake.NewSimpleClientset()
+	podListCalls := 0
+	kubeclient.Fake.PrependReactor("list", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		podListCalls++
+		return true, nil, fmt.Errorf("unexpected pod list")
+	})
+
+	ctx := &rolloutContext{
+		reconcilerBase: reconcilerBase{
+			kubeclientset: kubeclient,
+		},
+		log: logrus.WithField("test", "unchanged"),
+	}
+
+	err := ctx.syncEphemeralMetadata(context.Background(), rs, stableMetadata)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, podListCalls)
+}
+
+func TestSyncEphemeralMetadataListsPodsWhenAnnotationPresent(t *testing.T) {
+	testPodHash := "abc123"
+	testUID := types.UID("rs-uid")
+	replicas := int32(1)
+	rs := &v1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "stable-rs",
+			Namespace: "default",
+			UID:       testUID,
+			Annotations: map[string]string{
+				replicasetutil.EphemeralMetadataAnnotation: `{"labels":{"role":"stable"}}`,
+			},
+		},
+		Spec: v1.ReplicaSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"rollouts-pod-template-hash": testPodHash,
+				},
+			},
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"role":                       "stable",
+						"rollouts-pod-template-hash": testPodHash,
+					},
+				},
+			},
+		},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "stable-pod",
+			Namespace: "default",
+			Labels: map[string]string{
+				"role":                       "stable",
+				"rollouts-pod-template-hash": testPodHash,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "ReplicaSet",
+					Name:       rs.Name,
+					UID:        testUID,
+					Controller: ptr.To(true),
+				},
+			},
+		},
+	}
+	stableMetadata := &v1alpha1.PodTemplateMetadata{
+		Labels: map[string]string{"role": "stable"},
+	}
+
+	kubeclient := k8sfake.NewSimpleClientset(rs, pod)
+	podListCalls := 0
+	kubeclient.Fake.PrependReactor("list", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		podListCalls++
+		return false, nil, nil
+	})
+
+	ctx := &rolloutContext{
+		reconcilerBase: reconcilerBase{
+			kubeclientset:               kubeclient,
+			ephemeralMetadataThreads:    DefaultEphemeralMetadataThreads,
+			ephemeralMetadataPodRetries: DefaultEphemeralMetadataPodRetries,
+		},
+		log: logrus.WithField("test", "annotation"),
+	}
+
+	err := ctx.syncEphemeralMetadata(context.Background(), rs, stableMetadata)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, podListCalls)
+}
+
+func TestSyncEphemeralMetadataReplicaSetOnlySkipsPodListWithReplicas(t *testing.T) {
+	testPodHash := "abc123"
+	replicas := int32(2)
+	rs := &v1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "old-rs",
+			Namespace: "default",
+			Annotations: map[string]string{
+				replicasetutil.EphemeralMetadataAnnotation: `{"labels":{"role":"canary"}}`,
+			},
+		},
+		Spec: v1.ReplicaSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"rollouts-pod-template-hash": testPodHash,
+				},
+			},
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"role":                       "canary",
+						"rollouts-pod-template-hash": testPodHash,
+					},
+				},
+			},
+		},
+	}
+
+	kubeclient := k8sfake.NewSimpleClientset(rs)
+	podListCalls := 0
+	kubeclient.Fake.PrependReactor("list", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		podListCalls++
+		return true, nil, fmt.Errorf("unexpected pod list")
+	})
+
+	ctx := &rolloutContext{
+		reconcilerBase: reconcilerBase{
+			kubeclientset: kubeclient,
+		},
+		log: logrus.WithField("test", "rs-only"),
+	}
+
+	err := ctx.syncEphemeralMetadataReplicaSetOnly(context.Background(), rs, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, podListCalls)
 }
