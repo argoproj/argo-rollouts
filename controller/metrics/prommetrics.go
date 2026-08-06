@@ -183,6 +183,62 @@ var (
 	)
 )
 
+// RolloutPlugin metrics
+var (
+	MetricRolloutPluginReconcile = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "rolloutplugin_reconcile",
+			Help:    "RolloutPlugin reconciliation performance.",
+			Buckets: []float64{0.01, 0.15, .25, .5, 1},
+		},
+		namespaceNameLabels,
+	)
+
+	MetricRolloutPluginReconcileError = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "rolloutplugin_reconcile_error",
+			Help: "Error occurring during the rolloutplugin",
+		},
+		namespaceNameLabels,
+	)
+
+	MetricRolloutPluginInfo = prometheus.NewDesc(
+		"rolloutplugin_info",
+		"Information about rolloutplugin.",
+		append(namespaceNameLabels, "strategy", "plugin_name", "workload_kind", "phase"),
+		nil,
+	)
+
+	MetricRolloutPluginWorkloadReplicasDesired = prometheus.NewDesc(
+		"rolloutplugin_workload_replicas_desired",
+		"The number of desired replicas for the workload managed by rolloutplugin.",
+		namespaceNameLabels,
+		nil,
+	)
+
+	MetricRolloutPluginWorkloadReplicasUpdated = prometheus.NewDesc(
+		"rolloutplugin_workload_replicas_updated",
+		"The number of updated replicas for the workload managed by rolloutplugin.",
+		namespaceNameLabels,
+		nil,
+	)
+
+	MetricRolloutPluginWorkloadReplicasReady = prometheus.NewDesc(
+		"rolloutplugin_workload_replicas_ready",
+		"The number of ready replicas for the workload managed by rolloutplugin.",
+		namespaceNameLabels,
+		nil,
+	)
+
+	MetricRolloutPluginEventsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "rolloutplugin_events_total",
+			Help: "Count of rolloutplugin events",
+		},
+		append(namespaceNameLabels, "type", "reason"),
+	)
+)
+
 // Notification metrics
 var (
 	MetricNotificationSuccessTotal = prometheus.NewCounterVec(

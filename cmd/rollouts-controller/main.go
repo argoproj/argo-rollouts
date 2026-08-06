@@ -1,29 +1,45 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
+	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/argoproj/pkg/kubeclientmetrics"
+	"github.com/go-logr/logr"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/argoproj/argo-rollouts/metricproviders"
 	"github.com/argoproj/argo-rollouts/rollout"
+	"github.com/argoproj/argo-rollouts/rolloutplugin"
+	statefulset "github.com/argoproj/argo-rollouts/rolloutplugin/plugins/statefulset"
 	"github.com/argoproj/argo-rollouts/utils/errors"
 	"github.com/argoproj/argo-rollouts/utils/record"
 
@@ -33,6 +49,7 @@ import (
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
+	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -48,10 +65,27 @@ const (
 	jsonFormat = "json"
 	textFormat = "text"
 
-	controllerAnalysis = "analysis"
+	controllerAnalysis      = "analysis"
+	controllerRolloutPlugin = "rolloutplugin"
+	listenAddr              = "0.0.0.0:%d"
 )
 
-var supportedControllers = map[string]bool{controllerAnalysis: true}
+var supportedControllers = map[string]bool{
+	controllerAnalysis:      true,
+	controllerRolloutPlugin: true,
+}
+
+// newRolloutPluginScheme builds the runtime scheme used by the RolloutPlugin
+// controller-runtime manager. It also points controller-runtime at a null logger so its
+// "log.SetLogger never called" warning is suppressed (we use logrus for our own logging).
+func newRolloutPluginScheme() *k8sruntime.Scheme {
+	ctrl.SetLogger(logr.New(ctrllog.NullLogSink{}))
+
+	scheme := k8sruntime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	return scheme
+}
 
 func newCommand() *cobra.Command {
 	var (
@@ -236,10 +270,23 @@ func newCommand() *cobra.Command {
 				go func() { log.Println(http.ListenAndServe(pprofAddress, mux)) }()
 			}
 
-			var cm *controller.Manager
-
 			enabledControllers, err := getEnabledControllers(controllersEnabled)
 			errors.CheckError(err)
+
+			// Create shared MetricsServer that will be used by all controllers
+			log.Info("Creating shared metrics server")
+			metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+				Addr:                          fmt.Sprintf(listenAddr, metricsPort),
+				RolloutLister:                 tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory).Lister(),
+				AnalysisRunLister:             tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory).Lister(),
+				AnalysisTemplateLister:        tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory).Lister(),
+				ClusterAnalysisTemplateLister: tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory).Lister(),
+				ExperimentLister:              tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory).Lister(),
+				RolloutPluginLister:           tolerantinformer.NewTolerantRolloutPluginInformer(dynamicInformerFactory).Lister(),
+				K8SRequestProvider:            k8sRequestProvider,
+			})
+
+			var cm *controller.Manager
 
 			// currently only supports running analysis controller independently
 			if enabledControllers[controllerAnalysis] {
@@ -254,9 +301,8 @@ func newCommand() *cobra.Command {
 					tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
 					tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
 					resyncDuration,
-					metricsPort,
+					metricsServer,
 					healthzPort,
-					k8sRequestProvider,
 					dynamicInformerFactory,
 					clusterDynamicInformerFactory,
 					namespaced,
@@ -287,9 +333,8 @@ func newCommand() *cobra.Command {
 					notificationSecretInformerFactory,
 					resyncDuration,
 					instanceID,
-					metricsPort,
+					metricsServer,
 					healthzPort,
-					k8sRequestProvider,
 					nginxIngressClasses,
 					albIngressClasses,
 					dynamicInformerFactory,
@@ -303,9 +348,202 @@ func newCommand() *cobra.Command {
 					ephemeralMetadataPodRetries,
 					selfServiceNotificationEnabled)
 			}
-			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
-				log.Fatalf("Error running controller: %s", err.Error())
+
+			// Setup RolloutPlugin Controller if enabled (uses controller-runtime)
+			if enabledControllers[controllerRolloutPlugin] {
+				log.Info("Setting up RolloutPlugin controller")
+
+				// Determine leader election namespace
+				leaderElectionNamespace := electOpts.LeaderElectionNamespace
+				if leaderElectionNamespace == "" {
+					if namespaced && namespace != metav1.NamespaceAll {
+						leaderElectionNamespace = namespace
+					} else {
+						leaderElectionNamespace = defaults.Namespace()
+					}
+					// Update electOpts with the computed namespace for standard controllers
+					electOpts.LeaderElectionNamespace = leaderElectionNamespace
+				}
+
+				mgrOpts := ctrl.Options{
+					Scheme: newRolloutPluginScheme(),
+					Metrics: metricsserver.Options{
+						BindAddress: "0", // Disable metrics server, use standard controller's metrics
+					},
+					HealthProbeBindAddress: "0", // Disable health probe, use standard controller's healthz
+					// Leave controller-runtime's own leader election disabled. Instead, this manager is
+					// started only after the standard controllers win leadership (see the onStartedLeading
+					// hook passed to cm.Run below), so the RolloutPlugin controller runs on the same leader
+					// as the rest of the controllers using a single lease rather than a competing one.
+					LeaderElection: false,
+				}
+				if namespaced && namespace != metav1.NamespaceAll {
+					log.WithField("namespace", namespace).Info("RolloutPlugin controller running in namespaced mode")
+					mgrOpts.Cache = cache.Options{
+						DefaultNamespaces: map[string]cache.Config{
+							namespace: {},
+						},
+					}
+				} else {
+					log.Info("RolloutPlugin controller running in cluster-scoped mode")
+				}
+
+				mgr, err := ctrl.NewManager(config, mgrOpts)
+				if err != nil {
+					log.Fatalf("Failed to create controller-runtime manager: %s", err.Error())
+				}
+
+				// Get the singleton plugin manager instance, seeded with the controller's
+				// watch namespace so lazily loaded external RPC plugins get the right namespace.
+				pluginManager := rolloutplugin.GetGlobalPluginManager(namespace)
+
+				// Built-in plugins are opt-in via the argo-rollouts-config ConfigMap (rolloutPlugins),
+				// the same as external plugins. An entry with a builtin:// location (e.g.
+				// "builtin://statefulset") registers the corresponding in-process plugin below.
+				builtinFactories := map[string]rolloutplugin.BuiltinPluginFactory{
+					"statefulset": func(logCtx *log.Entry) rolloutplugin.ResourcePlugin { return statefulset.NewPlugin(logCtx) },
+				}
+				cfg, err := rolloutsConfig.GetConfig()
+				if err != nil {
+					log.Fatalf("Failed to get config for built-in plugin registration: %s", err.Error())
+				}
+				if err := pluginManager.RegisterBuiltinPlugins(cfg.GetAllPlugins(), builtinFactories, namespace); err != nil {
+					log.Fatalf("Failed to register built-in plugins: %s", err.Error())
+				}
+
+				// Create EventRecorder for RolloutPlugin notifications
+				rolloutPluginApiFactory := notificationapi.NewFactory(
+					record.NewAPIFactorySettingsForRolloutPlugin(tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory)),
+					defaults.Namespace(),
+					notificationSecretInformerFactory.Core().V1().Secrets().Informer(),
+					notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer(),
+				)
+				rolloutPluginRecorder := record.NewEventRecorder(
+					kubeClient,
+					metrics.MetricRolloutEventsTotal,
+					metrics.MetricNotificationFailedTotal,
+					metrics.MetricNotificationSuccessTotal,
+					metrics.MetricNotificationSend,
+					rolloutPluginApiFactory,
+				)
+
+				// Create NotificationController for RolloutPlugin for custom triggers
+				rolloutPluginNotificationsController := notificationcontroller.NewControllerWithNamespaceSupport(
+					dynamicClient.Resource(v1alpha1.RolloutPluginGVR),
+					tolerantinformer.NewTolerantRolloutPluginInformer(dynamicInformerFactory).Informer(),
+					rolloutPluginApiFactory,
+					notificationcontroller.WithToUnstructured(func(obj metav1.Object) (*unstructured.Unstructured, error) {
+						data, err := json.Marshal(obj)
+						if err != nil {
+							return nil, err
+						}
+						res := &unstructured.Unstructured{}
+						err = json.Unmarshal(data, res)
+						if err != nil {
+							return nil, err
+						}
+						return res, nil
+					}),
+				)
+
+				// Set up the RolloutPlugin controller
+				if err = (&rolloutplugin.RolloutPluginReconciler{
+					Client:            mgr.GetClient(),
+					Scheme:            mgr.GetScheme(),
+					KubeClientset:     kubeClient,
+					ArgoProjClientset: argoprojClient,
+					DynamicClientset:  dynamicClient,
+					PluginManager:     pluginManager,
+					InstanceID:        instanceID,
+					MetricsServer:     metricsServer,
+					Recorder:          rolloutPluginRecorder,
+				}).SetupWithManager(mgr); err != nil {
+					log.Fatalf("Failed to setup RolloutPlugin controller: %s", err.Error())
+				}
+
+				// Run the standard controllers and the RolloutPlugin controller concurrently.
+				var wg sync.WaitGroup
+
+				// leadingCh receives the leader context once the standard controllers win leadership
+				// (or immediately, in single-instance mode). The RolloutPlugin controller-runtime
+				// manager and notifications controller are started only after this fires, so they run
+				// exclusively on the leader pod and share the standard controllers' lease instead of
+				// running on every replica.
+				leadingCh := make(chan context.Context, 1)
+
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					log.Info("Starting standard controllers")
+					onStartedLeading := func(leaderCtx context.Context) {
+						leadingCh <- leaderCtx
+					}
+					if err := cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts, onStartedLeading); err != nil {
+						log.WithError(err).Error("Error running standard controllers")
+						os.Exit(1)
+					}
+					log.Info("Standard controllers stopped")
+				}()
+
+				// Wait until this instance becomes leader, then start the RolloutPlugin controllers
+				// using the leader context so they shut down if leadership is lost.
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					var leaderCtx context.Context
+					select {
+					case leaderCtx = <-leadingCh:
+						log.Info("Became leader, starting RolloutPlugin controllers")
+					case <-ctx.Done():
+						return // shutting down before we ever led
+					}
+
+					var pluginWg sync.WaitGroup
+
+					// Start NotificationController for RolloutPlugin.
+					pluginWg.Add(1)
+					go func() {
+						defer pluginWg.Done()
+						log.Info("Starting RolloutPlugin notifications controller")
+						rolloutPluginNotificationsController.Run(rolloutThreads, leaderCtx.Done())
+						log.Info("RolloutPlugin notifications controller stopped")
+					}()
+
+					// Start controller-runtime manager for RolloutPlugin
+					pluginWg.Add(1)
+					go func() {
+						defer pluginWg.Done()
+						log.Info("Starting RolloutPlugin controller (controller-runtime)")
+						if err := mgr.Start(leaderCtx); err != nil {
+							log.WithError(err).Error("Error running RolloutPlugin controller")
+							os.Exit(1)
+						}
+						log.Info("RolloutPlugin controller stopped")
+					}()
+
+					pluginWg.Wait()
+				}()
+
+				log.Info("All controllers started successfully")
+
+				// Wait for context cancellation
+				<-ctx.Done()
+				log.Info("Received shutdown signal, waiting for controllers to stop")
+
+				// Wait for all controllers to finish
+				wg.Wait()
+				log.Info("All controllers stopped gracefully")
+			} else {
+				// RolloutPlugin controller is disabled, run only standard controllers
+				log.Info("RolloutPlugin controller disabled, running only standard controllers")
+				log.Info("Starting standard controllers")
+				if err := cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts, nil); err != nil {
+					log.WithError(err).Error("Error running standard controllers")
+					return err
+				}
+				log.Info("Standard controllers stopped gracefully")
 			}
+
 			return nil
 		},
 	}
@@ -353,7 +591,7 @@ func newCommand() *cobra.Command {
 	command.Flags().DurationVar(&electOpts.LeaderElectionRenewDeadline, "leader-election-renew-deadline", controller.DefaultLeaderElectionRenewDeadline, "The interval between attempts by the acting master to renew a leadership slot before it stops leading. This must be less than or equal to the lease duration. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled.")
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", false, "Allows rollouts controller to pull notification config from the namespace that the rollout resource is in. This is useful for self-service notification.")
-	command.Flags().StringSliceVar(&controllersEnabled, "controllers", nil, "Explicitly specify the list of controllers to run, currently only supports 'analysis', eg. --controller=analysis. Default: all controllers are enabled")
+	command.Flags().StringSliceVar(&controllersEnabled, "controllers", nil, "Explicitly specify the list of controllers to run. Supported values: 'analysis', 'rolloutplugin'. Examples: --controllers=analysis (analysis only), --controllers=rolloutplugin (rolloutplugin only), --controllers=analysis,rolloutplugin (analysis + rolloutplugin). Default: analysis + rollout/experiment/service/ingress controllers (no rolloutplugin)")
 	command.Flags().StringVar(&pprofAddress, "enable-pprof-address", "", "Enable pprof profiling on controller by providing a server address.")
 	return &command
 }

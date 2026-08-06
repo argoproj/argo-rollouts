@@ -1,0 +1,740 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: rolloutplugins.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: RolloutPlugin
+    listKind: RolloutPluginList
+    plural: rolloutplugins
+    shortNames:
+    - rp
+    singular: rolloutplugin
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: RolloutPlugin status
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    - description: Plugin name
+      jsonPath: .spec.plugin.name
+      name: Plugin
+      type: string
+    - description: Time since resource was created
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          RolloutPlugin is a specification for managing rollouts of various Kubernetes resource types
+          through a plugin architecture
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RolloutPluginSpec is the spec for a RolloutPlugin resource
+            properties:
+              analysis:
+                description: Analysis configuration for the analysis runs to retain
+                properties:
+                  successfulRunHistoryLimit:
+                    description: SuccessfulRunHistoryLimit limits the number of old
+                      successful analysis runs and experiments to be retained in a
+                      history
+                    format: int32
+                    type: integer
+                  unsuccessfulRunHistoryLimit:
+                    description: |-
+                      UnsuccessfulRunHistoryLimit limits the number of old unsuccessful analysis runs and experiments to be retained in a history.
+                      Stages for unsuccessful: "Error", "Failed", "Inconclusive"
+                    format: int32
+                    type: integer
+                type: object
+              paused:
+                description: Paused pauses the rollout at its current step.
+                type: boolean
+              plugin:
+                description: |-
+                  Plugin references the resource-specific plugin by name and carries its runtime
+                  configuration.
+                properties:
+                  config:
+                    description: Config is the configuration object for the specified
+                      plugin
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  name:
+                    description: Name of the hashicorp go-plugin step to query
+                    type: string
+                required:
+                - name
+                type: object
+              strategy:
+                description: Strategy defines the deployment strategy
+                properties:
+                  canary:
+                    description: Canary strategy configuration.
+                    properties:
+                      analysis:
+                        description: Analysis runs a background analysis for the duration
+                          of the rollout.
+                        properties:
+                          analysisRunMetadata:
+                            description: AnalysisRunMetadata labels and annotations
+                              that will be added to the AnalysisRuns
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                description: Annotations additional annotations to
+                                  add to the AnalysisRun
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                description: Labels Additional labels to add to the
+                                  AnalysisRun
+                                type: object
+                            type: object
+                          args:
+                            description: Args the arguments that will be added to
+                              the AnalysisRuns
+                            items:
+                              description: AnalysisRunArgument argument to add to
+                                analysisRun
+                              properties:
+                                name:
+                                  description: Name argument name
+                                  type: string
+                                value:
+                                  description: Value a hardcoded value for the argument.
+                                    This field is a one of field with valueFrom
+                                  type: string
+                                valueFrom:
+                                  description: ValueFrom A reference to where the
+                                    value is stored. This field is a one of field
+                                    with valueFrom
+                                  properties:
+                                    fieldRef:
+                                      description: FieldRef
+                                      properties:
+                                        fieldPath:
+                                          description: 'Required: Path of the field
+                                            to select in the specified API version'
+                                          type: string
+                                      required:
+                                      - fieldPath
+                                      type: object
+                                    podTemplateHashValue:
+                                      description: PodTemplateHashValue gets the value
+                                        from one of the children ReplicaSet's Pod
+                                        Template Hash
+                                      type: string
+                                  type: object
+                              required:
+                              - name
+                              type: object
+                            type: array
+                          dryRun:
+                            description: DryRun object contains the settings for running
+                              the analysis in Dry-Run mode
+                            items:
+                              description: DryRun defines the settings for running
+                                the analysis in Dry-Run mode.
+                              properties:
+                                metricName:
+                                  description: |-
+                                    Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all
+                                    the available metrics.
+                                  type: string
+                              required:
+                              - metricName
+                              type: object
+                            type: array
+                          measurementRetention:
+                            description: MeasurementRetention object contains the
+                              settings for retaining the number of measurements during
+                              the analysis
+                            items:
+                              description: MeasurementRetention defines the settings
+                                for retaining the number of measurements during the
+                                analysis.
+                              properties:
+                                limit:
+                                  description: Limit is the maximum number of measurements
+                                    to be retained for this given metric.
+                                  format: int32
+                                  type: integer
+                                metricName:
+                                  description: MetricName is the name of the metric
+                                    on which this retention policy should be applied.
+                                  type: string
+                              required:
+                              - limit
+                              - metricName
+                              type: object
+                            type: array
+                          startingStep:
+                            description: |-
+                              StartingStep indicates which step the background analysis should start on
+                              If not listed, controller defaults to 0
+                            format: int32
+                            type: integer
+                          templates:
+                            description: Templates reference to a list of analysis
+                              templates to combine for an AnalysisRun
+                            items:
+                              properties:
+                                clusterScope:
+                                  description: Whether to look for the templateName
+                                    at cluster scope or namespace scope
+                                  type: boolean
+                                templateName:
+                                  description: TemplateName name of template to use
+                                    in AnalysisRun
+                                  type: string
+                              type: object
+                            type: array
+                        type: object
+                      steps:
+                        description: Steps define the sequence of steps to take during
+                          a rollout.
+                        items:
+                          description: |-
+                            PluginCanaryStep defines a step in the RolloutPlugin canary rollout. It exposes only
+                            the step fields honored by the RolloutPlugin controller.
+                          properties:
+                            analysis:
+                              description: Analysis runs an inline analysis at this
+                                step.
+                              properties:
+                                analysisRunMetadata:
+                                  description: AnalysisRunMetadata labels and annotations
+                                    that will be added to the AnalysisRuns
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      description: Annotations additional annotations
+                                        to add to the AnalysisRun
+                                      type: object
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      description: Labels Additional labels to add
+                                        to the AnalysisRun
+                                      type: object
+                                  type: object
+                                args:
+                                  description: Args the arguments that will be added
+                                    to the AnalysisRuns
+                                  items:
+                                    description: AnalysisRunArgument argument to add
+                                      to analysisRun
+                                    properties:
+                                      name:
+                                        description: Name argument name
+                                        type: string
+                                      value:
+                                        description: Value a hardcoded value for the
+                                          argument. This field is a one of field with
+                                          valueFrom
+                                        type: string
+                                      valueFrom:
+                                        description: ValueFrom A reference to where
+                                          the value is stored. This field is a one
+                                          of field with valueFrom
+                                        properties:
+                                          fieldRef:
+                                            description: FieldRef
+                                            properties:
+                                              fieldPath:
+                                                description: 'Required: Path of the
+                                                  field to select in the specified
+                                                  API version'
+                                                type: string
+                                            required:
+                                            - fieldPath
+                                            type: object
+                                          podTemplateHashValue:
+                                            description: PodTemplateHashValue gets
+                                              the value from one of the children ReplicaSet's
+                                              Pod Template Hash
+                                            type: string
+                                        type: object
+                                    required:
+                                    - name
+                                    type: object
+                                  type: array
+                                dryRun:
+                                  description: DryRun object contains the settings
+                                    for running the analysis in Dry-Run mode
+                                  items:
+                                    description: DryRun defines the settings for running
+                                      the analysis in Dry-Run mode.
+                                    properties:
+                                      metricName:
+                                        description: |-
+                                          Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all
+                                          the available metrics.
+                                        type: string
+                                    required:
+                                    - metricName
+                                    type: object
+                                  type: array
+                                measurementRetention:
+                                  description: MeasurementRetention object contains
+                                    the settings for retaining the number of measurements
+                                    during the analysis
+                                  items:
+                                    description: MeasurementRetention defines the
+                                      settings for retaining the number of measurements
+                                      during the analysis.
+                                    properties:
+                                      limit:
+                                        description: Limit is the maximum number of
+                                          measurements to be retained for this given
+                                          metric.
+                                        format: int32
+                                        type: integer
+                                      metricName:
+                                        description: MetricName is the name of the
+                                          metric on which this retention policy should
+                                          be applied.
+                                        type: string
+                                    required:
+                                    - limit
+                                    - metricName
+                                    type: object
+                                  type: array
+                                templates:
+                                  description: Templates reference to a list of analysis
+                                    templates to combine for an AnalysisRun
+                                  items:
+                                    properties:
+                                      clusterScope:
+                                        description: Whether to look for the templateName
+                                          at cluster scope or namespace scope
+                                        type: boolean
+                                      templateName:
+                                        description: TemplateName name of template
+                                          to use in AnalysisRun
+                                        type: string
+                                    type: object
+                                  type: array
+                              type: object
+                            pause:
+                              description: |-
+                                Pause freezes the rollout at this step until it is resumed or, if set, the
+                                pause duration elapses.
+                              properties:
+                                duration:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  description: Duration the amount of time to wait
+                                    before moving to the next step.
+                                  x-kubernetes-int-or-string: true
+                              type: object
+                            setWeight:
+                              description: SetWeight sets the percentage of the canary
+                                to advance to.
+                              format: int32
+                              type: integer
+                          type: object
+                        type: array
+                    type: object
+                type: object
+              workloadRef:
+                description: WorkloadRef is a reference to the workload (StatefulSet,
+                  DaemonSet, etc.) being managed
+                properties:
+                  apiVersion:
+                    description: APIVersion of the referenced resource
+                    type: string
+                  kind:
+                    description: Kind of the referenced resource (e.g., StatefulSet,
+                      DaemonSet)
+                    type: string
+                  name:
+                    description: Name of the referenced resource
+                    type: string
+                  namespace:
+                    description: Namespace of the referenced resource (optional, defaults
+                      to the RolloutPlugin's namespace)
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+            required:
+            - plugin
+            - strategy
+            - workloadRef
+            type: object
+          status:
+            description: RolloutPluginStatus is the status for a RolloutPlugin resource
+            properties:
+              abort:
+                description: Abort will stop the rolloutplugin and revert to the previous
+                  version when set to true.
+                type: boolean
+              aborted:
+                description: Aborted indicates whether the rolloutplugin has been
+                  aborted
+                type: boolean
+              abortedAt:
+                description: AbortedAt indicates when the rollout was aborted
+                format: date-time
+                type: string
+              abortedRevision:
+                description: |-
+                  AbortedRevision is the UpdatedRevision that was aborted
+                  This is used to prevent retrying the same failed revision without explicit user action
+                type: string
+              availableReplicas:
+                description: AvailableReplicas is the number of replicas that are
+                  available
+                format: int32
+                type: integer
+              canary:
+                description: Canary-specific status fields for canary strategy
+                properties:
+                  currentBackgroundAnalysisRunStatus:
+                    description: CurrentBackgroundAnalysisRunStatus indicates the
+                      status of the current background analysis run
+                    properties:
+                      message:
+                        type: string
+                      name:
+                        type: string
+                      status:
+                        description: AnalysisPhase is the overall phase of an AnalysisRun,
+                          MetricResult, or Measurement
+                        type: string
+                    required:
+                    - name
+                    - status
+                    type: object
+                  currentExperiment:
+                    description: CurrentExperiment indicates the running experiment
+                    type: string
+                  currentStepAnalysisRunStatus:
+                    description: CurrentStepAnalysisRunStatus indicates the status
+                      of the current step analysis run
+                    properties:
+                      message:
+                        type: string
+                      name:
+                        type: string
+                      status:
+                        description: AnalysisPhase is the overall phase of an AnalysisRun,
+                          MetricResult, or Measurement
+                        type: string
+                    required:
+                    - name
+                    - status
+                    type: object
+                  stablePingPong:
+                    description: StablePingPong For the ping-pong feature holds the
+                      current stable service, ping or pong
+                    type: string
+                  stepPluginStatuses:
+                    description: StepPluginStatuses holds the status of the step plugins
+                      executed
+                    items:
+                      properties:
+                        backoff:
+                          description: Backoff is a duration to wait before trying
+                            to execute the operation again if it was not completed
+                          type: string
+                        disabled:
+                          description: Disabled indicates if the plugin is globally
+                            disabled
+                          type: boolean
+                        executions:
+                          description: Executions is the number of time the operation
+                            was executed
+                          format: int32
+                          type: integer
+                        finishedAt:
+                          description: FinishedAt indicates when the operation was
+                            completed
+                          format: date-time
+                          type: string
+                        index:
+                          description: Index is the matching step index of the executed
+                            plugin
+                          format: int32
+                          type: integer
+                        message:
+                          description: Message provides details on why the plugin
+                            is in its current phase
+                          type: string
+                        name:
+                          description: Name is the matching step name of the executed
+                            plugin
+                          type: string
+                        operation:
+                          description: Operation is the name of the operation that
+                            produced this status
+                          type: string
+                        phase:
+                          description: Phase is the resulting phase of the operation
+                          type: string
+                        startedAt:
+                          description: StartedAt indicates when the plugin was first
+                            called for the operation
+                          format: date-time
+                          type: string
+                        status:
+                          description: Status holds the internal status of the plugin
+                            for this operation
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        updatedAt:
+                          description: UpdatedAt indicates when the plugin was last
+                            called for the operation
+                          format: date-time
+                          type: string
+                      required:
+                      - index
+                      - name
+                      - operation
+                      type: object
+                    type: array
+                  weights:
+                    description: Weights records the weights which have been set on
+                      traffic provider. Only valid when using traffic routing
+                    properties:
+                      additional:
+                        description: Additional holds the weights split to additional
+                          ReplicaSets such as experiment ReplicaSets
+                        items:
+                          properties:
+                            podTemplateHash:
+                              description: PodTemplateHash is the pod template hash
+                                label for this destination
+                              type: string
+                            serviceName:
+                              description: ServiceName is the Kubernetes service name
+                                traffic is being sent to
+                              type: string
+                            weight:
+                              description: Weight is an percentage of traffic being
+                                sent to this destination
+                              format: int32
+                              type: integer
+                          required:
+                          - weight
+                          type: object
+                        type: array
+                      canary:
+                        description: Canary is the current traffic weight split to
+                          canary ReplicaSet
+                        properties:
+                          podTemplateHash:
+                            description: PodTemplateHash is the pod template hash
+                              label for this destination
+                            type: string
+                          serviceName:
+                            description: ServiceName is the Kubernetes service name
+                              traffic is being sent to
+                            type: string
+                          weight:
+                            description: Weight is an percentage of traffic being
+                              sent to this destination
+                            format: int32
+                            type: integer
+                        required:
+                        - weight
+                        type: object
+                      stable:
+                        description: Stable is the current traffic weight split to
+                          stable ReplicaSet
+                        properties:
+                          podTemplateHash:
+                            description: PodTemplateHash is the pod template hash
+                              label for this destination
+                            type: string
+                          serviceName:
+                            description: ServiceName is the Kubernetes service name
+                              traffic is being sent to
+                            type: string
+                          weight:
+                            description: Weight is an percentage of traffic being
+                              sent to this destination
+                            format: int32
+                            type: integer
+                        required:
+                        - weight
+                        type: object
+                      verified:
+                        description: |-
+                          Verified is an optional indicator that the weight has been verified to have taken effect.
+                          This is currently only applicable to ALB traffic router
+                        type: boolean
+                    required:
+                    - canary
+                    - stable
+                    type: object
+                type: object
+              conditions:
+                description: Conditions is a list of conditions describing the current
+                  state
+                items:
+                  description: RolloutPluginCondition describes a condition of the
+                    RolloutPlugin
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time the condition
+                        transitioned from one status to another
+                      format: date-time
+                      type: string
+                    lastUpdateTime:
+                      description: LastUpdateTime is the last time the condition was
+                        updated
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message is a human-readable explanation for the
+                        condition's last transition
+                      type: string
+                    reason:
+                      description: Reason is a brief explanation for the condition's
+                        last transition
+                      type: string
+                    status:
+                      description: Status of the condition
+                      type: string
+                    type:
+                      description: Type of the condition
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              controllerPause:
+                description: |-
+                  ControllerPause indicates the controller has paused the rolloutplugin. It is set to true when
+                  the controller adds a pause condition. This field helps to discern the scenario where a
+                  rolloutplugin was resumed after being paused by the controller (e.g. via ArgoCD resume action).
+                  In that situation, the pauseConditions would have been cleared, but controllerPause would
+                  still be set to true.
+                type: boolean
+              currentRevision:
+                description: CurrentRevision is the hash/version of the current stable
+                  workload
+                type: string
+              currentStepIndex:
+                description: CurrentStepIndex is the index of the current step in
+                  the rollout
+                format: int32
+                type: integer
+              message:
+                description: Message provides additional details about the current
+                  phase
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  by the controller
+                format: int64
+                type: integer
+              pauseConditions:
+                description: |-
+                  PauseConditions is a list of reasons why rolloutplugin became automatically paused (e.g.
+                  CanaryPauseStep). The items in this list are populated by the controller but are cleared
+                  by the user (e.g. ArgoCD resume action, kubectl patch) when they wish to unpause.
+                  If pause conditions is empty, but controllerPause is true, it indicates
+                  the user manually unpaused the RolloutPlugin
+                items:
+                  description: PauseCondition the reason for a pause and when it started
+                  properties:
+                    reason:
+                      description: PauseReason reasons that the rollout can pause
+                      type: string
+                    startTime:
+                      format: date-time
+                      type: string
+                  required:
+                  - reason
+                  - startTime
+                  type: object
+                type: array
+              phase:
+                description: Phase is the current phase of the rollout
+                type: string
+              pluginStatus:
+                additionalProperties:
+                  type: string
+                description: PluginStatus contains plugin-specific status information
+                type: object
+              promoteFull:
+                description: PromoteFull when set to true will skip analysis, pause,
+                  and steps and promote the rollout immediately
+                type: boolean
+              readyReplicas:
+                description: ReadyReplicas is the number of replicas that are ready
+                format: int32
+                type: integer
+              replicas:
+                description: Replicas is the total number of replicas targeted by
+                  the workload
+                format: int32
+                type: integer
+              restart:
+                description: |-
+                  Restart when set to true will restart the rollout from step 0.
+                  Similar to status.Abort and status.PromoteFull, this is a one-shot trigger field.
+                type: boolean
+              restartCount:
+                description: |-
+                  RestartCount tracks the number of restart attempts for the current rollout
+                  Incremented each time Restart is processed
+                  Reset to 0 when a new rollout starts
+                format: int32
+                type: integer
+              restartedAt:
+                description: RestartedAt indicates when the last restart occurred
+                format: date-time
+                type: string
+              updatedReplicas:
+                description: UpdatedReplicas is the number of replicas that have been
+                  updated
+                format: int32
+                type: integer
+              updatedRevision:
+                description: UpdatedRevision is the hash/version of the updated workload
+                  being rolled out
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

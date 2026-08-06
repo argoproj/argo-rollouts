@@ -430,3 +430,49 @@ func TestSetDefaults(t *testing.T) {
 	SetDescribeTagsLimit(2)
 	assert.Equal(t, 2, GetDescribeTagsLimit())
 }
+
+func TestGetRolloutPluginTimeoutSecondsOrDefault(t *testing.T) {
+	// Config value is honored when set.
+	rp := &v1alpha1.RolloutPlugin{
+		Spec: v1alpha1.RolloutPluginSpec{
+			Plugin: v1alpha1.PluginStep{
+				Name:   "argoproj/statefulset",
+				Config: []byte(`{"timeoutSeconds": 42}`),
+			},
+		},
+	}
+	assert.Equal(t, int32(42), GetRolloutPluginTimeoutSecondsOrDefault(rp))
+
+	// Empty config falls back to the default.
+	rpNoConfig := &v1alpha1.RolloutPlugin{}
+	assert.Equal(t, DefaultRolloutPluginTimeoutSeconds, GetRolloutPluginTimeoutSecondsOrDefault(rpNoConfig))
+
+	// Config present but timeoutSeconds absent -> default.
+	rpAbortOnly := &v1alpha1.RolloutPlugin{
+		Spec: v1alpha1.RolloutPluginSpec{
+			Plugin: v1alpha1.PluginStep{Config: []byte(`{"timeoutAbort": true}`)},
+		},
+	}
+	assert.Equal(t, DefaultRolloutPluginTimeoutSeconds, GetRolloutPluginTimeoutSecondsOrDefault(rpAbortOnly))
+}
+
+func TestGetRolloutPluginTimeoutAbort(t *testing.T) {
+	rpAbort := &v1alpha1.RolloutPlugin{
+		Spec: v1alpha1.RolloutPluginSpec{
+			Plugin: v1alpha1.PluginStep{Config: []byte(`{"timeoutSeconds": 5, "timeoutAbort": true}`)},
+		},
+	}
+	assert.True(t, GetRolloutPluginTimeoutAbort(rpAbort))
+
+	// Default (no config) is false.
+	assert.False(t, GetRolloutPluginTimeoutAbort(&v1alpha1.RolloutPlugin{}))
+
+	// Malformed config decodes to zero values rather than panicking.
+	rpBad := &v1alpha1.RolloutPlugin{
+		Spec: v1alpha1.RolloutPluginSpec{
+			Plugin: v1alpha1.PluginStep{Config: []byte(`{not json`)},
+		},
+	}
+	assert.False(t, GetRolloutPluginTimeoutAbort(rpBad))
+	assert.Equal(t, DefaultRolloutPluginTimeoutSeconds, GetRolloutPluginTimeoutSecondsOrDefault(rpBad))
+}
