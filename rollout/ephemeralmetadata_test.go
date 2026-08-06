@@ -44,11 +44,11 @@ func TestSyncCanaryEphemeralMetadataInitialRevision(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r1)
 	f.objects = append(f.objects, r1)
 
-	f.expectUpdateRolloutStatusAction(r1) // sync 1: create RS and set Progressing condition, then exit early
-	f.expectGetRolloutAction(r1)          // second reconciliation
-	idx := f.expectCreateReplicaSetAction(rs1)
-	f.expectUpdateReplicaSetAction(rs1)
-	_ = f.expectPatchRolloutAction(r1)
+	idx := f.expectCreateReplicaSetAction(rs1) // sync 1: create RS
+	f.expectUpdateRolloutStatusAction(r1)      // sync 1: update status
+	f.expectGetRolloutAction(r1)               // re-seed between syncs
+	f.expectPatchRolloutAction(r1)             // sync 2: patch status
+	f.expectUpdateReplicaSetAction(rs1)        // sync 2: scale up RS
 	f.runWithSyncs(getKey(r1, t), 2)
 	createdRS1 := f.getCreatedReplicaSet(idx)
 	expectedLabels := map[string]string{
@@ -84,12 +84,12 @@ func TestSyncBlueGreenEphemeralMetadataInitialRevision(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
-	f.expectUpdateRolloutStatusAction(r1) // sync 1: create RS and set Progressing condition, then exit early
-	f.expectGetRolloutAction(r1)          // second reconciliation
-	idx := f.expectCreateReplicaSetAction(rs1)
-	f.expectPatchRolloutAction(r1)
-	f.expectPatchServiceAction(previewSvc, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
-	f.expectUpdateReplicaSetAction(rs1) // scale replicaset
+	idx := f.expectCreateReplicaSetAction(rs1)                                                // sync 1: create RS
+	f.expectUpdateRolloutStatusAction(r1)                                                     // sync 1: update status
+	f.expectGetRolloutAction(r1)                                                              // re-seed between syncs
+	f.expectPatchRolloutAction(r1)                                                            // sync 2: patch status
+	f.expectPatchServiceAction(previewSvc, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // sync 2
+	f.expectUpdateReplicaSetAction(rs1)                                                       // sync 2: scale replicaset
 	f.runWithSyncs(getKey(r1, t), 2)
 	createdRS1 := f.getCreatedReplicaSet(idx)
 	expectedLabels := map[string]string{
@@ -143,14 +143,14 @@ func TestSyncCanaryEphemeralMetadataSecondRevision(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, &pod1, pod2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	f.expectUpdateRolloutStatusAction(r2)         // sync 1: create RS and set Progressing condition, then exit early
-	f.expectGetRolloutAction(r2)                  // second reconciliation
-	rs2idx := f.expectCreateReplicaSetAction(rs2) // Create revision 2 ReplicaSet
-	rs1idx := f.expectUpdateReplicaSetAction(rs1) // update stable replicaset with stable metadata
-	pod1Idx := f.expectUpdatePodAction(&pod1)     // Update pod1 with ephemeral data
-	pod2Idx := f.expectUpdatePodAction(pod2)      // Update pod2 with ephemeral data
-	f.expectUpdateReplicaSetAction(rs1)           // scale revision 1 ReplicaSet down
-	f.expectPatchRolloutAction(r2)                // Patch Rollout status
+	rs2idx := f.expectCreateReplicaSetAction(rs2) // sync 1: Create revision 2 ReplicaSet
+	f.expectUpdateRolloutStatusAction(r2)         // sync 1: Update Rollout conditions
+	f.expectGetRolloutAction(r2)                  // re-seed between syncs
+	rs1idx := f.expectUpdateReplicaSetAction(rs1) // sync 2: update stable replicaset with stable metadata
+	pod1Idx := f.expectUpdatePodAction(&pod1)     // sync 2: Update pod1 with ephemeral data
+	pod2Idx := f.expectUpdatePodAction(pod2)      // sync 2: Update pod2 with ephemeral data
+	f.expectUpdateReplicaSetAction(rs1)           // sync 2: scale revision 1 ReplicaSet down
+	f.expectPatchRolloutAction(r2)                // sync 2: Patch Rollout status
 
 	f.runWithSyncs(getKey(r2, t), 2)
 	// revision 2 replicaset should been updated to use canary metadata
@@ -226,15 +226,15 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
-	f.expectUpdateRolloutStatusAction(r2)              // sync 1: create RS and set Progressing condition, then exit early
-	f.expectGetRolloutAction(r2)                       // second reconciliation
-	rs2idx := f.expectCreateReplicaSetAction(rs2)      // Create revision 2 ReplicaSet
-	f.expectPatchServiceAction(previewSvc, rs2PodHash) // Update preview service to point at revision 2 replicaset
-	f.expectUpdateReplicaSetAction(rs2)                // scale revision 2 ReplicaSet up
-	rs1idx := f.expectUpdateReplicaSetAction(rs1)      // update stable replicaset with stable metadata
-	pod1Idx := f.expectUpdatePodAction(&pod1)          // Update pod1 with ephemeral data
-	pod2Idx := f.expectUpdatePodAction(pod2)           // Update pod2 with ephemeral data
-	f.expectPatchRolloutAction(r2)                     // Patch Rollout status
+	rs2idx := f.expectCreateReplicaSetAction(rs2)      // sync 1: Create revision 2 ReplicaSet
+	f.expectUpdateRolloutStatusAction(r2)              // sync 1: Update Rollout conditions
+	f.expectGetRolloutAction(r2)                       // re-seed between syncs
+	f.expectPatchServiceAction(previewSvc, rs2PodHash) // sync 2: Update preview service to point at revision 2 replicaset
+	f.expectUpdateReplicaSetAction(rs2)                // sync 2: scale revision 2 ReplicaSet up
+	rs1idx := f.expectUpdateReplicaSetAction(rs1)      // sync 2: update stable replicaset with stable metadata
+	pod1Idx := f.expectUpdatePodAction(&pod1)          // sync 2: Update pod1 with ephemeral data
+	pod2Idx := f.expectUpdatePodAction(pod2)           // sync 2: Update pod2 with ephemeral data
+	f.expectPatchRolloutAction(r2)                     // sync 2: Patch Rollout status
 
 	f.runWithSyncs(getKey(r2, t), 2)
 	// revision 2 replicaset should been updated to use canary metadata
@@ -565,4 +565,93 @@ func TestSyncEphemeralMetadata(t *testing.T) {
 		testRoleLabel:                testRoleValue, // This should be added by syncEphemeralMetadata
 	}
 	assert.Equal(t, expectedLabels, updatedPod.Labels)
+}
+
+func TestReconcileEphemeralMetadataSkipsWhenNotConfigured(t *testing.T) {
+	selector := &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}}
+	zero := int32(0)
+	otherRS := &v1.ReplicaSet{
+		Spec: v1.ReplicaSetSpec{
+			Selector: selector,
+			Replicas: &zero,
+		},
+	}
+	kubeclient := k8sfake.NewSimpleClientset()
+	podListCalls := 0
+	kubeclient.Fake.PrependReactor("list", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		podListCalls++
+		return true, nil, fmt.Errorf("unexpected pod list")
+	})
+
+	mockContext := &rolloutContext{
+		reconcilerBase: reconcilerBase{
+			kubeclientset: kubeclient,
+		},
+		rollout: &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{},
+				},
+			},
+			Status: v1alpha1.RolloutStatus{
+				StableRS: "stable-hash",
+			},
+		},
+		newRS: &v1.ReplicaSet{
+			Spec: v1.ReplicaSetSpec{
+				Selector: selector,
+				Replicas: ptr.To[int32](3),
+			},
+		},
+		otherRSs: []*v1.ReplicaSet{otherRS},
+	}
+
+	err := mockContext.reconcileEphemeralMetadata()
+	assert.NoError(t, err)
+	assert.Equal(t, 0, podListCalls)
+}
+
+func TestSyncEphemeralMetadataSkipsPodListOnZeroReplicaRS(t *testing.T) {
+	testPodHash := "abc123"
+	zero := int32(0)
+	rs := &v1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "old-rs",
+			Namespace: "default",
+		},
+		Spec: v1.ReplicaSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"rollouts-pod-template-hash": testPodHash,
+				},
+			},
+			Replicas: &zero,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"role":                       "canary",
+						"rollouts-pod-template-hash": testPodHash,
+					},
+				},
+			},
+		},
+	}
+
+	kubeclient := k8sfake.NewSimpleClientset()
+	podListCalls := 0
+	kubeclient.Fake.PrependReactor("list", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		podListCalls++
+		return true, nil, fmt.Errorf("unexpected pod list")
+	})
+
+	ctx := &rolloutContext{
+		reconcilerBase: reconcilerBase{
+			kubeclientset: kubeclient,
+		},
+		log: logrus.WithField("test", "zero-replica"),
+	}
+
+	err := ctx.syncEphemeralMetadata(context.Background(), rs, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, podListCalls)
 }
