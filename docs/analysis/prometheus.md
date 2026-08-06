@@ -104,6 +104,31 @@ provider:
         roleArn: $ROLEARN
 ```
 
+### Utilizing Amazon CloudWatch
+
+Amazon CloudWatch exposes a [Prometheus-compatible query API](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-PromQL-API-QueryMetrics.html) that can be used as a data source for analysis. It is queried in the same way as Amazon Managed Prometheus, with two differences: the `address` points at the regional CloudWatch endpoint, and the SigV4 request must be signed for the `monitoring` service instead of the default `aps`. Set `authentication.sigv4.service` to `monitoring` to do this. As with AMP, the namespace running the analysis needs credentials (for example via [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)) permitting the CloudWatch query action.
+
+```yaml
+provider:
+  prometheus:
+    address: https://monitoring.$REGION.amazonaws.com
+    query: |
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+      )) /
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+      ))
+    authentication:
+      sigv4:
+        region: $REGION
+        profile: $PROFILE
+        service: monitoring
+        roleArn: $ROLEARN
+```
+
+When `service` is omitted it defaults to `aps` for Amazon Managed Prometheus workspace addresses, preserving prior behavior. An explicitly configured `service` enables SigV4 signing for any address, so it is required for CloudWatch (whose endpoint does not contain the AMP `aps-workspaces` hostname).
+
 ### With OAuth2
 
 You can setup an [OAuth2 client credential](https://datatracker.ietf.org/doc/html/rfc6749#section-4.4) flow using the following values:

@@ -2960,6 +2960,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config
      */
     roleArn?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config
+     */
+    service?: string;
 }
 /**
  * 

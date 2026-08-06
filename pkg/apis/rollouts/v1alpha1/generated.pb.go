@@ -10321,6 +10321,11 @@ func (m *Sigv4Config) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.Service)
+	copy(dAtA[i:], m.Service)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Service)))
+	i--
+	dAtA[i] = 0x22
 	i -= len(m.RoleARN)
 	copy(dAtA[i:], m.RoleARN)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.RoleARN)))
@@ -13456,6 +13461,8 @@ func (m *Sigv4Config) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.RoleARN)
 	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Service)
+	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -15486,6 +15493,7 @@ func (this *Sigv4Config) String() string {
 		`Region:` + fmt.Sprintf("%v", this.Region) + `,`,
 		`Profile:` + fmt.Sprintf("%v", this.Profile) + `,`,
 		`RoleARN:` + fmt.Sprintf("%v", this.RoleARN) + `,`,
+		`Service:` + fmt.Sprintf("%v", this.Service) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -35444,6 +35452,38 @@ func (m *Sigv4Config) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.RoleARN = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Service", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Service = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
