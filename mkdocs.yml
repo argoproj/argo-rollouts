@@ -51,6 +51,7 @@ nav:
   - APISIX: features/traffic-management/apisix.md
   - AWS ALB: features/traffic-management/alb.md
   - Google Cloud: features/traffic-management/google-cloud.md
+  - HAProxy: features/traffic-management/haproxy.md
   - Istio: features/traffic-management/istio.md
   - Kong: features/traffic-management/kong.md
   - NGINX: features/traffic-management/nginx.md

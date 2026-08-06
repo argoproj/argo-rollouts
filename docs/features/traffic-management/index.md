@@ -27,6 +27,7 @@ Argo Rollouts enables traffic management by manipulating the Service Mesh resour
 - [Apache APISIX](apisix.md)
 - [Google Cloud](google-cloud.md)
 - [Gateway API](plugins.md)
+- [HAProxy Ingress](haproxy.md)
 - [Istio](istio.md)
 - [Kong Ingress](kong.md)
 - [Nginx Ingress Controller](nginx.md)

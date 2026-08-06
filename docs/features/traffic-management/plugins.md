@@ -97,7 +97,7 @@ If you have created a plugin, please submit a PR to add it to this list.
 
 ### [Gateway API](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/)
 
-- Provide support for Gateway API, which includes Kuma, Traefix, cilium, Contour, GloodMesh, HAProxy, and [many others](https://gateway-api.sigs.k8s.io/implementations/#implementation-status).
+- Provide support for Gateway API, which includes Traefik, Cilium, Gloo Gateway, kgateway, HAProxy, and [many others](https://gateway-api.sigs.k8s.io/implementations/#implementation-status).
 
 ### [Gloo Edge](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-glooedge)
 
