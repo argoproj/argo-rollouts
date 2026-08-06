@@ -94,11 +94,16 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 	return nil
 }
 
-func replicaSetNeedsPodMetadataSync(modified bool, rs *appsv1.ReplicaSet) bool {
+func replicaSetNeedsPodMetadataSync(modified bool, rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) bool {
 	if modified {
 		return true
 	}
-	return replicasetutil.ParseExistingPodMetadata(rs) != nil
+	if replicasetutil.ParseExistingPodMetadata(rs) != nil {
+		return true
+	}
+	// Applying metadata to an unchanged RS still requires a pod sync: the template may
+	// already match while individual pods drifted (#4477).
+	return podMetadata != nil
 }
 
 func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) error {
@@ -139,7 +144,7 @@ func (c *rolloutContext) syncEphemeralMetadataInternal(ctx context.Context, rs *
 		return nil
 	}
 
-	if !replicaSetNeedsPodMetadataSync(modified, originalRSCopy) {
+	if !replicaSetNeedsPodMetadataSync(modified, originalRSCopy, podMetadata) {
 		return nil
 	}
 

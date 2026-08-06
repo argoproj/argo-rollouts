@@ -657,12 +657,12 @@ func TestSyncEphemeralMetadataSkipsPodListOnZeroReplicaRS(t *testing.T) {
 	assert.Equal(t, 0, podListCalls)
 }
 
-func TestSyncEphemeralMetadataSkipsPodListWhenUnchanged(t *testing.T) {
+func TestSyncEphemeralMetadataSkipsPodListWhenNothingToSync(t *testing.T) {
 	testPodHash := "abc123"
 	replicas := int32(3)
 	rs := &v1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "stable-rs",
+			Name:      "old-rs",
 			Namespace: "default",
 		},
 		Spec: v1.ReplicaSetSpec{
@@ -675,15 +675,11 @@ func TestSyncEphemeralMetadataSkipsPodListWhenUnchanged(t *testing.T) {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"role":                       "stable",
 						"rollouts-pod-template-hash": testPodHash,
 					},
 				},
 			},
 		},
-	}
-	stableMetadata := &v1alpha1.PodTemplateMetadata{
-		Labels: map[string]string{"role": "stable"},
 	}
 
 	kubeclient := k8sfake.NewSimpleClientset()
@@ -697,10 +693,10 @@ func TestSyncEphemeralMetadataSkipsPodListWhenUnchanged(t *testing.T) {
 		reconcilerBase: reconcilerBase{
 			kubeclientset: kubeclient,
 		},
-		log: logrus.WithField("test", "unchanged"),
+		log: logrus.WithField("test", "nothing-to-sync"),
 	}
 
-	err := ctx.syncEphemeralMetadata(context.Background(), rs, stableMetadata)
+	err := ctx.syncEphemeralMetadata(context.Background(), rs, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, podListCalls)
 }
