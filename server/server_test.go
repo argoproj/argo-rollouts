@@ -5,9 +5,85 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+
+	rolloutapi "github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
+	fakeoptions "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
+
+func newTestServer(t *testing.T, objects ...runtime.Object) *ArgoRolloutsServer {
+	t.Helper()
+	tf, o := fakeoptions.NewFakeArgoRolloutsOptions(objects...)
+	t.Cleanup(tf.Cleanup)
+	return &ArgoRolloutsServer{
+		Options: ServerOptions{
+			KubeClientset:     o.KubeClient,
+			RolloutsClientset: o.RolloutsClient,
+			DynamicClientset:  o.DynamicClient,
+		},
+	}
+}
+
+func TestGetRollout(t *testing.T) {
+	expected := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rollout",
+			Namespace: "default",
+		},
+	}
+	s := newTestServer(t, expected)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	actual, err := s.getRollout(ctx, expected.Namespace, expected.Name)
+
+	require.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
+func TestSetRolloutImageReturnsRollout(t *testing.T) {
+	objects := testdata.NewCanaryRollout()
+	expected := objects.Rollouts[0]
+	container := expected.Spec.Template.Spec.Containers[0]
+	s := newTestServer(t, objects.AllObjects()...)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	actual, err := s.SetRolloutImage(ctx, &rolloutapi.SetImageRequest{
+		Namespace: expected.Namespace,
+		Rollout:   expected.Name,
+		Container: container.Name,
+		Image:     "quay.io/argoproj/rollouts-demo",
+		Tag:       "updated",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, expected.Name, actual.Name)
+}
+
+func TestUndoRolloutReturnsRollout(t *testing.T) {
+	objects := testdata.NewCanaryRollout()
+	expected := objects.Rollouts[0]
+	s := newTestServer(t, objects.AllObjects()...)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	actual, err := s.UndoRollout(ctx, &rolloutapi.UndoRolloutRequest{
+		Namespace: expected.Namespace,
+		Rollout:   expected.Name,
+		Revision:  31,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, expected.Name, actual.Name)
+}
 
 func TestNewHTTPServer(t *testing.T) {
 	t.Run("server is created with correct address", func(t *testing.T) {

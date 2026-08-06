@@ -387,11 +387,8 @@ func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortR
 	return abort.AbortRollout(rolloutIf, q.GetName())
 }
 
-func (s *ArgoRolloutsServer) getRollout(namespace string, name string) (*v1alpha1.Rollout, error) {
-	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(namespace))
-	cache.WaitForCacheSync(s.stopCh, rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer().HasSynced)
-	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace)
-	return rolloutsLister.Get(name)
+func (s *ArgoRolloutsServer) getRollout(ctx context.Context, namespace string, name string) (*v1alpha1.Rollout, error) {
+	return s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, v1.GetOptions{})
 }
 
 func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.SetImageRequest) (*v1alpha1.Rollout, error) {
@@ -400,7 +397,7 @@ func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.Set
 	if err != nil {
 		return nil, err
 	}
-	return s.getRollout(q.GetNamespace(), q.GetRollout())
+	return s.getRollout(ctx, q.GetNamespace(), q.GetRollout())
 }
 
 func (s *ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoRolloutRequest) (*v1alpha1.Rollout, error) {
@@ -409,7 +406,7 @@ func (s *ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoRol
 	if err != nil {
 		return nil, err
 	}
-	return s.getRollout(q.GetNamespace(), q.GetRollout())
+	return s.getRollout(ctx, q.GetNamespace(), q.GetRollout())
 }
 
 func (s *ArgoRolloutsServer) RetryRollout(ctx context.Context, q *rollout.RetryRolloutRequest) (*v1alpha1.Rollout, error) {
