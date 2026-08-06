@@ -112,7 +112,7 @@ func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service
 // isBlueGreenFastTracked returns true if we should skip the pause step because update has been fast tracked
 func (c *rolloutContext) isBlueGreenFastTracked(activeSvc *corev1.Service) bool {
 	if c.isFastRollback() {
-		c.log.Infof("Fast rollback detected for ReplicaSet '%s' and will skip pause", c.newRS.Name)
+		c.log.Infof("Fast rollback or promoted state detected for ReplicaSet '%s' and will skip pause", c.newRS.Name)
 		return true
 	}
 	if c.rollout.Status.PromoteFull {
