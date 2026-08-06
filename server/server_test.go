@@ -65,7 +65,7 @@ func TestSetRolloutImageReturnsRollout(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, expected.Name, actual.Name)
+	assert.Equal(t, expected, actual)
 }
 
 func TestUndoRolloutReturnsRollout(t *testing.T) {
@@ -78,11 +78,11 @@ func TestUndoRolloutReturnsRollout(t *testing.T) {
 	actual, err := s.UndoRollout(ctx, &rolloutapi.UndoRolloutRequest{
 		Namespace: expected.Namespace,
 		Rollout:   expected.Name,
-		Revision:  31,
+		Revision:  29,
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, expected.Name, actual.Name)
+	assert.Equal(t, expected, actual)
 }
 
 func TestNewHTTPServer(t *testing.T) {
