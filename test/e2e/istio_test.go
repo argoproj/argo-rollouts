@@ -545,6 +545,48 @@ func (s *IstioSuite) TestIstioPingPongUpdate() {
 		})
 }
 
+// TestIstioSubsetSplitProgressDeadlineAbortWithUnavailableCanary reproduces #4626: with
+// subset-level traffic routing (no canary/stable services), the Istio reconciler intentionally
+// delays the DestinationRule switch while the canary ReplicaSet is unavailable and reports it
+// as an error on every reconcile. That error must not block progressDeadline evaluation: a
+// canary whose pods can never become available must still time out, turn Degraded, and
+// auto-abort when progressDeadlineAbort is set. Before the fix, the rollout stayed Progressing
+// indefinitely (this test times out waiting for Degraded).
+func (s *IstioSuite) TestIstioSubsetSplitProgressDeadlineAbortWithUnavailableCanary() {
+	s.Given().
+		RolloutObjects("@istio/istio-subset-split-progress-deadline-abort.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		PatchSpec(`
+spec:
+  progressDeadlineAbort: true
+  progressDeadlineSeconds: 10
+  template:
+    spec:
+      containers:
+      - name: istio-subset-split-pda
+        image: nginx:1.19-alpine-argo-error
+        command: null`).
+		WaitForRolloutStatus("Degraded").
+		Sleep(3 * time.Second).
+		Then().
+		ExpectRollout("Abort=True", func(r *v1alpha1.Rollout) bool {
+			return r.Status.Abort
+		}).
+		Assert(func(t *fixtures.Then) {
+			// traffic must never have shifted to the unavailable canary
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+
+			// stable subset must still point at the stable ReplicaSet
+			rs1 := t.GetReplicaSetByRevision("1")
+			destrule := t.GetDestinationRule()
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+		})
+}
+
 func (s *IstioSuite) TestIstioSubsetSplitInStableDownscaleAfterCanaryAbort() {
 	s.Given().
 		RolloutObjects("@istio/istio-subset-split-in-stable-downscale-after-canary-abort.yaml").
