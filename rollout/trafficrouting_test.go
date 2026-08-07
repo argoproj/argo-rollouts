@@ -29,7 +29,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 	apisixMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix/mocks"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
@@ -38,6 +37,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik"
 	traefikMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik/mocks"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -2223,7 +2223,7 @@ spec:
 	f.expectUpdateReplicaSetAction(rs3)
 	f.expectUpdateRolloutAction(r6)
 	f.expectPatchRolloutAction(r6)
-	f.expectGetRolloutAction(r6) // re-seed between syncs
+	f.expectGetRolloutAction(r6)   // re-seed between syncs
 	f.expectPatchRolloutAction(r6) // sync 2: status sync despite delaying destination rule switch error
 
 	assert.Nil(t, f.fakeTrafficRouting, "test must use real Istio reconciler (fakeTrafficRouting=nil)")
