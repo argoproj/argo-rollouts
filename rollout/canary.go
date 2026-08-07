@@ -138,6 +138,14 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// Therefore, we send c.rollout.Status.Canary.Weights so that the stable scaling happens in
 		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
 		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.newRS, c.stableRS, c.rollout.Status.Canary.Weights)
+		// Never scale down the stable ReplicaSet based on weights the traffic provider has not
+		// verified yet (e.g. ALB load balancer weights still propagating): the provider may
+		// still be routing traffic to stable. Scale-up is still allowed.
+		weights := c.rollout.Status.Canary.Weights
+		if weights != nil && weights.Verified != nil && !*weights.Verified && desiredStableRSReplicaCount < *c.stableRS.Spec.Replicas {
+			c.log.Infof("Holding stable ReplicaSet at %d replicas (desired %d): desired traffic weights are not yet verified", *c.stableRS.Spec.Replicas, desiredStableRSReplicaCount)
+			desiredStableRSReplicaCount = *c.stableRS.Spec.Replicas
+		}
 	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
