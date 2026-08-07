@@ -18,6 +18,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -28,6 +29,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	apisixMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix/mocks"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
@@ -36,7 +38,6 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik"
 	traefikMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik/mocks"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -106,7 +107,61 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("Error message"))
+	patchIndex := f.expectPatchRolloutAction(ro)
 	f.runExpectError(getKey(ro, t), true)
+
+	patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
+	assert.Nil(t, patchedRollout.Status.CurrentStepIndex,
+		"SetWeight error must not complete the setWeight step (currentStepIndex must not advance)")
+}
+
+// TestCanaryProgressDeadlineAbortNotBlockedByTrafficRoutingError reproduces the user-facing
+// symptom of #4626 for any traffic provider: a canary rollout with progressDeadlineAbort
+// enabled, stuck past its progress deadline, must still auto-abort even while the traffic
+// router errors persistently.
+func TestCanaryProgressDeadlineAbortNotBlockedByTrafficRoutingError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}}
+	r1 := newCanaryRollout("foo", 20, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	progressDeadlineSeconds := int32(1)
+	r1.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
+	r1.Spec.ProgressDeadlineAbort = true
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
+	rs1 := newReplicaSetWithStatus(r1, 20, 20)
+	rs2 := newReplicaSetWithStatus(r2, 2, 1)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 21, 2, 22, false)
+	msg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rs2.Name)
+	progressingTimeoutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+	conditions.SetRolloutCondition(&r2.Status, *progressingTimeoutCond)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(
+		fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs2.Name))
+
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.runExpectError(getKey(r2, t), true)
+
+	f.verifyPatchedRolloutAborted(patchIndex, rs2.Name)
 }
 
 // verify error is not returned when VerifyWeight returns error (so that we can continue reconciling)
@@ -185,7 +240,20 @@ func TestReconcileTrafficRoutingVerifyWeightEndOfRollout(t *testing.T) {
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), nil)
-	f.runExpectError(getKey(r2, t), true)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	// An unverified weight at the end of the rollout is expected and transient (e.g. ALB load
+	// balancer weights still propagating), so it must not fail the reconcile (that would block
+	// abort/progressDeadline evaluation, see #4626) and must not emit warning events. It must
+	// however hold stable promotion: promoting now would let the old stable ReplicaSet scale
+	// down while the load balancer may still be sending it traffic.
+	patch := f.getPatchedRollout(patchIndex)
+	assert.NotContains(t, patch, fmt.Sprintf(`"stableRS":"%s"`, rs2PodHash),
+		"stable must not be promoted while the desired weight is unverified; patch: %s", patch)
+	eventsStr := strings.Join(f.events, " ")
+	assert.NotContains(t, eventsStr, "TrafficRoutingError",
+		"an unverified weight at end of rollout is routine and must not emit warning events")
 }
 
 func TestRolloutUseDesiredWeight(t *testing.T) {
@@ -2027,9 +2095,15 @@ func TestTrafficRoutingErrorsWhenNewCanaryHasNoReplicas(t *testing.T) {
 			f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(tc.removeManagedRoutesErr)
 			f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 
+			patchIndex := f.expectPatchRolloutAction(r2)
 			f.runExpectError(getKey(r2, t), true)
 
 			f.fakeTrafficRouting.AssertCalled(t, tc.expectedCall, mock.Anything, mock.Anything)
+			patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
+			if patchedRollout.Status.CurrentStepIndex != nil {
+				assert.Equal(t, int32(0), *patchedRollout.Status.CurrentStepIndex,
+					"traffic routing error must not complete the current step")
+			}
 		})
 	}
 }
