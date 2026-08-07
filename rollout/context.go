@@ -60,14 +60,14 @@ type rolloutContext struct {
 	// Used to detect fast rollbacks where we skip pause/analysis steps.
 	newRSWithinDelay bool
 
-	// actuationDeferred is set when any actuation stage errored this reconcile, meaning the
-	// cluster may not match the state about to be persisted. While set, the current canary step
-	// must not complete and stable must not be promoted. Superseded by per-stage conditions in
-	// a follow-up phase.
-	actuationDeferred bool
 	// skipStatusSync preserves the historical pod-restart early exit, which intentionally ends
 	// the pass without a status sync (see rolloutCanary).
 	skipStatusSync bool
+
+	// stageConditions collects conditions produced by actuation stages during this reconcile.
+	// Merged into newStatus by mergeStageConditions; read by progression gates via
+	// stageConditionFalse.
+	stageConditions map[v1alpha1.RolloutConditionType]v1alpha1.RolloutCondition
 }
 
 func (c *rolloutContext) reconcile() error {

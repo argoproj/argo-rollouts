@@ -857,6 +857,8 @@ func (c *rolloutContext) evaluateProgressDeadlineAbort(newStatus *v1alpha1.Rollo
 }
 
 func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutStatus) {
+	c.mergeStageConditions(newStatus)
+
 	isPaused := len(newStatus.PauseConditions) > 0 || c.rollout.Spec.Paused
 	isAborted := c.pauseContext.IsAborted()
 
@@ -1255,7 +1257,7 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 			return ""
 		}
 		// Some actuation stage failed this reconcile; hold promotion until the cluster catches up.
-		if c.actuationDeferred {
+		if c.anyStageConditionFalse() {
 			return ""
 		}
 		// The desired traffic weight was applied but has not been verified with the underlying

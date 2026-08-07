@@ -2224,7 +2224,7 @@ spec:
 	f.expectUpdateRolloutAction(r6)
 	f.expectPatchRolloutAction(r6)
 	f.expectGetRolloutAction(r6) // re-seed between syncs
-	// Sync 2 returns error "delaying destination rule switch" and does not complete, so we do NOT expect update rs6 or second patch.
+	f.expectPatchRolloutAction(r6) // sync 2: status sync despite delaying destination rule switch error
 
 	assert.Nil(t, f.fakeTrafficRouting, "test must use real Istio reconciler (fakeTrafficRouting=nil)")
 

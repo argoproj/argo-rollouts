@@ -187,6 +187,20 @@ const (
 	LoadBalancerNotFoundMessage = "Failed to find load balancer: %s"
 
 	RolloutAddedToInformerReason = "RolloutAddedToInformer"
+
+	// TrafficRoutingErrorReason is recorded on TrafficRoutingApplied=False when SetWeight or
+	// related routing operations fail.
+	TrafficRoutingErrorReason = "TrafficRoutingError"
+	// TrafficRoutingDeferredReason is recorded when routing is intentionally deferred.
+	TrafficRoutingDeferredReason = "TrafficRoutingDeferred"
+	// ServiceUpdateErrorReason is recorded on ServicesReconciled=False when a Service update fails.
+	ServiceUpdateErrorReason = "ServiceUpdateError"
+	// ActuationErrorReason is recorded on ActuationSucceeded=False for generic actuation failures.
+	ActuationErrorReason = "ActuationError"
+	// StageConditionAppliedReason is recorded when a stage condition recovers to True.
+	StageConditionAppliedReason = "Applied"
+	// StageConditionReconciledReason is recorded when ServicesReconciled recovers to True.
+	StageConditionReconciledReason = "Reconciled"
 )
 
 // NewRolloutCondition creates a new rollout condition.

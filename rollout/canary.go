@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/utils/ptr"
@@ -25,9 +26,7 @@ import (
 func (c *rolloutContext) rolloutCanary() error {
 	stageErr := c.runCanaryStages()
 	if stageErr != nil {
-		// Actuation did not fully apply the desired state this pass. Progression gates
-		// (completedCurrentCanaryStep, shouldFullPromote) must hold.
-		c.actuationDeferred = true
+		c.ensureActuationFailureCondition(stageErr)
 	}
 	if c.skipStatusSync {
 		// Only the pod-restart early exit sets this; see runCanaryStages.
@@ -80,14 +79,17 @@ func (c *rolloutContext) runCanaryStages() error {
 	}
 
 	if err := c.reconcilePingAndPongService(); err != nil {
+		c.setStageCondition(v1alpha1.RolloutServicesReconciled, corev1.ConditionFalse, conditions.ServiceUpdateErrorReason, err.Error())
 		return err
 	}
 
 	if err := c.reconcileStableAndCanaryService(); err != nil {
+		c.setStageCondition(v1alpha1.RolloutServicesReconciled, corev1.ConditionFalse, conditions.ServiceUpdateErrorReason, err.Error())
 		return err
 	}
 
 	if err := c.reconcileTrafficRouting(); err != nil {
+		c.setStageCondition(v1alpha1.RolloutTrafficRoutingApplied, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, err.Error())
 		return err
 	}
 
@@ -342,7 +344,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	// Some actuation stage failed this reconcile, so the cluster may not match the state about
 	// to be persisted. Advancing the step now would let the rollout progress with stale routing,
 	// service selectors, or replica counts (#3602-class hazard).
-	if c.actuationDeferred {
+	if c.anyStageConditionFalse() {
 		return false
 	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
