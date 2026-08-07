@@ -76,7 +76,9 @@ func (c *rolloutContext) rolloutCanary() error {
 		// (experiments, analysis, ReplicaSet scaling, step plugins), and proceed directly to
 		// status sync so conditions and abort/progressDeadline are still evaluated.
 		c.trafficRoutingNotApplied = true
-		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
+		// This is the single emission point for TrafficRoutingError events: every error from
+		// reconcileTrafficRouting() funnels through here exactly once per reconcile.
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, "%s", err.Error())
 		c.log.Warnf("Traffic routing not applied, syncing status before requeue: %v", err)
 		c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 		return c.syncRolloutStatusCanary()

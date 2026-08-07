@@ -117,7 +117,8 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	assert.Nil(t, patchedRollout.Status.CurrentStepIndex,
 		"SetWeight error must not complete the setWeight step (currentStepIndex must not advance); patched status: %+v", patchedRollout.Status)
 	eventsStr := strings.Join(f.events, " ")
-	assert.Contains(t, eventsStr, "TrafficRoutingError", "SetWeight error must be surfaced as an event")
+	assert.Equal(t, 1, strings.Count(eventsStr, "TrafficRoutingError"),
+		"SetWeight error must be surfaced as exactly one event; events: %v", f.events)
 	assert.NotContains(t, eventsStr, "RolloutStepCompleted", "SetWeight error must not emit a step-completed event")
 }
 
