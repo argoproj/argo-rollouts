@@ -65,7 +65,21 @@ func (c *rolloutContext) rolloutCanary() error {
 	}
 
 	if err := c.reconcileTrafficRouting(); err != nil {
-		return err
+		// A traffic routing error means the desired routing state was not applied this
+		// reconcile, but it must not block the rest of the sync: historically, returning here
+		// meant syncRolloutStatusCanary() -> persistRolloutStatus() never ran, so a rollout
+		// whose router errored persistently (e.g. Istio delaying the DestinationRule switch
+		// because the canary never becomes available, or a misconfigured ingress) could never
+		// time out, turn Degraded, or auto-abort via progressDeadlineAbort (see #4626).
+		// Instead, flag the failure so the current step is not completed and stable is not
+		// promoted, skip the stages that assume traffic is where status says it is
+		// (experiments, analysis, ReplicaSet scaling, step plugins), and proceed directly to
+		// status sync so conditions and abort/progressDeadline are still evaluated.
+		c.trafficRoutingNotApplied = true
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
+		c.log.Warnf("Traffic routing not applied, syncing status before requeue: %v", err)
+		c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
+		return c.syncRolloutStatusCanary()
 	}
 
 	err = c.reconcileExperiments()
@@ -306,6 +320,13 @@ func (c *rolloutContext) canProceedWithScaleDownAnnotation(oldRSs []*appsv1.Repl
 
 func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	if c.rollout.Spec.Paused {
+		return false
+	}
+	// The traffic router failed to apply (or intentionally deferred) the desired routing state
+	// this reconcile, so the desired traffic weight is not in effect. Advancing the step now
+	// would let the rollout progress with stale routing. Hold the step until the router applies
+	// it on a subsequent reconcile.
+	if c.trafficRoutingNotApplied {
 		return false
 	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
