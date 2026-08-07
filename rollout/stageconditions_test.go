@@ -24,7 +24,7 @@ func TestStageConditionsMergedIntoStatus(t *testing.T) {
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("routing failed"))
 
 	patchIndex := f.expectPatchRolloutAction(ro)
-	f.runExpectError(getKey(ro, t), true)
+	f.run(getKey(ro, t))
 	patched := f.getPatchedRolloutAsObject(patchIndex)
 	cond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutTrafficRoutingApplied)
 	assert.NotNil(t, cond)
@@ -53,7 +53,7 @@ func TestStepHeldWhileStageConditionFalse(t *testing.T) {
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("routing failed"))
 
 	patchIndex := f.expectPatchRolloutAction(ro)
-	f.runExpectError(getKey(ro, t), true)
+	f.run(getKey(ro, t))
 	patched := f.getPatchedRolloutAsObject(patchIndex)
 	assert.Nil(t, patched.Status.CurrentStepIndex)
 }

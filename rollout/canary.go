@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/utils/ptr"
@@ -33,101 +32,6 @@ func (c *rolloutContext) rolloutCanary() error {
 		return stageErr
 	}
 	return kerrors.NewAggregate([]error{stageErr, c.syncRolloutStatusCanary()})
-}
-
-// runCanaryStages performs actuation only. It must not call syncRolloutStatusCanary; return nil
-// to fall through to the status sync in rolloutCanary, or set c.skipStatusSync for the restart
-// early-exit.
-func (c *rolloutContext) runCanaryStages() error {
-	var err error
-	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
-		c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
-		if err != nil {
-			return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary with PodTemplateOrStepsChanged: %w", err)
-		}
-		return nil
-	}
-
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
-	if err != nil {
-		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err)
-	}
-
-	restarted, err := c.podRestarter.Reconcile(c)
-	if err != nil {
-		return err
-	}
-	if restarted > 0 {
-		// If we restarted any pods, we can no longer trust the current availability counts of our
-		// ReplicaSets, since those counts do not factor in the unavailability of pods we just
-		// restarted. We would cause downtime if we continue the reconciliation and *also* scale
-		// down a ReplicaSet (e.g. because of a canary update scaling). Therefore, we return early,
-		// so that the *next* reconciliation will have an accurate availability count to calculate
-		// the safe number of pods to scale down for the update.
-		c.log.Infof("Finished reconciliation due to %d restarted pods", restarted)
-		c.skipStatusSync = true
-		return nil
-	}
-
-	err = c.reconcileEphemeralMetadata()
-	if err != nil {
-		return err
-	}
-
-	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
-		return err
-	}
-
-	if err := c.reconcilePingAndPongService(); err != nil {
-		c.setStageCondition(v1alpha1.RolloutServicesReconciled, corev1.ConditionFalse, conditions.ServiceUpdateErrorReason, err.Error())
-		return err
-	}
-
-	if err := c.reconcileStableAndCanaryService(); err != nil {
-		c.setStageCondition(v1alpha1.RolloutServicesReconciled, corev1.ConditionFalse, conditions.ServiceUpdateErrorReason, err.Error())
-		return err
-	}
-
-	if err := c.reconcileTrafficRouting(); err != nil {
-		c.setStageCondition(v1alpha1.RolloutTrafficRoutingApplied, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, err.Error())
-		return err
-	}
-
-	err = c.reconcileExperiments()
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileAnalysisRuns()
-	if c.pauseContext.HasAddPause() {
-		c.log.Info("Detected pause due to inconclusive AnalysisRun")
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	noScalingOccurred, err := c.reconcileCanaryReplicaSets()
-	if err != nil {
-		return err
-	}
-	if noScalingOccurred {
-		c.log.Info("Not finished reconciling ReplicaSets")
-		return nil
-	}
-
-	stillReconciling := c.reconcileCanaryPause()
-	if stillReconciling {
-		c.log.Infof("Not finished reconciling Canary Pause")
-		return nil
-	}
-
-	err = c.stepPluginContext.reconcile(c)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
