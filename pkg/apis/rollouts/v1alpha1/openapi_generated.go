@@ -3808,6 +3808,13 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusRangeQueryArgs"),
 						},
 					},
+					"caCert": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CACert is an optional PEM-encoded CA certificate bundle used to verify the prometheus server's certificate when it is signed by a private/self-signed CA. This allows TLS verification to remain enabled (i.e. without setting Insecure) while trusting a self-signed or privately signed prometheus endpoint.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

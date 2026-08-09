@@ -1,9 +1,15 @@
 package prometheus
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"math"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -636,6 +642,49 @@ func TestNewPrometheusAPI(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestNewPrometheusAPIWithCACert(t *testing.T) {
+	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "https://www.example.com",
+				CACert:  generateTestCACertPEM(t),
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	assert.NotNil(t, api)
+}
+
+func TestNewPrometheusAPIWithInvalidCACert(t *testing.T) {
+	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "https://www.example.com",
+				CACert:  "not-a-valid-pem-certificate",
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.Error(t, err)
+	assert.Nil(t, api)
+}
+
+func TestNewHTTPTransportWithCACert(t *testing.T) {
+	transport, err := newHTTPTransportWithCACert(generateTestCACertPEM(t))
+	assert.NoError(t, err)
+	assert.NotNil(t, transport.TLSClientConfig.RootCAs)
+	assert.False(t, transport.TLSClientConfig.InsecureSkipVerify)
+}
+
+func TestNewHTTPTransportWithInvalidCACert(t *testing.T) {
+	transport, err := newHTTPTransportWithCACert("garbage")
+	assert.Error(t, err)
+	assert.Nil(t, transport)
+}
+
 func TestNewPrometheusAPIWithEnv(t *testing.T) {
 	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
 	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, ":invalid::url")
@@ -944,6 +993,100 @@ func TestRunErrorBasicAuthFailure(t *testing.T) {
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NoError(t, err)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
+
+func TestRunSuccessfullyWithCACert(t *testing.T) {
+	e := log.Entry{}
+	promServer := mockPromTLSServer()
+	defer promServer.Close()
+
+	caCertPEM := string(pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: promServer.Certificate().Raw,
+	}))
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				CACert:  caCertPEM,
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	p, err := NewPrometheusProvider(api, e, metric)
+	assert.NoError(t, err)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, "[10]", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+}
+
+func TestRunErrorWithWrongCACert(t *testing.T) {
+	e := log.Entry{}
+	promServer := mockPromTLSServer()
+	defer promServer.Close()
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				CACert:  generateTestCACertPEM(t),
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	p, err := NewPrometheusProvider(api, e, metric)
+	assert.NoError(t, err)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
+
+// generateTestCACertPEM generates a self-signed, PEM-encoded certificate for use in tests.
+func generateTestCACertPEM(t *testing.T) string {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	assert.NoError(t, err)
+
+	template := x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "argo-rollouts-test-ca"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	assert.NoError(t, err)
+
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
+}
+
+// mockPromTLSServer starts an httptest TLS server (using an auto-generated self-signed
+// certificate) which returns a canned successful vector response, used for testing the
+// CACert option of the prometheus provider.
+func mockPromTLSServer() *httptest.Server {
+	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		promResponse := `{"data":{"result":[{"metric":{"__name__":"myMetric"},"value":[0, "10"]}],"resultType":"vector"},"status":"success"}`
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(promResponse))
+	}))
 }
 
 func mockOAuthServer(accessToken string) *httptest.Server {
