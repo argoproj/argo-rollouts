@@ -18,6 +18,8 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 func TestCanaryStageTableMatchesLegacyOrder(t *testing.T) {
@@ -162,6 +164,58 @@ func TestCanaryStageSyncFailurePreservesNewRS(t *testing.T) {
 	assert.NotNil(t, roCtx.newRS, "newRS must not be clobbered by a failed ReplicaSet sync")
 }
 
+// TestStageContinueWithErrorKeepsActuating verifies the stageContinueWithError plumbing: a
+// cosmetic stage failure records its condition and keeps the pipeline running (services, traffic
+// routing, and scaling still actuate this pass), while the error is still returned for workqueue
+// backoff — including when a later stage stops the pipeline normally.
+func TestStageContinueWithErrorKeepsActuating(t *testing.T) {
+	orig := canaryStages
+	defer func() { canaryStages = orig }()
+	cosmeticErr := errors.New("revision history cleanup failed")
+
+	t.Run("later stages still run and the error is returned", func(t *testing.T) {
+		laterStageRan := false
+		canaryStages = []canaryStage{
+			{"cosmetic", func(c *rolloutContext) stageResult {
+				return stageResult{outcome: stageContinueWithError, err: cosmeticErr}
+			}},
+			{"later", func(c *rolloutContext) stageResult {
+				laterStageRan = true
+				return stageResult{outcome: stageContinue}
+			}},
+		}
+		ctx := &rolloutContext{
+			rollout:        &v1alpha1.Rollout{},
+			reconcilerBase: reconcilerBase{recorder: record.NewFakeEventRecorder()},
+		}
+		err := ctx.runCanaryStages()
+		assert.True(t, laterStageRan, "a cosmetic failure must not stop actuation")
+		assert.ErrorIs(t, err, cosmeticErr)
+		cond := ctx.stageConditions[v1alpha1.RolloutActuationSucceeded]
+		assert.Equal(t, corev1.ConditionFalse, cond.Status)
+		assert.False(t, ctx.stageSuccesses[v1alpha1.RolloutActuationSucceeded],
+			"a pass with a cosmetic failure must not mark actuation as recovered")
+	})
+
+	t.Run("error survives a later stageStop", func(t *testing.T) {
+		canaryStages = []canaryStage{
+			{"cosmetic", func(c *rolloutContext) stageResult {
+				return stageResult{outcome: stageContinueWithError, err: cosmeticErr}
+			}},
+			{"pause", func(c *rolloutContext) stageResult {
+				return stageResult{outcome: stageStop}
+			}},
+		}
+		ctx := &rolloutContext{
+			rollout:        &v1alpha1.Rollout{},
+			log:            logutil.WithRollout(&v1alpha1.Rollout{}),
+			reconcilerBase: reconcilerBase{recorder: record.NewFakeEventRecorder()},
+		}
+		err := ctx.runCanaryStages()
+		assert.ErrorIs(t, err, cosmeticErr, "a cosmetic failure must not be swallowed by a later normal stop")
+	})
+}
+
 // TestStageFatalNoStatusSkipsStatusSync verifies the stageFatalNoStatus plumbing: the error is
 // returned for workqueue backoff and the status sync is skipped entirely.
 func TestStageFatalNoStatusSkipsStatusSync(t *testing.T) {
@@ -176,6 +230,6 @@ func TestStageFatalNoStatusSkipsStatusSync(t *testing.T) {
 	// would dereference nil members and panic.
 	ctx := &rolloutContext{}
 	err := ctx.rolloutCanary()
-	assert.Equal(t, boom, err)
+	assert.ErrorIs(t, err, boom)
 	assert.True(t, ctx.skipStatusSync)
 }

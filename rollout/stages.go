@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -16,6 +17,10 @@ type stageOutcome int
 const (
 	// stageContinue: proceed to the next stage.
 	stageContinue stageOutcome = iota
+	// stageContinueWithError: a cosmetic stage failed; record the condition, keep actuating
+	// (nothing downstream depends on it for traffic safety), and surface the error after the
+	// status sync for workqueue backoff. Step progression still holds via the condition gates.
+	stageContinueWithError
 	// stageStop: stop actuating, fall through to status sync. NOT an error.
 	stageStop
 	// stageStopNoStatus: stop without status sync (pod-restart early exit only).
@@ -58,43 +63,55 @@ var canaryStages = []canaryStage{
 }
 
 func (c *rolloutContext) runCanaryStages() error {
+	var errs []error
 	for _, s := range canaryStages {
 		res := s.run(c)
 		switch res.outcome {
 		case stageContinue:
+		case stageContinueWithError:
+			c.recordStageFailure(res)
+			errs = append(errs, res.err)
 		case stageStop:
 			c.log.Infof("stage %s: stopping actuation, proceeding to status sync", s.name)
-			return nil
+			return errors.Join(errs...)
 		case stageStopNoStatus:
 			c.skipStatusSync = true
-			return nil
+			return errors.Join(errs...)
 		case stageFatalNoStatus:
 			c.skipStatusSync = true
-			return res.err
+			errs = append(errs, res.err)
+			return errors.Join(errs...)
 		case stageFatal:
-			condType := res.condition
-			if condType == "" {
-				condType = v1alpha1.RolloutActuationSucceeded
-			}
-			reason := res.reason
-			if reason == "" {
-				reason = conditions.ActuationErrorReason
-			}
-			c.setStageCondition(condType, corev1.ConditionFalse, reason, res.err.Error())
-			// A persistently failing stage retries on workqueue backoff; emit the warning event
-			// only when the condition actually transitions (new failure or changed reason), not
-			// on every retry pass.
-			prevCond := conditions.GetRolloutCondition(c.rollout.Status, condType)
-			if prevCond == nil || prevCond.Status != corev1.ConditionFalse || prevCond.Reason != reason {
-				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: reason}, "%s", res.err.Error())
-			}
-			return res.err
+			c.recordStageFailure(res)
+			errs = append(errs, res.err)
+			return errors.Join(errs...)
 		}
 	}
-	// Every stage ran without failure, so the catch-all actuation condition is allowed to
-	// recover to True in mergeStageConditions.
-	c.markStageSucceeded(v1alpha1.RolloutActuationSucceeded)
-	return nil
+	if len(errs) == 0 {
+		// Every stage ran without failure, so the catch-all actuation condition is allowed to
+		// recover to True in mergeStageConditions.
+		c.markStageSucceeded(v1alpha1.RolloutActuationSucceeded)
+	}
+	return errors.Join(errs...)
+}
+
+// recordStageFailure records the failing stage's condition and emits a warning event. A
+// persistently failing stage retries on workqueue backoff; the event is emitted only when the
+// condition actually transitions (new failure or changed reason), not on every retry pass.
+func (c *rolloutContext) recordStageFailure(res stageResult) {
+	condType := res.condition
+	if condType == "" {
+		condType = v1alpha1.RolloutActuationSucceeded
+	}
+	reason := res.reason
+	if reason == "" {
+		reason = conditions.ActuationErrorReason
+	}
+	c.setStageCondition(condType, corev1.ConditionFalse, reason, res.err.Error())
+	prevCond := conditions.GetRolloutCondition(c.rollout.Status, condType)
+	if prevCond == nil || prevCond.Status != corev1.ConditionFalse || prevCond.Reason != reason {
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: reason}, "%s", res.err.Error())
+	}
 }
 
 func canaryStageSyncRevisionOnChange(c *rolloutContext) stageResult {
@@ -143,14 +160,16 @@ func canaryStagePodRestart(c *rolloutContext) stageResult {
 
 func canaryStageEphemeralMetadata(c *rolloutContext) stageResult {
 	if err := c.reconcileEphemeralMetadata(); err != nil {
-		return stageResult{outcome: stageFatal, err: err}
+		// Cosmetic: pod metadata labeling must not block services/traffic/scaling this pass.
+		return stageResult{outcome: stageContinueWithError, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStageRevisionHistory(c *rolloutContext) stageResult {
 	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
-		return stageResult{outcome: stageFatal, err: err}
+		// Cosmetic: old-revision cleanup must not block services/traffic/scaling this pass.
+		return stageResult{outcome: stageContinueWithError, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
