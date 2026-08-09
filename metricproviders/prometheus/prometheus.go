@@ -3,6 +3,7 @@ package prometheus
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -225,6 +226,20 @@ func newHTTPTransport(insecureSkipVerify bool) *http.Transport {
 var secureTransport = newHTTPTransport(false)
 var insecureTransport = newHTTPTransport(true)
 
+// newHTTPTransportWithCACert builds an HTTP transport which trusts the given PEM-encoded CA
+// certificate bundle, in addition to performing normal TLS verification. This allows connecting
+// to a prometheus server presenting a certificate signed by a private/self-signed CA without
+// disabling TLS verification altogether (i.e. without resorting to Insecure).
+func newHTTPTransportWithCACert(caCert string) (*http.Transport, error) {
+	certPool := x509.NewCertPool()
+	if ok := certPool.AppendCertsFromPEM([]byte(caCert)); !ok {
+		return nil, errors.New("failed to parse prometheus caCert as a PEM certificate bundle")
+	}
+	transport := newHTTPTransport(false)
+	transport.TLSClientConfig.RootCAs = certPool
+	return transport, nil
+}
+
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	envValuesByKey := make(map[string]string)
@@ -248,9 +263,17 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	}
 
 	var roundTripper http.RoundTripper
-	if metric.Provider.Prometheus.Insecure {
+	switch {
+	case metric.Provider.Prometheus.Insecure:
 		roundTripper = insecureTransport
-	} else {
+	case metric.Provider.Prometheus.CACert != "":
+		caCertTransport, err := newHTTPTransportWithCACert(metric.Provider.Prometheus.CACert)
+		if err != nil {
+			log.Errorf("Error building prometheus caCert transport: %v", err)
+			return nil, err
+		}
+		roundTripper = caCertTransport
+	default:
 		roundTripper = secureTransport
 	}
 

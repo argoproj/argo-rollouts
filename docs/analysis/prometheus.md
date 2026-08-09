@@ -225,3 +225,28 @@ provider:
         istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
       ))
 ```
+
+## Connecting to a prometheus server with a self-signed certificate
+
+If your prometheus server presents a certificate signed by a private or self-signed CA, you can set `caCert` to a
+PEM-encoded CA certificate bundle. This trusts the given CA for TLS verification purposes while keeping certificate
+verification enabled, as opposed to `insecure: true` which disables verification altogether.
+
+```yaml
+provider:
+  prometheus:
+    address: https://prometheus.example.com
+    caCert: |
+      -----BEGIN CERTIFICATE-----
+      MIIDXTCCAkWgAwIBAgIJAJC1...
+      -----END CERTIFICATE-----
+    query: |
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+      )) /
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+      ))
+```
+
+The certificate can also be sourced from a Kubernetes Secret by referencing it as an [AnalysisTemplate argument](../features/analysis.md#analysis-template-arguments).
