@@ -1,12 +1,12 @@
 package rollout
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
 // rolloutCanary is the top-level canary reconcile. Status is synced, exactly once, even when an
@@ -30,10 +31,13 @@ func (c *rolloutContext) rolloutCanary() error {
 		c.ensureActuationFailureCondition(stageErr)
 	}
 	if c.skipStatusSync {
-		// Only the pod-restart early exit sets this; see runCanaryStages.
+		// Pod-restart early exit and ReplicaSet-sync failures set this; see runCanaryStages.
 		return stageErr
 	}
-	return kerrors.NewAggregate([]error{stageErr, c.syncRolloutStatusCanary()})
+	// errors.Join (rather than kerrors.NewAggregate) so that errors.As/Is-based checks like
+	// k8serrors.IsNotFound still see through the combined error in processNextWorkItem; the
+	// apimachinery aggregate implements Is but not Unwrap/As. Join returns nil when both are nil.
+	return errors.Join(stageErr, c.syncRolloutStatusCanary())
 }
 
 func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
@@ -58,8 +62,7 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// Never scale down the stable ReplicaSet based on weights the traffic provider has not
 		// verified yet (e.g. ALB load balancer weights still propagating): the provider may
 		// still be routing traffic to stable. Scale-up is still allowed.
-		weights := c.rollout.Status.Canary.Weights
-		if weights != nil && weights.Verified != nil && !*weights.Verified && desiredStableRSReplicaCount < *c.stableRS.Spec.Replicas {
+		if weightutil.VerificationPending(c.rollout.Status.Canary.Weights) && desiredStableRSReplicaCount < *c.stableRS.Spec.Replicas {
 			c.log.Infof("Holding stable ReplicaSet at %d replicas (desired %d): desired traffic weights are not yet verified", *c.stableRS.Spec.Replicas, desiredStableRSReplicaCount)
 			desiredStableRSReplicaCount = *c.stableRS.Spec.Replicas
 		}
@@ -266,7 +269,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.newStatus.Canary.Weights) {
 			return false
 		}
-		if c.newStatus.Canary.Weights != nil && c.newStatus.Canary.Weights.Verified != nil && !*c.newStatus.Canary.Weights.Verified {
+		if weightutil.VerificationPending(c.newStatus.Canary.Weights) {
 			// we haven't yet verified the target weight after the setWeight
 			return false
 		}
