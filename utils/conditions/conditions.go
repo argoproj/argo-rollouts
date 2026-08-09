@@ -133,7 +133,8 @@ const (
 	// RolloutExperimentFailedMessage is added in a rollout when the experiment owned by a rollout fails to show any progress
 	RolloutExperimentFailedMessage = "Experiment '%s' owned by the Rollout '%q' has timed out."
 
-	// RolloutReconciliationErrorReason is added in a rollout when the reconciliation returns an error preventing progress
+	// RolloutReconciliationErrorReason is recorded on ReconcileSucceeded=False (and as the event
+	// reason) when a reconcile step without a more specific condition fails, preventing progress.
 	RolloutReconciliationErrorReason = "ReconciliationError"
 	// RolloutReconciliationErrorMessage is added in a rollout when the reconciliation returns an error preventing progress
 	RolloutReconciliationErrorMessage = "Reconciliation failed with error: %v"
@@ -195,8 +196,6 @@ const (
 	TrafficRoutingDeferredReason = "TrafficRoutingDeferred"
 	// ServiceUpdateErrorReason is recorded on ServicesReconciled=False when a Service update fails.
 	ServiceUpdateErrorReason = "ServiceUpdateError"
-	// ActuationErrorReason is recorded on ActuationSucceeded=False for generic actuation failures.
-	ActuationErrorReason = "ActuationError"
 	// StageConditionAppliedReason is recorded when a stage condition recovers to True.
 	StageConditionAppliedReason = "Applied"
 	// StageConditionReconciledReason is recorded when ServicesReconciled recovers to True.

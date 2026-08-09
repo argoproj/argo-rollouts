@@ -14,7 +14,7 @@ const maxStageConditionMessageLen = 256
 var trackedStageConditionTypes = []v1alpha1.RolloutConditionType{
 	v1alpha1.RolloutTrafficRoutingApplied,
 	v1alpha1.RolloutServicesReconciled,
-	v1alpha1.RolloutActuationSucceeded,
+	v1alpha1.RolloutReconcileSucceeded,
 }
 
 func truncateStageConditionMessage(message string) string {
@@ -66,13 +66,13 @@ func (c *rolloutContext) anyStageConditionFalse() bool {
 	return false
 }
 
-func (c *rolloutContext) ensureActuationFailureCondition(err error) {
+func (c *rolloutContext) ensureReconcileFailureCondition(err error) {
 	for _, condType := range trackedStageConditionTypes {
 		if c.stageConditionFalse(condType) {
 			return
 		}
 	}
-	c.setStageCondition(v1alpha1.RolloutActuationSucceeded, corev1.ConditionFalse, conditions.ActuationErrorReason, err.Error())
+	c.setStageCondition(v1alpha1.RolloutReconcileSucceeded, corev1.ConditionFalse, conditions.RolloutReconciliationErrorReason, err.Error())
 }
 
 func (c *rolloutContext) mergeStageConditions(newStatus *v1alpha1.RolloutStatus) {

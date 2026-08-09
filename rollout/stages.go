@@ -90,7 +90,7 @@ func (c *rolloutContext) runCanaryStages() error {
 	if len(errs) == 0 {
 		// Every stage ran without failure, so the catch-all actuation condition is allowed to
 		// recover to True in mergeStageConditions.
-		c.markStageSucceeded(v1alpha1.RolloutActuationSucceeded)
+		c.markStageSucceeded(v1alpha1.RolloutReconcileSucceeded)
 	}
 	return errors.Join(errs...)
 }
@@ -101,11 +101,11 @@ func (c *rolloutContext) runCanaryStages() error {
 func (c *rolloutContext) recordStageFailure(res stageResult) {
 	condType := res.condition
 	if condType == "" {
-		condType = v1alpha1.RolloutActuationSucceeded
+		condType = v1alpha1.RolloutReconcileSucceeded
 	}
 	reason := res.reason
 	if reason == "" {
-		reason = conditions.ActuationErrorReason
+		reason = conditions.RolloutReconciliationErrorReason
 	}
 	c.setStageCondition(condType, corev1.ConditionFalse, reason, res.err.Error())
 	prevCond := conditions.GetRolloutCondition(c.rollout.Status, condType)

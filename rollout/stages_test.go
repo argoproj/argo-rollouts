@@ -191,9 +191,9 @@ func TestStageContinueWithErrorKeepsActuating(t *testing.T) {
 		err := ctx.runCanaryStages()
 		assert.True(t, laterStageRan, "a cosmetic failure must not stop actuation")
 		assert.ErrorIs(t, err, cosmeticErr)
-		cond := ctx.stageConditions[v1alpha1.RolloutActuationSucceeded]
+		cond := ctx.stageConditions[v1alpha1.RolloutReconcileSucceeded]
 		assert.Equal(t, corev1.ConditionFalse, cond.Status)
-		assert.False(t, ctx.stageSuccesses[v1alpha1.RolloutActuationSucceeded],
+		assert.False(t, ctx.stageSuccesses[v1alpha1.RolloutReconcileSucceeded],
 			"a pass with a cosmetic failure must not mark actuation as recovered")
 	})
 

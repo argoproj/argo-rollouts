@@ -1328,9 +1328,10 @@ const (
 	// RolloutServicesReconciled means the stable/canary (and ping-pong) Service selectors
 	// last reconciled successfully (True) or failed (False).
 	RolloutServicesReconciled RolloutConditionType = "ServicesReconciled"
-	// RolloutActuationSucceeded is a catch-all: False when any actuation stage without a
-	// dedicated condition failed during the last reconcile.
-	RolloutActuationSucceeded RolloutConditionType = "ActuationSucceeded"
+	// RolloutReconcileSucceeded is a catch-all: False when any part of the reconcile that applies
+	// changes to the cluster (ReplicaSet sync, scaling, experiments, analysis, pod metadata, step
+	// plugins) failed during the last reconcile without a more specific condition.
+	RolloutReconcileSucceeded RolloutConditionType = "ReconcileSucceeded"
 )
 
 // RolloutCondition describes the state of a rollout at a certain point.

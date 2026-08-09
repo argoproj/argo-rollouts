@@ -221,8 +221,8 @@ func TestStageConditionNotRecoveredWhenPipelineStopsEarly(t *testing.T) {
 func TestConditionMessageTruncated(t *testing.T) {
 	ctx := &rolloutContext{}
 	longMsg := strings.Repeat("x", maxStageConditionMessageLen+10)
-	ctx.setStageCondition(v1alpha1.RolloutActuationSucceeded, corev1.ConditionFalse, conditions.ActuationErrorReason, longMsg)
-	cond := ctx.stageConditions[v1alpha1.RolloutActuationSucceeded]
+	ctx.setStageCondition(v1alpha1.RolloutReconcileSucceeded, corev1.ConditionFalse, conditions.RolloutReconciliationErrorReason, longMsg)
+	cond := ctx.stageConditions[v1alpha1.RolloutReconcileSucceeded]
 	assert.Len(t, cond.Message, maxStageConditionMessageLen)
 }
 

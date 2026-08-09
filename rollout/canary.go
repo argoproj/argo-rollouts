@@ -28,7 +28,7 @@ import (
 func (c *rolloutContext) rolloutCanary() error {
 	stageErr := c.runCanaryStages()
 	if stageErr != nil {
-		c.ensureActuationFailureCondition(stageErr)
+		c.ensureReconcileFailureCondition(stageErr)
 	}
 	if c.skipStatusSync {
 		// Pod-restart early exit and ReplicaSet-sync failures set this; see runCanaryStages.
