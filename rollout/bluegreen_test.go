@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	core "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
@@ -1736,4 +1737,55 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
+}
+
+// TestBlueGreenProgressDeadlineAbortNotBlockedByActuationError reproduces the user-facing
+// symptom of #4626 for the blue-green strategy: a rollout with progressDeadlineAbort enabled,
+// stuck past its progress deadline, must still auto-abort even while an actuation step (here
+// the preview service update) errors persistently — the status sync must not be skipped.
+func TestBlueGreenProgressDeadlineAbortNotBlockedByActuationError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 2, nil, "active", "preview")
+	progressDeadlineSeconds := int32(1)
+	r1.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
+	r1.Spec.ProgressDeadlineAbort = true
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 2, 2)
+	rs2 := newReplicaSetWithStatus(r2, 2, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	// Status must match the observed state (stale preview selector, replica counts) so the
+	// reconcile does not register as "making progress", which would defer the deadline abort.
+	r2 = updateBlueGreenRolloutStatus(r2, rs1PodHash, rs1PodHash, rs1PodHash, 3, 2, 4, 4, false, true, false)
+	msg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rs2.Name)
+	progressingTimeoutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+	conditions.SetRolloutCondition(&r2.Status, *progressingTimeoutCond)
+
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	activeSvc := newService("active", 80, activeSelector, r2)
+	// stale preview selector forces a service patch, which the reactor below fails persistently
+	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	previewSvc := newService("preview", 80, previewSelector, r2)
+
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.kubeclient.PrependReactor("patch", "services", func(action core.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("admission webhook denied service update")
+	})
+
+	_ = f.expectPatchServiceAction(previewSvc, rs2PodHash)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.runController(getKey(r2, t), true, true, c, i, k8sI)
+
+	f.verifyPatchedRolloutAborted(patchIndex, rs2.Name)
 }
