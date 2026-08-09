@@ -141,11 +141,10 @@ func TestCanaryStageSyncFailurePreservesNewRS(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	ctrl, _, _ := f.newController(noResyncPeriodFunc)
 	f.kubeclient.PrependReactor("update", "replicasets", func(action k8stesting.Action) (bool, runtime.Object, error) {
 		return true, nil, fmt.Errorf("api server unavailable")
 	})
-
-	ctrl, _, _ := f.newController(noResyncPeriodFunc)
 	roCtx, err := ctrl.newRolloutContext(r2)
 	assert.NoError(t, err)
 

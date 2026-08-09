@@ -201,6 +201,9 @@ const (
 	StageConditionAppliedReason = "Applied"
 	// StageConditionReconciledReason is recorded when ServicesReconciled recovers to True.
 	StageConditionReconciledReason = "Reconciled"
+	// PromoteFullHeldReason is emitted when a user-requested full promotion (promote --full)
+	// is being held by a safety gate instead of taking effect.
+	PromoteFullHeldReason = "PromoteFullHeld"
 )
 
 // NewRolloutCondition creates a new rollout condition.

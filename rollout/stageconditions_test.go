@@ -95,6 +95,49 @@ func TestPromotionHeldWhileStageConditionFalse(t *testing.T) {
 	assert.NotContains(t, f.getPatchedRollout(patchIndex), fmt.Sprintf(`"stableRS":"%s"`, rs2PodHash))
 }
 
+// TestPromoteFullHeldEmitsEvent verifies that a user-requested full promotion (promote --full)
+// held by the unverified-weights safety gate emits an event explaining why the forced promotion
+// did not take effect.
+func TestPromoteFullHeldEmitsEvent(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}, {Pause: &v1alpha1.RolloutPause{}}}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 10, 10)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	r2.Status.PromoteFull = true
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(nil)
+
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+	assert.NotContains(t, f.getPatchedRollout(patchIndex), fmt.Sprintf(`"stableRS":"%s"`, rs2PodHash),
+		"unverified weights must still hold the forced promotion")
+	assert.Contains(t, strings.Join(f.events, " "), conditions.PromoteFullHeldReason,
+		"the held promotion must be surfaced to the operator via an event")
+}
+
 // TestStageConditionRecoveryRequiresStageSuccess verifies that a previously-False stage condition
 // only flips back to True when the owning stage actually re-ran and succeeded this reconcile —
 // a pass that never reached the stage must not report a recovery that never happened.
