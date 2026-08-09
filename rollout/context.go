@@ -66,7 +66,7 @@ type rolloutContext struct {
 	// rolloutCanary and runCanaryStages).
 	skipStatusSync bool
 
-	// stageConditions collects conditions produced by actuation stages during this reconcile.
+	// stageConditions collects conditions produced by the canary stages during this reconcile.
 	// Merged into newStatus by mergeStageConditions; read by progression gates via
 	// stageConditionFalse.
 	stageConditions map[v1alpha1.RolloutConditionType]v1alpha1.RolloutCondition

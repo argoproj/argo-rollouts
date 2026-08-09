@@ -1267,9 +1267,9 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.pauseContext.IsAborted() {
 			return ""
 		}
-		// Some actuation stage failed this reconcile; hold promotion until the cluster catches up.
+		// Some stage failed this reconcile; hold promotion until the cluster catches up.
 		if c.anyStageConditionFalse() {
-			c.warnPromoteFullHeld("an actuation stage failed during this reconciliation")
+			c.warnPromoteFullHeld("a stage failed to apply changes during this reconciliation")
 			return ""
 		}
 		// The desired traffic weight was applied but has not been verified with the underlying

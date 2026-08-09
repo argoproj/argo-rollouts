@@ -17,7 +17,7 @@ import (
 )
 
 // rolloutBlueGreen implements the logic for rolling a new replica set. Status is synced, exactly
-// once, even when an actuation step fails: syncRolloutStatusBlueGreen is where
+// once, even when reconcileBlueGreen fails: syncRolloutStatusBlueGreen is where
 // progressDeadline/abort evaluation lives, and skipping it is how a rollout gets wedged in
 // Progressing forever (#4626) — mirroring rolloutCanary. The only exceptions are the
 // prerequisites (service lookup and ReplicaSet sync), without which a meaningful status cannot
@@ -35,14 +35,15 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 	}
 	c.newRS = newRS
 
-	actuationErr := c.reconcileBlueGreen(previewSvc, activeSvc)
+	reconcileErr := c.reconcileBlueGreen(previewSvc, activeSvc)
 	// errors.Join so As/Is-based checks (e.g. k8serrors.IsNotFound) still see through the
 	// combined error; it returns nil when both errors are nil.
-	return errors.Join(actuationErr, c.syncRolloutStatusBlueGreen(previewSvc, activeSvc))
+	return errors.Join(reconcileErr, c.syncRolloutStatusBlueGreen(previewSvc, activeSvc))
 }
 
-// reconcileBlueGreen performs the actuation steps of the blue-green strategy. An error stops
-// actuation but is surfaced only after the status sync runs (see rolloutBlueGreen).
+// reconcileBlueGreen applies the desired blue-green state (ReplicaSets, services, analysis) to
+// the cluster. An error stops further changes but is surfaced only after the status sync runs
+// (see rolloutBlueGreen).
 func (c *rolloutContext) reconcileBlueGreen(previewSvc, activeSvc *corev1.Service) error {
 	// This must happen right after the new replicaset is created
 	if err := c.reconcilePreviewService(previewSvc); err != nil {

@@ -238,7 +238,7 @@ func TestConditionMessageTruncatedOnRuneBoundary(t *testing.T) {
 
 // TestStageConditionsRemovedOnStrategyMigration verifies that a stale stage condition left over
 // from a canary strategy is removed once the rollout is migrated to blueGreen, instead of
-// reporting an actuation failure forever on a healthy blue-green rollout.
+// reporting a reconcile failure forever on a healthy blue-green rollout.
 func TestStageConditionsRemovedOnStrategyMigration(t *testing.T) {
 	ro := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
 	ro.Spec.Strategy.Canary = nil

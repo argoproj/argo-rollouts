@@ -1739,11 +1739,11 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
 }
 
-// TestBlueGreenProgressDeadlineAbortNotBlockedByActuationError reproduces the user-facing
+// TestBlueGreenProgressDeadlineAbortNotBlockedByApplyError reproduces the user-facing
 // symptom of #4626 for the blue-green strategy: a rollout with progressDeadlineAbort enabled,
-// stuck past its progress deadline, must still auto-abort even while an actuation step (here
+// stuck past its progress deadline, must still auto-abort even while a step that applies changes (here
 // the preview service update) errors persistently — the status sync must not be skipped.
-func TestBlueGreenProgressDeadlineAbortNotBlockedByActuationError(t *testing.T) {
+func TestBlueGreenProgressDeadlineAbortNotBlockedByApplyError(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 

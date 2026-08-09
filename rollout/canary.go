@@ -19,8 +19,8 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
-// rolloutCanary is the top-level canary reconcile. Status is synced, exactly once, even when an
-// actuation stage fails: syncRolloutStatusCanary is where progressDeadline/abort evaluation and
+// rolloutCanary is the top-level canary reconcile. Status is synced, exactly once, even when a
+// stage fails: syncRolloutStatusCanary is where progressDeadline/abort evaluation and
 // condition/phase calculation live, and skipping it is how a rollout gets wedged in Progressing
 // forever (#4626). The only exceptions are the pod-restart early exit and ReplicaSet-sync
 // failures (stageFatalNoStatus), where c.newRS is unreliable and a status computed from it
@@ -250,7 +250,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	if c.rollout.Spec.Paused {
 		return false
 	}
-	// Some actuation stage failed this reconcile, so the cluster may not match the state about
+	// Some stage failed this reconcile, so the cluster may not match the state about
 	// to be persisted. Advancing the step now would let the rollout progress with stale routing,
 	// service selectors, or replica counts (#3602-class hazard).
 	if c.anyStageConditionFalse() {

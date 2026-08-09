@@ -17,17 +17,17 @@ type stageOutcome int
 const (
 	// stageContinue: proceed to the next stage.
 	stageContinue stageOutcome = iota
-	// stageContinueWithError: a cosmetic stage failed; record the condition, keep actuating
-	// (nothing downstream depends on it for traffic safety), and surface the error after the
-	// status sync for workqueue backoff. Step progression still holds via the condition gates.
+	// stageContinueWithError: a cosmetic stage failed; record the condition, keep running the
+	// remaining stages (nothing downstream depends on it for traffic safety), and surface the
+	// error after the status sync for workqueue backoff. Step progression still holds via the condition gates.
 	stageContinueWithError
-	// stageStop: stop actuating, fall through to status sync. NOT an error.
+	// stageStop: stop applying changes, fall through to status sync. NOT an error.
 	stageStop
 	// stageStopNoStatus: stop without status sync (pod-restart early exit only).
 	stageStopNoStatus
-	// stageFatal: stop actuating, still status-sync, and return the error for workqueue backoff.
+	// stageFatal: stop applying changes, still status-sync, and return the error for workqueue backoff.
 	stageFatal
-	// stageFatalNoStatus: stop actuating, skip status sync, and return the error for workqueue
+	// stageFatalNoStatus: stop applying changes, skip status sync, and return the error for workqueue
 	// backoff. Reserved for ReplicaSet-sync failures that leave c.newRS unreliable: a status
 	// computed from a nil/stale newRS would persist corrupted values (e.g. clear abort state and
 	// record a CurrentPodHash for a ReplicaSet that was never created).
@@ -72,7 +72,7 @@ func (c *rolloutContext) runCanaryStages() error {
 			c.recordStageFailure(res)
 			errs = append(errs, res.err)
 		case stageStop:
-			c.log.Infof("stage %s: stopping actuation, proceeding to status sync", s.name)
+			c.log.Infof("stage %s: stopping further changes, proceeding to status sync", s.name)
 			return errors.Join(errs...)
 		case stageStopNoStatus:
 			c.skipStatusSync = true
@@ -88,7 +88,7 @@ func (c *rolloutContext) runCanaryStages() error {
 		}
 	}
 	if len(errs) == 0 {
-		// Every stage ran without failure, so the catch-all actuation condition is allowed to
+		// Every stage ran without failure, so the catch-all ReconcileSucceeded condition is allowed to
 		// recover to True in mergeStageConditions.
 		c.markStageSucceeded(v1alpha1.RolloutReconcileSucceeded)
 	}

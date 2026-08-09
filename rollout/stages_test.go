@@ -164,11 +164,11 @@ func TestCanaryStageSyncFailurePreservesNewRS(t *testing.T) {
 	assert.NotNil(t, roCtx.newRS, "newRS must not be clobbered by a failed ReplicaSet sync")
 }
 
-// TestStageContinueWithErrorKeepsActuating verifies the stageContinueWithError plumbing: a
+// TestStageContinueWithErrorKeepsApplying verifies the stageContinueWithError plumbing: a
 // cosmetic stage failure records its condition and keeps the pipeline running (services, traffic
-// routing, and scaling still actuate this pass), while the error is still returned for workqueue
+// routing, and scaling still run this pass), while the error is still returned for workqueue
 // backoff — including when a later stage stops the pipeline normally.
-func TestStageContinueWithErrorKeepsActuating(t *testing.T) {
+func TestStageContinueWithErrorKeepsApplying(t *testing.T) {
 	orig := canaryStages
 	defer func() { canaryStages = orig }()
 	cosmeticErr := errors.New("revision history cleanup failed")
@@ -189,12 +189,12 @@ func TestStageContinueWithErrorKeepsActuating(t *testing.T) {
 			reconcilerBase: reconcilerBase{recorder: record.NewFakeEventRecorder()},
 		}
 		err := ctx.runCanaryStages()
-		assert.True(t, laterStageRan, "a cosmetic failure must not stop actuation")
+		assert.True(t, laterStageRan, "a cosmetic failure must not stop the remaining stages")
 		assert.ErrorIs(t, err, cosmeticErr)
 		cond := ctx.stageConditions[v1alpha1.RolloutReconcileSucceeded]
 		assert.Equal(t, corev1.ConditionFalse, cond.Status)
 		assert.False(t, ctx.stageSuccesses[v1alpha1.RolloutReconcileSucceeded],
-			"a pass with a cosmetic failure must not mark actuation as recovered")
+			"a pass with a cosmetic failure must not mark ReconcileSucceeded as recovered")
 	})
 
 	t.Run("error survives a later stageStop", func(t *testing.T) {

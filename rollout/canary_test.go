@@ -2243,7 +2243,7 @@ func TestCanaryStableReplicaSetScaleDownHeldWhileWeightUnverified(t *testing.T) 
 	}
 }
 
-// TestCanaryStatusSyncedDespiteStageError verifies actuation stage failures still sync status,
+// TestCanaryStatusSyncedDespiteStageError verifies stage failures still sync status,
 // hold step progression, and return an error for workqueue backoff.
 func TestCanaryStatusSyncedDespiteStageError(t *testing.T) {
 	t.Run("traffic routing SetWeight error", func(t *testing.T) {
