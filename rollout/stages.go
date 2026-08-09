@@ -26,6 +26,11 @@ const (
 	stageHold
 	// stageFatal: stop actuating, still status-sync, and return the error for workqueue backoff.
 	stageFatal
+	// stageFatalNoStatus: stop actuating, skip status sync, and return the error for workqueue
+	// backoff. Reserved for ReplicaSet-sync failures that leave c.newRS unreliable: a status
+	// computed from a nil/stale newRS would persist corrupted values (e.g. clear abort state and
+	// record a CurrentPodHash for a ReplicaSet that was never created).
+	stageFatalNoStatus
 )
 
 type stageResult struct {
@@ -67,6 +72,9 @@ func (c *rolloutContext) runCanaryStages() error {
 		case stageStopNoStatus:
 			c.skipStatusSync = true
 			return nil
+		case stageFatalNoStatus:
+			c.skipStatusSync = true
+			return res.err
 		case stageHold, stageFatal:
 			condType := res.condition
 			if condType == "" {
@@ -85,6 +93,9 @@ func (c *rolloutContext) runCanaryStages() error {
 			return res.err
 		}
 	}
+	// Every stage ran without failure, so the catch-all actuation condition is allowed to
+	// recover to True in mergeStageConditions.
+	c.markStageSucceeded(v1alpha1.RolloutActuationSucceeded)
 	return nil
 }
 
@@ -92,26 +103,31 @@ func canaryStageSyncRevisionOnChange(c *rolloutContext) stageResult {
 	if !replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
 		return stageResult{outcome: stageContinue}
 	}
-	var err error
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
+	newRS, err := c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
+		// Leave c.newRS untouched and skip the status sync: syncing now would evaluate
+		// PodTemplateOrStepsChanged against a nil newRS and persist a reset status (cleared
+		// abort/pause state, phantom CurrentPodHash) for a ReplicaSet that was never synced.
 		return stageResult{
-			outcome: stageFatal,
+			outcome: stageFatalNoStatus,
 			err:     fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary with PodTemplateOrStepsChanged: %w", err),
 		}
 	}
+	c.newRS = newRS
 	return stageResult{outcome: stageStop}
 }
 
 func canaryStageSyncReplicaSets(c *rolloutContext) stageResult {
-	var err error
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
+	newRS, err := c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
+		// Leave c.newRS untouched and skip the status sync: syncing now would compute replica
+		// counts from a nil newRS (e.g. UpdatedReplicas flapping to 0 on a transient API error).
 		return stageResult{
-			outcome: stageFatal,
+			outcome: stageFatalNoStatus,
 			err:     fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err),
 		}
 	}
+	c.newRS = newRS
 	return stageResult{outcome: stageContinue}
 }
 
@@ -162,6 +178,9 @@ func canaryStageStableCanaryService(c *rolloutContext) stageResult {
 			reason:    conditions.ServiceUpdateErrorReason,
 		}
 	}
+	// pingPongService runs before this stage and any failure there aborts the pipeline, so both
+	// owners of the ServicesReconciled condition succeeded this pass.
+	c.markStageSucceeded(v1alpha1.RolloutServicesReconciled)
 	return stageResult{outcome: stageContinue}
 }
 
@@ -174,6 +193,7 @@ func canaryStageTrafficRouting(c *rolloutContext) stageResult {
 			reason:    conditions.TrafficRoutingErrorReason,
 		}
 	}
+	c.markStageSucceeded(v1alpha1.RolloutTrafficRoutingApplied)
 	return stageResult{outcome: stageContinue}
 }
 

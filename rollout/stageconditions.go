@@ -29,6 +29,16 @@ func (c *rolloutContext) setStageCondition(condType v1alpha1.RolloutConditionTyp
 	c.stageConditions[condType] = *conditions.NewRolloutCondition(condType, status, reason, truncateStageConditionMessage(message))
 }
 
+// markStageSucceeded records that the stage(s) reporting under condType ran to completion without
+// error this reconcile, making a previously-False condition eligible to recover to True in
+// mergeStageConditions.
+func (c *rolloutContext) markStageSucceeded(condType v1alpha1.RolloutConditionType) {
+	if c.stageSuccesses == nil {
+		c.stageSuccesses = make(map[v1alpha1.RolloutConditionType]bool)
+	}
+	c.stageSuccesses[condType] = true
+}
+
 // stageConditionFalse reports whether condType was recorded False THIS reconcile. Gates must key
 // off current-pass failures, not stale persisted conditions.
 func (c *rolloutContext) stageConditionFalse(condType v1alpha1.RolloutConditionType) bool {
@@ -74,8 +84,13 @@ func (c *rolloutContext) mergeStageConditions(newStatus *v1alpha1.RolloutStatus)
 			continue
 		}
 
+		// A previously-False condition may only recover to True when the owning stage(s)
+		// actually re-ran and succeeded this pass. A reconcile that never reached the stage
+		// (an earlier stage stopped or failed the pipeline, or a scaling-only pass that runs
+		// no stages at all) must leave the condition untouched rather than report a recovery
+		// that never happened.
 		prevCond := conditions.GetRolloutCondition(c.rollout.Status, condType)
-		if prevCond != nil && prevCond.Status == corev1.ConditionFalse {
+		if prevCond != nil && prevCond.Status == corev1.ConditionFalse && c.stageSuccesses[condType] {
 			reason := conditions.StageConditionAppliedReason
 			if condType == v1alpha1.RolloutServicesReconciled {
 				reason = conditions.StageConditionReconciledReason

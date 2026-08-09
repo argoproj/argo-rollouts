@@ -9,7 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -91,6 +93,85 @@ func TestPromotionHeldWhileStageConditionFalse(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	assert.NotContains(t, f.getPatchedRollout(patchIndex), fmt.Sprintf(`"stableRS":"%s"`, rs2PodHash))
+}
+
+// TestStageConditionRecoveryRequiresStageSuccess verifies that a previously-False stage condition
+// only flips back to True when the owning stage actually re-ran and succeeded this reconcile —
+// a pass that never reached the stage must not report a recovery that never happened.
+func TestStageConditionRecoveryRequiresStageSuccess(t *testing.T) {
+	ro := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	conditions.SetRolloutCondition(&ro.Status, *conditions.NewRolloutCondition(
+		v1alpha1.RolloutTrafficRoutingApplied, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "routing failed"))
+
+	ctx := &rolloutContext{rollout: ro}
+	newStatus := ro.Status.DeepCopy()
+
+	// The trafficRouting stage did not run this pass (e.g. an earlier stage stopped the
+	// pipeline, or a scaling-only pass ran no stages): the condition must stay False.
+	ctx.mergeStageConditions(newStatus)
+	cond := conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutTrafficRoutingApplied)
+	assert.NotNil(t, cond)
+	assert.Equal(t, corev1.ConditionFalse, cond.Status, "a stage that did not run must not report recovery")
+
+	// Once the owning stage actually re-runs and succeeds, the condition recovers.
+	ctx.markStageSucceeded(v1alpha1.RolloutTrafficRoutingApplied)
+	ctx.mergeStageConditions(newStatus)
+	cond = conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutTrafficRoutingApplied)
+	assert.NotNil(t, cond)
+	assert.Equal(t, corev1.ConditionTrue, cond.Status)
+	assert.Equal(t, conditions.StageConditionAppliedReason, cond.Reason)
+}
+
+// TestStageConditionNotRecoveredWhenPipelineStopsEarly is the end-to-end variant: a services
+// failure aborts the pipeline before the trafficRouting stage runs, so a pre-existing
+// TrafficRoutingApplied=False must survive the status sync unchanged instead of flipping True.
+func TestStageConditionNotRecoveredWhenPipelineStopsEarly(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.StableService = "stable"
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 11, 1, 11, false)
+	conditions.SetRolloutCondition(&r2.Status, *conditions.NewRolloutCondition(
+		v1alpha1.RolloutTrafficRoutingApplied, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "routing failed"))
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.kubeclient.Fake.PrependReactor("patch", "services", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("admission webhook denied service update")
+	})
+
+	_ = f.expectPatchServiceAction(canarySvc, rs2PodHash)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.runController(getKey(r2, t), true, true, c, i, k8sI)
+
+	patched := f.getPatchedRolloutAsObject(patchIndex)
+	servicesCond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutServicesReconciled)
+	assert.NotNil(t, servicesCond)
+	assert.Equal(t, corev1.ConditionFalse, servicesCond.Status)
+	trCond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutTrafficRoutingApplied)
+	if trCond != nil {
+		assert.Equal(t, corev1.ConditionFalse, trCond.Status,
+			"trafficRouting stage never ran this pass; its condition must not report recovery")
+	}
 }
 
 func TestConditionMessageTruncated(t *testing.T) {
