@@ -479,10 +479,10 @@ spec:
       # are created the number of stable pods stays the same. 
       dynamicStableScale: false
 
-  # Actuation stage conditions (canary):
+  # Stage conditions (canary):
   # - TrafficRoutingApplied: True when the traffic router applied the desired routing state
   # - ServicesReconciled: True when stable/canary (and ping-pong) Service selectors reconciled
-  # - ActuationSucceeded: catch-all True when other actuation stages succeed; False on failure
+  # - ReconcileSucceeded: catch-all True when the remaining reconcile steps succeed; False on failure
 
 status:
   pauseConditions:
