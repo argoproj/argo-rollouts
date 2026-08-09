@@ -44,7 +44,7 @@ func TestCanaryStageTableMatchesLegacyOrder(t *testing.T) {
 }
 
 func TestCanaryStagePipelineSemantics(t *testing.T) {
-	t.Run("stageHold swallows error and requeues", func(t *testing.T) {
+	t.Run("trafficRouting error returns error and still syncs status", func(t *testing.T) {
 		f, ro := newTrafficWeightFixture(t)
 		defer f.Close()
 		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
@@ -54,13 +54,16 @@ func TestCanaryStagePipelineSemantics(t *testing.T) {
 		enqueued := false
 		c, i, k8sI := f.newController(noResyncPeriodFunc)
 		c.enqueueRolloutAfter = func(obj any, duration time.Duration) {
-			enqueued = true
-			assert.Equal(t, defaults.GetRolloutVerifyRetryInterval(), duration)
+			if duration == defaults.GetRolloutVerifyRetryInterval() {
+				enqueued = true
+			}
 		}
 
 		patchIndex := f.expectPatchRolloutAction(ro)
-		f.runController(getKey(ro, t), true, false, c, i, k8sI)
-		assert.True(t, enqueued)
+		// The error must propagate for workqueue backoff and error metrics; retry pacing comes
+		// from the rate-limited requeue, not a fixed verify-interval requeue.
+		f.runController(getKey(ro, t), true, true, c, i, k8sI)
+		assert.False(t, enqueued)
 
 		patched := f.getPatchedRolloutAsObject(patchIndex)
 		cond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutTrafficRoutingApplied)

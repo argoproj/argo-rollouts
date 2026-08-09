@@ -2253,7 +2253,7 @@ func TestCanaryStatusSyncedDespiteStageError(t *testing.T) {
 		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("routing failed"))
 		patchIndex := f.expectPatchRolloutAction(ro)
-		f.run(getKey(ro, t))
+		f.runExpectError(getKey(ro, t), true)
 		patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
 		assert.Nil(t, patchedRollout.Status.CurrentStepIndex)
 		rs2PodHash := ro.Status.CurrentPodHash

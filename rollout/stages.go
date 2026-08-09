@@ -7,7 +7,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
@@ -21,9 +20,6 @@ const (
 	stageStop
 	// stageStopNoStatus: stop without status sync (pod-restart early exit only).
 	stageStopNoStatus
-	// stageHold: desired state not applied; record condition, hold progression,
-	// continue to status sync. Not returned as a reconcile error.
-	stageHold
 	// stageFatal: stop actuating, still status-sync, and return the error for workqueue backoff.
 	stageFatal
 	// stageFatalNoStatus: stop actuating, skip status sync, and return the error for workqueue
@@ -75,7 +71,7 @@ func (c *rolloutContext) runCanaryStages() error {
 		case stageFatalNoStatus:
 			c.skipStatusSync = true
 			return res.err
-		case stageHold, stageFatal:
+		case stageFatal:
 			condType := res.condition
 			if condType == "" {
 				condType = v1alpha1.RolloutActuationSucceeded
@@ -85,10 +81,12 @@ func (c *rolloutContext) runCanaryStages() error {
 				reason = conditions.ActuationErrorReason
 			}
 			c.setStageCondition(condType, corev1.ConditionFalse, reason, res.err.Error())
-			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: reason}, "%s", res.err.Error())
-			if res.outcome == stageHold {
-				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
-				return nil
+			// A persistently failing stage retries on workqueue backoff; emit the warning event
+			// only when the condition actually transitions (new failure or changed reason), not
+			// on every retry pass.
+			prevCond := conditions.GetRolloutCondition(c.rollout.Status, condType)
+			if prevCond == nil || prevCond.Status != corev1.ConditionFalse || prevCond.Reason != reason {
+				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: reason}, "%s", res.err.Error())
 			}
 			return res.err
 		}
@@ -187,7 +185,7 @@ func canaryStageStableCanaryService(c *rolloutContext) stageResult {
 func canaryStageTrafficRouting(c *rolloutContext) stageResult {
 	if err := c.reconcileTrafficRouting(); err != nil {
 		return stageResult{
-			outcome:   stageHold,
+			outcome:   stageFatal,
 			err:       err,
 			condition: v1alpha1.RolloutTrafficRoutingApplied,
 			reason:    conditions.TrafficRoutingErrorReason,

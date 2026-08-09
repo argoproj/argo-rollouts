@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -26,7 +27,7 @@ func TestStageConditionsMergedIntoStatus(t *testing.T) {
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("routing failed"))
 
 	patchIndex := f.expectPatchRolloutAction(ro)
-	f.run(getKey(ro, t))
+	f.runExpectError(getKey(ro, t), true)
 	patched := f.getPatchedRolloutAsObject(patchIndex)
 	cond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutTrafficRoutingApplied)
 	assert.NotNil(t, cond)
@@ -55,7 +56,7 @@ func TestStepHeldWhileStageConditionFalse(t *testing.T) {
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("routing failed"))
 
 	patchIndex := f.expectPatchRolloutAction(ro)
-	f.run(getKey(ro, t))
+	f.runExpectError(getKey(ro, t), true)
 	patched := f.getPatchedRolloutAsObject(patchIndex)
 	assert.Nil(t, patched.Status.CurrentStepIndex)
 }
@@ -223,6 +224,33 @@ func TestConditionMessageTruncated(t *testing.T) {
 	ctx.setStageCondition(v1alpha1.RolloutActuationSucceeded, corev1.ConditionFalse, conditions.ActuationErrorReason, longMsg)
 	cond := ctx.stageConditions[v1alpha1.RolloutActuationSucceeded]
 	assert.Len(t, cond.Message, maxStageConditionMessageLen)
+}
+
+func TestConditionMessageTruncatedOnRuneBoundary(t *testing.T) {
+	// Place a multi-byte rune straddling the truncation limit; the cut must back up to a rune
+	// boundary instead of persisting invalid UTF-8.
+	msg := strings.Repeat("x", maxStageConditionMessageLen-1) + "日本語のエラー"
+	truncated := truncateStageConditionMessage(msg)
+	assert.LessOrEqual(t, len(truncated), maxStageConditionMessageLen)
+	assert.True(t, utf8.ValidString(truncated), "truncated message must remain valid UTF-8")
+	assert.Equal(t, maxStageConditionMessageLen-1, len(truncated))
+}
+
+// TestStageConditionsRemovedOnStrategyMigration verifies that a stale stage condition left over
+// from a canary strategy is removed once the rollout is migrated to blueGreen, instead of
+// reporting an actuation failure forever on a healthy blue-green rollout.
+func TestStageConditionsRemovedOnStrategyMigration(t *testing.T) {
+	ro := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	ro.Spec.Strategy.Canary = nil
+	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
+	conditions.SetRolloutCondition(&ro.Status, *conditions.NewRolloutCondition(
+		v1alpha1.RolloutServicesReconciled, corev1.ConditionFalse, conditions.ServiceUpdateErrorReason, "service update failed"))
+
+	ctx := &rolloutContext{rollout: ro}
+	newStatus := ro.Status.DeepCopy()
+	ctx.mergeStageConditions(newStatus)
+	assert.Nil(t, conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutServicesReconciled),
+		"stage conditions must not survive a strategy migration away from canary")
 }
 
 func TestConditionNoChurnOnRepeatedError(t *testing.T) {

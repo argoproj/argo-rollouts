@@ -108,7 +108,7 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("Error message"))
 	patchIndex := f.expectPatchRolloutAction(ro)
-	f.run(getKey(ro, t))
+	f.runExpectError(getKey(ro, t), true)
 
 	patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
 	assert.Nil(t, patchedRollout.Status.CurrentStepIndex,
@@ -163,7 +163,7 @@ func TestCanaryProgressDeadlineAbortNotBlockedByTrafficRoutingError(t *testing.T
 		fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs2.Name))
 
 	patchIndex := f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.runExpectError(getKey(r2, t), true)
 
 	f.verifyPatchedRolloutAborted(patchIndex, rs2.Name)
 }
@@ -2100,7 +2100,7 @@ func TestTrafficRoutingErrorsWhenNewCanaryHasNoReplicas(t *testing.T) {
 			f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 
 			patchIndex := f.expectPatchRolloutAction(r2)
-			f.run(getKey(r2, t))
+			f.runExpectError(getKey(r2, t), true)
 
 			f.fakeTrafficRouting.AssertCalled(t, tc.expectedCall, mock.Anything, mock.Anything)
 			patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
@@ -2240,7 +2240,9 @@ spec:
 	f.reseedRolloutMutator = func(ro *v1alpha1.Rollout) {
 		ro.Status.CurrentStepIndex = &stepCount
 	}
-	f.allowErrorOnLastSync = false
+	// The delayed destination-rule switch surfaces as a reconcile error on the second sync
+	// (traffic-routing errors propagate for workqueue backoff instead of being swallowed).
+	f.allowErrorOnLastSync = true
 
 	prevLog := log.StandardLogger().Out
 	defer log.SetOutput(prevLog)
