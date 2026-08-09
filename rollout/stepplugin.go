@@ -15,8 +15,7 @@ import (
 )
 
 var (
-	defaultControllerErrorBackoff = time.Second * 30
-	defaultBackoffDelay           = time.Second * 5
+	defaultBackoffDelay = time.Second * 5
 )
 
 type stepPluginContext struct {
@@ -24,7 +23,6 @@ type stepPluginContext struct {
 	log      *log.Entry
 
 	stepPluginStatuses []v1alpha1.StepPluginStatus
-	hasError           bool
 }
 
 func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
@@ -46,11 +44,11 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 
 			stepPlugin, err := spc.resolver.Resolve(pluginStatus.Index, *pluginStep.Plugin, c.log)
 			if err != nil {
-				return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", pluginStatus.Index, err))
+				return fmt.Errorf("could not create step plugin at index %d : %w", pluginStatus.Index, err)
 			}
 			status, err := stepPlugin.Abort(rollout)
 			if err != nil {
-				return spc.handleError(c, fmt.Errorf("failed to abort plugin: %w", err))
+				return fmt.Errorf("failed to abort plugin: %w", err)
 			}
 			phaseTransition := spc.updateStepPluginStatus(status)
 			if phaseTransition {
@@ -74,12 +72,12 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 
 		stepPlugin, err := spc.resolver.Resolve(*stepIndex, *pluginStep.Plugin, c.log)
 		if err != nil {
-			return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", *stepIndex, err))
+			return fmt.Errorf("could not create step plugin at index %d : %w", *stepIndex, err)
 		}
 
 		status, err := stepPlugin.Terminate(rollout)
 		if err != nil {
-			return spc.handleError(c, fmt.Errorf("failed to terminate plugin: %w", err))
+			return fmt.Errorf("failed to terminate plugin: %w", err)
 		}
 
 		phaseTransition := spc.updateStepPluginStatus(status)
@@ -105,11 +103,11 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 
 	stepPlugin, err := spc.resolver.Resolve(*currentStepIndex, *currentStep.Plugin, c.log)
 	if err != nil {
-		return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err))
+		return fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err)
 	}
 	status, err := stepPlugin.Run(rollout)
 	if err != nil {
-		return spc.handleError(c, fmt.Errorf("failed to run plugin: %w", err))
+		return fmt.Errorf("failed to run plugin: %w", err)
 	}
 
 	phaseTransition := spc.updateStepPluginStatus(status)
@@ -124,7 +122,7 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 	if status.Phase == v1alpha1.StepPluginPhaseRunning || status.Phase == v1alpha1.StepPluginPhaseError {
 		backoff, err := status.Backoff.Duration()
 		if err != nil {
-			return spc.handleError(c, fmt.Errorf("failed to parse backoff duration: %w", err))
+			return fmt.Errorf("failed to parse backoff duration: %w", err)
 		}
 
 		// Get the remaining time until the backoff + a little buffer
@@ -137,19 +135,6 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 	if status.Phase == v1alpha1.StepPluginPhaseFailed {
 		c.pauseContext.AddAbort(fmt.Sprintf("Step Plugin %d (%s) failed: %s", status.Index+1, status.Name, status.Message))
 	}
-
-	return nil
-}
-
-// handleError handles any error that should not cause the rollout reconciliation to fail
-func (spc *stepPluginContext) handleError(c *rolloutContext, e error) error {
-	spc.hasError = true
-
-	msg := fmt.Sprintf(conditions.RolloutReconciliationErrorMessage, e.Error())
-	c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutReconciliationErrorReason}, msg)
-
-	c.log.Debugf("queueing up rollout in %s because of transient error", defaultControllerErrorBackoff)
-	c.enqueueRolloutAfter(c.rollout, defaultControllerErrorBackoff)
 
 	return nil
 }
@@ -181,11 +166,9 @@ func (spc *stepPluginContext) updateStatus(status *v1alpha1.RolloutStatus) {
 }
 
 func (spc *stepPluginContext) isStepPluginCompleted(stepIndex int32, _ *v1alpha1.PluginStep) bool {
-	if spc.hasError {
-		// If there was a transient error during the reconcile, we should retry
-		return false
-	}
-
+	// Controller-side plugin errors (resolver/RPC failures) surface through the stage pipeline
+	// as an ActuationSucceeded=False condition, which already holds step progression via the
+	// anyStageConditionFalse gate in completedCurrentCanaryStep.
 	runStatus := spc.findCurrentStepStatus(stepIndex, v1alpha1.StepPluginOperationRun)
 	if runStatus != nil && runStatus.Disabled {
 		return true
