@@ -1,6 +1,8 @@
 package rollout
 
 import (
+	"unicode/utf8"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -19,7 +21,13 @@ func truncateStageConditionMessage(message string) string {
 	if len(message) <= maxStageConditionMessageLen {
 		return message
 	}
-	return message[:maxStageConditionMessageLen]
+	// Back up to a rune boundary so the cut never splits a multi-byte UTF-8 character, which
+	// would persist an invalid-UTF-8 condition message.
+	cut := maxStageConditionMessageLen
+	for cut > 0 && !utf8.RuneStart(message[cut]) {
+		cut--
+	}
+	return message[:cut]
 }
 
 func (c *rolloutContext) setStageCondition(condType v1alpha1.RolloutConditionType, status corev1.ConditionStatus, reason, message string) {
@@ -69,6 +77,12 @@ func (c *rolloutContext) ensureActuationFailureCondition(err error) {
 
 func (c *rolloutContext) mergeStageConditions(newStatus *v1alpha1.RolloutStatus) {
 	if c.rollout.Spec.Strategy.Canary == nil {
+		// Stage conditions are only produced by the canary pipeline. Remove any leftovers so a
+		// strategy migration (canary -> blueGreen) does not freeze a stale False condition into
+		// status forever.
+		for _, condType := range trackedStageConditionTypes {
+			conditions.RemoveRolloutCondition(newStatus, condType)
+		}
 		return
 	}
 	trafficRoutingConfigured := c.rollout.Spec.Strategy.Canary.TrafficRouting != nil
