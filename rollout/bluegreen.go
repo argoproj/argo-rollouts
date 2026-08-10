@@ -77,7 +77,10 @@ func (c *rolloutContext) reconcileBlueGreen(previewSvc, activeSvc *corev1.Servic
 		return err
 	}
 
-	return c.reconcileEphemeralMetadata()
+	// Cosmetic steps run last so a failure (e.g. RBAC denying old-ReplicaSet deletion) cannot
+	// block the service switch or scaling; both always run and their errors still propagate for
+	// workqueue backoff (mirrors the canary stageContinueWithError semantics).
+	return errors.Join(c.reconcileEphemeralMetadata(), c.reconcileRevisionHistoryLimit(c.otherRSs))
 }
 
 func (c *rolloutContext) reconcileBlueGreenStableReplicaSet() error {
@@ -110,9 +113,6 @@ func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service
 	// Scale down old non-active, non-stable replicasets, if we can.
 	_, err = c.reconcileOtherReplicaSets()
 	if err != nil {
-		return err
-	}
-	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
 		return err
 	}
 	return nil
