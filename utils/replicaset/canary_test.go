@@ -1994,7 +1994,7 @@ func TestAbortedCanaryNotScaledUpOnStableAvailabilityGap(t *testing.T) {
 		{SetWeight: pointer.Int32Ptr(10)},
 		{SetWeight: pointer.Int32Ptr(20)},
 		{SetWeight: pointer.Int32Ptr(50)},
-		{SetWeight: pointer.Int32Ptr(100)}
+		{SetWeight: pointer.Int32Ptr(100)},
 	}
 
 	tests := []struct {
@@ -2061,7 +2061,7 @@ func TestAbortedCanaryNotScaledUpOnStableAvailabilityGap(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rollout := makeRollout(test.rolloutReplicas, test.steps)
+			rollout := newAbortedRollout(test.rolloutReplicas, test.steps)
 			stableRS := newRS("stable", test.stableSpecReplicas, test.availableStableReplicas)
 			canaryRS := newRS("canary", test.canarySpecReplicas, test.availableCanaryReplicas)
 			weights := v1alpha1.TrafficWeights{
@@ -2078,7 +2078,7 @@ func TestAbortedCanaryNotScaledUpOnStableAvailabilityGap(t *testing.T) {
 	// GetCanaryReplicasOrWeight returns (nil, maxWeight) when PromoteFull is set, making
 	// canaryCount == rolloutSpecReplica. Capping at newRS.Spec.Replicas==0 would zero it out.
 	t.Run("promote-full while aborted is not capped at drained canary size", func(t *testing.T) {
-		rollout := makeRollout(10, steps)
+		rollout := newAbortedRollout(10, steps)
 		rollout.Status.PromoteFull = true
 		stableRS := newRS("stable", 10, 8) // stable lagging
 		canaryRS := newRS("canary", 0, 0)  // fully drained
