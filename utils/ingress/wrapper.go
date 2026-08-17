@@ -175,7 +175,9 @@ func (i *Ingress) SetAnnotations(annotations map[string]string) {
 	}
 }
 
-func (i *Ingress) CreateAnnotationBasedPath(actionName string) {
+// Add path with [actionName] service to rules
+// that already have paths with the [stableService] as Backend
+func (i *Ingress) CreateAnnotationBasedPath(actionName string, stableService string) {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 	if HasRuleWithService(i, actionName) {
@@ -197,8 +199,10 @@ func (i *Ingress) CreateAnnotationBasedPath(actionName string) {
 			},
 		}
 		for _, rule := range i.ingress.Spec.Rules {
-			rule.HTTP.Paths = append(rule.HTTP.Paths[:1], rule.HTTP.Paths[0:]...)
-			rule.HTTP.Paths[0] = p
+			if sIdx := indexPathByService(rule, stableService); sIdx != -1 {
+				rule.HTTP.Paths = append(rule.HTTP.Paths[:1], rule.HTTP.Paths[0:]...)
+				rule.HTTP.Paths[0] = p
+			}
 		}
 	case IngressModeExtensions:
 		t := v1beta1.PathTypeImplementationSpecific
@@ -211,24 +215,29 @@ func (i *Ingress) CreateAnnotationBasedPath(actionName string) {
 			},
 		}
 		for _, rule := range i.legacyIngress.Spec.Rules {
-			rule.HTTP.Paths = append(rule.HTTP.Paths[:1], rule.HTTP.Paths[0:]...)
-			rule.HTTP.Paths[0] = p
+			if sIdx := indexLegacyPathByService(rule, stableService); sIdx != -1 {
+				rule.HTTP.Paths = append(rule.HTTP.Paths[:1], rule.HTTP.Paths[0:]...)
+				rule.HTTP.Paths[0] = p
+			}
 		}
 	}
 }
 
+// remove paths with [actionName] service from the rules
 func (i *Ingress) RemovePathByServiceName(actionName string) {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 	switch i.mode {
 	case IngressModeNetworking:
 		for _, rule := range i.ingress.Spec.Rules {
+			// assume action added only to Rules with proper service in the first place
 			if j := indexPathByService(rule, actionName); j != -1 {
 				rule.HTTP.Paths = append(rule.HTTP.Paths[:j], rule.HTTP.Paths[j+1:]...)
 			}
 		}
 	case IngressModeExtensions:
 		for _, rule := range i.legacyIngress.Spec.Rules {
+			// assume action added only to Rules with proper service in the first place
 			if j := indexLegacyPathByService(rule, actionName); j != -1 {
 				rule.HTTP.Paths = append(rule.HTTP.Paths[:j], rule.HTTP.Paths[j+1:]...)
 			}
