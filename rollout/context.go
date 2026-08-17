@@ -40,6 +40,10 @@ type rolloutContext struct {
 	pauseContext      *pauseContext
 	stepPluginContext *stepPluginContext
 
+	// deferredStatusEvents are events whose message describes the newly calculated status. They are
+	// held until that status is fully calculated so that they are emitted against a rollout which
+	// reflects the state being reported. See enqueueStatusEvent.
+	deferredStatusEvents []deferredStatusEvent
 	// pendingDurationMetric holds a completed rollout duration stashed by
 	// calculateStatusDuration. It is emitted by emitPendingRolloutDuration only
 	// after the status change recording the completion transition has been
