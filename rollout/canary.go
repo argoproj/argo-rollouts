@@ -222,11 +222,14 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 			if rolloututil.IsFullyPromoted(c.rollout) || replicasetutil.HasScaleDownDeadline(targetRS) {
 				// If we are fully promoted and we encounter an old ReplicaSet, we can infer that
 				// this ReplicaSet is likely the previous stable. We should do one of two things:
-				if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-					// 1. if we are using dynamic scaling, then this should be scaled down to 0 now
+				if c.rollout.Spec.Strategy.Canary.DynamicStableScale && !replicasetutil.HasScaleDownDeadline(targetRS) {
+					// If we are using dynamic scaling and there is no existing scale-down
+					// deadline, scale to 0 immediately (dynamic scaling already handled the
+					// traffic shift). If a deadline exists (e.g. set for an intermediate RS),
+					// fall through to honor it.
 					desiredReplicaCount = 0
 				} else {
-					// 2. otherwise, honor scaledown delay second and keep replicas of the current step
+					// Honor scaleDownDelaySeconds and keep replicas until the deadline passes
 					annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
 					if err != nil {
 						return totalScaledDown, err
@@ -238,8 +241,15 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 				// and doesn't yet have scale down deadline. This happens when a user changes their
 				// mind in the middle of an V1 -> V2 update, and then applies a V3. We are deciding
 				// what to do with the defunct, intermediate V2 ReplicaSet right now.
-				// It is safe to scale the intermediate RS down, since no traffic is directed to it.
-				c.log.Infof("scaling down intermediate RS '%s'", targetRS.Name)
+				// Honor scaleDownDelaySeconds before scaling down the intermediate RS to allow
+				// traffic routing (e.g. Istio) to propagate configuration changes to the data
+				// plane. Without this delay, proxies may still route to the old pods causing
+				// errors (e.g. Istio 503 UH).
+				c.log.Infof("delaying scale-down of intermediate RS '%s'", targetRS.Name)
+				annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
+				if err != nil {
+					return totalScaledDown, err
+				}
 			}
 		}
 		if *targetRS.Spec.Replicas == desiredReplicaCount {
