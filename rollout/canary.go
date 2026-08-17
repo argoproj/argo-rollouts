@@ -433,7 +433,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 				newStatus.CurrentStepIndex = &stepCount
 			}
 		}
-
 		return c.persistRolloutStatus(&newStatus)
 	}
 

@@ -105,6 +105,10 @@ If you have created a plugin, please submit a PR to add it to this list.
 
 - A metric plugin that integrates Honeycomb as an analysis provider for Argo Rollouts.
 
+### [rollouts-plugin-metric-instana](https://github.com/argoproj-labs/rollouts-plugin-metric-instana)
+
+- A metric plugin that integrates IBM Instana as an analysis provider for Argo Rollouts. It enables canary analysis using Instana's application monitoring metrics and custom metric queries.
+
 ### [rollouts-plugin-metric-opensearch](https://github.com/argoproj-labs/rollouts-plugin-metric-opensearch)
 
 - The application is an OpenSearch plugin designed for use with the Argo Rollouts plugin system. This plugin enables the integration of OpenSearch metrics into Argo Rollouts, allowing for advanced metric analysis and monitoring during application rollouts.

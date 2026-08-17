@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: ROLLOUT_NAME
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ROLLOUT_NAME
+  template:
+    metadata:
+      labels:
+        app: ROLLOUT_NAME
+    spec:
+      containers:
+      - name: ROLLOUT_NAME
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+  strategy:
+    canary:
+      steps:
+      - setWeight: 50
+      - pause: {duration: 1s}
