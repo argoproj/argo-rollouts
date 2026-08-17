@@ -298,9 +298,6 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("dynamicStableScale"), canary.DynamicStableScale, InvalidCanaryDynamicStableScale))
 		}
 	} else {
-		if canary.ScaleDownDelaySeconds != nil && canary.DynamicStableScale {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("dynamicStableScale"), canary.DynamicStableScale, InvalidCanaryDynamicStableScaleWithScaleDownDelay))
-		}
 		// only the nginx and plugin have this support for now
 		if canary.TrafficRouting.MaxTrafficWeight != nil {
 			if canary.TrafficRouting.Nginx == nil && len(canary.TrafficRouting.Plugins) == 0 {
