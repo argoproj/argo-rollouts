@@ -188,6 +188,11 @@ func TestAnnotationUtils(t *testing.T) {
 			if tRS.Annotations[RevisionAnnotation] != nextRevision {
 				t.Errorf("Revision Expected=%s Obtained=%s", nextRevision, tRS.Annotations[RevisionAnnotation])
 			}
+
+			// Also verify the revision annotation is set on the pod template
+			if tRS.Spec.Template.Annotations[RevisionAnnotation] != nextRevision {
+				t.Errorf("Pod template revision Expected=%s Obtained=%s", nextRevision, tRS.Spec.Template.Annotations[RevisionAnnotation])
+			}
 		}
 	})
 
@@ -198,6 +203,8 @@ func TestAnnotationUtils(t *testing.T) {
 		assert.True(t, SetNewReplicaSetAnnotations(newRollout, newRS, "20", false))
 		assert.Equal(t, newRS.Annotations[RevisionAnnotation], "20")
 		assert.Equal(t, "value", newRS.Annotations["key"])
+		// Also verify the revision annotation is set on the pod template
+		assert.Equal(t, "20", newRS.Spec.Template.Annotations[RevisionAnnotation])
 	})
 
 	t.Run("SetNewReplicaSetAnnotationsHandleBadOldRevision", func(t *testing.T) {
