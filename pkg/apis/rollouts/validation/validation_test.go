@@ -428,6 +428,18 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		assert.Equal(t, fmt.Sprintf(InvalidSetWeightMessage, 100), allErrs[0].Detail)
 	})
 
+	t.Run("invalid max traffic weight value", func(t *testing.T) {
+		for _, maxTrafficWeight := range []int32{0, -1} {
+			invalidRo := ro.DeepCopy()
+			invalidRo.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+				Nginx:            &v1alpha1.NginxTrafficRouting{StableIngress: "some-ingress"},
+				MaxTrafficWeight: &maxTrafficWeight,
+			}
+			allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+			assert.Equal(t, InvalidMaxTrafficWeightMessage, allErrs[0].Detail)
+		}
+	})
+
 	t.Run("only nginx/plugins support max weight value", func(t *testing.T) {
 		anyWeight := int32(1)
 
