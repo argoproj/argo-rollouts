@@ -1287,6 +1287,13 @@ message PrometheusMetric {
   // Arguments for prometheus
   // +optional
   optional PrometheusRangeQueryArgs rangeQuery = 7;
+
+  // CACert is an optional PEM-encoded CA certificate bundle used to verify the prometheus
+  // server's certificate when it is signed by a private/self-signed CA. This allows TLS
+  // verification to remain enabled (i.e. without setting Insecure) while trusting a
+  // self-signed or privately signed prometheus endpoint.
+  // +optional
+  optional string caCert = 8;
 }
 
 // Arguments to perform a prometheus range query
