@@ -42,7 +42,7 @@ func TestStageConditionsMergedIntoStatus(t *testing.T) {
 	f2.objects = append(f2.objects, basic)
 	f2.kubeobjects = append(f2.kubeobjects, rs)
 	f2.replicaSetLister = append(f2.replicaSetLister, rs)
-	patchIndex = f2.expectPatchRolloutAction(basic)
+	f2.expectPatchRolloutAction(basic)
 	f2.run(getKey(basic, t))
 }
 
