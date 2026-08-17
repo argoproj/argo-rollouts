@@ -479,6 +479,10 @@ spec:
       # are created the number of stable pods stays the same. 
       dynamicStableScale: false
 
+  # ReconcileSucceeded: True when reconcile work completed without error; False on failure.
+  # Reasons: TrafficRoutingError, ServiceUpdateError, ReconciliationError.
+  # Other failures use InvalidSpec, Progressing, or ReplicaFailure.
+
 status:
   pauseConditions:
     - reason: StepPause

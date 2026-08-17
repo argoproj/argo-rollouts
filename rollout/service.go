@@ -141,6 +141,10 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 	// find all TargetGroupBindings in the namespace which reference the service name + port
 	tgBindings, err := aws.GetTargetGroupBindingsByService(ctx, c.dynamicclientset, *svc)
 	if err != nil {
+		// Mark verification as attempted-and-failed so promotion gates (areTargetsVerified)
+		// hold: the reconcile now always falls through to the status sync, and a nil
+		// targetsVerified would read as "verified".
+		c.targetsVerified = ptr.To[bool](false)
 		return err
 	}
 	if len(tgBindings) == 0 {
