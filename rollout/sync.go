@@ -1317,6 +1317,10 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 			// active selector is pointing to desired RS, but we have not verify the target group yet
 			return ""
 		}
+		if c.anyStageConditionFalse() {
+			c.warnPromoteFullHeld("a stage failed to apply changes during this reconciliation")
+			return ""
+		}
 		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
 		}

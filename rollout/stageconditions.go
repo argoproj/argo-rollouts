@@ -76,16 +76,7 @@ func (c *rolloutContext) ensureReconcileFailureCondition(err error) {
 }
 
 func (c *rolloutContext) mergeStageConditions(newStatus *v1alpha1.RolloutStatus) {
-	if c.rollout.Spec.Strategy.Canary == nil {
-		// Stage conditions are only produced by the canary pipeline. Remove any leftovers so a
-		// strategy migration (canary -> blueGreen) does not freeze a stale False condition into
-		// status forever.
-		for _, condType := range trackedStageConditionTypes {
-			conditions.RemoveRolloutCondition(newStatus, condType)
-		}
-		return
-	}
-	trafficRoutingConfigured := c.rollout.Spec.Strategy.Canary.TrafficRouting != nil
+	trafficRoutingConfigured := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting != nil
 
 	for _, condType := range trackedStageConditionTypes {
 		if condType == v1alpha1.RolloutTrafficRoutingApplied && !trafficRoutingConfigured {

@@ -3,6 +3,7 @@ package rollout
 import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -60,13 +61,12 @@ type rolloutContext struct {
 	// Used to detect fast rollbacks where we skip pause/analysis steps.
 	newRSWithinDelay bool
 
-	// skipStatusSync ends the pass without a status sync. Set by the historical pod-restart
-	// early exit and by ReplicaSet-sync failures (stageFatalNoStatus), where c.newRS is
-	// unreliable and a status computed from it would persist corrupted values (see
-	// rolloutCanary and runCanaryStages).
+	// skipStatusSync ends the pass without a status sync. Set by the pod-restart early exit and
+	// by ReplicaSet-sync failures (stageStopNoStatus with err), where c.newRS is unreliable and
+	// a status computed from it would persist corrupted values (see rolloutCanary and runStages).
 	skipStatusSync bool
 
-	// stageConditions collects conditions produced by the canary stages during this reconcile.
+	// stageConditions collects conditions produced by reconcile stages during this reconcile.
 	// Merged into newStatus by mergeStageConditions; read by progression gates via
 	// stageConditionFalse.
 	stageConditions map[v1alpha1.RolloutConditionType]v1alpha1.RolloutCondition
@@ -75,6 +75,10 @@ type rolloutContext struct {
 	// completion without error this reconcile. mergeStageConditions only lets a previously-False
 	// stage condition recover to True when its owner actually succeeded this pass.
 	stageSuccesses map[v1alpha1.RolloutConditionType]bool
+
+	// blueGreenPreviewSvc and blueGreenActiveSvc are set for the duration of runBlueGreenStages.
+	blueGreenPreviewSvc *corev1.Service
+	blueGreenActiveSvc  *corev1.Service
 }
 
 func (c *rolloutContext) reconcile() error {

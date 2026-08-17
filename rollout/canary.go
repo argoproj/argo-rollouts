@@ -23,7 +23,7 @@ import (
 // stage fails: syncRolloutStatusCanary is where progressDeadline/abort evaluation and
 // condition/phase calculation live, and skipping it is how a rollout gets wedged in Progressing
 // forever (#4626). The only exceptions are the pod-restart early exit and ReplicaSet-sync
-// failures (stageFatalNoStatus), where c.newRS is unreliable and a status computed from it
+// failures (stageStopNoStatus with err), where c.newRS is unreliable and a status computed from it
 // would persist corrupted values.
 func (c *rolloutContext) rolloutCanary() error {
 	stageErr := c.runCanaryStages()
@@ -31,7 +31,7 @@ func (c *rolloutContext) rolloutCanary() error {
 		c.ensureReconcileFailureCondition(stageErr)
 	}
 	if c.skipStatusSync {
-		// Pod-restart early exit and ReplicaSet-sync failures set this; see runCanaryStages.
+		// Pod-restart early exit and ReplicaSet-sync failures set this; see runStages.
 		return stageErr
 	}
 	// errors.Join (rather than kerrors.NewAggregate) so that errors.As/Is-based checks like

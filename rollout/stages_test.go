@@ -73,7 +73,7 @@ func TestCanaryStagePipelineSemantics(t *testing.T) {
 		assert.Equal(t, corev1.ConditionFalse, cond.Status)
 	})
 
-	t.Run("stageFatal returns error and does not requeue on hold interval", func(t *testing.T) {
+	t.Run("stageStop with error returns error and does not requeue on hold interval", func(t *testing.T) {
 		f := newFixture(t)
 		defer f.Close()
 
@@ -120,7 +120,7 @@ func TestCanaryStagePipelineSemantics(t *testing.T) {
 }
 
 // TestCanaryStageSyncFailurePreservesNewRS verifies that a failed getAllReplicaSetsAndSyncRevision
-// does not clobber c.newRS to nil and skips the status sync (stageFatalNoStatus): a status
+// does not clobber c.newRS to nil and skips the status sync (stageStopNoStatus with err): a status
 // computed from a nil newRS would reset abort/pause state and record a phantom CurrentPodHash on
 // a template change, or flap UpdatedReplicas to 0 on a transient API error.
 func TestCanaryStageSyncFailurePreservesNewRS(t *testing.T) {
@@ -154,12 +154,12 @@ func TestCanaryStageSyncFailurePreservesNewRS(t *testing.T) {
 	assert.NoError(t, err)
 
 	res := canaryStageSyncRevisionOnChange(roCtx)
-	assert.Equal(t, stageFatalNoStatus, res.outcome)
+	assert.Equal(t, stageStopNoStatus, res.outcome)
 	assert.Error(t, res.err)
 	assert.NotNil(t, roCtx.newRS, "newRS must not be clobbered by a failed ReplicaSet sync")
 
 	res = canaryStageSyncReplicaSets(roCtx)
-	assert.Equal(t, stageFatalNoStatus, res.outcome)
+	assert.Equal(t, stageStopNoStatus, res.outcome)
 	assert.Error(t, res.err)
 	assert.NotNil(t, roCtx.newRS, "newRS must not be clobbered by a failed ReplicaSet sync")
 }
@@ -175,7 +175,7 @@ func TestStageContinueWithErrorKeepsApplying(t *testing.T) {
 
 	t.Run("later stages still run and the error is returned", func(t *testing.T) {
 		laterStageRan := false
-		canaryStages = []canaryStage{
+		canaryStages = []strategyStage{
 			{"cosmetic", func(c *rolloutContext) stageResult {
 				return stageResult{outcome: stageContinueWithError, err: cosmeticErr}
 			}},
@@ -198,7 +198,7 @@ func TestStageContinueWithErrorKeepsApplying(t *testing.T) {
 	})
 
 	t.Run("error survives a later stageStop", func(t *testing.T) {
-		canaryStages = []canaryStage{
+		canaryStages = []strategyStage{
 			{"cosmetic", func(c *rolloutContext) stageResult {
 				return stageResult{outcome: stageContinueWithError, err: cosmeticErr}
 			}},
@@ -216,14 +216,61 @@ func TestStageContinueWithErrorKeepsApplying(t *testing.T) {
 	})
 }
 
-// TestStageFatalNoStatusSkipsStatusSync verifies the stageFatalNoStatus plumbing: the error is
+// TestBlueGreenStageTableMatchesLegacyOrder guards against accidental reordering of the
+// blue-green reconcile pipeline.
+func TestBlueGreenStageTableMatchesLegacyOrder(t *testing.T) {
+	expected := []string{
+		"previewService",
+		"podTemplateChange",
+		"podRestart",
+		"replicaSets",
+		"pause",
+		"activeService",
+		"targetGroups",
+		"analysis",
+		"ephemeralMetadata",
+		"revisionHistory",
+	}
+	names := make([]string, len(blueGreenStages))
+	for i, stage := range blueGreenStages {
+		names[i] = stage.name
+	}
+	assert.Equal(t, expected, names)
+}
+
+// TestBlueGreenStageContinueWithErrorKeepsApplying verifies cosmetic stage failures on blue-green
+// still allow the remaining stages in the pipeline to run.
+func TestBlueGreenStageContinueWithErrorKeepsApplying(t *testing.T) {
+	orig := blueGreenStages
+	defer func() { blueGreenStages = orig }()
+	cosmeticErr := errors.New("revision history cleanup failed")
+	laterStageRan := false
+	blueGreenStages = []strategyStage{
+		{"cosmetic", func(c *rolloutContext) stageResult {
+			return stageResult{outcome: stageContinueWithError, err: cosmeticErr}
+		}},
+		{"later", func(c *rolloutContext) stageResult {
+			laterStageRan = true
+			return stageResult{outcome: stageContinue}
+		}},
+	}
+	ctx := &rolloutContext{
+		rollout:        &v1alpha1.Rollout{},
+		reconcilerBase: reconcilerBase{recorder: record.NewFakeEventRecorder()},
+	}
+	err := ctx.runBlueGreenStages(nil, nil)
+	assert.True(t, laterStageRan)
+	assert.ErrorIs(t, err, cosmeticErr)
+}
+
+// TestStageStopNoStatusSkipsStatusSync verifies stageStopNoStatus with err: the error is
 // returned for workqueue backoff and the status sync is skipped entirely.
-func TestStageFatalNoStatusSkipsStatusSync(t *testing.T) {
+func TestStageStopNoStatusSkipsStatusSync(t *testing.T) {
 	orig := canaryStages
 	defer func() { canaryStages = orig }()
 	boom := errors.New("replicaset sync failed")
-	canaryStages = []canaryStage{{name: "boom", run: func(c *rolloutContext) stageResult {
-		return stageResult{outcome: stageFatalNoStatus, err: boom}
+	canaryStages = []strategyStage{{name: "boom", run: func(c *rolloutContext) stageResult {
+		return stageResult{outcome: stageStopNoStatus, err: boom}
 	}}}
 
 	// A bare context suffices: if the status sync were not skipped, syncRolloutStatusCanary

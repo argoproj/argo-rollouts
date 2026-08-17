@@ -236,21 +236,30 @@ func TestConditionMessageTruncatedOnRuneBoundary(t *testing.T) {
 	assert.Equal(t, maxStageConditionMessageLen-1, len(truncated))
 }
 
-// TestStageConditionsRemovedOnStrategyMigration verifies that a stale stage condition left over
-// from a canary strategy is removed once the rollout is migrated to blueGreen, instead of
-// reporting a reconcile failure forever on a healthy blue-green rollout.
-func TestStageConditionsRemovedOnStrategyMigration(t *testing.T) {
+// TestStageConditionsOnStrategyMigration verifies canary-only stage conditions are handled when
+// a rollout is migrated to blue-green: TrafficRoutingApplied is removed as inapplicable, and a
+// stale ServicesReconciled=False recovers once the blue-green service stages succeed.
+func TestStageConditionsOnStrategyMigration(t *testing.T) {
 	ro := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
 	ro.Spec.Strategy.Canary = nil
 	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
 	conditions.SetRolloutCondition(&ro.Status, *conditions.NewRolloutCondition(
 		v1alpha1.RolloutServicesReconciled, corev1.ConditionFalse, conditions.ServiceUpdateErrorReason, "service update failed"))
+	conditions.SetRolloutCondition(&ro.Status, *conditions.NewRolloutCondition(
+		v1alpha1.RolloutTrafficRoutingApplied, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "routing failed"))
 
 	ctx := &rolloutContext{rollout: ro}
 	newStatus := ro.Status.DeepCopy()
 	ctx.mergeStageConditions(newStatus)
-	assert.Nil(t, conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutServicesReconciled),
-		"stage conditions must not survive a strategy migration away from canary")
+	assert.Nil(t, conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutTrafficRoutingApplied),
+		"TrafficRoutingApplied must not apply to blue-green")
+
+	ctx.markStageSucceeded(v1alpha1.RolloutServicesReconciled)
+	ctx.mergeStageConditions(newStatus)
+	servicesCond := conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutServicesReconciled)
+	assert.NotNil(t, servicesCond)
+	assert.Equal(t, corev1.ConditionTrue, servicesCond.Status,
+		"ServicesReconciled must recover once blue-green service stages succeed")
 }
 
 func TestConditionNoChurnOnRepeatedError(t *testing.T) {
