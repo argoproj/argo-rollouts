@@ -24,8 +24,7 @@ spec:
   - match:
     - port: 3000
       sniHosts:
-      - reviews.bookinfo.com
-      - localhost
+      - rollouts-demo-vsvc1.local
     route:
     - destination:
         host: rollouts-demo-stable
@@ -61,8 +60,7 @@ spec:
   - match:
     - port: 3000
       sniHosts:
-      - reviews.bookinfo.com
-      - localhost
+      - rollouts-demo-vsvc2.local
     route:
     - destination:
         host: rollouts-demo-stable
