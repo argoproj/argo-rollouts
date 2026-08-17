@@ -66,14 +66,14 @@ type rolloutContext struct {
 	// a status computed from it would persist corrupted values (see rolloutCanary and runStages).
 	skipStatusSync bool
 
-	// stageConditions collects conditions produced by reconcile stages during this reconcile.
-	// Merged into newStatus by mergeStageConditions; read by progression gates via
+	// stageConditions holds the in-memory ReconcileSucceeded condition when reconcile work fails
+	// this pass. Merged into newStatus by mergeStageConditions; read by progression gates via
 	// stageConditionFalse.
 	stageConditions map[v1alpha1.RolloutConditionType]v1alpha1.RolloutCondition
 
-	// stageSuccesses records, per tracked stage condition type, that the owning stage(s) ran to
-	// completion without error this reconcile. mergeStageConditions only lets a previously-False
-	// stage condition recover to True when its owner actually succeeded this pass.
+	// stageSuccesses records that reconcile work completed without error this pass.
+	// mergeStageConditions only lets a previously-False ReconcileSucceeded recover to True when
+	// stageSuccesses is set.
 	stageSuccesses map[v1alpha1.RolloutConditionType]bool
 
 	// blueGreenPreviewSvc and blueGreenActiveSvc are set for the duration of runBlueGreenStages.

@@ -31,9 +31,8 @@ func (c *rolloutContext) setStageCondition(condType v1alpha1.RolloutConditionTyp
 	c.stageConditions[condType] = *conditions.NewRolloutCondition(condType, status, reason, truncateStageConditionMessage(message))
 }
 
-// markStageSucceeded records that the full stage pipeline ran to completion without error this
-// reconcile, making a previously-False ReconcileSucceeded eligible to recover to True in
-// mergeStageConditions.
+// markStageSucceeded records that reconcile work completed without error this pass, making a
+// previously-False ReconcileSucceeded eligible to recover to True in mergeStageConditions.
 func (c *rolloutContext) markStageSucceeded() {
 	if c.stageSuccesses == nil {
 		c.stageSuccesses = make(map[v1alpha1.RolloutConditionType]bool)
@@ -41,8 +40,8 @@ func (c *rolloutContext) markStageSucceeded() {
 	c.stageSuccesses[v1alpha1.RolloutReconcileSucceeded] = true
 }
 
-// stageConditionFalse reports whether ReconcileSucceeded was recorded False THIS reconcile.
-// Gates must key off current-pass failures, not stale persisted conditions.
+// stageConditionFalse reports whether ReconcileSucceeded was recorded False this pass.
+// Progression gates key off current-pass failures, not stale persisted conditions.
 func (c *rolloutContext) stageConditionFalse() bool {
 	if c.stageConditions == nil {
 		return false
@@ -69,9 +68,8 @@ func (c *rolloutContext) mergeStageConditions(newStatus *v1alpha1.RolloutStatus)
 		return
 	}
 
-	// A previously-False condition may only recover to True when the full pipeline actually
-	// completed without error this pass. A reconcile that stopped or failed early must leave
-	// the condition untouched rather than report a recovery that never happened.
+	// A previously-False condition may only recover to True when reconcile work completed without
+	// error this pass. Early exits (e.g. waiting for scaling) leave the condition unchanged.
 	prevCond := conditions.GetRolloutCondition(c.rollout.Status, condType)
 	if prevCond != nil && prevCond.Status == corev1.ConditionFalse && c.stageSuccesses[condType] {
 		conditions.SetRolloutCondition(newStatus, *conditions.NewRolloutCondition(

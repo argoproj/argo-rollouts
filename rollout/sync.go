@@ -1267,7 +1267,7 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.pauseContext.IsAborted() {
 			return ""
 		}
-		// Some stage failed this reconcile; hold promotion until the cluster catches up.
+		// ReconcileSucceeded=False this pass; hold promotion.
 		if c.anyStageConditionFalse() {
 			c.warnPromoteFullHeld("a stage failed to apply changes during this reconciliation")
 			return ""

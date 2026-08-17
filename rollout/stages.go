@@ -110,16 +110,14 @@ func (c *rolloutContext) runStages(stages []strategyStage) error {
 		}
 	}
 	if len(errs) == 0 {
-		// Every stage ran without failure, so the catch-all ReconcileSucceeded condition is allowed to
-		// recover to True in mergeStageConditions.
+		// Reconcile work completed without error; ReconcileSucceeded may recover to True.
 		c.markStageSucceeded()
 	}
 	return errors.Join(errs...)
 }
 
-// recordStageFailure records the failing stage's condition and emits a warning event. A
-// persistently failing stage retries on workqueue backoff; the event is emitted only when the
-// condition actually transitions (new failure or changed reason), not on every retry pass.
+// recordStageFailure sets ReconcileSucceeded=False and emits a warning event. The event is emitted
+// only when the condition transitions (new failure or changed reason), not on every retry.
 func (c *rolloutContext) recordStageFailure(res stageResult) {
 	reason := res.reason
 	if reason == "" {

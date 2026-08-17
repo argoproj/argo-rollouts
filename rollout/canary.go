@@ -250,9 +250,8 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	if c.rollout.Spec.Paused {
 		return false
 	}
-	// Some stage failed this reconcile, so the cluster may not match the state about
-	// to be persisted. Advancing the step now would let the rollout progress with stale routing,
-	// service selectors, or replica counts (#3602-class hazard).
+	// ReconcileSucceeded=False this pass: advancing now risks persisting state the cluster does not
+	// match (#3602-class hazard).
 	if c.anyStageConditionFalse() {
 		return false
 	}

@@ -167,7 +167,7 @@ func (spc *stepPluginContext) updateStatus(status *v1alpha1.RolloutStatus) {
 
 func (spc *stepPluginContext) isStepPluginCompleted(stepIndex int32, _ *v1alpha1.PluginStep) bool {
 	// Controller-side plugin errors (resolver/RPC failures) surface through the stage pipeline
-	// as an ReconcileSucceeded=False condition, which already holds step progression via the
+	// as ReconcileSucceeded=False, which already holds step progression via the
 	// anyStageConditionFalse gate in completedCurrentCanaryStep.
 	runStatus := spc.findCurrentStepStatus(stepIndex, v1alpha1.StepPluginOperationRun)
 	if runStatus != nil && runStatus.Disabled {
