@@ -1322,15 +1322,9 @@ const (
 	// RolloutHealthy means that rollout is in a completed state and is healthy. Which means that all the pods have been updated
 	// and are passing their health checks and are ready to serve traffic.
 	RolloutHealthy RolloutConditionType = "Healthy"
-	// RolloutTrafficRoutingApplied means the traffic router last applied (True) or failed /
-	// intentionally deferred applying (False) the desired routing state.
-	RolloutTrafficRoutingApplied RolloutConditionType = "TrafficRoutingApplied"
-	// RolloutServicesReconciled means the stable/canary (and ping-pong) Service selectors
-	// last reconciled successfully (True) or failed (False).
-	RolloutServicesReconciled RolloutConditionType = "ServicesReconciled"
-	// RolloutReconcileSucceeded is a catch-all: False when any part of the reconcile that applies
-	// changes to the cluster (ReplicaSet sync, scaling, experiments, analysis, pod metadata, step
-	// plugins) failed during the last reconcile without a more specific condition.
+	// RolloutReconcileSucceeded means the last reconcile that applies cluster changes succeeded (True)
+	// or failed (False). The reason distinguishes failure category (e.g. TrafficRoutingError,
+	// ServiceUpdateError, ReconciliationError).
 	RolloutReconcileSucceeded RolloutConditionType = "ReconcileSucceeded"
 )
 

@@ -479,10 +479,8 @@ spec:
       # are created the number of stable pods stays the same. 
       dynamicStableScale: false
 
-  # Stage conditions (canary):
-  # - TrafficRoutingApplied: True when the traffic router applied the desired routing state
-  # - ServicesReconciled: True when stable/canary (and ping-pong) Service selectors reconciled
-  # - ReconcileSucceeded: catch-all True when the remaining reconcile steps succeed; False on failure
+  # ReconcileSucceeded: True when the reconcile pipeline applied all changes; False on failure.
+  # Reasons distinguish the failure: TrafficRoutingError, ServiceUpdateError, ReconciliationError.
 
 status:
   pauseConditions:

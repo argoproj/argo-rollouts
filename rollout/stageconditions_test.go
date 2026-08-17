@@ -29,7 +29,7 @@ func TestStageConditionsMergedIntoStatus(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(ro)
 	f.runExpectError(getKey(ro, t), true)
 	patched := f.getPatchedRolloutAsObject(patchIndex)
-	cond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutTrafficRoutingApplied)
+	cond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutReconcileSucceeded)
 	assert.NotNil(t, cond)
 	assert.Equal(t, corev1.ConditionFalse, cond.Status)
 	assert.Equal(t, conditions.TrafficRoutingErrorReason, cond.Reason)
@@ -44,8 +44,6 @@ func TestStageConditionsMergedIntoStatus(t *testing.T) {
 	f2.replicaSetLister = append(f2.replicaSetLister, rs)
 	patchIndex = f2.expectPatchRolloutAction(basic)
 	f2.run(getKey(basic, t))
-	patchedBasic := f2.getPatchedRolloutAsObject(patchIndex)
-	assert.Nil(t, conditions.GetRolloutCondition(patchedBasic.Status, v1alpha1.RolloutTrafficRoutingApplied))
 }
 
 func TestStepHeldWhileStageConditionFalse(t *testing.T) {
@@ -146,30 +144,29 @@ func TestStageConditionRecoveryRequiresStageSuccess(t *testing.T) {
 	ro := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
 	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	conditions.SetRolloutCondition(&ro.Status, *conditions.NewRolloutCondition(
-		v1alpha1.RolloutTrafficRoutingApplied, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "routing failed"))
+		v1alpha1.RolloutReconcileSucceeded, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "routing failed"))
 
 	ctx := &rolloutContext{rollout: ro}
 	newStatus := ro.Status.DeepCopy()
 
-	// The trafficRouting stage did not run this pass (e.g. an earlier stage stopped the
-	// pipeline, or a scaling-only pass ran no stages): the condition must stay False.
+	// The full pipeline did not complete this pass: the condition must stay False.
 	ctx.mergeStageConditions(newStatus)
-	cond := conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutTrafficRoutingApplied)
+	cond := conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutReconcileSucceeded)
 	assert.NotNil(t, cond)
-	assert.Equal(t, corev1.ConditionFalse, cond.Status, "a stage that did not run must not report recovery")
+	assert.Equal(t, corev1.ConditionFalse, cond.Status, "a pass that did not finish must not report recovery")
 
-	// Once the owning stage actually re-runs and succeeds, the condition recovers.
-	ctx.markStageSucceeded(v1alpha1.RolloutTrafficRoutingApplied)
+	// Once the full pipeline completes without error, the condition recovers.
+	ctx.markStageSucceeded()
 	ctx.mergeStageConditions(newStatus)
-	cond = conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutTrafficRoutingApplied)
+	cond = conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutReconcileSucceeded)
 	assert.NotNil(t, cond)
 	assert.Equal(t, corev1.ConditionTrue, cond.Status)
 	assert.Equal(t, conditions.StageConditionAppliedReason, cond.Reason)
 }
 
 // TestStageConditionNotRecoveredWhenPipelineStopsEarly is the end-to-end variant: a services
-// failure aborts the pipeline before the trafficRouting stage runs, so a pre-existing
-// TrafficRoutingApplied=False must survive the status sync unchanged instead of flipping True.
+// failure aborts the pipeline before traffic routing runs, so ReconcileSucceeded stays False
+// with the service failure reason instead of reporting recovery.
 func TestStageConditionNotRecoveredWhenPipelineStopsEarly(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -190,7 +187,7 @@ func TestStageConditionNotRecoveredWhenPipelineStopsEarly(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 11, 1, 11, false)
 	conditions.SetRolloutCondition(&r2.Status, *conditions.NewRolloutCondition(
-		v1alpha1.RolloutTrafficRoutingApplied, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "routing failed"))
+		v1alpha1.RolloutReconcileSucceeded, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "routing failed"))
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
@@ -208,14 +205,10 @@ func TestStageConditionNotRecoveredWhenPipelineStopsEarly(t *testing.T) {
 	f.runController(getKey(r2, t), true, true, c, i, k8sI)
 
 	patched := f.getPatchedRolloutAsObject(patchIndex)
-	servicesCond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutServicesReconciled)
-	assert.NotNil(t, servicesCond)
-	assert.Equal(t, corev1.ConditionFalse, servicesCond.Status)
-	trCond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutTrafficRoutingApplied)
-	if trCond != nil {
-		assert.Equal(t, corev1.ConditionFalse, trCond.Status,
-			"trafficRouting stage never ran this pass; its condition must not report recovery")
-	}
+	cond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutReconcileSucceeded)
+	assert.NotNil(t, cond)
+	assert.Equal(t, corev1.ConditionFalse, cond.Status)
+	assert.Equal(t, conditions.ServiceUpdateErrorReason, cond.Reason)
 }
 
 func TestConditionMessageTruncated(t *testing.T) {
@@ -236,41 +229,36 @@ func TestConditionMessageTruncatedOnRuneBoundary(t *testing.T) {
 	assert.Equal(t, maxStageConditionMessageLen-1, len(truncated))
 }
 
-// TestStageConditionsOnStrategyMigration verifies canary-only stage conditions are handled when
-// a rollout is migrated to blue-green: TrafficRoutingApplied is removed as inapplicable, and a
-// stale ServicesReconciled=False recovers once the blue-green service stages succeed.
-func TestStageConditionsOnStrategyMigration(t *testing.T) {
+// TestReconcileSucceededRecoversAfterPipelineSuccess verifies a stale
+// ReconcileSucceeded=False recovers to True once the full pipeline succeeds.
+func TestReconcileSucceededRecoversAfterPipelineSuccess(t *testing.T) {
 	ro := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
-	ro.Spec.Strategy.Canary = nil
-	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
 	conditions.SetRolloutCondition(&ro.Status, *conditions.NewRolloutCondition(
-		v1alpha1.RolloutServicesReconciled, corev1.ConditionFalse, conditions.ServiceUpdateErrorReason, "service update failed"))
-	conditions.SetRolloutCondition(&ro.Status, *conditions.NewRolloutCondition(
-		v1alpha1.RolloutTrafficRoutingApplied, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "routing failed"))
+		v1alpha1.RolloutReconcileSucceeded, corev1.ConditionFalse, conditions.ServiceUpdateErrorReason, "service update failed"))
 
 	ctx := &rolloutContext{rollout: ro}
 	newStatus := ro.Status.DeepCopy()
 	ctx.mergeStageConditions(newStatus)
-	assert.Nil(t, conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutTrafficRoutingApplied),
-		"TrafficRoutingApplied must not apply to blue-green")
+	cond := conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutReconcileSucceeded)
+	assert.NotNil(t, cond)
+	assert.Equal(t, corev1.ConditionFalse, cond.Status)
 
-	ctx.markStageSucceeded(v1alpha1.RolloutServicesReconciled)
+	ctx.markStageSucceeded()
 	ctx.mergeStageConditions(newStatus)
-	servicesCond := conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutServicesReconciled)
-	assert.NotNil(t, servicesCond)
-	assert.Equal(t, corev1.ConditionTrue, servicesCond.Status,
-		"ServicesReconciled must recover once blue-green service stages succeed")
+	cond = conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutReconcileSucceeded)
+	assert.NotNil(t, cond)
+	assert.Equal(t, corev1.ConditionTrue, cond.Status)
 }
 
 func TestConditionNoChurnOnRepeatedError(t *testing.T) {
 	status := v1alpha1.RolloutStatus{}
-	cond := *conditions.NewRolloutCondition(v1alpha1.RolloutTrafficRoutingApplied, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "same error")
+	cond := *conditions.NewRolloutCondition(v1alpha1.RolloutReconcileSucceeded, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "same error")
 	firstTransition := cond.LastTransitionTime
 	conditions.SetRolloutCondition(&status, cond)
 
-	repeated := *conditions.NewRolloutCondition(v1alpha1.RolloutTrafficRoutingApplied, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "same error with different suffix")
+	repeated := *conditions.NewRolloutCondition(v1alpha1.RolloutReconcileSucceeded, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "same error with different suffix")
 	updated := conditions.SetRolloutCondition(&status, repeated)
 	assert.False(t, updated)
-	persisted := conditions.GetRolloutCondition(status, v1alpha1.RolloutTrafficRoutingApplied)
+	persisted := conditions.GetRolloutCondition(status, v1alpha1.RolloutReconcileSucceeded)
 	assert.Equal(t, firstTransition, persisted.LastTransitionTime)
 }

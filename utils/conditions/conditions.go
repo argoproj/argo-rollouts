@@ -189,17 +189,15 @@ const (
 
 	RolloutAddedToInformerReason = "RolloutAddedToInformer"
 
-	// TrafficRoutingErrorReason is recorded on TrafficRoutingApplied=False when SetWeight or
+	// TrafficRoutingErrorReason is recorded on ReconcileSucceeded=False when SetWeight or
 	// related routing operations fail.
 	TrafficRoutingErrorReason = "TrafficRoutingError"
 	// TrafficRoutingDeferredReason is recorded when routing is intentionally deferred.
 	TrafficRoutingDeferredReason = "TrafficRoutingDeferred"
-	// ServiceUpdateErrorReason is recorded on ServicesReconciled=False when a Service update fails.
+	// ServiceUpdateErrorReason is recorded on ReconcileSucceeded=False when a Service update fails.
 	ServiceUpdateErrorReason = "ServiceUpdateError"
-	// StageConditionAppliedReason is recorded when a stage condition recovers to True.
+	// StageConditionAppliedReason is recorded when ReconcileSucceeded recovers to True.
 	StageConditionAppliedReason = "Applied"
-	// StageConditionReconciledReason is recorded when ServicesReconciled recovers to True.
-	StageConditionReconciledReason = "Reconciled"
 	// PromoteFullHeldReason is emitted when a user-requested full promotion (promote --full)
 	// is being held by a safety gate instead of taking effect.
 	PromoteFullHeldReason = "PromoteFullHeld"

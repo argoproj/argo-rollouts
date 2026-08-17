@@ -31,10 +31,9 @@ const (
 )
 
 type stageResult struct {
-	outcome   stageOutcome
-	err       error
-	condition v1alpha1.RolloutConditionType
-	reason    string
+	outcome stageOutcome
+	err     error
+	reason  string
 }
 
 type strategyStage struct {
@@ -113,7 +112,7 @@ func (c *rolloutContext) runStages(stages []strategyStage) error {
 	if len(errs) == 0 {
 		// Every stage ran without failure, so the catch-all ReconcileSucceeded condition is allowed to
 		// recover to True in mergeStageConditions.
-		c.markStageSucceeded(v1alpha1.RolloutReconcileSucceeded)
+		c.markStageSucceeded()
 	}
 	return errors.Join(errs...)
 }
@@ -122,16 +121,12 @@ func (c *rolloutContext) runStages(stages []strategyStage) error {
 // persistently failing stage retries on workqueue backoff; the event is emitted only when the
 // condition actually transitions (new failure or changed reason), not on every retry pass.
 func (c *rolloutContext) recordStageFailure(res stageResult) {
-	condType := res.condition
-	if condType == "" {
-		condType = v1alpha1.RolloutReconcileSucceeded
-	}
 	reason := res.reason
 	if reason == "" {
 		reason = conditions.RolloutReconciliationErrorReason
 	}
-	c.setStageCondition(condType, corev1.ConditionFalse, reason, res.err.Error())
-	prevCond := conditions.GetRolloutCondition(c.rollout.Status, condType)
+	c.setStageCondition(v1alpha1.RolloutReconcileSucceeded, corev1.ConditionFalse, reason, res.err.Error())
+	prevCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutReconcileSucceeded)
 	if prevCond == nil || prevCond.Status != corev1.ConditionFalse || prevCond.Reason != reason {
 		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: reason}, "%s", res.err.Error())
 	}
@@ -200,10 +195,9 @@ func canaryStageRevisionHistory(c *rolloutContext) stageResult {
 func canaryStagePingPongService(c *rolloutContext) stageResult {
 	if err := c.reconcilePingAndPongService(); err != nil {
 		return stageResult{
-			outcome:   stageStop,
-			err:       err,
-			condition: v1alpha1.RolloutServicesReconciled,
-			reason:    conditions.ServiceUpdateErrorReason,
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.ServiceUpdateErrorReason,
 		}
 	}
 	return stageResult{outcome: stageContinue}
@@ -212,28 +206,22 @@ func canaryStagePingPongService(c *rolloutContext) stageResult {
 func canaryStageStableCanaryService(c *rolloutContext) stageResult {
 	if err := c.reconcileStableAndCanaryService(); err != nil {
 		return stageResult{
-			outcome:   stageStop,
-			err:       err,
-			condition: v1alpha1.RolloutServicesReconciled,
-			reason:    conditions.ServiceUpdateErrorReason,
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.ServiceUpdateErrorReason,
 		}
 	}
-	// pingPongService runs before this stage and any failure there aborts the pipeline, so both
-	// owners of the ServicesReconciled condition succeeded this pass.
-	c.markStageSucceeded(v1alpha1.RolloutServicesReconciled)
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStageTrafficRouting(c *rolloutContext) stageResult {
 	if err := c.reconcileTrafficRouting(); err != nil {
 		return stageResult{
-			outcome:   stageStop,
-			err:       err,
-			condition: v1alpha1.RolloutTrafficRoutingApplied,
-			reason:    conditions.TrafficRoutingErrorReason,
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.TrafficRoutingErrorReason,
 		}
 	}
-	c.markStageSucceeded(v1alpha1.RolloutTrafficRoutingApplied)
 	return stageResult{outcome: stageContinue}
 }
 
@@ -287,10 +275,9 @@ func blueGreenStagePreviewService(c *rolloutContext) stageResult {
 	// This must happen right after the new replicaset is created.
 	if err := c.reconcilePreviewService(c.blueGreenPreviewSvc); err != nil {
 		return stageResult{
-			outcome:   stageStop,
-			err:       err,
-			condition: v1alpha1.RolloutServicesReconciled,
-			reason:    conditions.ServiceUpdateErrorReason,
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.ServiceUpdateErrorReason,
 		}
 	}
 	return stageResult{outcome: stageContinue}
@@ -326,15 +313,11 @@ func blueGreenStagePause(c *rolloutContext) stageResult {
 func blueGreenStageActiveService(c *rolloutContext) stageResult {
 	if err := c.reconcileActiveService(c.blueGreenActiveSvc); err != nil {
 		return stageResult{
-			outcome:   stageStop,
-			err:       err,
-			condition: v1alpha1.RolloutServicesReconciled,
-			reason:    conditions.ServiceUpdateErrorReason,
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.ServiceUpdateErrorReason,
 		}
 	}
-	// previewService runs before this stage and any failure there aborts the pipeline, so both
-	// owners of the ServicesReconciled condition succeeded this pass.
-	c.markStageSucceeded(v1alpha1.RolloutServicesReconciled)
 	return stageResult{outcome: stageContinue}
 }
 

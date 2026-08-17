@@ -68,9 +68,10 @@ func TestCanaryStagePipelineSemantics(t *testing.T) {
 		assert.False(t, enqueued)
 
 		patched := f.getPatchedRolloutAsObject(patchIndex)
-		cond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutTrafficRoutingApplied)
+		cond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutReconcileSucceeded)
 		assert.NotNil(t, cond)
 		assert.Equal(t, corev1.ConditionFalse, cond.Status)
+		assert.Equal(t, conditions.TrafficRoutingErrorReason, cond.Reason)
 	})
 
 	t.Run("stageStop with error returns error and does not requeue on hold interval", func(t *testing.T) {
@@ -113,9 +114,10 @@ func TestCanaryStagePipelineSemantics(t *testing.T) {
 		f.runController(getKey(r2, t), true, true, c, i, k8sI)
 		assert.False(t, enqueued)
 		patched := f.getPatchedRolloutAsObject(patchIndex)
-		cond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutServicesReconciled)
+		cond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutReconcileSucceeded)
 		assert.NotNil(t, cond)
 		assert.Equal(t, corev1.ConditionFalse, cond.Status)
+		assert.Equal(t, conditions.ServiceUpdateErrorReason, cond.Reason)
 	})
 }
 
