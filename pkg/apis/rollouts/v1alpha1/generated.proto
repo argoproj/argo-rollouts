@@ -1364,6 +1364,16 @@ message RolloutAnalysisBackground {
   // StartingStep indicates which step the background analysis should start on
   // If not listed, controller defaults to 0
   optional int32 startingStep = 2;
+
+  // StartOn indicates what the background analysis run waits for before it is created.
+  // Immediately (the default) preserves the historical behaviour of creating it as soon as the
+  // rollout begins. CanaryTraffic waits until the canary is actually receiving the weight the
+  // current step calls for, so that canary-scoped metrics are not evaluated against a
+  // ReplicaSet with no traffic. Analysis that deliberately runs before traffic shifts, such as
+  // an approval or incident check, should stay on Immediately.
+  // +optional
+  // +kubebuilder:validation:Enum=Immediately;CanaryTraffic
+  optional string startOn = 3;
 }
 
 message RolloutAnalysisRunStatus {
