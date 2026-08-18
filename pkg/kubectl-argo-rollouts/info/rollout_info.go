@@ -4,16 +4,20 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/duration"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
@@ -101,6 +105,13 @@ func NewRolloutInfo(
 
 	for _, c := range initContainerList {
 		roInfo.InitContainers = append(roInfo.InitContainers, &rollout.ContainerInfo{Name: c.Name, Image: c.Image})
+	}
+
+	for _, cond := range ro.Status.PauseConditions {
+		if cond.Reason == v1alpha1.PauseReasonCanaryPauseStep {
+			roInfo.PauseStartTime = cond.StartTime.UTC().Format(time.RFC3339)
+			break
+		}
 	}
 
 	if ro.Status.RestartedAt != nil {
@@ -265,4 +276,31 @@ func AnalysisRunsByRevision(r *rollout.RolloutInfo, rev int) []*rollout.Analysis
 		}
 	}
 	return runs
+}
+
+// PauseStepRemaining reports the time left on the current timed canary pause
+// step (e.g. "15s") when the rollout is paused on one, along with true. It
+// returns "", false for indefinite pauses, when no step pause is in progress,
+// or when the timing cannot be determined.
+func PauseStepRemaining(roInfo *rollout.RolloutInfo) (string, bool) {
+	if roInfo.PauseStartTime == "" {
+		return "", false
+	}
+	start, err := time.Parse(time.RFC3339, roInfo.PauseStartTime)
+	if err != nil {
+		return "", false
+	}
+	idx, err := strconv.Atoi(strings.SplitN(roInfo.Step, "/", 2)[0])
+	if err != nil || idx < 0 || idx >= len(roInfo.Steps) {
+		return "", false
+	}
+	pause := roInfo.Steps[idx].Pause
+	if pause == nil || pause.Duration == nil {
+		return "", false
+	}
+	remaining := start.Add(time.Duration(pause.DurationSeconds()) * time.Second).Sub(timeutil.Now())
+	if remaining < 0 {
+		remaining = 0
+	}
+	return duration.HumanDuration(remaining), true
 }

@@ -8270,6 +8270,12 @@ export interface RolloutRolloutInfo {
      * @memberof RolloutRolloutInfo
      */
     initContainers?: Array<RolloutContainerInfo>;
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutRolloutInfo
+     */
+    pauseStartTime?: string;
 }
 /**
  * 
