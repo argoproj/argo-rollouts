@@ -2,6 +2,14 @@
 
 The Argo Rollouts controller is already instrumented with [Prometheus metrics](https://prometheus.io/) available at `/metrics` in port 8090. You can use these metrics to look at the health of the controller either via dashboards or via other Prometheus integrations.
 
+## Configuring reconcile histogram buckets
+
+The `rollout_reconcile`, `analysis_run_reconcile`, `experiment_reconcile`, and `notification_send` histograms use the bucket boundaries `0.01, 0.15, 0.25, 0.5, 1` (seconds) by default. If your reconciles regularly take longer than 1 second, percentile calculations against these metrics will be inaccurate because all slower observations land in the same top bucket. Use the `--metrics-histogram-buckets` flag to set custom bucket boundaries, for example:
+
+```
+--metrics-histogram-buckets=0.5,1,2,4,8
+```
+
 ## Installing and configuring Prometheus
 
 To take advantage of the metrics you need to have Prometheus installed in your Kubernetes cluster. If you don't have an existing installation of Prometheus
