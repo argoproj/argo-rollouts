@@ -258,6 +258,163 @@ spec:
 		ExpectPreviewRevision("3")
 }
 
+// blueGreenWorkloadRefObjects returns a Deployment and a blue-green Rollout that resolves its pod
+// template from that Deployment via workloadRef, with pre/post promotion analysis configured.
+func blueGreenWorkloadRefObjects(name string, autoPromotionEnabled bool) string {
+	return fmt.Sprintf(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: %[1]s
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: %[1]s
+  template:
+    metadata:
+      labels:
+        app: %[1]s
+    spec:
+      containers:
+      - name: %[1]s
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: %[1]s
+spec:
+  replicas: 1
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: %[1]s
+  selector:
+    matchLabels:
+      app: %[1]s
+  strategy:
+    blueGreen:
+      activeService: %[1]s-active
+      previewService: %[1]s-preview
+      autoPromotionEnabled: %[2]t
+      prePromotionAnalysis:
+        templates:
+        - templateName: sleep-job
+        args:
+        - name: duration
+          value: "5"
+      postPromotionAnalysis:
+        templates:
+        - templateName: sleep-job
+        args:
+        - name: duration
+          value: "5"
+`, name, autoPromotionEnabled)
+}
+
+// blueGreenWorkloadRefUpdate is a merge patch for the referenced Deployment that changes the pod
+// template (cpu request 5m -> 4m) and therefore triggers a new Rollout revision.
+func blueGreenWorkloadRefUpdate(name string) string {
+	return fmt.Sprintf(`
+spec:
+  template:
+    spec:
+      containers:
+      - name: %[1]s
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 4m`, name)
+}
+
+// TestBlueGreenWorkloadRefManualPromotionAnalysis verifies that a blue-green rollout resolving
+// its pod template through workloadRef honors autoPromotionEnabled: false and runs pre/post
+// promotion analysis when the referenced Deployment's pod template changes (#4503).
+func (s *AnalysisSuite) TestBlueGreenWorkloadRefManualPromotionAnalysis() {
+	name := "bluegreen-workloadref-manual"
+	s.Given().
+		RolloutObjects(newService(name+"-active", name)).
+		RolloutObjects(newService(name+"-preview", name)).
+		RolloutObjects(blueGreenWorkloadRefObjects(name, false)).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		ExpectActiveRevision("1").
+		ExpectStableRevision("1").
+		When().
+		UpdateWorkloadRef(name, blueGreenWorkloadRefUpdate(name)).
+		WaitForRolloutStatus("Progressing").
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectAnalysisRunCount(1). // pre-promotion analysis ran before pausing for manual promotion
+		ExpectActiveRevision("1").
+		ExpectStableRevision("1").
+		ExpectPreviewRevision("2").
+		When().
+		Sleep(2 * time.Second). // promoting too fast causes test to flake
+		PromoteRollout().
+		WaitForActiveRevision("2").
+		Sleep(2 * time.Second). // analysis is created on later reconciliations after service cutover
+		Then().
+		ExpectAnalysisRunCount(2). // post-promotion analysis started after the manual promotion
+		ExpectRolloutStatus("Progressing").
+		When().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(2).
+		ExpectStableRevision("2").
+		ExpectActiveRevision("2").
+		ExpectPreviewRevision("2")
+}
+
+// TestBlueGreenWorkloadRefAutoPromotionAnalysis verifies that a blue-green rollout resolving its
+// pod template through workloadRef runs pre-promotion analysis before the automatic promotion and
+// post-promotion analysis after it when the referenced Deployment's pod template changes.
+func (s *AnalysisSuite) TestBlueGreenWorkloadRefAutoPromotionAnalysis() {
+	name := "bluegreen-workloadref-auto"
+	s.Given().
+		RolloutObjects(newService(name+"-active", name)).
+		RolloutObjects(newService(name+"-preview", name)).
+		RolloutObjects(blueGreenWorkloadRefObjects(name, true)).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		ExpectActiveRevision("1").
+		ExpectStableRevision("1").
+		When().
+		UpdateWorkloadRef(name, blueGreenWorkloadRefUpdate(name)).
+		WaitForRolloutStatus("Progressing").
+		WaitForRolloutCondition(func(ro *v1alpha1.Rollout) bool {
+			return ro.Status.BlueGreen.PrePromotionAnalysisRunStatus != nil
+		}, "pre-promotion analysis started").
+		Then().
+		ExpectAnalysisRunCount(1).
+		ExpectActiveRevision("1"). // pre-promotion analysis gates the automatic promotion
+		When().
+		WaitForPrePromotionAnalysisRunPhase("Successful").
+		WaitForActiveRevision("2"). // promoted automatically once pre-promotion analysis succeeded
+		Sleep(2 * time.Second).     // analysis is created on later reconciliations after service cutover
+		Then().
+		ExpectAnalysisRunCount(2).
+		When().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(2).
+		ExpectStableRevision("2").
+		ExpectActiveRevision("2").
+		ExpectPreviewRevision("2")
+}
+
 // TestBlueGreenPrePromotionFail test rollout behavior when pre promotion analysis fails
 func (s *AnalysisSuite) TestBlueGreenPrePromotionFail() {
 	s.Given().
