@@ -6,6 +6,7 @@
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/3834/badge)](https://bestpractices.coreinfrastructure.org/projects/3834)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/argoproj/argo-rollouts/badge)](https://api.securityscorecards.dev/projects/github.com/argoproj/argo-rollouts)
 [![Artifact HUB](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/argo-rollouts)](https://artifacthub.io/packages/helm/argo/argo-rollouts)
+[![inspect.software](https://raw.githubusercontent.com/inspect-software/badges/main/v1/a/argoproj/argo-rollouts.svg)](https://inspect.software/software/argoproj/argo-rollouts)
 
 ## What is Argo Rollouts?
 
