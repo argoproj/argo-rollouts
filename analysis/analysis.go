@@ -647,8 +647,18 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 		logger.Infof("Metric Assessment Result - %s: Count (%s) Reached", v1alpha1.AnalysisPhaseSuccessful, effectiveCount.String())
 		return v1alpha1.AnalysisPhaseSuccessful
 	}
-	// if we get here, this metric runs indefinitely
+	// if we get here, this metric runs indefinitely (or is a bounded metric whose count
+	// was not yet reached)
 	if terminating {
+		// A bounded metric (effectiveCount != nil) that is terminated before reaching its
+		// target count must not be reported Successful if it never once produced a successful
+		// measurement. Falling through to AnalysisPhaseSuccessful here would mask a metric
+		// whose every measurement Failed or Errored (see #4479).
+		if effectiveCount != nil && result.Successful == 0 && (result.Failed > 0 || result.Error > 0) {
+			phase := lastMeasurement.Phase
+			logger.Infof("Metric Assessment Result - %s: Run Terminated", phase)
+			return phase
+		}
 		logger.Infof(SuccessfulAssessmentRunTerminatedResult)
 		return v1alpha1.AnalysisPhaseSuccessful
 	}
