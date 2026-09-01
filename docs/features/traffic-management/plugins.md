@@ -1,9 +1,13 @@
 # Traffic Router Plugins
 
-!!! warning "Alpha Feature (Since 1.5.0)"
+!!! warning "Beta Feature (Since 1.5.0)"
 
-    This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha)
-    feature that allows you to supporttraffic router that are not natively supported.
+    This is a [beta-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta)
+    feature that allows you to support traffic routers that are not natively supported.
+
+    Although this feature is Beta, the plugin interface itself is stable: there is no intention to remove or break
+    it in the future. Any change to the API's semantics would only happen as part of a new major version of Argo
+    Rollouts, and future changes are expected to enhance the interface rather than break it.
 
 Argo Rollouts supports getting traffic router via 3rd party [plugin system](../../plugins.md). This allows users to extend the capabilities of Rollouts
 to support traffic router that are not natively supported. Rollout's uses a plugin library called
