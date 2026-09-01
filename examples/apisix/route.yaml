@@ -3,6 +3,7 @@ kind: ApisixRoute
 metadata:
   name: rollouts-apisix-route
 spec:
+  ingressClassName: apisix
   http:
     - name: rollouts-apisix
       match:
