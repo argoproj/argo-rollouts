@@ -59,7 +59,7 @@ Since the traffic is controlled independently by the Service Mesh resources, the
 
 ## Traffic Routing with Managed Routes and Route Precedence
 
-**Traffic Router Support: Istio**
+**Traffic Router Support: Istio, Apache APISIX, AWS ALB**
 
 When traffic routing is enabled, Argo Rollouts can add and manage additional routes beyond just controlling the traffic weight
 to the canary. These include header-based and mirror-based routes. When using these routes, you must set route precedence
@@ -88,7 +88,7 @@ spec:
 
 ## Traffic Routing Based on Header Values for Canary
 
-**Traffic Router Support: Istio**
+**Traffic Router Support: Istio, Apache APISIX, AWS ALB, Gateway API (via plugin)**
 
 Argo Rollouts can route all traffic to the canary service based on HTTP request header values.
 Header-based traffic routing is configured using the `setHeaderRoute` step, which contains a list of header matchers.
