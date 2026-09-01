@@ -1461,9 +1461,24 @@ func TestRequeueStuckRollout(t *testing.T) {
 		return r
 	}
 
+	// A rollout that has stopped progressing (same shape as "Less than a second" below), but
+	// which also has an orphaned/other ReplicaSet still carrying a scale-down-deadline
+	// annotation. calculateRolloutConditions and evaluateProgressDeadlineAbort both already
+	// treat this as "not really stuck" via isWaitingForReplicaSetScaleDown (see
+	// e18495782, PR #3417) so that the Progressing condition isn't marked TimedOut while a
+	// scale down delay is still in play. requeueStuckRollout must honor the same guard,
+	// otherwise its "after < time.Second" branch fires on every reconcile forever, since the
+	// Progressing condition's LastUpdateTime never advances while the timeout is suppressed.
+	waitingRollout := rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](10))
+	orphanOwner := waitingRollout.DeepCopy()
+	orphanOwner.Spec.Template.Spec.Containers[0].Image = "foo/bar-orphan"
+	orphanRS := newReplicaSetWithStatus(orphanOwner, 0, 0)
+	orphanRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
+
 	tests := []struct {
 		name               string
 		rollout            *v1alpha1.Rollout
+		otherRS            *appsv1.ReplicaSet
 		requeueImmediately bool
 		noRequeue          bool
 	}{
@@ -1496,6 +1511,12 @@ func TestRequeueStuckRollout(t *testing.T) {
 			name:    "More than a second",
 			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](20)),
 		},
+		{
+			name:      "Waiting for other ReplicaSet scale down",
+			rollout:   waitingRollout,
+			otherRS:   orphanRS,
+			noRequeue: true,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
@@ -1503,6 +1524,10 @@ func TestRequeueStuckRollout(t *testing.T) {
 			savedRollout := test.rollout.DeepCopy()
 			f := newFixture(t)
 			defer f.Close()
+			if test.otherRS != nil {
+				f.kubeobjects = append(f.kubeobjects, test.otherRS)
+				f.replicaSetLister = append(f.replicaSetLister, test.otherRS)
+			}
 			c, _, _ := f.newController(noResyncPeriodFunc)
 			f.client.PrependReactor("*", "rollouts", func(action core.Action) (bool, runtime.Object, error) {
 				savedRollout.DeepCopyInto(test.rollout)
