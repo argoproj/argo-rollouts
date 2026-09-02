@@ -45,3 +45,12 @@ a {
         background-color: $midnight-sky;
     }
 }
+
+.app-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: system-ui, sans-serif;
+    background-color: $argo-color-gray-3;
+}

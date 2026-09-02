@@ -2,6 +2,7 @@ import * as React from 'react';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 import {formatTimestamp} from '../../shared/utils/utils';
+import {describeApiError} from '../../shared/utils/api-error';
 import {RolloutStatus} from '../status-icon/status-icon';
 import {ConfirmButton} from '../confirm-button/confirm-button';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
@@ -92,22 +93,14 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
 
     const [loading, setLoading] = React.useState(false);
 
-    const handleActionError = (error: any, actionName: string) => {
+    const handleActionError = async (error: any, actionName: string) => {
         console.error(`Error executing ${actionName}:`, error);
-        
-        let errorTitle = `Failed to ${actionName.toLowerCase()} rollout`;
-        let errorContent = '';
-        
-        if (error?.response?.status === 403) {
-            errorTitle = 'Permission Denied';
-            errorContent = `You don't have permission to ${actionName.toLowerCase()} this rollout. Please check your RBAC permissions.`;
-        } else if (error?.response?.data?.message) {
-            errorContent = error.response.data.message;
-        } else if (error?.message) {
-            errorContent = error.message;
-        } else {
-            errorContent = 'An unexpected error occurred. Please try again.';
-        }
+
+        // the generated API client rejects with the raw Response, so the status and the message
+        // Kubernetes sent back both have to be read off it
+        const status = error?.status ?? error?.response?.status;
+        const errorTitle = status === 403 ? 'Permission Denied' : `Failed to ${actionName.toLowerCase()} rollout`;
+        const errorContent = await describeApiError(error);
 
         notification.error({
             message: errorTitle,
@@ -130,7 +123,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                         await props.callback();
                     }
                 } catch (error) {
-                    handleActionError(error, props.action);
+                    await handleActionError(error, props.action);
                 } finally {
                     setLoading(false);
                 }
