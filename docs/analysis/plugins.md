@@ -121,3 +121,7 @@ If you have created a plugin, please submit a PR to add it to this list.
 
 - This is just a sample plugin that can be used as a starting point for creating your own plugin.
   It is not meant to be used in production. It is based on the built-in prometheus provider.
+
+### [rollouts-plugin-metric-signalfx](https://github.com/argoproj-labs/rollouts-plugin-metric-signalfx)
+
+- A metric plugin that integrates Splunk Observability Cloud (formerly SignalFx) through SignalFlow programs.
