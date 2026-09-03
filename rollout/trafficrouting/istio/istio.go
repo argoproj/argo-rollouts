@@ -380,10 +380,18 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 }
 
 // shouldDelayDestinationRuleUpdate returns true if updating the DestinationRule should be
-// delayed because a traffic-receiving ReplicaSet is not yet fully available.
+// delayed because a ReplicaSet that is about to start receiving traffic through a relabeled
+// subset has not yet met its replica progress threshold (100% when none is configured).
+// Subsets of the live DestinationRule whose hash label is unchanged are not considered: they
+// already receive traffic and weight shifts to them are gated by AtDesiredReplicaCountsForCanary.
+// A nil DestinationRule treats both subsets as changing.
 // See: https://github.com/argoproj/argo-rollouts/issues/2507
-func (r *Reconciler) shouldDelayDestinationRuleUpdate(canaryHash, stableHash string) (bool, string) {
+func (r *Reconciler) shouldDelayDestinationRuleUpdate(dRule *DestinationRule, canaryHash, stableHash string) (bool, string) {
 	if r.rollout.Spec.Strategy.Canary.CanaryService != "" || r.rollout.Spec.Strategy.Canary.StableService != "" {
+		return false, ""
+	}
+	changingHashes := r.changingSubsetHashes(dRule, canaryHash, stableHash)
+	if len(changingHashes) == 0 {
 		return false, ""
 	}
 	abortOrDynamicRollbackToStable := rolloututil.AbortOrDynamicRollbackToStable(r.rollout, r.replicaSets, stableHash)
@@ -392,34 +400,86 @@ func (r *Reconciler) shouldDelayDestinationRuleUpdate(canaryHash, stableHash str
 			continue
 		}
 		rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-		if rsHash == "" || (rsHash != stableHash && rsHash != canaryHash) {
+		if rsHash == "" || !changingHashes[rsHash] {
 			continue
 		}
 		if abortOrDynamicRollbackToStable && rsHash == canaryHash {
 			continue
 		}
-		if !replicasetutil.IsReplicaSetAvailable(rs) {
+		if !r.readyForSubsetSwitch(rs) {
 			return true, rs.Name
 		}
 	}
 	return false, ""
 }
 
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
-	if shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(canaryHash, stableHash); shouldDelay {
-		r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
-		return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
+// readyForSubsetSwitch returns true if a subset may be relabeled onto rs: either all of its
+// replicas are available, or it meets the rollout's replicaProgressThreshold and has at least
+// one available replica. The latter floor keeps a zero-valued threshold from switching a subset
+// onto a ReplicaSet serving nothing.
+func (r *Reconciler) readyForSubsetSwitch(rs *appsv1.ReplicaSet) bool {
+	if replicasetutil.IsReplicaSetAvailable(rs) {
+		return true
 	}
+	// spec.replicas is the desired count for this ReplicaSet: the count the controller has already
+	// scaled it to for the current step. IsReplicaSetAvailable above covers the scale-down case,
+	// where available exceeds desired and ReplicaProgressThresholdMet's equality check would fail.
+	threshold := r.rollout.Spec.Strategy.Canary.ReplicaProgressThreshold
+	return rs.Status.AvailableReplicas > 0 && replicasetutil.ReplicaProgressThresholdMet(threshold, rs, *rs.Spec.Replicas)
+}
 
+// changingSubsetHashes returns the pod template hashes that the canary and stable subsets of the
+// given DestinationRule are about to be switched to.
+func (r *Reconciler) changingSubsetHashes(dRule *DestinationRule, canaryHash, stableHash string) map[string]bool {
+	canaryChanging := canaryHash != ""
+	stableChanging := stableHash != ""
+	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
+	if dRule != nil && dRuleSpec != nil {
+		for _, subset := range dRule.Spec.Subsets {
+			label := subset.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			if subset.Name == dRuleSpec.CanarySubsetName && label == canaryHash {
+				canaryChanging = false
+			}
+			if subset.Name == dRuleSpec.StableSubsetName && label == stableHash {
+				stableChanging = false
+			}
+		}
+	}
+	changing := map[string]bool{}
+	if canaryChanging {
+		changing[canaryHash] = true
+	}
+	if stableChanging {
+		changing[stableHash] = true
+	}
+	return changing
+}
+
+func (r *Reconciler) delayDestinationRuleUpdateIfNeeded(dRule *DestinationRule, canaryHash, stableHash string) error {
+	shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(dRule, canaryHash, stableHash)
+	if !shouldDelay {
+		return nil
+	}
+	r.log.Infof("delaying destination rule switch: ReplicaSet %s has not met its replica progress threshold", rsName)
+	return fmt.Errorf("delaying destination rule switch: ReplicaSet %s has not met its replica progress threshold", rsName)
+}
+
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
 	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
 	if dRuleSpec == nil {
-		return nil
+		// No DestinationRule is configured (e.g. the ping-pong path), so there are no subsets to
+		// diff. Keep the pre-existing full-availability gate for this path rather than widening
+		// the change beyond subset routing.
+		return r.delayDestinationRuleUpdateIfNeeded(nil, canaryHash, stableHash)
 	}
 	ctx := context.TODO()
 	client := r.client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace)
 
 	origBytes, dRule, dRuleNew, err := r.getDestinationRule(dRuleSpec, client, ctx)
 	if err != nil {
+		return err
+	}
+	if err := r.delayDestinationRuleUpdateIfNeeded(dRule, canaryHash, stableHash); err != nil {
 		return err
 	}
 	if dRuleNew.Annotations == nil {
