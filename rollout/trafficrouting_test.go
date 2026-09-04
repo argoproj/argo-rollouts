@@ -2294,3 +2294,185 @@ func TestDynamicStableScaleNewCanarySupersedeShouldNotOverloadStable(t *testing.
 			"checkReplicasAvailable should return early. Calls observed: %v", setWeightCalls)
 	f.fakeTrafficRouting.AssertNotCalled(t, "UpdateHash", mock.Anything, mock.Anything, mock.Anything)
 }
+
+// istioSubsetFixtures returns a VirtualService and a DestinationRule for subset-level Istio
+// routing, with the DestinationRule subsets already labeled with the given hashes.
+func istioSubsetFixtures(canaryHash, stableHash string, canaryWeight, stableWeight int32) (*unstructured.Unstructured, *unstructured.Unstructured) {
+	vsvc := unstructuredutil.StrToUnstructuredUnsafe(fmt.Sprintf(`
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: foo-vsvc
+  namespace: default
+spec:
+  hosts:
+  - foo
+  http:
+  - route:
+    - destination:
+        host: foo
+        subset: stable
+      weight: %d
+    - destination:
+        host: foo
+        subset: canary
+      weight: %d
+`, stableWeight, canaryWeight))
+	dRule := unstructuredutil.StrToUnstructuredUnsafe(fmt.Sprintf(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: foo-dr
+  namespace: default
+  annotations:
+    %s: foo
+spec:
+  host: foo
+  subsets:
+  - name: stable
+    labels:
+      %s: %s
+  - name: canary
+    labels:
+      %s: %s
+`, v1alpha1.ManagedByRolloutsKey,
+		v1alpha1.DefaultRolloutUniqueLabelKey, stableHash,
+		v1alpha1.DefaultRolloutUniqueLabelKey, canaryHash))
+	return vsvc, dRule
+}
+
+// withIstioSubsetRouting configures ro for subset-level Istio routing with no canary/stable
+// Services, which is the only configuration where the DestinationRule subset gate applies.
+func withIstioSubsetRouting(ro *v1alpha1.Rollout) {
+	ro.Spec.Strategy.Canary.CanaryService = ""
+	ro.Spec.Strategy.Canary.StableService = ""
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: &v1alpha1.IstioVirtualService{Name: "foo-vsvc"},
+			DestinationRule: &v1alpha1.IstioDestinationRule{
+				Name:             "foo-dr",
+				CanarySubsetName: "canary",
+				StableSubsetName: "stable",
+			},
+		},
+	}
+}
+
+// TestSetWeightProceedsWhenStableIsDegraded reproduces #4839 through the controller: with Istio
+// DestinationRule subset routing and no canary/stable Services, a degraded stable ReplicaSet used
+// to block every setWeight step, because UpdateHash required both the canary and stable
+// ReplicaSets to be 100% available and its error aborted the reconcile before SetWeight and before
+// the status was persisted. The stable subset is already labeled here, so no relabel is pending and
+// nothing about the stable ReplicaSet should gate the step. No replicaProgressThreshold is
+// configured, so only the changed subset scoping can make this pass.
+func TestSetWeightProceedsWhenStableIsDegraded(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	f.fakeTrafficRouting = nil // use the real Istio reconciler so the subset gate runs
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](10)},
+		{Pause: &v1alpha1.RolloutPause{}},
+		{SetWeight: ptr.To[int32](50)},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	withIstioSubsetRouting(r2)
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 7) // degraded stable: 3 pods crashlooping
+	rs2 := newReplicaSetWithStatus(r2, 5, 5)  // healthy canary
+	stableHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canaryHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, stableHash, 12, 5, 15, false)
+	r2.Status.CurrentPodHash = canaryHash
+	r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{Weight: 10, PodTemplateHash: canaryHash},
+		Stable: v1alpha1.WeightDestination{Weight: 90, PodTemplateHash: stableHash},
+	}
+
+	fooVsvc, fooDR := istioSubsetFixtures(canaryHash, stableHash, 10, 90)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.dynamicOnlyObjects = append(f.dynamicOnlyObjects, fooVsvc, fooDR)
+	f.virtualServiceLister = append(f.virtualServiceLister, fooVsvc)
+
+	f.expectPatchRolloutAction(r2)
+
+	prevLog := log.StandardLogger().Out
+	defer log.SetOutput(prevLog)
+	logBuf := bytes.NewBuffer(nil)
+	log.SetOutput(logBuf)
+
+	f.run(getKey(r2, t))
+
+	logOut := logBuf.String()
+	assert.False(t, strings.Contains(logOut, "delaying destination rule switch"),
+		"a degraded stable ReplicaSet must not delay a step that relabels no subset; log: %s", logOut)
+	assert.True(t, strings.Contains(logOut, "desiredWeight '50'"),
+		"expected setWeight step to proceed to 50; log: %s", logOut)
+	assert.True(t, strings.Contains(strings.Join(f.events, " "), conditions.RolloutStepCompletedReason),
+		"expected setWeight step to complete; events: %v", f.events)
+}
+
+// TestSetWeightHonorsReplicaProgressThresholdAtScale is the large-replica-count case this gate
+// matters most for: with 190 replicas and replicaProgressThreshold 95%, a setWeight step must
+// advance once 91 of the canary's 95 desired pods are available (95.8%), instead of waiting for
+// the last few stragglers as every other canary gate already allows.
+func TestSetWeightHonorsReplicaProgressThresholdAtScale(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	f.fakeTrafficRouting = nil // use the real Istio reconciler so the subset gate runs
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](10)},
+		{Pause: &v1alpha1.RolloutPause{}},
+		{SetWeight: ptr.To[int32](50)},
+	}
+	r1 := newCanaryRollout("foo", 190, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	withIstioSubsetRouting(r2)
+	r2.Spec.Strategy.Canary.ReplicaProgressThreshold = &v1alpha1.ReplicaProgressThreshold{
+		Type:  v1alpha1.ProgressTypePercentage,
+		Value: 95,
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 190, 190)
+	rs2 := newReplicaSetWithStatus(r2, 95, 91) // 4 stragglers out of 95: 95.8% >= 95%
+	stableHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canaryHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, stableHash, 281, 95, 285, false)
+	r2.Status.CurrentPodHash = canaryHash
+	r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{Weight: 10, PodTemplateHash: canaryHash},
+		Stable: v1alpha1.WeightDestination{Weight: 90, PodTemplateHash: stableHash},
+	}
+
+	fooVsvc, fooDR := istioSubsetFixtures(canaryHash, stableHash, 10, 90)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.dynamicOnlyObjects = append(f.dynamicOnlyObjects, fooVsvc, fooDR)
+	f.virtualServiceLister = append(f.virtualServiceLister, fooVsvc)
+
+	f.expectPatchRolloutAction(r2)
+
+	prevLog := log.StandardLogger().Out
+	defer log.SetOutput(prevLog)
+	logBuf := bytes.NewBuffer(nil)
+	log.SetOutput(logBuf)
+
+	f.run(getKey(r2, t))
+
+	logOut := logBuf.String()
+	assert.False(t, strings.Contains(logOut, "delaying destination rule switch"),
+		"a canary meeting replicaProgressThreshold must not delay the setWeight step; log: %s", logOut)
+	assert.True(t, strings.Contains(logOut, "desiredWeight '50'"),
+		"expected setWeight step to proceed to 50 at 91/95 available; log: %s", logOut)
+	assert.True(t, strings.Contains(strings.Join(f.events, " "), conditions.RolloutStepCompletedReason),
+		"expected setWeight step to complete; events: %v", f.events)
+}
