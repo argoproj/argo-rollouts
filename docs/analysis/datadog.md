@@ -246,6 +246,14 @@ string (e.g. `30s`, `1m`) and defaults to `10s` when omitted:
         formula: "moving_rollup(a, 300, 'sum') / moving_rollup(b, 300, 'sum') * 100"
 ```
 
+Each Datadog measurement records request diagnostics in its `metadata`:
+
+- `requestOutcome` distinguishes successful requests, HTTP errors, timeouts, other
+  transport errors, response-read errors, and other response errors.
+- `responseReceived` indicates whether an HTTP response was available.
+- `httpStatusCode` contains the actual HTTP status when a response was received. It is
+  omitted for connection and pre-response timeout failures because no HTTP status exists.
+
 #### Grouped queries with `by {tag}` (v2 only)
 
 Datadog queries that use a `by {tag}` clause return one scalar per group rather than a single value. The Datadog provider detects a grouped query from the response shape (a `group` column is present), exactly as the Prometheus provider dispatches on its response type — so a grouped query is always exposed as a `result` slice, even when it matches only a single group. Use any of the standard [Expr](https://expr-lang.org/docs/language-definition) functions in the success or failure condition to reduce the slice — for example `max(result)`, `mean(result)`, `sum(result)`, `all(result, # < X)`, or `any(result, # >= X)`.
