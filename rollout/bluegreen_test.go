@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	core "k8s.io/client-go/testing"
@@ -1736,4 +1737,87 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
+}
+
+func TestBlueGreenHasPromotionGates(t *testing.T) {
+	newRollout := func(mutate func(bg *v1alpha1.BlueGreenStrategy)) *v1alpha1.Rollout {
+		ro := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		mutate(ro.Spec.Strategy.BlueGreen)
+		return ro
+	}
+	tests := []struct {
+		name     string
+		mutate   func(bg *v1alpha1.BlueGreenStrategy)
+		expected bool
+	}{
+		{"no gates", func(bg *v1alpha1.BlueGreenStrategy) {}, false},
+		{"autoPromotionEnabled true", func(bg *v1alpha1.BlueGreenStrategy) { bg.AutoPromotionEnabled = ptr.To[bool](true) }, false},
+		{"autoPromotionEnabled false", func(bg *v1alpha1.BlueGreenStrategy) { bg.AutoPromotionEnabled = ptr.To[bool](false) }, true},
+		{"autoPromotionSeconds", func(bg *v1alpha1.BlueGreenStrategy) { bg.AutoPromotionSeconds = 10 }, true},
+		{"prePromotionAnalysis", func(bg *v1alpha1.BlueGreenStrategy) { bg.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{} }, true},
+		{"postPromotionAnalysis", func(bg *v1alpha1.BlueGreenStrategy) { bg.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{} }, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, blueGreenHasPromotionGates(newRollout(tt.mutate)))
+		})
+	}
+}
+
+// TestBlueGreenPodSpecChangeWithPromotionGates verifies what happens in the reconciliation that
+// first observes a pod template change (status.currentPodHash still points at the previous
+// ReplicaSet): a rollout whose promotion is gated (manual promotion) runs the full reconciliation
+// and scales up the new ReplicaSet in that same pass, whereas an ungated rollout short-circuits to
+// a status sync only.
+func TestBlueGreenPodSpecChangeWithPromotionGates(t *testing.T) {
+	setup := func(t *testing.T, autoPromotionEnabled *bool) (*fixture, *v1alpha1.Rollout, *appsv1.ReplicaSet) {
+		f := newFixture(t)
+
+		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = autoPromotionEnabled
+		r2 := bumpVersion(r1)
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 0, 0)
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
+		// the pod template change has not been observed yet
+		r2.Status.CurrentPodHash = rs1PodHash
+
+		previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+		return f, r2, rs2
+	}
+
+	t.Run("manual promotion runs full reconciliation", func(t *testing.T) {
+		f, r2, rs2 := setup(t, ptr.To[bool](false))
+		defer f.Close()
+
+		updatedRSIndex := f.expectUpdateReplicaSetAction(rs2) // new RS scaled up in the same pass
+		patchIndex := f.expectPatchRolloutAction(r2)
+		f.run(getKey(r2, t))
+
+		updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+		assert.Equal(t, int32(1), *updatedRS.Spec.Replicas)
+		patched := f.getPatchedRolloutAsObject(patchIndex)
+		assert.Equal(t, rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], patched.Status.CurrentPodHash)
+	})
+
+	t.Run("auto promotion only syncs status", func(t *testing.T) {
+		f, r2, rs2 := setup(t, nil)
+		defer f.Close()
+
+		patchIndex := f.expectPatchRolloutAction(r2)
+		f.run(getKey(r2, t))
+
+		patched := f.getPatchedRolloutAsObject(patchIndex)
+		assert.Equal(t, rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], patched.Status.CurrentPodHash)
+	})
 }
