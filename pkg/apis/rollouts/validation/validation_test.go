@@ -428,7 +428,7 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		assert.Equal(t, fmt.Sprintf(InvalidSetWeightMessage, 100), allErrs[0].Detail)
 	})
 
-	t.Run("only nginx/plugins support max weight value", func(t *testing.T) {
+	t.Run("only istio/nginx/plugins support max weight value", func(t *testing.T) {
 		anyWeight := int32(1)
 
 		type testCases struct {
@@ -438,6 +438,13 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		}
 
 		testCasesList := []testCases{
+			{
+				trafficRouting: &v1alpha1.RolloutTrafficRouting{
+					Istio:            &v1alpha1.IstioTrafficRouting{},
+					MaxTrafficWeight: &anyWeight,
+				},
+				expectError: false,
+			},
 			{
 				trafficRouting: &v1alpha1.RolloutTrafficRouting{
 					ALB:              &v1alpha1.ALBTrafficRouting{RootService: "root-service"},
