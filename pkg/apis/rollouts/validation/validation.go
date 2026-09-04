@@ -30,6 +30,8 @@ const (
 	MissingFieldMessage = "Rollout has missing field '%s'"
 	// InvalidSetWeightMessage indicates the setweight value needs to be between 0 and max weight
 	InvalidSetWeightMessage = "SetWeight needs to be between 0 and %d"
+	// InvalidMaxTrafficWeightMessage indicates the maxTrafficWeight value is not a usable total weight
+	InvalidMaxTrafficWeightMessage = "MaxTrafficWeight needs to be greater than 0"
 	// InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting indicates experiment weight cannot be set without trafficRouting
 	InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting = "Experiment template weight cannot be set unless TrafficRouting is enabled"
 	// InvalidSetCanaryScaleTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
@@ -305,6 +307,11 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if canary.TrafficRouting.MaxTrafficWeight != nil {
 			if canary.TrafficRouting.Nginx == nil && len(canary.TrafficRouting.Plugins) == 0 {
 				allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("maxTrafficWeight"), canary.TrafficRouting.MaxTrafficWeight, InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins))
+			}
+			// The total weight divides the replica counts derived from the
+			// traffic weights, so it cannot be zero or negative.
+			if *canary.TrafficRouting.MaxTrafficWeight < 1 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("maxTrafficWeight"), *canary.TrafficRouting.MaxTrafficWeight, InvalidMaxTrafficWeightMessage))
 			}
 		}
 	}
