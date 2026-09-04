@@ -864,6 +864,58 @@ func TestAssessMetricStatusCountReached(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
 }
 
+// TestAssessMetricStatusTerminatedBeforeCountReachedNeverSucceeded reproduces
+// https://github.com/argoproj/argo-rollouts/issues/4479: a bounded metric (Count
+// specified) that is terminated early, before reaching its target count, must not be
+// reported Successful when every measurement taken so far was Errored or Failed and
+// none succeeded. Previously this fell through to a hardcoded AnalysisPhaseSuccessful.
+func TestAssessMetricStatusTerminatedBeforeCountReachedNeverSucceeded(t *testing.T) {
+	count := intstr.FromInt(5)
+	failureLimit := intstr.FromInt(2)
+	metric := v1alpha1.Metric{
+		Name:         "dd-analysis2",
+		Count:        &count,
+		FailureLimit: &failureLimit,
+		Interval:     "10s",
+	}
+	result := v1alpha1.MetricResult{
+		Count:            1,
+		Failed:           1,
+		Error:            3,
+		ConsecutiveError: 0,
+		Measurements: []v1alpha1.Measurement{
+			newMeasurement(v1alpha1.AnalysisPhaseError),
+			newMeasurement(v1alpha1.AnalysisPhaseError),
+			newMeasurement(v1alpha1.AnalysisPhaseError),
+			newMeasurement(v1alpha1.AnalysisPhaseFailed),
+		},
+	}
+	// Not yet terminating: run keeps measuring toward its target count.
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	// Terminated early: must reflect the real last-known outcome (Failed, matching the
+	// last measurement), not a blind Successful.
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+
+	// Same scenario, but every measurement (including the last) was an Error: should
+	// report Error rather than Successful.
+	result.Failed = 0
+	result.Error = 4
+	result.Measurements = []v1alpha1.Measurement{
+		newMeasurement(v1alpha1.AnalysisPhaseError),
+		newMeasurement(v1alpha1.AnalysisPhaseError),
+		newMeasurement(v1alpha1.AnalysisPhaseError),
+		newMeasurement(v1alpha1.AnalysisPhaseError),
+	}
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, assessMetricStatus(metric, result, true))
+
+	// A bounded metric terminated early that DID succeed at least once should
+	// keep the pre-existing behavior of reporting Successful.
+	result.Successful = 1
+	result.Failed = 1
+	result.Error = 3
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+}
+
 func TestCalculateNextReconcileTimeInterval(t *testing.T) {
 	now := metav1.Now()
 	nowMinus30 := metav1.NewTime(now.Add(time.Second * -30))
