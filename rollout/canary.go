@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
@@ -15,94 +16,28 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
+// rolloutCanary is the top-level canary reconcile. Status is synced, exactly once, even when a
+// stage fails: syncRolloutStatusCanary is where progressDeadline/abort evaluation and
+// condition/phase calculation live, and skipping it is how a rollout gets wedged in Progressing
+// forever (#4626). The only exceptions are the pod-restart early exit and ReplicaSet-sync
+// failures (stageStopNoStatus with err), where c.newRS is unreliable and a status computed from it
+// would persist corrupted values.
 func (c *rolloutContext) rolloutCanary() error {
-	var err error
-	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
-		c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
-		if err != nil {
-			return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary with PodTemplateOrStepsChanged: %w", err)
-		}
-		return c.syncRolloutStatusCanary()
+	stageErr := c.runCanaryStages()
+	if stageErr != nil {
+		c.ensureReconcileFailureCondition(stageErr)
 	}
-
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
-	if err != nil {
-		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err)
+	if c.skipStatusSync {
+		// Pod-restart early exit and ReplicaSet-sync failures set this; see runStages.
+		return stageErr
 	}
-
-	restarted, err := c.podRestarter.Reconcile(c)
-	if err != nil {
-		return err
-	}
-	if restarted > 0 {
-		// If we restarted any pods, we can no longer trust the current availability counts of our
-		// ReplicaSets, since those counts do not factor in the unavailability of pods we just
-		// restarted. We would cause downtime if we continue the reconciliation and *also* scale
-		// down a ReplicaSet (e.g. because of a canary update scaling). Therefore, we return early,
-		// so that the *next* reconciliation will have an accurate availability count to calculate
-		// the safe number of pods to scale down for the update.
-		c.log.Infof("Finished reconciliation due to %d restarted pods", restarted)
-		return nil
-	}
-
-	err = c.reconcileEphemeralMetadata()
-	if err != nil {
-		return err
-	}
-
-	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
-		return err
-	}
-
-	if err := c.reconcilePingAndPongService(); err != nil {
-		return err
-	}
-
-	if err := c.reconcileStableAndCanaryService(); err != nil {
-		return err
-	}
-
-	if err := c.reconcileTrafficRouting(); err != nil {
-		return err
-	}
-
-	err = c.reconcileExperiments()
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileAnalysisRuns()
-	if c.pauseContext.HasAddPause() {
-		c.log.Info("Detected pause due to inconclusive AnalysisRun")
-		return c.syncRolloutStatusCanary()
-	}
-	if err != nil {
-		return err
-	}
-
-	noScalingOccurred, err := c.reconcileCanaryReplicaSets()
-	if err != nil {
-		return err
-	}
-	if noScalingOccurred {
-		c.log.Info("Not finished reconciling ReplicaSets")
-		return c.syncRolloutStatusCanary()
-	}
-
-	stillReconciling := c.reconcileCanaryPause()
-	if stillReconciling {
-		c.log.Infof("Not finished reconciling Canary Pause")
-		return c.syncRolloutStatusCanary()
-	}
-
-	err = c.stepPluginContext.reconcile(c)
-	if err != nil {
-		return err
-	}
-
-	return c.syncRolloutStatusCanary()
+	// errors.Join (rather than kerrors.NewAggregate) so that errors.As/Is-based checks like
+	// k8serrors.IsNotFound still see through the combined error in processNextWorkItem; the
+	// apimachinery aggregate implements Is but not Unwrap/As. Join returns nil when both are nil.
+	return errors.Join(stageErr, c.syncRolloutStatusCanary())
 }
 
 func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
@@ -124,6 +59,13 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// Therefore, we send c.rollout.Status.Canary.Weights so that the stable scaling happens in
 		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
 		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.newRS, c.stableRS, c.rollout.Status.Canary.Weights)
+		// Never scale down the stable ReplicaSet based on weights the traffic provider has not
+		// verified yet (e.g. ALB load balancer weights still propagating): the provider may
+		// still be routing traffic to stable. Scale-up is still allowed.
+		if weightutil.VerificationPending(c.rollout.Status.Canary.Weights) && desiredStableRSReplicaCount < *c.stableRS.Spec.Replicas {
+			c.log.Infof("Holding stable ReplicaSet at %d replicas (desired %d): desired traffic weights are not yet verified", *c.stableRS.Spec.Replicas, desiredStableRSReplicaCount)
+			desiredStableRSReplicaCount = *c.stableRS.Spec.Replicas
+		}
 	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
@@ -308,6 +250,11 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	if c.rollout.Spec.Paused {
 		return false
 	}
+	// ReconcileSucceeded=False this pass: advancing now risks persisting state the cluster does not
+	// match (#3602-class hazard).
+	if c.anyStageConditionFalse() {
+		return false
+	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	if currentStep == nil {
 		return false
@@ -321,7 +268,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.newStatus.Canary.Weights) {
 			return false
 		}
-		if c.newStatus.Canary.Weights != nil && c.newStatus.Canary.Weights.Verified != nil && !*c.newStatus.Canary.Weights.Verified {
+		if weightutil.VerificationPending(c.newStatus.Canary.Weights) {
 			// we haven't yet verified the target weight after the setWeight
 			return false
 		}
