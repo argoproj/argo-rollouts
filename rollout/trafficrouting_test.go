@@ -1711,6 +1711,15 @@ func TestCheckReplicasAvailableWithCustomMaxTrafficWeight(t *testing.T) {
 			description:       "With maxTrafficWeight=100000000, 0% weight needs 0 replicas",
 		},
 		{
+			name:              "custom maxTrafficWeight - weight times replicas exceeds int32",
+			totalReplicas:     43,
+			availableReplicas: 0,
+			desiredWeight:     50000000,
+			maxTrafficWeight:  100000000,
+			expectedResult:    false,
+			description:       "With maxTrafficWeight=100000000, 50% weight on 43 replicas needs 21 replicas but 0 available",
+		},
+		{
 			name:              "default maxTrafficWeight - same behavior as before",
 			totalReplicas:     10,
 			availableReplicas: 5,
