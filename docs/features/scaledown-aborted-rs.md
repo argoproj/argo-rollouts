@@ -16,3 +16,5 @@ is scaled down in 30 seconds on abort by default.
 |                   canary w/ traffic routing | scales down immediately       | 0                          | does not scale down           |
 |                   canary w/ traffic routing | scales down immediately       | N                          | scales down after N seconds   |
 | canary w/ traffic routing  + setCanaryScale | does not scale down (bug)     | *                          | should behave like  canary w/ traffic routing     |
+
+For a canary with traffic routing, the delay does not begin until Argo Rollouts has also set the canary's traffic weight to 0, and confirmed it for traffic routers that support weight verification, so that the canary is not scaled down while the traffic router is still sending it requests. If the weight never reaches 0, the canary stays scaled up rather than being scaled down early, and a `CanaryTrafficNotShifted` warning event is recorded on the Rollout while it waits.
