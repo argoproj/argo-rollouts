@@ -16,8 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
-	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -25,6 +23,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/hash"
+	"github.com/argoproj/argo-rollouts/utils/k8sutil"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -39,14 +38,14 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 		}
 	}
 	rsList = newRSList
-	sort.Sort(controller.ReplicaSetsByCreationTimestamp(rsList))
+	sort.Sort(k8sutil.ReplicaSetsByCreationTimestamp(rsList))
 	// First, attempt to find the replicaset using our own hashing
 	podHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	if rs := searchRsByHash(rsList, podHash); rs != nil {
 		return rs
 	}
 	// Second, attempt to find the replicaset with old hash implementation
-	oldHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	oldHash := k8sutil.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	if rs := searchRsByHash(rsList, oldHash); rs != nil {
 		logCtx := logutil.WithRollout(rollout)
 		logCtx.Infof("ComputePodTemplateHash hash changed (new hash: %s, old hash: %s)", podHash, oldHash)
@@ -325,8 +324,8 @@ func FindActiveOrLatest(newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) *
 		return nil
 	}
 
-	sort.Sort(sort.Reverse(controller.ReplicaSetsByCreationTimestamp(oldRSs)))
-	allRSs := controller.FilterActiveReplicaSets(append(oldRSs, newRS))
+	sort.Sort(sort.Reverse(k8sutil.ReplicaSetsByCreationTimestamp(oldRSs)))
+	allRSs := k8sutil.FilterActiveReplicaSets(append(oldRSs, newRS))
 
 	switch len(allRSs) {
 	case 0:
@@ -348,7 +347,7 @@ func IsActive(rs *appsv1.ReplicaSet) bool {
 		return false
 	}
 
-	return len(controller.FilterActiveReplicaSets([]*appsv1.ReplicaSet{rs})) > 0
+	return len(k8sutil.FilterActiveReplicaSets([]*appsv1.ReplicaSet{rs})) > 0
 }
 
 // GetReplicaCountForReplicaSets returns the sum of Replicas of the given replica sets.
@@ -529,11 +528,7 @@ func PodTemplateEqualIgnoreHash(live, desired *corev1.PodTemplateSpec) bool {
 	delete(live.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 	delete(desired.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 
-	podTemplate := corev1.PodTemplate{
-		Template: *desired,
-	}
-	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
-	desired = &podTemplate.Template
+	k8sutil.DefaultPodTemplate(desired)
 
 	// Do not allow the deprecated spec.serviceAccount to factor into the equality check. In live
 	// ReplicaSet pod template, this field will be populated, but in the desired pod template
