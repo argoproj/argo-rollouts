@@ -3258,6 +3258,9 @@ spec:
 	err := r.UpdateHash("abc123", "def456")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "delaying destination rule switch")
+	// Callers (rollout/trafficrouting.go) rely on errors.Is to distinguish this transient,
+	// expected condition from fatal errors so it doesn't abort the rest of the canary reconcile. See #4626.
+	assert.ErrorIs(t, err, ErrDestinationRuleUpdateDelayed)
 	actions := client.Actions()
 	assert.Len(t, actions, 0)
 }
