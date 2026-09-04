@@ -59,6 +59,10 @@ type rolloutContext struct {
 	// annotation at the start of reconciliation (before it may be removed).
 	// Used to detect fast rollbacks where we skip pause/analysis steps.
 	newRSWithinDelay bool
+
+	// skipStatusSync preserves the historical pod-restart early exit and ReplicaSet-sync
+	// failures, which intentionally end the pass without a status sync.
+	skipStatusSync bool
 }
 
 func (c *rolloutContext) reconcile() error {
