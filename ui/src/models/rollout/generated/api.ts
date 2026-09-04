@@ -2117,6 +2117,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnal
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisBackground
      */
     startingStep?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisBackground
+     */
+    startOn?: string;
 }
 /**
  * 

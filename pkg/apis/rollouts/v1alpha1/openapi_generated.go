@@ -4157,6 +4157,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 							Format:      "int32",
 						},
 					},
+					"startOn": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartOn indicates what the background analysis run waits for before it is created. Immediately (the default) preserves the historical behaviour of creating it as soon as the rollout begins. CanaryTraffic waits until the canary is actually receiving the weight the current step calls for, so that canary-scoped metrics are not evaluated against a ReplicaSet with no traffic. Analysis that deliberately runs before traffic shifts, such as an approval or incident check, should stay on Immediately.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

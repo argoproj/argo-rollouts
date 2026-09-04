@@ -52,6 +52,8 @@ const (
 	InvalidStepMessage = "Step must have one of the following set: experiment, setWeight, setCanaryScale, plugin or pause"
 	// InvalidStrategyMessage indicates that multiple strategies can not be listed
 	InvalidStrategyMessage = "Multiple Strategies can not be listed"
+	// InvalidBackgroundAnalysisStartOnMessage indicates an unrecognised analysis.startOn value
+	InvalidBackgroundAnalysisStartOnMessage = "Background analysis startOn must be one of: Immediately, CanaryTraffic"
 	// DuplicatedServicesBlueGreenMessage the message to indicate that the rollout uses the same service for the active and preview services
 	DuplicatedServicesBlueGreenMessage = "This rollout uses the same service for the active and preview services, but two different services are required."
 	// DuplicatedServicesCanaryMessage indicates that the rollout uses the same service for the stable and canary services
@@ -261,6 +263,13 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 	canary := rollout.Spec.Strategy.Canary
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, invalidMaxSurgeMaxUnavailable(rollout, fldPath.Child("maxSurge"))...)
+	if canary.Analysis != nil {
+		switch canary.Analysis.StartOn {
+		case "", v1alpha1.BackgroundAnalysisStartImmediately, v1alpha1.BackgroundAnalysisStartOnCanaryTraffic:
+		default:
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("analysis").Child("startOn"), canary.Analysis.StartOn, InvalidBackgroundAnalysisStartOnMessage))
+		}
+	}
 	if canary.CanaryService != "" && canary.StableService != "" && canary.CanaryService == canary.StableService {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, DuplicatedServicesCanaryMessage))
 	}
