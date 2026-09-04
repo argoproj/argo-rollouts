@@ -1213,6 +1213,25 @@ func (c *rolloutContext) isFastRollback() bool {
 
 }
 
+// isZeroReplicaFastTrack returns true when spec.replicas is explicitly set to 0.
+// With no pods to validate, canary steps should be skipped and the new version promoted as stable.
+func (c *rolloutContext) isZeroReplicaFastTrack() bool {
+	return c.rollout.Spec.Replicas != nil && *c.rollout.Spec.Replicas == 0
+}
+
+// needsZeroReplicaFastTrackReconcile returns true when a full canary reconcile is required
+// instead of syncReplicasOnly. Scaling to zero mid-rollout must still skip pause steps and
+// promote the new version as stable.
+func (c *rolloutContext) needsZeroReplicaFastTrackReconcile() bool {
+	if !c.isZeroReplicaFastTrack() || c.rollout.Spec.Strategy.Canary == nil {
+		return false
+	}
+	if c.newRS == nil || c.rollout.Status.StableRS == "" {
+		return false
+	}
+	return c.rollout.Status.StableRS != replicasetutil.GetPodTemplateHash(c.newRS)
+}
+
 func (c *rolloutContext) isRollbackWithinWindow() bool {
 	if c.newRS == nil || c.stableRS == nil {
 		return false
@@ -1253,6 +1272,10 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 	} else if c.rollout.Spec.Strategy.Canary != nil {
 		if c.pauseContext.IsAborted() {
 			return ""
+		}
+		if c.isZeroReplicaFastTrack() && c.newRS != nil && c.rollout.Status.StableRS != "" &&
+			c.rollout.Status.StableRS != replicasetutil.GetPodTemplateHash(c.newRS) {
+			return "Zero replicas - skipping canary steps"
 		}
 		// Block promotion only when canary has fewer available than desired (e.g. still scaling up).
 		// When canary has >= desired (e.g. HPA scaled rollout down so desired=1 but canary still has 2),
