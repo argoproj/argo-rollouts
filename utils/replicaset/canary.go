@@ -413,6 +413,22 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, new
 			// This if block makes sure we don't scale down the canary prematurely
 			trafficWeightReplicaCount := trafficWeightToReplicas(rolloutSpecReplica, weights.Canary.Weight, maxWeight)
 			canaryCount = max(trafficWeightReplicaCount, canaryCount)
+			// Cap canaryCount to the capacity already committed to the canary, so that a
+			// shortfall in stable availability (e.g., spec.replicas increase or pod eviction)
+			// cannot cause a fully-drained aborted canary to be scaled back up.
+			// Skip for:
+			//   1. PromoteFull: GetCanaryReplicasOrWeight returns maxWeight on PromoteFull,
+			//     making canaryCount==rolloutSpecReplica; capping at Spec.Replicas==0 would zero it
+			//   2. Rollbacks: same maxWeight path when newRS==stableRS (rollback) or stableRS==nil; cap must not apply in those states
+			//   3. Zero AbortScaleDownDelaySeconds: abortScaleDownDelaySeconds:0 makes UseSetCanaryScale
+			//     return non-nil (GetAbortScaleDownDelaySecondsOrDefault returns nil for explicit 0,
+			//     bypassing the abort early-return), so the explicit setCanaryScale replica count
+			//     must not be capped on the first reconcile when Spec.Replicas is still 0
+			if newRS != nil && newRS.Spec.Replicas != nil && !rollout.Status.PromoteFull &&
+				CheckStableRSExists(newRS, stableRS) && UseSetCanaryScale(rollout) == nil {
+				committedCeiling := max(trafficWeightReplicaCount, *newRS.Spec.Replicas)
+				canaryCount = minValue(canaryCount, committedCeiling)
+			}
 		}
 	}
 	return CheckMinPodsPerReplicaSet(rollout, canaryCount), CheckMinPodsPerReplicaSet(rollout, stableCount)
