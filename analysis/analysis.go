@@ -683,6 +683,20 @@ func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alp
 		phase = v1alpha1.AnalysisPhaseError
 		message = fmt.Sprintf("consecutiveErrors (%d) > consecutiveErrorLimit (%d)", result.ConsecutiveError, consecutiveErrorLimit)
 	}
+
+	count := result.Count
+	effectiveCount := int32(1)
+	if metric.EffectiveCount() != nil {
+		effectiveCount = int32(metric.EffectiveCount().IntValue())
+	}
+
+	// Check if evaluating further rounds could ever lead to non-success.
+	roundsRemaining := effectiveCount - count
+	if message == "" && roundsRemaining <= failureLimit-result.Failed && roundsRemaining <= inconclusiveLimit-result.Inconclusive && roundsRemaining <= consecutiveErrorLimit-result.ConsecutiveError {
+		phase = v1alpha1.AnalysisPhaseSuccessful
+		message = fmt.Sprintf("running out of rounds => succeeding")
+	}
+
 	return phase, message
 }
 
