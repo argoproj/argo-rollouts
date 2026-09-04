@@ -1021,7 +1021,7 @@ func TestCanaryDynamicStableScale(t *testing.T) {
 			SMI: &v1alpha1.SMITrafficRouting{},
 		}
 		allErrs := ValidateRollout(ro)
-		assert.EqualError(t, allErrs[0], fmt.Sprintf("spec.strategy.dynamicStableScale: Invalid value: true: %s", InvalidCanaryDynamicStableScaleWithScaleDownDelay))
+		assert.Empty(t, allErrs)
 	})
 
 }

@@ -122,14 +122,69 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// stable to 100%. In this scenario, c.newStatus.Canary.Weights.Stable.Weight would be 100,
 		// causing us to flap and scale up the stable 100 temporarily (before scaling down to 0 later).
 		// Therefore, we send c.rollout.Status.Canary.Weights so that the stable scaling happens in
-		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
+		// a *subsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
+		// This also ensures that when isDynamicScaleDownDelayEnabled(), stable only scales down
+		// after traffic has actually shifted (setWeight), not on setCanaryScale steps.
 		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.newRS, c.stableRS, c.rollout.Status.Canary.Weights)
+	}
+	if c.isDynamicScaleDownDelayEnabled() {
+		if c.isStableScaleDownDelayed(desiredStableRSReplicaCount) {
+			// Scale-down is being delayed — skip scaling entirely to avoid any RS update
+			// that could interfere with the scale-down-deadline annotation.
+			return false, nil
+		}
 	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
 		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileCanaryStableReplicaSet: %w", err)
 	}
 	return scaled, err
+}
+
+// isStableScaleDownDelayed returns true if the stable RS scale-down should be skipped this
+// reconcile (delay not yet elapsed), or false if the scale-down should proceed.
+// When returning true, this function skips the entire scaleReplicaSetAndRecordEvent call,
+// preventing any RS update from overwriting the scale-down-deadline annotation.
+func (c *rolloutContext) isStableScaleDownDelayed(desiredCount int32) bool {
+	currentCount := *c.stableRS.Spec.Replicas
+	if desiredCount >= currentCount {
+		// No scale-down needed — proceed normally
+		return false
+	}
+
+	scaleDownDelaySeconds := defaults.GetScaleDownDelaySecondsOrDefault(c.rollout)
+	if scaleDownDelaySeconds == 0 {
+		return false
+	}
+
+	if !replicasetutil.HasScaleDownDeadline(c.stableRS) {
+		// First time seeing this scale-down — stamp the deadline
+		if err := c.addScaleDownDelay(c.stableRS, scaleDownDelaySeconds); err != nil {
+			c.log.Warnf("Failed to add scale-down-deadline to stable RS '%s': %v", c.stableRS.Name, err)
+			return false
+		}
+		c.log.Infof("Stable RS '%s' scale-down delayed by %v (current: %d, desired: %d)", c.stableRS.Name, scaleDownDelaySeconds, currentCount, desiredCount)
+		c.enqueueRolloutAfter(c.rollout, scaleDownDelaySeconds)
+		return true
+	}
+
+	remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(c.stableRS)
+	if err != nil {
+		c.log.Warnf("Failed to read scale-down-deadline on stable RS '%s': %v", c.stableRS.Name, err)
+		return false
+	}
+	if remainingTime != nil {
+		// Deadline has not yet elapsed
+		c.log.Infof("Stable RS '%s' scale-down delayed, %v remaining (current: %d, desired: %d)", c.stableRS.Name, *remainingTime, currentCount, desiredCount)
+		c.enqueueRolloutAfter(c.rollout, *remainingTime)
+		return true
+	}
+
+	// Deadline elapsed — remove annotation from in-memory RS so the subsequent update
+	// clears it, then allow scale-down to proceed.
+	c.log.Infof("Stable RS '%s' scale-down delay elapsed, allowing scale-down (current: %d, desired: %d)", c.stableRS.Name, currentCount, desiredCount)
+	delete(c.stableRS.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+	return false
 }
 
 func (c *rolloutContext) reconcileCanaryPause() bool {
@@ -223,10 +278,17 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 				// If we are fully promoted and we encounter an old ReplicaSet, we can infer that
 				// this ReplicaSet is likely the previous stable. We should do one of two things:
 				if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-					// 1. if we are using dynamic scaling, then this should be scaled down to 0 now
-					desiredReplicaCount = 0
+					if c.rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds != nil {
+						// Honor scaleDownDelaySeconds even with dynamicStableScale
+						annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
+						if err != nil {
+							return totalScaledDown, err
+						}
+					} else {
+						desiredReplicaCount = 0
+					}
 				} else {
-					// 2. otherwise, honor scaledown delay second and keep replicas of the current step
+					// honor scaledown delay seconds and keep replicas of the current step
 					annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
 					if err != nil {
 						return totalScaledDown, err
