@@ -61,6 +61,7 @@ func newCommand() *cobra.Command {
 		logFormat                      string
 		klogLevel                      int
 		metricsPort                    int
+		metricsHistogramBuckets        []float64
 		healthzPort                    int
 		instanceID                     string
 		qps                            float32
@@ -255,6 +256,7 @@ func newCommand() *cobra.Command {
 					tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
 					resyncDuration,
 					metricsPort,
+					metricsHistogramBuckets,
 					healthzPort,
 					k8sRequestProvider,
 					dynamicInformerFactory,
@@ -288,6 +290,7 @@ func newCommand() *cobra.Command {
 					resyncDuration,
 					instanceID,
 					metricsPort,
+					metricsHistogramBuckets,
 					healthzPort,
 					k8sRequestProvider,
 					nginxIngressClasses,
@@ -322,6 +325,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metricsPort", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
 	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over (deprecated, use --metricsPort)")
 	command.Flags().MarkDeprecated("metricsport", "use --metricsPort instead")
+	command.Flags().Float64SliceVar(&metricsHistogramBuckets, "metrics-histogram-buckets", metrics.DefaultReconcileHistogramBuckets, "Set the bucket boundaries (in seconds) for the rollout_reconcile, analysis_run_reconcile, experiment_reconcile, and notification_send histograms")
 	command.Flags().IntVar(&healthzPort, "healthzPort", controller.DefaultHealthzPort, "Set the port the healthz endpoint should be exposed over")
 	command.Flags().StringVar(&instanceID, "instance-id", "", "Indicates which argo rollout objects the controller should operate on")
 	command.Flags().Float32Var(&qps, "qps", defaults.DefaultQPS, "Maximum QPS (queries per second) to the K8s API server")
