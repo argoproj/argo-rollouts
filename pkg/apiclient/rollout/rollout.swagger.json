@@ -1904,6 +1904,10 @@
         "rangeQuery": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusRangeQueryArgs",
           "title": "Arguments for prometheus\n+optional"
+        },
+        "caCert": {
+          "type": "string",
+          "title": "CACert is an optional PEM-encoded CA certificate bundle used to verify the prometheus\nserver's certificate when it is signed by a private/self-signed CA. This allows TLS\nverification to remain enabled (i.e. without setting Insecure) while trusting a\nself-signed or privately signed prometheus endpoint.\n+optional"
         }
       },
       "title": "PrometheusMetric defines the prometheus query to perform canary analysis"
