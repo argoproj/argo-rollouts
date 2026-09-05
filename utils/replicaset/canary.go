@@ -406,16 +406,15 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, new
 		stableCount = max(stableCount, actualStableWeightReplicaCount)
 
 		if rollout.Status.Abort {
-			// When aborting and using dynamic stable scaling, we cannot reduce canary count until
-			// traffic has shifted back to stable. Canary count is calculated from the higher of:
-			//  1. actual canary traffic weight
-			//  2. desired canary traffic weight
-			// This if block makes sure we don't scale down the canary prematurely
-			trafficWeightReplicaCount := trafficWeightToReplicas(rolloutSpecReplica, weights.Canary.Weight, maxWeight)
-			canaryCount = max(trafficWeightReplicaCount, canaryCount)
+			// When aborted, canary must stay at 0 replicas. The previous
+			// max(trafficWeightReplicaCount, canaryCount) logic could scale
+			// the canary back up if weights.Canary.Weight was stale, causing
+			// the canary RS to grow when spec.replicas increased (issue #4973).
+			canaryCount = 0
 		}
 	}
 	return CheckMinPodsPerReplicaSet(rollout, canaryCount), CheckMinPodsPerReplicaSet(rollout, stableCount)
+}
 }
 
 // trafficWeightToReplicas returns the appropriate replicas given the full spec.replicas and a weight
