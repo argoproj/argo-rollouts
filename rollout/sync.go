@@ -807,12 +807,20 @@ func isIndefiniteStep(r *v1alpha1.Rollout) bool {
 	return pausedCondTrue
 }
 
-// isWaitingForReplicaSetScaleDown returns whether or not the rollout still has other replica sets with a scale down deadline annotation
+// isWaitingForReplicaSetScaleDown returns whether or not the rollout still has other replica sets
+// with a scale down deadline annotation that has not yet elapsed. HasScaleDownDeadline alone only
+// checks that the annotation is present, not that it's still live — an orphaned ReplicaSet whose
+// deadline already passed (but that hasn't been scaled to zero yet, e.g. because it stopped being
+// newRS/stableRS after the delay was already in effect) would otherwise latch this to true forever,
+// permanently suppressing the progress-deadline check at every call site that guards on this
+// function. GetTimeRemainingBeforeScaleDownDeadline returns (nil, nil) once the deadline has
+// elapsed, which is exactly the "no longer waiting" signal this needs.
 func isWaitingForReplicaSetScaleDown(r *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, allRSs []*appsv1.ReplicaSet) bool {
 	otherRSs := replicasetutil.GetOtherRSs(r, newRS, stableRS, allRSs)
 
 	for _, rs := range otherRSs {
-		if replicasetutil.HasScaleDownDeadline(rs) {
+		remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
+		if err == nil && remainingTime != nil {
 			return true
 		}
 	}

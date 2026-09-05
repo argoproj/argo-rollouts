@@ -1473,7 +1473,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 	orphanOwner := waitingRollout.DeepCopy()
 	orphanOwner.Spec.Template.Spec.Containers[0].Image = "foo/bar-orphan"
 	orphanRS := newReplicaSetWithStatus(orphanOwner, 0, 0)
-	orphanRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
+	orphanRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.Now().Add(10 * time.Second).UTC().Format(time.RFC3339)
 
 	tests := []struct {
 		name               string
