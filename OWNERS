@@ -4,15 +4,16 @@ owners:
 - zachaller
 
 approvers:
+- agaudreault
 - alexmt
-- huikang
 - jessesuen
-- khhirani
+- kostis-codefresh
 - leoluz
+- zachaller
 
 reviewers:
+- Hariharasuthan99
 - agrawroh
-- dthomson25
-- harikrongali
-- kostis-codefresh
-- perenesenko
+- jmeridth
+- mkilchhofer
+- yu-croco
