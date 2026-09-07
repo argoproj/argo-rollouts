@@ -999,3 +999,4 @@ func mockPromServer(expectedAuthorizationHeader string) *httptest.Server {
 		}
 	}))
 }
+

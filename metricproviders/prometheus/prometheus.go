@@ -3,7 +3,9 @@ package prometheus
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"net/http"
@@ -219,6 +221,33 @@ func newHTTPTransport(insecureSkipVerify bool) *http.Transport {
 		}).DialContext,
 		TLSHandshakeTimeout: 10 * time.Second,
 		TLSClientConfig:     &tls.Config{InsecureSkipVerify: insecureSkipVerify},
+	}
+}
+
+func newHTTPTransportWithCA(certBase64 string, insecureSkipVerify bool) *http.Transport {
+	cert, err := base64.StdEncoding.DecodeString(certBase64)
+	if err != nil {
+		log.Errorf("Error decoding CA certificate: %v", err)
+		return newHTTPTransport(insecureSkipVerify)
+	}
+	
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: insecureSkipVerify,
+		RootCAs:            x509.NewCertPool(),
+	}
+	if !tlsConfig.RootCAs.AppendCertsFromPEM(cert) {
+		log.Errorf("Error parsing CA certificate")
+		return newHTTPTransport(insecureSkipVerify)
+	}
+	
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     tlsConfig,
 	}
 }
 

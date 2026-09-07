@@ -244,14 +244,21 @@ type PrometheusMetric struct {
 	// Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,4,opt,name=timeout"`
-	// Insecure skips host TLS verification
+	// Insecure skips host TLS verification. This is insecure and should be avoided in production.
+	// Use caCert instead for self-signed certificates.
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// caCert is the base64-encoded CA certificate to use for verifying the Prometheus server certificate.
+	// When specified, TLS verification will use this certificate instead of the system default CAs.
+	// This allows connections to Prometheus instances using self-signed certificates.
+	// +optional
+	CaCert string `json:"caCert,omitempty" protobuf:"bytes,6,opt,name=caCert"`
 	// Headers are optional HTTP headers to use in the request
 	// +optional
 	// +patchMergeKey=key
 	// +patchStrategy=merge
-	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,6,opt,name=headers"`
+	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,7,opt,name=headers"`
 	// Arguments for prometheus
+	// +optional
 	// +optional
 	RangeQuery *PrometheusRangeQueryArgs `json:"rangeQuery,omitempty" protobuf:"bytes,7,opt,name=rangeQuery"`
 }
