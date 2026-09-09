@@ -399,6 +399,37 @@ func TestNewNewRelicAPIClient(t *testing.T) {
 		_, err := NewNewRelicAPIClient(metric, fakeClient)
 		assert.Nil(t, err)
 	})
+	t.Run("when accountId is specified by the metric it overrides the secret", func(t *testing.T) {
+		metric.Provider.NewRelic.AccountID = "98765"
+		tokenSecret.Data = map[string][]byte{
+			"personal-api-key": []byte("ABCDEFG01234"),
+			"account-id":       []byte("12345"),
+		}
+		client, err := NewNewRelicAPIClient(metric, fakeClient)
+		assert.Nil(t, err)
+		assert.Equal(t, 98765, client.(*NewRelicClient).AccountID)
+		metric.Provider.NewRelic.AccountID = ""
+	})
+	t.Run("when accountId is set but the secret has no account-id it still succeeds", func(t *testing.T) {
+		metric.Provider.NewRelic.AccountID = "98765"
+		tokenSecret.Data = map[string][]byte{
+			"personal-api-key": []byte("ABCDEFG01234"),
+		}
+		client, err := NewNewRelicAPIClient(metric, fakeClient)
+		assert.Nil(t, err)
+		assert.Equal(t, 98765, client.(*NewRelicClient).AccountID)
+		metric.Provider.NewRelic.AccountID = ""
+	})
+	t.Run("when a non-integer accountId override is provided", func(t *testing.T) {
+		metric.Provider.NewRelic.AccountID = "not-a-number"
+		tokenSecret.Data = map[string][]byte{
+			"personal-api-key": []byte("ABCDEFG01234"),
+			"account-id":       []byte("12345"),
+		}
+		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		assert.NotNil(t, err)
+		metric.Provider.NewRelic.AccountID = ""
+	})
 	t.Run("when the secret is not found", func(t *testing.T) {
 		fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return true, nil, errors.New("secret not found")
