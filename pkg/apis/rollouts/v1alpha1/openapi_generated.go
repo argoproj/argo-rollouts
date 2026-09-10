@@ -6674,13 +6674,6 @@ func schema_pkg_apis_rollouts_v1alpha1_WorkloadRef(ref common.ReferenceCallback)
 							Format:      "",
 						},
 					},
-					"namespace": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Namespace of the referenced resource (optional, defaults to the RolloutPlugin's namespace)",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 				},
 				Required: []string{"apiVersion", "kind", "name"},
 			},

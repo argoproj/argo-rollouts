@@ -140,9 +140,11 @@ func RolloutPluginTimedOut(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1a
 		return false
 	}
 
-	// Already timed out - if observedGeneration changed (spec was edited), allow re-evaluation.
+	// Already timed out - if the spec was edited since the last completed reconcile, allow
+	// re-evaluation. rolloutPlugin.Status.ObservedGeneration (not newStatus, which reconcile
+	// already set equal to rolloutPlugin.Generation before this runs) holds that prior value.
 	if condition.Reason == RolloutPluginTimedOutReason {
-		if newStatus.ObservedGeneration != rolloutPlugin.Generation {
+		if rolloutPlugin.Status.ObservedGeneration != rolloutPlugin.Generation {
 			return false
 		}
 		return true
@@ -153,6 +155,21 @@ func RolloutPluginTimedOut(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1a
 	timeoutSeconds := defaults.GetRolloutPluginTimeoutSecondsOrDefault(rolloutPlugin)
 	delta := time.Duration(timeoutSeconds) * time.Second
 	return from.Add(delta).Before(now)
+}
+
+// TouchRolloutPluginProgressingCondition refreshes LastUpdateTime on an active Progressing
+// condition without changing its Status/Reason/Message. SetRolloutPluginCondition no-ops when
+// those fields are unchanged, so without this, timeoutSeconds measures time since rollout
+// start/pause/resume instead of "no progress for N seconds".
+func TouchRolloutPluginProgressingCondition(newStatus *v1alpha1.RolloutPluginStatus) {
+	cond := GetRolloutPluginCondition(*newStatus, v1alpha1.RolloutPluginConditionProgressing)
+	if cond == nil || cond.Status != corev1.ConditionTrue {
+		return
+	}
+	touched := *cond
+	touched.LastUpdateTime = metav1.Now()
+	newConditions := filterOutRolloutPluginCondition(newStatus.Conditions, v1alpha1.RolloutPluginConditionProgressing)
+	newStatus.Conditions = append(newConditions, touched)
 }
 
 // IsRolloutPluginProgressing returns true if the RolloutPlugin has an active Progressing condition

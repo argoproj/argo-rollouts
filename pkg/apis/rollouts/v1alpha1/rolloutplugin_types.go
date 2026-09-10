@@ -61,10 +61,6 @@ type WorkloadRef struct {
 
 	// Name of the referenced resource
 	Name string `json:"name" protobuf:"bytes,3,opt,name=name"`
-
-	// Namespace of the referenced resource (optional, defaults to the RolloutPlugin's namespace)
-	// +optional
-	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
 }
 
 // RolloutPluginStrategy defines the strategy for the rollout.

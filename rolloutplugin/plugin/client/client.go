@@ -104,6 +104,7 @@ func (r *pluginRegistry) startPluginLocked(pluginName, namespace string) (types.
 
 		resp := r.instances[pluginName].InitPlugin(namespace)
 		if resp.HasError() {
+			r.cleanupPlugin(pluginName)
 			return nil, fmt.Errorf("unable to initialize plugin via rpc (%s): %w", pluginName, resp)
 		}
 

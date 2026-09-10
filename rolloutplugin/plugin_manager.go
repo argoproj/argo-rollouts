@@ -2,6 +2,7 @@ package rolloutplugin
 
 import (
 	"fmt"
+	"maps"
 	"net/url"
 	"sync"
 
@@ -40,10 +41,16 @@ type DefaultPluginManager struct {
 	// at startup.
 	builtinEnabled map[string]bool
 
+	// externalEnabled records the ConfigMap names of external (non-builtin) ResourcePlugin
+	// entries that are enabled. Unlike builtins, these are not connected at
+	// registration time — EnabledPlugins connects them on demand, once, for callers (like
+	// SetupWithManager) that need every enabled plugin's live instance up front.
+	externalEnabled map[string]bool
+
 	// namespace is the controller's watch namespace
 	namespace string
 
-	// mu protects plugins and builtinEnabled maps
+	// mu protects plugins, builtinEnabled and externalEnabled maps
 	mu sync.RWMutex
 }
 
@@ -56,9 +63,10 @@ func GetGlobalPluginManager(namespace string) *DefaultPluginManager {
 	once.Do(func() {
 		log.Info("Initializing global plugin manager singleton")
 		globalPluginManager = &DefaultPluginManager{
-			plugins:        make(map[string]ResourcePlugin),
-			builtinEnabled: make(map[string]bool),
-			namespace:      namespace,
+			plugins:         make(map[string]ResourcePlugin),
+			builtinEnabled:  make(map[string]bool),
+			externalEnabled: make(map[string]bool),
+			namespace:       namespace,
 		}
 	})
 	return globalPluginManager
@@ -113,14 +121,25 @@ func (pm *DefaultPluginManager) RegisterPlugin(name string, plugin ResourcePlugi
 // the builtin:// scheme, using the supplied factories keyed by the built-in id (the URL host,
 // e.g. "statefulset" for "builtin://statefulset"). The plugin is registered under the entry's
 // ConfigMap name (e.g. "argoproj/statefulset"), which is what a RolloutPlugin references via
-// spec.plugin.name
+// spec.plugin.name.
+//
+// Every other enabled ResourcePlugin entry is treated as external and recorded
+// in externalEnabled, but not connected yet — EnabledPlugins connects those on demand. This
+// means "enabled" is defined the same way for builtin and external plugins: present in the
+// ConfigMap and not Disabled, decided once here at startup.
 func (pm *DefaultPluginManager) RegisterBuiltinPlugins(items []types.PluginItem, factories map[string]BuiltinPluginFactory, namespace string) error {
 	for _, item := range items {
-		if item.Type != types.PluginTypeResourcePlugin {
+		if item.Type != types.PluginTypeResourcePlugin || item.Disabled {
 			continue
 		}
 		u, err := url.Parse(item.Location)
-		if err != nil || u.Scheme != BuiltinPluginScheme {
+		if err != nil {
+			return fmt.Errorf("rolloutPlugins entry %q has an invalid location %q: %w", item.Name, item.Location, err)
+		}
+		if u.Scheme != BuiltinPluginScheme {
+			pm.mu.Lock()
+			pm.externalEnabled[item.Name] = true
+			pm.mu.Unlock()
 			continue
 		}
 		id := u.Host
@@ -136,6 +155,30 @@ func (pm *DefaultPluginManager) RegisterBuiltinPlugins(items []types.PluginItem,
 		pm.mu.Unlock()
 	}
 	return nil
+}
+
+// EnabledPlugins returns every plugin enabled in the rolloutPlugins ConfigMap, keyed by the
+// name a RolloutPlugin references via spec.plugin.name. Builtins are already-registered
+// instances; external plugins are connected here (spawned + handshaked) if they haven't been
+// already, so the result is guaranteed to cover every configured, enabled plugin.
+func (pm *DefaultPluginManager) EnabledPlugins() (map[string]ResourcePlugin, error) {
+	pm.mu.RLock()
+	result := make(map[string]ResourcePlugin, len(pm.plugins)+len(pm.externalEnabled))
+	maps.Copy(result, pm.plugins)
+	externalNames := make([]string, 0, len(pm.externalEnabled))
+	for name := range pm.externalEnabled {
+		externalNames = append(externalNames, name)
+	}
+	pm.mu.RUnlock()
+
+	for _, name := range externalNames {
+		p, err := pm.GetPlugin(name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect enabled external plugin %q: %w", name, err)
+		}
+		result[name] = p
+	}
+	return result, nil
 }
 
 // IsBuiltinEnabled reports whether the built-in plugin with the given id

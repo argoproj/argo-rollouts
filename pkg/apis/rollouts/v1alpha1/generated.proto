@@ -2341,9 +2341,5 @@ message WorkloadRef {
 
   // Name of the referenced resource
   optional string name = 3;
-
-  // Namespace of the referenced resource (optional, defaults to the RolloutPlugin's namespace)
-  // +optional
-  optional string namespace = 4;
 }
 

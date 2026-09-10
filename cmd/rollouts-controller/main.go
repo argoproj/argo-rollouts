@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/discovery"
@@ -33,6 +34,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -275,16 +277,21 @@ func newCommand() *cobra.Command {
 
 			// Create shared MetricsServer that will be used by all controllers
 			log.Info("Creating shared metrics server")
-			metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+			metricsServerConfig := metrics.ServerConfig{
 				Addr:                          fmt.Sprintf(listenAddr, metricsPort),
-				RolloutLister:                 tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory).Lister(),
 				AnalysisRunLister:             tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory).Lister(),
 				AnalysisTemplateLister:        tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory).Lister(),
 				ClusterAnalysisTemplateLister: tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory).Lister(),
-				ExperimentLister:              tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory).Lister(),
-				RolloutPluginLister:           tolerantinformer.NewTolerantRolloutPluginInformer(dynamicInformerFactory).Lister(),
 				K8SRequestProvider:            k8sRequestProvider,
-			})
+			}
+			if !enabledControllers[controllerAnalysis] {
+				metricsServerConfig.RolloutLister = tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory).Lister()
+				metricsServerConfig.ExperimentLister = tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory).Lister()
+			}
+			if enabledControllers[controllerRolloutPlugin] {
+				metricsServerConfig.RolloutPluginLister = tolerantinformer.NewTolerantRolloutPluginInformer(dynamicInformerFactory).Lister()
+			}
+			metricsServer := metrics.NewMetricsServer(metricsServerConfig)
 
 			var cm *controller.Manager
 
@@ -365,6 +372,9 @@ func newCommand() *cobra.Command {
 					electOpts.LeaderElectionNamespace = leaderElectionNamespace
 				}
 
+				rolloutPluginCacheByObject := cache.ByObject{
+					Label: labels.NewSelector().Add(instanceIDSelector),
+				}
 				mgrOpts := ctrl.Options{
 					Scheme: newRolloutPluginScheme(),
 					Metrics: metricsserver.Options{
@@ -376,13 +386,16 @@ func newCommand() *cobra.Command {
 					// hook passed to cm.Run below), so the RolloutPlugin controller runs on the same leader
 					// as the rest of the controllers using a single lease rather than a competing one.
 					LeaderElection: false,
+					Cache: cache.Options{
+						ByObject: map[client.Object]cache.ByObject{
+							&v1alpha1.RolloutPlugin{}: rolloutPluginCacheByObject,
+						},
+					},
 				}
 				if namespaced && namespace != metav1.NamespaceAll {
 					log.WithField("namespace", namespace).Info("RolloutPlugin controller running in namespaced mode")
-					mgrOpts.Cache = cache.Options{
-						DefaultNamespaces: map[string]cache.Config{
-							namespace: {},
-						},
+					mgrOpts.Cache.DefaultNamespaces = map[string]cache.Config{
+						namespace: {},
 					}
 				} else {
 					log.Info("RolloutPlugin controller running in cluster-scoped mode")
@@ -427,8 +440,12 @@ func newCommand() *cobra.Command {
 					rolloutPluginApiFactory,
 				)
 
-				// Create NotificationController for RolloutPlugin for custom triggers
-				rolloutPluginNotificationsController := notificationcontroller.NewControllerWithNamespaceSupport(
+				// Create NotificationController for RolloutPlugin for custom triggers.
+				newRolloutPluginNotificationController := notificationcontroller.NewController
+				if selfServiceNotificationEnabled {
+					newRolloutPluginNotificationController = notificationcontroller.NewControllerWithNamespaceSupport
+				}
+				rolloutPluginNotificationsController := newRolloutPluginNotificationController(
 					dynamicClient.Resource(v1alpha1.RolloutPluginGVR),
 					tolerantinformer.NewTolerantRolloutPluginInformer(dynamicInformerFactory).Informer(),
 					rolloutPluginApiFactory,
@@ -526,13 +543,10 @@ func newCommand() *cobra.Command {
 
 				log.Info("All controllers started successfully")
 
-				// Wait for context cancellation
-				<-ctx.Done()
-				log.Info("Received shutdown signal, waiting for controllers to stop")
-
-				// Wait for all controllers to finish
+				// wg unblocks both on graceful shutdown (ctx cancelled) and on losing
+				// leadership.
 				wg.Wait()
-				log.Info("All controllers stopped gracefully")
+				log.Info("All controllers stopped")
 			} else {
 				// RolloutPlugin controller is disabled, run only standard controllers
 				log.Info("RolloutPlugin controller disabled, running only standard controllers")

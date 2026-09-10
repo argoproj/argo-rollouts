@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/kubernetes/pkg/fieldpath"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	log "github.com/sirupsen/logrus"
@@ -113,27 +115,28 @@ func (r *RolloutPluginReconciler) filterCurrentAnalysisRuns(allArs []*v1alpha1.A
 // against newStatus, then writes the resulting current step/background AnalysisRun statuses
 // back into newStatus. It builds a throwaway copy of the RolloutPlugin carrying newStatus so
 // the analysis helpers observe the in-progress status without mutating the original object.
-func (r *RolloutPluginReconciler) reconcileAnalysisRunsForStatus(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, pCtx *pauseContext, logCtx *log.Entry) error {
+func (r *RolloutPluginReconciler) reconcileAnalysisRunsForStatus(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, pCtx *pauseContext, logCtx *log.Entry) (string, error) {
 	rpWithNewStatus := rolloutPlugin.DeepCopy()
 	rpWithNewStatus.Status = *newStatus
 
 	allArs, err := r.getAnalysisRunsForRolloutPlugin(ctx, rpWithNewStatus)
 	if err != nil {
 		logCtx.WithError(err).Error("Failed to get analysis runs")
-		return err
+		return "", err
 	}
-	if err := r.reconcileAnalysisRuns(ctx, rpWithNewStatus, allArs, pCtx, logCtx); err != nil {
+	abortMessage, err := r.reconcileAnalysisRuns(ctx, rpWithNewStatus, allArs, pCtx, logCtx)
+	if err != nil {
 		logCtx.WithError(err).Error("Failed to reconcile analysis runs")
-		return err
+		return "", err
 	}
 
 	newStatus.Canary.CurrentBackgroundAnalysisRunStatus = rpWithNewStatus.Status.Canary.CurrentBackgroundAnalysisRunStatus
 	newStatus.Canary.CurrentStepAnalysisRunStatus = rpWithNewStatus.Status.Canary.CurrentStepAnalysisRunStatus
-	return nil
+	return abortMessage, nil
 }
 
 // reconcileAnalysisRuns orchestrates all analysis run reconciliation for the RolloutPlugin
-func (r *RolloutPluginReconciler) reconcileAnalysisRuns(ctx context.Context, rp *v1alpha1.RolloutPlugin, allArs []*v1alpha1.AnalysisRun, pCtx *pauseContext, logCtx *log.Entry) error {
+func (r *RolloutPluginReconciler) reconcileAnalysisRuns(ctx context.Context, rp *v1alpha1.RolloutPlugin, allArs []*v1alpha1.AnalysisRun, pCtx *pauseContext, logCtx *log.Entry) (string, error) {
 	// Split current and other analysis runs
 	currentArs, otherArs := r.filterCurrentAnalysisRuns(allArs, rp)
 
@@ -143,28 +146,33 @@ func (r *RolloutPluginReconciler) reconcileAnalysisRuns(ctx context.Context, rp 
 		logCtx.Info("Skipping analysis - not in progress")
 		allArsToCancel := append(currentArs.ToArray(), otherArs...)
 		if err := r.cancelAnalysisRuns(ctx, allArsToCancel, logCtx); err != nil {
-			return err
+			return "", err
 		}
 		r.setCurrentAnalysisRuns(rp, currentArs)
-		return nil
+		return "", nil
 	}
 
 	newCurrentAnalysisRuns := analysisutil.CurrentAnalysisRuns{}
+	var abortMessage string
 
 	if rp.Spec.Strategy.Canary != nil {
 		// Reconcile step-based analysis
-		stepAnalysisRun, err := r.reconcileStepBasedAnalysisRun(ctx, rp, currentArs.CanaryStep, pCtx, logCtx)
+		stepAnalysisRun, stepAbortMessage, err := r.reconcileStepBasedAnalysisRun(ctx, rp, currentArs.CanaryStep, pCtx, logCtx)
 		if err != nil {
-			return err
+			return "", err
 		}
 		newCurrentAnalysisRuns.CanaryStep = stepAnalysisRun
+		abortMessage = stepAbortMessage
 
 		// Reconcile background analysis
-		backgroundAnalysisRun, err := r.reconcileBackgroundAnalysisRun(ctx, rp, currentArs.CanaryBackground, pCtx, logCtx)
+		backgroundAnalysisRun, bgAbortMessage, err := r.reconcileBackgroundAnalysisRun(ctx, rp, currentArs.CanaryBackground, pCtx, logCtx)
 		if err != nil {
-			return err
+			return "", err
 		}
 		newCurrentAnalysisRuns.CanaryBackground = backgroundAnalysisRun
+		if abortMessage == "" {
+			abortMessage = bgAbortMessage
+		}
 	}
 
 	// Emit events for analysis run status changes before updating status
@@ -186,7 +194,7 @@ func (r *RolloutPluginReconciler) reconcileAnalysisRuns(ctx context.Context, rp 
 
 	// Cancel other analysis runs
 	if err := r.cancelAnalysisRuns(ctx, otherArs, logCtx); err != nil {
-		return err
+		return "", err
 	}
 
 	// Garbage collect old analysis runs
@@ -200,32 +208,34 @@ func (r *RolloutPluginReconciler) reconcileAnalysisRuns(ctx context.Context, rp 
 			limitFailedArs = *rp.Spec.Analysis.UnsuccessfulRunHistoryLimit
 		}
 	}
-	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, nil, limitSucceedArs, limitFailedArs)
+	liveRevisions := map[string]bool{rp.Status.CurrentRevision: true, rp.Status.UpdatedRevision: true}
+	arsToDelete := analysisutil.FilterAnalysisRunsToDeleteByRevision(otherArs, liveRevisions, limitSucceedArs, limitFailedArs)
 	if err := r.deleteAnalysisRuns(ctx, arsToDelete, logCtx); err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return abortMessage, nil
 }
 
-// reconcileStepBasedAnalysisRun reconciles step-based analysis for canary strategy.
-func (r *RolloutPluginReconciler) reconcileStepBasedAnalysisRun(ctx context.Context, rp *v1alpha1.RolloutPlugin, currentAr *v1alpha1.AnalysisRun, pCtx *pauseContext, logCtx *log.Entry) (*v1alpha1.AnalysisRun, error) {
+// reconcileStepBasedAnalysisRun reconciles step-based analysis for canary strategy. Returns a
+// non-empty abortMessage if the analysis run failed and the rollout should be aborted.
+func (r *RolloutPluginReconciler) reconcileStepBasedAnalysisRun(ctx context.Context, rp *v1alpha1.RolloutPlugin, currentAr *v1alpha1.AnalysisRun, pCtx *pauseContext, logCtx *log.Entry) (*v1alpha1.AnalysisRun, string, error) {
 	if rp.Spec.Strategy.Canary == nil {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	// Early return if paused or aborted — don't create or cancel, just keep current
 	if len(rp.Status.PauseConditions) > 0 || rp.Status.Abort {
-		return currentAr, nil
+		return currentAr, "", nil
 	}
 
 	if rp.Status.CurrentStepIndex == nil {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	currentStepIndex := *rp.Status.CurrentStepIndex
 	if currentStepIndex >= int32(len(rp.Spec.Strategy.Canary.Steps)) {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	currentStep := rp.Spec.Strategy.Canary.Steps[currentStepIndex]
@@ -237,7 +247,7 @@ func (r *RolloutPluginReconciler) reconcileStepBasedAnalysisRun(ctx context.Cont
 	if currentStep.Analysis == nil || analysisRunFromPreviousStep {
 		// No analysis for this step, or AR is from a previous step — cancel it
 		err := r.cancelAnalysisRuns(ctx, []*v1alpha1.AnalysisRun{currentAr}, logCtx)
-		return nil, err
+		return nil, "", err
 	}
 
 	logCtx.Infof("Reconciling analysis step (stepIndex: %d)", currentStepIndex)
@@ -248,46 +258,53 @@ func (r *RolloutPluginReconciler) reconcileStepBasedAnalysisRun(ctx context.Cont
 		if err == nil {
 			logCtx.Infof("Created AnalysisRun '%s' for step %d", newAr.Name, currentStepIndex)
 		}
-		return newAr, err
+		return newAr, "", err
 	}
 
-	// Phase switch — set pause or abort based on AR result
+	// Phase switch — set pause, or report an abort request, based on AR result
+	var abortMessage string
 	switch currentAr.Status.Phase {
 	case v1alpha1.AnalysisPhaseInconclusive:
 		pCtx.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		message := "Step-based analysis phase error/failed"
+		abortMessage = "Step-based analysis phase error/failed"
 		if currentAr.Status.Message != "" {
-			message += ": " + currentAr.Status.Message
+			abortMessage += ": " + currentAr.Status.Message
 		}
-		pCtx.AddAbort(message)
 	}
 
-	return currentAr, nil
+	return currentAr, abortMessage, nil
 }
 
-// reconcileBackgroundAnalysisRun reconciles background analysis for canary strategy.
-func (r *RolloutPluginReconciler) reconcileBackgroundAnalysisRun(ctx context.Context, rp *v1alpha1.RolloutPlugin, currentAr *v1alpha1.AnalysisRun, pCtx *pauseContext, logCtx *log.Entry) (*v1alpha1.AnalysisRun, error) {
+// reconcileBackgroundAnalysisRun reconciles background analysis for canary strategy. Returns a
+// non-empty abortMessage if the analysis run failed and the rollout should be aborted.
+func (r *RolloutPluginReconciler) reconcileBackgroundAnalysisRun(ctx context.Context, rp *v1alpha1.RolloutPlugin, currentAr *v1alpha1.AnalysisRun, pCtx *pauseContext, logCtx *log.Entry) (*v1alpha1.AnalysisRun, string, error) {
 	if rp.Spec.Strategy.Canary == nil || rp.Spec.Strategy.Canary.Analysis == nil {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	// Do not create or keep a background run if the rollout is fully promoted
 	if rp.Status.CurrentRevision == rp.Status.UpdatedRevision {
 		logCtx.Info("Rollout is fully promoted, not running background analysis")
-		return nil, nil
+		return nil, "", nil
 	}
 
-	// Do not create background analysis before the configured starting step
-	if rp.Spec.Strategy.Canary.Analysis.StartingStep != nil && rp.Status.CurrentStepIndex != nil {
-		if *rp.Status.CurrentStepIndex < *rp.Spec.Strategy.Canary.Analysis.StartingStep {
-			return nil, nil
+	// Do not create background analysis before the configured starting step. CurrentStepIndex
+	// is still nil on the very first reconcile of a fresh revision (it's initialized to 0 later
+	// in processCanaryRollout), so treat nil as step 0 rather than skipping this check.
+	if rp.Spec.Strategy.Canary.Analysis.StartingStep != nil {
+		currentStepIndex := int32(0)
+		if rp.Status.CurrentStepIndex != nil {
+			currentStepIndex = *rp.Status.CurrentStepIndex
+		}
+		if currentStepIndex < *rp.Spec.Strategy.Canary.Analysis.StartingStep {
+			return nil, "", nil
 		}
 	}
 
 	// If already paused for inconclusive analysis, keep the current AR (don't re-create yet)
 	if getRolloutPluginPauseCondition(rp, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
-		return currentAr, nil
+		return currentAr, "", nil
 	}
 
 	if needsNewAnalysisRunForPlugin(currentAr, rp) {
@@ -297,39 +314,51 @@ func (r *RolloutPluginReconciler) reconcileBackgroundAnalysisRun(ctx context.Con
 		if err == nil {
 			logCtx.Infof("Created background AnalysisRun '%s'", newAr.Name)
 		}
-		return newAr, err
+		return newAr, "", err
 	}
 
-	// Phase switch — set pause or abort based on AR result
+	// Phase switch — set pause, or report an abort request, based on AR result
+	var abortMessage string
 	switch currentAr.Status.Phase {
 	case v1alpha1.AnalysisPhaseInconclusive:
 		pCtx.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
-		message := "Background analysis phase error/failed"
+		abortMessage = "Background analysis phase error/failed"
 		if currentAr.Status.Message != "" {
-			message += ": " + currentAr.Status.Message
+			abortMessage += ": " + currentAr.Status.Message
 		}
-		pCtx.AddAbort(message)
 	}
 
-	return currentAr, nil
+	return currentAr, abortMessage, nil
 }
 
-// convertAnalysisRunArgsToArguments converts AnalysisRunArgument to Argument
-func convertAnalysisRunArgsToArguments(args []v1alpha1.AnalysisRunArgument) []v1alpha1.Argument {
+// convertAnalysisRunArgsToArguments converts AnalysisRunArgument to Argument.
+// Value must stay nil when ValueFrom resolved something, since MergeArgs
+// prefers a non-nil Value over ValueFrom and would otherwise clobber the resolved value with "".
+func convertAnalysisRunArgsToArguments(rp *v1alpha1.RolloutPlugin, args []v1alpha1.AnalysisRunArgument) ([]v1alpha1.Argument, error) {
 	result := make([]v1alpha1.Argument, len(args))
 	for i, arg := range args {
-		result[i] = v1alpha1.Argument{
-			Name:  arg.Name,
-			Value: &arg.Value,
+		if arg.ValueFrom == nil || arg.ValueFrom.FieldRef == nil {
+			result[i] = v1alpha1.Argument{Name: arg.Name, Value: &arg.Value}
+			continue
 		}
-		if arg.ValueFrom != nil && arg.ValueFrom.FieldRef != nil {
-			result[i].ValueFrom = &v1alpha1.ValueFrom{
-				FieldRef: arg.ValueFrom.FieldRef,
-			}
+
+		fieldPath := arg.ValueFrom.FieldRef.FieldPath
+		var (
+			value string
+			err   error
+		)
+		if strings.HasPrefix(fieldPath, "metadata") {
+			value, err = fieldpath.ExtractFieldPathAsString(rp, fieldPath)
+		} else {
+			value, err = analysisutil.ExtractValueFromObject(rp, fieldPath)
 		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve valueFrom.fieldRef %q for arg %q: %w", fieldPath, arg.Name, err)
+		}
+		result[i] = v1alpha1.Argument{Name: arg.Name, Value: &value}
 	}
-	return result
+	return result, nil
 }
 
 // createAnalysisRun creates a new AnalysisRun with deterministic naming and collision counter.
@@ -363,8 +392,9 @@ func (r *RolloutPluginReconciler) createAnalysisRun(ctx context.Context, rp *v1a
 	}
 
 	arLabels := map[string]string{
-		v1alpha1.RolloutTypeLabel:       rolloutType,
-		v1alpha1.RolloutPluginNameLabel: rp.Name,
+		v1alpha1.RolloutTypeLabel:           rolloutType,
+		v1alpha1.RolloutPluginNameLabel:     rp.Name,
+		v1alpha1.RolloutPluginRevisionLabel: revision,
 	}
 	if stepIndex >= 0 {
 		arLabels[v1alpha1.RolloutCanaryStepIndexLabel] = strconv.Itoa(int(stepIndex))
@@ -376,7 +406,11 @@ func (r *RolloutPluginReconciler) createAnalysisRun(ctx context.Context, rp *v1a
 	// TODO: anything to add here?
 	annotations := map[string]string{}
 
-	convertedArgs := convertAnalysisRunArgsToArguments(analysisSpec.Args)
+	convertedArgs, err := convertAnalysisRunArgsToArguments(rp, analysisSpec.Args)
+	if err != nil {
+		logCtx.WithError(err).Error("Failed to convert analysis run args")
+		return nil, err
+	}
 
 	ar, err := analysisutil.NewAnalysisRunFromTemplates(
 		templates,

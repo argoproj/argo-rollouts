@@ -27,19 +27,26 @@ func packageDir() string {
 type testRpcPlugin struct{}
 
 func (p *testRpcPlugin) InitPlugin(_ string) types.RpcError { return types.RpcError{} }
-func (p *testRpcPlugin) GetResourceStatus(_ v1alpha1.WorkloadRef) (*types.ResourceStatus, types.RpcError) {
+func (p *testRpcPlugin) WatchedGVK() (types.WatchedGVK, types.RpcError) {
+	return types.WatchedGVK{Group: "apps", Version: "v1", Kind: "StatefulSet"}, types.RpcError{}
+}
+func (p *testRpcPlugin) GetResourceStatus(_ string, _ v1alpha1.WorkloadRef) (*types.ResourceStatus, types.RpcError) {
 	return &types.ResourceStatus{}, types.RpcError{}
 }
-func (p *testRpcPlugin) SetWeight(_ v1alpha1.WorkloadRef, _ int32) types.RpcError {
+func (p *testRpcPlugin) SetWeight(_ string, _ v1alpha1.WorkloadRef, _ int32) types.RpcError {
 	return types.RpcError{}
 }
-func (p *testRpcPlugin) VerifyWeight(_ v1alpha1.WorkloadRef, _ int32) (bool, types.RpcError) {
+func (p *testRpcPlugin) VerifyWeight(_ string, _ v1alpha1.WorkloadRef, _ int32) (bool, types.RpcError) {
 	return true, types.RpcError{}
 }
-func (p *testRpcPlugin) PromoteFull(_ v1alpha1.WorkloadRef) types.RpcError { return types.RpcError{} }
-func (p *testRpcPlugin) Abort(_ v1alpha1.WorkloadRef) types.RpcError       { return types.RpcError{} }
-func (p *testRpcPlugin) Restart(_ v1alpha1.WorkloadRef) types.RpcError     { return types.RpcError{} }
-func (p *testRpcPlugin) Type() string                                      { return "TestRPCPlugin" }
+func (p *testRpcPlugin) PromoteFull(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
+	return types.RpcError{}
+}
+func (p *testRpcPlugin) Abort(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
+	return types.RpcError{}
+}
+func (p *testRpcPlugin) Restart(_ string, _ v1alpha1.WorkloadRef) types.RpcError { return types.RpcError{} }
+func (p *testRpcPlugin) Type() string                                            { return "TestRPCPlugin" }
 
 func setupTestPlugin(t *testing.T) (*goPlugin.Client, goPlugin.ClientProtocol, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -249,6 +256,19 @@ func TestStartPlugin_InitPluginHasError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "unable to initialize plugin via rpc")
+
+	// A failed InitPlugin must clean up rather than leave processClient/rpcConnClient/instances
+	// populated — otherwise the next call's Ping would succeed against the live-but-uninitialized
+	// process and InitPlugin would never be retried.
+	assert.Nil(t, registry.processClient["test-plugin"], "processClient must be cleared after InitPlugin failure")
+	assert.Nil(t, registry.rpcConnClient["test-plugin"], "rpcConnClient must be cleared after InitPlugin failure")
+	assert.Nil(t, registry.instances["test-plugin"], "instances must be cleared after InitPlugin failure")
+
+	// A second call must attempt InitPlugin again (and fail again, since the plugin binary
+	// still has --fail-init), not silently succeed via a stale cached instance.
+	result2, err2 := registry.startPlugin("test-plugin", "")
+	assert.Error(t, err2)
+	assert.Nil(t, result2)
 
 	if registry.processClient["test-plugin"] != nil {
 		registry.processClient["test-plugin"].Kill()

@@ -380,10 +380,6 @@ spec:
                   name:
                     description: Name of the referenced resource
                     type: string
-                  namespace:
-                    description: Namespace of the referenced resource (optional, defaults
-                      to the RolloutPlugin's namespace)
-                    type: string
                 required:
                 - apiVersion
                 - kind

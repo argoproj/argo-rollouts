@@ -47,18 +47,20 @@ func (p *RpcPlugin) InitPlugin(namespace string) types.RpcError {
 	return types.RpcError{}
 }
 
-func (p *RpcPlugin) GetResourceStatus(workloadRef v1alpha1.WorkloadRef) (*types.ResourceStatus, types.RpcError) {
+func (p *RpcPlugin) WatchedGVK() (types.WatchedGVK, types.RpcError) {
+	return types.WatchedGVK{Group: "apps", Version: "v1", Kind: "StatefulSet"}, types.RpcError{}
+}
+
+func (p *RpcPlugin) GetResourceStatus(namespace string, workloadRef v1alpha1.WorkloadRef) (*types.ResourceStatus, types.RpcError) {
 	p.LogCtx.Infof("GetResourceStatus: apiVersion=%s kind=%s name=%s", workloadRef.APIVersion, workloadRef.Kind, workloadRef.Name)
 
 	if p.kubeClient == nil {
 		return nil, types.RpcError{ErrorString: "kube client not initialized"}
 	}
 
-	ns := workloadRef.Namespace
-
-	sts, err := p.kubeClient.AppsV1().StatefulSets(ns).Get(context.Background(), workloadRef.Name, metav1.GetOptions{})
+	sts, err := p.kubeClient.AppsV1().StatefulSets(namespace).Get(context.Background(), workloadRef.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, types.RpcError{ErrorString: fmt.Sprintf("failed to get StatefulSet %s/%s: %v", ns, workloadRef.Name, err)}
+		return nil, types.RpcError{ErrorString: fmt.Sprintf("failed to get StatefulSet %s/%s: %v", namespace, workloadRef.Name, err)}
 	}
 
 	return statefulSetResourceStatus(sts), types.RpcError{}
@@ -76,10 +78,10 @@ func statefulSetResourceStatus(sts *appsv1.StatefulSet) *types.ResourceStatus {
 	}
 }
 
-func (p *RpcPlugin) SetWeight(workloadRef v1alpha1.WorkloadRef, weight int32) types.RpcError {
+func (p *RpcPlugin) SetWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) types.RpcError {
 	p.LogCtx.Infof("SetWeight: name=%s weight=%d", workloadRef.Name, weight)
 
-	sts, err := p.kubeClient.AppsV1().StatefulSets(workloadRef.Namespace).Get(context.Background(), workloadRef.Name, metav1.GetOptions{})
+	sts, err := p.kubeClient.AppsV1().StatefulSets(namespace).Get(context.Background(), workloadRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return types.RpcError{ErrorString: fmt.Sprintf("SetWeight: failed to get StatefulSet: %v", err)}
 	}
@@ -89,17 +91,17 @@ func (p *RpcPlugin) SetWeight(workloadRef v1alpha1.WorkloadRef, weight int32) ty
 		replicas = *sts.Spec.Replicas
 	}
 	partition := replicas - (replicas * weight / 100)
-	return p.patchPartition(workloadRef.Namespace, workloadRef.Name, partition)
+	return p.patchPartition(namespace, workloadRef.Name, partition)
 }
 
-func (p *RpcPlugin) VerifyWeight(workloadRef v1alpha1.WorkloadRef, weight int32) (bool, types.RpcError) {
+func (p *RpcPlugin) VerifyWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, types.RpcError) {
 	p.LogCtx.Infof("VerifyWeight: name=%s weight=%d", workloadRef.Name, weight)
 	return true, types.RpcError{}
 }
 
-func (p *RpcPlugin) PromoteFull(workloadRef v1alpha1.WorkloadRef) types.RpcError {
+func (p *RpcPlugin) PromoteFull(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	p.LogCtx.Infof("PromoteFull: name=%s", workloadRef.Name)
-	return p.patchPartition(workloadRef.Namespace, workloadRef.Name, 0)
+	return p.patchPartition(namespace, workloadRef.Name, 0)
 }
 
 // patchPartition updates the StatefulSet's partition
@@ -136,12 +138,12 @@ func (p *RpcPlugin) patchPartition(namespace, name string, partition int32) type
 
 func boolPtr(b bool) *bool { return &b }
 
-func (p *RpcPlugin) Abort(workloadRef v1alpha1.WorkloadRef) types.RpcError {
+func (p *RpcPlugin) Abort(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	p.LogCtx.Infof("Abort: name=%s", workloadRef.Name)
 	return types.RpcError{}
 }
 
-func (p *RpcPlugin) Restart(workloadRef v1alpha1.WorkloadRef) types.RpcError {
+func (p *RpcPlugin) Restart(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
 	p.LogCtx.Infof("Restart: name=%s", workloadRef.Name)
 	return types.RpcError{}
 }

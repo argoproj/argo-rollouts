@@ -415,7 +415,8 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbort() {
 			assert.NotEmpty(s.T(), rp.Status.AbortedRevision)
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseDegraded, rp.Status.Phase)
 			assert.NotNil(s.T(), rp.Status.AbortedAt)
-		})
+		}).
+		ExpectStatefulSetPartition(2)
 }
 
 // TestRolloutPluginAbortBeforePause tests aborting before reaching a pause step.
@@ -436,7 +437,8 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbortBeforePause() {
 			rp := t.GetRolloutPlugin()
 			assert.True(s.T(), rp.Status.Aborted)
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseDegraded, rp.Status.Phase)
-		})
+		}).
+		ExpectStatefulSetPartition(4)
 }
 
 // TestRolloutPluginAbortIdempotent tests that aborting an already-aborted rollout is idempotent.
@@ -468,7 +470,8 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbortIdempotent() {
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseDegraded, rp.Status.Phase)
 			assert.NotNil(s.T(), rp.Status.AbortedAt)
 			assert.Equal(s.T(), firstAbortedAt, rp.Status.AbortedAt.Time, "AbortedAt timestamp should not change on second abort")
-		})
+		}).
+		ExpectStatefulSetPartition(2)
 }
 
 // Restart Tests
@@ -801,6 +804,12 @@ spec:
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
+		// Degraded fires as soon as the timeout condition is set, before the StatefulSet abort
+		// (which rolls back one pod per reconcile) has necessarily finished — wait for it
+		// explicitly rather than asserting immediately.
+		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
+			return rp.Status.Aborted
+		}, "status.aborted=true", 60*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -1268,6 +1277,12 @@ spec:
 		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
 		WaitForRolloutPluginInlineAnalysisRunPhase("Failed").
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
+		// Degraded fires as soon as the analysis-failure condition is set, before the
+		// StatefulSet abort (which rolls back one pod per reconcile) has necessarily finished
+		// — wait for it explicitly rather than asserting immediately.
+		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
+			return rp.Status.Aborted
+		}, "status.aborted=true", 60*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
@@ -1599,7 +1614,8 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbortEvent() {
 		Assert(func(t *fixtures.Then) {
 			reasons := t.GetRolloutPluginEventReasons()
 			assert.Contains(s.T(), reasons, conditions.RolloutPluginAbortedReason, "Should have RolloutPluginAborted event")
-		})
+		}).
+		ExpectStatefulSetPartition(2)
 }
 
 // Status Field Tests

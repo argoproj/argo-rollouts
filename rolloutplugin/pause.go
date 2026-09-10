@@ -16,32 +16,10 @@ type pauseContext struct {
 	addPauseReasons      []v1alpha1.PauseReason
 	removePauseReasons   []v1alpha1.PauseReason
 	clearPauseConditions bool
-	addAbort             bool
-	removeAbort          bool
-	abortMessage         string
 }
 
 func (pCtx *pauseContext) HasAddPause() bool {
 	return len(pCtx.addPauseReasons) > 0
-}
-
-func (pCtx *pauseContext) IsAborted() bool {
-	if pCtx.removeAbort {
-		return false
-	}
-	if pCtx.addAbort || pCtx.rolloutPlugin.Status.Abort {
-		return true
-	}
-	return false
-}
-
-func (pCtx *pauseContext) AddAbort(message string) {
-	pCtx.addAbort = true
-	pCtx.abortMessage = message
-}
-
-func (pCtx *pauseContext) RemoveAbort() {
-	pCtx.removeAbort = true
 }
 
 func (pCtx *pauseContext) AddPauseCondition(reason v1alpha1.PauseReason) {
@@ -57,37 +35,10 @@ func (pCtx *pauseContext) ClearPauseConditions() {
 }
 
 func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutPluginStatus) {
-	if pCtx.CalculateAbortStatus(newStatus) {
-		return
-	}
 	if pCtx.clearPauseConditions {
 		return
 	}
 	pCtx.CalculatePauseConditions(newStatus)
-}
-
-func (pCtx *pauseContext) CalculateAbortStatus(newStatus *v1alpha1.RolloutPluginStatus) bool {
-	now := timeutil.MetaNow()
-	// Preserve the original AbortedAt timestamp to avoid reconciliation hot-loop
-	newAbortedAt := pCtx.rolloutPlugin.Status.AbortedAt
-	if newAbortedAt == nil {
-		newAbortedAt = &now
-	}
-	if pCtx.addAbort || (!pCtx.removeAbort && (pCtx.rolloutPlugin.Status.Abort || pCtx.rolloutPlugin.Status.Aborted)) {
-		newStatus.Aborted = true
-		newStatus.AbortedAt = newAbortedAt
-		newStatus.AbortedRevision = newStatus.UpdatedRevision
-		newStatus.Abort = false
-		// Clear pause state so CalculateRolloutPluginPhase returns Degraded (not Paused).
-		newStatus.PauseConditions = nil
-		newStatus.ControllerPause = false
-		return true
-	}
-
-	newStatus.Abort = false
-	newStatus.AbortedAt = nil
-
-	return false
 }
 
 func (pCtx *pauseContext) CalculatePauseConditions(newStatus *v1alpha1.RolloutPluginStatus) {

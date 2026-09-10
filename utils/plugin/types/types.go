@@ -9,6 +9,7 @@ import (
 func init() {
 	gob.RegisterName("RpcError", new(RpcError))
 	gob.RegisterName("ResourceStatus", new(ResourceStatus))
+	gob.RegisterName("WatchedGVK", new(WatchedGVK))
 }
 
 // RpcError is a wrapper around the error type to allow for usage with net/rpc
@@ -38,6 +39,15 @@ type ResourceStatus struct {
 	Ready             bool
 }
 
+// WatchedGVK identifies the Kubernetes resource kind a plugin manages, as a plain
+// (Group, Version, Kind) triple so it can cross the RPC boundary without depending on
+// k8s.io/apimachinery/pkg/runtime/schema from the plugin's side.
+type WatchedGVK struct {
+	Group   string
+	Version string
+	Kind    string
+}
+
 // RpcResourcePlugin is the RPC interface for resource plugins used in RolloutPlugins.
 // It's nearly identical to the controller's ResourcePlugin interface, but:
 // - Returns RpcError instead of error (for RPC serialization)
@@ -50,18 +60,22 @@ type RpcResourcePlugin interface {
 	// cluster-wide, or a specific namespace in --namespaced mode). Plugins should scope
 	// their cache/client to this namespace to respect RBAC boundaries.
 	InitPlugin(namespace string) RpcError
+	// WatchedGVK declares the workload resource kind this plugin manages, so the controller
+	// can register a manager-level watch for it deterministically at startup.
+	// Called once per plugin at startup.
+	WatchedGVK() (WatchedGVK, RpcError)
 	// GetResourceStatus gets the current status of the referenced workload
-	GetResourceStatus(workloadRef v1alpha1.WorkloadRef) (*ResourceStatus, RpcError)
+	GetResourceStatus(namespace string, workloadRef v1alpha1.WorkloadRef) (*ResourceStatus, RpcError)
 	// SetWeight updates the weight (percentage of pods updated)
-	SetWeight(workloadRef v1alpha1.WorkloadRef, weight int32) RpcError
+	SetWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) RpcError
 	// VerifyWeight checks if the desired weight has been achieved
-	VerifyWeight(workloadRef v1alpha1.WorkloadRef, weight int32) (bool, RpcError)
+	VerifyWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, RpcError)
 	// PromoteFull skips all remaining steps and promotes the new version to stable immediately
-	PromoteFull(workloadRef v1alpha1.WorkloadRef) RpcError
-	// Abort aborts the rollout and reverts to the stable version
-	Abort(workloadRef v1alpha1.WorkloadRef) RpcError
+	PromoteFull(namespace string, workloadRef v1alpha1.WorkloadRef) RpcError
+	// Abort aborts the rollout and reverts to the stable version.
+	Abort(namespace string, workloadRef v1alpha1.WorkloadRef) RpcError
 	// Restart returns the workload to baseline state for restart
-	Restart(workloadRef v1alpha1.WorkloadRef) RpcError
+	Restart(namespace string, workloadRef v1alpha1.WorkloadRef) RpcError
 	// Type returns the type of the resource plugin
 	Type() string
 }
