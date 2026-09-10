@@ -56,7 +56,7 @@ virtual-node CRs corresponding to these services named `my-vn-canary` and `my-vn
 respectively. In addition, there is a virtual-service named `rollout-demo-vsvc` that is provided by a
 virtual-router CR named `rollout-demo-vrouter`. This virtual-router need have at least one route with action to forward
 traffic to the canary and stable virtual-nodes. Initially weight for canary is set to 0% while for stable it is 100%.
-During rollout, controller will modify the weights on route(s) based on the configuraiton defined in
+During rollout, controller will modify the weights on route(s) based on the configuration defined in
 `steps[N].setWeight`.
 
 The canary and stable services are configured to be headless. This is necessary to allow App Mesh to properly handle

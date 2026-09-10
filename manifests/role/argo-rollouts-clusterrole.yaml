@@ -268,3 +268,5 @@ rules:
   - watch
   - get
   - update
+  - create
+  - delete

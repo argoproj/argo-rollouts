@@ -566,3 +566,92 @@ func TestSyncEphemeralMetadata(t *testing.T) {
 	}
 	assert.Equal(t, expectedLabels, updatedPod.Labels)
 }
+
+func TestReconcileEphemeralMetadataSkipsWhenNotConfigured(t *testing.T) {
+	selector := &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}}
+	zero := int32(0)
+	otherRS := &v1.ReplicaSet{
+		Spec: v1.ReplicaSetSpec{
+			Selector: selector,
+			Replicas: &zero,
+		},
+	}
+	kubeclient := k8sfake.NewSimpleClientset()
+	podListCalls := 0
+	kubeclient.Fake.PrependReactor("list", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		podListCalls++
+		return true, nil, fmt.Errorf("unexpected pod list")
+	})
+
+	mockContext := &rolloutContext{
+		reconcilerBase: reconcilerBase{
+			kubeclientset: kubeclient,
+		},
+		rollout: &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{},
+				},
+			},
+			Status: v1alpha1.RolloutStatus{
+				StableRS: "stable-hash",
+			},
+		},
+		newRS: &v1.ReplicaSet{
+			Spec: v1.ReplicaSetSpec{
+				Selector: selector,
+				Replicas: ptr.To[int32](3),
+			},
+		},
+		otherRSs: []*v1.ReplicaSet{otherRS},
+	}
+
+	err := mockContext.reconcileEphemeralMetadata()
+	assert.NoError(t, err)
+	assert.Equal(t, 0, podListCalls)
+}
+
+func TestSyncEphemeralMetadataSkipsPodListOnZeroReplicaRS(t *testing.T) {
+	testPodHash := "abc123"
+	zero := int32(0)
+	rs := &v1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "old-rs",
+			Namespace: "default",
+		},
+		Spec: v1.ReplicaSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"rollouts-pod-template-hash": testPodHash,
+				},
+			},
+			Replicas: &zero,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"role":                       "canary",
+						"rollouts-pod-template-hash": testPodHash,
+					},
+				},
+			},
+		},
+	}
+
+	kubeclient := k8sfake.NewSimpleClientset()
+	podListCalls := 0
+	kubeclient.Fake.PrependReactor("list", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		podListCalls++
+		return true, nil, fmt.Errorf("unexpected pod list")
+	})
+
+	ctx := &rolloutContext{
+		reconcilerBase: reconcilerBase{
+			kubeclientset: kubeclient,
+		},
+		log: logrus.WithField("test", "zero-replica"),
+	}
+
+	err := ctx.syncEphemeralMetadata(context.Background(), rs, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, podListCalls)
+}
