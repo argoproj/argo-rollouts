@@ -89,6 +89,7 @@ spec:
       labels:
         app: rp-rpc-basic
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest

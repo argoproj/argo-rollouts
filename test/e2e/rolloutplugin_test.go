@@ -51,6 +51,7 @@ spec:
       labels:
         app: rp-canary
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -92,6 +93,7 @@ spec:
       labels:
         app: rp-canary
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -720,6 +722,7 @@ spec:
       labels:
         app: rp-deadline-no-abort
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -789,6 +792,7 @@ spec:
       labels:
         app: rp-deadline-abort
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -852,6 +856,7 @@ spec:
       labels:
         app: rp-invalid-strategy
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -910,6 +915,7 @@ spec:
       labels:
         app: rp-invalid-plugin
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -965,6 +971,7 @@ spec:
       labels:
         app: rp-invalid-fix
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -1052,6 +1059,7 @@ spec:
       labels:
         app: rp-bg-analysis-ok
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -1127,6 +1135,7 @@ spec:
       labels:
         app: rp-bg-analysis-fail
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -1193,6 +1202,7 @@ spec:
       labels:
         app: rp-inline-ok
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -1260,6 +1270,7 @@ spec:
       labels:
         app: rp-inline-fail
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -1334,6 +1345,7 @@ spec:
       labels:
         app: rp-ar-ownership
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -1406,6 +1418,7 @@ spec:
       labels:
         app: rp-inline-inconclusive
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -1482,6 +1495,7 @@ spec:
       labels:
         app: rp-step-labels
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest

@@ -45,8 +45,10 @@ func (p *testRpcPlugin) PromoteFull(_ string, _ v1alpha1.WorkloadRef) types.RpcE
 func (p *testRpcPlugin) Abort(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
 	return types.RpcError{}
 }
-func (p *testRpcPlugin) Restart(_ string, _ v1alpha1.WorkloadRef) types.RpcError { return types.RpcError{} }
-func (p *testRpcPlugin) Type() string                                            { return "TestRPCPlugin" }
+func (p *testRpcPlugin) Restart(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
+	return types.RpcError{}
+}
+func (p *testRpcPlugin) Type() string { return "TestRPCPlugin" }
 
 func setupTestPlugin(t *testing.T) (*goPlugin.Client, goPlugin.ClientProtocol, func()) {
 	ctx, cancel := context.WithCancel(context.Background())

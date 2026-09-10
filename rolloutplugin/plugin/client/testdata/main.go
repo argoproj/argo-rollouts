@@ -41,8 +41,10 @@ func (p *testPlugin) PromoteFull(_ string, _ v1alpha1.WorkloadRef) types.RpcErro
 func (p *testPlugin) Abort(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
 	return types.RpcError{}
 }
-func (p *testPlugin) Restart(_ string, _ v1alpha1.WorkloadRef) types.RpcError { return types.RpcError{} }
-func (p *testPlugin) Type() string                                            { return "test" }
+func (p *testPlugin) Restart(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
+	return types.RpcError{}
+}
+func (p *testPlugin) Type() string { return "test" }
 
 func main() {
 	failInit := len(os.Args) > 1 && os.Args[1] == "--fail-init"
