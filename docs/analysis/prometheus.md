@@ -268,4 +268,35 @@ provider:
       ))
 ```
 
-The certificate can also be sourced from a Kubernetes Secret by referencing it as an [AnalysisTemplate argument](../features/analysis.md#analysis-template-arguments).
+The certificate can also be sourced from a Kubernetes Secret by referencing it as an [AnalysisTemplate argument](../features/analysis.md#analysis-template-arguments):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+  - name: service-name
+  # from secret
+  - name: prometheus-ca-cert
+    valueFrom:
+      secretKeyRef:
+        name: prometheus-ca-cert
+        key: ca.crt
+  metrics:
+  - name: success-rate
+    successCondition: result[0] >= 0.95
+    provider:
+      prometheus:
+        address: https://prometheus.example.com
+        # placeholders are resolved when an AnalysisRun is created
+        caCert: "{{ args.prometheus-ca-cert }}"
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+          )) /
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+          ))
+```
