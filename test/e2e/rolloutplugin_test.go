@@ -722,7 +722,10 @@ spec:
       labels:
         app: rp-deadline-no-abort
     spec:
-      terminationGracePeriodSeconds: 0
+      # Deliberately keep the default 30s termination grace period here (unlike every other
+      # StatefulSet fixture in this file): this test's timeoutSeconds: 5 must expire before the
+      # single setWeight step can possibly converge, or the rollout completes normally instead
+      # of exercising the timeout path. A fast pod replacement would race the deadline check.
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
@@ -792,7 +795,10 @@ spec:
       labels:
         app: rp-deadline-abort
     spec:
-      terminationGracePeriodSeconds: 0
+      # Deliberately keep the default 30s termination grace period here (unlike every other
+      # StatefulSet fixture in this file): this test's timeoutSeconds: 5 must expire before the
+      # single setWeight step can possibly converge, or the rollout completes normally instead
+      # of exercising the timeout path. A fast pod replacement would race the deadline check.
       containers:
       - name: busybox
         image: quay.io/prometheus/busybox:latest
