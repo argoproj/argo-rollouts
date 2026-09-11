@@ -38,7 +38,7 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 				} else {
 					// in case of error - return empty value for Validation stage, so it will pass validation
 					// returned error will only be used in Analysis stage
-					value, err = extractValueFromRollout(r, arg.ValueFrom.FieldRef.FieldPath)
+					value, err = ExtractValueFromObject(r, arg.ValueFrom.FieldRef.FieldPath)
 				}
 			}
 		}
@@ -264,8 +264,8 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	return nil
 }
 
-func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
-	j, _ := json.Marshal(r)
+func ExtractValueFromObject(obj any, path string) (string, error) {
+	j, _ := json.Marshal(obj)
 	m := any(nil)
 	json.Unmarshal(j, &m)
 	sections := regexp.MustCompile("[\\.\\[\\]]+").Split(path, -1)

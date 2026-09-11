@@ -848,6 +848,13 @@ const (
 	RolloutTypePostPromotionLabel = "PostPromotion"
 	// RolloutCanaryStepIndexLabel indicates which step created this analysisRun
 	RolloutCanaryStepIndexLabel = "step-index"
+	// RolloutPluginNameLabel is the label key used to associate an AnalysisRun with the
+	// RolloutPlugin that owns it
+	RolloutPluginNameLabel = "rollout-plugin-name"
+	// RolloutPluginRevisionLabel records the workload revision an AnalysisRun was created for.
+	// RolloutPlugin targets arbitrary workload kinds (no ReplicaSets), so unlike Rollout's
+	// pod-template-hash based GC, retention is keyed off this revision string instead.
+	RolloutPluginRevisionLabel = "rollout-plugin-revision"
 )
 
 // RolloutPause defines a pause stage for a rollout

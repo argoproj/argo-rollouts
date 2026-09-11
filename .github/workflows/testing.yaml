@@ -141,6 +141,21 @@ jobs:
           # --server-side bypasses the 262KB annotation limit for large CRDs with field descriptions
           kubectl apply --server-side --force-conflicts -k  manifests/crds
           kubectl apply --server-side --force-conflicts -f  test/e2e/crds
+      - name: Build e2e plugin binaries
+        run: |
+          # Both ConfigMap entries below reference file://plugin-bin/... locations. The
+          # controller downloads/copies (step plugins) or spawns (external resource plugins)
+          # these at startup and fails fatally if the binary is missing — mirrors setup-e2e.
+          rm -rf plugin-bin
+          go build -gcflags="all=-N -l" -o plugin-bin/e2e-step-plugin test/cmd/step-plugin-e2e/main.go
+          go build -gcflags="all=-N -l" -o plugin-bin/e2e-resource-plugin test/cmd/resource-plugin-e2e/main.go
+      - name: Install ConfigMaps
+        run: |
+          # Seeds argo-rollouts-config with plugin entries (step-plugin, then rolloutPlugins
+          # merged in). Without this, the controller reads an empty ConfigMap at startup
+          # and never registers the built-in statefulset plugin
+          kubectl apply -n argo-rollouts -f test/e2e/step-plugin/argo-rollouts-config.yaml
+          kubectl patch configmap argo-rollouts-config -n argo-rollouts --type merge --patch-file test/e2e/rolloutplugin/argo-rollouts-config.yaml
       - name: Start controller
         run: make start-e2e 2>&1 | sed -r "s/[[:cntrl:]]\[[0-9]{1,3}m//g" > /tmp/e2e-controller.log &
       - name: Run e2e tests

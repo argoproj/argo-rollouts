@@ -204,6 +204,35 @@ func TestFilterAnalysisRunsToDelete(t *testing.T) {
 	assert.Contains(t, filteredArs, arWithNoMatchingRS)
 }
 
+func TestFilterAnalysisRunsToDeleteByRevision(t *testing.T) {
+	ar := func(name, revision string, phase v1alpha1.AnalysisPhase) *v1alpha1.AnalysisRun {
+		labels := map[string]string{}
+		if revision != "" {
+			labels[v1alpha1.RolloutPluginRevisionLabel] = revision
+		}
+		return &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels},
+			Status:     v1alpha1.AnalysisRunStatus{Phase: phase},
+		}
+	}
+
+	liveCurrent := ar("live-current", "rev-current", v1alpha1.AnalysisPhaseSuccessful)
+	liveUpdated := ar("live-updated", "rev-updated", v1alpha1.AnalysisPhaseRunning)
+	staleSuccessful := ar("stale-successful", "rev-old", v1alpha1.AnalysisPhaseSuccessful)
+	staleFailed := ar("stale-failed", "rev-old", v1alpha1.AnalysisPhaseFailed)
+	unlabeled := ar("unlabeled", "", v1alpha1.AnalysisPhaseSuccessful)
+
+	ars := []*v1alpha1.AnalysisRun{liveCurrent, liveUpdated, staleSuccessful, staleFailed, unlabeled}
+	liveRevisions := map[string]bool{"rev-current": true, "rev-updated": true}
+
+	filtered := FilterAnalysisRunsToDeleteByRevision(ars, liveRevisions, 0, 0)
+	assert.NotContains(t, filtered, liveCurrent, "AR matching CurrentRevision must never be deleted")
+	assert.NotContains(t, filtered, liveUpdated, "AR matching UpdatedRevision must never be deleted")
+	assert.Contains(t, filtered, staleSuccessful)
+	assert.Contains(t, filtered, staleFailed)
+	assert.Contains(t, filtered, unlabeled)
+}
+
 func TestFilterAnalysisRunsToDeleteByLimit(t *testing.T) {
 	rs := func(podHash string) *appsv1.ReplicaSet {
 		return &appsv1.ReplicaSet{

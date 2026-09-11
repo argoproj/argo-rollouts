@@ -238,6 +238,42 @@ func TestPlugin(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("test builtin scheme is skipped and does not touch disk", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaults.DefaultRolloutsConfigMapName,
+				Namespace: defaults.Namespace(),
+			},
+			// A builtin:// resource plugin alongside a file:// sibling. The builtin is
+			// in-process and must be skipped (no download/copy), while the file:// one
+			// still resolves onto disk.
+			Data: map[string]string{"rolloutPlugins": "\n  - name: argoproj/statefulset\n    location: builtin://statefulset\n  - name: argoproj-labs/file-plugin\n    location: file://./plugin.go"},
+		}
+		client := fake.NewSimpleClientset(cm)
+
+		config.UnInitializeConfig()
+
+		_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
+		assert.NoError(t, err)
+
+		err = DownloadPlugins(MockFileDownloader{}, client)
+		assert.NoError(t, err)
+
+		// The builtin entry must not have created anything on disk.
+		dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj/statefulset")
+		assert.NoError(t, err)
+		_, statErr := os.Stat(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
+		assert.True(t, os.IsNotExist(statErr), "builtin plugin should not be written to disk")
+
+		// The file:// sibling still resolves.
+		dir, filename, err = config.GetPluginDirectoryAndFilename("argoproj-labs/file-plugin")
+		assert.NoError(t, err)
+		assert.FileExists(t, filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
+
+		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+		assert.NoError(t, err)
+	})
+
 	t.Run("test a maformed configmap", func(t *testing.T) {
 		cm := &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{

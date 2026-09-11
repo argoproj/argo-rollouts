@@ -1,6 +1,7 @@
 package defaults
 
 import (
+	"encoding/json"
 	"os"
 	"strconv"
 	"strings"
@@ -52,6 +53,10 @@ const (
 	DefaultDescribeTagsLimit int = 20
 	// Kubernetes_DNS_Limit is the maximum length of a DNS name in Kubernetes. Currently used for Analysis Job names
 	Kubernetes_DNS_Limit int = 63
+	// Default Timeout Seconds for a rolloutplugin to make progress before it is considered stalled. Time spent paused does not count.
+	DefaultRolloutPluginTimeoutSeconds = int32(600)
+	// Default Timeout Abort for a rolloutplugin to make progress before it is considered stalled. Time spent paused does not count.
+	DefaultRolloutPluginTimeoutAbort = false
 )
 
 const (
@@ -377,4 +382,41 @@ func GetDescribeTagsLimit() int {
 // SetDescribeTagsLimit sets the limit of resources can be requested in a single call
 func SetDescribeTagsLimit(limit int) {
 	defaultDescribeTagsLimit = limit
+}
+
+// ResourcePluginConfig is the subset of spec.plugin.config that the RolloutPlugin
+// controller itself honors, regardless of which resource plugin is selected.
+type ResourcePluginConfig struct {
+	// TimeoutSeconds is the maximum time in seconds for a rollout to make progress
+	// before it is considered stalled. Time spent paused does not count. Defaults to 600s.
+	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
+	// TimeoutAbort is whether to abort the update when TimeoutSeconds is exceeded.
+	TimeoutAbort bool `json:"timeoutAbort,omitempty"`
+}
+
+// ParseResourcePluginConfig decodes the controller-honored subset of spec.plugin.config.
+// Malformed config is surfaced as an InvalidSpec condition by validation
+func ParseResourcePluginConfig(rolloutPlugin *v1alpha1.RolloutPlugin) ResourcePluginConfig {
+	var cfg ResourcePluginConfig
+	if len(rolloutPlugin.Spec.Plugin.Config) > 0 {
+		_ = json.Unmarshal(rolloutPlugin.Spec.Plugin.Config, &cfg)
+	}
+	return cfg
+}
+
+// GetRolloutPluginTimeoutSecondsOrDefault returns spec.plugin.config.timeoutSeconds
+// or DefaultRolloutPluginTimeoutSeconds (600) when unset.
+func GetRolloutPluginTimeoutSecondsOrDefault(rolloutPlugin *v1alpha1.RolloutPlugin) int32 {
+	if c := ParseResourcePluginConfig(rolloutPlugin); c.TimeoutSeconds != nil {
+		return *c.TimeoutSeconds
+	}
+	return DefaultRolloutPluginTimeoutSeconds
+}
+
+// GetRolloutPluginTimeoutAbort returns spec.plugin.config.timeoutAbort.
+func GetRolloutPluginTimeoutAbort(rolloutPlugin *v1alpha1.RolloutPlugin) bool {
+	if c := ParseResourcePluginConfig(rolloutPlugin); c.TimeoutAbort {
+		return c.TimeoutAbort
+	}
+	return DefaultRolloutPluginTimeoutAbort
 }
