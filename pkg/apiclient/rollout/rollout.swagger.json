@@ -1714,6 +1714,10 @@
           "type": "string",
           "format": "int64",
           "title": "Timeout represents the duration limit in seconds that will apply to the NRQL query\n+optional"
+        },
+        "accountId": {
+          "type": "string",
+          "title": "AccountID optionally overrides the account-id from the profile secret, allowing a single\ncredential/profile to query any New Relic account. When empty, the account-id from the\nprofile secret is used (backward compatible).\n+optional"
         }
       },
       "title": "NewRelicMetric defines the newrelic query to perform canary analysis"

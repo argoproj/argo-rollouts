@@ -1735,6 +1735,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMet
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
      */
     timeout?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
+     */
+    accountId?: string;
 }
 /**
  * 

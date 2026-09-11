@@ -314,6 +314,11 @@ type NewRelicMetric struct {
 	// Timeout represents the duration limit in seconds that will apply to the NRQL query
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,3,opt,name=timeout"`
+	// AccountID optionally overrides the account-id from the profile secret, allowing a single
+	// credential/profile to query any New Relic account. When empty, the account-id from the
+	// profile secret is used (backward compatible).
+	// +optional
+	AccountID string `json:"accountId,omitempty" protobuf:"bytes,4,opt,name=accountId"`
 }
 
 // JobMetric defines a job to run which acts as a metric
