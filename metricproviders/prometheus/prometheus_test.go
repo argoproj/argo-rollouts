@@ -688,6 +688,23 @@ func TestNewHTTPTransportWithInvalidCACert(t *testing.T) {
 	assert.Nil(t, transport)
 }
 
+func TestNewHTTPTransportWithCACertIsCachedPerCert(t *testing.T) {
+	certA := generateTestCACertPEM(t)
+	certB := generateTestCACertPEM(t)
+
+	transportA1, err := newHTTPTransportWithCACert(certA)
+	assert.NoError(t, err)
+	transportA2, err := newHTTPTransportWithCACert(certA)
+	assert.NoError(t, err)
+	// same caCert value -> same cached *http.Transport, so the connection pool is reused
+	assert.Same(t, transportA1, transportA2)
+
+	transportB, err := newHTTPTransportWithCACert(certB)
+	assert.NoError(t, err)
+	// different caCert value -> distinct transport, trusting a distinct CA
+	assert.NotSame(t, transportA1, transportB)
+}
+
 func TestNewPrometheusAPIWithEnv(t *testing.T) {
 	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
 	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, ":invalid::url")
@@ -1329,12 +1346,6 @@ func generateTestCACertPEM(t *testing.T) string {
 // CACert option of the prometheus provider.
 func mockPromTLSServer() *httptest.Server {
 	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		promResponse := `{"data":{"result":[{"metric":{"__name__":"myMetric"},"value":[0, "10"]}],"resultType":"vector"},"status":"success"}`
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(promResponse))
-	}))
-}
 		promResponse := `{"data":{"result":[{"metric":{"__name__":"myMetric"},"value":[0, "10"]}],"resultType":"vector"},"status":"success"}`
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
