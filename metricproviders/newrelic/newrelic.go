@@ -213,6 +213,12 @@ func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Inter
 
 	apiKey := string(secret.Data["personal-api-key"])
 	accountID := string(secret.Data["account-id"])
+	// A per-metric accountId overrides the account-id from the profile secret, allowing a single
+	// credential/profile to query any New Relic account. When unset, the secret's account-id is
+	// used (backward compatible).
+	if metric.Provider.NewRelic.AccountID != "" {
+		accountID = metric.Provider.NewRelic.AccountID
+	}
 
 	newrelicOptions := []newrelic.ConfigOption{newrelic.ConfigPersonalAPIKey(apiKey), newrelic.ConfigUserAgent(userAgent)}
 

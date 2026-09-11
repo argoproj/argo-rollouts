@@ -3428,6 +3428,13 @@ func schema_pkg_apis_rollouts_v1alpha1_NewRelicMetric(ref common.ReferenceCallba
 							Format:      "int64",
 						},
 					},
+					"accountId": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AccountID optionally overrides the account-id from the profile secret, allowing a single credential/profile to query any New Relic account. When empty, the account-id from the profile secret is used (backward compatible).",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"query"},
 			},
