@@ -268,11 +268,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			}
 		}
 
-		// check if the stable RS has enough pods before recalculating the new
-		// weight status.
-		if !c.checkReplicasAvailable(c.stableRS, weightutil.MaxTrafficWeight(c.rollout)-desiredWeight) {
-			return nil
-		}
+		// SetHeaderRoute / SetMirrorRoute do not affect the weight split, so apply them before the replica guardrail.
 		// We need to check for revision > 1 because when we first install the rollout we run step 0 this prevents that.
 		// There is a bigger fix needed for the reasons on why we run step 0 on rollout install, that needs to be explored.
 		revision, revisionFound := annotations.GetRevisionAnnotation(c.rollout)
@@ -287,6 +283,12 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 					return err
 				}
 			}
+		}
+
+		// check if the stable RS has enough pods before recalculating the new
+		// weight status.
+		if !c.checkReplicasAvailable(c.stableRS, weightutil.MaxTrafficWeight(c.rollout)-desiredWeight) {
+			return nil
 		}
 
 		// If there was a previous canary weight > 0 and the new canary has no available
