@@ -429,4 +429,10 @@ func TestSetDefaults(t *testing.T) {
 	assert.Equal(t, DefaultDescribeTagsLimit, GetDescribeTagsLimit())
 	SetDescribeTagsLimit(2)
 	assert.Equal(t, 2, GetDescribeTagsLimit())
+
+	assert.Equal(t, DefaultRolloutsConfigMapName, GetRolloutsConfigMapName())
+	SetRolloutsConfigMapName("my-custom-config")
+	assert.Equal(t, "my-custom-config", GetRolloutsConfigMapName())
+	SetRolloutsConfigMapName(DefaultRolloutsConfigMapName)
+	assert.Equal(t, DefaultRolloutsConfigMapName, GetRolloutsConfigMapName())
 }
