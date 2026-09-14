@@ -236,7 +236,13 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			// But we can only increase canary weight according to available replica counts of the canary.
 			// we will need to set the desiredWeight to 0 when the newRS is not available.
 			if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-				desiredWeight = (weightutil.MaxTrafficWeight(c.rollout) * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+				if *c.rollout.Spec.Replicas == 0 {
+					// A rollout scaled to zero has no stable capacity to weigh the canary
+					// against, so the canary is already at its desired count.
+					desiredWeight = weightutil.MaxTrafficWeight(c.rollout)
+				} else {
+					desiredWeight = (weightutil.MaxTrafficWeight(c.rollout) * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+				}
 			} else if c.rollout.Status.Canary.Weights != nil {
 				desiredWeight = c.rollout.Status.Canary.Weights.Canary.Weight
 			}
