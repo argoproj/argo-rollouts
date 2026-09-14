@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"testing"
@@ -14,9 +15,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -2178,4 +2181,156 @@ func TestIsDynamicallyRollingBackToStable(t *testing.T) {
 			assert.Equal(t, tc.expectedResult, rbToStable)
 		})
 	}
+}
+
+// TestCanaryStableReplicaSetScaleDownHeldWhileWeightUnverified verifies that the stable
+// ReplicaSet is never scaled down based on traffic weights the provider has not verified yet.
+func TestCanaryStableReplicaSetScaleDownHeldWhileWeightUnverified(t *testing.T) {
+	tests := []struct {
+		name           string
+		verified       *bool
+		expectedScaled bool
+	}{
+		{"unverified weights hold stable scale-down", ptr.To[bool](false), false},
+		{"verified weights allow stable scale-down", ptr.To[bool](true), true},
+		{"nil verification allows stable scale-down", nil, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			steps := []v1alpha1.CanaryStep{
+				{SetWeight: ptr.To[int32](10)},
+				{Pause: &v1alpha1.RolloutPause{}},
+			}
+			r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(0))
+			r2 := bumpVersion(r1)
+			r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+			r2.Spec.Strategy.Canary.CanaryService = "canary"
+			r2.Spec.Strategy.Canary.StableService = "stable"
+			r2.Spec.Strategy.Canary.DynamicStableScale = true
+
+			rs1 := newReplicaSetWithStatus(r1, 10, 10)
+			rs2 := newReplicaSetWithStatus(r2, 10, 10)
+			rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+			stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+
+			r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 20, 10, 20, false)
+			r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+				Canary:   v1alpha1.WeightDestination{Weight: 100, ServiceName: "canary", PodTemplateHash: rs2PodHash},
+				Stable:   v1alpha1.WeightDestination{Weight: 0, ServiceName: "stable", PodTemplateHash: rs1PodHash},
+				Verified: tc.verified,
+			}
+
+			f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+			f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+			f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+			f.rolloutLister = append(f.rolloutLister, r2)
+			f.objects = append(f.objects, r2)
+
+			ctrl, _, _ := f.newController(noResyncPeriodFunc)
+			roCtx, err := ctrl.newRolloutContext(r2)
+			assert.NoError(t, err)
+
+			scaled, err := roCtx.reconcileCanaryStableReplicaSet()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedScaled, scaled,
+				"stable scale-down must only happen when weights are verified or verification is not implemented")
+		})
+	}
+}
+
+// TestCanaryStatusSyncedDespiteStageError verifies stage failures still sync status,
+// hold step progression, and return an error for workqueue backoff.
+func TestCanaryStatusSyncedDespiteStageError(t *testing.T) {
+	t.Run("traffic routing SetWeight error", func(t *testing.T) {
+		f, ro := newTrafficWeightFixture(t)
+		defer f.Close()
+		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("routing failed"))
+		patchIndex := f.expectPatchRolloutAction(ro)
+		f.runExpectError(getKey(ro, t), true)
+		patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
+		assert.Nil(t, patchedRollout.Status.CurrentStepIndex)
+		rs2PodHash := ro.Status.CurrentPodHash
+		assert.NotContains(t, f.getPatchedRollout(patchIndex), fmt.Sprintf(`"stableRS":"%s"`, rs2PodHash),
+			"must not promote stable to the canary ReplicaSet")
+	})
+
+	t.Run("invalid step analysis template", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		at := analysisTemplate("bad-template")
+		at.Spec.Metrics = append(at.Spec.Metrics, at.Spec.Metrics[0])
+		f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+
+		steps := []v1alpha1.CanaryStep{{
+			SetWeight: ptr.To[int32](10),
+			Analysis: &v1alpha1.RolloutAnalysis{
+				Templates: []v1alpha1.AnalysisTemplateRef{{TemplateName: "bad-template"}},
+			},
+		}}
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
+		rs := newReplicaSetWithStatus(r, 10, 10)
+		r.Status.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.objects = append(f.objects, r, at)
+		f.kubeobjects = append(f.kubeobjects, rs)
+		f.replicaSetLister = append(f.replicaSetLister, rs)
+
+		patchIndex := f.expectPatchRolloutAction(r)
+		f.runExpectError(getKey(r, t), true)
+		patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
+		if patchedRollout.Status.CurrentStepIndex != nil {
+			assert.Equal(t, int32(0), *patchedRollout.Status.CurrentStepIndex)
+		}
+	})
+}
+
+// TestCanaryProgressDeadlineAbortDespiteServiceError verifies progressDeadlineAbort still runs
+// when a service selector switch fails persistently.
+func TestCanaryProgressDeadlineAbortDespiteServiceError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	progressDeadlineSeconds := int32(1)
+	r1.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
+	r1.Spec.ProgressDeadlineAbort = true
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 11, 1, 11, false)
+	msg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rs2.Name)
+	progressingTimeoutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+	conditions.SetRolloutCondition(&r2.Status, *progressingTimeoutCond)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	_ = f.expectPatchServiceAction(canarySvc, rs2PodHash)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.kubeclient.Fake.PrependReactor("patch", "services", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("admission webhook denied service update")
+	})
+	f.runController(getKey(r2, t), true, true, c, i, k8sI)
+	f.verifyPatchedRolloutAborted(patchIndex, rs2.Name)
 }

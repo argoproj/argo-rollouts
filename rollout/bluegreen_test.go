@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	core "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
@@ -1736,4 +1737,100 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
+}
+
+// TestBlueGreenProgressDeadlineAbortNotBlockedByApplyError reproduces the user-facing
+// symptom of #4626 for the blue-green strategy: a rollout with progressDeadlineAbort enabled,
+// stuck past its progress deadline, must still auto-abort even while a step that applies changes (here
+// the preview service update) errors persistently — the status sync must not be skipped.
+func TestBlueGreenProgressDeadlineAbortNotBlockedByApplyError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 2, nil, "active", "preview")
+	progressDeadlineSeconds := int32(1)
+	r1.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
+	r1.Spec.ProgressDeadlineAbort = true
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 2, 2)
+	rs2 := newReplicaSetWithStatus(r2, 2, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	// Status must match the observed state (stale preview selector, replica counts) so the
+	// reconcile does not register as "making progress", which would defer the deadline abort.
+	r2 = updateBlueGreenRolloutStatus(r2, rs1PodHash, rs1PodHash, rs1PodHash, 3, 2, 4, 4, false, true, false)
+	msg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rs2.Name)
+	progressingTimeoutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+	conditions.SetRolloutCondition(&r2.Status, *progressingTimeoutCond)
+
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	activeSvc := newService("active", 80, activeSelector, r2)
+	// stale preview selector forces a service patch, which the reactor below fails persistently
+	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	previewSvc := newService("preview", 80, previewSelector, r2)
+
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.kubeclient.PrependReactor("patch", "services", func(action core.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("admission webhook denied service update")
+	})
+
+	_ = f.expectPatchServiceAction(previewSvc, rs2PodHash)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.runController(getKey(r2, t), true, true, c, i, k8sI)
+
+	f.verifyPatchedRolloutAborted(patchIndex, rs2.Name)
+}
+
+// TestBlueGreenRevisionHistoryFailureDoesNotBlockServiceSwitch verifies cosmetic cleanup
+// failures cannot block the active service switch: revision-history deletion runs after the
+// service reconcile, so a denied ReplicaSet deletion still surfaces as a reconcile error but
+// the switch (and the rest of the pass) completes.
+func TestBlueGreenRevisionHistoryFailureDoesNotBlockServiceSwitch(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 2, ptr.To[int32](0), "active", "preview")
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+
+	rs1 := newReplicaSetWithStatus(r1, 0, 0) // scaled-down old revision: deletion candidate
+	rs2 := newReplicaSetWithStatus(r2, 2, 2) // stable / currently active
+	rs3 := newReplicaSetWithStatus(r3, 2, 2) // new, fully available
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs3PodHash := rs3.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r3 = updateBlueGreenRolloutStatus(r3, rs3PodHash, rs2PodHash, rs2PodHash, 4, 2, 4, 4, false, true, false)
+
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	activeSvc := newService("active", 80, activeSelector, r3)
+	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}
+	previewSvc := newService("preview", 80, previewSelector, r3)
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2, rs3)
+	f.rolloutLister = append(f.rolloutLister, r3)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.kubeclient.PrependReactor("delete", "replicasets", func(action core.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("rbac denied replicaset deletion")
+	})
+
+	servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs3PodHash)
+	_ = f.expectDeleteReplicaSetAction(rs1)
+	_ = f.expectPatchRolloutAction(r3)
+	f.runController(getKey(r3, t), true, true, c, i, k8sI)
+
+	// active service must still switch to the new ReplicaSet despite the cleanup failure
+	f.verifyPatchedService(servicePatchIndex, rs3PodHash, "")
 }

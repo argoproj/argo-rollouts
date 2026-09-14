@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -15,60 +16,32 @@ import (
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
-// rolloutBlueGreen implements the logic for rolling a new replica set.
+// rolloutBlueGreen implements the logic for rolling a new replica set. Status is synced, exactly
+// once, even when a stage fails: syncRolloutStatusBlueGreen is where progressDeadline/abort
+// evaluation lives, and skipping it is how a rollout gets wedged in Progressing forever (#4626)
+// — mirroring rolloutCanary. The only exceptions are the prerequisites (service lookup and
+// ReplicaSet sync), without which a meaningful status cannot be computed.
 func (c *rolloutContext) rolloutBlueGreen() error {
 	previewSvc, activeSvc, err := c.getPreviewAndActiveServices()
 	if err != nil {
 		return err
 	}
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
+	newRS, err := c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
+		// Leave c.newRS untouched and skip the status sync: a status computed from a nil/stale
+		// newRS would persist corrupted values.
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutBlueGreen create true: %w", err)
 	}
+	c.newRS = newRS
 
-	// This must happen right after the new replicaset is created
-	err = c.reconcilePreviewService(previewSvc)
-	if err != nil {
-		return err
+	stageErr := c.runBlueGreenStages(previewSvc, activeSvc)
+	if stageErr != nil {
+		c.ensureReconcileFailureCondition(stageErr)
 	}
-
-	if replicasetutil.CheckPodSpecChange(c.rollout, c.newRS) {
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
+	if c.skipStatusSync {
+		return stageErr
 	}
-
-	_, err = c.podRestarter.Reconcile(c)
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileBlueGreenReplicaSets(activeSvc)
-	if err != nil {
-		return err
-	}
-
-	c.reconcileBlueGreenPause(activeSvc, previewSvc)
-
-	err = c.reconcileActiveService(activeSvc)
-	if err != nil {
-		return err
-	}
-
-	err = c.awsVerifyTargetGroups(activeSvc)
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileAnalysisRuns()
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileEphemeralMetadata()
-	if err != nil {
-		return err
-	}
-
-	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
+	return errors.Join(stageErr, c.syncRolloutStatusBlueGreen(previewSvc, activeSvc))
 }
 
 func (c *rolloutContext) reconcileBlueGreenStableReplicaSet() error {
@@ -101,9 +74,6 @@ func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service
 	// Scale down old non-active, non-stable replicasets, if we can.
 	_, err = c.reconcileOtherReplicaSets()
 	if err != nil {
-		return err
-	}
-	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
 		return err
 	}
 	return nil

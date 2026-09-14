@@ -71,18 +71,12 @@ func Test_stepPluginContext_reconcile_ReconciliationError(t *testing.T) {
 
 	stepPluginResolver.On("Resolve", mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("test error"))
 
-	var requeuedAfter time.Duration
-	roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {
-		requeuedAfter = duration
-	}
-
 	err := roCtx.stepPluginContext.reconcile(roCtx)
 
-	require.NoError(t, err)
+	// Controller-side plugin errors propagate through the stage pipeline: the condition and
+	// event are recorded there, and the workqueue provides retry backoff.
+	require.ErrorContains(t, err, "test error")
 	assert.Equal(t, roCtx.rollout.Status.Canary.StepPluginStatuses, roCtx.stepPluginContext.stepPluginStatuses)
-	assert.Equal(t, defaultControllerErrorBackoff, requeuedAfter)
-	assert.True(t, roCtx.stepPluginContext.hasError)
-
 }
 
 func Test_stepPluginContext_reconcile_SuccessfulReconciliation(t *testing.T) {
@@ -452,20 +446,13 @@ func Test_stepPluginContext_reconcile_FullyPromoted(t *testing.T) {
 			},
 		}
 
-		var requeuedAfter time.Duration
-		roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {
-			requeuedAfter = duration
-		}
-
 		stepPluginMock.On("Terminate", mock.Anything).Return(nil, fmt.Errorf("error"))
 
 		err := roCtx.stepPluginContext.reconcile(roCtx)
 
-		require.NoError(t, err)
+		require.ErrorContains(t, err, "failed to terminate plugin")
 		require.Len(t, roCtx.stepPluginContext.stepPluginStatuses, 1)
 		assert.Equal(t, roCtx.rollout.Status.Canary.StepPluginStatuses, roCtx.stepPluginContext.stepPluginStatuses)
-		assert.Equal(t, defaultControllerErrorBackoff, requeuedAfter)
-		assert.True(t, roCtx.stepPluginContext.hasError)
 	})
 }
 
@@ -632,22 +619,15 @@ func Test_stepPluginContext_reconcile_Aborted(t *testing.T) {
 			},
 		}
 
-		var requeuedAfter time.Duration
-		roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {
-			requeuedAfter = duration
-		}
-
 		stepPluginMock := mocks.NewStepPlugin(t)
 		stepPluginResolver.On("Resolve", int32(0), mock.Anything, mock.Anything).Return(stepPluginMock, nil)
 		stepPluginMock.On("Abort", mock.Anything).Return(nil, fmt.Errorf("error"))
 
 		err := roCtx.stepPluginContext.reconcile(roCtx)
 
-		require.NoError(t, err)
+		require.ErrorContains(t, err, "failed to abort plugin")
 		require.Len(t, roCtx.stepPluginContext.stepPluginStatuses, 1)
 		assert.Equal(t, roCtx.rollout.Status.Canary.StepPluginStatuses, roCtx.stepPluginContext.stepPluginStatuses)
-		assert.Equal(t, defaultControllerErrorBackoff, requeuedAfter)
-		assert.True(t, roCtx.stepPluginContext.hasError)
 	})
 }
 
@@ -741,7 +721,7 @@ func Test_stepPluginContext_reconcile_Retry_After_Abort(t *testing.T) {
 }
 
 func Test_stepPluginContext_isStepPluginCompleted(t *testing.T) {
-	newRolloutContext := func(statuses []*v1alpha1.StepPluginStatus, hasError bool) *rolloutContext {
+	newRolloutContext := func(statuses []*v1alpha1.StepPluginStatus) *rolloutContext {
 		r := newStepPluginRollout()
 		logCtx := logutil.WithRollout(r)
 		roCtx := &rolloutContext{
@@ -755,7 +735,6 @@ func Test_stepPluginContext_isStepPluginCompleted(t *testing.T) {
 		for _, s := range statuses {
 			roCtx.stepPluginContext.stepPluginStatuses = append(roCtx.stepPluginContext.stepPluginStatuses, *s)
 		}
-		roCtx.stepPluginContext.hasError = hasError
 		return roCtx
 	}
 
@@ -763,7 +742,6 @@ func Test_stepPluginContext_isStepPluginCompleted(t *testing.T) {
 		name     string
 		statuses []*v1alpha1.StepPluginStatus
 		index    int32
-		hasError bool
 		want     bool
 	}{
 		{
@@ -779,15 +757,6 @@ func Test_stepPluginContext_isStepPluginCompleted(t *testing.T) {
 			},
 			index: 0,
 			want:  true,
-		},
-		{
-			name: "With transient error",
-			statuses: []*v1alpha1.StepPluginStatus{
-				{Index: 0, Operation: v1alpha1.StepPluginOperationRun, Phase: v1alpha1.StepPluginPhaseSuccessful},
-			},
-			index:    0,
-			hasError: true,
-			want:     false,
 		},
 		{
 			name: "Phase is failed",
@@ -850,7 +819,7 @@ func Test_stepPluginContext_isStepPluginCompleted(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := newRolloutContext(tt.statuses, tt.hasError)
+			c := newRolloutContext(tt.statuses)
 			if got := c.stepPluginContext.isStepPluginCompleted(tt.index, c.rollout.Spec.Strategy.Canary.Steps[tt.index].Plugin); got != tt.want {
 				t.Errorf("rolloutContext.isStepPluginCompleted() = %v, want %v", got, tt.want)
 			}

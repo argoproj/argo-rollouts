@@ -133,7 +133,8 @@ const (
 	// RolloutExperimentFailedMessage is added in a rollout when the experiment owned by a rollout fails to show any progress
 	RolloutExperimentFailedMessage = "Experiment '%s' owned by the Rollout '%q' has timed out."
 
-	// RolloutReconciliationErrorReason is added in a rollout when the reconciliation returns an error preventing progress
+	// RolloutReconciliationErrorReason is recorded on ReconcileSucceeded=False (and as the event
+	// reason) for reconcile failures without a more specific reason.
 	RolloutReconciliationErrorReason = "ReconciliationError"
 	// RolloutReconciliationErrorMessage is added in a rollout when the reconciliation returns an error preventing progress
 	RolloutReconciliationErrorMessage = "Reconciliation failed with error: %v"
@@ -187,6 +188,18 @@ const (
 	LoadBalancerNotFoundMessage = "Failed to find load balancer: %s"
 
 	RolloutAddedToInformerReason = "RolloutAddedToInformer"
+
+	// TrafficRoutingErrorReason is recorded on ReconcileSucceeded=False when traffic routing fails.
+	TrafficRoutingErrorReason = "TrafficRoutingError"
+	// TrafficRoutingDeferredReason is recorded when routing is intentionally deferred.
+	TrafficRoutingDeferredReason = "TrafficRoutingDeferred"
+	// ServiceUpdateErrorReason is recorded on ReconcileSucceeded=False when a service update fails.
+	ServiceUpdateErrorReason = "ServiceUpdateError"
+	// StageConditionAppliedReason is recorded when ReconcileSucceeded recovers to True.
+	StageConditionAppliedReason = "Applied"
+	// PromoteFullHeldReason is emitted when a user-requested full promotion (promote --full)
+	// is being held by a safety gate instead of taking effect.
+	PromoteFullHeldReason = "PromoteFullHeld"
 )
 
 // NewRolloutCondition creates a new rollout condition.
