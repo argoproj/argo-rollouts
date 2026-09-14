@@ -1972,3 +1972,165 @@ func TestGetDesiredCanaryWeightOnAbortWithScaleDownDelay(t *testing.T) {
 		assert.Equal(t, int32(10), stableRSReplicaCount)
 	})
 }
+
+// TestAbortedCanaryNotScaledUpOnStableAvailabilityGap is a regression test for a bug
+// where a fully-drained aborted canary RS was scaled back up whenever stable.availableReplicas
+// fell below spec.replicas (e.g. after an HPA scale-up, pod eviction, or node loss).
+// GetDesiredCanaryWeight infers the canary's expected size as
+// rolloutSpecReplica - stableRS.AvailableReplicas; when the shortfall has any cause other
+// than the canary still holding those replicas the resulting non-zero weight propagates to
+// CalculateReplicaCountsForTrafficRoutedCanary and the aborted RS is scaled up (Issue #4973).
+func TestAbortedCanaryNotScaledUpOnStableAvailabilityGap(t *testing.T) {
+	newAbortedRollout := func(specReplicas int32, steps []v1alpha1.CanaryStep) *v1alpha1.Rollout {
+		r := newRollout(specReplicas, 100, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, &v1alpha1.RolloutTrafficRouting{})
+		r.Spec.Strategy.Canary.DynamicStableScale = true
+		r.Spec.Strategy.Canary.Steps = steps
+		r.Status.Abort = true
+		return r
+	}
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: pointer.Int32Ptr(5)},
+		{SetWeight: pointer.Int32Ptr(10)},
+		{SetWeight: pointer.Int32Ptr(20)},
+		{SetWeight: pointer.Int32Ptr(50)},
+		{SetWeight: pointer.Int32Ptr(100)},
+	}
+
+	tests := []struct {
+		name                    string
+		rolloutReplicas         int32
+		stableSpecReplicas      int32
+		availableStableReplicas int32
+		canarySpecReplicas      int32
+		availableCanaryReplicas int32
+		canaryWeight            int32
+		stableWeight            int32
+		steps                   []v1alpha1.CanaryStep
+		expectedCanaryReplicas  int32
+		expectedStableReplicas  int32
+	}{
+		{
+			// spec.replicas increased from 10 → 12 via HPA; stable has 12 spec but only 10
+			// available while new pods pass readiness. Canary is fully drained (0 replicas,
+			// 0% traffic). The 2-pod gap must not resurrect the canary.
+			name:                    "canary drained to 0 should not scale up when spec.replicas increases and stable lags",
+			rolloutReplicas:         12,
+			stableSpecReplicas:      12,
+			availableStableReplicas: 10,
+			canarySpecReplicas:      0,
+			availableCanaryReplicas: 0,
+			canaryWeight:            0,
+			stableWeight:            100,
+			steps:                   steps,
+			expectedCanaryReplicas:  0,
+			expectedStableReplicas:  12,
+		},
+		{
+			// spec.replicas unchanged at 10; 3 stable pods evicted and not yet replaced.
+			// Canary fully drained. The 3-pod availability dip must not resurrect the canary.
+			name:                    "canary drained to 0 should not scale up when stable availability dips due to eviction",
+			rolloutReplicas:         10,
+			stableSpecReplicas:      10,
+			availableStableReplicas: 7,
+			canarySpecReplicas:      0,
+			availableCanaryReplicas: 0,
+			canaryWeight:            0,
+			stableWeight:            100,
+			steps:                   steps,
+			expectedCanaryReplicas:  0,
+			expectedStableReplicas:  10,
+		},
+		{
+			// Sanity-check: during an active abort where canary still carries 50% traffic the
+			// progressive drain behaviour is unchanged — canary stays at the traffic-required
+			// level and stable scales up to absorb the coming shift.
+			name:                    "active abort drain is not affected by the ceiling cap",
+			rolloutReplicas:         10,
+			stableSpecReplicas:      5,
+			availableStableReplicas: 5,
+			canarySpecReplicas:      5,
+			availableCanaryReplicas: 5,
+			canaryWeight:            50,
+			stableWeight:            50,
+			steps:                   []v1alpha1.CanaryStep{{SetWeight: pointer.Int32Ptr(10)}, {SetWeight: pointer.Int32Ptr(50)}},
+			expectedCanaryReplicas:  5,
+			expectedStableReplicas:  9,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rollout := newAbortedRollout(test.rolloutReplicas, test.steps)
+			stableRS := newRS("stable", test.stableSpecReplicas, test.availableStableReplicas)
+			canaryRS := newRS("canary", test.canarySpecReplicas, test.availableCanaryReplicas)
+			weights := v1alpha1.TrafficWeights{
+				Canary: v1alpha1.WeightDestination{Weight: test.canaryWeight},
+				Stable: v1alpha1.WeightDestination{Weight: test.stableWeight},
+			}
+			canaryCount, stableCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, canaryRS, stableRS, &weights)
+			assert.Equal(t, test.expectedCanaryReplicas, canaryCount, "canary replica count")
+			assert.Equal(t, test.expectedStableReplicas, stableCount, "stable replica count")
+		})
+	}
+
+	// Guard: !rollout.Status.PromoteFull
+	// GetCanaryReplicasOrWeight returns (nil, maxWeight) when PromoteFull is set, making
+	// canaryCount == rolloutSpecReplica. Capping at newRS.Spec.Replicas==0 would zero it out.
+	t.Run("promote-full while aborted is not capped at drained canary size", func(t *testing.T) {
+		rollout := newAbortedRollout(10, steps)
+		rollout.Status.PromoteFull = true
+		stableRS := newRS("stable", 10, 8) // stable lagging
+		canaryRS := newRS("canary", 0, 0)  // fully drained
+		weights := v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{Weight: 0},
+			Stable: v1alpha1.WeightDestination{Weight: 100},
+		}
+		canaryCount, stableCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, canaryRS, stableRS, &weights)
+		assert.Equal(t, int32(10), canaryCount, "canary replica count")
+		assert.Equal(t, int32(10), stableCount, "stable replica count")
+	})
+
+	// Guard: CheckStableRSExists(newRS, stableRS)
+	// Returns false when newRS.Name == stableRS.Name (rollback onto the stable pod hash).
+	// GetCanaryReplicasOrWeight likewise returns maxWeight when CurrentPodHash == StableRS,
+	// so canaryCount == rolloutSpecReplica. The cap must not apply here.
+	t.Run("rollback onto stable pod hash is not capped at 0", func(t *testing.T) {
+		// Both currentPodHash and stableRS are "stable" → rollback / no separate canary.
+		rollout := newRollout(10, 100, intstr.FromInt(0), intstr.FromInt(1), "stable", "stable", nil, &v1alpha1.RolloutTrafficRouting{})
+		rollout.Spec.Strategy.Canary.DynamicStableScale = true
+		rollout.Spec.Strategy.Canary.Steps = steps
+		rollout.Status.Abort = true
+		stableRS := newRS("stable", 10, 8)
+		canaryRS := newRS("stable", 0, 0) // same name → CheckStableRSExists returns false
+		weights := v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{Weight: 0},
+			Stable: v1alpha1.WeightDestination{Weight: 100},
+		}
+		canaryCount, stableCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, canaryRS, stableRS, &weights)
+		assert.Equal(t, int32(10), canaryCount, "canary replica count")
+		assert.Equal(t, int32(10), stableCount, "stable replica count")
+	})
+
+	// Guard: UseSetCanaryScale(rollout) == nil
+	// abortScaleDownDelaySeconds:0 causes GetAbortScaleDownDelaySecondsOrDefault to return
+	// (nil, true), so UseSetCanaryScale does NOT early-return nil during abort and the explicit
+	// setCanaryScale replica count is honoured. If the cap were applied on the first reconcile
+	// (when newRS.Spec.Replicas is still 0), it would override that explicit instruction.
+	t.Run("abortScaleDownDelaySeconds:0 with setCanaryScale keeps canary scaled up", func(t *testing.T) {
+		scs := newSetCanaryScale(pointer.Int32Ptr(1), nil, false)
+		rollout := newRollout(10, 100, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", scs, &v1alpha1.RolloutTrafficRouting{})
+		rollout.Spec.Strategy.Canary.DynamicStableScale = true
+		rollout.Status.Abort = true
+		rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = pointer.Int32Ptr(0)
+		stableRS := newRS("stable", 10, 10)
+		canaryRS := newRS("canary", 0, 0) // not yet scaled up on first reconcile
+		weights := v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{Weight: 0},
+			Stable: v1alpha1.WeightDestination{Weight: 100},
+		}
+		canaryCount, stableCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, canaryRS, stableRS, &weights)
+		assert.Equal(t, int32(1), canaryCount, "canary replica count")
+		assert.Equal(t, int32(10), stableCount, "stable replica count")
+	})
+}
