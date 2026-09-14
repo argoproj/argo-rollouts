@@ -807,13 +807,16 @@ func isIndefiniteStep(r *v1alpha1.Rollout) bool {
 	return pausedCondTrue
 }
 
-// isWaitingForReplicaSetScaleDown returns whether or not the rollout still has other replica sets with a scale down deadline annotation
+// isWaitingForReplicaSetScaleDown returns whether or not the rollout still has other replica sets waiting on a scale down delay which has not yet elapsed
 func isWaitingForReplicaSetScaleDown(r *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, allRSs []*appsv1.ReplicaSet) bool {
 	otherRSs := replicasetutil.GetOtherRSs(r, newRS, stableRS, allRSs)
 
 	for _, rs := range otherRSs {
 		if replicasetutil.HasScaleDownDeadline(rs) {
-			return true
+			remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
+			if err == nil && remainingTime != nil {
+				return true
+			}
 		}
 	}
 
@@ -1088,7 +1091,11 @@ func (c *rolloutContext) requeueStuckRollout(newStatus v1alpha1.RolloutStatus) t
 	}
 	// No need to estimate progress if the rollout is complete or already timed out.
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
-	if conditions.RolloutHealthy(c.rollout, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused || c.rollout.Status.Abort || isIndefiniteStep(c.rollout) {
+	// isWaitingForReplicaSetScaleDown is included here to keep this guard list consistent with the
+	// one used by calculateRolloutConditions when deciding to mark the rollout as timed out. Without
+	// it, a rollout that is legitimately waiting for another ReplicaSet to scale down would still be
+	// requeued for a progress check.
+	if conditions.RolloutHealthy(c.rollout, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused || c.rollout.Status.Abort || isIndefiniteStep(c.rollout) || isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs) {
 		return time.Duration(-1)
 	}
 	// If there is no sign of progress at this point then there is a high chance that the
