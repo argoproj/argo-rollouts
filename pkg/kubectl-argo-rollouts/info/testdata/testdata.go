@@ -1,16 +1,16 @@
 package testdata
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"runtime"
 	"time"
 
-	"github.com/ghodss/yaml"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -80,7 +80,7 @@ func NewAbortedRollout() *RolloutObjects {
 }
 
 func discoverObjects(path string) *RolloutObjects {
-	files, err := ioutil.ReadDir(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
 		panic(err)
 	}
@@ -89,7 +89,7 @@ func discoverObjects(path string) *RolloutObjects {
 
 	var objs RolloutObjects
 	for _, file := range files {
-		yamlBytes, err := ioutil.ReadFile(path + "/" + file.Name())
+		yamlBytes, err := os.ReadFile(path + "/" + file.Name())
 		if err != nil {
 			panic(err)
 		}

@@ -5,12 +5,15 @@ import (
 	"math"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
+
+const invalidRefCondition = "a == true"
 
 func TestEvaluateResultWithSuccess(t *testing.T) {
 	metric := v1alpha1.Metric{
@@ -81,7 +84,7 @@ func TestEvaluateResultNoFailureConditionAndNoSuccessCondition(t *testing.T) {
 
 func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
 	metric := v1alpha1.Metric{
-		SuccessCondition: "a == true",
+		SuccessCondition: invalidRefCondition,
 		FailureCondition: "true",
 	}
 	logCtx := logrus.WithField("test", "test")
@@ -93,7 +96,7 @@ func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
 func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
 	metric := v1alpha1.Metric{
 		SuccessCondition: "true",
-		FailureCondition: "a == true",
+		FailureCondition: invalidRefCondition,
 	}
 	logCtx := logrus.WithField("test", "test")
 	status, err := EvaluateResult(true, metric, *logCtx)
@@ -126,8 +129,18 @@ func TestErrorWithInvalidReference(t *testing.T) {
 }
 
 func TestEvaluateArray(t *testing.T) {
-	floats := []float64{float64(2), float64(2)}
-	b, err := EvalCondition(floats, "all(result, {# > 1})")
+	floats := map[string]any{
+		"service_apdex": map[string]any{
+			"label": nil,
+			"values": map[string]any{
+				"values": []any{float64(2), float64(2)},
+			},
+		},
+	}
+	b, err := EvalCondition(floats, "all(result.service_apdex.values.values, {# > 1})")
+	if err != nil {
+		panic(err)
+	}
 	assert.Nil(t, err)
 	assert.True(t, b)
 }
@@ -159,7 +172,7 @@ func TestEvaluateAsIntPanic(t *testing.T) {
 
 func TestEvaluateAsInt(t *testing.T) {
 	tests := []struct {
-		input       interface{}
+		input       any
 		expression  string
 		expectation bool
 	}{
@@ -176,7 +189,7 @@ func TestEvaluateAsInt(t *testing.T) {
 
 func TestEvaluateAsFloatError(t *testing.T) {
 	tests := []struct {
-		input      interface{}
+		input      any
 		expression string
 		errRegexp  string
 	}{
@@ -193,7 +206,7 @@ func TestEvaluateAsFloatError(t *testing.T) {
 
 func TestEvaluateAsFloat(t *testing.T) {
 	tests := []struct {
-		input       interface{}
+		input       any
 		expression  string
 		expectation bool
 	}{
@@ -318,4 +331,76 @@ func TestValueFromPointer(t *testing.T) {
 	assert.True(t, valueFromPointer(oneFloatPointer) == oneFloat)
 	assert.True(t, valueFromPointer(1) == 1)
 	assert.True(t, valueFromPointer(false) == false)
+}
+
+func TestEvalTimeWithSuccessExpr(t *testing.T) {
+	status, err := EvalTime(`date("2023-08-14 00:00:00", "2006-01-02 15:04:05", "UTC") - duration("1h")`)
+	assert.Equal(t, time.Date(2023, time.August, 13, 23, 0, 0, 0, time.UTC), status)
+	assert.NoError(t, err)
+}
+
+func TestEvalTimeWithNotTimeResult(t *testing.T) {
+	status, err := EvalTime(`hello`)
+	assert.Equal(t, time.Time{}, status)
+	assert.Error(t, err)
+}
+
+func TestEvalTimeWithInvalidExpression(t *testing.T) {
+	status, err := EvalTime(`now() -- ?`)
+	assert.Equal(t, time.Time{}, status)
+	assert.Error(t, err)
+}
+
+func TestEvaluateResultErrorMessageWithNilResult(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "result[0] >= 0.95",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult(nil, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "metric result is nil or empty")
+	assert.Contains(t, err.Error(), "successCondition")
+}
+
+func TestEvaluateResultErrorMessageWithEmptySlice(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "result[0] >= 0.95",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult([]float64{}, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "metric result is nil or empty")
+	assert.Contains(t, err.Error(), "successCondition")
+}
+
+func TestEvaluateResultErrorMessageWithInvalidExpression(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: invalidRefCondition,
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "could not evaluate successCondition")
+	assert.Contains(t, err.Error(), invalidRefCondition)
+}
+
+func TestEvaluateResultErrorMessageOnFailureCondition(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "true",
+		FailureCondition: "invalidVar == true",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "could not evaluate failureCondition")
+	assert.Contains(t, err.Error(), "invalidVar == true")
+}
+
+func TestIsNilOrEmpty(t *testing.T) {
+	assert.True(t, isNilOrEmpty(nil))
+	assert.True(t, isNilOrEmpty([]float64{}))
+	assert.True(t, isNilOrEmpty([]string{}))
+	assert.False(t, isNilOrEmpty([]float64{1.0}))
+	assert.False(t, isNilOrEmpty(42))
+	assert.False(t, isNilOrEmpty("hello"))
 }

@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 	"github.com/stretchr/testify/assert"
+
+	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
 
 func TestLintValidRollout(t *testing.T) {
@@ -27,7 +28,9 @@ func TestLintValidRollout(t *testing.T) {
 		"testdata/valid-ingress-smi-multi.yml",
 		"testdata/valid-alb-canary.yml",
 		"testdata/valid-nginx-canary.yml",
+		"testdata/valid-nginx-basic-canary.yml",
 		"testdata/valid-istio-v1beta1-mulitiple-virtualsvcs.yml",
+		"testdata/valid-nginx-smi-with-vsvc.yaml",
 	}
 
 	for _, filename := range tests {
@@ -51,15 +54,19 @@ func TestLintInvalidRollout(t *testing.T) {
 	}{
 		{
 			"testdata/invalid.yml",
-			"Error: spec.strategy.maxSurge: Invalid value: intstr.IntOrString{Type:0, IntVal:0, StrVal:\"\"}: MaxSurge and MaxUnavailable both can not be zero\n",
+			"Error: spec.strategy.maxSurge: Invalid value: 0: MaxSurge and MaxUnavailable both can not be zero\n",
+		},
+		{
+			"testdata/invalid-empty-rollout-vsvc.yml",
+			"Error: spec.selector: Required value: Rollout has missing field '.spec.selector'\n",
 		},
 		{
 			"testdata/invalid.json",
-			"Error: spec.strategy.maxSurge: Invalid value: intstr.IntOrString{Type:0, IntVal:0, StrVal:\"\"}: MaxSurge and MaxUnavailable both can not be zero\n",
+			"Error: spec.strategy.maxSurge: Invalid value: 0: MaxSurge and MaxUnavailable both can not be zero\n",
 		},
 		{
 			"testdata/invalid-multiple-docs.yml",
-			"Error: spec.strategy.maxSurge: Invalid value: intstr.IntOrString{Type:0, IntVal:0, StrVal:\"\"}: MaxSurge and MaxUnavailable both can not be zero\n",
+			"Error: spec.strategy.maxSurge: Invalid value: 0: MaxSurge and MaxUnavailable both can not be zero\n",
 		},
 		{
 			"testdata/invalid-unknown-field.yml",
@@ -79,7 +86,7 @@ func TestLintInvalidRollout(t *testing.T) {
 		},
 		{
 			filename: "testdata/invalid-nginx-canary.yml",
-			errmsg:   "Error: spec.strategy.steps[1].experiment.templates[0].weight: Invalid value: 20: Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time\n",
+			errmsg:   "Error: spec.strategy.steps[1].experiment.templates[0].weight: Invalid value: 20: Experiment template weight is only available for TrafficRouting with SMI, ALB, Istio and Plugins at this time\n",
 		},
 	}
 

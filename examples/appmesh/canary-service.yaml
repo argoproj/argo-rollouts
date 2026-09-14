@@ -39,6 +39,7 @@ metadata:
   name: my-svc-canary
   namespace: argo-examples
 spec:
+  clusterIP: None
   ports:
   - port: 80
     targetPort: http
@@ -55,6 +56,7 @@ metadata:
   name: my-svc-stable
   namespace: argo-examples
 spec:
+  clusterIP: None
   ports:
   - port: 80
     targetPort: http
@@ -114,11 +116,12 @@ spec:
       rollouts-pod-template-hash: canary-tbd
   listeners:
     - portMapping:
-        port: 80
+        port: 8080
         protocol: http
   serviceDiscovery:
     dns:
       hostname: my-svc-canary.argo-examples.svc.cluster.local
+      responseType: ENDPOINTS
 
 ---
 apiVersion: appmesh.k8s.aws/v1beta2
@@ -133,11 +136,12 @@ spec:
       rollouts-pod-template-hash: stable-tbd
   listeners:
     - portMapping:
-        port: 80
+        port: 8080
         protocol: http
   serviceDiscovery:
     dns:
       hostname: my-svc-stable.argo-examples.svc.cluster.local
+      responseType: ENDPOINTS
 
 ---
 apiVersion: appmesh.k8s.aws/v1beta2
@@ -176,8 +180,8 @@ spec:
       containers:
         - name: wrk
           image: argoproj/load-tester:latest
-          command: 
+          command:
             - /bin/sh
-            - -c 
+            - -c
             - -x
             - "while true; do wrk -t10 -c40 -d2m -s report.lua http://my-svc.argo-examples/color; jq -e '.errors_ratio <= 0.35 and .latency_avg_ms < 100' report.json; done"

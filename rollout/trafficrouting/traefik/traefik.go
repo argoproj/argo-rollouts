@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,12 +24,6 @@ const Type = "Traefik"
 const traefikServices = "traefikservices"
 const TraefikServiceUpdateError = "TraefikServiceUpdateError"
 
-var (
-	apiGroupToResource = map[string]string{
-		defaults.DefaultTraefikAPIGroup: traefikServices,
-	}
-)
-
 type ReconcilerConfig struct {
 	Rollout  *v1alpha1.Rollout
 	Client   ClientInterface
@@ -39,6 +34,13 @@ type Reconciler struct {
 	Rollout  *v1alpha1.Rollout
 	Client   ClientInterface
 	Recorder record.EventRecorder
+}
+
+func apiGroupToResource(group string) string {
+	apiGroupToResource := map[string]string{
+		defaults.GetTraefikAPIGroup(): traefikServices,
+	}
+	return apiGroupToResource[group]
 }
 
 func (r *Reconciler) sendWarningEvent(id, msg string) {
@@ -68,10 +70,11 @@ func NewDynamicClient(di dynamic.Interface, namespace string) dynamic.ResourceIn
 }
 
 func GetMappingGVR() schema.GroupVersionResource {
-	group := defaults.DefaultTraefikAPIGroup
-	parts := strings.Split(defaults.DefaultTraefikVersion, "/")
+	group := defaults.GetTraefikAPIGroup()
+	parts := strings.Split(defaults.GetTraefikVersion(), "/")
 	version := parts[len(parts)-1]
-	resourceName := apiGroupToResource[group]
+	resourceName := apiGroupToResource(group)
+
 	return schema.GroupVersionResource{
 		Group:    group,
 		Version:  version,
@@ -134,10 +137,10 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return err
 }
 
-func getService(serviceName string, services []interface{}) (map[string]interface{}, error) {
-	var selectedService map[string]interface{}
+func getService(serviceName string, services []any) (map[string]any, error) {
+	var selectedService map[string]any
 	for _, service := range services {
-		typedService, ok := service.(map[string]interface{})
+		typedService, ok := service.(map[string]any)
 		if !ok {
 			return nil, errors.New("Failed type assertion setting weight for traefik service")
 		}

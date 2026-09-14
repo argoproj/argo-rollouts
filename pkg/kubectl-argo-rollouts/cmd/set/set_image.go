@@ -14,12 +14,16 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 )
 
 const (
 	setImageExample = `
-  # Set rollout image
-  %[1]s set image my-rollout www=image:v2`
+  # Set rollout image (containers contains 'initContainer', 'container', 'ephemeralContainer')
+  %[1]s set image my-rollout containerName=imageName
+  
+  # Set rollout image for all containers
+  %[1]s set image my-rollout *=imageName`
 )
 
 const (
@@ -60,6 +64,7 @@ func NewCmdSetImage(o *options.ArgoRolloutsOptions) *cobra.Command {
 			fmt.Fprintf(o.Out, "%s \"%s\" image updated\n", strings.ToLower(un.GetKind()), un.GetName())
 			return nil
 		},
+		ValidArgsFunction: completionutil.RolloutNameCompletionFunc(o),
 	}
 	return cmd
 }
@@ -122,9 +127,9 @@ func newRolloutSetImage(orig *unstructured.Unstructured, container string, image
 		if !ok {
 			continue
 		}
-		ctrList := ctrListIf.([]interface{})
+		ctrList := ctrListIf.([]any)
 		for _, ctrIf := range ctrList {
-			ctr := ctrIf.(map[string]interface{})
+			ctr := ctrIf.(map[string]any)
 			if name, _, _ := unstructured.NestedString(ctr, "name"); name == container || container == "*" {
 				ctr["image"] = image
 				containerFound = true

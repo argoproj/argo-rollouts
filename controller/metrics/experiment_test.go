@@ -7,12 +7,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 const (
@@ -150,7 +151,7 @@ experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="+Inf"} 1
 experiment_reconcile_sum{name="ex-test",namespace="ex-namespace"} 0.001
 experiment_reconcile_count{name="ex-test",namespace="ex-namespace"} 1`
 
-	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
+	metricsServ := NewMetricsServer(newFakeServerConfig())
 	ex := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ex-test",

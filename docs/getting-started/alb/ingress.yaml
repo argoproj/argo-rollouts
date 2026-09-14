@@ -1,4 +1,4 @@
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: rollouts-demo-ingress
@@ -8,7 +8,10 @@ spec:
   rules:
   - http:
       paths:
-      - path: /*
+      - path: /
+        pathType: Prefix
         backend:
-          serviceName: rollouts-demo-root
-          servicePort: use-annotation
+          service:
+            name: rollouts-demo-root
+            port:
+              name: use-annotation

@@ -141,7 +141,7 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 }
 
 type routeReconcileContext struct {
-	route           map[string]interface{}
+	route           map[string]any
 	routeIndex      int
 	routeFldPath    *field.Path
 	rCanaryVnodeRef *v1alpha1.AppMeshVirtualNodeReference
@@ -170,7 +170,7 @@ func (r *Reconciler) reconcileVirtualRouter(ctx context.Context, rRoutes []strin
 
 	for idx, routeI := range routesI {
 		routeFldPath := routesFldPath.Index(idx)
-		route, ok := routeI.(map[string]interface{})
+		route, ok := routeI.(map[string]any)
 		if !ok {
 			return field.Invalid(routeFldPath, uVrCopy.GetName(), ErrNotWellFormed)
 		}
@@ -232,12 +232,12 @@ func (r *Reconciler) reconcileRoute(ctx context.Context, uVr *unstructured.Unstr
 	requiresUpdate := false
 	for idx, wtI := range weightedTargets {
 		wtFldPath := weightedTargetsFldPath.Index(idx)
-		wt, ok := wtI.(map[string]interface{})
+		wt, ok := wtI.(map[string]any)
 		if !ok {
 			return false, field.Invalid(wtFldPath, uVr.GetName(), ErrNotWellFormed)
 		}
 		wtVnRefFldPath := wtFldPath.Child("virtualNodeRef")
-		wtVnRef, ok := wt["virtualNodeRef"].(map[string]interface{})
+		wtVnRef, ok := wt["virtualNodeRef"].(map[string]any)
 		if !ok {
 			return false, field.Invalid(wtVnRefFldPath, uVr.GetName(), ErrNotWellFormed)
 		}
@@ -324,22 +324,22 @@ func (r *Reconciler) Type() string {
 	return Type
 }
 
-func getPodSelectorMatchLabels(vnode *unstructured.Unstructured) (map[string]interface{}, error) {
+func getPodSelectorMatchLabels(vnode *unstructured.Unstructured) (map[string]any, error) {
 	m, found, err := unstructured.NestedMap(vnode.Object, "spec", "podSelector", "matchLabels")
 	if err != nil {
 		return nil, err
 	}
 	if !found || m == nil {
-		return make(map[string]interface{}), nil
+		return make(map[string]any), nil
 	}
 	return m, nil
 }
 
-func setPodSelectorMatchLabels(vnode *unstructured.Unstructured, ml map[string]interface{}) error {
+func setPodSelectorMatchLabels(vnode *unstructured.Unstructured, ml map[string]any) error {
 	return unstructured.SetNestedMap(vnode.Object, ml, "spec", "podSelector", "matchLabels")
 }
 
-func toInt64(obj interface{}) (int64, error) {
+func toInt64(obj any) (int64, error) {
 	switch i := obj.(type) {
 	case float64:
 		return int64(i), nil
@@ -370,8 +370,8 @@ func toInt64(obj interface{}) (int64, error) {
 	}
 }
 
-func GetRouteRule(route map[string]interface{}) (map[string]interface{}, string, error) {
-	var routeRule map[string]interface{}
+func GetRouteRule(route map[string]any) (map[string]any, string, error) {
+	var routeRule map[string]any
 	var routeType string
 	for _, rType := range supportedRouteTypes {
 		r, found, err := unstructured.NestedMap(route, rType)

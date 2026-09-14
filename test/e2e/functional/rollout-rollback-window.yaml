@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: window
+spec:
+  replicas: 2
+  rollbackWindow:
+    revisions: 2
+  strategy:
+    canary: 
+      steps:
+      - setWeight: 50
+      - analysis:
+          templates:
+          - templateName: sleep-job
+          args:
+          - name: rev
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.labels['rev']
+  selector:
+    matchLabels:
+      app: window
+  template:
+    metadata:
+      labels:
+        app: window
+        rev: initial
+    spec:
+      containers:
+      - name: basic
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m

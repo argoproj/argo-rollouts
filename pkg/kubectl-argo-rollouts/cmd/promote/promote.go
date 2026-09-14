@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -33,10 +34,12 @@ const (
 	setCurrentStepIndex                         = `{"status":{"currentStepIndex":%d}}`
 	unpausePatch                                = `{"spec":{"paused":false}}`
 	clearPauseConditionsPatch                   = `{"status":{"pauseConditions":null}}`
+	clearPauseConditionsAndControllerPausePatch = `{"status":{"pauseConditions":null, "controllerPause":false, "currentStepIndex":%d}}`
 	unpauseAndClearPauseConditionsPatch         = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
 	promoteFullPatch                            = `{"status":{"promoteFull":true}}`
 	clearPauseConditionsPatchWithStep           = `{"status":{"pauseConditions":null, "currentStepIndex":%d}}`
 	unpauseAndClearPauseConditionsPatchWithStep = `{"spec":{"paused":false},"status":{"pauseConditions":null, "currentStepIndex":%d}}`
+	unpauseAndPromoteFullPatch                  = `{"spec":{"paused":false},"status":{"promoteFull":true}}`
 
 	useBothSkipFlagsError         = "Cannot use skip-current-step and skip-all-steps flags at the same time"
 	skipFlagsWithBlueGreenError   = "Cannot skip steps of a bluegreen rollout. Run without a flags"
@@ -77,6 +80,7 @@ func NewCmdPromote(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 			return nil
 		},
+		ValidArgsFunction: completionutil.RolloutNameCompletionFunc(o),
 	}
 	cmd.Flags().BoolVarP(&skipCurrentStep, "skip-current-step", "c", false, "Skip currently running canary step")
 	cmd.Flags().BoolVarP(&skipAllSteps, "skip-all-steps", "a", false, "Skip remaining steps")
@@ -131,6 +135,10 @@ func PromoteRollout(rolloutIf clientset.RolloutInterface, name string, skipCurre
 	return ro, nil
 }
 
+func isInconclusive(rollout *v1alpha1.Rollout) bool {
+	return rollout.Spec.Strategy.Canary != nil && rollout.Status.Canary.CurrentStepAnalysisRunStatus != nil && rollout.Status.Canary.CurrentStepAnalysisRunStatus.Status == v1alpha1.AnalysisPhaseInconclusive
+}
+
 func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bool) ([]byte, []byte, []byte) {
 	var specPatch, statusPatch, unifiedPatch []byte
 	switch {
@@ -150,15 +158,30 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 		statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, len(rollout.Spec.Strategy.Canary.Steps)))
 		unifiedPatch = statusPatch
 	case full:
+		if rollout.Spec.Paused {
+			specPatch = []byte(unpausePatch)
+		}
 		if rollout.Status.CurrentPodHash != rollout.Status.StableRS {
 			statusPatch = []byte(promoteFullPatch)
 		}
+		unifiedPatch = []byte(unpauseAndPromoteFullPatch)
 	default:
 		unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
 		if rollout.Spec.Paused {
 			specPatch = []byte(unpausePatch)
 		}
-		if len(rollout.Status.PauseConditions) > 0 {
+		// in case if canary rollout in inconclusive state, we want to unset controller pause , clean pause conditions and increment step index
+		// so that rollout can proceed to next step
+		// without such patch, rollout will be stuck in inconclusive state in case if next step is pause step
+		if isInconclusive(rollout) && len(rollout.Status.PauseConditions) > 0 && rollout.Status.ControllerPause {
+			_, index := replicasetutil.GetCurrentCanaryStep(rollout)
+			if index != nil {
+				if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
+					*index++
+				}
+				statusPatch = []byte(fmt.Sprintf(clearPauseConditionsAndControllerPausePatch, *index))
+			}
+		} else if len(rollout.Status.PauseConditions) > 0 {
 			statusPatch = []byte(clearPauseConditionsPatch)
 		} else if rollout.Spec.Strategy.Canary != nil {
 			// we only want to clear pause conditions, or increment step index (never both)

@@ -6,7 +6,6 @@ import (
 	"sort"
 	"sync"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	v1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -322,15 +321,19 @@ func (i *Ingress) GetNamespace() string {
 	}
 }
 
-func (i *Ingress) GetLoadBalancerStatus() corev1.LoadBalancerStatus {
+func (i *Ingress) GetLoadBalancerHostnames() []string {
+	hostnames := []string{}
 	switch i.mode {
 	case IngressModeNetworking:
-		return i.ingress.Status.LoadBalancer
+		for _, ingress := range i.ingress.Status.LoadBalancer.Ingress {
+			hostnames = append(hostnames, ingress.Hostname)
+		}
 	case IngressModeExtensions:
-		return i.legacyIngress.Status.LoadBalancer
-	default:
-		return corev1.LoadBalancerStatus{}
+		for _, ingress := range i.legacyIngress.Status.LoadBalancer.Ingress {
+			hostnames = append(hostnames, ingress.Hostname)
+		}
 	}
+	return hostnames
 }
 
 func (i *Ingress) Mode() IngressMode {

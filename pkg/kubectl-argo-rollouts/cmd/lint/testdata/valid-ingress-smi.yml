@@ -49,7 +49,7 @@ spec:
     - service: rollout-smi-experiment-canary
       weight: 5
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: rollout-smi-experiment-stable
@@ -61,16 +61,22 @@ spec:
       http:
         paths:
           - path: /
+            pathType: Prefix
             backend:
-              serviceName: rollout-smi-experiment-stable
-              servicePort: 80
+              service:
+                name: rollout-smi-experiment-stable
+                port:
+                  number: 80
     - host: rollout-smi-experiment-root.local
       http:
         paths:
-            - path: /
-              backend:
-                serviceName: rollout-smi-experiment-root
-                servicePort: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rollout-smi-experiment-root
+                port:
+                  number: 80
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout

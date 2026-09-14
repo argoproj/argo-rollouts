@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 )
 
@@ -64,6 +65,7 @@ func NewCmdGetExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			return nil
 		},
+		ValidArgsFunction: completionutil.ExperimentNameCompletionFunc(o),
 	}
 	cmd.Flags().BoolVarP(&getOptions.Watch, "watch", "w", false, "Watch live updates to the rollout")
 	cmd.Flags().BoolVar(&getOptions.NoColor, "no-color", false, "Do not colorize output")

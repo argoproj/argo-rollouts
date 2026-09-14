@@ -45,15 +45,15 @@ images:
 openapi:
   path: https://raw.githubusercontent.com/argoproj/argo-schema-generator/main/schema/argo_all_k8s_kustomize_schema.json
 
-patchesStrategicMerge:
-- |-
-  apiVersion: argoproj.io/v1alpha1
-  kind: Rollout
-  metadata:
-    name: guestbook
-  spec:
-    template:
-      spec:
-        containers:
-        - name: guestbook
-          image: guestbook-patched:v1
+patches:
+- patch: |-
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      name: guestbook
+    spec:
+      template:
+        spec:
+          containers:
+          - name: guestbook
+            image: guestbook-patched:v1

@@ -18,7 +18,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -72,6 +72,7 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 		}
 	}
 	// new ReplicaSet does not exist.
+
 	return nil
 }
 
@@ -211,7 +212,7 @@ func IfInjectedAntiAffinityRuleNeedsUpdate(affinity *corev1.Affinity, rollout v1
 	currentPodHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	if podAffinityTerm != nil && rollout.Status.StableRS != currentPodHash {
 		for _, labelSelectorRequirement := range podAffinityTerm.LabelSelector.MatchExpressions {
-			if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey && labelSelectorRequirement.Values[0] != rollout.Status.StableRS {
+			if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey && len(labelSelectorRequirement.Values) > 0 && labelSelectorRequirement.Values[0] != rollout.Status.StableRS {
 				return true
 			}
 		}
@@ -283,7 +284,7 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 			otherRSs := GetOtherRSs(rollout, newRS, stableRS, allRSs)
 			newRSReplicaCount, _ = CalculateReplicaCountsForBasicCanary(rollout, newRS, stableRS, otherRSs)
 		} else {
-			newRSReplicaCount, _ = CalculateReplicaCountsForTrafficRoutedCanary(rollout, weights)
+			newRSReplicaCount, _ = CalculateReplicaCountsForTrafficRoutedCanary(rollout, newRS, stableRS, weights)
 		}
 		return newRSReplicaCount, nil
 	}
@@ -339,6 +340,15 @@ func FindActiveOrLatest(newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) *
 	default:
 		return nil
 	}
+}
+
+// IsActive returns if replica set is active (has, or at least ought to have pods).
+func IsActive(rs *appsv1.ReplicaSet) bool {
+	if rs == nil {
+		return false
+	}
+
+	return len(controller.FilterActiveReplicaSets([]*appsv1.ReplicaSet{rs})) > 0
 }
 
 // GetReplicaCountForReplicaSets returns the sum of Replicas of the given replica sets.
@@ -496,16 +506,16 @@ func PodTemplateOrStepsChanged(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaS
 // ResetCurrentStepIndex resets the index back to zero unless there are no steps
 func ResetCurrentStepIndex(rollout *v1alpha1.Rollout) *int32 {
 	if rollout.Spec.Strategy.Canary != nil && len(rollout.Spec.Strategy.Canary.Steps) > 0 {
-		return pointer.Int32Ptr(0)
+		return ptr.To[int32](0)
 	}
 	return nil
 }
 
 // PodTemplateEqualIgnoreHash returns true if two given podTemplateSpec are equal, ignoring the diff in value of Labels[pod-template-hash]
 // We ignore pod-template-hash because:
-// 1. The hash result would be different upon podTemplateSpec API changes
-//    (e.g. the addition of a new field will cause the hash code to change)
-// 2. The deployment template won't have hash labels
+//  1. The hash result would be different upon podTemplateSpec API changes
+//     (e.g. the addition of a new field will cause the hash code to change)
+//  2. The deployment template won't have hash labels
 //
 // NOTE: This is a modified version of deploymentutil.EqualIgnoreHash, but modified to perform
 // defaulting on the desired spec. This is so that defaulted fields by the replicaset controller
@@ -583,17 +593,6 @@ func (o ReplicaSetsByRevisionNumber) Less(i, j int) bool {
 	return iRevision < jRevision
 }
 
-// IsStillReferenced returns if the given ReplicaSet is still being referenced by any of
-// the current, stable, blue-green active references. Used to determine if the ReplicaSet can
-// safely be scaled to zero, or deleted.
-func IsStillReferenced(status v1alpha1.RolloutStatus, rs *appsv1.ReplicaSet) bool {
-	hash := GetPodTemplateHash(rs)
-	if hash != "" && (hash == status.StableRS || hash == status.CurrentPodHash || hash == status.BlueGreen.ActiveSelector) {
-		return true
-	}
-	return false
-}
-
 // HasScaleDownDeadline returns whether or not the given ReplicaSet is annotated with a scale-down delay
 func HasScaleDownDeadline(rs *appsv1.ReplicaSet) bool {
 	if rs == nil || rs.Annotations == nil {
@@ -645,4 +644,9 @@ func IsReplicaSetAvailable(rs *appsv1.ReplicaSet) bool {
 	replicas := rs.Spec.Replicas
 	availableReplicas := rs.Status.AvailableReplicas
 	return replicas != nil && *replicas != 0 && availableReplicas != 0 && *replicas <= availableReplicas
+}
+
+// IsReplicaSetPartiallyAvailable returns if a ReplicaSet is scaled up and has at least 1 pod available
+func IsReplicaSetPartiallyAvailable(rs *appsv1.ReplicaSet) bool {
+	return rs.Status.AvailableReplicas > 0
 }

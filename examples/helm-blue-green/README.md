@@ -5,7 +5,7 @@ regardless of the event source. If you package your manifest
 with the Helm package manager you can perform Progressive Delivery deployments with Helm
 
 1. Install the Argo Rollouts controller in your cluster: https://github.com/argoproj/argo-rollouts#installation
-2. Instal the `helm` executable locally: https://helm.sh/docs/intro/install/
+2. Install the `helm` executable locally: https://helm.sh/docs/intro/install/
 
 ## Deploying the initial version
 

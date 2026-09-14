@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -278,9 +278,9 @@ func TestSortAnalysisRunByPodHash(t *testing.T) {
 	}
 	ars := []*v1alpha1.AnalysisRun{
 		ar(nil),
-		ar(pointer.StringPtr("ab")),
-		ar(pointer.StringPtr("abc")),
-		ar(pointer.StringPtr("abc")),
+		ar(ptr.To[string]("ab")),
+		ar(ptr.To[string]("abc")),
+		ar(ptr.To[string]("abc")),
 	}
 	arMap := SortAnalysisRunByPodHash(ars)
 	assert.Len(t, arMap, 2)

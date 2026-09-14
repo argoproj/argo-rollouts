@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/signals"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -18,6 +20,9 @@ the rollout is healthy upon completion and an error otherwise.`
 	statusExample = `
 	# Watch the rollout until it succeeds
 	%[1]s status guestbook
+
+	# Show the rollout status
+    %[1]s status guestbook --watch=false
 
 	# Watch the rollout until it succeeds, fail if it takes more than 60 seconds
 	%[1]s status --timeout 60s guestbook
@@ -89,6 +94,7 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 
 			return nil
 		},
+		ValidArgsFunction: completionutil.RolloutNameCompletionFunc(o),
 	}
 	cmd.Flags().BoolVarP(&statusOptions.Watch, "watch", "w", true, "Watch the status of the rollout until it's done")
 	cmd.Flags().DurationVarP(&statusOptions.Timeout, "timeout", "t", time.Duration(0), "The length of time to watch before giving up. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). Zero means wait forever")

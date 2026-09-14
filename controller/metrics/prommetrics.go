@@ -1,8 +1,9 @@
 package metrics
 
 import (
-	"github.com/argoproj/argo-rollouts/utils/version"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/argoproj/argo-rollouts/utils/version"
 )
 
 // Follow Prometheus naming practices
@@ -54,6 +55,13 @@ var (
 	MetricRolloutInfoReplicasDesired = prometheus.NewDesc(
 		"rollout_info_replicas_desired",
 		"The number of desired replicas per rollout.",
+		namespaceNameLabels,
+		nil,
+	)
+
+	MetricRolloutInfoReplicasUpdated = prometheus.NewDesc(
+		"rollout_info_replicas_updated",
+		"The number of updated replicas per rollout.",
 		namespaceNameLabels,
 		nil,
 	)
@@ -128,7 +136,7 @@ var (
 	MetricAnalysisTemplateInfo = prometheus.NewDesc(
 		"analysis_template_info",
 		"Information about analysis templates.",
-		append(namespaceNameLabels),
+		namespaceNameLabels,
 		nil,
 	)
 

@@ -1,0 +1,61 @@
+@import '../theme/theme.scss';
+
+// Analysis Panel
+
+.analysis-header {
+    margin: $space-unit 0 (3 * $space-unit);
+}
+
+.label {
+    display: block;
+}
+
+// Metric Panel
+
+.metric-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: $space-unit 0;
+}
+
+.legend {
+    display: flex;
+    justify-content: flex-end;
+}
+
+h5.section-title {
+    margin-bottom: 0; // antd override
+}
+
+.query-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $space-unit;
+}
+
+.query-box {
+    :not(:last-child) {
+        margin-bottom: $space-small;
+    }
+
+    :last-child {
+        margin-bottom: $space-large;
+    }
+}
+
+// Common
+
+.summary-section,
+.metric-section {
+    margin-bottom: 3 * $space-unit;
+
+    &.medium-space {
+        margin-bottom: $space-medium;
+    }
+
+    &.top-content {
+        margin-top: $space-unit;
+    }
+}

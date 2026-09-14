@@ -31,7 +31,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080`
+  service: main-service:8080`
 
 	baseMappingNoPort = `
 apiVersion: getambassador.io/v2
@@ -42,7 +42,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp`
+  service: main-service`
 
 	baseMappingWithWeight = `
 apiVersion: getambassador.io/v2
@@ -53,7 +53,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080
+  service: main-service:8080
   weight: 20`
 
 	baseV3Mapping = `
@@ -66,7 +66,7 @@ spec:
   hostname: 'example.com'
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080`
+  service: main-service:8080`
 
 	canaryMapping = `
 apiVersion: getambassador.io/v2
@@ -77,7 +77,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080
+  service: main-service:8080
   weight: 20`
 
 	canaryMappingWithZeroWeight = `
@@ -89,7 +89,7 @@ metadata:
 spec:
   prefix: /myapp/
   rewrite: /myapp/
-  service: myapp:8080
+  service: main-service:8080
   weight: 0`
 )
 
@@ -136,8 +136,9 @@ type getReturn struct {
 func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	invokation := &getInvokation{name: name}
 	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.getInvokations = append(f.getInvokations, invokation)
-	f.mu.Unlock()
+
 	if len(f.getReturns) == 0 {
 		return nil, nil
 	}
@@ -145,7 +146,8 @@ func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOpt
 	if len(f.getReturns) >= len(f.getInvokations) {
 		ret = f.getReturns[len(f.getInvokations)-1]
 	}
-	return ret.obj, ret.err
+	// We clone the object before returning it, to prevent modification of the fake object in memory by the calling function
+	return ret.obj.DeepCopy(), ret.err
 }
 
 func (f *fakeClient) Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {

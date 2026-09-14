@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	fmt "fmt"
 	"strconv"
 	"time"
 
@@ -44,6 +45,7 @@ type RolloutSpec struct {
 	// selected by this will be the ones affected by this rollout.
 	// It must match the pod template's labels.
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message=".spec.selector is immutable"
 	Selector *metav1.LabelSelector `json:"selector" protobuf:"bytes,2,opt,name=selector"`
 	// Template describes the pods that will be created.
 	// +optional
@@ -56,6 +58,9 @@ type RolloutSpec struct {
 	// Defaults to 0 (pod will be considered available as soon as it is ready)
 	// +optional
 	MinReadySeconds int32 `json:"minReadySeconds,omitempty" protobuf:"varint,4,opt,name=minReadySeconds"`
+	// The window in which a rollback will be fast tracked (fully promoted)
+	// +optional
+	RollbackWindow *RollbackWindowSpec `json:"rollbackWindow,omitempty" protobuf:"bytes,13,opt,name=rollbackWindow"`
 	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
 	Strategy RolloutStrategy `json:"strategy" protobuf:"bytes,5,opt,name=strategy"`
@@ -134,6 +139,8 @@ type ObjectRef struct {
 	Kind string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
 	// Name of the referent
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	// Automatically scale down deployment
+	ScaleDown string `json:"scaleDown,omitempty" protobuf:"bytes,4,opt,name=scaleDown"`
 }
 
 const (
@@ -233,6 +240,23 @@ type PreferredDuringSchedulingIgnoredDuringExecution struct {
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
 type RequiredDuringSchedulingIgnoredDuringExecution struct{}
 
+// ProgressType is the type which could be used when specifying the replica progress threshold. Percentage | Pods
+type ProgressType string
+
+const (
+	ProgressTypePercentage ProgressType = "Percent"
+	ProgressTypePods       ProgressType = "Pods"
+)
+
+type ReplicaProgressThreshold struct {
+	// Type is used to specify whether the replica progress threshold is a percentage or a number. Required if replicaProgressThreshold is specified.
+	Type ProgressType `json:"type" protobuf:"bytes,1,opt,name=type"`
+	// Value contains the user-specified value for when a Argo Rollouts can promote a canary to the next step.
+	// If not satisfied, this value will be assumed to be 100% of the total desired replicas for the given next step.
+	// Value must also be greater than 0. Required.
+	Value int32 `json:"value" protobuf:"varint,2,opt,name=value"`
+}
+
 // CanaryStrategy defines parameters for a Replica Based Canary
 type CanaryStrategy struct {
 	// CanaryService holds the name of a service which selects pods with canary version and don't select any pods with stable version.
@@ -307,6 +331,14 @@ type CanaryStrategy struct {
 	DynamicStableScale bool `json:"dynamicStableScale,omitempty" protobuf:"varint,14,opt,name=dynamicStableScale"`
 	// PingPongSpec holds the ping and pong services
 	PingPong *PingPongSpec `json:"pingPong,omitempty" protobuf:"varint,15,opt,name=pingPong"`
+	// Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
+	// MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
+	MinPodsPerReplicaSet *int32 `json:"minPodsPerReplicaSet,omitempty" protobuf:"varint,16,opt,name=minPodsPerReplicaSet"`
+
+	// ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.
+	// Defaults to 100% of total replicas.
+	// +optional
+	ReplicaProgressThreshold *ReplicaProgressThreshold `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,17,opt,name=replicaProgressThreshold"`
 }
 
 // PingPongSpec holds the ping and pong service name.
@@ -329,17 +361,20 @@ type AnalysisRunStrategy struct {
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
 type ALBTrafficRouting struct {
 	// Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
-	Ingress string `json:"ingress" protobuf:"bytes,1,opt,name=ingress"`
+	Ingress string `json:"ingress,omitempty" protobuf:"bytes,1,opt,name=ingress"`
 	// ServicePort refers to the port that the Ingress action should route traffic to
 	ServicePort int32 `json:"servicePort" protobuf:"varint,2,opt,name=servicePort"`
 	// RootService references the service in the ingress to the controller should add the action to
 	RootService string `json:"rootService,omitempty" protobuf:"bytes,3,opt,name=rootService"`
-	// AdditionalForwardConfig allows to specify further settings on the ForwaredConfig
-	// +optional
-	StickinessConfig *StickinessConfig `json:"stickinessConfig,omitempty" protobuf:"bytes,5,opt,name=stickinessConfig"`
 	// AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller
 	// +optional
 	AnnotationPrefix string `json:"annotationPrefix,omitempty" protobuf:"bytes,4,opt,name=annotationPrefix"`
+	// StickinessConfig refers to the duration-based stickiness of the target groups associated with an `Ingress`
+	// +optional
+	StickinessConfig *StickinessConfig `json:"stickinessConfig,omitempty" protobuf:"bytes,5,opt,name=stickinessConfig"`
+	// Ingresses refers to the name of an `Ingress` resource in the same namespace as the `Rollout` in a multi ingress scenario
+	// +optional
+	Ingresses []string `json:"ingresses,omitempty" protobuf:"bytes,6,opt,name=ingresses"`
 }
 
 type StickinessConfig struct {
@@ -363,9 +398,20 @@ type RolloutTrafficRouting struct {
 	AppMesh *AppMeshTrafficRouting `json:"appMesh,omitempty" protobuf:"bytes,6,opt,name=appMesh"`
 	// Traefik holds specific configuration to use Traefik to route traffic
 	Traefik *TraefikTrafficRouting `json:"traefik,omitempty" protobuf:"bytes,7,opt,name=traefik"`
-	// A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
+	// ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
 	// traffic router.
 	ManagedRoutes []MangedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
+	// Apisix holds specific configuration to use Apisix to route traffic
+	Apisix *ApisixTrafficRouting `json:"apisix,omitempty" protobuf:"bytes,9,opt,name=apisix"`
+
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Plugins holds specific configuration that traffic router plugins can use for routing traffic
+	Plugins map[string]json.RawMessage `json:"plugins,omitempty" protobuf:"bytes,10,opt,name=plugins"`
+
+	// MaxTrafficWeight The total weight of traffic. If unspecified, it defaults to 100
+	MaxTrafficWeight *int32 `json:"maxTrafficWeight,omitempty" protobuf:"varint,11,opt,name=maxTrafficWeight"`
 }
 
 type MangedRoutes struct {
@@ -378,6 +424,20 @@ type MangedRoutes struct {
 type TraefikTrafficRouting struct {
 	// TraefikServiceName refer to the name of the Traefik service used to route traffic to the service
 	WeightedTraefikServiceName string `json:"weightedTraefikServiceName" protobuf:"bytes,1,name=weightedTraefikServiceName"`
+}
+
+// ApisixTrafficRouting defines the configuration required to use APISIX as traffic router
+type ApisixTrafficRouting struct {
+	// Route references an Apisix Route to modify to shape traffic
+	Route *ApisixRoute `json:"route,omitempty" protobuf:"bytes,1,opt,name=route"`
+}
+
+// ApisixRoute holds information on the APISIX Route the rollout needs to modify
+type ApisixRoute struct {
+	// Name refer to the name of the APISIX Route used to route traffic to the service
+	Name string `json:"name" protobuf:"bytes,1,name=name"`
+	// RuleRef a list of the APISIX Route HTTP Rules used to route traffic to the service
+	Rules []string `json:"rules,omitempty" protobuf:"bytes,2,rep,name=rules"`
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
@@ -404,9 +464,14 @@ type NginxTrafficRouting struct {
 	// +optional
 	AnnotationPrefix string `json:"annotationPrefix,omitempty" protobuf:"bytes,1,opt,name=annotationPrefix"`
 	// StableIngress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
-	StableIngress string `json:"stableIngress" protobuf:"bytes,2,opt,name=stableIngress"`
+	StableIngress string `json:"stableIngress,omitempty" protobuf:"bytes,2,opt,name=stableIngress"`
 	// +optional
 	AdditionalIngressAnnotations map[string]string `json:"additionalIngressAnnotations,omitempty" protobuf:"bytes,3,rep,name=additionalIngressAnnotations"`
+	// StableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario
+	// +optional
+	StableIngresses []string `json:"stableIngresses,omitempty" protobuf:"bytes,4,rep,name=stableIngresses"`
+	// +optional
+	CanaryIngressAnnotations map[string]string `json:"canaryIngressAnnotations,omitempty" protobuf:"bytes,5,rep,name=canaryIngressAnnotations"`
 }
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
@@ -453,6 +518,9 @@ type IstioDestinationRule struct {
 	CanarySubsetName string `json:"canarySubsetName" protobuf:"bytes,2,opt,name=canarySubsetName"`
 	// StableSubsetName is the subset name to modify labels with stable ReplicaSet pod template hash value
 	StableSubsetName string `json:"stableSubsetName" protobuf:"bytes,3,opt,name=stableSubsetName"`
+	// AdditionalSubsetNames contains a list of additional names for subset DestinationRules that are not controlled by Argo Rollouts
+	// +optional
+	AdditionalSubsetNames []string `json:"additionalSubsetNames,omitempty" protobuf:"bytes,4,rep,name=additionalSubsetNames"`
 }
 
 // AppMeshTrafficRouting configuration for AWS AppMesh service mesh to enable fine grain configuration
@@ -498,6 +566,18 @@ type RolloutExperimentStep struct {
 	// +patchMergeKey=name
 	// +patchStrategy=merge
 	Analyses []RolloutExperimentStepAnalysisTemplateRef `json:"analyses,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,3,rep,name=analyses"`
+	// DryRun object contains the settings for running the analysis in Dry-Run mode
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	// +optional
+	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=dryRun"`
+	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+	// +optional
+	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
+
+	// ScaleDownDelaySeconds is the number of seconds to wait before scaling down the old ReplicaSet
+	// +optional
+	ScaleDownDelaySeconds *int32 `json:"scaleDownDelaySeconds,omitempty" protobuf:"varint,6,opt,name=scaleDownDelaySeconds"`
 }
 
 type RolloutExperimentStepAnalysisTemplateRef struct {
@@ -507,13 +587,19 @@ type RolloutExperimentStepAnalysisTemplateRef struct {
 	TemplateName string `json:"templateName" protobuf:"bytes,2,opt,name=templateName"`
 	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
-	ClusterScope bool `json:"clusterScope,omitempty" protobuf:"varint,3,opt,name=clusterScope"`
+	ClusterScope *bool `json:"clusterScope,omitempty" protobuf:"varint,3,opt,name=clusterScope"`
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
 	// +patchStrategy=merge
 	Args []AnalysisRunArgument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,4,rep,name=args"`
 	// RequiredForCompletion blocks the Experiment from completing until the analysis has completed
 	RequiredForCompletion bool `json:"requiredForCompletion,omitempty" protobuf:"varint,5,opt,name=requiredForCompletion"`
+}
+
+// IsClusterScope returns true if the template should be looked up at cluster scope.
+// Defaults to false (namespace scope) if ClusterScope is nil.
+func (ref *RolloutExperimentStepAnalysisTemplateRef) IsClusterScope() bool {
+	return ref.ClusterScope != nil && *ref.ClusterScope
 }
 
 // RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step
@@ -534,6 +620,8 @@ type RolloutExperimentTemplate struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,5,opt,name=selector"`
 	// Weight sets the percentage of traffic the template's replicas should receive
 	Weight *int32 `json:"weight,omitempty" protobuf:"varint,6,opt,name=weight"`
+	// Service controls the optionally generated service
+	Service *TemplateService `json:"service,omitempty" protobuf:"bytes,7,opt,name=service"`
 }
 
 // PodTemplateMetadata extra labels to add to the template
@@ -542,6 +630,16 @@ type PodTemplateMetadata struct {
 	// +optional
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,1,rep,name=labels"`
 	// Annotations additional annotations to add to the experiment
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,rep,name=annotations"`
+}
+
+// AnalysisRunMetadata extra labels to add to the AnalysisRun
+type AnalysisRunMetadata struct {
+	// Labels Additional labels to add to the AnalysisRun
+	// +optional
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,1,rep,name=labels"`
+	// Annotations additional annotations to add to the AnalysisRun
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,rep,name=annotations"`
 }
@@ -577,6 +675,19 @@ type CanaryStep struct {
 	// SetMirrorRoutes Mirrors traffic that matches rules to a particular destination
 	// +optional
 	SetMirrorRoute *SetMirrorRoute `json:"setMirrorRoute,omitempty" protobuf:"bytes,8,opt,name=setMirrorRoute"`
+	// Plugin defines a plugin to execute for a step
+	Plugin *PluginStep `json:"plugin,omitempty" protobuf:"bytes,9,opt,name=plugin"`
+}
+
+type PluginStep struct {
+	// Name of the hashicorp go-plugin step to query
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Config is the configuration object for the specified plugin
+	Config json.RawMessage `json:"config,omitempty" protobuf:"bytes,2,opt,name=config"`
 }
 
 type SetMirrorRoute struct {
@@ -653,8 +764,10 @@ type RolloutAnalysisBackground struct {
 
 // RolloutAnalysis defines a template that is used to create a analysisRun
 type RolloutAnalysis struct {
-	//Templates reference to a list of analysis templates to combine for an AnalysisRun
-	Templates []RolloutAnalysisTemplate `json:"templates,omitempty" protobuf:"bytes,1,rep,name=templates"`
+	// Templates reference to a list of analysis templates to combine for an AnalysisRun
+	// +patchMergeKey=templateName
+	// +patchStrategy=merge
+	Templates []AnalysisTemplateRef `json:"templates,omitempty" patchStrategy:"merge" patchMergeKey:"templateName" protobuf:"bytes,1,rep,name=templates"`
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
 	// +patchStrategy=merge
@@ -669,15 +782,24 @@ type RolloutAnalysis struct {
 	// +patchStrategy=merge
 	// +optional
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
+	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+	// +optional
+	AnalysisRunMetadata *AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
 }
 
-type RolloutAnalysisTemplate struct {
+type AnalysisTemplateRef struct {
 	//TemplateName name of template to use in AnalysisRun
 	// +optional
 	TemplateName string `json:"templateName" protobuf:"bytes,1,opt,name=templateName"`
 	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
-	ClusterScope bool `json:"clusterScope,omitempty" protobuf:"varint,2,opt,name=clusterScope"`
+	ClusterScope *bool `json:"clusterScope,omitempty" protobuf:"varint,2,opt,name=clusterScope"`
+}
+
+// IsClusterScope returns true if the template should be looked up at cluster scope.
+// Defaults to false (namespace scope) if ClusterScope is nil.
+func (ref *AnalysisTemplateRef) IsClusterScope() bool {
+	return ref.ClusterScope != nil && *ref.ClusterScope
 }
 
 // AnalysisRunArgument argument to add to analysisRun
@@ -887,6 +1009,134 @@ type RolloutStatus struct {
 	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,24,opt,name=workloadObservedGeneration"`
 	/// ALB keeps information regarding the ALB and TargetGroups
 	ALB *ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
+	/// ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario
+	ALBs []ALBStatus `json:"albs,omitempty" protobuf:"bytes,26,opt,name=albs"`
+	// Duration tracks timing information for the current rollout attempt
+	// +optional
+	Duration *RolloutDurationStatus `json:"duration,omitempty" protobuf:"bytes,27,opt,name=duration"`
+}
+
+// RolloutDurationStatus tracks timing for a rollout attempt
+type RolloutDurationStatus struct {
+	// RolloutStartedAt is when the current rollout attempt started (StableRS diverged from CurrentPodHash)
+	// +optional
+	RolloutStartedAt *metav1.Time `json:"rolloutStartedAt,omitempty" protobuf:"bytes,1,opt,name=rolloutStartedAt"`
+
+	// ManualPauseStartedAt is when the current manual pause began (nil if not in manual pause)
+	// +optional
+	ManualPauseStartedAt *metav1.Time `json:"manualPauseStartedAt,omitempty" protobuf:"bytes,2,opt,name=manualPauseStartedAt"`
+
+	// TotalManualPauseDurationSeconds is the accumulated time spent in manual pauses, in seconds
+	// +optional
+	TotalManualPauseDurationSeconds *int64 `json:"totalManualPauseDurationSeconds,omitempty" protobuf:"varint,3,opt,name=totalManualPauseDurationSeconds"`
+
+	// FinishedAt is when this rollout attempt reached its terminal state:
+	// (1) promoted and stable, (2) aborted, or (3) superseded.
+	// Nil means the attempt is still in progress.
+	// +optional
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,4,opt,name=finishedAt"`
+
+	// CompletionStatus is the outcome of this rollout attempt. It is set as soon as the
+	// outcome becomes known, which may be before the attempt finishes (e.g. a rollback is
+	// classified while it is still progressing). FinishedAt, not this field, is the
+	// terminal signal.
+	// +optional
+	CompletionStatus *CompletionStatus `json:"completionStatus,omitempty" protobuf:"bytes,5,opt,name=completionStatus"`
+}
+
+// CompletionStatus is the outcome of a rollout attempt
+type CompletionStatus string
+
+const (
+	// CompletionStatusPromoted indicates the rollout completed successfully through normal progression
+	CompletionStatusPromoted CompletionStatus = "Promoted"
+	// CompletionStatusFastPromoted indicates the rollout was manually promoted (skipping remaining steps)
+	CompletionStatusFastPromoted CompletionStatus = "FastPromoted"
+	// CompletionStatusAborted indicates the rollout was aborted before completion
+	CompletionStatusAborted CompletionStatus = "Aborted"
+	// CompletionStatusSuperseded indicates the rollout was superseded by a new rollout.
+	// Note: this value is observable in metrics and logs only; in the status it is
+	// immediately replaced by the new attempt's duration tracking in the same update.
+	CompletionStatusSuperseded CompletionStatus = "Superseded"
+	// CompletionStatusRolledBack indicates the rollout was explicitly rolled back to a previous version
+	CompletionStatusRolledBack CompletionStatus = "RolledBack"
+	// CompletionStatusFastRolledBack indicates rollback within the rollback window (immediate promotion)
+	CompletionStatusFastRolledBack CompletionStatus = "FastRolledBack"
+)
+
+// IsCompleted returns true if this rollout attempt has reached its terminal state,
+// determined by the FinishedAt timestamp being set
+func (d *RolloutDurationStatus) IsCompleted() bool {
+	return d != nil && d.RolloutStartedAt != nil && d.FinishedAt != nil
+}
+
+// GetCompletionStatus returns the outcome of this rollout attempt (which may be set
+// before the attempt finishes), or empty string if not yet known
+func (d *RolloutDurationStatus) GetCompletionStatus() CompletionStatus {
+	if d != nil && d.CompletionStatus != nil {
+		return *d.CompletionStatus
+	}
+	return ""
+}
+
+// CompleteRollout finalizes the rollout by setting FinishedAt and CompletionStatus.
+// It also finalizes any active manual pause by accumulating the current pause duration.
+// This should be called before emitting completion metrics.
+func (d *RolloutDurationStatus) CompleteRollout(now metav1.Time, status CompletionStatus) {
+	if d == nil {
+		return
+	}
+
+	// Finalize manual pause tracking if currently paused
+	if d.ManualPauseStartedAt != nil {
+		currentPauseDuration := now.Sub(d.ManualPauseStartedAt.Time)
+		currentPauseSeconds := int64(currentPauseDuration.Seconds())
+
+		if d.TotalManualPauseDurationSeconds == nil {
+			d.TotalManualPauseDurationSeconds = &currentPauseSeconds
+		} else {
+			total := *d.TotalManualPauseDurationSeconds + currentPauseSeconds
+			d.TotalManualPauseDurationSeconds = &total
+		}
+		d.ManualPauseStartedAt = nil
+	}
+
+	// Set completion fields
+	d.FinishedAt = &now
+	d.CompletionStatus = &status
+}
+
+// GetCompletionLogFields returns structured log fields for a completed rollout including
+// status and duration metrics (total, progression, manual_pause).
+// Returns an empty map if rollout is not completed (no FinishedAt or CompletionStatus).
+func (d *RolloutDurationStatus) GetCompletionLogFields() map[string]interface{} {
+	if d == nil || d.RolloutStartedAt == nil || d.FinishedAt == nil {
+		return map[string]interface{}{}
+	}
+
+	status := d.GetCompletionStatus()
+	if status == "" {
+		return map[string]interface{}{}
+	}
+
+	// Calculate total duration
+	total := d.FinishedAt.Sub(d.RolloutStartedAt.Time)
+
+	// Calculate manual pause time
+	manualPause := time.Duration(0)
+	if d.TotalManualPauseDurationSeconds != nil {
+		manualPause = time.Duration(*d.TotalManualPauseDurationSeconds) * time.Second
+	}
+
+	// Calculate progression time
+	progression := total - manualPause
+
+	return map[string]interface{}{
+		"status":                        string(status),
+		"duration_total_seconds":        total.Seconds(),
+		"duration_progression_seconds":  progression.Seconds(),
+		"duration_manual_pause_seconds": manualPause.Seconds(),
+	}
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
@@ -918,6 +1168,8 @@ type CanaryStatus struct {
 	Weights *TrafficWeights `json:"weights,omitempty" protobuf:"bytes,4,opt,name=weights"`
 	// StablePingPong For the ping-pong feature holds the current stable service, ping or pong
 	StablePingPong PingPongType `json:"stablePingPong,omitempty" protobuf:"bytes,5,opt,name=stablePingPong"`
+	// StepPluginStatuses holds the status of the step plugins executed
+	StepPluginStatuses []StepPluginStatus `json:"stepPluginStatuses,omitempty" protobuf:"bytes,6,rep,name=stepPluginStatuses"`
 }
 
 type PingPongType string
@@ -955,15 +1207,91 @@ type RolloutAnalysisRunStatus struct {
 	Message string        `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
 }
 
+type StepPluginStatus struct {
+	// Index is the matching step index of the executed plugin
+	Index int32 `json:"index" protobuf:"bytes,1,name=index"`
+	// Name is the matching step name of the executed plugin
+	Name string `json:"name" protobuf:"bytes,2,name=name"`
+	// Operation is the name of the operation that produced this status
+	Operation StepPluginOperation `json:"operation" protobuf:"bytes,3,name=operation,casttype=StepPluginOperation"`
+	// Phase is the resulting phase of the operation
+	Phase StepPluginPhase `json:"phase,omitempty" protobuf:"bytes,4,opt,name=phase,casttype=StepPluginPhase"`
+	// Message provides details on why the plugin is in its current phase
+	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
+	// StartedAt indicates when the plugin was first called for the operation
+	StartedAt *metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,6,name=startedAt"`
+	// UpdatedAt indicates when the plugin was last called for the operation
+	UpdatedAt *metav1.Time `json:"updatedAt,omitempty" protobuf:"bytes,7,opt,name=updatedAt"`
+	// FinishedAt indicates when the operation was completed
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,8,opt,name=finishedAt"`
+	// Backoff is a duration to wait before trying to execute the operation again if it was not completed
+	Backoff DurationString `json:"backoff,omitempty" protobuf:"bytes,9,opt,name=backoff,casttype=DurationString"`
+	// Executions is the number of time the operation was executed
+	Executions int32 `json:"executions,omitempty" protobuf:"varint,10,opt,name=executions"`
+	// Disabled indicates if the plugin is globally disabled
+	Disabled bool `json:"disabled,omitempty" protobuf:"bytes,11,opt,name=disabled"`
+
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Status holds the internal status of the plugin for this operation
+	Status json.RawMessage `json:"status,omitempty" protobuf:"bytes,12,opt,name=status"`
+}
+
+// StepPluginPhase is the overall phase of a StepPlugin
+type StepPluginPhase string
+
+// Possible StepPluginPhase values
+const (
+	// StepPluginPhaseRunning is the phase of a step plugin when it has not completed its execution
+	StepPluginPhaseRunning StepPluginPhase = "Running"
+	// StepPluginPhaseSuccessful is the phase of a step plugin when the operation completed successfully
+	StepPluginPhaseSuccessful StepPluginPhase = "Successful"
+	// StepPluginPhaseFailed is the phase of a step plugin when the operation completed unsuccessfully
+	StepPluginPhaseFailed StepPluginPhase = "Failed"
+	// StepPluginPhaseError is the phase of a step plugin when an unexpected error prevented the completion of the operation
+	StepPluginPhaseError StepPluginPhase = "Error"
+)
+
+// Validate that the object is a valid phase
+func (p StepPluginPhase) Validate() error {
+	switch p {
+	case StepPluginPhaseRunning:
+	case StepPluginPhaseSuccessful:
+	case StepPluginPhaseFailed:
+	case StepPluginPhaseError:
+	default:
+		return fmt.Errorf("phase '%s' is not valid", p)
+	}
+	return nil
+}
+
+// StepPluginOperation is the operation executed by a step plugin
+type StepPluginOperation string
+
+// Possible StepPluginOperation values
+const (
+	// StepPluginOperationRun is the value for the Run operation
+	StepPluginOperationRun StepPluginOperation = "Run"
+	// StepPluginOperationRun is the value for the Terminate operation
+	StepPluginOperationTerminate StepPluginOperation = "Terminate"
+	// StepPluginOperationRun is the value for the Abort operation
+	StepPluginOperationAbort StepPluginOperation = "Abort"
+)
+
 type ALBStatus struct {
 	LoadBalancer      AwsResourceRef `json:"loadBalancer,omitempty" protobuf:"bytes,1,opt,name=loadBalancer"`
 	CanaryTargetGroup AwsResourceRef `json:"canaryTargetGroup,omitempty" protobuf:"bytes,2,opt,name=canaryTargetGroup"`
 	StableTargetGroup AwsResourceRef `json:"stableTargetGroup,omitempty" protobuf:"bytes,3,opt,name=stableTargetGroup"`
+	Ingress           string         `json:"ingress,omitempty" protobuf:"bytes,4,opt,name=ingress"`
 }
 
 type AwsResourceRef struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	ARN  string `json:"arn" protobuf:"bytes,2,opt,name=arn"`
+	// FullName is the full name of the resource
+	// +optional
+	FullName string `json:"fullName" protobuf:"bytes,3,opt,name=fullName"`
 }
 
 // RolloutConditionType defines the conditions of Rollout
@@ -1021,3 +1349,13 @@ type RolloutList struct {
 
 	Items []Rollout `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
+
+type RollbackWindowSpec struct {
+	Revisions int32 `json:"revisions,omitempty" protobuf:"varint,1,opt,name=revisions"`
+}
+
+const (
+	ScaleDownNever         string = "never"
+	ScaleDownOnSuccess     string = "onsuccess"
+	ScaleDownProgressively string = "progressively"
+)

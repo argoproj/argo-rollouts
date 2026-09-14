@@ -11,7 +11,7 @@ assignees: ''
 Checklist:
 
 * [ ] I've included steps to reproduce the bug.
-* [ ] I've inclued the version of argo rollouts.
+* [ ] I've included the version of argo rollouts.
 
 **Describe the bug**
 

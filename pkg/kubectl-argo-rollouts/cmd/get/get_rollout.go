@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/juju/ansiterm"
@@ -14,6 +15,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/signals"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 )
 
@@ -23,7 +25,10 @@ const (
 	%[1]s get rollout guestbook
 
 	# Watch progress of a rollout
-  	%[1]s get rollout guestbook -w`
+  	%[1]s get rollout guestbook -w
+
+	# Watch the rollout, fail if it takes more than 60 seconds
+	%[1]s get rollout guestbook -w --timeout-seconds 60`
 )
 
 // NewCmdGetRollout returns a new instance of an `rollouts get rollout` command
@@ -58,7 +63,11 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 				getOptions.PrintRollout(ri)
 			} else {
 				rolloutUpdates := make(chan *rollout.RolloutInfo)
+				var rolloutUpdatesMutex sync.Mutex
+
 				controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
+					rolloutUpdatesMutex.Lock()
+					defer rolloutUpdatesMutex.Unlock()
 					rolloutUpdates <- roInfo
 				})
 				stopCh := ctx.Done()
@@ -71,10 +80,13 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 				}
 				go getOptions.WatchRollout(stopCh, rolloutUpdates)
 				controller.Run(ctx)
+				rolloutUpdatesMutex.Lock()
+				defer rolloutUpdatesMutex.Unlock()
 				close(rolloutUpdates)
 			}
 			return nil
 		},
+		ValidArgsFunction: completionutil.RolloutNameCompletionFunc(o),
 	}
 	cmd.Flags().BoolVarP(&getOptions.Watch, "watch", "w", false, "Watch live updates to the rollout")
 	cmd.Flags().BoolVar(&getOptions.NoColor, "no-color", false, "Do not colorize output")

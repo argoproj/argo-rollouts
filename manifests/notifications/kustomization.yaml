@@ -4,13 +4,13 @@ kind: Kustomization
 resources:
 - argo-rollouts-notification-configmap.yaml
 
-patchesStrategicMerge:
-  - on-rollout-completed.yaml
-  - on-scaling-replica-set.yaml
-  - on-rollout-step-completed.yaml
-  - on-rollout-updated.yaml
-  - on-rollout-aborted.yaml
-  - on-rollout-paused.yaml
-  - on-analysis-run-running.yaml
-  - on-analysis-run-error.yaml
-  - on-analysis-run-failed.yaml
+patches:
+  - path: on-rollout-completed.yaml
+  - path: on-scaling-replica-set.yaml
+  - path: on-rollout-step-completed.yaml
+  - path: on-rollout-updated.yaml
+  - path: on-rollout-aborted.yaml
+  - path: on-rollout-paused.yaml
+  - path: on-analysis-run-running.yaml
+  - path: on-analysis-run-error.yaml
+  - path: on-analysis-run-failed.yaml

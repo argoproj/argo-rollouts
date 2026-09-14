@@ -1,4 +1,4 @@
-# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/namereference.go
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/internal/konfig/builtinpluginconsts/namereference.go
 nameReference:
 - kind: ConfigMap
   version: v1
@@ -182,7 +182,7 @@ nameReference:
   - path: spec/strategy/canary/trafficRouting/ambassador/mappings
     kind: Rollout
 
-# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/commonlabels.go
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/internal/konfig/builtinpluginconsts/commonlabels.go
 commonLabels:
 - path: spec/selector/matchLabels
   create: true
@@ -203,13 +203,13 @@ commonLabels:
   create: false
   kind: Rollout
 
-# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/commonannotations.go
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/internal/konfig/builtinpluginconsts/commonannotations.go
 commonAnnotations:
 - path: spec/template/metadata/annotations
   create: true
   kind: Rollout
 
-# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/varreference.go
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/internal/konfig/builtinpluginconsts/varreference.go
 varReference:
 - path: spec/template/spec/containers/args
   kind: Rollout
@@ -262,7 +262,7 @@ varReference:
 - path: spec/metrics/provider/job/spec/template/spec/volumes/nfs/server
   kind: AnalysisTemplate
 
-# https://github.com/kubernetes-sigs/kustomize/blob/master/api/konfig/builtinpluginconsts/replicas.go
+# https://github.com/kubernetes-sigs/kustomize/blob/master/api/internal/konfig/builtinpluginconsts/replicas.go
 replicas:
 - path: spec/replicas
   create: true

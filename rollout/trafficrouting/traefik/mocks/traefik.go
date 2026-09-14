@@ -3,10 +3,10 @@ package mocks
 import (
 	"context"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	"k8s.io/apimachinery/pkg/runtime"
 
-	argoRecord "github.com/argoproj/argo-rollouts/utils/record"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -14,6 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
+
+	argoRecord "github.com/argoproj/argo-rollouts/utils/record"
 )
 
 type FakeDynamicClient struct{}
@@ -35,10 +37,10 @@ var (
 	ErrorTraefikServiceObj *unstructured.Unstructured
 )
 
-func (f *FakeRecorder) Eventf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...interface{}) {
+func (f *FakeRecorder) Eventf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...any) {
 }
 
-func (f *FakeRecorder) Warnf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...interface{}) {
+func (f *FakeRecorder) Warnf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...any) {
 }
 
 func (f *FakeRecorder) K8sRecorder() record.EventRecorder {
@@ -96,4 +98,12 @@ func (f *FakeClient) Namespace(string) dynamic.ResourceInterface {
 
 func (f *FakeDynamicClient) Resource(schema.GroupVersionResource) dynamic.NamespaceableResourceInterface {
 	return &FakeClient{}
+}
+
+func (f *FakeClient) Apply(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	return nil, nil
+}
+
+func (f *FakeClient) ApplyStatus(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions) (*unstructured.Unstructured, error) {
+	return nil, nil
 }

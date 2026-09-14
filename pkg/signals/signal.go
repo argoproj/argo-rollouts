@@ -1,27 +1,28 @@
 package signals
 
 import (
+	"context"
 	"os"
 	"os/signal"
 )
 
 var onlyOneSignalHandler = make(chan struct{})
 
-// SetupSignalHandler registered for SIGTERM and SIGINT. A stop channel is returned
-// which is closed on one of these signals. If a second signal is caught, the program
+// SetupSignalHandlerContext registered for SIGTERM and SIGINT. A context is returned
+// which is canceled on one of these signals. If a second signal is caught, the program
 // is terminated with exit code 1.
-func SetupSignalHandler() (stopCh <-chan struct{}) {
+func SetupSignalHandlerContext() (ctx context.Context) {
 	close(onlyOneSignalHandler) // panics when called twice
 
-	stop := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 2)
 	signal.Notify(c, shutdownSignals...)
 	go func() {
 		<-c
-		close(stop)
+		cancel()
 		<-c
 		os.Exit(1) // second signal. Exit directly.
 	}()
 
-	return stop
+	return ctx
 }

@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxapi "github.com/influxdata/influxdb-client-go/v2/api"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/evaluate"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
@@ -87,7 +88,7 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 }
 
 func (p *Provider) processResponse(metric v1alpha1.Metric, result *influxapi.QueryTableResult) (string, v1alpha1.AnalysisPhase, error) {
-	var res []interface{}
+	var res []any
 	if result == nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("no QueryTableResult returned from flux query")
 	}

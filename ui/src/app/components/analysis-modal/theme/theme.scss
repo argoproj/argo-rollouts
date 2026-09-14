@@ -1,0 +1,35 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+// antd colors
+$gray-2: #fafafa;
+$gray-4: #f0f0f0;
+$gray-5: #d9d9d9;
+$gray-6: #bfbfbf;
+$gray-7: #8c8c8c;
+$gray-10: #262626;
+$gray-11: #1f1f1f;
+$gray-12: #141414;
+
+$ant-primary: #44505f; // from config/theme.ts
+
+$success-background: lighten($argo-success-color-dark, 35);
+$success-foreground: $argo-success-color-dark;
+$warning-background: lighten($argo-status-warning-color, 25);
+$warning-foreground: $argo-status-warning-color;
+$error-background: lighten($argo-failed-color, 20);
+$error-foreground: $argo-failed-color-dark;
+$in-progress-background: lighten($argo-running-color-dark, 40);
+$in-progress-foreground: $argo-running-color-dark;
+$inactive-background: lighten($argo-waiting-color, 20);
+$inactive-foreground: $argo-waiting-color-dark;
+
+$space-unit: 4px;
+$space-small: 8px;
+$space-medium: 16px;
+$space-large: 24px;
+
+$shadow-1: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+
+$font-family-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    'Segoe UI Symbol', 'Noto Color Emoji';
+$font-family-mono: sfmono-regular, Consolas, liberation mono, Menlo, Courier, monospace;

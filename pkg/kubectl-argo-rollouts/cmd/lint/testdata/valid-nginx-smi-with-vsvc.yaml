@@ -1,0 +1,74 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: istio-host-split-vsvc
+spec:
+  hosts:
+    - istio-host-split.com
+  gateways:
+    - istio-host-split-gateway
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: istio-host-split-stable
+          weight: 100
+        - destination:
+            host: istio-host-split-canary
+          weight: 0
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: istio-host-split-vsvc-1
+spec:
+  hosts:
+    - istio-host-split.com
+  gateways:
+    - istio-host-split-gateway
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: istio-host-split-stable
+          weight: 100
+        - destination:
+            host: istio-host-split-canary
+          weight: 0
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: nginx-rollout
+spec:
+  selector:
+    matchLabels:
+      app: nginx-rollout
+  template:
+    metadata:
+      labels:
+        app: nginx-rollout
+    spec:
+      containers:
+        - name: nginx-rollout
+          image: argoproj/rollouts-demo:blue
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 5m
+  strategy:
+    canary:
+      canaryService: nginx-rollout-canary
+      stableService: nginx-rollout-stable
+      trafficRouting:
+        smi:
+          trafficSplitName: rollout-smi-experiment-split
+          rootService: rollout-smi-experiment-root
+        nginx:
+          stableIngress: nginx-rollout-ingress
+      steps:
+        - setWeight: 10

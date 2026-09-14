@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	a6util "github.com/argoproj/argo-rollouts/utils/apisix"
+
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
@@ -52,7 +54,7 @@ const (
 )
 
 var (
-	E2EWaitTimeout time.Duration = time.Second * 120
+	E2EWaitTimeout time.Duration = time.Second * 90
 	E2EPodDelay                  = 0
 
 	E2EALBIngressAnnotations map[string]string
@@ -123,6 +125,7 @@ type E2ESuite struct {
 	IstioEnabled   bool
 	SMIEnabled     bool
 	AppMeshEnabled bool
+	ApisixEnabled  bool
 }
 
 func (s *E2ESuite) SetupSuite() {
@@ -140,8 +143,8 @@ func (s *E2ESuite) SetupSuite() {
 	restConfig, err := config.ClientConfig()
 	s.CheckError(err)
 	s.Common.kubernetesHost = restConfig.Host
-	restConfig.Burst = defaults.DefaultBurst * 2
-	restConfig.QPS = defaults.DefaultQPS * 2
+	restConfig.Burst = defaults.DefaultBurst * 10
+	restConfig.QPS = defaults.DefaultQPS * 10
 	s.namespace, _, err = config.Namespace()
 	s.CheckError(err)
 	s.kubeClient, err = kubernetes.NewForConfig(restConfig)
@@ -164,6 +167,10 @@ func (s *E2ESuite) SetupSuite() {
 
 	if appmeshutil.DoesAppMeshExist(s.dynamicClient, s.namespace) {
 		s.AppMeshEnabled = true
+	}
+
+	if a6util.DoesApisixExist(s.dynamicClient, s.namespace) {
+		s.ApisixEnabled = true
 	}
 }
 

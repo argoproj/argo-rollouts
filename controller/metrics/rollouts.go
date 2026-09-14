@@ -131,6 +131,7 @@ func collectRollouts(ch chan<- prometheus.Metric, rollout *v1alpha1.Rollout) {
 	addGauge(MetricRolloutInfoReplicasAvailable, float64(rollout.Status.AvailableReplicas))
 	addGauge(MetricRolloutInfoReplicasUnavailable, float64(rollout.Status.Replicas-rollout.Status.AvailableReplicas))
 	addGauge(MetricRolloutInfoReplicasDesired, float64(defaults.GetReplicasOrDefault(rollout.Spec.Replicas)))
+	addGauge(MetricRolloutInfoReplicasUpdated, float64(rollout.Status.UpdatedReplicas))
 
 	// DEPRECATED
 	addGauge(MetricRolloutPhase, boolFloat64(calculatedPhase == RolloutCompleted), strategyType, string(RolloutCompleted))

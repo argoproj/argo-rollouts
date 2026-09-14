@@ -93,6 +93,7 @@ spec:
           servicePort: 80
       steps:
       - experiment:
+          duration: 15s
           templates:
           - name: experiment-alb-canary
             specRef: canary

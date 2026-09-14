@@ -16,10 +16,12 @@ import (
 	"k8s.io/kubernetes/pkg/apis/core"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	apivalidation "k8s.io/kubernetes/pkg/apis/core/validation"
+	"k8s.io/kubernetes/pkg/capabilities"
 	"k8s.io/kubernetes/pkg/fieldpath"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
 const (
@@ -27,16 +29,18 @@ const (
 
 	// MissingFieldMessage the message to indicate rollout is missing a field
 	MissingFieldMessage = "Rollout has missing field '%s'"
-	// InvalidSetWeightMessage indicates the setweight value needs to be between 0 and 100
-	InvalidSetWeightMessage = "SetWeight needs to be between 0 and 100"
+	// InvalidSetWeightMessage indicates the setweight value needs to be between 0 and max weight
+	InvalidSetWeightMessage = "SetWeight needs to be between 0 and %d"
+	// InvalidMaxTrafficWeightMessage indicates the maxTrafficWeight value is not a usable total weight
+	InvalidMaxTrafficWeightMessage = "MaxTrafficWeight needs to be greater than 0"
 	// InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting indicates experiment weight cannot be set without trafficRouting
 	InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting = "Experiment template weight cannot be set unless TrafficRouting is enabled"
 	// InvalidSetCanaryScaleTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetCanaryScaleTrafficPolicy = "SetCanaryScale requires TrafficRouting to be set"
 	// InvalidSetHeaderRouteTrafficPolicy indicates that TrafficRouting required for SetHeaderRoute is missing
-	InvalidSetHeaderRouteTrafficPolicy = "SetHeaderRoute requires TrafficRouting, supports Istio and ALB"
-	// InvalidSetMirrorRouteTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
-	InvalidSetMirrorRouteTrafficPolicy = "SetMirrorRoute requires TrafficRouting, supports Istio only"
+	InvalidSetHeaderRouteTrafficPolicy = "SetHeaderRoute requires TrafficRouting, supports Istio and ALB and Apisix"
+	// InvalidSetMirrorRouteTrafficPolicy indicates that TrafficRouting, required for SetMirrorRoute, is missing
+	InvalidSetMirrorRouteTrafficPolicy = "SetMirrorRoute requires TrafficRouting, supports Istio and Plugins"
 	// InvalidStringMatchMultipleValuePolicy indicates that SetCanaryScale, has multiple values set
 	InvalidStringMatchMultipleValuePolicy = "StringMatch match value must have exactly one of the following: exact, regex, prefix"
 	// InvalidStringMatchMissedValuePolicy indicates that SetCanaryScale, has multiple values set
@@ -47,8 +51,8 @@ const (
 	InvalidDurationMessage = "Duration needs to be greater than 0"
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
 	InvalidMaxSurgeMaxUnavailable = "MaxSurge and MaxUnavailable both can not be zero"
-	// InvalidStepMessage indicates that a step must have either setWeight or pause set
-	InvalidStepMessage = "Step must have one of the following set: experiment, setWeight, setCanaryScale or pause"
+	// InvalidStepMessage indicates that a step must have either experiment, setWeight, setCanaryScale, plugin or pause
+	InvalidStepMessage = "Step must have one of the following set: experiment, setWeight, setCanaryScale, plugin or pause"
 	// InvalidStrategyMessage indicates that multiple strategies can not be listed
 	InvalidStrategyMessage = "Multiple Strategies can not be listed"
 	// DuplicatedServicesBlueGreenMessage the message to indicate that the rollout uses the same service for the active and preview services
@@ -72,14 +76,16 @@ const (
 	InvalidCanaryDynamicStableScale = "Canary dynamicStableScale can only be used with traffic routing"
 	// InvalidCanaryDynamicStableScaleWithScaleDownDelay indicates that canary.dynamicStableScale cannot be used with scaleDownDelaySeconds
 	InvalidCanaryDynamicStableScaleWithScaleDownDelay = "Canary dynamicStableScale cannot be used with scaleDownDelaySeconds"
+	// InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins indicates that canary.maxTrafficWeight cannot be used
+	InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins = "Canary maxTrafficWeight in traffic routing only supported in Nginx and Plugins"
 	// InvalidPingPongProvidedMessage indicates that both ping and pong service must be set to use Ping-Pong feature
 	InvalidPingPongProvidedMessage = "Ping service and Pong service must to be set to use Ping-Pong feature"
 	// DuplicatedPingPongServicesMessage indicates that the rollout uses the same service for the ping and pong services
 	DuplicatedPingPongServicesMessage = "This rollout uses the same service for the ping and pong services, but two different services are required."
 	// MissedAlbRootServiceMessage indicates that the rollout with ALB TrafficRouting and ping pong feature enabled must have root service provided
 	MissedAlbRootServiceMessage = "Root service field is required for the configuration with ALB and ping-pong feature enabled"
-	// PingPongWithAlbOnlyMessage At this moment ping-pong feature works with the ALB traffic routing only
-	PingPongWithAlbOnlyMessage = "Ping-pong feature works with the ALB traffic routing only"
+	// PingPongWithRouterOnlyMessage At this moment ping-pong feature works with the ALB, Istio, and plugin-based traffic routers only
+	PingPongWithRouterOnlyMessage = "Ping-pong feature works with the ALB, Istio, and plugin-based traffic routers only"
 	// InvalideStepRouteNameNotFoundInManagedRoutes A step has been configured that requires managedRoutes and the route name
 	// is missing from managedRoutes
 	InvalideStepRouteNameNotFoundInManagedRoutes = "Steps define a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
@@ -91,11 +97,27 @@ const (
 // NOTE: this variable may need to be updated whenever we update our k8s libraries as new options
 // are introduced or removed.
 var allowAllPodValidationOptions = apivalidation.PodValidationOptions{
-	AllowDownwardAPIHugePages:       true,
 	AllowInvalidPodDeletionCost:     true,
 	AllowIndivisibleHugePagesValues: true,
-	AllowWindowsHostProcessField:    true,
-	AllowExpandedDNSConfig:          true,
+}
+
+// allowPrivilegedCapabilities mirrors what kube-apiserver sets at startup so
+// that the upstream pod-spec validator we reuse below sees the rollout's pod
+// spec as-is and can correctly evaluate cross-field rules such as
+// "Bidirectional mountPropagation requires privileged container". It is
+// applied via capabilities.Initialize() right before invoking the validator;
+// capabilities.Initialize uses sync.Once internally, so subsequent calls are
+// safe no-ops. Replaces the previous workaround that stripped Privileged from
+// each container before validation, which broke other cross-field rules.
+// See https://github.com/argoproj/argo-rollouts/issues/796 (original) and
+// https://github.com/argoproj/argo-rollouts/issues/3130 (Bidirectional mounts).
+var allowPrivilegedCapabilities = capabilities.Capabilities{
+	AllowPrivileged: true,
+	PrivilegedSources: capabilities.PrivilegedSources{
+		HostNetworkSources: []string{},
+		HostPIDSources:     []string{},
+		HostIPCSources:     []string{},
+	},
 }
 
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
@@ -117,7 +139,7 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 			message := fmt.Sprintf(MissingFieldMessage, ".spec.selector")
 			allErrs = append(allErrs, field.Required(fldPath.Child("selector"), message))
 		} else {
-			allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, fldPath.Child("selector"))...)
+			allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, unversionedvalidation.LabelSelectorValidationOptions{}, fldPath.Child("selector"))...)
 			if len(spec.Selector.MatchLabels)+len(spec.Selector.MatchExpressions) == 0 {
 				allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "empty selector is invalid for deployment"))
 			}
@@ -157,10 +179,10 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 			return allErrs
 		}
 		template.ObjectMeta = spec.Template.ObjectMeta
-		removeSecurityContextPrivileged(&template)
 
 		// Skip validating empty template for rollout resolved from ref
 		if rollout.Spec.TemplateResolvedFromRef || spec.WorkloadRef == nil {
+			capabilities.Initialize(allowPrivilegedCapabilities)
 			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), allowAllPodValidationOptions)...)
 		}
 	}
@@ -178,23 +200,6 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 	allErrs = append(allErrs, ValidateRolloutStrategy(rollout, fldPath.Child("strategy"))...)
 
 	return allErrs
-}
-
-// removeSecurityContextPrivileged removes the privileged value on containers for the purposes of
-// validation. This is necessary because the k8s ValidateSecurityContext library which we reuse,
-// calls k8s.io/kubernetes/pkg/capabilities.Get(), which determines the security capabilities at a
-// global level. We don't want to call capabilities.Setup(), because it affects it as a global
-// level, so instead we remove the privileged setting on any containers so validation ignores it.
-// See https://github.com/argoproj/argo-rollouts/issues/796
-func removeSecurityContextPrivileged(template *core.PodTemplateSpec) {
-	for _, ctrList := range [][]core.Container{template.Spec.Containers, template.Spec.InitContainers} {
-		for i, ctr := range ctrList {
-			if ctr.SecurityContext != nil && ctr.SecurityContext.Privileged != nil && *ctr.SecurityContext.Privileged {
-				ctr.SecurityContext.Privileged = nil
-				ctrList[i] = ctr
-			}
-		}
-	}
 }
 
 func ValidateRolloutStrategy(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
@@ -228,14 +233,33 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 	return allErrs
 }
 
+func InvalidWorkloadRef(rollout *v1alpha1.Rollout, err error) error {
+	fldPath := field.NewPath("spec")
+	return field.Invalid(fldPath.Child("workloadRef"), rollout.Spec.WorkloadRef, err.Error())
+}
+
 // requireCanaryStableServices returns true if the rollout requires canary.stableService and
 // canary.canaryService to be defined
 func requireCanaryStableServices(rollout *v1alpha1.Rollout) bool {
 	canary := rollout.Spec.Strategy.Canary
-	if canary.TrafficRouting == nil || (canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule != nil) || (canary.PingPong != nil) {
+
+	if canary.TrafficRouting == nil {
 		return false
 	}
-	return true
+
+	switch {
+	case canary.TrafficRouting.ALB != nil && canary.PingPong == nil,
+		canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule == nil && canary.PingPong == nil,
+		canary.TrafficRouting.SMI != nil,
+		canary.TrafficRouting.Apisix != nil,
+		canary.TrafficRouting.Ambassador != nil,
+		canary.TrafficRouting.Nginx != nil,
+		canary.TrafficRouting.AppMesh != nil,
+		canary.TrafficRouting.Traefik != nil:
+		return true
+	default:
+		return false
+	}
 }
 
 func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
@@ -246,8 +270,8 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, DuplicatedServicesCanaryMessage))
 	}
 	if canary.PingPong != nil {
-		if canary.TrafficRouting != nil && canary.TrafficRouting.ALB == nil {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("alb"), canary.TrafficRouting.ALB, PingPongWithAlbOnlyMessage))
+		if canary.TrafficRouting != nil && canary.TrafficRouting.ALB == nil && canary.TrafficRouting.Istio == nil && len(canary.TrafficRouting.Plugins) == 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("alb"), canary.TrafficRouting.ALB, PingPongWithRouterOnlyMessage))
 		}
 		if canary.PingPong.PingService == "" {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("pingPong").Child("pingService"), canary.PingPong.PingService, InvalidPingPongProvidedMessage))
@@ -282,19 +306,33 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if canary.ScaleDownDelaySeconds != nil && canary.DynamicStableScale {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("dynamicStableScale"), canary.DynamicStableScale, InvalidCanaryDynamicStableScaleWithScaleDownDelay))
 		}
+		// only the nginx and plugin have this support for now
+		if canary.TrafficRouting.MaxTrafficWeight != nil {
+			if canary.TrafficRouting.Nginx == nil && len(canary.TrafficRouting.Plugins) == 0 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("maxTrafficWeight"), canary.TrafficRouting.MaxTrafficWeight, InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins))
+			}
+			// The total weight divides the replica counts derived from the
+			// traffic weights, so it cannot be zero or negative.
+			if *canary.TrafficRouting.MaxTrafficWeight < 1 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("maxTrafficWeight"), *canary.TrafficRouting.MaxTrafficWeight, InvalidMaxTrafficWeightMessage))
+			}
+		}
 	}
 
 	for i, step := range canary.Steps {
 		stepFldPath := fldPath.Child("steps").Index(i)
 		allErrs = append(allErrs, hasMultipleStepsType(step, stepFldPath)...)
 		if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil && step.SetCanaryScale == nil &&
-			step.SetHeaderRoute == nil && step.SetMirrorRoute == nil {
-			errVal := fmt.Sprintf("step.Experiment: %t step.Pause: %t step.SetWeight: %t step.Analysis: %t step.SetCanaryScale: %t step.SetHeaderRoute: %t step.SetMirrorRoutes: %t",
-				step.Experiment == nil, step.Pause == nil, step.SetWeight == nil, step.Analysis == nil, step.SetCanaryScale == nil, step.SetHeaderRoute == nil, step.SetMirrorRoute == nil)
+			step.SetHeaderRoute == nil && step.SetMirrorRoute == nil && step.Plugin == nil {
+			errVal := fmt.Sprintf("step.Experiment: %t step.Pause: %t step.SetWeight: %t step.Analysis: %t step.SetCanaryScale: %t step.SetHeaderRoute: %t step.SetMirrorRoute: %t step.Plugin: %t",
+				step.Experiment == nil, step.Pause == nil, step.SetWeight == nil, step.Analysis == nil, step.SetCanaryScale == nil, step.SetHeaderRoute == nil, step.SetMirrorRoute == nil, step.Plugin == nil)
 			allErrs = append(allErrs, field.Invalid(stepFldPath, errVal, InvalidStepMessage))
 		}
-		if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
-			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setWeight"), *canary.Steps[i].SetWeight, InvalidSetWeightMessage))
+
+		maxTrafficWeight := weightutil.MaxTrafficWeight(rollout)
+
+		if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > maxTrafficWeight) {
+			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setWeight"), *canary.Steps[i].SetWeight, fmt.Sprintf(InvalidSetWeightMessage, maxTrafficWeight)))
 		}
 		if step.Pause != nil && step.Pause.DurationSeconds() < 0 {
 			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("pause").Child("duration"), step.Pause.DurationSeconds(), InvalidDurationMessage))
@@ -305,7 +343,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 		if step.SetHeaderRoute != nil {
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
-			if trafficRouting == nil || (trafficRouting.Istio == nil && trafficRouting.ALB == nil) {
+			if trafficRouting == nil || (trafficRouting.Istio == nil && trafficRouting.ALB == nil && trafficRouting.Apisix == nil && len(trafficRouting.Plugins) == 0) {
 				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setHeaderRoute"), step.SetHeaderRoute, InvalidSetHeaderRouteTrafficPolicy))
 			} else if step.SetHeaderRoute.Match != nil && len(step.SetHeaderRoute.Match) > 0 {
 				for j, match := range step.SetHeaderRoute.Match {
@@ -322,8 +360,8 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 		if step.SetMirrorRoute != nil {
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
-			if trafficRouting == nil || trafficRouting.Istio == nil {
-				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setMirrorRoute"), step.SetMirrorRoute, "SetMirrorRoute requires TrafficRouting, supports Istio only"))
+			if trafficRouting == nil || (trafficRouting.Istio == nil && len(trafficRouting.Plugins) == 0) {
+				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setMirrorRoute"), step.SetMirrorRoute, InvalidSetMirrorRouteTrafficPolicy))
 			}
 			if step.SetMirrorRoute.Match != nil && len(step.SetMirrorRoute.Match) > 0 {
 				for j, match := range step.SetMirrorRoute.Match {
@@ -364,8 +402,8 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 				if template.Weight != nil {
 					if canary.TrafficRouting == nil {
 						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting))
-					} else if canary.TrafficRouting.ALB == nil && canary.TrafficRouting.SMI == nil && canary.TrafficRouting.Istio == nil {
-						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time"))
+					} else if canary.TrafficRouting.ALB == nil && canary.TrafficRouting.SMI == nil && canary.TrafficRouting.Istio == nil && len(canary.TrafficRouting.Plugins) == 0 {
+						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, "Experiment template weight is only available for TrafficRouting with SMI, ALB, Istio and Plugins at this time"))
 					}
 				}
 			}
@@ -459,7 +497,7 @@ func getIntOrPercentValue(intOrStringValue intstr.IntOrString) int {
 
 func hasMultipleStepsType(s v1alpha1.CanaryStep, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	oneOf := make([]bool, 3)
+	oneOf := make([]bool, 0, 3)
 	oneOf = append(oneOf, s.SetWeight != nil)
 	oneOf = append(oneOf, s.Pause != nil)
 	oneOf = append(oneOf, s.Experiment != nil)

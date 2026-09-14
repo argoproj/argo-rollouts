@@ -1,0 +1,615 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: apisixroutes.apisix.apache.org
+spec:
+  group: apisix.apache.org
+  scope: Namespaced
+  names:
+    plural: apisixroutes
+    singular: apisixroute
+    kind: ApisixRoute
+    shortNames:
+      - ar
+  versions:
+    - name: v2beta3
+      served: true
+      storage: false
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - jsonPath: .spec.http[].match.hosts
+          name: Hosts
+          type: string
+          priority: 0
+        - jsonPath: .spec.http[].match.paths
+          name: URIs
+          type: string
+          priority: 0
+        - jsonPath: .spec.http[].backends[].serviceName
+          name: Target Service(HTTP)
+          type: string
+          priority: 1
+        - jsonPath: .spec.tcp[].match.ingressPort
+          name: Ingress Server Port(TCP)
+          type: integer
+          priority: 1
+        - jsonPath: .spec.tcp[].match.backend.serviceName
+          name: Target Service(TCP)
+          type: string
+          priority: 1
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+          priority: 0
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              anyOf:
+                - required: ["http"]
+                - required: ["stream"]
+              properties:
+                http:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: ["name", "match", "backends"]
+                    properties:
+                      name:
+                        type: string
+                        minLength: 1
+                      priority:
+                        type: integer
+                      timeout:
+                        type: object
+                        properties:
+                          connect:
+                            type: string
+                          send:
+                            type: string
+                          read:
+                            type: string
+                      match:
+                        type: object
+                        required:
+                          - paths
+                        properties:
+                          paths:
+                            type: array
+                            minItems: 1
+                            items:
+                              type: string
+                              pattern: "^/[a-zA-Z0-9\\-._~%!$&'()+,;=:@/]*\\*?$"
+                          hosts:
+                            type: array
+                            minItems: 1
+                            items:
+                              type: string
+                              pattern: "^\\*?[0-9a-zA-Z-._]+$"
+                          methods:
+                            type: array
+                            minItems: 1
+                            items:
+                              type: string
+                              enum:
+                                - "CONNECT"
+                                - "DELETE"
+                                - "GET"
+                                - "HEAD"
+                                - "OPTIONS"
+                                - "PATCH"
+                                - "POST"
+                                - "PUT"
+                                - "TRACE"
+                          remoteAddrs:
+                            type: array
+                            minItems: 1
+                            items:
+                              type: string
+                          exprs:
+                            type: array
+                            minItems: 1
+                            items:
+                              type: object
+                              properties:
+                                subject:
+                                  type: object
+                                  properties:
+                                    scope:
+                                      type: string
+                                      enum:
+                                        - "Cookie"
+                                        - "Header"
+                                        - "Path"
+                                        - "Query"
+                                    name:
+                                      type: string
+                                      minLength: 1
+                                  required:
+                                    - scope
+                                op:
+                                  type: string
+                                  enum:
+                                    - Equal
+                                    - NotEqual
+                                    - GreaterThan
+                                    - LessThan
+                                    - In
+                                    - NotIn
+                                    - RegexMatch
+                                    - RegexNotMatch
+                                    - RegexMatchCaseInsensitive
+                                    - RegexNotMatchCaseInsensitive
+                                value:
+                                  type: string
+                                set:
+                                  type: array
+                                  items:
+                                    type: string
+                              oneOf:
+                                - required: ["subject", "op", "value"]
+                                - required: ["subject", "op", "set"]
+                      websocket:
+                        type: boolean
+                      plugin_config_name:
+                        type: string
+                        minLength: 1
+                      backends:
+                        type: array
+                        minItems: 1
+                        items:
+                          type: object
+                          properties:
+                            serviceName:
+                              type: string
+                              minLength: 1
+                            servicePort:
+                              anyOf:
+                                - type: integer
+                                - type: string
+                              x-kubernetes-int-or-string: true
+                            resolveGranularity:
+                              type: string
+                              enum: ["endpoint", "service"]
+                            weight:
+                              type: integer
+                              minimum: 0
+                            subset:
+                              type: string
+                        required:
+                          - serviceName
+                          - servicePort
+                      plugins:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              minLength: 1
+                            enable:
+                              type: boolean
+                            config:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true # we have to enable it since plugin config
+                        required:
+                          - name
+                          - enable
+                      authentication:
+                        type: object
+                        properties:
+                          enable:
+                            type: boolean
+                          type:
+                            type: string
+                            enum:
+                              - "basicAuth"
+                              - "keyAuth"
+                              - "jwtAuth"
+                              - "wolfRBAC"
+                              - "hmacAuth"
+                          keyAuth:
+                            type: object
+                            properties:
+                              header:
+                                type: string
+                          jwtAuth:
+                            type: object
+                            properties:
+                              header:
+                                type: string
+                              query:
+                                type: string
+                              cookie:
+                                type: string
+                        required:
+                          - enable
+                stream:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: ["name", "match", "backend", "protocol"]
+                    properties:
+                      "protocol":
+                        type: string
+                        enum: ["TCP", "UDP"]
+                      name:
+                        type: string
+                        minLength: 1
+                      match:
+                        type: object
+                        properties:
+                          ingressPort:
+                            type: integer
+                            minimum: 1
+                            maximum: 65535
+                        required:
+                          - ingressPort
+                      backend:
+                        type: object
+                        properties:
+                          serviceName:
+                            type: string
+                            minLength: 1
+                          servicePort:
+                            anyOf:
+                              - type: integer
+                              - type: string
+                            x-kubernetes-int-or-string: true
+                          resolveGranularity:
+                            type: string
+                            enum: ["endpoint", "service"]
+                          subset:
+                            type: string
+                        required:
+                          - serviceName
+                          - servicePort
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      "type":
+                        type: string
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                      message:
+                        type: string
+                      observedGeneration:
+                        type: integer
+    - name: v2
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - jsonPath: .spec.http[].match.hosts
+          name: Hosts
+          type: string
+          priority: 0
+        - jsonPath: .spec.http[].match.paths
+          name: URIs
+          type: string
+          priority: 0
+        - jsonPath: .spec.http[].backends[].serviceName
+          name: Target Service(HTTP)
+          type: string
+          priority: 1
+        - jsonPath: .spec.tcp[].match.ingressPort
+          name: Ingress Server Port(TCP)
+          type: integer
+          priority: 1
+        - jsonPath: .spec.tcp[].match.backend.serviceName
+          name: Target Service(TCP)
+          type: string
+          priority: 1
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+          priority: 0
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              anyOf:
+                - required: ["http"]
+                - required: ["stream"]
+              properties:
+                http:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    anyOf:
+                      - required: ["name", "match", "backends"]
+                      - required: ["name", "match", "upstreams"]
+                    properties:
+                      name:
+                        type: string
+                        minLength: 1
+                      priority:
+                        type: integer
+                      timeout:
+                        type: object
+                        properties:
+                          connect:
+                            type: string
+                          send:
+                            type: string
+                          read:
+                            type: string
+                      match:
+                        type: object
+                        required:
+                          - paths
+                        properties:
+                          paths:
+                            type: array
+                            minItems: 1
+                            items:
+                              type: string
+                              pattern: "^/[a-zA-Z0-9\\-._~%!$&'()+,;=:@/]*\\*?$"
+                          hosts:
+                            type: array
+                            minItems: 1
+                            items:
+                              type: string
+                              pattern: "^\\*?[0-9a-zA-Z-._]+$"
+                          methods:
+                            type: array
+                            minItems: 1
+                            items:
+                              type: string
+                              enum:
+                                - "CONNECT"
+                                - "DELETE"
+                                - "GET"
+                                - "HEAD"
+                                - "OPTIONS"
+                                - "PATCH"
+                                - "POST"
+                                - "PUT"
+                                - "TRACE"
+                          remoteAddrs:
+                            type: array
+                            minItems: 1
+                            items:
+                              type: string
+                          exprs:
+                            type: array
+                            minItems: 1
+                            items:
+                              type: object
+                              properties:
+                                subject:
+                                  type: object
+                                  properties:
+                                    scope:
+                                      type: string
+                                      enum:
+                                        - "Cookie"
+                                        - "Header"
+                                        - "Path"
+                                        - "Query"
+                                        - "Variable"
+                                    name:
+                                      type: string
+                                      minLength: 1
+                                  required:
+                                    - scope
+                                op:
+                                  type: string
+                                  enum:
+                                    - Equal
+                                    - NotEqual
+                                    - GreaterThan
+                                    - GreaterThanEqual
+                                    - LessThan
+                                    - LessThanEqual
+                                    - In
+                                    - NotIn
+                                    - RegexMatch
+                                    - RegexNotMatch
+                                    - RegexMatchCaseInsensitive
+                                    - RegexNotMatchCaseInsensitive
+                                value:
+                                  type: string
+                                set:
+                                  type: array
+                                  items:
+                                    type: string
+                              oneOf:
+                                - required: ["subject", "op", "value"]
+                                - required: ["subject", "op", "set"]
+                      websocket:
+                        type: boolean
+                      plugin_config_name:
+                        type: string
+                        minLength: 1
+                      upstreams:
+                        description: Upstreams refer to ApisixUpstream CRD
+                        type: array
+                        items:
+                          description: ApisixRouteUpstreamReference contains a ApisixUpstream CRD reference
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            weight:
+                              type: integer
+                      backends:
+                        type: array
+                        minItems: 1
+                        items:
+                          type: object
+                          properties:
+                            serviceName:
+                              type: string
+                              minLength: 1
+                            servicePort:
+                              anyOf:
+                                - type: integer
+                                - type: string
+                              x-kubernetes-int-or-string: true
+                            resolveGranularity:
+                              type: string
+                              enum: ["endpoint", "service"]
+                            weight:
+                              type: integer
+                              minimum: 0
+                            subset:
+                              type: string
+                        required:
+                          - serviceName
+                          - servicePort
+                      plugins:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              minLength: 1
+                            enable:
+                              type: boolean
+                            config:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true # we have to enable it since plugin config
+                        required:
+                          - name
+                          - enable
+                      authentication:
+                        type: object
+                        properties:
+                          enable:
+                            type: boolean
+                          type:
+                            type: string
+                            enum:
+                              - "basicAuth"
+                              - "keyAuth"
+                              - "jwtAuth"
+                              - "wolfRBAC"
+                              - "hmacAuth"
+                          keyAuth:
+                            type: object
+                            properties:
+                              header:
+                                type: string
+                          jwtAuth:
+                            type: object
+                            properties:
+                              header:
+                                type: string
+                              query:
+                                type: string
+                              cookie:
+                                type: string
+                        required:
+                          - enable
+                stream:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: ["name", "match", "backend", "protocol"]
+                    properties:
+                      "protocol":
+                        type: string
+                        enum: ["TCP", "UDP"]
+                      name:
+                        type: string
+                        minLength: 1
+                      match:
+                        type: object
+                        properties:
+                          host:
+                            type: string
+                          ingressPort:
+                            type: integer
+                            minimum: 1
+                            maximum: 65535
+                        required:
+                          - ingressPort
+                      backend:
+                        type: object
+                        properties:
+                          serviceName:
+                            type: string
+                            minLength: 1
+                          servicePort:
+                            anyOf:
+                              - type: integer
+                              - type: string
+                            x-kubernetes-int-or-string: true
+                          resolveGranularity:
+                            type: string
+                            enum: ["endpoint", "service"]
+                          subset:
+                            type: string
+                        required:
+                          - serviceName
+                          - servicePort
+                      plugins:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              minLength: 1
+                            enable:
+                              type: boolean
+                            config:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true # we have to enable it since plugin config
+                        required:
+                          - name
+                          - enable
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      "type":
+                        type: string
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                      message:
+                        type: string
+                      observedGeneration:
+                        type: integer

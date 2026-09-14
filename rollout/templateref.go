@@ -75,7 +75,7 @@ func NewInformerBasedWorkloadRefResolver(
 ) *informerBasedTemplateResolver {
 	ctx, cancelContext := context.WithCancel(context.TODO())
 	err := rolloutsInformer.AddIndexers(cache.Indexers{
-		templateRefIndexName: func(obj interface{}) ([]string, error) {
+		templateRefIndexName: func(obj any) ([]string, error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil && ro.Spec.WorkloadRef != nil {
 				return []string{refKey(*ro.Spec.WorkloadRef, ro.Namespace)}, nil
 			}
@@ -115,7 +115,7 @@ func (r *informerBasedTemplateResolver) Stop() {
 	r.cancelContext = cancelContext
 }
 
-func remarshalMap(objMap map[string]interface{}, res interface{}) error {
+func remarshalMap(objMap map[string]any, res any) error {
 	data, err := json.Marshal(objMap)
 	if err != nil {
 		return err
@@ -210,13 +210,13 @@ func (r *informerBasedTemplateResolver) newInformerForGVK(gvk schema.GroupVersio
 		cache.Indexers{},
 		nil)
 	informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			r.updateRolloutsReferenceAnnotation(obj, gvk)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			r.updateRolloutsReferenceAnnotation(newObj, gvk)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			r.updateRolloutsReferenceAnnotation(obj, gvk)
 		},
 	})
@@ -225,7 +225,7 @@ func (r *informerBasedTemplateResolver) newInformerForGVK(gvk schema.GroupVersio
 }
 
 // updateRolloutsReferenceAnnotation update the annotation of all rollouts referenced by given object
-func (r *informerBasedTemplateResolver) updateRolloutsReferenceAnnotation(obj interface{}, gvk schema.GroupVersionKind) {
+func (r *informerBasedTemplateResolver) updateRolloutsReferenceAnnotation(obj any, gvk schema.GroupVersionKind) {
 	workloadMeta, err := meta.Accessor(obj)
 	if err != nil {
 		return
@@ -247,9 +247,9 @@ func (r *informerBasedTemplateResolver) updateRolloutsReferenceAnnotation(obj in
 		updated := annotations.SetRolloutWorkloadRefGeneration(ro, generation)
 		if updated {
 
-			patch := map[string]interface{}{
-				"metadata": map[string]interface{}{
-					"annotations": map[string]interface{}{
+			patch := map[string]any{
+				"metadata": map[string]any{
+					"annotations": map[string]any{
 						annotations.WorkloadGenerationAnnotation: ro.Annotations[annotations.WorkloadGenerationAnnotation],
 					},
 				},

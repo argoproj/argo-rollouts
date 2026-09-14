@@ -1,6 +1,7 @@
 package experiments
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -10,9 +11,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 )
 
 func generateClusterAnalysisTemplates(names ...string) []v1alpha1.ClusterAnalysisTemplate {
@@ -118,6 +120,45 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
 }
 
+// TestAnalysisRunMissingFromCacheFallsBackToAPI verifies that when an AnalysisRun already exists in the API
+// but not in the informer cache, the controller falls back to the direct API get instead of erroring the analysis
+func TestAnalysisRunMissingFromCacheFallsBackToAPI(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+	ar.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
+
+	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			Name:        "success-rate",
+			AnalysisRun: ar.Name,
+			Phase:       v1alpha1.AnalysisPhaseRunning,
+		},
+	}
+
+	exCtx := newTestContext(e)
+
+	_, err := exCtx.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(e.Namespace).Create(context.TODO(), ar, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	exCtx.reconcileAnalysisRun(e.Spec.Analyses[0], nil, nil, nil)
+
+	status := experimentutil.GetAnalysisRunStatus(*exCtx.newStatus, "success-rate")
+	assert.NotNil(t, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status.Phase)
+	assert.Empty(t, status.Message)
+}
+
 // TestCreateAnalysisRunWithInstanceID ensures we add an instance ID to the AnalysisRun
 func TestCreateAnalysisRunWithInstanceID(t *testing.T) {
 	templates := generateTemplates("bar")
@@ -178,7 +219,7 @@ func TestClusterAnalysisTemplateNotExists(t *testing.T) {
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		},
 	}
 	rs := templateToRS(e, templates[0], 1)
@@ -207,7 +248,7 @@ func TestCreateAnalysisRunWithArg(t *testing.T) {
 			TemplateName: aTemplates[0].Name,
 			Args: []v1alpha1.Argument{{
 				Name:  "test",
-				Value: pointer.StringPtr("sss"),
+				Value: ptr.To[string]("sss"),
 			}},
 		},
 	}
@@ -236,10 +277,10 @@ func TestCreateAnalysisRunWithClusterTemplate(t *testing.T) {
 		{
 			Name:         "cluster-success-rate",
 			TemplateName: aTemplates[0].Name,
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 			Args: []v1alpha1.Argument{{
 				Name:  "test",
-				Value: pointer.StringPtr("sss"),
+				Value: ptr.To[string]("sss"),
 			}},
 		},
 	}
@@ -271,7 +312,7 @@ func TestAnalysisRunFailToResolveArg(t *testing.T) {
 			Args: []v1alpha1.Argument{{
 
 				Name:  "test",
-				Value: pointer.StringPtr("{{not a real substitution}}"),
+				Value: ptr.To[string]("{{not a real substitution}}"),
 			}},
 		},
 	}
@@ -480,7 +521,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = ptr.To[int32](0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -493,7 +534,7 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Spec.Duration = "5m"
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = ptr.To[int32](0)
 	e.Status.AvailableAt = secondsAgo(60)
 	rs := templateToRS(e, templates[0], 1)
 	ar1 := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
@@ -660,7 +701,7 @@ func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
 func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "1m")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = ptr.To[int32](0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -700,7 +741,7 @@ func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 func TestTerminateAnalysisRuns(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = ptr.To[int32](0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -733,4 +774,119 @@ func TestTerminateAnalysisRuns(t *testing.T) {
 
 	patchedAr := f.getPatchedAnalysisRunAsObj(arPatchIdx)
 	assert.True(t, patchedAr.Spec.Terminate)
+}
+
+// TestCreateAnalysisRunWithMetadataAndDryRun ensures we create the AnalysisRun with the appropriate labels, annotations, and dry-run options when provided in the experiment
+func TestCreateAnalysisRunWithMetadataAndDryRun(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+	e.Spec.AnalysisRunMetadata = v1alpha1.AnalysisRunMetadata{
+		Labels: map[string]string{
+			"foo":  "bar",
+			"foo2": "bar2",
+		},
+		Annotations: map[string]string{
+			"bar":  "foo",
+			"bar2": "foo2",
+		},
+	}
+	e.Spec.DryRun = []v1alpha1.DryRun{
+		{
+			MetricName: "someMetric",
+		},
+		{
+			MetricName: "someOtherMetric",
+		},
+	}
+	rs := templateToRS(e, templates[0], 1)
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+
+	f := newFixture(t, e, rs, &aTemplates[0])
+	defer f.Close()
+
+	analysisRunIdx := f.expectCreateAnalysisRunAction(ar)
+	patchIdx := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+
+	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
+
+	analysisRun := f.getCreatedAnalysisRun(analysisRunIdx)
+	assert.Len(t, analysisRun.ObjectMeta.Labels, 2)
+	assert.Equal(t, analysisRun.ObjectMeta.Labels["foo"], "bar")
+	assert.Equal(t, analysisRun.ObjectMeta.Labels["foo2"], "bar2")
+	assert.Len(t, analysisRun.ObjectMeta.Annotations, 2)
+	assert.Equal(t, analysisRun.ObjectMeta.Annotations["bar"], "foo")
+	assert.Equal(t, analysisRun.ObjectMeta.Annotations["bar2"], "foo2")
+
+	assert.Len(t, analysisRun.Spec.DryRun, 2)
+	assert.Equal(t, analysisRun.Spec.DryRun[0].MetricName, "someMetric")
+	assert.Equal(t, analysisRun.Spec.DryRun[1].MetricName, "someOtherMetric")
+}
+
+// TestCreateAnalysisRunWithMetadataAndDryRunWithClusterScope tests the same thing as TestCreateAnalysisRunWithMetadataAndDryRun, with a cluster scope analysis template
+func TestCreateAnalysisRunWithMetadataAndDryRunWithClusterScope(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateClusterAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+			ClusterScope: ptr.To(true),
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+	e.Spec.AnalysisRunMetadata = v1alpha1.AnalysisRunMetadata{
+		Labels: map[string]string{
+			"foo":  "bar",
+			"foo2": "bar2",
+		},
+		Annotations: map[string]string{
+			"bar":  "foo",
+			"bar2": "foo2",
+		},
+	}
+	e.Spec.DryRun = []v1alpha1.DryRun{
+		{
+			MetricName: "someMetric",
+		},
+		{
+			MetricName: "someOtherMetric",
+		},
+	}
+	rs := templateToRS(e, templates[0], 1)
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+
+	f := newFixture(t, e, rs, &aTemplates[0])
+	defer f.Close()
+
+	analysisRunIdx := f.expectCreateAnalysisRunAction(ar)
+	patchIdx := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+
+	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
+
+	analysisRun := f.getCreatedAnalysisRun(analysisRunIdx)
+	assert.Len(t, analysisRun.ObjectMeta.Labels, 2)
+	assert.Equal(t, analysisRun.ObjectMeta.Labels["foo"], "bar")
+	assert.Equal(t, analysisRun.ObjectMeta.Labels["foo2"], "bar2")
+	assert.Len(t, analysisRun.ObjectMeta.Annotations, 2)
+	assert.Equal(t, analysisRun.ObjectMeta.Annotations["bar"], "foo")
+	assert.Equal(t, analysisRun.ObjectMeta.Annotations["bar2"], "foo2")
+
+	assert.Len(t, analysisRun.Spec.DryRun, 2)
+	assert.Equal(t, analysisRun.Spec.DryRun[0].MetricName, "someMetric")
+	assert.Equal(t, analysisRun.Spec.DryRun[1].MetricName, "someOtherMetric")
 }

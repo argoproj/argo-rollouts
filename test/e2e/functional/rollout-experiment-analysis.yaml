@@ -13,6 +13,11 @@ spec:
   - name: echo-pod-hash
     provider:
       job:
+        metadata:
+          labels:
+            foo: bar
+          annotations:
+            foo2: bar2
         spec:
           backoffLimit: 0
           template:

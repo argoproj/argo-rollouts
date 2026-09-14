@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -12,7 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util"
+	kubectlutil "k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -50,7 +51,7 @@ type Controller struct {
 	ingressWorkqueue workqueue.RateLimitingInterface
 
 	metricServer   *metrics.MetricsServer
-	enqueueRollout func(obj interface{})
+	enqueueRollout func(obj any)
 	albClasses     []string
 	nginxClasses   []string
 }
@@ -74,8 +75,8 @@ func NewController(cfg ControllerConfig) *Controller {
 		nginxClasses:     cfg.NGINXClasses,
 	}
 
-	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
-		ingressIndexName: func(obj interface{}) ([]string, error) {
+	kubectlutil.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
+		ingressIndexName: func(obj any) ([]string, error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return ingressutil.GetRolloutIngressKeys(ro), nil
 			}
@@ -84,17 +85,17 @@ func NewController(cfg ControllerConfig) *Controller {
 	}))
 
 	cfg.IngressWrap.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controllerutil.Enqueue(obj, cfg.IngressWorkQueue)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			controllerutil.Enqueue(newObj, cfg.IngressWorkQueue)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controllerutil.Enqueue(obj, cfg.IngressWorkQueue)
 		},
 	})
-	controller.enqueueRollout = func(obj interface{}) {
+	controller.enqueueRollout = func(obj any) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)
 	}
 
@@ -102,23 +103,28 @@ func NewController(cfg ControllerConfig) *Controller {
 }
 
 // Run starts the controller threads
-func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	log.Info("Starting Ingress workers")
+	wg := sync.WaitGroup{}
 	for i := 0; i < threadiness; i++ {
+		wg.Add(1)
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.ingressWorkqueue, logutil.IngressKey, c.syncIngress, c.metricServer)
-		}, time.Second, stopCh)
+			controllerutil.RunWorker(ctx, c.ingressWorkqueue, logutil.IngressKey, c.syncIngress, c.metricServer)
+			wg.Done()
+			log.Debug("Ingress worker has stopped")
+		}, time.Second, ctx.Done())
 	}
 
 	log.Info("Started Ingress workers")
-	<-stopCh
-	log.Info("Shutting down Ingress workers")
+	<-ctx.Done()
+	wg.Wait()
+	log.Info("All ingress workers have stopped")
 
 	return nil
 }
 
 // syncIngress queues all rollouts referencing the Ingress for reconciliation
-func (c *Controller) syncIngress(key string) error {
+func (c *Controller) syncIngress(ctx context.Context, key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

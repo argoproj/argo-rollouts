@@ -31,6 +31,7 @@ You can learn more about anti-affinity [here](https://kubernetes.io/docs/concept
 
 Repeating the above example with anti-affinity enabled, here is what happens when the `.spec.template` of the Rollout changes. Due to anti-affinity, the new pods cannot be scheduled on nodes which run the old ReplicaSet's pods.
 As a result, the cluster auto-scaler must create 2 nodes to host the new ReplicaSet's pods. In this case, pods won't be started since the scaled-down nodes are guaranteed to not have the new pods.
+
 ![ Original Rollout is running, spread across two nodes](images/solution.png)
 
 ## Enabling Anti-Affinity in Rollouts
@@ -41,7 +42,7 @@ This feature will not modify any of the ReplicaSet's pre-existing affinity rules
 Users have a choice between these scheduling rules: `RequiredDuringSchedulingIgnoredDuringExecution` and `PreferredDuringSchedulingIgnoredDuringExecution`.
 
 `RequiredDuringSchedulingIgnoredDuringExecution` requires a new version's pods to be on a separate node than the previous versions. If this
-is not possible, the the new version's pods will not be scheduled.
+is not possible, the new version's pods will not be scheduled.
 
 ```yaml
 strategy:

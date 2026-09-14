@@ -217,7 +217,7 @@ data:
   template.scaling-replicaset: |
     message: Scaling Rollout {{.rollout.metadata.name}}'s replicaset to {{.rollout.spec.replicas}}.
     email:
-      subject: Scaling Rollout {{.rollout.metadata.name}}'s replcaset to {{.rollout.spec.replicas}}.
+      subject: Scaling Rollout {{.rollout.metadata.name}}'s replicaset to {{.rollout.spec.replicas}}.
     slack:
       attachments: |
           [{

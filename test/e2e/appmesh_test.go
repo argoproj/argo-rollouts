@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -71,12 +72,12 @@ func (s *AppMeshSuite) getWeightedTargets(uVr *unstructured.Unstructured) map[st
 	result := make(map[string]weightedTargets)
 	routesI, _, _ := unstructured.NestedSlice(uVr.Object, "spec", "routes")
 	for _, rI := range routesI {
-		route, _ := rI.(map[string]interface{})
+		route, _ := rI.(map[string]any)
 		routeName, _ := route["name"].(string)
 		wtsI, _, _ := unstructured.NestedSlice(route, "httpRoute", "action", "weightedTargets")
 		wtStruct := weightedTargets{}
 		for _, wtI := range wtsI {
-			wt, _ := wtI.(map[string]interface{})
+			wt, _ := wtI.(map[string]any)
 			vnodeName, _, _ := unstructured.NestedString(wt, "virtualNodeRef", "name")
 			weight, _, _ := unstructured.NestedInt64(wt, "weight")
 			fmt.Printf("Found wt %+v with vnodeName (%s), weight (%d)", wt, vnodeName, weight)

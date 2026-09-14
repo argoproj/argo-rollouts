@@ -4,10 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/utils/pointer"
-
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -26,7 +25,7 @@ func TestGetReplicasOrDefault(t *testing.T) {
 func TestGetExperimentScaleDownDelaySecondsOrDefault(t *testing.T) {
 	exp := v1alpha1.Experiment{
 		Spec: v1alpha1.ExperimentSpec{
-			ScaleDownDelaySeconds: pointer.Int32Ptr(0),
+			ScaleDownDelaySeconds: ptr.To[int32](0),
 		},
 	}
 	// Custom value
@@ -398,10 +397,25 @@ func TestSetDefaults(t *testing.T) {
 	SetSMIAPIVersion(DefaultSMITrafficSplitVersion)
 	assert.Equal(t, DefaultSMITrafficSplitVersion, GetSMIAPIVersion())
 
+	SetTraefikAPIGroup("traefik.containo.us")
+	assert.Equal(t, "traefik.containo.us", GetTraefikAPIGroup())
+	SetTraefikAPIGroup(DefaultTraefikAPIGroup)
+	assert.Equal(t, DefaultTraefikAPIGroup, GetTraefikAPIGroup())
+
+	SetTraefikVersion("traefik.containo.us/v1alpha1")
+	assert.Equal(t, "traefik.containo.us/v1alpha1", GetTraefikVersion())
+	SetTraefikVersion(DefaultTraefikVersion)
+	assert.Equal(t, DefaultTraefikVersion, GetTraefikVersion())
+
 	SetTargetGroupBindingAPIVersion("v1alpha9")
 	assert.Equal(t, "v1alpha9", GetTargetGroupBindingAPIVersion())
 	SetTargetGroupBindingAPIVersion(DefaultTargetGroupBindingAPIVersion)
 	assert.Equal(t, DefaultTargetGroupBindingAPIVersion, GetTargetGroupBindingAPIVersion())
+
+	SetalbTagKeyResourceID("ingress.amazonaws.com/resource")
+	assert.Equal(t, "ingress.amazonaws.com/resource", GetalbTagKeyResourceID())
+	SetalbTagKeyResourceID(DefaultAlbTagKeyResourceID)
+	assert.Equal(t, DefaultAlbTagKeyResourceID, GetalbTagKeyResourceID())
 
 	assert.Equal(t, DefaultAppMeshCRDVersion, GetAppMeshCRDVersion())
 	SetAppMeshCRDVersion("v1beta3")
@@ -411,4 +425,8 @@ func TestSetDefaults(t *testing.T) {
 	assert.Equal(t, DefaultMetricCleanupDelay, int32(GetMetricCleanupDelaySeconds().Seconds()))
 	SetMetricCleanupDelaySeconds(24)
 	assert.Equal(t, time.Duration(24)*time.Second, GetMetricCleanupDelaySeconds())
+
+	assert.Equal(t, DefaultDescribeTagsLimit, GetDescribeTagsLimit())
+	SetDescribeTagsLimit(2)
+	assert.Equal(t, 2, GetDescribeTagsLimit())
 }

@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 
-	appmeshutil "github.com/argoproj/argo-rollouts/utils/appmesh"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
+
+	appmeshutil "github.com/argoproj/argo-rollouts/utils/appmesh"
 )
 
 type ResourceClient struct {
@@ -61,7 +62,7 @@ func (rc *ResourceClient) GetVirtualRouterCRForVirtualService(ctx context.Contex
 	return rc.GetVirtualRouterCR(ctx, namespace, name)
 }
 
-func defaultIfEmpty(strI interface{}, defaultStr string) string {
+func defaultIfEmpty(strI any, defaultStr string) string {
 	if strI == nil {
 		return defaultStr
 	} else {

@@ -1,0 +1,31 @@
+# Rollout with an inline analysis that uses a non-existent docker image.
+# The job pod stays in ErrImagePull/ImagePullBackOff/InvalidImageName, which causes the
+# analysis to be marked Inconclusive. The rollout should pause.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-inline-invalid-image-job
+spec:
+  strategy:
+    canary:
+      steps:
+      - setWeight: 10
+      - analysis:
+          templates:
+          - templateName: invalid-image-job
+  selector:
+    matchLabels:
+      app: rollout-inline-invalid-image-job
+  template:
+    metadata:
+      labels:
+        app: rollout-inline-invalid-image-job
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m

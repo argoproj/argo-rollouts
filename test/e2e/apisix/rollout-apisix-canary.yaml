@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rollout-apisix-canary-canary
+spec:
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: rollout-apisix-canary
+    # This selector will be updated with the pod-template-hash of the canary ReplicaSet. e.g.:
+    # rollouts-pod-template-hash: 7bf84f9696
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rollout-apisix-canary-stable
+spec:
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: rollout-apisix-canary
+    # This selector will be updated with the pod-template-hash of the stable ReplicaSet. e.g.:
+    # rollouts-pod-template-hash: 789746c88d
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: rollouts-apisix-route
+spec:
+  http:
+    - name: rollouts-apisix
+      match:
+        paths:
+          - /*
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+        hosts:
+          - rollouts-demo.apisix.local
+      backends:
+        - serviceName: rollout-apisix-canary-stable
+          servicePort: 80
+          weight: 100
+        - serviceName: rollout-apisix-canary-canary
+          servicePort: 80
+          weight: 0
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-apisix-canary
+spec:
+  replicas: 1
+  strategy:
+    canary:
+      canaryService: rollout-apisix-canary-canary
+      stableService: rollout-apisix-canary-stable
+      trafficRouting:
+        apisix:
+          route:
+            name: rollouts-apisix-route
+            rules:
+              - rollouts-apisix
+      steps:
+      - setWeight: 5
+      - pause:
+          duration: 15
+      - setWeight: 50
+      - pause:
+          duration: 15
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollout-apisix-canary
+  template:
+    metadata:
+      labels:
+        app: rollout-apisix-canary
+    spec:
+      containers:
+      - name: rollout-apisix-canary
+        image: nginx:1.19-alpine
+        ports:
+          - name: http
+            containerPort: 80
+            protocol: TCP
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m

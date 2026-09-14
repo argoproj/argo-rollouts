@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -17,7 +18,7 @@ import (
 	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util"
+	kubectlutil "k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -81,7 +82,7 @@ type Controller struct {
 	resyncPeriod      time.Duration
 
 	metricServer   *metrics.MetricsServer
-	enqueueRollout func(obj interface{})
+	enqueueRollout func(obj any)
 }
 
 // NewController returns a new service controller
@@ -101,8 +102,8 @@ func NewController(cfg ControllerConfig) *Controller {
 		metricServer:     cfg.MetricsServer,
 	}
 
-	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
-		serviceIndexName: func(obj interface{}) (strings []string, e error) {
+	kubectlutil.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
+		serviceIndexName: func(obj any) (strings []string, e error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return serviceutil.GetRolloutServiceKeys(ro), nil
 			}
@@ -111,17 +112,17 @@ func NewController(cfg ControllerConfig) *Controller {
 	}))
 
 	cfg.ServicesInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controllerutil.Enqueue(obj, cfg.ServiceWorkqueue)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			controllerutil.Enqueue(newObj, cfg.ServiceWorkqueue)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controllerutil.Enqueue(obj, cfg.ServiceWorkqueue)
 		},
 	})
-	controller.enqueueRollout = func(obj interface{}) {
+	controller.enqueueRollout = func(obj any) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkqueue)
 	}
 
@@ -129,17 +130,22 @@ func NewController(cfg ControllerConfig) *Controller {
 }
 
 // Run starts the controller threads
-func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	log.Info("Starting Service workers")
+	wg := sync.WaitGroup{}
 	for i := 0; i < threadiness; i++ {
+		wg.Add(1)
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.serviceWorkqueue, logutil.ServiceKey, c.syncService, c.metricServer)
-		}, time.Second, stopCh)
+			controllerutil.RunWorker(ctx, c.serviceWorkqueue, logutil.ServiceKey, c.syncService, c.metricServer)
+			log.Debug("Service worker has stopped")
+			wg.Done()
+		}, time.Second, ctx.Done())
 	}
 
 	log.Info("Started Service workers")
-	<-stopCh
-	log.Info("Shutting down workers")
+	<-ctx.Done()
+	wg.Wait()
+	log.Info("All service workers have stopped")
 
 	return nil
 }
@@ -147,8 +153,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 // syncService detects a change to a Service which is managed by a Rollout, and enqueues the
 // related rollout for reconciliation. If no rollout is referencing the Service, then removes
 // any injected fields in the service (e.g. rollouts-pod-template-hash and managed-by annotation)
-func (c *Controller) syncService(key string) error {
-	ctx := context.TODO()
+func (c *Controller) syncService(ctx context.Context, key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

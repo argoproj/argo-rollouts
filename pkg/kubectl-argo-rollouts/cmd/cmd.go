@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	notificationcmd "github.com/argoproj/notifications-engine/pkg/cmd"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/completion"
@@ -20,7 +22,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/version"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/utils/record"
-	notificationcmd "github.com/argoproj/notifications-engine/pkg/cmd"
 
 	"github.com/spf13/cobra"
 )
@@ -40,7 +41,7 @@ const (
   %[1]s abort guestbook
 
   # Retry the guestbook rollout
-  %[1]s retry guestbook`
+  %[1]s retry rollout guestbook`
 )
 
 // NewCmdArgoRollouts returns new instance of rollouts command.
@@ -56,6 +57,7 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return o.UsageErr(c)
 		},
 	}
+
 	o.AddKubectlFlags(cmd)
 	cmd.AddCommand(create.NewCmdCreate(o))
 	cmd.AddCommand(get.NewCmdGet(o))
@@ -72,7 +74,7 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 	cmd.AddCommand(undo.NewCmdUndo(o))
 	cmd.AddCommand(dashboard.NewCmdDashboard(o))
 	cmd.AddCommand(status.NewCmdStatus(o))
-	cmd.AddCommand(notificationcmd.NewToolsCommand("notifications", "kubectl argo rollouts notifications", v1alpha1.RolloutGVR, record.NewAPIFactorySettings()))
+	cmd.AddCommand(notificationcmd.NewToolsCommand("notifications", "kubectl argo rollouts notifications", v1alpha1.RolloutGVR, record.NewAPIFactorySettings(nil)))
 	cmd.AddCommand(completion.NewCmdCompletion(o))
 
 	return cmd

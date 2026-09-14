@@ -7,6 +7,7 @@ resources:
 - argo-rollouts-aggregate-roles.yaml
 - argo-rollouts-metrics-service.yaml
 - argo-rollouts-notification-secret.yaml
+- argo-rollouts-config.yaml
 images:
 - name: quay.io/argoproj/argo-rollouts
   newTag: latest

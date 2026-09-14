@@ -2,17 +2,13 @@ package server
 
 import (
 	"context"
-	"embed"
 	"fmt"
-	"io/fs"
 	"net"
 	"net/http"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/errors"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
@@ -43,12 +39,10 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/undo"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	"github.com/argoproj/argo-rollouts/utils/errors"
 	"github.com/argoproj/argo-rollouts/utils/json"
 	versionutils "github.com/argoproj/argo-rollouts/utils/version"
 )
-
-//go:embed static/*
-var static embed.FS //nolint
 
 var backoff = wait.Backoff{
 	Steps:    5,
@@ -81,19 +75,16 @@ func NewServer(o ServerOptions) *ArgoRolloutsServer {
 	return &ArgoRolloutsServer{Options: o}
 }
 
-var re = regexp.MustCompile(`<base href=".*".*/>`)
-
-func withRootPath(fileContent []byte, rootpath string) []byte {
-	var temp = re.ReplaceAllString(string(fileContent), `<base href="`+path.Clean("/"+rootpath)+`/" />`)
-	return []byte(temp)
-}
+const (
+	listenAddr  = "0.0.0.0"
+	connectAddr = "localhost"
+)
 
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
 	mux := http.NewServeMux()
-	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
 
 	httpS := http.Server{
-		Addr:    endpoint,
+		Addr:    net.JoinHostPort(listenAddr, fmt.Sprintf("%d", port)),
 		Handler: mux,
 	}
 
@@ -112,106 +103,25 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	}
 	opts = append(opts, grpc.WithInsecure())
 
+	endpoint := net.JoinHostPort(connectAddr, fmt.Sprintf("%d", port))
 	err := rollout.RegisterRolloutServiceHandlerFromEndpoint(ctx, gwmux, endpoint, opts)
 	if err != nil {
 		panic(err)
 	}
 
-	var handler http.Handler = gwmux
+	var apiHandler http.Handler = gwmux
 
-	mux.Handle("/api/", handler)
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		requestedURI := path.Clean(r.RequestURI)
-		rootPath := path.Clean("/" + s.Options.RootPath)
-		//If the rootPath is not in the prefix 404
-		if !strings.HasPrefix(requestedURI, rootPath) {
-			http.NotFound(w, r)
-			return
-		}
-		//If the rootPath is the requestedURI, serve index.html
-		if requestedURI == rootPath {
-			fileBytes, openErr := s.readIndexHtml()
-			if openErr != nil {
-				log.Errorf("Error opening file index.html: %v", openErr)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			w.Write(fileBytes)
-			return
-		}
-
-		embedPath := path.Join("static", strings.TrimPrefix(requestedURI, rootPath))
-		file, openErr := static.Open(embedPath)
-		if openErr != nil {
-			fErr := openErr.(*fs.PathError)
-			//If the file is not found, serve index.html
-			if fErr.Err == fs.ErrNotExist {
-				fileBytes, openErr := s.readIndexHtml()
-				if openErr != nil {
-					log.Errorf("Error opening file index.html: %v", openErr)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				w.Write(fileBytes)
-				return
-			} else {
-				log.Errorf("Error opening file %s: %v", embedPath, openErr)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-		}
-		defer file.Close()
-
-		stat, statErr := file.Stat()
-		if statErr != nil {
-			log.Errorf("Failed to stat file or dir %s: %v", embedPath, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		fileBytes := make([]byte, stat.Size())
-		_, err = file.Read(fileBytes)
-		if err != nil {
-			log.Errorf("Failed to read file %s: %v", embedPath, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		w.Write(fileBytes)
-	})
+	// Mount API at rootPath/api/ when rootPath is configured
+	apiPath := "/api/"
+	if s.Options.RootPath != "" {
+		apiPath = path.Join("/", s.Options.RootPath, "api") + "/"
+		stripPrefix := path.Join("/", s.Options.RootPath)
+		apiHandler = http.StripPrefix(stripPrefix, gwmux)
+	}
+	mux.Handle(apiPath, apiHandler)
+	mux.HandleFunc("/", s.staticFileHttpHandler)
 
 	return &httpS
-}
-
-func (s *ArgoRolloutsServer) readIndexHtml() ([]byte, error) {
-	file, err := static.Open("static/index.html")
-	if err != nil {
-		log.Errorf("Failed to open file %s: %v", "static/index.html", err)
-		return nil, err
-	}
-	defer func() {
-		if file != nil {
-			if err := file.Close(); err != nil {
-				log.Errorf("Error closing file: %v", err)
-			}
-		}
-	}()
-
-	stat, err := file.Stat()
-	if err != nil {
-		log.Errorf("Failed to stat file or dir %s: %v", "static/index.html", err)
-		return nil, err
-	}
-
-	fileBytes := make([]byte, stat.Size())
-	_, err = file.Read(fileBytes)
-	if err != nil {
-		log.Errorf("Failed to read file %s: %v", "static/index.html", err)
-		return nil, err
-	}
-
-	return withRootPath(fileBytes, s.Options.RootPath), nil
 }
 
 func (s *ArgoRolloutsServer) newGRPCServer() *grpc.Server {
@@ -283,7 +193,10 @@ func (s *ArgoRolloutsServer) initRolloutViewController(namespace string, name st
 }
 
 func (s *ArgoRolloutsServer) getRolloutInfo(namespace string, name string) (*rollout.RolloutInfo, error) {
-	controller := s.initRolloutViewController(namespace, name, context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	controller := s.initRolloutViewController(namespace, name, ctx)
 	ri, err := controller.GetRolloutInfo()
 	if err != nil {
 		return nil, err
@@ -394,15 +307,15 @@ func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, 
 	rolloutUpdateChan := make(chan *v1alpha1.Rollout)
 
 	rolloutInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			rolloutUpdateChan <- obj.(*v1alpha1.Rollout)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			rolloutUpdateChan <- newObj.(*v1alpha1.Rollout)
 		},
 	})
 	podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			podUpdated(obj.(*corev1.Pod), rsLister, rolloutsLister, rolloutUpdateChan)
 		},
 	})
@@ -474,10 +387,8 @@ func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortR
 	return abort.AbortRollout(rolloutIf, q.GetName())
 }
 
-func (s *ArgoRolloutsServer) getRollout(namespace string, name string) (*v1alpha1.Rollout, error) {
-	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(namespace))
-	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace)
-	return rolloutsLister.Get(name)
+func (s *ArgoRolloutsServer) getRollout(ctx context.Context, namespace string, name string) (*v1alpha1.Rollout, error) {
+	return s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, v1.GetOptions{})
 }
 
 func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.SetImageRequest) (*v1alpha1.Rollout, error) {
@@ -486,7 +397,7 @@ func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.Set
 	if err != nil {
 		return nil, err
 	}
-	return s.getRollout(q.GetNamespace(), q.GetRollout())
+	return s.getRollout(ctx, q.GetNamespace(), q.GetRollout())
 }
 
 func (s *ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoRolloutRequest) (*v1alpha1.Rollout, error) {
@@ -495,7 +406,7 @@ func (s *ArgoRolloutsServer) UndoRollout(ctx context.Context, q *rollout.UndoRol
 	if err != nil {
 		return nil, err
 	}
-	return s.getRollout(q.GetNamespace(), q.GetRollout())
+	return s.getRollout(ctx, q.GetNamespace(), q.GetRollout())
 }
 
 func (s *ArgoRolloutsServer) RetryRollout(ctx context.Context, q *rollout.RetryRolloutRequest) (*v1alpha1.Rollout, error) {

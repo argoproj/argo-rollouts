@@ -1,7 +1,6 @@
 package defaults
 
 import (
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -45,6 +44,14 @@ const (
 	// DefaultMetricCleanupDelay is the default time to delay metrics removal upon object removal, gives time for metrics
 	// to be collected
 	DefaultMetricCleanupDelay = int32(65)
+	// DefaultRolloutsConfigMapName is the default name of the ConfigMap that contains the Rollouts controller configuration
+	DefaultRolloutsConfigMapName = "argo-rollouts-config"
+	// DefaultRolloutPluginFolder is the default location where plugins will be downloaded and/or moved to.
+	DefaultRolloutPluginFolder = "plugin-bin"
+	// DefaultDescribeTagsLimit is the default number resources (ARNs) in a single call
+	DefaultDescribeTagsLimit int = 20
+	// Kubernetes_DNS_Limit is the maximum length of a DNS name in Kubernetes. Currently used for Analysis Job names
+	Kubernetes_DNS_Limit int = 63
 )
 
 const (
@@ -53,19 +60,26 @@ const (
 	DefaultIstioVersion                 = "v1alpha3"
 	DefaultSMITrafficSplitVersion       = "v1alpha1"
 	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
+	DefaultAlbTagKeyResourceID          = "ingress.k8s.aws/resource"
 	DefaultAppMeshCRDVersion            = "v1beta2"
-	DefaultTraefikAPIGroup              = "traefik.containo.us"
-	DefaultTraefikVersion               = "traefik.containo.us/v1alpha1"
+	DefaultTraefikAPIGroup              = "traefik.io"
+	DefaultTraefikVersion               = "traefik.io/v1alpha1"
+	DefaultApisixAPIGroup               = "apisix.apache.org"
+	DefaultApisixVersion                = "apisix.apache.org/v2"
 )
 
 var (
 	defaultVerifyTargetGroup     = false
+	traefikAPIGroup              = DefaultTraefikAPIGroup
+	traefikVersion               = DefaultTraefikVersion
 	istioAPIVersion              = DefaultIstioVersion
 	ambassadorAPIVersion         = DefaultAmbassadorVersion
 	smiAPIVersion                = DefaultSMITrafficSplitVersion
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
+	albTagKeyResourceID          = DefaultAlbTagKeyResourceID
 	appmeshCRDVersion            = DefaultAppMeshCRDVersion
 	defaultMetricCleanupDelay    = DefaultMetricCleanupDelay
+	defaultDescribeTagsLimit     = DefaultDescribeTagsLimit
 )
 
 const (
@@ -223,6 +237,18 @@ func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) (*time.Du
 	return &dur, wasSet
 }
 
+// HasExplicitAbortScaleDownDelay returns whether the user explicitly configured a delayed
+// scale-down on abort. An explicit abortScaleDownDelaySeconds: 0 returns false, since zero
+// disables scale-down entirely rather than delaying it. Under dynamicStableScale this is the
+// mode where the canary is held at full scale on abort until it receives a scale-down
+// deadline (rather than draining progressively), which the abort weight calculation
+// (GetDesiredCanaryWeight) and the scale-down delay logic (shouldDelayScaleDownOnAbort)
+// must agree on.
+func HasExplicitAbortScaleDownDelay(rollout *v1alpha1.Rollout) bool {
+	abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(rollout)
+	return wasSet && abortDelay != nil
+}
+
 func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
 	if rollout.Spec.Strategy.BlueGreen == nil {
 		return DefaultAutoPromotionEnabled
@@ -247,7 +273,7 @@ func Namespace() string {
 		return ns
 	}
 	// Fall back to the namespace associated with the service account token, if available
-	if data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+	if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
 		if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
 			return ns
 		}
@@ -297,6 +323,30 @@ func GetSMIAPIVersion() string {
 	return smiAPIVersion
 }
 
+func SetTraefikVersion(apiVersion string) {
+	traefikVersion = apiVersion
+}
+
+func GetTraefikVersion() string {
+	return traefikVersion
+}
+
+func SetTraefikAPIGroup(apiGroup string) {
+	traefikAPIGroup = apiGroup
+}
+
+func GetTraefikAPIGroup() string {
+	return traefikAPIGroup
+}
+
+func SetalbTagKeyResourceID(tagKey string) {
+	albTagKeyResourceID = tagKey
+}
+
+func GetalbTagKeyResourceID() string {
+	return albTagKeyResourceID
+}
+
 func SetTargetGroupBindingAPIVersion(apiVersion string) {
 	targetGroupBindingAPIVersion = apiVersion
 }
@@ -317,4 +367,14 @@ func GetMetricCleanupDelaySeconds() time.Duration {
 // SetMetricCleanupDelaySeconds sets the metric cleanup delay in seconds
 func SetMetricCleanupDelaySeconds(seconds int32) {
 	defaultMetricCleanupDelay = seconds
+}
+
+// GetDescribeTagsLimit returns limit of resources can be requested in a single call
+func GetDescribeTagsLimit() int {
+	return defaultDescribeTagsLimit
+}
+
+// SetDescribeTagsLimit sets the limit of resources can be requested in a single call
+func SetDescribeTagsLimit(limit int) {
+	defaultDescribeTagsLimit = limit
 }

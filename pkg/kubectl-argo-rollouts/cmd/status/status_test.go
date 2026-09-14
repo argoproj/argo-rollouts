@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
-	"github.com/stretchr/testify/assert"
 )
 
 const noWatch = "--watch=false"

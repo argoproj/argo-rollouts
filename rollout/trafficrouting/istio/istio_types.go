@@ -1,8 +1,9 @@
 package istio
 
 import (
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 // VirtualService is an Istio VirtualService containing only the fields which we care about
@@ -86,6 +87,11 @@ type VirtualServiceRouteDestination struct {
 type VirtualServiceDestination struct {
 	Host   string `json:"host,omitempty"`
 	Subset string `json:"subset,omitempty"`
+	Port   *Port  `json:"port,omitempty"`
+}
+
+type Port struct {
+	Number uint32 `json:"number,omitempty"`
 }
 
 // DestinationRule is an Istio DestinationRule containing only the fields which we care about
@@ -103,5 +109,5 @@ type Subset struct {
 	Name   string            `json:"name,omitempty"`
 	Labels map[string]string `json:"labels,omitempty"`
 	// TrafficPolicy *json.RawMessage  `json:"trafficPolicy,omitempty"`
-	Extra map[string]interface{} `json:",omitempty"`
+	Extra map[string]any `json:",omitempty"`
 }

@@ -27,7 +27,7 @@ html {
 }
 
 a {
-    color: inherit;
+    color: inherit !important;
     text-decoration: none;
 }
 
@@ -38,7 +38,7 @@ a {
 .rollouts {
     height: 100%;
     overflow-y: auto;
-    font-family: 'Heebo', sans-serif;
+    font-family: system-ui, sans-serif;
     background-color: $argo-color-gray-3;
 
     &--dark {

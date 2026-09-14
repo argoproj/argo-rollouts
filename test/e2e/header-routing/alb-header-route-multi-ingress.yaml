@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: canary-multi-ingress-service
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: alb-multi-ingress-rollout
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stable-multi-ingress-service
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: alb-multi-ingress-rollout
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alb-rollout-multi-ingress-1
+  annotations:
+    kubernetes.io/ingress.class: alb
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: action1
+                port:
+                  name: use-annotation
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alb-rollout-multi-ingress-2
+  annotations:
+    kubernetes.io/ingress.class: alb
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: action1
+                port:
+                  name: use-annotation
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollouts-demo
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: alb-multi-ingress-rollout
+  template:
+    metadata:
+      labels:
+        app: alb-multi-ingress-rollout
+    spec:
+      containers:
+        - name: alb-multi-ingress-rollout
+          image: "argoproj/rollouts-demo:yellow"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+  strategy:
+    canary:
+      scaleDownDelaySeconds: 5
+      stableService: stable-multi-ingress-service
+      canaryService: canary-multi-ingress-service
+      trafficRouting:
+        managedRoutes:
+          - name: header-route
+        alb:
+          ingresses:
+            - alb-rollout-multi-ingress-1
+            - alb-rollout-multi-ingress-2
+          rootService: action1
+          servicePort: 8080
+      steps:
+        - setWeight: 20
+        - pause: {}
+        - setHeaderRoute:
+            name: header-route
+            match:
+              - headerName: Custom-Header
+                headerValue:
+                  exact: Mozilla*
+        - pause: {}
+        - setHeaderRoute:
+            name: header-route
+        - pause: {}

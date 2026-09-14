@@ -3,11 +3,10 @@ package influxdb
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
@@ -39,7 +40,7 @@ func TestRunSuccessfully(t *testing.T) {
 ,,0,2020-02-17T22:19:49.747562847Z,2020-02-18T22:19:49.747562847Z,2020-02-18T22:08:44.850214724Z,6.6,f,test,1,adsfasdf
 `
 	reader := strings.NewReader(csvTable)
-	result := influxdb2.NewQueryTableResult(ioutil.NopCloser(reader))
+	result := influxdb2.NewQueryTableResult(io.NopCloser(reader))
 	mock := &mockAPI{response: result}
 	p := NewInfluxdbProvider(mock, e)
 	metric := v1alpha1.Metric{
@@ -71,7 +72,7 @@ func TestRunWithTimeseries(t *testing.T) {
 ,,0,2020-02-17T22:19:49.747562847Z,2020-02-18T22:19:49.747562847Z,2020-02-18T22:08:44.850214724Z,20,f,test,1,adsfasdf
 `
 	reader := strings.NewReader(csvTable)
-	result := influxdb2.NewQueryTableResult(ioutil.NopCloser(reader))
+	result := influxdb2.NewQueryTableResult(io.NopCloser(reader))
 	mock := &mockAPI{response: result}
 	p := NewInfluxdbProvider(mock, e)
 	metric := v1alpha1.Metric{
@@ -102,7 +103,7 @@ func TestRunWithEmptyResult(t *testing.T) {
 ,result,table,_start,_stop,_time,_value,_field,_measurement,a,b
 `
 	reader := strings.NewReader(csvTable)
-	result := influxdb2.NewQueryTableResult(ioutil.NopCloser(reader))
+	result := influxdb2.NewQueryTableResult(io.NopCloser(reader))
 	mock := &mockAPI{response: result}
 	p := NewInfluxdbProvider(mock, *e)
 	metric := v1alpha1.Metric{

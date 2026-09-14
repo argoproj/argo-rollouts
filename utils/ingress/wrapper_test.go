@@ -5,15 +5,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	v1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/ingress"
@@ -450,30 +450,30 @@ func TestDeepCopy(t *testing.T) {
 	})
 }
 
-func TestGetLoadBalancerStatus(t *testing.T) {
-	t.Run("will get loadbalancer status from wrapped networking.Ingress", func(t *testing.T) {
+func TestGetLoadBalancerHostnames(t *testing.T) {
+	t.Run("will get loadbalancer hostnames from wrapped networking.Ingress", func(t *testing.T) {
 		// given
 		t.Parallel()
 		i := getNetworkingIngress()
 		ni := ingress.NewIngress(i)
 
 		// when
-		lbs := ni.GetLoadBalancerStatus()
+		lbs := ni.GetLoadBalancerHostnames()
 
 		// then
-		assert.Equal(t, i.Status.LoadBalancer, lbs)
+		assert.Equal(t, []string{"localhost"}, lbs)
 	})
-	t.Run("will get loadbalancer status from wrapped extensions.Ingress", func(t *testing.T) {
+	t.Run("will get loadbalancer hostnames from wrapped extensions.Ingress", func(t *testing.T) {
 		// given
 		t.Parallel()
 		i := getExtensionsIngress()
 		li := ingress.NewLegacyIngress(i)
 
 		// when
-		lbs := li.GetLoadBalancerStatus()
+		lbs := li.GetLoadBalancerHostnames()
 
 		// then
-		assert.Equal(t, i.Status.LoadBalancer, lbs)
+		assert.Equal(t, []string{"localhost"}, lbs)
 	})
 }
 
@@ -914,12 +914,12 @@ func getNetworkingIngress() *v1.Ingress {
 			},
 		},
 		Status: v1.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{
+			LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+				Ingress: []networkingv1.IngressLoadBalancerIngress{
 					{
 						IP:       "127.0.0.1",
 						Hostname: "localhost",
-						Ports: []corev1.PortStatus{
+						Ports: []networkingv1.IngressPortStatus{
 							{
 								Port:     8080,
 								Protocol: "http",
@@ -954,12 +954,12 @@ func getExtensionsIngress() *v1beta1.Ingress {
 			},
 		},
 		Status: v1beta1.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{
+			LoadBalancer: v1beta1.IngressLoadBalancerStatus{
+				Ingress: []v1beta1.IngressLoadBalancerIngress{
 					{
 						IP:       "127.0.0.1",
 						Hostname: "localhost",
-						Ports: []corev1.PortStatus{
+						Ports: []v1beta1.IngressPortStatus{
 							{
 								Port:     8080,
 								Protocol: "http",
@@ -976,7 +976,7 @@ func networkingIngress() *ingress.Ingress {
 	pathType := v1.PathTypeImplementationSpecific
 	res := v1.Ingress{
 		Spec: v1.IngressSpec{
-			IngressClassName: pointer.String("v1ingress"),
+			IngressClassName: ptr.To[string]("v1ingress"),
 			Rules: []v1.IngressRule{
 				{
 					Host: "v1host",
@@ -1010,7 +1010,7 @@ func networkingIngressWithPath(paths ...string) *ingress.Ingress {
 	}
 	res := v1.Ingress{
 		Spec: v1.IngressSpec{
-			IngressClassName: pointer.String("v1ingress"),
+			IngressClassName: ptr.To[string]("v1ingress"),
 			Rules: []v1.IngressRule{
 				{
 					Host: "v1host",
@@ -1044,7 +1044,7 @@ func extensionsIngress() *ingress.Ingress {
 	pathType := v1beta1.PathTypeImplementationSpecific
 	res := v1beta1.Ingress{
 		Spec: v1beta1.IngressSpec{
-			IngressClassName: pointer.String("v1beta1ingress"),
+			IngressClassName: ptr.To[string]("v1beta1ingress"),
 			Rules: []v1beta1.IngressRule{
 				{
 					Host: "v1beta1host",
@@ -1076,7 +1076,7 @@ func extensionsIngressWithPath(paths ...string) *ingress.Ingress {
 	}
 	res := v1beta1.Ingress{
 		Spec: v1beta1.IngressSpec{
-			IngressClassName: pointer.String("v1beta1ingress"),
+			IngressClassName: ptr.To[string]("v1beta1ingress"),
 			Rules: []v1beta1.IngressRule{
 				{
 					Host: "v1beta1host",

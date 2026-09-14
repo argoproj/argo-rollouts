@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	apisrolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	versioned "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // ClusterAnalysisTemplates.
 type ClusterAnalysisTemplateInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ClusterAnalysisTemplateLister
+	Lister() rolloutsv1alpha1.ClusterAnalysisTemplateLister
 }
 
 type clusterAnalysisTemplateInformer struct {
@@ -61,16 +61,28 @@ func NewFilteredClusterAnalysisTemplateInformer(client versioned.Interface, resy
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().ClusterAnalysisTemplates().List(context.TODO(), options)
+				return client.ArgoprojV1alpha1().ClusterAnalysisTemplates().List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().ClusterAnalysisTemplates().Watch(context.TODO(), options)
+				return client.ArgoprojV1alpha1().ClusterAnalysisTemplates().Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ArgoprojV1alpha1().ClusterAnalysisTemplates().List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ArgoprojV1alpha1().ClusterAnalysisTemplates().Watch(ctx, options)
 			},
 		},
-		&rolloutsv1alpha1.ClusterAnalysisTemplate{},
+		&apisrolloutsv1alpha1.ClusterAnalysisTemplate{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +93,9 @@ func (f *clusterAnalysisTemplateInformer) defaultInformer(client versioned.Inter
 }
 
 func (f *clusterAnalysisTemplateInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&rolloutsv1alpha1.ClusterAnalysisTemplate{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisrolloutsv1alpha1.ClusterAnalysisTemplate{}, f.defaultInformer)
 }
 
-func (f *clusterAnalysisTemplateInformer) Lister() v1alpha1.ClusterAnalysisTemplateLister {
-	return v1alpha1.NewClusterAnalysisTemplateLister(f.Informer().GetIndexer())
+func (f *clusterAnalysisTemplateInformer) Lister() rolloutsv1alpha1.ClusterAnalysisTemplateLister {
+	return rolloutsv1alpha1.NewClusterAnalysisTemplateLister(f.Informer().GetIndexer())
 }

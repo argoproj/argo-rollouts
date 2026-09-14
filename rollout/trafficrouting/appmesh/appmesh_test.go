@@ -218,7 +218,7 @@ func TestSetWeightWithUpdateVirtualRouterError(t *testing.T) {
 
 func TestSetWeightWithInvalidRoutes(t *testing.T) {
 	type args struct {
-		routes             []interface{}
+		routes             []any
 		fieldPathWithError string
 	}
 
@@ -236,7 +236,7 @@ func TestSetWeightWithInvalidRoutes(t *testing.T) {
 		{
 			name: "route with malformed content",
 			args: args{
-				routes: []interface{}{
+				routes: []any{
 					"malformed-content",
 				},
 				fieldPathWithError: field.NewPath("spec", "routes").Index(0).String(),
@@ -245,9 +245,9 @@ func TestSetWeightWithInvalidRoutes(t *testing.T) {
 		{
 			name: "route with no name",
 			args: args{
-				routes: []interface{}{
-					map[string]interface{}{
-						"httpRoute": map[string]interface{}{},
+				routes: []any{
+					map[string]any{
+						"httpRoute": map[string]any{},
 					},
 				},
 				fieldPathWithError: field.NewPath("spec", "routes").Index(0).Child("name").String(),
@@ -256,10 +256,10 @@ func TestSetWeightWithInvalidRoutes(t *testing.T) {
 		{
 			name: "route with bad route-type",
 			args: args{
-				routes: []interface{}{
-					map[string]interface{}{
+				routes: []any{
+					map[string]any{
 						"name":     "primary",
-						"badRoute": map[string]interface{}{},
+						"badRoute": map[string]any{},
 					},
 				},
 				fieldPathWithError: field.NewPath("spec", "routes").Index(0).String(),
@@ -268,10 +268,10 @@ func TestSetWeightWithInvalidRoutes(t *testing.T) {
 		{
 			name: "route with no targets",
 			args: args{
-				routes: []interface{}{
-					map[string]interface{}{
+				routes: []any{
+					map[string]any{
 						"name":      "primary",
-						"httpRoute": map[string]interface{}{},
+						"httpRoute": map[string]any{},
 					},
 				},
 				fieldPathWithError: field.NewPath("spec", "routes").Index(0).Child("httpRoute").Child("action").Child("weightedTargets").String(),
@@ -654,9 +654,9 @@ func TestUpdateHashWhenUpdateCanaryVirtualNodeFails(t *testing.T) {
 
 func TestUpdateHashWithVirtualNodeMissingMatchLabels(t *testing.T) {
 	canaryVnode := unstructuredutil.StrToUnstructuredUnsafe(baselineCanaryVnode)
-	unstructured.SetNestedMap(canaryVnode.Object, make(map[string]interface{}), "spec", "podSelector")
+	unstructured.SetNestedMap(canaryVnode.Object, make(map[string]any), "spec", "podSelector")
 	stableVnode := unstructuredutil.StrToUnstructuredUnsafe(baselineStableVnode)
-	unstructured.SetNestedMap(stableVnode.Object, make(map[string]interface{}), "spec", "podSelector")
+	unstructured.SetNestedMap(stableVnode.Object, make(map[string]any), "spec", "podSelector")
 	client := testutil.NewFakeDynamicClient(canaryVnode, stableVnode)
 	cfg := ReconcilerConfig{
 		Rollout:  fakeRollout(),
@@ -704,13 +704,13 @@ func assertSetWeightAction(t *testing.T, action k8stesting.Action, desiredWeight
 	routesI, _, err := unstructured.NestedSlice(uVr, "spec", "routes")
 	assert.Nil(t, err)
 	for _, routeI := range routesI {
-		route, _ := routeI.(map[string]interface{})
+		route, _ := routeI.(map[string]any)
 		weightedTargetsI, found, err := unstructured.NestedSlice(route, routeType, "action", "weightedTargets")
 		assert.Nil(t, err)
 		assert.True(t, found, "Did not find weightedTargets in route")
 		assert.Len(t, weightedTargetsI, 2)
 		for _, wtI := range weightedTargetsI {
-			wt, _ := wtI.(map[string]interface{})
+			wt, _ := wtI.(map[string]any)
 			vnodeName, _, err := unstructured.NestedString(wt, "virtualNodeRef", "name")
 			assert.Nil(t, err)
 			weight, err := toInt64(wt["weight"])

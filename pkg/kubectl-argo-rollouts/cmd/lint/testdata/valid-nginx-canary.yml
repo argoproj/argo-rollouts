@@ -40,7 +40,7 @@ spec:
   selector:
     app: nginx-rollout
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: nginx-rollout-ingress
@@ -48,10 +48,13 @@ spec:
   rules:
     - http:
         paths:
-          - path: /*
+          - path: /
+            pathType: Prefix
             backend:
-              serviceName: nginx-rollout-root
-              servicePort: use-annotation
+              service:
+                name: nginx-rollout-root
+                port:
+                  name: use-annotation
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout

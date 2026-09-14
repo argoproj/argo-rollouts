@@ -29,14 +29,14 @@ implement more providers such as Istio, SMI, etc.
 
 ### Hybrid Scenarios
 
-In this case, its very similar to avoiding the Big-Bang, either if it is part of the platform roadmap or a new redesign
+In this case, it's very similar to avoiding the Big-Bang, either if it is part of the platform roadmap or a new redesign
 of the architecture, there are multiple scenarios where having the capacity of using multiple trafficRoutings is very 
 much in need: gradual implementation, eased rollback of architecture or even for a fallback.
 
 ## Requirements
 
 The use of multiple providers requires that both providers comply with its minimum requirements independently.
-By example, if you want to use NGiNX and SMI you would need to have both SMI and NGiNX in place and produce the rollout configuration
+For example, if you want to use NGiNX and SMI you would need to have both SMI and NGiNX in place and produce the rollout configuration
 for both.
 
 ```yaml

@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func testGraphiteMetric(addr string) v1alpha1.Metric {
@@ -62,6 +63,38 @@ func TestQuery(t *testing.T) {
 	}{{
 		"ok",
 		query,
+		targetQuery,
+		fromQuery,
+		goodResult,
+		nil,
+		fmt.Sprintf(`[
+			{
+				"datapoints": [
+					[
+						%f,
+						%d
+					]
+				],
+				"target": "sumSeries(app.http.*.*.count)",
+				"tags": {
+					"aggregatedBy": "sum",
+					"name": "sumSeries(app.http.*.*.count)"
+				}
+			}
+		]`, value, timestamp),
+		200,
+	}, {
+		"graphite response with empty array",
+		query,
+		targetQuery,
+		fromQuery,
+		[]dataPoint{},
+		nil,
+		`[]`,
+		200,
+	}, {
+		"query with surrounding whitespace",
+		fmt.Sprintf("\n  %s \t  \n", query),
 		targetQuery,
 		fromQuery,
 		goodResult,

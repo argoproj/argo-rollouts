@@ -1,8 +1,9 @@
 package completion
 
 import (
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/spf13/cobra"
+
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 )
 
 func NewCmdCompletion(o *options.ArgoRolloutsOptions) *cobra.Command {
@@ -54,7 +55,7 @@ func NewCmdCompletion(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			switch args[0] {
 			case "bash":
-				cmd.Root().GenBashCompletion(o.Out)
+				cmd.Root().GenBashCompletionV2(o.Out, false)
 			case "zsh":
 				cmd.Root().GenZshCompletion(o.Out)
 			case "fish":

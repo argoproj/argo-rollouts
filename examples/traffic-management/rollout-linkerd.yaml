@@ -32,7 +32,7 @@ spec:
     canary:
       stableService: rollout-linkerd-stable
       canaryService: rollout-linkerd-canary
-      trafficManagement:
+      trafficRouting:
         smi:
           rootService: rollout-linkerd
       steps:

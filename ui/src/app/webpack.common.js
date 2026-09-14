@@ -1,5 +1,9 @@
 'use strict;';
 
+const crypto = require("crypto");
+const crypto_orig_createHash = crypto.createHash;
+crypto.createHash = algorithm => crypto_orig_createHash(algorithm == "md4" ? "sha256" : algorithm);
+
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
@@ -26,20 +30,36 @@ const config = {
         rules: [
             {
                 test: /\.tsx?$/,
-                loaders: [`ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./tsconfig.json')}`],
+                use: `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./tsconfig.json')}`,
             },
             {
                 test: /\.scss$/,
-                loader: 'style-loader!raw-loader!sass-loader',
+                use: [
+                    'style-loader',
+                    'raw-loader',
+                    {
+                        loader: 'sass-loader',
+                        options: {
+                            sassOptions: {
+                                includePaths: ['node_modules'],
+                                quietDeps: true,
+                                silenceDeprecations: ['import', 'legacy-js-api', 'global-builtin', 'color-functions', 'mixed-decls']
+                            }
+                        }
+                    }
+                ]
             },
             {
                 test: /\.css$/,
-                loader: 'style-loader!raw-loader',
+                use: ['style-loader','raw-loader'],
+            },
+            // https://github.com/fkhadra/react-toastify/issues/775#issuecomment-1149569290
+            {
+                test: /\.mjs$/,
+                include: /node_modules/,
+                type: "javascript/auto"
             },
         ],
-    },
-    node: {
-        fs: 'empty',
     },
     plugins: [
         new webpack.DefinePlugin({

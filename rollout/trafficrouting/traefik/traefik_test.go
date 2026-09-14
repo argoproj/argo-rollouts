@@ -3,16 +3,17 @@ package traefik
 import (
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik/mocks"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik/mocks"
 )
 
 const traefikService = `
-apiVersion: mocks.containo.us/v1alpha1
+apiVersion: mocks.traefik.io/v1alpha1
 kind: TraefikService
 metadata:
   labels:
@@ -30,17 +31,13 @@ spec:
 `
 
 const errorTraefikService = `
-apiVersion: mocks.containo.us/v1alpha1
+apiVersion: mocks.traefik.io/v1alpha1
 kind: TraefikService
 metadata:
   labels:
     service: argo-mocks
   name: mocks-service
 `
-
-var (
-	client *mocks.FakeClient = &mocks.FakeClient{}
-)
 
 const (
 	stableServiceName     string = "stable-rollout"
@@ -67,7 +64,7 @@ func TestUpdateHash(t *testing.T) {
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Client:  &mocks.FakeClient{},
 		}
 		r := NewReconciler(&cfg)
 
@@ -84,10 +81,9 @@ func TestSetWeight(t *testing.T) {
 	mocks.ErrorTraefikServiceObj = toUnstructured(t, errorTraefikService)
 	t.Run("SetWeight", func(t *testing.T) {
 		// Given
-		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Client:  &mocks.FakeClient{},
 		}
 		r := NewReconciler(&cfg)
 
@@ -114,7 +110,6 @@ func TestSetWeight(t *testing.T) {
 	})
 	t.Run("SetWeightWithError", func(t *testing.T) {
 		// Given
-		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
 			Client: &mocks.FakeClient{
@@ -131,7 +126,6 @@ func TestSetWeight(t *testing.T) {
 	})
 	t.Run("SetWeightWithErrorManifest", func(t *testing.T) {
 		// Given
-		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
 			Client: &mocks.FakeClient{
@@ -148,10 +142,9 @@ func TestSetWeight(t *testing.T) {
 	})
 	t.Run("SetWeightWithErrorStableName", func(t *testing.T) {
 		// Given
-		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(fakeStableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Client:  &mocks.FakeClient{},
 		}
 		r := NewReconciler(&cfg)
 
@@ -163,10 +156,9 @@ func TestSetWeight(t *testing.T) {
 	})
 	t.Run("SetWeightWithErrorCanaryName", func(t *testing.T) {
 		// Given
-		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, fakeCanaryServiceName, traefikServiceName),
-			Client:  client,
+			Client:  &mocks.FakeClient{},
 		}
 		r := NewReconciler(&cfg)
 
@@ -178,7 +170,6 @@ func TestSetWeight(t *testing.T) {
 	})
 	t.Run("TraefikUpdateError", func(t *testing.T) {
 		// Given
-		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
 			Client: &mocks.FakeClient{
@@ -202,7 +193,7 @@ func TestSetHeaderRoute(t *testing.T) {
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Client:  &mocks.FakeClient{},
 		}
 		r := NewReconciler(&cfg)
 
@@ -231,7 +222,7 @@ func TestSetMirrorRoute(t *testing.T) {
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Client:  &mocks.FakeClient{},
 		}
 		r := NewReconciler(&cfg)
 
@@ -269,7 +260,7 @@ func TestVerifyWeight(t *testing.T) {
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Client:  &mocks.FakeClient{},
 		}
 		r := NewReconciler(&cfg)
 
@@ -289,7 +280,7 @@ func TestType(t *testing.T) {
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Client:  &mocks.FakeClient{},
 		}
 		r := NewReconciler(&cfg)
 
@@ -305,7 +296,7 @@ func TestGetService(t *testing.T) {
 	t.Run("ErrorGetServiceFromStruct ", func(t *testing.T) {
 		// Given
 		t.Parallel()
-		services := []interface{}{
+		services := []any{
 			mocks.FakeService{Weight: 12},
 		}
 
@@ -319,12 +310,12 @@ func TestGetService(t *testing.T) {
 	t.Run("ErrorGetServiceFromMap", func(t *testing.T) {
 		// Given
 		t.Parallel()
-		services := map[string]interface{}{
+		services := map[string]any{
 			"weight": 100,
 		}
 
 		// When
-		selectedServices, err := getService("default", []interface{}{services})
+		selectedServices, err := getService("default", []any{services})
 
 		// Then
 		assert.Nil(t, selectedServices)
@@ -334,12 +325,12 @@ func TestGetService(t *testing.T) {
 		// Given
 		t.Parallel()
 		const serviceName string = "default"
-		services := map[string]interface{}{
+		services := map[string]any{
 			"name": serviceName,
 		}
 
 		// When
-		selectedServices, err := getService(serviceName, []interface{}{services})
+		selectedServices, err := getService(serviceName, []any{services})
 
 		// Then
 		assert.NotNil(t, selectedServices)
@@ -348,12 +339,12 @@ func TestGetService(t *testing.T) {
 	t.Run("ErrorGetServiceFromNil", func(t *testing.T) {
 		// Given
 		t.Parallel()
-		services := map[string]interface{}{
+		services := map[string]any{
 			"name": nil,
 		}
 
 		// When
-		selectedServices, err := getService("default", []interface{}{services})
+		selectedServices, err := getService("default", []any{services})
 
 		// Then
 		assert.Nil(t, selectedServices)

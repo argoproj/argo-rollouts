@@ -49,6 +49,7 @@ rules:
       - update
       - list
       - watch
+      - patch
   - apiGroups:
       - apps
     resources:

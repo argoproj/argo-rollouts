@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: disabled-step-plugin
+spec:
+  selector:
+    matchLabels:
+      app: disabled-step-plugin
+  strategy:
+    canary:
+      steps:
+        - plugin:
+            name: $$disabled_plugin$$
+            config:
+              return: Successful
+        - plugin:
+            name: step/e2e-test
+            config:
+              return: Successful
+  template:
+    metadata:
+      labels:
+        app: disabled-step-plugin
+    spec:
+      containers:
+        - name: basic
+          image: nginx:1.19-alpine
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 1m

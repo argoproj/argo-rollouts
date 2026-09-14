@@ -1,5 +1,7 @@
 # FAQ
 
+Be sure to read the [Best practices page](../best-practices) as well.
+
 ## General
 
 ### Does Argo Rollouts depend on Argo CD or any other Argo project?
@@ -13,7 +15,7 @@ Argo CD understands the health of Argo Rollouts resources via Argo CD’s [Lua h
 As a result, an operator can build automation to react to the states of the Argo Rollouts resources. For example, if a Rollout created by Argo CD is paused, Argo CD detects that and marks the Application as suspended. Once the new version is verified to be good, the operator can use Argo CD’s resume resource action to unpause the Rollout so it can continue to make progress. 
 
 ### Can we run the Argo Rollouts kubectl plugin commands via Argo CD?
-Argo CD supports running Lua scripts to modify resource kinds (i.e. suspending a CronJob by setting the `.spec.suspend` to true). These Lua Scripts can be configured in the argocd-cm ConfigMap or upstreamed to the Argo CD's [resource_customizations](https://github.com/argoproj/argo-cd/tree/master/resource_customizations) directory. These custom actions have two Lua scripts: one to modify the said resource and another to detect if the action can be executed (i.e. A user should not be able to resuming a unpaused Rollout). Argo CD allows users to execute these actions via the UI or CLI.
+Argo CD supports running Lua scripts to modify resource kinds (i.e. suspending a CronJob by setting the `.spec.suspend` to true). These Lua Scripts can be configured in the argocd-cm ConfigMap or upstreamed to the Argo CD's [resource_customizations](https://github.com/argoproj/argo-cd/tree/master/resource_customizations) directory. These custom actions have two Lua scripts: one to modify the said resource and another to detect if the action can be executed (i.e. A user should not be able to resuming an unpaused Rollout). Argo CD allows users to execute these actions via the UI or CLI.
 
 In the CLI, a user (or a CI system) can run
 ```bash
@@ -40,6 +42,20 @@ solution that does not follow the GitOps approach.
 ### Can we run the Argo Rollouts controller in HA mode?
 
 Yes. A k8s cluster can run multiple replicas of Argo-rollouts controllers to achieve HA. To enable this feature, run the controller with `--leader-elect` flag and increase the number of replicas in the controller's deployment manifest. The implementation is based on the [k8s client-go's leaderelection package](https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#section-documentation). This implementation is tolerant to *arbitrary clock skew* among replicas. The level of tolerance to skew rate can be configured by setting `--leader-election-lease-duration` and `--leader-election-renew-deadline` appropriately. Please refer to the [package documentation](https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#pkg-overview) for details.
+
+### Can we install Argo Rollouts centrally in a cluster and manage Rollout resources in external clusters? 
+
+No you cannot do that (even though Argo CD can work that way). This is by design because the Rollout is a custom resource unknown to vanilla Kubernetes. You need the Rollout CRD as well as the controller in the deployment cluster (every cluster that will use workloads with Rollouts).
+
+### What is the version skew policy between the controller and the kubectl plugin?
+
+The Argo Rollout CLI/Kubectl plugin just patches the Rollout object or reads fields from it. [There is no separate "Argo Rollouts API"](../best-practices#there-is-no-argo-rollouts-api). Old versions of the plugin might not understand new fields that are added in the [Rollout specification](../features/specification/). We have never made a breaking change intentionally (removed something from the Rollout Spec). So old clients should work even with newer Rollout versions (excluding new features).
+
+### If Argo Rollouts is ready for production why is the spec still `v1alpha1`?
+
+The Alpha designation does **not** have the same meaning as what Kubernetes [guarantees for its own API](https://kubernetes.io/docs/reference/using-api/#api-versioning). Each project can define its own guarantees and implications of "alpha", "beta" and "v1" for its own CRDs. In the case of Rollouts the current API _is stable_ and we have no intention to break 
+it in any way unless a new feature comes along that requires it or something is removed/changed in the upstream K8s APIs (such as the pod spec). You can always see which companies use Argo Rollouts today
+at [USERS.md](https://github.com/argoproj/argo-rollouts/blob/master/USERS.md) and watch recordings of real use cases [at the CNCF YouTube channel](https://www.youtube.com/@cncf/search?query=rollouts) if you need to convince your manager that Argo Rollouts is production-ready.
 
 ## Rollouts
 
@@ -88,7 +104,7 @@ on top of Argo Rollouts. In most cases, you would need one Rollout resource for 
 are deploying. Ideally you should also make your services backwards and forwards compatible (i.e. frontend should be able to work with both backend-preview and backend-active).
 
 ### How can I run my own custom tests (e.g. smoke tests) to decide if a Rollback should take place or not?
-Use a custom [Job](https://argoproj.github.io/argo-rollouts/analysis/job/) or [Web](https://argoproj.github.io/argo-rollouts/analysis/web/) Analysis. You can pack all your smoke tests in a single container and run them as a Job analysis. Argo Rollouts will use the results of the analysis to automatically rollback if the tests fail.
+Use a custom [Job](https://argo-rollouts.readthedocs.io/en/stable/analysis/job/) or [Web](https://argo-rollouts.readthedocs.io/en/stable/analysis/web/) Analysis. You can pack all your smoke tests in a single container and run them as a Job analysis. Argo Rollouts will use the results of the analysis to automatically rollback if the tests fail.
 
 
 ## Experiments

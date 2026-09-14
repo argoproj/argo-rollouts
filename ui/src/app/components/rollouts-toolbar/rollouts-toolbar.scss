@@ -1,0 +1,55 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+.rollouts-toolbar {
+    display: flex;
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 10px 10px;
+    border-bottom: 1px solid #fff;
+    background-color: #fff;
+}
+
+.rollouts-toolbar_requires-attention-checkbox {
+    flex: 2;
+    padding-left: 20px;
+}
+
+.rollouts-toolbar_search-container {
+    min-width: 300px;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.rollouts-toolbar_display-modes {
+    margin-left: auto;
+}
+
+.rollouts-toolbar_mode-button {
+    color: #989898;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-size: 24px; // increase the font-size to make the icon larger
+}
+
+.rollouts-toolbar_mode-button:hover {
+    background-color: #b2b2b2;
+}
+
+.rollouts-toolbar_mode-button.active {
+    color: #000000;
+}
+
+.rollouts-toolbar_status-button {
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.rollouts-toolbar_status-filters {
+    display: flex;
+}
+
+.rollouts-toolbar_status-buttons {
+    margin-left: 20px;
+}

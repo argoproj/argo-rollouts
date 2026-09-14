@@ -157,15 +157,48 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		failureLimit = metric.FailureLimit.IntValue()
 	}
 
+	consecutiveSuccessLimit := 0
+	if metric.ConsecutiveSuccessLimit != nil {
+		consecutiveSuccessLimit = metric.ConsecutiveSuccessLimit.IntValue()
+	}
+
 	inconclusiveLimit := 0
 	if metric.InconclusiveLimit != nil {
 		inconclusiveLimit = metric.InconclusiveLimit.IntValue()
 	}
 
+	// Negative value checks
+	if consecutiveSuccessLimit < 0 {
+		return fmt.Errorf("consecutiveSuccessLimit must be >= 0")
+	}
+	if failureLimit < -1 {
+		return fmt.Errorf("failureLimit must be >= 0, or -1 to be disabled")
+	}
+	// if consecutiveSuccessLimit is disabled (set to 0), AND
+	// failureLimit is disabled (set to -1), then this is invalid
+	if consecutiveSuccessLimit == 0 && failureLimit == -1 {
+		return fmt.Errorf("failureLimit and consecutiveSuccessLimit cannot both be disabled")
+	}
+
+	if inconclusiveLimit < 0 {
+		return fmt.Errorf("inconclusiveLimit must be >= 0")
+	}
+
+	if metric.ConsecutiveErrorLimit != nil && metric.ConsecutiveErrorLimit.IntValue() < 0 {
+		return fmt.Errorf("consecutiveErrorLimit must be >= 0")
+	}
+
 	if count > 0 {
-		if count < failureLimit {
-			return fmt.Errorf("count must be >= failureLimit")
+		if consecutiveSuccessLimit >= 0 && failureLimit >= 0 {
+			if count < failureLimit+consecutiveSuccessLimit {
+				return fmt.Errorf("count (%d) must be >= failureLimit + consecutiveSuccessLimit (%d + %d) if both >= 0", count, failureLimit, consecutiveSuccessLimit)
+			}
+		} else if consecutiveSuccessLimit >= 0 && failureLimit < 0 {
+			if count < consecutiveSuccessLimit {
+				return fmt.Errorf("count must be >= consecutiveSuccessLimit")
+			}
 		}
+
 		if count < inconclusiveLimit {
 			return fmt.Errorf("count must be >= inconclusiveLimit")
 		}
@@ -184,16 +217,6 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		}
 	}
 
-	if failureLimit < 0 {
-		return fmt.Errorf("failureLimit must be >= 0")
-	}
-	if inconclusiveLimit < 0 {
-		return fmt.Errorf("inconclusiveLimit must be >= 0")
-	}
-
-	if metric.ConsecutiveErrorLimit != nil && metric.ConsecutiveErrorLimit.IntValue() < 0 {
-		return fmt.Errorf("consecutiveErrorLimit must be >= 0")
-	}
 	numProviders := 0
 	if metric.Provider.Prometheus != nil {
 		numProviders++
@@ -225,6 +248,13 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.Provider.Influxdb != nil {
 		numProviders++
 	}
+	if metric.Provider.SkyWalking != nil {
+		numProviders++
+	}
+	if metric.Provider.Plugin != nil && len(metric.Provider.Plugin) > 0 {
+		// We allow exactly one plugin to be specified per analysis run template
+		numProviders = numProviders + len(metric.Provider.Plugin)
+	}
 	if numProviders == 0 {
 		return fmt.Errorf("no provider specified")
 	}
@@ -236,7 +266,7 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 
 func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
 	j, _ := json.Marshal(r)
-	m := interface{}(nil)
+	m := any(nil)
 	json.Unmarshal(j, &m)
 	sections := regexp.MustCompile("[\\.\\[\\]]+").Split(path, -1)
 	for _, section := range sections {
@@ -244,7 +274,7 @@ func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
 			continue // if path ends with a separator char, Split returns an empty last section
 		}
 
-		if asArray, ok := m.([]interface{}); ok {
+		if asArray, ok := m.([]any); ok {
 			if i, err := strconv.Atoi(section); err != nil {
 				return "", fmt.Errorf("invalid index '%s'", section)
 			} else if i >= len(asArray) {
@@ -252,7 +282,7 @@ func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
 			} else {
 				m = asArray[i]
 			}
-		} else if asMap, ok := m.(map[string]interface{}); ok {
+		} else if asMap, ok := m.(map[string]any); ok {
 			m = asMap[section]
 		} else {
 			return "", fmt.Errorf("invalid path %s in rollout", path)
@@ -264,8 +294,8 @@ func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
 	}
 
 	var isArray, isMap bool
-	_, isArray = m.([]interface{})
-	_, isMap = m.(map[string]interface{})
+	_, isArray = m.([]any)
+	_, isMap = m.(map[string]any)
 	if isArray || isMap {
 		return "", fmt.Errorf("path %s in rollout must terminate in a primitive value", path)
 	}

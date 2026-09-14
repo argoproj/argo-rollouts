@@ -15,13 +15,15 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
-	routils "github.com/argoproj/argo-rollouts/utils/unstructured"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	appsclient "k8s.io/client-go/kubernetes/typed/apps/v1"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
+	routils "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 const (
@@ -31,7 +33,7 @@ const (
 	# Undo a rollout
 	%[1]s undo guestbook
 
-	# Undo a rollout revision 3
+	# Undo a rollout to revision 3
 	%[1]s undo guestbook --to-revision=3`
 )
 
@@ -57,9 +59,10 @@ func NewCmdUndo(o *options.ArgoRolloutsOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(o.Out, result)
+			fmt.Fprint(o.Out, result)
 			return nil
 		},
+		ValidArgsFunction: completionutil.RolloutNameCompletionFunc(o),
 	}
 	cmd.Flags().Int64Var(&toRevision, "to-revision", toRevision, "The revision to rollback to. Default to 0 (last revision).")
 	return cmd
@@ -174,8 +177,8 @@ func rolloutRevision(ro *unstructured.Unstructured, c kubernetes.Interface, toRe
 }
 
 func getRolloutPatch(podTemplate *corev1.PodTemplateSpec, annotations map[string]string) (types.PatchType, []byte, error) {
-	patch, err := json.Marshal([]interface{}{
-		map[string]interface{}{
+	patch, err := json.Marshal([]any{
+		map[string]any{
 			"op":    "replace",
 			"path":  "/spec/template",
 			"value": podTemplate,
@@ -233,12 +236,12 @@ func listReplicaSets(ro *unstructured.Unstructured, getRSList rsListFunc) ([]*ap
 	return owned, nil
 }
 
-func extractLabelSelector(v map[string]interface{}) (*metav1.LabelSelector, error) {
+func extractLabelSelector(v map[string]any) (*metav1.LabelSelector, error) {
 	labels, _, _ := unstructured.NestedStringMap(v, "spec", "selector", "matchLabels")
 	items, _, _ := unstructured.NestedSlice(v, "spec", "selector", "matchExpressions")
 	matchExpressions := []metav1.LabelSelectorRequirement{}
 	for _, item := range items {
-		m, ok := item.(map[string]interface{})
+		m, ok := item.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("unable to retrieve matchExpressions for object, item %v is not a map", item)
 		}

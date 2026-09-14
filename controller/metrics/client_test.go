@@ -14,7 +14,7 @@ controller_clientset_k8s_request_total{kind="replicasets",name="N/A",namespace="
 
 func TestIncKubernetesRequest(t *testing.T) {
 	config := newFakeServerConfig()
-	metricsServ := NewMetricsServer(config, true)
+	metricsServ := NewMetricsServer(config)
 	config.K8SRequestProvider.IncKubernetesRequest(kubeclientmetrics.ResourceInfo{
 		Kind:       "replicasets",
 		Namespace:  "default",

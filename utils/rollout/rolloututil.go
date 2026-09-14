@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"strconv"
 
+	appsv1 "k8s.io/api/apps/v1"
+
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
+
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -16,6 +20,49 @@ import (
 // (versus being in the middle of an update). This is determined by checking if stable hash == desired hash
 func IsFullyPromoted(ro *v1alpha1.Rollout) bool {
 	return ro.Status.StableRS == ro.Status.CurrentPodHash
+}
+
+// IsDynamicallyRollingBackToStable returns true when the rollout was in a canary update with
+// dynamic stable scaling but was interrupted and is now rolling back to the stable RS.
+// It also returns the previous desired (canary) pod template hash when true.
+// Used by the controller for weight calculation and by AbortOrDynamicRollbackToStable.
+func IsDynamicallyRollingBackToStable(ro *v1alpha1.Rollout, desiredRS *appsv1.ReplicaSet) (bool, string) {
+	if !IsFullyPromoted(ro) || ro.Spec.Strategy.Canary == nil || ro.Spec.Strategy.Canary.TrafficRouting == nil || !ro.Spec.Strategy.Canary.DynamicStableScale {
+		return false, ""
+	}
+	if ro.Status.Canary.Weights == nil {
+		return false, ""
+	}
+	currSelector := ro.Status.Canary.Weights.Canary.PodTemplateHash
+	desiredSelector := replicasetutil.GetPodTemplateHash(desiredRS)
+	if currSelector == desiredSelector {
+		return false, ""
+	}
+	if desiredRS.Status.AvailableReplicas >= *ro.Spec.Replicas {
+		return false, ""
+	}
+	return true, currSelector
+}
+
+// AbortOrDynamicRollbackToStable returns true when the rollout is aborted or dynamically rolling
+// back to stable, i.e. only stable RS availability should be required before updating
+// traffic. Used by the Istio reconciler to avoid blocking DestinationRule updates on canary RS availability.
+func AbortOrDynamicRollbackToStable(ro *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, stableHash string) bool {
+	if ro.Status.Abort {
+		return true
+	}
+	var stableRS *appsv1.ReplicaSet
+	for i := range allRSs {
+		if replicasetutil.GetPodTemplateHash(allRSs[i]) == stableHash {
+			stableRS = allRSs[i]
+			break
+		}
+	}
+	if stableRS == nil {
+		return false
+	}
+	ok, _ := IsDynamicallyRollingBackToStable(ro, stableRS)
+	return ok
 }
 
 // GetRolloutPhase returns a status and message for a rollout. Takes into consideration whether
@@ -179,18 +226,27 @@ func CanaryStepString(c v1alpha1.CanaryStep) string {
 			return fmt.Sprintf("setCanaryScale{replicas: %d}", *c.SetCanaryScale.Replicas)
 		}
 	}
+	if c.Plugin != nil {
+		return fmt.Sprintf("plugin: %s", c.Plugin.Name)
+	}
+	if c.SetHeaderRoute != nil {
+		return fmt.Sprintf("setHeaderRoute: %s", c.SetHeaderRoute.Name)
+	}
+	if c.SetMirrorRoute != nil {
+		return fmt.Sprintf("setMirrorRoute: %s", c.SetMirrorRoute.Name)
+	}
 	return "invalid"
 }
 
 // ShouldVerifyWeight We use this to test if we should verify weights because weight verification could involve
 // API calls to the cloud provider which could incur rate limiting
-func ShouldVerifyWeight(ro *v1alpha1.Rollout) bool {
+func ShouldVerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32) bool {
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(ro)
 	// If we are in the middle of an update at a setWeight step, also perform weight verification.
 	// Note that we don't do this every reconciliation because weight verification typically involves
 	// API calls to the cloud provider which could incur rate limitingq
-	shouldVerifyWeight := ro.Status.StableRS != "" &&
-		!IsFullyPromoted(ro) &&
-		currentStep != nil && currentStep.SetWeight != nil
+	shouldVerifyWeight := (ro.Status.StableRS != "" && !IsFullyPromoted(ro) && currentStep != nil && currentStep.SetWeight != nil) ||
+		(ro.Status.StableRS != "" && !IsFullyPromoted(ro) && currentStep == nil && desiredWeight == weightutil.MaxTrafficWeight(ro)) // We are at end of rollout
+
 	return shouldVerifyWeight
 }

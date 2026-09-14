@@ -1,265 +1,147 @@
----
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: trafficsplits.split.smi-spec.io
 spec:
   group: split.smi-spec.io
+  scope: Namespaced
   names:
     kind: TrafficSplit
     listKind: TrafficSplitList
-    plural: trafficsplits
     shortNames:
-    - ts
+      - ts
+    plural: trafficsplits
     singular: trafficsplit
-  scope: Namespaced
   versions:
-  - name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        description: TrafficSplit is the Schema for the trafficsplits API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: TrafficSplitSpec defines the desired state of TrafficSplit
-            properties:
-              backends:
-                items:
-                  description: TrafficSplitBackend defines a backend
-                  properties:
-                    service:
-                      type: string
-                    weight:
-                      anyOf:
-                      - type: integer
-                      - type: string
-                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      x-kubernetes-int-or-string: true
-                  type: object
-                type: array
-              service:
-                type: string
-            type: object
-          status:
-            description: TrafficSplitStatus defines the observed state of TrafficSplit
-            type: object
-        type: object
-    served: true
-    storage: false
-    subresources:
-      status: {}
-  - name: v1alpha2
-    schema:
-      openAPIV3Schema:
-        description: TrafficSplit is the Schema for the trafficsplits API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: TrafficSplitSpec defines the desired state of TrafficSplit
-            properties:
-              backends:
-                items:
-                  description: TrafficSplitBackend defines a backend
-                  properties:
-                    service:
-                      type: string
-                    weight:
-                      type: integer
-                  required:
-                  - service
-                  - weight
-                  type: object
-                type: array
-              service:
-                type: string
-            type: object
-          status:
-            description: TrafficSplitStatus defines the observed state of TrafficSplit
-            type: object
-        type: object
-    served: true
-    storage: false
-    subresources:
-      status: {}
-  - name: v1alpha3
-    schema:
-      openAPIV3Schema:
-        description: TrafficSplit is the Schema for the trafficsplits API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: TrafficSplitSpec defines the desired state of TrafficSplit
-            properties:
-              backends:
-                description: Backends defines a list of Kubernetes services used as
-                  the traffic split destination
-                items:
-                  description: TrafficSplitBackend defines a backend
-                  properties:
-                    service:
-                      description: Service is the name of a Kubernetes service
-                      type: string
-                    weight:
-                      description: Weight defines the traffic split percentage
-                      type: integer
-                  required:
-                  - service
-                  - weight
-                  type: object
-                type: array
-              matches:
-                description: Matches allows defining a list of HTTP route groups that
-                  this traffic split object should match
-                items:
-                  description: TypedLocalObjectReference contains enough information
-                    to let you locate the typed referenced object inside the same
-                    namespace.
-                  properties:
-                    apiGroup:
-                      description: APIGroup is the group for the resource being referenced.
-                        If APIGroup is not specified, the specified Kind must be in
-                        the core API group. For any other third-party types, APIGroup
-                        is required.
-                      type: string
-                    kind:
-                      description: Kind is the type of resource being referenced
-                      type: string
-                    name:
-                      description: Name is the name of resource being referenced
-                      type: string
-                  required:
-                  - kind
-                  - name
-                  type: object
-                type: array
-              service:
-                description: Service represents the apex service
-                type: string
-            required:
-            - backends
-            - service
-            type: object
-          status:
-            description: TrafficSplitStatus defines the observed state of TrafficSplit
-            type: object
-        type: object
-    served: true
-    storage: false
-    subresources:
-      status: {}
-  - name: v1alpha4
-    schema:
-      openAPIV3Schema:
-        description: TrafficSplit is the Schema for the trafficsplits API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: TrafficSplitSpec defines the desired state of TrafficSplit
-            properties:
-              backends:
-                description: Backends defines a list of Kubernetes services used as
-                  the traffic split destination
-                items:
-                  description: TrafficSplitBackend defines a backend
-                  properties:
-                    service:
-                      description: Service is the name of a Kubernetes service
-                      type: string
-                    weight:
-                      description: Weight defines the traffic split percentage
-                      type: integer
-                  required:
-                  - service
-                  - weight
-                  type: object
-                type: array
-              matches:
-                description: Matches allows defining a list of HTTP route groups that
-                  this traffic split object should match
-                items:
-                  description: TypedLocalObjectReference contains enough information
-                    to let you locate the typed referenced object inside the same
-                    namespace.
-                  properties:
-                    apiGroup:
-                      description: APIGroup is the group for the resource being referenced.
-                        If APIGroup is not specified, the specified Kind must be in
-                        the core API group. For any other third-party types, APIGroup
-                        is required.
-                      type: string
-                    kind:
-                      description: Kind is the type of resource being referenced
-                      type: string
-                    name:
-                      description: Name is the name of resource being referenced
-                      type: string
-                  required:
-                  - kind
-                  - name
-                  type: object
-                type: array
-              service:
-                description: Service represents the apex service
-                type: string
-            required:
-            - backends
-            - service
-            type: object
-          status:
-            description: TrafficSplitStatus defines the observed state of TrafficSplit
-            type: object
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
+    - name: v1alpha4
+      served: true
+      storage: true
+      additionalPrinterColumns:
+        - name: Service
+          type: string
+          description: The apex service of this split.
+          jsonPath: .spec.service
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - service
+                - backends
+              properties:
+                service:
+                  description: The apex service of this split.
+                  type: string
+                matches:
+                  description: The HTTP route groups that this traffic split should match.
+                  type: array
+                  items:
+                    type: object
+                    required: ['kind', 'name']
+                    properties:
+                      kind:
+                        description: Kind of the matching group.
+                        type: string
+                        enum:
+                          - HTTPRouteGroup
+                      name:
+                        description: Name of the matching group.
+                        type: string
+                backends:
+                  description: The backend services of this split.
+                  type: array
+                  items:
+                    type: object
+                    required: ['service', 'weight']
+                    properties:
+                      service:
+                        description: Name of the Kubernetes service.
+                        type: string
+                      weight:
+                        description: Traffic weight value of this backend.
+                        type: number
+    - name: v1alpha3
+      served: false
+      storage: false
+      additionalPrinterColumns:
+        - name: Service
+          type: string
+          description: The apex service of this split.
+          jsonPath: .spec.service
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - service
+                - backends
+              properties:
+                service:
+                  description: The apex service of this split.
+                  type: string
+                matches:
+                  description: The HTTP route groups that this traffic split should match.
+                  type: array
+                  items:
+                    type: object
+                    required: ['kind', 'name']
+                    properties:
+                      kind:
+                        description: Kind of the matching group.
+                        type: string
+                        enum:
+                          - HTTPRouteGroup
+                      name:
+                        description: Name of the matching group.
+                        type: string
+                backends:
+                  description: The backend services of this split.
+                  type: array
+                  items:
+                    type: object
+                    required: ['service', 'weight']
+                    properties:
+                      service:
+                        description: Name of the Kubernetes service.
+                        type: string
+                      weight:
+                        description: Traffic weight value of this backend.
+                        type: number
+    - name: v1alpha2
+      served: false
+      storage: false
+      additionalPrinterColumns:
+        - name: Service
+          type: string
+          description: The apex service of this split.
+          jsonPath: .spec.service
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - service
+                - backends
+              properties:
+                service:
+                  description: The apex service of this split.
+                  type: string
+                backends:
+                  description: The backend services of this split.
+                  type: array
+                  items:
+                    type: object
+                    required: ['service', 'weight']
+                    properties:
+                      service:
+                        description: Name of the Kubernetes service.
+                        type: string
+                      weight:
+                        description: Traffic weight value of this backend.
+                        type: number

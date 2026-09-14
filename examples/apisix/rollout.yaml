@@ -1,0 +1,59 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-apisix-canary
+spec:
+  replicas: 5
+  strategy:
+    canary:
+      canaryService: rollout-apisix-canary-canary
+      stableService: rollout-apisix-canary-stable
+      trafficRouting:
+        managedRoutes:
+          - name: set-header
+        apisix:
+          route:
+            name: rollouts-apisix-route
+            rules:
+              - rollouts-apisix
+      steps:
+        - setCanaryScale:
+            replicas: 1
+          setHeaderRoute:
+            match:
+              - headerName: trace
+                headerValue:
+                  exact: debug
+            name: set-header
+        - pause: { }
+        - setWeight: 20
+        - pause: { }
+        - setWeight: 40
+        - pause:
+            duration: 15
+        - setWeight: 60
+        - pause:
+            duration: 15
+        - setWeight: 80
+        - pause:
+            duration: 15
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollout-apisix-canary
+  template:
+    metadata:
+      labels:
+        app: rollout-apisix-canary
+    spec:
+      containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:blue
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 5m

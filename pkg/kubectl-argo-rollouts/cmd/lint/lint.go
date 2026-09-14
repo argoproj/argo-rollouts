@@ -4,21 +4,22 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
+
+	"github.com/spf13/cobra"
+	goyaml "go.yaml.in/yaml/v2"
+	v1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
-	"github.com/ghodss/yaml"
-	"github.com/spf13/cobra"
-	goyaml "gopkg.in/yaml.v2"
-	v1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 type LintOptions struct {
@@ -53,24 +54,19 @@ func NewCmdLint(o *options.ArgoRolloutsOptions) *cobra.Command {
 				return o.UsageErr(c)
 			}
 
-			err := lintOptions.lintResource(lintOptions.File)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return lintOptions.lintResource(lintOptions.File)
 		},
 	}
 	cmd.Flags().StringVarP(&lintOptions.File, "filename", "f", "", "File to lint")
 	return cmd
 }
 
-func unmarshal(fileBytes []byte, obj interface{}) error {
+func unmarshal(fileBytes []byte, obj any) error {
 	return yaml.UnmarshalStrict(fileBytes, &obj, yaml.DisallowUnknownFields)
 }
 
 func (l *LintOptions) lintResource(path string) error {
-	fileBytes, err := ioutil.ReadFile(path)
+	fileBytes, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -81,7 +77,7 @@ func (l *LintOptions) lintResource(path string) error {
 
 	decoder := goyaml.NewDecoder(bytes.NewReader(fileBytes))
 	for {
-		var value interface{}
+		var value any
 		if err := decoder.Decode(&value); err != nil {
 			if err != io.EOF {
 				return err
@@ -261,6 +257,11 @@ func setIngressManagedAnnotation(rollouts []v1alpha1.Rollout, refResource valida
 	for _, rollout := range rollouts {
 		for i := range refResource.Ingresses {
 			var serviceName string
+
+			// Basic Canary so ingress is only pointing a single service and so no linting is needed for this case.
+			if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+				return
+			}
 			if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
 				serviceName = rollout.Spec.Strategy.Canary.StableService
 			} else if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
@@ -289,6 +290,9 @@ func setIngressManagedAnnotation(rollouts []v1alpha1.Rollout, refResource valida
 func setVirtualServiceManagedAnnotation(ro []v1alpha1.Rollout, refResource validation.ReferencedResources) {
 	for _, rollout := range ro {
 		for i := range refResource.VirtualServices {
+			if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil || rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+				return
+			}
 			if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService != nil && rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name == refResource.VirtualServices[i].GetName() {
 				annotations := refResource.VirtualServices[i].GetAnnotations()
 				if annotations == nil {

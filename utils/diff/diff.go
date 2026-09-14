@@ -7,7 +7,7 @@ import (
 )
 
 // CreateTwoWayMergePatch is a helper to construct a two-way merge patch from objects (instead of bytes)
-func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, error) {
+func CreateTwoWayMergePatch(orig, new, dataStruct any) ([]byte, bool, error) {
 	origBytes, err := json.Marshal(orig)
 	if err != nil {
 		return nil, false, err

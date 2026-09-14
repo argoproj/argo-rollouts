@@ -56,8 +56,11 @@ virtual-node CRs corresponding to these services named `my-vn-canary` and `my-vn
 respectively. In addition, there is a virtual-service named `rollout-demo-vsvc` that is provided by a
 virtual-router CR named `rollout-demo-vrouter`. This virtual-router need have at least one route with action to forward
 traffic to the canary and stable virtual-nodes. Initially weight for canary is set to 0% while for stable it is 100%.
-During rollout, controller will modify the weights on route(s) based on the configuraiton defined in
-`steps[N].setWeight`. 
+During rollout, controller will modify the weights on route(s) based on the configuration defined in
+`steps[N].setWeight`.
+
+The canary and stable services are configured to be headless. This is necessary to allow App Mesh to properly handle
+conneciton pooling as pods are reassigned from canary to stable.
 
 To summarize, run the following commands to deploy a service:
 
@@ -69,8 +72,8 @@ To summarize, run the following commands to deploy a service:
 * A rollout
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/appmesh/canary-service.yaml
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/appmesh/canary-rollout.yaml
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/examples/appmesh/canary-service.yaml
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/examples/appmesh/canary-rollout.yaml
 ```
 ## 2. Verify service
 
@@ -88,7 +91,7 @@ kubectl -n argo-examples port-forward svc/my-svc 8181:80
 
 ## 3. Rollout new version
 
-Now its time to deploy new version. Update the rollout with new image.
+Now it's time to deploy new version. Update the rollout with new image.
 
 ```shell
 kubectl argo rollouts set image my-rollout demo=argoproj/rollouts-demo:green -n argo-examples

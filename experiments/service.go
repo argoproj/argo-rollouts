@@ -6,13 +6,13 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 var experimentKind = v1alpha1.SchemeGroupVersion.WithKind("Experiment")
@@ -59,9 +59,9 @@ func GetServiceForExperiment(experiment *v1alpha1.Experiment, svc *corev1.Servic
 	return nil
 }
 
-func (ec *experimentContext) CreateService(serviceName string, template v1alpha1.TemplateSpec, selector map[string]string) (*corev1.Service, error) {
+func (ec *experimentContext) CreateService(serviceName string, template v1alpha1.TemplateSpec, selector map[string]string, ports []corev1.ServicePort) (*corev1.Service, error) {
 	ctx := context.TODO()
-	serviceAnnotations := newServiceSetAnnotations(ec.ex.Name, template.Name)
+	serviceAnnotations := newServiceAnnotations(ec.ex.Name, template.Name)
 	newService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
@@ -74,11 +74,7 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: selector,
-			Ports: []corev1.ServicePort{{
-				Protocol:   "TCP",
-				Port:       int32(80),
-				TargetPort: intstr.FromInt(8080),
-			}},
+			Ports:    ports,
 		},
 	}
 
@@ -86,9 +82,9 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 	if err != nil {
 		// If service already exists, get service and check that it is owned by Experiment Template. Otherwise return error.
 		if errors.IsAlreadyExists(err) {
-			svc, err := ec.kubeclientset.CoreV1().Services(ec.ex.Namespace).Get(ctx, service.Name, metav1.GetOptions{})
+			svc, err := ec.kubeclientset.CoreV1().Services(ec.ex.Namespace).Get(ctx, serviceName, metav1.GetOptions{})
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("did not get existing service with name %s: %v", serviceName, err)
 			}
 			controllerRef := metav1.GetControllerOf(svc)
 			if controllerRef == nil || controllerRef.UID != ec.ex.UID || svc.Annotations == nil || svc.Annotations[v1alpha1.ExperimentNameAnnotationKey] != ec.ex.Name || svc.Annotations[v1alpha1.ExperimentTemplateNameAnnotationKey] != template.Name {
@@ -96,7 +92,7 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 			}
 			return svc, nil
 		} else {
-			return nil, err
+			return nil, fmt.Errorf("cannot create service: %v %v", err, newService)
 		}
 	}
 	return service, nil
@@ -112,7 +108,7 @@ func (ec *experimentContext) deleteService(service corev1.Service) error {
 	return nil
 }
 
-func newServiceSetAnnotations(experimentName, templateName string) map[string]string {
+func newServiceAnnotations(experimentName, templateName string) map[string]string {
 	return map[string]string{
 		v1alpha1.ExperimentNameAnnotationKey:         experimentName,
 		v1alpha1.ExperimentTemplateNameAnnotationKey: templateName,

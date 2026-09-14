@@ -115,7 +115,7 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
-//NewCloudWatchProvider creates a new CloudWatch provider
+// NewCloudWatchProvider creates a new CloudWatch provider
 func NewCloudWatchProvider(api CloudWatchClientAPI, logCtx log.Entry) *Provider {
 	return &Provider{
 		api:    api,
@@ -154,9 +154,11 @@ func convertType(data []v1alpha1.CloudWatchMetricDataQuery) []types.MetricDataQu
 			if v.MetricStat.Metric.Dimensions != nil {
 				metricStat.Metric.Dimensions = make([]types.Dimension, len(v.MetricStat.Metric.Dimensions))
 				for j, d := range v.MetricStat.Metric.Dimensions {
+					name := d.Name
+					value := d.Value
 					metricStat.Metric.Dimensions[j] = types.Dimension{
-						Name:  &d.Name,
-						Value: &d.Value,
+						Name:  &name,
+						Value: &value,
 					}
 				}
 			}

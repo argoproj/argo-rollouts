@@ -90,7 +90,7 @@ func RemoveExperimentCondition(status *v1alpha1.ExperimentStatus, condType v1alp
 	status.Conditions = filterOutExperimentCondition(status.Conditions, condType)
 }
 
-//ExperimentProgressing determines if the experiment has made any progress
+// ExperimentProgressing determines if the experiment has made any progress
 func ExperimentProgressing(experiment *v1alpha1.Experiment, newStatus v1alpha1.ExperimentStatus) bool {
 	oldStatusMap := experimentutil.GetTemplateStatusMapping(experiment.Status)
 	newStatusMap := experimentutil.GetTemplateStatusMapping(newStatus)

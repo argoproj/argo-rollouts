@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -130,10 +130,10 @@ func TestPromoteCmdSuccesSkipAllSteps(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: ptr.To[int32](1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: ptr.To[int32](2),
 						},
 					},
 				},
@@ -180,10 +180,10 @@ func TestPromoteCmdSuccesFirstStepWithSkipFirstStep(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: ptr.To[int32](1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: ptr.To[int32](2),
 						},
 					},
 				},
@@ -230,10 +230,10 @@ func TestPromoteCmdSuccesFirstStep(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: ptr.To[int32](1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: ptr.To[int32](2),
 						},
 					},
 				},
@@ -280,17 +280,17 @@ func TestPromoteCmdSuccessDoNotGoPastLastStep(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: ptr.To[int32](1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: ptr.To[int32](2),
 						},
 					},
 				},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex: pointer.Int32Ptr(2),
+			CurrentStepIndex: ptr.To[int32](2),
 		},
 	}
 
@@ -488,5 +488,139 @@ func TestPromoteCmdAlreadyFullyPromoted(t *testing.T) {
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, stdout, "rollout 'guestbook' fully promoted\n")
+	assert.Empty(t, stderr)
+}
+
+func TestPromoteCmdFullWithSpecPaused(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Paused: true,
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					Steps: []v1alpha1.CanaryStep{
+						{
+							SetWeight: ptr.To[int32](50),
+						},
+						{
+							Pause: &v1alpha1.RolloutPause{},
+						},
+						{
+							SetWeight: ptr.To[int32](100),
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.RolloutStatus{
+			CurrentStepIndex: ptr.To[int32](1),
+			StableRS:         "abc123",
+			CurrentPodHash:   "def456",
+		},
+	}
+
+	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
+	defer tf.Cleanup()
+
+	patches := make([]string, 0)
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			patch := string(patchAction.GetPatch())
+			patches = append(patches, patch)
+
+			if patch == promoteFullPatch {
+				ro.Status.PromoteFull = true
+				ro.Status.CurrentStepIndex = ptr.To[int32](3)
+				ro.Status.PauseConditions = nil
+			}
+		}
+		return true, &ro, nil
+	})
+
+	cmd := NewCmdPromote(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"guestbook", "--full"})
+	err := cmd.Execute()
+	assert.Nil(t, err)
+
+	assert.Contains(t, patches, promoteFullPatch)
+
+	assert.True(t, ro.Status.PromoteFull)
+	assert.Equal(t, int32(3), *ro.Status.CurrentStepIndex)
+	assert.Empty(t, ro.Status.PauseConditions)
+
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, stdout, "rollout 'guestbook' fully promoted\n")
+	assert.Empty(t, stderr)
+}
+
+func TestPromoteInconclusiveStep(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Paused: true,
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					Steps: []v1alpha1.CanaryStep{
+						{
+							SetWeight: ptr.To[int32](1),
+						},
+						{
+							SetWeight: ptr.To[int32](2),
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.RolloutStatus{
+			PauseConditions: []v1alpha1.PauseCondition{{
+				Reason: v1alpha1.PauseReasonCanaryPauseStep,
+			}},
+			ControllerPause: true,
+			Canary: v1alpha1.CanaryStatus{
+				CurrentStepAnalysisRunStatus: &v1alpha1.RolloutAnalysisRunStatus{
+					Status: v1alpha1.AnalysisPhaseInconclusive,
+				},
+			},
+		},
+	}
+
+	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
+	defer tf.Cleanup()
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			patchRo := v1alpha1.Rollout{}
+			err := json.Unmarshal(patchAction.GetPatch(), &patchRo)
+			if err != nil {
+				panic(err)
+			}
+			ro.Status.CurrentStepIndex = patchRo.Status.CurrentStepIndex
+			ro.Status.ControllerPause = patchRo.Status.ControllerPause
+			ro.Status.PauseConditions = patchRo.Status.PauseConditions
+		}
+		return true, &ro, nil
+	})
+
+	cmd := NewCmdPromote(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"guestbook"})
+
+	err := cmd.Execute()
+	assert.Nil(t, err)
+	assert.Equal(t, false, ro.Status.ControllerPause)
+	assert.Empty(t, ro.Status.PauseConditions)
+
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, stdout, "rollout 'guestbook' promoted\n")
 	assert.Empty(t, stderr)
 }
