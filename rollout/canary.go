@@ -308,6 +308,13 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	if c.rollout.Spec.Paused {
 		return false
 	}
+	// The traffic router skipped applying the desired routing state this reconcile (e.g. Istio
+	// delayed the DestinationRule switch), so the desired traffic weight is not in effect yet.
+	// Advancing the step now would let the rollout progress with stale routing. Hold the step
+	// until the router applies it on a subsequent reconcile. See #4626.
+	if c.trafficRoutingDelayed {
+		return false
+	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	if currentStep == nil {
 		return false
