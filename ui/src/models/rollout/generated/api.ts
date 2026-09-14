@@ -1978,6 +1978,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusM
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
      */
     rangeQuery?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusRangeQueryArgs;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    caCert?: string;
 }
 /**
  * 
