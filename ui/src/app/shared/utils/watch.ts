@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {fromEvent, Observable, Observer, Subscription} from 'rxjs';
-import {bufferTime, debounceTime, delay, filter, map, mergeMap, repeat, retryWhen, scan, timeout} from 'rxjs/operators';
+import {bufferTime, debounceTime, delay, filter, map, repeat, retryWhen, scan, timeout} from 'rxjs/operators';
 
 enum ReadyState {
     CONNECTING = 0,
@@ -49,6 +49,17 @@ function fromEventSource(url: string): Observable<string> {
 }
 
 const BUFFER_TIME = 500;
+
+// coalesceBuffered collapses all values emitted within each bufferTimeSpan window into a
+// single emission of the most recent value, instead of re-emitting every buffered value.
+export function coalesceBuffered<T>(bufferTimeSpan: number) {
+    return (source: Observable<T>): Observable<T> =>
+        source.pipe(
+            bufferTime(bufferTimeSpan),
+            filter((buffered) => buffered.length > 0),
+            map((buffered) => buffered[buffered.length - 1])
+        );
+}
 
 export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T> {
     return new Observable<T>((observer: Observer<T>) => {
@@ -127,8 +138,7 @@ export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (it
                 }
                 return items;
             }, init || []),
-            bufferTime(BUFFER_TIME),
-            mergeMap((l) => l)
+            coalesceBuffered(BUFFER_TIME)
         );
 
         const sub = handlePageVisibility(() => watch).subscribe((l) => {
@@ -163,12 +173,7 @@ export function useWatch<T>(url: string, subscribe: boolean, isEqual: (a: T, b: 
             map((i) => i.data)
         );
 
-        let liveStream = handlePageVisibility(() =>
-            watch.pipe(
-                bufferTime(BUFFER_TIME),
-                mergeMap((r) => r)
-            )
-        );
+        let liveStream = handlePageVisibility(() => watch.pipe(coalesceBuffered(BUFFER_TIME)));
 
         if (timeoutAfter > 0) {
             liveStream = liveStream.pipe(timeout(timeoutAfter));
