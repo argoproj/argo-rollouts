@@ -26,48 +26,13 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutBlueGreen create true: %w", err)
 	}
 
-	// This must happen right after the new replicaset is created
-	err = c.reconcilePreviewService(previewSvc)
-	if err != nil {
-		return err
+	stageErr := c.runBlueGreenStages()
+	if c.skipStatusSync {
+		return stageErr
 	}
-
-	if replicasetutil.CheckPodSpecChange(c.rollout, c.newRS) {
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
+	if stageErr != nil {
+		return stageErr
 	}
-
-	_, err = c.podRestarter.Reconcile(c)
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileBlueGreenReplicaSets(activeSvc)
-	if err != nil {
-		return err
-	}
-
-	c.reconcileBlueGreenPause(activeSvc, previewSvc)
-
-	err = c.reconcileActiveService(activeSvc)
-	if err != nil {
-		return err
-	}
-
-	err = c.awsVerifyTargetGroups(activeSvc)
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileAnalysisRuns()
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileEphemeralMetadata()
-	if err != nil {
-		return err
-	}
-
 	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 }
 
