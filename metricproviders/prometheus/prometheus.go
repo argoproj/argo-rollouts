@@ -20,6 +20,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
+	"golang.org/x/oauth2/google"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
@@ -34,6 +35,8 @@ const (
 	// metadata object.
 	ResolvedPrometheusQuery             = "ResolvedPrometheusQuery"
 	EnvVarArgoRolloutsPrometheusAddress = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"
+	// GoogleMonitoringReadScope is the default OAuth2 scope requested for Google authentication
+	GoogleMonitoringReadScope = "https://www.googleapis.com/auth/monitoring.read"
 )
 
 // Provider contains all the required components to run a prometheus query
@@ -291,6 +294,26 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 			return nil, err
 		}
 		roundTripper = sigv4RoundTripper
+	}
+
+	if metric.Provider.Prometheus.Authentication.Google != nil {
+		// both set the Authorization header, so the innermost one would silently win
+		if metric.Provider.Prometheus.Authentication.OAuth2.TokenURL != "" {
+			return nil, errors.New("google and oauth2 authentication are mutually exclusive")
+		}
+		scopes := metric.Provider.Prometheus.Authentication.Google.Scopes
+		if len(scopes) == 0 {
+			scopes = []string{GoogleMonitoringReadScope}
+		}
+		// the token exchange runs outside the measurement timeout, so bound it here
+		tokenClient := &http.Client{Transport: secureTransport, Timeout: 30 * time.Second}
+		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, tokenClient)
+		tokenSource, err := google.DefaultTokenSource(ctx, scopes...)
+		if err != nil {
+			log.Errorf("Error creating Google token source: %v", err)
+			return nil, err
+		}
+		roundTripper = &oauth2.Transport{Source: tokenSource, Base: roundTripper}
 	}
 
 	httpClient := &http.Client{

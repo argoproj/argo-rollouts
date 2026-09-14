@@ -74,6 +74,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":                                  schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":                                schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.FieldRef":                                        schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GoogleConfig":                                    schema_pkg_apis_rollouts_v1alpha1_GoogleConfig(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric":                                  schema_pkg_apis_rollouts_v1alpha1_GraphiteMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.HeaderRoutingMatch":                              schema_pkg_apis_rollouts_v1alpha1_HeaderRoutingMatch(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric":                                  schema_pkg_apis_rollouts_v1alpha1_InfluxdbMetric(ref),
@@ -1190,11 +1191,17 @@ func schema_pkg_apis_rollouts_v1alpha1_Authentication(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BasicAuthConfig"),
 						},
 					},
+					"google": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Google config, an empty object enables Application Default Credentials",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GoogleConfig"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BasicAuthConfig", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OAuth2Config", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Sigv4Config"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BasicAuthConfig", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GoogleConfig", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OAuth2Config", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Sigv4Config"},
 	}
 }
 
@@ -2538,6 +2545,33 @@ func schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref common.ReferenceCallback) co
 					},
 				},
 				Required: []string{"fieldPath"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_GoogleConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"scopes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 	}
