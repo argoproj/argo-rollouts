@@ -1163,6 +1163,12 @@ message NewRelicMetric {
   // Timeout represents the duration limit in seconds that will apply to the NRQL query
   // +optional
   optional int64 timeout = 3;
+
+  // AccountID optionally overrides the account-id from the profile secret, allowing a single
+  // credential/profile to query any New Relic account. When empty, the account-id from the
+  // profile secret is used (backward compatible).
+  // +optional
+  optional string accountId = 4;
 }
 
 // NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing
