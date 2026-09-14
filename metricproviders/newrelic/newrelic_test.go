@@ -399,6 +399,46 @@ func TestNewNewRelicAPIClient(t *testing.T) {
 		_, err := NewNewRelicAPIClient(metric, fakeClient)
 		assert.Nil(t, err)
 	})
+	accountIDOverrideTests := []struct {
+		name            string
+		overrideAccount string
+		secretData      map[string][]byte
+		expectErr       bool
+		expectAccountID int
+	}{
+		{
+			name:            "overrides the secret account-id",
+			overrideAccount: "98765",
+			secretData:      map[string][]byte{"personal-api-key": []byte("ABCDEFG01234"), "account-id": []byte("12345")},
+			expectAccountID: 98765,
+		},
+		{
+			name:            "is used even when the secret has no account-id",
+			overrideAccount: "98765",
+			secretData:      map[string][]byte{"personal-api-key": []byte("ABCDEFG01234")},
+			expectAccountID: 98765,
+		},
+		{
+			name:            "errors when non-integer",
+			overrideAccount: "not-a-number",
+			secretData:      map[string][]byte{"personal-api-key": []byte("ABCDEFG01234"), "account-id": []byte("12345")},
+			expectErr:       true,
+		},
+	}
+	for _, tc := range accountIDOverrideTests {
+		t.Run("when the metric accountId "+tc.name, func(t *testing.T) {
+			metric.Provider.NewRelic.AccountID = tc.overrideAccount
+			defer func() { metric.Provider.NewRelic.AccountID = "" }()
+			tokenSecret.Data = tc.secretData
+			client, err := NewNewRelicAPIClient(metric, fakeClient)
+			if tc.expectErr {
+				assert.NotNil(t, err)
+				return
+			}
+			assert.Nil(t, err)
+			assert.Equal(t, tc.expectAccountID, client.(*NewRelicClient).AccountID)
+		})
+	}
 	t.Run("when the secret is not found", func(t *testing.T) {
 		fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return true, nil, errors.New("secret not found")
@@ -476,4 +516,43 @@ func TestNewRelicClient_Query(t *testing.T) {
 			assert.Equal(t, tc.want, results)
 		})
 	}
+}
+
+// TestAccountIDOverrideReachesQuery verifies end-to-end that a metric-level accountId override
+// flows all the way through to the accountId sent on the NerdGraph query, taking precedence over
+// the account-id in the profile secret.
+func TestAccountIDOverrideReachesQuery(t *testing.T) {
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			NewRelic: &v1alpha1.NewRelicMetric{
+				Query:     "FROM Transaction SELECT count(*)",
+				AccountID: "98765",
+			},
+		},
+	}
+	tokenSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: DefaultNewRelicProfileSecretName},
+		Data: map[string][]byte{
+			"personal-api-key": []byte("ABCDEFG01234"),
+			"account-id":       []byte("12345"), // profile default, should be overridden
+		},
+	}
+	fakeClient := k8sfake.NewSimpleClientset()
+	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, tokenSecret, nil
+	})
+
+	client, err := NewNewRelicAPIClient(metric, fakeClient)
+	assert.Nil(t, err)
+
+	// Swap in a mock NerdGraph client so we can capture the args the query is executed with.
+	mockNGC := &mockNerdGraphClient{}
+	mockNGC.Response([]nrdb.NRDBResult{map[string]any{"count": 1}})
+	nrc := client.(*NewRelicClient)
+	nrc.NerdGraphClient = mockNGC
+
+	_, err = nrc.Query(metric)
+	assert.Nil(t, err)
+	// The overridden account (98765), not the secret's (12345), must be what NerdGraph is queried with.
+	assert.Equal(t, 98765, mockNGC.LastArgs()["accountId"])
 }

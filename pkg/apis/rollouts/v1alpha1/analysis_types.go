@@ -264,6 +264,12 @@ type Authentication struct {
 	// OAuth2 config
 	// +optional
 	OAuth2 OAuth2Config `json:"oauth2,omitempty" protobuf:"bytes,2,opt,name=oauth2"`
+	// BasicAuth config
+	// +optional
+	BasicAuth BasicAuthConfig `json:"basicAuth,omitempty" protobuf:"bytes,3,opt,name=basicAuth"`
+	// Google config, an empty object enables Application Default Credentials
+	// +optional
+	Google *GoogleConfig `json:"google,omitempty" protobuf:"bytes,4,opt,name=google"`
 }
 
 type OAuth2Config struct {
@@ -287,6 +293,19 @@ type Sigv4Config struct {
 	RoleARN string `json:"roleArn,omitempty" protobuf:"bytes,3,opt,name=roleArn"`
 }
 
+type GoogleConfig struct {
+	// OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+	// +optional
+	Scopes []string `json:"scopes,omitempty" protobuf:"bytes,1,opt,name=scopes"`
+}
+
+type BasicAuthConfig struct {
+	// Username is the username in grafana cloud
+	Username string `json:"username,omitempty" protobuf:"bytes,1,opt,name=username"`
+	// Password is the access policy token
+	Password string `json:"password,omitempty" protobuf:"bytes,2,opt,name=password"`
+}
+
 // WavefrontMetric defines the wavefront query to perform canary analysis
 type WavefrontMetric struct {
 	// Address is the HTTP address and port of the wavefront server
@@ -304,6 +323,11 @@ type NewRelicMetric struct {
 	// Timeout represents the duration limit in seconds that will apply to the NRQL query
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,3,opt,name=timeout"`
+	// AccountID optionally overrides the account-id from the profile secret, allowing a single
+	// credential/profile to query any New Relic account. When empty, the account-id from the
+	// profile secret is used (backward compatible).
+	// +optional
+	AccountID string `json:"accountId,omitempty" protobuf:"bytes,4,opt,name=accountId"`
 }
 
 // JobMetric defines a job to run which acts as a metric
@@ -632,6 +656,10 @@ type DatadogMetric struct {
 	// Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
 	// +optional
 	SecretRef SecretRef `json:"secretRef,omitempty" protobuf:"bytes,7,opt,name=secretRef"`
+	// +kubebuilder:default="10s"
+	// RequestTimeout overrides the HTTP client timeout for requests to the Datadog API (e.g. 10s, 30s; default: 10s).
+	// +optional
+	RequestTimeout DurationString `json:"requestTimeout,omitempty" protobuf:"bytes,8,opt,name=requestTimeout,casttype=DurationString"`
 }
 
 type SecretRef struct {

@@ -22,8 +22,6 @@ export GOBIN="${SRCROOT}/dist"
 mkdir -p $GOBIN
 
 # protoc-gen-go* is used to generate <service>.pb.go from .proto files
-#go_mod_install github.com/golang/protobuf/protoc-gen-go
-#go_mod_install github.com/gogo/protobuf/protoc-gen-gogo
 go_mod_install github.com/gogo/protobuf/protoc-gen-gogofast
 
 # protoc-gen-grpc-gateway is used to build <service>.pb.gw.go files from from .proto files
@@ -45,10 +43,10 @@ go_mod_install k8s.io/code-generator/cmd/lister-gen
 go_mod_install k8s.io/kube-openapi/cmd/openapi-gen
 
 # controller-gen is run by ./hack/gen-crd-spec to generate the CRDs
-go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0
+go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.19.0
 
 # swagger cli is used to generate swagger docs
-go install github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5
+go install github.com/go-swagger/go-swagger/cmd/swagger@v0.33.1
 
 # goimports is used to auto-format generated code
 go install golang.org/x/tools/cmd/goimports@v0.20.0

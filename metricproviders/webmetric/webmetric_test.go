@@ -407,7 +407,6 @@ func TestRunSuite(t *testing.T) {
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "true",
-				FailureCondition: "true",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						JSONPath: "{$.key[0].key2.value}",
@@ -417,14 +416,27 @@ func TestRunSuite(t *testing.T) {
 			expectedValue: "",
 			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
 		},
+		// When_200Response_And_EmptyBody_And_SuccessConditionNotMet_Then_Fail (#4535)
+		{
+			webServerStatus:   200,
+			webServerResponse: ``,
+			metric: v1alpha1.Metric{
+				Name:             "health-check",
+				SuccessCondition: `result == 'fail123'`,
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{},
+				},
+			},
+			expectedValue: "",
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
+		},
 		// When_200Response_And_NonJsonBody_Then_Succeed
 		{
 			webServerStatus:   200,
 			webServerResponse: `test: notJson`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "true",
-				FailureCondition: "true",
+				SuccessCondition: `result == 'test: notJson'`,
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{
 						JSONPath: "{$.key[0].key2.value}",
@@ -433,6 +445,20 @@ func TestRunSuite(t *testing.T) {
 			},
 			expectedValue: "test: notJson",
 			expectedPhase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_200Response_And_NonJsonBody_And_SuccessConditionNotMet_Then_Fail (#4535)
+		{
+			webServerStatus:   200,
+			webServerResponse: `OK`,
+			metric: v1alpha1.Metric{
+				Name:             "health-check",
+				SuccessCondition: `result == 'fail123'`,
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{},
+				},
+			},
+			expectedValue: "OK",
+			expectedPhase: v1alpha1.AnalysisPhaseFailed,
 		},
 		// When_200Response_And_JsonPathHasNoMatch_Then_Error
 		{
@@ -458,7 +484,6 @@ func TestRunSuite(t *testing.T) {
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "true",
-				FailureCondition: "true",
 				Provider: v1alpha1.MetricProvider{
 					Web: &v1alpha1.WebMetric{},
 				},

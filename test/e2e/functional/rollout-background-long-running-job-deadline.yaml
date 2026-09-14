@@ -1,0 +1,32 @@
+# Rollout with a background analysis that runs a long-running nginx job
+# constrained by activeDeadlineSeconds. The job is terminated by the deadline,
+# which should mark the background analysis as Failed and degrade the rollout.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-background-long-running-job-deadline
+spec:
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: long-running-job-deadline
+      steps:
+      - setWeight: 10
+      - pause: {duration: 60s} # keep the canary busy long enough for the background deadline to fire
+  selector:
+    matchLabels:
+      app: rollout-background-long-running-job-deadline
+  template:
+    metadata:
+      labels:
+        app: rollout-background-long-running-job-deadline
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m

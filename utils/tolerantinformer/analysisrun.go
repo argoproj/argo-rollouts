@@ -2,7 +2,6 @@ package tolerantinformer
 
 import (
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -13,74 +12,54 @@ import (
 )
 
 func NewTolerantAnalysisRunInformer(factory dynamicinformer.DynamicSharedInformerFactory) rolloutinformers.AnalysisRunInformer {
-	return &tolerantAnalysisRunInformer{
-		delegate: factory.ForResource(v1alpha1.AnalysisRunGVR),
-	}
+	delegate := factory.ForResource(v1alpha1.AnalysisRunGVR)
+	newFn := func() *v1alpha1.AnalysisRun { return &v1alpha1.AnalysisRun{} }
+	transform := makeTransform(newFn)
+	installTransform(delegate.Informer(), transform, "AnalysisRun")
+	return &tolerantAnalysisRunInformer{delegate: delegate, transform: transform, newFn: newFn}
 }
 
 type tolerantAnalysisRunInformer struct {
-	delegate informers.GenericInformer
+	delegate  informers.GenericInformer
+	transform cache.TransformFunc
+	newFn     func() *v1alpha1.AnalysisRun
 }
 
 func (i *tolerantAnalysisRunInformer) Informer() cache.SharedIndexInformer {
-	return i.delegate.Informer()
+	return &transformingInformer{SharedIndexInformer: i.delegate.Informer(), transform: i.transform}
 }
 
 func (i *tolerantAnalysisRunInformer) Lister() rolloutlisters.AnalysisRunLister {
-	return &tolerantAnalysisRunLister{
-		delegate: i.delegate.Lister(),
-	}
+	return &tolerantAnalysisRunLister{indexer: i.delegate.Informer().GetIndexer(), newFn: i.newFn}
 }
 
+// tolerantAnalysisRunLister lists from the indexer and deep-copies each result so
+// callers can safely mutate without corrupting the shared cache. Objects are
+// coerced from either the typed form (SetTransform path) or *unstructured.Unstructured
+// (direct store writes that bypass SetTransform).
 type tolerantAnalysisRunLister struct {
-	delegate cache.GenericLister
+	indexer cache.Indexer
+	newFn   func() *v1alpha1.AnalysisRun
 }
 
 func (t *tolerantAnalysisRunLister) List(selector labels.Selector) ([]*v1alpha1.AnalysisRun, error) {
-	objects, err := t.delegate.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	return convertObjectsToAnalysisRuns(objects)
+	return listTyped(t.indexer, "", selector, t.newFn)
 }
 
 func (t *tolerantAnalysisRunLister) AnalysisRuns(namespace string) rolloutlisters.AnalysisRunNamespaceLister {
-	return &tolerantAnalysisRunNamespaceLister{
-		delegate: t.delegate.ByNamespace(namespace),
-	}
+	return &tolerantAnalysisRunNamespaceLister{indexer: t.indexer, namespace: namespace, newFn: t.newFn}
 }
 
 type tolerantAnalysisRunNamespaceLister struct {
-	delegate cache.GenericNamespaceLister
+	indexer   cache.Indexer
+	namespace string
+	newFn     func() *v1alpha1.AnalysisRun
 }
 
 func (t *tolerantAnalysisRunNamespaceLister) Get(name string) (*v1alpha1.AnalysisRun, error) {
-	object, err := t.delegate.Get(name)
-	if err != nil {
-		return nil, err
-	}
-	v := &v1alpha1.AnalysisRun{}
-	err = convertObject(object, v)
-	return v, err
+	return getTyped(t.indexer, v1alpha1.Resource("analysisrun"), t.namespace, name, t.newFn)
 }
 
 func (t *tolerantAnalysisRunNamespaceLister) List(selector labels.Selector) ([]*v1alpha1.AnalysisRun, error) {
-	objects, err := t.delegate.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	return convertObjectsToAnalysisRuns(objects)
-}
-
-func convertObjectsToAnalysisRuns(objects []runtime.Object) ([]*v1alpha1.AnalysisRun, error) {
-	var firstErr error
-	vs := make([]*v1alpha1.AnalysisRun, len(objects))
-	for i, obj := range objects {
-		vs[i] = &v1alpha1.AnalysisRun{}
-		err := convertObject(obj, vs[i])
-		if err != nil && firstErr != nil {
-			firstErr = err
-		}
-	}
-	return vs, firstErr
+	return listTyped(t.indexer, t.namespace, selector, t.newFn)
 }

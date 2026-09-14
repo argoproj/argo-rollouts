@@ -13,7 +13,7 @@ import (
 )
 
 const traefikService = `
-apiVersion: mocks.containo.us/v1alpha1
+apiVersion: mocks.traefik.io/v1alpha1
 kind: TraefikService
 metadata:
   labels:
@@ -31,7 +31,7 @@ spec:
 `
 
 const errorTraefikService = `
-apiVersion: mocks.containo.us/v1alpha1
+apiVersion: mocks.traefik.io/v1alpha1
 kind: TraefikService
 metadata:
   labels:

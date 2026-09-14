@@ -51,6 +51,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ArgumentValueFrom":                               schema_pkg_apis_rollouts_v1alpha1_ArgumentValueFrom(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Authentication":                                  schema_pkg_apis_rollouts_v1alpha1_Authentication(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AwsResourceRef":                                  schema_pkg_apis_rollouts_v1alpha1_AwsResourceRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BasicAuthConfig":                                 schema_pkg_apis_rollouts_v1alpha1_BasicAuthConfig(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus":                                 schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy":                               schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus":                                    schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref),
@@ -73,6 +74,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":                                  schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":                                schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.FieldRef":                                        schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GoogleConfig":                                    schema_pkg_apis_rollouts_v1alpha1_GoogleConfig(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric":                                  schema_pkg_apis_rollouts_v1alpha1_GraphiteMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.HeaderRoutingMatch":                              schema_pkg_apis_rollouts_v1alpha1_HeaderRoutingMatch(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric":                                  schema_pkg_apis_rollouts_v1alpha1_InfluxdbMetric(ref),
@@ -108,6 +110,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisBackground":                       schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus":                        schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisRunStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition":                                schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutDurationStatus":                           schema_pkg_apis_rollouts_v1alpha1_RolloutDurationStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep":                           schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStep(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStepAnalysisTemplateRef":        schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentStepAnalysisTemplateRef(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentTemplate":                       schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref),
@@ -1181,11 +1184,24 @@ func schema_pkg_apis_rollouts_v1alpha1_Authentication(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OAuth2Config"),
 						},
 					},
+					"basicAuth": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BasicAuth config",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BasicAuthConfig"),
+						},
+					},
+					"google": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Google config, an empty object enables Application Default Credentials",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GoogleConfig"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OAuth2Config", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Sigv4Config"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BasicAuthConfig", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GoogleConfig", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OAuth2Config", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Sigv4Config"},
 	}
 }
 
@@ -1219,6 +1235,32 @@ func schema_pkg_apis_rollouts_v1alpha1_AwsResourceRef(ref common.ReferenceCallba
 					},
 				},
 				Required: []string{"name", "arn"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_BasicAuthConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"username": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Username is the username in grafana cloud",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"password": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Password is the access policy token",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -1976,6 +2018,13 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SecretRef"),
 						},
 					},
+					"requestTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RequestTimeout overrides the HTTP client timeout for requests to the Datadog API (e.g. 10s, 30s; default: 10s).",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -2496,6 +2545,33 @@ func schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref common.ReferenceCallback) co
 					},
 				},
 				Required: []string{"fieldPath"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_GoogleConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"scopes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -3377,6 +3453,13 @@ func schema_pkg_apis_rollouts_v1alpha1_NewRelicMetric(ref common.ReferenceCallba
 							Format:      "int64",
 						},
 					},
+					"accountId": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AccountID optionally overrides the account-id from the profile secret, allowing a single credential/profile to query any New Relic account. When empty, the account-id from the profile secret is used (backward compatible).",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"query"},
 			},
@@ -4004,7 +4087,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref common.ReferenceCallb
 					"analysisRunMetadata": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunMetadata"),
 						},
 					},
@@ -4106,7 +4188,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 					"analysisRunMetadata": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunMetadata"),
 						},
 					},
@@ -4211,6 +4292,53 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutCondition(ref common.ReferenceCall
 					},
 				},
 				Required: []string{"type", "status", "lastUpdateTime", "lastTransitionTime", "reason", "message"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RolloutDurationStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutDurationStatus tracks timing for a rollout attempt",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"rolloutStartedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RolloutStartedAt is when the current rollout attempt started (StableRS diverged from CurrentPodHash)",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"manualPauseStartedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManualPauseStartedAt is when the current manual pause began (nil if not in manual pause)",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"totalManualPauseDurationSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TotalManualPauseDurationSeconds is the accumulated time spent in manual pauses, in seconds",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"finishedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FinishedAt is when this rollout attempt reached its terminal state: (1) promoted and stable, (2) aborted, or (3) superseded. Nil means the attempt is still in progress.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"completionStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CompletionStatus is the outcome of this rollout attempt. It is set as soon as the outcome becomes known, which may be before the attempt finishes (e.g. a rollback is classified while it is still progressing). FinishedAt, not this field, is the terminal signal.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
 		Dependencies: []string{
@@ -4823,11 +4951,17 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							},
 						},
 					},
+					"duration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Duration tracks timing information for the current rollout attempt",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutDurationStatus"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CanaryStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutCondition", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutDurationStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

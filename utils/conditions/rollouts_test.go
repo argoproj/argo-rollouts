@@ -411,13 +411,13 @@ func TestRolloutHealthy(t *testing.T) {
 		{
 			name: "BlueGreen complete",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 5, 5, 5, true, "76bbb58f74", "76bbb58f74"),
+			r:        blueGreenRollout(5, 5, 5, 5, true, "658c46c486", "658c46c486"),
 			expected: true,
 		},
 		{
 			name: "BlueGreen complete with extra old replicas",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 6, 5, 5, true, "76bbb58f74", "76bbb58f74"),
+			r:        blueGreenRollout(5, 6, 5, 5, true, "658c46c486", "658c46c486"),
 			expected: true,
 		},
 		{

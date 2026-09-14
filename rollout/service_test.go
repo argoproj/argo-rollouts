@@ -393,12 +393,25 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
-	expectedPatch := fmt.Sprintf(`{"status":{"message":null,"phase":"Healthy","stableRS":"%s"}}`, rs2PodHash)
-	assert.Equal(t, expectedPatch, patch)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	expectedPatch := fmt.Sprintf(`
+	{
+		"status":{
+			"message":null,
+			"phase":"Healthy",
+			"stableRS":"%s",
+			"duration": {
+				"completionStatus": "Promoted",
+				"finishedAt": "%s"
+			}
+		}
+	}`, rs2PodHash, now)
+	assert.Equal(t, cleanPatch(expectedPatch), patch)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
 		conditions.RolloutCompletedReason,
 	})
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 // TestCanaryAWSVerifyTargetGroupsNotYetReady verifies we don't proceed with scale down of old
@@ -494,15 +507,17 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
+	// Duration is already completed so reconciliation makes no rollout status patch
+	finishedAt := timeutil.MetaNow()
+	promoted := v1alpha1.CompletionStatusPromoted
+	r2.Status.Duration.FinishedAt = &finishedAt
+	r2.Status.Duration.CompletionStatus = &promoted
+
 	f.expectGetEndpointsAction(ep)
-	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	f.assertEvents([]string{
 		conditions.TargetGroupUnverifiedReason,
 	})
-	patch := f.getPatchedRollout(rolloutPatchIndex)
-	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=58c48fdff5"}}`
-	assert.JSONEq(t, expectedPatch, patch)
 }
 
 // TestCanaryAWSVerifyTargetGroupsReady verifies we proceed with scale down of old
@@ -597,18 +612,20 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
+	// Duration is already completed so reconciliation makes no rollout status patch
+	finishedAt := timeutil.MetaNow()
+	promoted := v1alpha1.CompletionStatusPromoted
+	r2.Status.Duration.FinishedAt = &finishedAt
+	r2.Status.Duration.CompletionStatus = &promoted
+
 	f.expectGetEndpointsAction(ep)
 	scaleDownRSIndex := f.expectPatchReplicaSetAction(rs1)
 
-	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	f.verifyPatchedReplicaSet(scaleDownRSIndex, 30)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
 	})
-	patch := f.getPatchedRollout(rolloutPatchIndex)
-	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=58c48fdff5"}}`
-	assert.JSONEq(t, expectedPatch, patch)
 }
 
 // TestCanaryAWSVerifyTargetGroupsSkip verifies we skip unnecessary verification if scaledown
@@ -666,13 +683,14 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
-	patchIndex := f.expectPatchRolloutAction(r2)
+	// Duration is already completed so reconciliation makes no rollout status patch
+	finishedAt := timeutil.MetaNow()
+	promoted := v1alpha1.CompletionStatusPromoted
+	r2.Status.Duration.FinishedAt = &finishedAt
+	r2.Status.Duration.CompletionStatus = &promoted
+
 	f.run(getKey(r2, t)) // there should be no api calls
 	f.assertEvents(nil)
-
-	patch := f.getPatchedRollout(patchIndex)
-	expectedPatch := `{"status":{"selector":"foo=bar,rollouts-pod-template-hash=58c48fdff5"}}`
-	assert.Equal(t, expectedPatch, patch)
 }
 
 // TestShouldVerifyTargetGroups returns whether or not we should verify the target group

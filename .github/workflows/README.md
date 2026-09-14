@@ -10,6 +10,8 @@
 | pr-title-check.yaml | Lint PR for semantic information                                |
 | init-release.yaml   | Build manifests and version then create a PR for release branch |
 | release.yaml        | Build images, cli-binaries, provenances, and post actions       |
+| stale-issues-pr.yml | Close stale Issues and PRs                                      |
+| waiting-issues.yml  | Close stale issues and PRs waiting for response                 |
 
 
 # Reusable workflows
@@ -17,7 +19,7 @@
 ## image-reuse.yaml
 
 - The resuable workflow can be used to publish or build images with multiple container registries(Quay,GHCR, dockerhub), and then sign them with cosign when an image is published.
-- A GO version `must` be specified e.g. 1.19
+- A GO version `must` be specified e.g. 1.24
 - The image name for each registry *must* contain the tag. Note: multiple tags are allowed for each registry using a CSV type.
 - Multiple platforms can be specified e.g. linux/amd64,linux/arm64
 - Images are not published by default. A boolean value must be set to `true` to push images.

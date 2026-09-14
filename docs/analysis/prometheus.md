@@ -104,6 +104,25 @@ provider:
         roleArn: $ROLEARN
 ```
 
+### Utilizing Google Managed Prometheus
+
+Google Managed Prometheus can be used as the prometheus data source for analysis through its [Cloud Monitoring Prometheus API](https://cloud.google.com/stackdriver/docs/managed-prometheus/query-api-ui). Queries are authenticated with [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials), so on GKE the controller's service account needs [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) and the `roles/monitoring.viewer` role on the project you query, which is the `$PROJECT_ID` in the address and need not be the project the cluster runs in. Once you ensure the proper permissions are in place, you can use the Cloud Monitoring url in your ```provider``` block and add a google authentication block:
+
+```yaml
+provider:
+  prometheus:
+    address: https://monitoring.googleapis.com/v1/projects/$PROJECT_ID/location/global/prometheus
+    query: |
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+      )) /
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+      ))
+    authentication:
+      google: {}  # optional: scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+```
+
 ### With OAuth2
 
 You can setup an [OAuth2 client credential](https://datatracker.ietf.org/doc/html/rfc6749#section-4.4) flow using the following values:
@@ -152,6 +171,54 @@ spec:
 ```
 
 The AnalysisRun will first get an access token using that information, and provide it as an `Authorization: Bearer` header for the metric provider call.
+
+### With Basic Authentication (Grafana Cloud prometheus instance)
+
+You can setup a `Basic Authentication` is typically the use case with a prometheus instance in Grafana Cloud using the following values:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+  - name: service-name
+    # from secret
+  - name: basicAuthUsername # This is the BasicAuth shared secret
+    valueFrom:
+      secretKeyRef:
+        name: basicauth-secret
+        key: username
+  - name: basicAuthSecret  # This is the BasicAuth shared secret
+    valueFrom:
+      secretKeyRef:
+        name: basicauth-secret
+        key: secret
+  metrics:
+  - name: success-rate
+    interval: 5m
+    # NOTE: prometheus queries return results in the form of a vector.
+    # So it is common to access the index 0 of the returned array to obtain the value
+    successCondition: result[0] >= 0.95
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        # timeout is expressed in seconds
+        timeout: 40
+        authentication:
+          basicAuth:
+            username: "{{ args.basicAuthUsername }}"
+            password: "{{ args.basicAuthSecret }}"
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+          )) /
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+          ))
+```
 
 ## Additional Metadata
 

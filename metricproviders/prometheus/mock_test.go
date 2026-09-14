@@ -43,11 +43,11 @@ func (m *mockAPI) DeleteSeries(ctx context.Context, matches []string, startTime 
 	panic("Not used")
 }
 
-func (m *mockAPI) LabelNames(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) ([]string, v1.Warnings, error) {
+func (m *mockAPI) LabelNames(ctx context.Context, matches []string, startTime time.Time, endTime time.Time, _ ...v1.Option) (model.LabelNames, v1.Warnings, error) {
 	panic("Not used")
 }
 
-func (m *mockAPI) LabelValues(ctx context.Context, label string, matches []string, startTime time.Time, endTime time.Time) (model.LabelValues, v1.Warnings, error) {
+func (m *mockAPI) LabelValues(ctx context.Context, label string, matches []string, startTime time.Time, endTime time.Time, _ ...v1.Option) (model.LabelValues, v1.Warnings, error) {
 	panic("Not used")
 }
 
@@ -61,7 +61,7 @@ func (m *mockAPI) QueryRange(ctx context.Context, query string, r v1.Range, opt 
 	return m.value, m.warnings, nil
 }
 
-func (m *mockAPI) Series(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) ([]model.LabelSet, v1.Warnings, error) {
+func (m *mockAPI) Series(ctx context.Context, matches []string, startTime time.Time, endTime time.Time, _ ...v1.Option) ([]model.LabelSet, v1.Warnings, error) {
 	panic("Not used")
 }
 
@@ -89,7 +89,7 @@ func (m *mockAPI) Snapshot(ctx context.Context, skipHead bool) (v1.SnapshotResul
 	panic("Not used")
 }
 
-func (m *mockAPI) Rules(ctx context.Context) (v1.RulesResult, error) {
+func (m *mockAPI) Rules(ctx context.Context, ruleNames []string) (v1.RulesResult, error) {
 	panic("Not used")
 }
 
@@ -101,7 +101,11 @@ func (m *mockAPI) Runtimeinfo(ctx context.Context) (v1.RuntimeinfoResult, error)
 	panic("Not used")
 }
 
-func (m *mockAPI) TSDB(ctx context.Context) (v1.TSDBResult, error) {
+func (m *mockAPI) TSDB(ctx context.Context, _ ...v1.Option) (v1.TSDBResult, error) {
+	panic("Not used")
+}
+
+func (m *mockAPI) TSDBBlocks(ctx context.Context) (v1.TSDBBlocksResult, error) {
 	panic("Not used")
 }
 
@@ -110,5 +114,9 @@ func (m *mockAPI) Buildinfo(ctx context.Context) (v1.BuildinfoResult, error) {
 }
 
 func (m *mockAPI) QueryExemplars(ctx context.Context, query string, startTime time.Time, endTime time.Time) ([]v1.ExemplarQueryResult, error) {
+	panic("Not used")
+}
+
+func (m *mockAPI) FormatQuery(ctx context.Context, query string) (string, error) {
 	panic("Not used")
 }

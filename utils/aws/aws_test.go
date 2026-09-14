@@ -40,7 +40,7 @@ func TestFindLoadBalancerByDNSName(t *testing.T) {
 	// LoadBalancer not found
 	{
 		fakeELB, c := newFakeClient()
-		fakeELB.On("DescribeLoadBalancers", mock.Anything, mock.Anything).Return(&elbv2.DescribeLoadBalancersOutput{}, nil)
+		fakeELB.On("DescribeLoadBalancers", mock.Anything, mock.Anything, mock.Anything).Return(&elbv2.DescribeLoadBalancersOutput{}, nil)
 		lb, err := c.FindLoadBalancerByDNSName(context.TODO(), "doesnt-exist")
 		assert.NoError(t, err)
 		assert.Nil(t, lb)
@@ -59,7 +59,7 @@ func TestFindLoadBalancerByDNSName(t *testing.T) {
 				expectedLB,
 			},
 		}
-		fakeELB.On("DescribeLoadBalancers", mock.Anything, mock.Anything).Return(&lbOut, nil)
+		fakeELB.On("DescribeLoadBalancers", mock.Anything, mock.Anything, mock.Anything).Return(&lbOut, nil)
 
 		lb, err := c.FindLoadBalancerByDNSName(context.TODO(), "find-loadbalancer-test-abc-123.us-west-2.elb.amazonaws.com")
 		assert.NoError(t, err)

@@ -115,6 +115,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		ArgoProjClientset:    f.client,
 		AnalysisRunInformer:  i.Argoproj().V1alpha1().AnalysisRuns(),
 		JobInformer:          k8sI.Batch().V1().Jobs(),
+		JobPodsInformer:      k8sI.Core().V1().Pods(),
 		ResyncPeriod:         resync(),
 		AnalysisRunWorkQueue: analysisRunWorkqueue,
 		MetricsServer:        metricsServer,

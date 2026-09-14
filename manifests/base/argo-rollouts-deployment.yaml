@@ -35,15 +35,6 @@ spec:
           failureThreshold: 3
           successThreshold: 1
           timeoutSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /metrics
-            port: metrics
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          failureThreshold: 3
-          successThreshold: 1
-          timeoutSeconds: 4
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
