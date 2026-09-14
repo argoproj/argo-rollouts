@@ -56,6 +56,11 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			return o.UsageErr(c)
 		},
+		FParseErrWhitelist: cobra.FParseErrWhitelist{
+			// Allow unknown flags for backward-compatibility.
+			UnknownFlags: true,
+		},
+		DisableAutoGenTag: true,
 	}
 
 	o.AddKubectlFlags(cmd)
