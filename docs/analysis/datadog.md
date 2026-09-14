@@ -46,14 +46,13 @@ stringData:
     Datadog integration supports referring to secrets inside the same namespace as argo-rollouts (by default)
     or referring to a secret in the same namespace as the `AnalysisTemplate`.
 
-    To use a secret from the `AnalysisTemplate` namespace, include a `secretRef` section in the template, specifying the `name` of the secret and setting the `namespaced` property to `true`.
+To use a secret from the `AnalysisTemplate` namespace, include a `secretRef` section in the template, specifying the `name` of the secret and setting the `namespaced` property to `true`.
 
-    The process for retrieving Datadog credentials is as follows:
-    1. **If a `secretRef` is defined in the `AnalysisTemplate`:** Argo Rollouts will search for the secret with the specified name in the namespace where the template resides.
-    2. **If the secret is not found in the specified namespace:** Argo Rollouts will then check the environment variables.
-    3. **If the credentials are not found in environment variables:** Argo Rollouts will look for a secret named "Datadog" in the namespace where Argo Rollouts itself is deployed.
+The process for retrieving Datadog credentials is as follows:
 
---- 
+1. **If a `secretRef` is defined in the `AnalysisTemplate`:** Argo Rollouts will search for the secret with the specified name in the namespace where the template resides.
+2. **If the secret is not found in the specified namespace:** Argo Rollouts will then check the environment variables.
+3. **If the credentials are not found in environment variables:** Argo Rollouts will look for a secret named "Datadog" in the namespace where Argo Rollouts itself is deployed.
 
 
 ```yaml
@@ -78,9 +77,7 @@ spec:
           namespaced: true
         query: |
           sum:requests.error.rate{service:{{args.service-name}}}
-  ```
-
-
+```
 
 ### Working with Datadog API v2
 
