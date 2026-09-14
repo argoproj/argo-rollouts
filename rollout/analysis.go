@@ -72,18 +72,23 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 
 func (c *rolloutContext) reconcileAnalysisRuns() error {
 	isAborted := c.pauseContext.IsAborted()
-	rollbackToScaleDownDelay := replicasetutil.HasScaleDownDeadline(c.newRS)
+	isFastRollback := c.isFastRollback()
 	initialDeploy := c.rollout.Status.StableRS == ""
-	isRollbackWithinWindow := c.isRollbackWithinWindow()
-	if isAborted || c.rollout.Status.PromoteFull || rollbackToScaleDownDelay || initialDeploy || isRollbackWithinWindow {
-		c.log.Infof("Skipping analysis: isAborted: %v, promoteFull: %v, rollbackToScaleDownDelay: %v, initialDeploy: %v, isRollbackWithinWindow: %v", isAborted, c.rollout.Status.PromoteFull, rollbackToScaleDownDelay, initialDeploy, isRollbackWithinWindow)
-		allArs := append(c.currentArs.ToArray(), c.otherArs...)
-		c.SetCurrentAnalysisRuns(c.currentArs)
-		return c.cancelAnalysisRuns(allArs)
-	}
+	isFullyPromoted := rolloututil.IsFullyPromoted(c.rollout)
+	shouldCancelCurrentAnalysis := isFullyPromoted || isAborted || c.rollout.Status.PromoteFull || isFastRollback || initialDeploy
 
 	newCurrentAnalysisRuns := analysisutil.CurrentAnalysisRuns{}
-	if c.rollout.Spec.Strategy.Canary != nil {
+	if shouldCancelCurrentAnalysis {
+		c.log.Infof("Skipping analysis: fullyPromoted: %v, isAborted: %v, promoteFull: %v, isFastRollback: %v, initialDeploy: %v", isFullyPromoted, isAborted, c.rollout.Status.PromoteFull, isFastRollback, initialDeploy)
+		err := c.cancelAnalysisRuns(c.currentArs.ToArray())
+		if err != nil {
+			return err
+		}
+		// For BlueGreen, we always retain the current analysis once stable.
+		// Canary retains the "current" analysis, so we remove them once cancelled.
+		newCurrentAnalysisRuns.BlueGreenPrePromotion = c.currentArs.BlueGreenPrePromotion
+		newCurrentAnalysisRuns.BlueGreenPostPromotion = c.currentArs.BlueGreenPostPromotion
+	} else if c.rollout.Spec.Strategy.Canary != nil {
 		stepAnalysisRun, err := c.reconcileStepBasedAnalysisRun()
 		if err != nil {
 			return err
@@ -95,9 +100,7 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 			return err
 		}
 		newCurrentAnalysisRuns.CanaryBackground = backgroundAnalysisRun
-
-	}
-	if c.rollout.Spec.Strategy.BlueGreen != nil {
+	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
 		prePromotionAr, err := c.reconcilePrePromotionAnalysisRun()
 		if err != nil {
 			return err
@@ -240,13 +243,13 @@ func (c *rolloutContext) reconcileAnalysisRunStatusChanges(currARs analysisutil.
 
 func (c *rolloutContext) reconcilePrePromotionAnalysisRun() (*v1alpha1.AnalysisRun, error) {
 	currentAr := c.currentArs.BlueGreenPrePromotion
-	if c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil {
+	if c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil || len(c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis.Templates) == 0 {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
 	c.log.Info("Reconciling Pre Promotion Analysis")
 
-	if skipPrePromotionAnalysisRun(c.rollout, c.newRS) {
+	if skipPrePromotionAnalysisRun(c.rollout, c.newRS, currentAr) {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return currentAr, err
 	}
@@ -271,12 +274,19 @@ func (c *rolloutContext) reconcilePrePromotionAnalysisRun() (*v1alpha1.AnalysisR
 // skipPrePromotionAnalysisRun checks if the controller should skip creating a pre promotion
 // analysis run by checking if the rollout active promotion happened, the rollout was just created,
 // the newRS is not saturated
-func skipPrePromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+func skipPrePromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, currentAr *v1alpha1.AnalysisRun) bool {
 	currentPodHash := replicasetutil.GetPodTemplateHash(newRS)
 	activeSelector := rollout.Status.BlueGreen.ActiveSelector
 	if rollout.Status.StableRS == currentPodHash || activeSelector == "" || activeSelector == currentPodHash || currentPodHash == "" {
 		return true
 	}
+	// If we already started pre-promotion analysis, then we should not skip it.
+	// Otherwise, performing the saturation check below might cancel the analysis run
+	// prematurely if the newRS becomes unsaturated (e.g. due to natural pod churn)
+	if currentAr != nil {
+		return false
+	}
+	// Don't start pre-promotion analysis if the newRS is not saturated.
 	// Checking saturation is different if the previewReplicaCount feature is being used because
 	// annotations.IsSaturated() also looks at the desired annotation on the ReplicaSet, and the
 	// check using previewReplicaCount does not.
@@ -287,25 +297,35 @@ func skipPrePromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 	return !annotations.IsSaturated(rollout, newRS)
 }
 
-// skipPrePromotionAnalysisRun checks if the controller should skip creating a post promotion
+// skipPostPromotionAnalysisRun checks if the controller should skip creating a post promotion
 // analysis run by checking that the desired ReplicaSet is the stable ReplicaSet, the active
 // service promotion has not happened, the rollout was just created, or the newRS is not saturated
-func skipPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
+func skipPostPromotionAnalysisRun(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, currentAr *v1alpha1.AnalysisRun) bool {
 	currentPodHash := replicasetutil.GetPodTemplateHash(newRS)
 	activeSelector := rollout.Status.BlueGreen.ActiveSelector
-	return rollout.Status.StableRS == currentPodHash || activeSelector != currentPodHash || currentPodHash == "" || !annotations.IsSaturated(rollout, newRS)
+	if rollout.Status.StableRS == currentPodHash || activeSelector != currentPodHash || currentPodHash == "" {
+		return true
+	}
+	// If we already started post-promotion analysis, then we should not skip it.
+	// Otherwise, performing the saturation check below might cancel the analysis run
+	// prematurely if the newRS becomes unsaturated (e.g. due to natural pod churn)
+	if currentAr != nil {
+		return false
+	}
+	// Don't start post-promotion analysis if the newRS is not saturated.
+	return !annotations.IsSaturated(rollout, newRS)
 }
 
 func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.AnalysisRun, error) {
 	currentAr := c.currentArs.BlueGreenPostPromotion
-	if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis == nil {
+	if c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis == nil || len(c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis.Templates) == 0 {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
 
 	c.log.Info("Reconciling Post Promotion Analysis")
 	// don't start post-promotion if we are not ready to, or we are still waiting for target verification
-	if skipPostPromotionAnalysisRun(c.rollout, c.newRS) || !c.areTargetsVerified() {
+	if skipPostPromotionAnalysisRun(c.rollout, c.newRS, currentAr) || !c.areTargetsVerified() {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return currentAr, err
 	}
@@ -395,7 +415,7 @@ func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun,
 	// for promotion cases
 	analysisRunFromPreviousStep := step != nil && step.Analysis != nil && currentAr != nil && currentAr.GetLabels()[v1alpha1.RolloutCanaryStepIndexLabel] != strconv.Itoa(int(*index))
 
-	if step == nil || step.Analysis == nil || index == nil || analysisRunFromPreviousStep {
+	if step == nil || step.Analysis == nil || len(step.Analysis.Templates) == 0 || index == nil || analysisRunFromPreviousStep {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
@@ -490,7 +510,7 @@ func (c *rolloutContext) getAnalysisTemplatesFromRefs(templateRefs *[]v1alpha1.A
 	templates := make([]*v1alpha1.AnalysisTemplate, 0)
 	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
 	for _, templateRef := range *templateRefs {
-		if templateRef.ClusterScope {
+		if templateRef.IsClusterScope() {
 			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
@@ -527,7 +547,6 @@ func (c *rolloutContext) getAnalysisTemplatesFromRefs(templateRefs *[]v1alpha1.A
 				templates = append(templates, innerTemplates...)
 			}
 		}
-
 	}
 	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
 	return uniqueTemplates, uniqueClusterTemplates, nil

@@ -11,6 +11,7 @@ import (
 	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
 	smifake "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -77,6 +78,7 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 		serviceSynced:                        alwaysReady,
 		ingressSynced:                        alwaysReady,
 		jobSynced:                            alwaysReady,
+		jobPodsSynced:                        alwaysReady,
 		replicasSetSynced:                    alwaysReady,
 		configMapSynced:                      alwaysReady,
 		secretSynced:                         alwaysReady,
@@ -160,6 +162,7 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 		ArgoProjClientset:    f.client,
 		AnalysisRunInformer:  i.Argoproj().V1alpha1().AnalysisRuns(),
 		JobInformer:          k8sI.Batch().V1().Jobs(),
+		JobPodsInformer:      k8sI.Core().V1().Pods(),
 		ResyncPeriod:         noResyncPeriodFunc(),
 		AnalysisRunWorkQueue: analysisRunWorkqueue,
 		MetricsServer:        cm.metricsServer,
@@ -217,63 +220,88 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 }
 
 func TestNewManager(t *testing.T) {
-	f := newFixture(t)
+	// Constructor selection between NewController (global config) and
+	// NewControllerWithNamespaceSupport (per-namespace configs) is driven by
+	// selfServiceNotificationEnabled; both flag values must yield a usable Manager.
+	for _, selfService := range []bool{false, true} {
+		t.Run(fmt.Sprintf("selfService=%v", selfService), func(t *testing.T) {
+			f := newFixture(t)
 
-	i := informers.NewSharedInformerFactory(f.client, noResyncPeriodFunc())
-	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, noResyncPeriodFunc())
+			i := informers.NewSharedInformerFactory(f.client, noResyncPeriodFunc())
+			k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, noResyncPeriodFunc())
 
-	scheme := runtime.NewScheme()
-	listMapping := map[schema.GroupVersionResource]string{}
-	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping)
-	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
-	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
-	istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
+			scheme := runtime.NewScheme()
+			listMapping := map[schema.GroupVersionResource]string{}
+			dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping)
+			dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
+			istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
+			istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
 
-	mode, err := ingressutil.DetermineIngressMode("extensions/v1beta1", &discoveryfake.FakeDiscovery{})
-	assert.NoError(t, err)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(mode, f.kubeclient, k8sI)
-	assert.NoError(t, err)
+			mode, err := ingressutil.DetermineIngressMode("extensions/v1beta1", &discoveryfake.FakeDiscovery{})
+			assert.NoError(t, err)
+			ingressWrapper, err := ingressutil.NewIngressWrapper(mode, f.kubeclient, k8sI)
+			assert.NoError(t, err)
 
-	k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
-	cm := NewManager(
-		"default",
-		f.kubeclient,
-		f.client,
-		dynamicClient,
-		smifake.NewSimpleClientset(),
-		&discoveryfake.FakeDiscovery{},
-		k8sI.Apps().V1().ReplicaSets(),
-		k8sI.Core().V1().Services(),
-		ingressWrapper,
-		k8sI.Batch().V1().Jobs(),
-		i.Argoproj().V1alpha1().Rollouts(),
-		i.Argoproj().V1alpha1().Experiments(),
-		i.Argoproj().V1alpha1().AnalysisRuns(),
-		i.Argoproj().V1alpha1().AnalysisTemplates(),
-		i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
-		dynamicClient,
-		istioVirtualServiceInformer,
-		istioDestinationRuleInformer,
-		k8sI,
-		k8sI,
-		noResyncPeriodFunc(),
-		"test",
-		8090,
-		8080,
-		k8sRequestProvider,
-		nil,
-		nil,
-		dynamicInformerFactory,
-		nil,
-		nil,
-		false,
-		nil,
-		nil,
-		rolloutController.DefaultEphemeralMetadataThreads,
-		rolloutController.DefaultEphemeralMetadataPodRetries,
-	)
+			k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
+			cm := NewManager(
+				"default",
+				f.kubeclient,
+				f.client,
+				dynamicClient,
+				smifake.NewSimpleClientset(),
+				&discoveryfake.FakeDiscovery{},
+				k8sI.Apps().V1().ReplicaSets(),
+				k8sI.Core().V1().Services(),
+				ingressWrapper,
+				k8sI.Batch().V1().Jobs(),
+				k8sI.Core().V1().Pods(),
+				i.Argoproj().V1alpha1().Rollouts(),
+				i.Argoproj().V1alpha1().Experiments(),
+				i.Argoproj().V1alpha1().AnalysisRuns(),
+				i.Argoproj().V1alpha1().AnalysisTemplates(),
+				i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
+				dynamicClient,
+				istioVirtualServiceInformer,
+				istioDestinationRuleInformer,
+				k8sI,
+				k8sI,
+				noResyncPeriodFunc(),
+				"test",
+				8090,
+				8080,
+				k8sRequestProvider,
+				nil,
+				nil,
+				dynamicInformerFactory,
+				nil,
+				nil,
+				false,
+				nil,
+				nil,
+				nil,
+				rolloutController.DefaultEphemeralMetadataThreads,
+				rolloutController.DefaultEphemeralMetadataPodRetries,
+				selfService,
+			)
 
-	assert.NotNil(t, cm)
+			assert.NotNil(t, cm)
+			assert.NotNil(t, cm.notificationsController)
+			assert.Equal(t, "test", cm.instanceID)
+		})
+	}
+}
+
+func TestObjectToUnstructured(t *testing.T) {
+	obj := &v1alpha1.Rollout{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "argoproj.io/v1alpha1", Kind: "Rollout"},
+		ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "bar", Labels: map[string]string{"app": "demo"}},
+	}
+	u, err := objectToUnstructured(obj)
+	require.NoError(t, err)
+	assert.Equal(t, "Rollout", u.GetKind())
+	assert.Equal(t, "foo", u.GetName())
+	assert.Equal(t, "bar", u.GetNamespace())
+	assert.Equal(t, "demo", u.GetLabels()["app"])
 }
 
 func TestNewAnalysisManager(t *testing.T) {
@@ -293,6 +321,7 @@ func TestNewAnalysisManager(t *testing.T) {
 		f.kubeclient,
 		f.client,
 		k8sI.Batch().V1().Jobs(),
+		k8sI.Core().V1().Pods(),
 		i.Argoproj().V1alpha1().AnalysisRuns(),
 		i.Argoproj().V1alpha1().AnalysisTemplates(),
 		i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
@@ -335,4 +364,28 @@ func TestPrimaryControllerSingleInstanceWithShutdown(t *testing.T) {
 		cancel()
 	}()
 	cm.Run(ctx, 1, 1, 1, 1, 1, electOpts)
+}
+
+func TestLeaseLockName(t *testing.T) {
+	tests := []struct {
+		name       string
+		instanceID string
+		expected   string
+	}{
+		{
+			name:       "no instance id uses the default lock name",
+			instanceID: "",
+			expected:   defaultLeaderElectionLeaseLockName,
+		},
+		{
+			name:       "instance id is appended to the default lock name",
+			instanceID: "my-instance",
+			expected:   defaultLeaderElectionLeaseLockName + "-my-instance",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, leaseLockName(tt.instanceID))
+		})
+	}
 }

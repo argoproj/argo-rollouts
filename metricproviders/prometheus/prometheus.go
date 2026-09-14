@@ -14,14 +14,13 @@ import (
 
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/sigv4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
-
-	"google.golang.org/api/option"
-	gcphttp "google.golang.org/api/transport/http"
+	"golang.org/x/oauth2/google"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
@@ -36,6 +35,8 @@ const (
 	// metadata object.
 	ResolvedPrometheusQuery             = "ResolvedPrometheusQuery"
 	EnvVarArgoRolloutsPrometheusAddress = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"
+	// GoogleMonitoringReadScope is the default OAuth2 scope requested for Google authentication
+	GoogleMonitoringReadScope = "https://www.googleapis.com/auth/monitoring.read"
 )
 
 // Provider contains all the required components to run a prometheus query
@@ -224,8 +225,8 @@ func newHTTPTransport(insecureSkipVerify bool) *http.Transport {
 	}
 }
 
-var secureTransport *http.Transport = newHTTPTransport(false)
-var insecureTransport *http.Transport = newHTTPTransport(true)
+var secureTransport = newHTTPTransport(false)
+var insecureTransport = newHTTPTransport(true)
 
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
@@ -265,6 +266,21 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		}
 	}
 
+	// Check if using basic auth to connect a prometheus instance (example: grafana cloud prometheus instance)
+	basicAuth := metric.Provider.Prometheus.Authentication.BasicAuth
+	if basicAuth.Username != "" || basicAuth.Password != "" {
+		if basicAuth.Username == "" {
+			return nil, errors.New("missing mandatory parameter in metric for basic auth setup: username")
+		} else if basicAuth.Password == "" {
+			return nil, errors.New("missing mandatory parameter in metric for basic auth setup: password")
+		}
+
+		roundTripper = config.NewBasicAuthRoundTripper(
+			config.NewInlineSecret(basicAuth.Username),
+			config.NewInlineSecret(basicAuth.Password),
+			roundTripper)
+	}
+
 	//Check if using Amazon Managed Prometheus if true build sigv4 client
 	if strings.Contains(metric.Provider.Prometheus.Address, "aps-workspaces") && (v1alpha1.Sigv4Config{}) != metric.Provider.Prometheus.Authentication.Sigv4 {
 		cfg := sigv4.SigV4Config{
@@ -280,17 +296,24 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		roundTripper = sigv4RoundTripper
 	}
 
-	// Authenticate with Google API client when Prometheus address is Google Managed Prometheus.
-	if strings.HasPrefix(metric.Provider.Prometheus.Address, "https://monitoring.googleapis.com/") {
-		opts := []option.ClientOption{
-			option.WithScopes("https://www.googleapis.com/auth/monitoring.read"),
+	if metric.Provider.Prometheus.Authentication.Google != nil {
+		// both set the Authorization header, so the innermost one would silently win
+		if metric.Provider.Prometheus.Authentication.OAuth2.TokenURL != "" {
+			return nil, errors.New("google and oauth2 authentication are mutually exclusive")
 		}
-
-		transport, err := gcphttp.NewTransport(context.Background(), http.DefaultTransport, opts...)
+		scopes := metric.Provider.Prometheus.Authentication.Google.Scopes
+		if len(scopes) == 0 {
+			scopes = []string{GoogleMonitoringReadScope}
+		}
+		// the token exchange runs outside the measurement timeout, so bound it here
+		tokenClient := &http.Client{Transport: secureTransport, Timeout: 30 * time.Second}
+		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, tokenClient)
+		tokenSource, err := google.DefaultTokenSource(ctx, scopes...)
 		if err != nil {
+			log.Errorf("Error creating Google token source: %v", err)
 			return nil, err
 		}
-		roundTripper = transport
+		roundTripper = &oauth2.Transport{Source: tokenSource, Base: roundTripper}
 	}
 
 	httpClient := &http.Client{

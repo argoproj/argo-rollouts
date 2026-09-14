@@ -225,7 +225,7 @@ type ExperimentAnalysisTemplateRef struct {
 	TemplateName string `json:"templateName" protobuf:"bytes,2,opt,name=templateName"`
 	// Whether to look for the templateName at cluster scope or namespace scope
 	// +optional
-	ClusterScope bool `json:"clusterScope,omitempty" protobuf:"varint,3,opt,name=clusterScope"`
+	ClusterScope *bool `json:"clusterScope,omitempty" protobuf:"varint,3,opt,name=clusterScope"`
 	// Args are the arguments that will be added to the AnalysisRuns
 	// +optional
 	// +patchMergeKey=name
@@ -233,6 +233,12 @@ type ExperimentAnalysisTemplateRef struct {
 	Args []Argument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,4,rep,name=args"`
 	// RequiredForCompletion blocks the Experiment from completing until the analysis has completed
 	RequiredForCompletion bool `json:"requiredForCompletion,omitempty" protobuf:"varint,5,opt,name=requiredForCompletion"`
+}
+
+// IsClusterScope returns true if the template should be looked up at cluster scope.
+// Defaults to false (namespace scope) if ClusterScope is nil.
+func (ref *ExperimentAnalysisTemplateRef) IsClusterScope() bool {
+	return ref.ClusterScope != nil && *ref.ClusterScope
 }
 
 type ExperimentAnalysisRunStatus struct {

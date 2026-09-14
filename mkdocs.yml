@@ -51,6 +51,7 @@ nav:
   - APISIX: features/traffic-management/apisix.md
   - AWS ALB: features/traffic-management/alb.md
   - Google Cloud: features/traffic-management/google-cloud.md
+  - HAProxy: features/traffic-management/haproxy.md
   - Istio: features/traffic-management/istio.md
   - Kong: features/traffic-management/kong.md
   - NGINX: features/traffic-management/nginx.md
@@ -78,10 +79,12 @@ nav:
     - generated/notification-services/alertmanager.md
     - generated/notification-services/awssqs.md
     - generated/notification-services/email.md
+    - generated/notification-services/gcppubsub.md
     - generated/notification-services/github.md
     - generated/notification-services/googlechat.md
     - generated/notification-services/grafana.md
     - generated/notification-services/mattermost.md
+    - generated/notification-services/nats.md
     - generated/notification-services/newrelic.md
     - generated/notification-services/opsgenie.md
     - generated/notification-services/overview.md
@@ -90,6 +93,7 @@ nav:
     - generated/notification-services/pushover.md
     - generated/notification-services/rocketchat.md
     - generated/notification-services/slack.md
+    - generated/notification-services/teams-workflows.md
     - generated/notification-services/teams.md
     - generated/notification-services/telegram.md
     - generated/notification-services/webex.md
@@ -141,9 +145,10 @@ nav:
   - Contribution Guide: CONTRIBUTING.md
   - Environment Setup: getting-started/setup/index.md
   - Releasing: releasing.md
+  - Backporting Fixes: backporting.md
   - Plugins: plugins.md
 - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
-- Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
+- Roadmap: roadmap.md
 - Blog ⧉: https://blog.argoproj.io/
 repo_url: https://github.com/argoproj/argo-rollouts
 site_name: Argo Rollouts - Kubernetes Progressive Delivery Controller

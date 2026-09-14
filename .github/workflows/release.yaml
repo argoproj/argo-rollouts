@@ -7,19 +7,35 @@ on:
 permissions: {}
 
 env:
-  GOLANG_VERSION: '1.24' # Note: go-version must also be set in job controller-image.with.go-version & plugin-image.with.go-version.
+  GOLANG_VERSION: '1.26' # Note: go-version must also be set in job controller-image.with.go-version & plugin-image.with.go-version.
 
 jobs:
+  # Central registry namespace configuration - Allows override of the registry namespace via GitHub vars. Defaults to 'argoproj'
+  set-registry-namespace:
+    runs-on: ubuntu-latest
+    outputs:
+      registry_namespace: ${{ steps.set.outputs.registry_namespace }}
+    steps:
+      - name: Set registry namespace
+        id: set
+        run: |
+          REGISTRY_NAMESPACE="${{ vars.REGISTRY_NAMESPACE }}"
+          if [ -z "$REGISTRY_NAMESPACE" ]; then
+            REGISTRY_NAMESPACE="argoproj"
+          fi
+          echo "registry_namespace=$REGISTRY_NAMESPACE" >> $GITHUB_OUTPUT
+
   controller-image:
+    needs: set-registry-namespace
     permissions:
       contents: read
       packages: write # Required and used to push images to `ghcr.io` if used.
       id-token: write # For creating OIDC tokens for signing.
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: quay.io/argoproj/argo-rollouts:${{ github.ref_name }}
+      quay_image_name: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.24'
+      go-version: '1.26'
       platforms: linux/amd64,linux/arm64
       push: true
     secrets:
@@ -27,15 +43,16 @@ jobs:
       quay_password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
   plugin-image:
+    needs: set-registry-namespace
     permissions:
       contents: read
       packages: write # Required and used to push images to `ghcr.io` if used.
       id-token: write # For creating OIDC tokens for signing.
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: quay.io/argoproj/kubectl-argo-rollouts:${{ github.ref_name }}
+      quay_image_name: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/kubectl-argo-rollouts:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.24'
+      go-version: '1.26'
       platforms: linux/amd64,linux/arm64
       push: true
       target: kubectl-argo-rollouts
@@ -46,6 +63,7 @@ jobs:
   controller-image-provenance:
     needs:
       - controller-image
+      - set-registry-namespace
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
@@ -53,7 +71,7 @@ jobs:
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: quay.io/argoproj/argo-rollouts
+      image: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts
       digest: ${{ needs.controller-image.outputs.image-digest }}
     secrets:
       registry-username: ${{ secrets.QUAY_USERNAME }}
@@ -62,6 +80,7 @@ jobs:
   plugin-image-provenance:
     needs:
       - plugin-image
+      - set-registry-namespace
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
@@ -69,13 +88,14 @@ jobs:
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: quay.io/argoproj/kubectl-argo-rollouts
+      image: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/kubectl-argo-rollouts
       digest: ${{ needs.plugin-image.outputs.image-digest }}
     secrets:
       registry-username: ${{ secrets.QUAY_USERNAME }}
       registry-password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
   release-artifacts:
+    needs: set-registry-namespace
     permissions:
       contents: write # for softprops/action-gh-release to create GitHub release
     runs-on: ubuntu-latest
@@ -84,30 +104,30 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5 # v3.5.2
+        uses: actions/checkout@v7 # v3.5.2
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@v6.0.0 # v4.0.1
+        uses: actions/setup-go@v7.0.0 # v4.0.1
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
       - name: Generate release artifacts
         run: |
           make release-plugins
           make checksums
-          make manifests IMAGE_TAG=${{ github.ref_name }}
+          make manifests IMAGE_TAG=${{ github.ref_name }} REGISTRY_NAMESPACE=${{ needs.set-registry-namespace.outputs.registry_namespace }}
 
       - name: Draft release
-        uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v0.1.15
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v0.1.15
         with:
           tag_name: ${{ github.event.inputs.tag }}
           draft: true
@@ -151,26 +171,32 @@ jobs:
     needs:
       - release-artifacts
       - release-artifacts-provenance
+      - set-registry-namespace
     permissions:
       contents: write # Needed for release uploads
       id-token: write # Needed for signing Sbom
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5 # v3.3.0
+        uses: actions/checkout@v7 # v3.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@v6.0.0 # v4.0.0
+        uses: actions/setup-go@v7.0.0 # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: 'v2.2.0'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: ui/package.json
 
       - name: Generate SBOM (spdx)
         id: spdx-builder
@@ -179,29 +205,31 @@ jobs:
           SPDX_GEN_VERSION: v0.0.13
           # defines the sigs.k8s.io/bom version to use.
           SIGS_BOM_VERSION: v0.2.1
-          # comma delimited list of project relative folders to inspect for package
-          # managers (gomod, yarn, npm).
-          PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the container image to be inspected
-          CONTAINER_IMAGE: quay.io/argoproj/argo-rollouts:${{ github.event.inputs.tag }}
+          CONTAINER_IMAGE: quay.io/${{ needs.set-registry-namespace.outputs.registry_namespace }}/argo-rollouts:${{ github.ref_name }}
 
         run: |
-          yarn install --cwd ./ui
+          set -euo pipefail
+          pnpm install --dir ./ui --frozen-lockfile
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
           go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
 
-          # Generate SPDX for project dependencies analyzing package managers
-          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
-          do
-            generator -p $folder -o /tmp
-          done
+          generator -p . -o /tmp
+          pnpm --dir ./ui sbom --sbom-format spdx --prod > /tmp/bom-ui-pnpm.spdx.json
 
-          # Generate SPDX for binaries analyzing the container image
-          if [[ ! -z CONTAINER_IMAGE ]]; then
-            bom generate -o /tmp/bom-docker-image.spdx -i $CONTAINER_IMAGE
+          if [[ -n "${CONTAINER_IMAGE:-}" ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i "${CONTAINER_IMAGE}"
           fi
 
-          cd /tmp && tar -zcf sbom.tar.gz *.spdx
+          cd /tmp
+          shopt -s nullglob
+          spdx_files=( *.spdx )
+          shopt -u nullglob
+          if [[ ${#spdx_files[@]} -eq 0 ]]; then
+            echo "No .spdx files produced under /tmp"
+            exit 1
+          fi
+          tar -zcf sbom.tar.gz "${spdx_files[@]}" bom-ui-pnpm.spdx.json
 
       - name: Sign SBOM
         run: |
@@ -212,7 +240,7 @@ jobs:
             /tmp/sbom.tar.gz
 
       - name: Upload SBOM and signature assets
-        uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v0.1.15
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v0.1.15
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -230,7 +258,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5 # v3.3.0
+        uses: actions/checkout@v7 # v3.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}

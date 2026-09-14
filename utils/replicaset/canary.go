@@ -361,7 +361,13 @@ func CheckMinPodsPerReplicaSet(rollout *v1alpha1.Rollout, count int32) int32 {
 	if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.MinPodsPerReplicaSet == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 		return count
 	}
-	return max(count, *rollout.Spec.Strategy.Canary.MinPodsPerReplicaSet)
+	// Cap MinPodsPerReplicaSet to rollout spec replicas to prevent reconciliation loop
+	minPodsPerReplicaSet := *rollout.Spec.Strategy.Canary.MinPodsPerReplicaSet
+	rolloutSpecReplicaSet := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
+	if minPodsPerReplicaSet > rolloutSpecReplicaSet {
+		minPodsPerReplicaSet = rolloutSpecReplicaSet
+	}
+	return max(count, minPodsPerReplicaSet)
 }
 
 // CalculateReplicaCountsForTrafficRoutedCanary calculates the canary and stable replica counts
@@ -522,6 +528,16 @@ func GetDesiredCanaryWeight(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.R
 		expectedCanaryReplicas := rolloutSpecReplica - stableRS.Status.AvailableReplicas
 		// max makes sure that scaling down NewRS replicas will catch up with scaling up stableRS replicas
 		canaryReplicas := max(expectedCanaryReplicas, newRS.Status.AvailableReplicas)
+		if defaults.HasExplicitAbortScaleDownDelay(rollout) {
+			// An explicitly set abortScaleDownDelaySeconds keeps the canary at full scale
+			// until its scale-down deadline, and the deadline annotation is only added once
+			// the stable RS is fully scaled (see reconcileNewReplicaSet). The canary's size
+			// therefore must not hold the weight up, otherwise the weight can never step
+			// below the smallest setWeight step and the abort deadlocks: weight step-down
+			// waits on canary drain, canary drain waits on stable reaching full scale, and
+			// stable scale-up waits on weight step-down.
+			canaryReplicas = expectedCanaryReplicas
+		}
 		// find next step to scale down NewRS to
 		for i := len(rollout.Spec.Strategy.Canary.Steps) - 1; i >= 0; i-- {
 			step := rollout.Spec.Strategy.Canary.Steps[i]

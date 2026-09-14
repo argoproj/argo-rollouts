@@ -57,9 +57,9 @@ For these reasons, in large scale high-volume production environments, a rolling
 | Istio                             | :white_check_mark: (stable)  | :white_check_mark: (stable) | :white_check_mark: (alpha) | :white_check_mark: (alpha) |                             |
 | Nginx Ingress Controller          | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |                             |
 | SMI                               | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :x:                        |                             |
-| Traefik                           | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        |                             |
+| Traefik                           | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |                             |
 | Contour                           | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        | :heavy_check_mark:          |
-| Gateway API                       | :white_check_mark: (alpha)   | :x:                         | :x:                        | :x:                        | :heavy_check_mark:          |
+| Gateway API                       | :white_check_mark: (alpha)   | :x:                         | :x:                        | :white_check_mark: (alpha) | :heavy_check_mark:          |
 
 :white_check_mark: = Supported
 

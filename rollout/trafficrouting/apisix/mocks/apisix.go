@@ -3,7 +3,8 @@ package mocks
 import (
 	"context"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 

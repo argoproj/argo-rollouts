@@ -186,7 +186,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement != nil && lastMeasurement.FinishedAt == nil {
 			now := timeutil.MetaNow()
-			if lastMeasurement.ResumeAt != nil && lastMeasurement.ResumeAt.After(now.Time) {
+			if !terminating && lastMeasurement.ResumeAt != nil && lastMeasurement.ResumeAt.After(now.Time) {
 				continue
 			}
 			// last measurement is still in-progress. need to complete it
@@ -351,7 +351,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 					if terminating {
 						logger.Infof("Terminating in-progress measurement")
 						newMeasurement = provider.Terminate(run, t.metric, *t.incompleteMeasurement)
-						if newMeasurement.Phase == v1alpha1.AnalysisPhaseSuccessful {
+						if newMeasurement.Phase == v1alpha1.AnalysisPhaseSuccessful || newMeasurement.Phase == v1alpha1.AnalysisPhaseInconclusive {
 							newMeasurement.Message = "Metric Terminated"
 						}
 					} else {

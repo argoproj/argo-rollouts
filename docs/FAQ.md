@@ -51,6 +51,12 @@ No you cannot do that (even though Argo CD can work that way). This is by design
 
 The Argo Rollout CLI/Kubectl plugin just patches the Rollout object or reads fields from it. [There is no separate "Argo Rollouts API"](../best-practices#there-is-no-argo-rollouts-api). Old versions of the plugin might not understand new fields that are added in the [Rollout specification](../features/specification/). We have never made a breaking change intentionally (removed something from the Rollout Spec). So old clients should work even with newer Rollout versions (excluding new features).
 
+### If Argo Rollouts is ready for production why is the spec still `v1alpha1`?
+
+The Alpha designation does **not** have the same meaning as what Kubernetes [guarantees for its own API](https://kubernetes.io/docs/reference/using-api/#api-versioning). Each project can define its own guarantees and implications of "alpha", "beta" and "v1" for its own CRDs. In the case of Rollouts the current API _is stable_ and we have no intention to break 
+it in any way unless a new feature comes along that requires it or something is removed/changed in the upstream K8s APIs (such as the pod spec). You can always see which companies use Argo Rollouts today
+at [USERS.md](https://github.com/argoproj/argo-rollouts/blob/master/USERS.md) and watch recordings of real use cases [at the CNCF YouTube channel](https://www.youtube.com/@cncf/search?query=rollouts) if you need to convince your manager that Argo Rollouts is production-ready.
+
 ## Rollouts
 
 ### Which deployment strategies does Argo Rollouts support?

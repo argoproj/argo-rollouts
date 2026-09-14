@@ -90,7 +90,7 @@ spec:
     controlledResources: ["cpu", "memory"]  
 ```
 
-Describe VPA when initially deployed we donot see recommendations as it will take few mins.
+Describe VPA when initially deployed we do not see recommendations as it will take few mins.
 
 ```yaml
 Name:         kubengix-vpa

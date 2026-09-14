@@ -25,8 +25,32 @@ const DefaultEphemeralMetadataPodRetries = 3
 // DefaultEphemeralMetadataRetryBackoff is the base duration for exponential backoff between retry attempts
 const DefaultEphemeralMetadataRetryBackoff = 100 * time.Millisecond
 
+func hasEphemeralMetadataConfigured(rollout *v1alpha1.Rollout) bool {
+	if rollout.Spec.Strategy.Canary != nil {
+		return rollout.Spec.Strategy.Canary.CanaryMetadata != nil || rollout.Spec.Strategy.Canary.StableMetadata != nil
+	}
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		return rollout.Spec.Strategy.BlueGreen.PreviewMetadata != nil || rollout.Spec.Strategy.BlueGreen.ActiveMetadata != nil
+	}
+	return false
+}
+
+func isZeroReplicaReplicaSet(rs *appsv1.ReplicaSet) bool {
+	if rs == nil {
+		return true
+	}
+	if rs.Spec.Replicas != nil && *rs.Spec.Replicas == 0 {
+		return true
+	}
+	return false
+}
+
 // reconcileEphemeralMetadata syncs canary/stable ephemeral metadata to ReplicaSets and pods
 func (c *rolloutContext) reconcileEphemeralMetadata() error {
+	if !hasEphemeralMetadataConfigured(c.rollout) {
+		return nil
+	}
+
 	ctx := context.TODO()
 	var newMetadata, stableMetadata *v1alpha1.PodTemplateMetadata
 	if c.rollout.Spec.Strategy.Canary != nil {
@@ -74,25 +98,30 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 		return nil
 	}
 	modifiedRS, modified := replicasetutil.SyncReplicaSetEphemeralPodMetadata(rs, podMetadata)
-	if !modified {
-		return nil
-	}
 
 	// Used to access old ephemeral data when updating pods below
 	originalRSCopy := rs.DeepCopy()
 
-	// Order of the following two steps is important for race condition
+	// Order of the following two steps is important to minimize race condition
 	// First update replicasets, then pods owned by it.
 	// So that any replicas created in the interim between the two steps are using the new updated version.
 	// 1. Update ReplicaSet so that any new pods it creates will have the metadata
-	rs, err := c.updateReplicaSet(ctx, modifiedRS)
-	if err != nil {
-		c.log.Infof("failed to sync ephemeral metadata %v to ReplicaSet %s: %v", podMetadata, originalRSCopy.Name, err)
-		return fmt.Errorf("failed to sync ephemeral metadata: %w", err)
+	if modified {
+		rs, err := c.updateReplicaSet(ctx, modifiedRS)
+		if err != nil {
+			c.log.Infof("failed to sync ephemeral metadata %v to ReplicaSet %s: %v", podMetadata, originalRSCopy.Name, err)
+			return fmt.Errorf("failed to sync ephemeral metadata: %w", err)
+		}
+		c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
 	}
-	c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
 
-	// 2. Sync ephemeral metadata to pods
+	if isZeroReplicaReplicaSet(rs) {
+		return nil
+	}
+
+	// 2. Sync ephemeral metadata to pods (always do this, even if replicaset wasn't modified so that we handle cases where
+	// the replicaset already had the correct metadata but some pods don't: e.g. a crash/OOM of the controller between the two steps,
+	// or simply a failure to update some pods in a previous attempt)
 	pods, err := replicasetutil.GetPodsOwnedByReplicaSet(ctx, c.kubeclientset, rs)
 	if err != nil {
 		return err
