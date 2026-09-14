@@ -27,7 +27,7 @@ spec:
     matchLabels:
       app: guestbook
 
-  # WorkloadRef holds a references to a workload that provides Pod template
+  # WorkloadRef holds a reference to a workload that provides Pod template
   # (e.g. Deployment). If used, then do not use Rollout template property.
   workloadRef:
     apiVersion: apps/v1
@@ -60,7 +60,7 @@ spec:
 
   # Pause allows a user to manually pause a rollout at any time. A rollout
   # will not advance through its steps while it is manually paused, but HPA
-  # auto-scaling will still occur. Typically not explicitly set the manifest,
+  # auto-scaling will still occur. Typically not explicitly set in the manifest,
   # but controlled via tools (e.g. kubectl argo rollouts pause). If true at
   # initial creation of Rollout, replicas are not scaled up automatically
   # from zero unless manually promoted.
@@ -179,6 +179,17 @@ spec:
       # stable pods. Required for traffic routing.
       stableService: stable-service
 
+      # Ping-pong spec allows zero-downtime rollouts for long-lived TCP/gRPC
+      # connections by avoiding service selector swaps at promotion time.
+      # Instead of swapping selectors between canaryService/stableService,
+      # the rollout alternates which of the two persistent services is
+      # "stable" via Status.Canary.StablePingPong. Supported with ALB,
+      # Istio, and plugin-based traffic routers.
+      # When pingPong is set, canaryService and stableService are not required.
+      pingPong:
+        pingService: ping-service
+        pongService: pong-service
+
       # Metadata which will be attached to the canary pods. This metadata will
       # only exist during an update, since there are no canary pods in a fully
       # promoted rollout.
@@ -230,7 +241,9 @@ spec:
 
       # The minimum number of pods that will be requested for each ReplicaSet
       # when using traffic routed canary. This is to ensure high availability
-      # of each ReplicaSet. Defaults to 1. +optional
+      # of each ReplicaSet. spec.replicas should be >= minPodsPerReplicaSet
+      # for it to take full effect; otherwise it is capped at the rollout
+      # replica count. Defaults to 1. +optional
       minPodsPerReplicaSet: 2
 
       # Limits the number of old RS that can run at one time before getting
@@ -291,6 +304,19 @@ spec:
         - setCanaryScale:
             matchTrafficWeight: true
 
+        # The percentage or number of replica pods within the applications ReplicaSet
+        # that are available and ready when a rollout is ready to be promoted. Useful if your application
+        # configured an HPA to help handle different loads of traffic, but you still want quick promotions.
+        # Defaults to 100% if replicaProgressThreshold is not specified.
+        # The 'type' field should be either "Percent" | "Pod"
+        # Current percentage that is checked against the input percent value is calculated by the following:
+        # CURRENT PERCENTAGE = available replicas / desired replicas for the current step
+        # +optional
+        - replicaProgressThreshold:
+            type: Percent
+            value: 90
+
+
         # executes the configured plugin by name with the provided configuration
         - plugin:
             name: example
@@ -300,7 +326,7 @@ spec:
         # Sets header based route with specified header values
         # Setting header based route will send all traffic to the canary for the requests
         # with a specified header, in this case request header "version":"2"
-        # (supported only with trafficRouting, for Istio only at the moment)
+        # (supported only with trafficRouting, for Istio, Apache APISIX , AWS ALB, and any supported Gateway API providers via the plugin)
         - setHeaderRoute:
             # Name of the route that will be created by argo rollouts this must also be configured
             # in spec.strategy.canary.trafficRouting.managedRoutes
@@ -371,11 +397,11 @@ spec:
               - name: mann-whitney
                 templateName: mann-whitney
                 # Metadata which will be attached to the AnalysisRun.
-                analysisRunMetadata:
-                  labels:
-                    app.service.io/analysisType: smoke-test
-                  annotations:
-                    link.argocd.argoproj.io/external-link: http://my-loggin-platform.com/pre-generated-link
+            analysisRunMetadata:
+              labels:
+                app.service.io/analysisType: smoke-test
+              annotations:
+                link.argocd.argoproj.io/external-link: http://my-loggin-platform.com/pre-generated-link
 
       # Anti-affinity configuration between desired and previous ReplicaSet.
       # Only one must be specified.
@@ -436,6 +462,7 @@ spec:
           ingress: ingress # required
           servicePort: 443 # required
           annotationPrefix: custom.alb.ingress.kubernetes.io # optional
+          rootService: root-service # required when ping-pong is enabled
 
         # Service Mesh Interface routing configuration
         smi:

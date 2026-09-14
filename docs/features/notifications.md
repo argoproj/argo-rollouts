@@ -10,7 +10,7 @@ by the end users. The end-users can subscribe to the configured triggers by addi
 ## Configuration
 
 The trigger defines the condition when the notification should be sent as well as the notification content template.
-Default Argo Rollouts comes with a list of built-in triggers that cover the most important events of Argo Rollout live-cycle.
+By default, Argo Rollouts comes with a list of built-in triggers that cover the most important events of Argo Rollout life-cycle.
 Both triggers and templates are configured in the `argo-rollouts-notification-configmap` ConfigMap. In order to get
 started quickly, you can use pre-configured notification templates defined in [notifications-install.yaml](https://github.com/argoproj/argo-rollouts/blob/master/manifests/notifications-install.yaml).
 
@@ -168,6 +168,7 @@ Each condition might use several templates. Typically each template is responsib
 ### Notification Metrics
 
 The following prometheus metrics are emitted when notifications are enabled in argo-rollouts.
-- notification_send_success is a counter that measures how many times the notification is sent successfully.
-- notification_send_error is a counter that measures how many times the notification failed to send.
-- notification_send is a histogram that measures performance of sending notification.
+
+- `notification_send_success` is a counter that measures how many times the notification is sent successfully.
+- `notification_send_error` is a counter that measures how many times the notification failed to send.
+- `notification_send` is a histogram that measures performance of sending notification.

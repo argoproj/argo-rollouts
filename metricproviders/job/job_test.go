@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 var noResyncPeriodFunc = func() time.Duration { return 0 }
@@ -30,14 +31,17 @@ func newTestJobProvider(objects ...runtime.Object) *JobProvider {
 	kubeclient := k8sfake.NewSimpleClientset(objects...)
 	k8sI := kubeinformers.NewSharedInformerFactory(kubeclient, noResyncPeriodFunc())
 	jobInformer := k8sI.Batch().V1().Jobs().Informer()
+	podInformer := k8sI.Core().V1().Pods().Informer()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go jobInformer.Run(ctx.Done())
-	cache.WaitForCacheSync(ctx.Done(), jobInformer.HasSynced)
+	go podInformer.Run(ctx.Done())
+	cache.WaitForCacheSync(ctx.Done(), jobInformer.HasSynced, podInformer.HasSynced)
 	cancel()
 
 	jobLister := k8sI.Batch().V1().Jobs().Lister()
-	return NewJobProvider(*logCtx, kubeclient, jobLister, "", false)
+	podLister := k8sI.Core().V1().Pods().Lister()
+	return NewJobProvider(*logCtx, kubeclient, jobLister, podLister, "", false)
 }
 
 func newRunWithJobMetric() *v1alpha1.AnalysisRun {
@@ -204,6 +208,89 @@ func TestRunCreateCollision(t *testing.T) {
 	assert.Nil(t, measurement.FinishedAt)
 }
 
+// testing happy path for resume function
+func TestResumeRunningJob(t *testing.T) {
+	run := newRunWithJobMetric()
+	job := newJob(run, "")
+	p := newTestJobProvider(job)
+	measurement := newRunningMeasurement(job.Name)
+	measurement = p.Resume(run, run.Spec.Metrics[0], measurement)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
+	assert.NotNil(t, measurement.ResumeAt)
+	assert.Nil(t, measurement.FinishedAt)
+}
+
+func TestResumeRunningJobWithFailedPods(t *testing.T) {
+	run := newRunWithJobMetric()
+	job := newJob(run, "")
+
+	job.Spec.Selector = &metav1.LabelSelector{
+		MatchLabels: map[string]string{"job-name": job.Name},
+	}
+	// A pod owned by that job, stuck in ErrImagePull
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "failed-pod",
+			Namespace: job.Namespace,
+			Labels:    map[string]string{"job-name": job.Name},
+		},
+		Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{
+				{
+					Name: "dummy",
+					State: corev1.ContainerState{
+						Waiting: &corev1.ContainerStateWaiting{
+							Reason:  "ErrImagePull",
+							Message: "failed to pull image: not found",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	p := newTestJobProvider(job, pod)
+	measurement := newRunningMeasurement(job.Name)
+	measurement = p.Resume(run, run.Spec.Metrics[0], measurement)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
+	assert.NotNil(t, measurement.FinishedAt)
+}
+
+func TestResumeRunningJobWithFailedInitContainer(t *testing.T) {
+	run := newRunWithJobMetric()
+	job := newJob(run, "")
+
+	job.Spec.Selector = &metav1.LabelSelector{
+		MatchLabels: map[string]string{"job-name": job.Name},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "failed-init-pod",
+			Namespace: job.Namespace,
+			Labels:    map[string]string{"job-name": job.Name},
+		},
+		Status: corev1.PodStatus{
+			InitContainerStatuses: []corev1.ContainerStatus{
+				{
+					Name: "init-dummy",
+					State: corev1.ContainerState{
+						Waiting: &corev1.ContainerStateWaiting{
+							Reason:  "ImagePullBackOff",
+							Message: "back-off pulling image: not found",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	p := newTestJobProvider(job, pod)
+	measurement := newRunningMeasurement(job.Name)
+	measurement = p.Resume(run, run.Spec.Metrics[0], measurement)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
+	assert.NotNil(t, measurement.FinishedAt)
+}
+
 func TestResumeCompletedJob(t *testing.T) {
 	run := newRunWithJobMetric()
 	job := newJob(run, batchv1.JobComplete)
@@ -256,7 +343,7 @@ func TestTerminateMeasurement(t *testing.T) {
 
 		measurement := newRunningMeasurement(job.Name)
 		measurement = p.Terminate(run, run.Spec.Metrics[0], measurement)
-		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, measurement.Phase)
 		assert.NotNil(t, measurement.FinishedAt)
 	}
 }
@@ -323,4 +410,76 @@ func TestGarbageCollect(t *testing.T) {
 			assert.NoError(t, err)
 		}
 	}
+}
+
+func TestJobNameWithin63characters(t *testing.T) {
+	ctx := context.Background()
+	p := newTestJobProvider()
+	run := newRunWithJobMetric()
+
+	// Set the UID to a realistic value
+	run.UID = types.UID("34e4d823-4ba9-4afe-8775-6384561d7ef3")
+
+	// Create a metric with a short name that is within 63 characters (Kubernetes JOB DNS restriction)
+	shortMetricName := "short-job-name"
+	run.Spec.Metrics[0].Name = shortMetricName
+	metric := run.Spec.Metrics[0]
+
+	// First measurement
+	measurement := p.Run(run, metric)
+	expectedName := fmt.Sprintf("%s.%s.1", run.UID, metric.Name)
+	assert.Equal(t, expectedName, measurement.Metadata[JobNameKey], "Job name should not be truncated")
+
+	// Ensure the job was created with the correct name
+	jobs, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, expectedName, jobs.Items[0].Name, "Job name should match the expected name")
+
+	// Verify that the job name is less than or equal to 63 characters
+	assert.LessOrEqual(t, len(jobs.Items[0].Name), defaults.Kubernetes_DNS_Limit, "Job name should be less than or equal to 63 characters")
+}
+
+func TestJobNameWithTruncation(t *testing.T) {
+	ctx := context.Background()
+	p := newTestJobProvider()
+	run := newRunWithJobMetric()
+
+	// Set the UID to a realistic value
+	run.UID = types.UID("5d610152-d78d-4af9-aa6a-81c227ea422c")
+
+	// Create a metric where the name itself is within limits, but it is larger than 63 characters if the UUID is included
+	longMetricName := "service-endpoint-reachable"
+	run.Spec.Metrics[0].Name = longMetricName
+	metric := run.Spec.Metrics[0]
+
+	// First measurement
+	measurement := p.Run(run, metric)
+	assert.Len(t, measurement.Metadata[JobNameKey], defaults.Kubernetes_DNS_Limit, "Job name should be truncated to 63 characters")
+
+	// Ensure that job is submitted
+	_, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+}
+
+func TestLongJobName(t *testing.T) {
+	ctx := context.Background()
+	p := newTestJobProvider()
+	run := newRunWithJobMetric()
+
+	// Set the UID to a realistic value
+	run.UID = types.UID("a3f5c9b2-1d4e-4b8a-9f3e-2c7d8e6a4b1c")
+
+	// Create a metric with a long name (70 characters) that is obviously longer than 63 characters
+	longMetricName := "this-is-a-very-long-metric-name-that-is-exactly-seventy-characters-long"
+	run.Spec.Metrics[0].Name = longMetricName
+	metric := run.Spec.Metrics[0]
+
+	// First measurement
+	measurement := p.Run(run, metric)
+	assert.Len(t, measurement.Metadata[JobNameKey], defaults.Kubernetes_DNS_Limit, "Job name should be truncated to 63 characters")
+
+	// Ensure that job is submitted
+	_, err := p.kubeclientset.BatchV1().Jobs(run.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+
 }

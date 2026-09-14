@@ -36,7 +36,7 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 	}
 
-	err = c.podRestarter.Reconcile(c)
+	_, err = c.podRestarter.Reconcile(c)
 	if err != nil {
 		return err
 	}
@@ -111,8 +111,8 @@ func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service
 
 // isBlueGreenFastTracked returns true if we should skip the pause step because update has been fast tracked
 func (c *rolloutContext) isBlueGreenFastTracked(activeSvc *corev1.Service) bool {
-	if replicasetutil.HasScaleDownDeadline(c.newRS) {
-		c.log.Infof("Detected scale down annotation for ReplicaSet '%s' and will skip pause", c.newRS.Name)
+	if c.isFastRollback() {
+		c.log.Infof("Fast rollback or promoted state detected for ReplicaSet '%s' and will skip pause", c.newRS.Name)
 		return true
 	}
 	if c.rollout.Status.PromoteFull {
@@ -207,8 +207,8 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 		c.log.Infof("Cannot scale down old ReplicaSets while paused with inconclusive Analysis ")
 		return false, nil
 	}
-	if c.rollout.Spec.Strategy.BlueGreen != nil && c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil && c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil && !skipPostPromotionAnalysisRun(c.rollout, c.newRS) {
-		currentPostAr := c.currentArs.BlueGreenPostPromotion
+	currentPostAr := c.currentArs.BlueGreenPostPromotion
+	if c.rollout.Spec.Strategy.BlueGreen != nil && c.rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil && c.rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds == nil && !skipPostPromotionAnalysisRun(c.rollout, c.newRS, currentPostAr) {
 		if currentPostAr == nil || currentPostAr.Status.Phase != v1alpha1.AnalysisPhaseSuccessful {
 			c.log.Infof("Cannot scale down old ReplicaSets while Analysis is running and no ScaleDownDelaySeconds")
 			return false, nil
@@ -310,7 +310,6 @@ func (c *rolloutContext) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, 
 		// newStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets(c.allRSs)
 	}
 
-	newStatus = c.calculateRolloutConditions(newStatus)
 	return c.persistRolloutStatus(&newStatus)
 }
 

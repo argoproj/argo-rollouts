@@ -105,6 +105,7 @@ func (o *ListOptions) PrintRolloutTable(roList *v1alpha1.RolloutList) error {
 // PrintRolloutUpdates watches for changes to rollouts and prints the updates
 func (o *ListOptions) PrintRolloutUpdates(ctx context.Context, rolloutIf argoprojv1alpha1.RolloutInterface, roList *v1alpha1.RolloutList) error {
 	w := tabwriter.NewWriter(o.Out, 0, 0, 2, ' ', 0)
+	defer w.Flush()
 
 	opts := o.ListOptions()
 	opts.ResourceVersion = roList.ListMeta.ResourceVersion

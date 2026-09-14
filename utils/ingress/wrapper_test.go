@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/ingress"
@@ -976,7 +976,7 @@ func networkingIngress() *ingress.Ingress {
 	pathType := v1.PathTypeImplementationSpecific
 	res := v1.Ingress{
 		Spec: v1.IngressSpec{
-			IngressClassName: pointer.String("v1ingress"),
+			IngressClassName: ptr.To[string]("v1ingress"),
 			Rules: []v1.IngressRule{
 				{
 					Host: "v1host",
@@ -1010,7 +1010,7 @@ func networkingIngressWithPath(paths ...string) *ingress.Ingress {
 	}
 	res := v1.Ingress{
 		Spec: v1.IngressSpec{
-			IngressClassName: pointer.String("v1ingress"),
+			IngressClassName: ptr.To[string]("v1ingress"),
 			Rules: []v1.IngressRule{
 				{
 					Host: "v1host",
@@ -1044,7 +1044,7 @@ func extensionsIngress() *ingress.Ingress {
 	pathType := v1beta1.PathTypeImplementationSpecific
 	res := v1beta1.Ingress{
 		Spec: v1beta1.IngressSpec{
-			IngressClassName: pointer.String("v1beta1ingress"),
+			IngressClassName: ptr.To[string]("v1beta1ingress"),
 			Rules: []v1beta1.IngressRule{
 				{
 					Host: "v1beta1host",
@@ -1076,7 +1076,7 @@ func extensionsIngressWithPath(paths ...string) *ingress.Ingress {
 	}
 	res := v1beta1.Ingress{
 		Spec: v1beta1.IngressSpec{
-			IngressClassName: pointer.String("v1beta1ingress"),
+			IngressClassName: ptr.To[string]("v1beta1ingress"),
 			Rules: []v1beta1.IngressRule{
 				{
 					Host: "v1beta1host",

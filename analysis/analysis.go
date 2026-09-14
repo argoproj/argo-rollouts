@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -145,7 +145,7 @@ func getResolvedMetricsWithoutSecrets(metrics []v1alpha1.Metric, args []v1alpha1
 		newArg := arg.DeepCopy()
 		if newArg.ValueFrom != nil && newArg.ValueFrom.SecretKeyRef != nil {
 			newArg.ValueFrom = nil
-			newArg.Value = pointer.StringPtr("temp-for-secret")
+			newArg.Value = ptr.To[string]("temp-for-secret")
 		}
 		newArgs = append(newArgs, *newArg)
 	}
@@ -186,7 +186,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement != nil && lastMeasurement.FinishedAt == nil {
 			now := timeutil.MetaNow()
-			if lastMeasurement.ResumeAt != nil && lastMeasurement.ResumeAt.After(now.Time) {
+			if !terminating && lastMeasurement.ResumeAt != nil && lastMeasurement.ResumeAt.After(now.Time) {
 				continue
 			}
 			// last measurement is still in-progress. need to complete it
@@ -351,7 +351,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 					if terminating {
 						logger.Infof("Terminating in-progress measurement")
 						newMeasurement = provider.Terminate(run, t.metric, *t.incompleteMeasurement)
-						if newMeasurement.Phase == v1alpha1.AnalysisPhaseSuccessful {
+						if newMeasurement.Phase == v1alpha1.AnalysisPhaseSuccessful || newMeasurement.Phase == v1alpha1.AnalysisPhaseInconclusive {
 							newMeasurement.Message = "Metric Terminated"
 						}
 					} else {

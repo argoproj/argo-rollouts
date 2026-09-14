@@ -153,6 +153,54 @@ spec:
 
 The AnalysisRun will first get an access token using that information, and provide it as an `Authorization: Bearer` header for the metric provider call.
 
+### With Basic Authentication (Grafana Cloud prometheus instance)
+
+You can setup a `Basic Authentication` is typically the use case with a prometheus instance in Grafana Cloud using the following values:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+  - name: service-name
+    # from secret
+  - name: basicAuthUsername # This is the BasicAuth shared secret
+    valueFrom:
+      secretKeyRef:
+        name: basicauth-secret
+        key: username
+  - name: basicAuthSecret  # This is the BasicAuth shared secret
+    valueFrom:
+      secretKeyRef:
+        name: basicauth-secret
+        key: secret
+  metrics:
+  - name: success-rate
+    interval: 5m
+    # NOTE: prometheus queries return results in the form of a vector.
+    # So it is common to access the index 0 of the returned array to obtain the value
+    successCondition: result[0] >= 0.95
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        # timeout is expressed in seconds
+        timeout: 40
+        authentication:
+          basicAuth:
+            username: "{{ args.basicAuthUsername }}"
+            password: "{{ args.basicAuthSecret }}"
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+          )) /
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+          ))
+```
+
 ## Additional Metadata
 
 Any additional metadata from the Prometheus controller, like the resolved queries after substituting the template's

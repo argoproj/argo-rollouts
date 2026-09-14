@@ -68,3 +68,21 @@ execution. You can follow its progress under the [Actions](https://github.com/ar
     brew upgrade kubectl-argo-rollouts
     kubectl argo rollouts version
     ```
+
+### Releasing from your own fork of Argo Rollouts
+
+It is also possible to release from your own personal/company fork. This is useful if your organization keeps [a second copy of Argo Rollouts](https://github.com/argoproj/argo-rollouts/blob/master/docs/proposals/parameterized-build-system.md) for hot-fixes or security updates.
+
+1. Sign-up for a RedHat account so that you get acess to [Quay Registry](http://quay.io)
+2. Login and create two repositories called `argo-rollouts` and `kubectl-argo-rollouts` (for the CLI)
+3. Under "Account settings" create a "Robot account" for CI automation with any name you want. A token will be generated for you
+
+Then enter your GitHub account in your own forked repo and under Settings -> "Secrets and Variables" -> actions:
+
+* Add `QUAY_USERNAME` and `QUAY_ROBOT_TOKEN` as "Repository Secrets" with the values you created from the previous step 
+* Add `REGISTRY_NAMESPACE` with your own Quay username/organization as "Repository variables"
+
+Now follow any of the instructions from the previous section and you will see released images in your own Quay repository.
+
+!!! tip
+    The `trigger-release.sh` does some basic checks for the name of the tag. If you want to release with a tag that doesn't follow the expected naming convention you can skip this script and just push a tag on your own directly to GitHub.

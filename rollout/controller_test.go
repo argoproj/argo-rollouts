@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
@@ -12,11 +13,15 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,10 +39,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-rollouts/controller/metrics"
+	metricsmocks "github.com/argoproj/argo-rollouts/controller/metrics/mocks"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -46,6 +51,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/hash"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -71,9 +77,31 @@ const (
 )
 
 type FakeWorkloadRefResolver struct {
+	// resolveFn, if set, is invoked for workloadRef rollouts (kind != "Error") to mimic the real
+	// resolver repopulating the pod template that remarshalRollout strips when TemplateResolvedFromRef.
+	resolveFn func(r *v1alpha1.Rollout) error
 }
 
-func (f *FakeWorkloadRefResolver) Resolve(_ *v1alpha1.Rollout) error {
+func (f *FakeWorkloadRefResolver) Resolve(r *v1alpha1.Rollout) error {
+	if r.Spec.WorkloadRef == nil {
+		return nil
+	}
+
+	if r.Spec.WorkloadRef.Kind == "Error" {
+		return &errors.StatusError{
+			ErrStatus: metav1.Status{
+				Status:  metav1.StatusFailure,
+				Code:    http.StatusNotFound,
+				Reason:  metav1.StatusReasonNotFound,
+				Message: "not found",
+			},
+		}
+	}
+
+	if f.resolveFn != nil {
+		return f.resolveFn(r)
+	}
+
 	return nil
 }
 
@@ -102,14 +130,26 @@ type fixture struct {
 	// Objects from here preloaded into NewSimpleFake.
 	kubeobjects []runtime.Object
 	objects     []runtime.Object
+	// dynamicOnlyObjects: added to dynamic client only (not Argo client). Use for Istio VS/DR so listers don't see unstructured as rollout.
+	dynamicOnlyObjects []runtime.Object
 	// Acquire 'enqueuedObjectsLock' before accessing enqueuedObjects
 	enqueuedObjects     map[string]int
 	enqueuedObjectsLock sync.Mutex
 	unfreezeTime        func() error
 
+	// metricsRecorder allows injecting a mock metrics recorder for testing
+	metricsRecorder *metricsmocks.MetricsRecorder
+
 	// events holds all the K8s Event Reasons emitted during the run
 	events             []string
 	fakeTrafficRouting *mocks.TrafficRoutingReconciler
+	// reseedRolloutMutator, if set, is applied to the rollout when re-seeding between syncs (for multi-sync tests).
+	reseedRolloutMutator func(*v1alpha1.Rollout)
+	// allowErrorOnLastSync, if set, do not fail the test when the final sync returns an error (e.g. "delaying destination rule switch").
+	allowErrorOnLastSync bool
+	// workloadRefResolveFn, if set, is used by the fake workload ref resolver to repopulate the pod
+	// template (which remarshalRollout strips for TemplateResolvedFromRef rollouts), mimicking the real resolver.
+	workloadRefResolveFn func(*v1alpha1.Rollout) error
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -128,12 +168,24 @@ func newFixture(t *testing.T) *fixture {
 		return nil
 	}
 
+	f.metricsRecorder = newFakeMetricsRecorder(t)
 	f.fakeTrafficRouting = newFakeSingleTrafficRoutingReconciler()
 	return f
 }
 
 func (f *fixture) Close() {
 	f.unfreezeTime()
+}
+
+func newFakeMetricsRecorder(t *testing.T) *metricsmocks.MetricsRecorder {
+	metricsRecorder := metricsmocks.NewMetricsRecorder(t)
+	metricsRecorder.On("IncRolloutReconcile", mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("IncExperimentReconcile", mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("IncAnalysisRunReconcile", mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("IncError", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("Remove", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	metricsRecorder.On("EmitRolloutDuration", mock.Anything).Return(nil).Maybe()
+	return metricsRecorder
 }
 
 func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector map[string]string) *v1alpha1.Rollout {
@@ -305,7 +357,11 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 	}
 
 	if optionalMessage != "" {
-		msg = optionalMessage
+		if msg != "" {
+			msg += ": " + optionalMessage
+		} else {
+			msg = optionalMessage
+		}
 	}
 
 	condition := v1alpha1.RolloutCondition{
@@ -418,14 +474,26 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
 	completeCond, _ := newCompletedCondition(isCompleted)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, completeCond)
+	now := timeutil.MetaNow()
 	if pause {
-		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{
 			Reason:    v1alpha1.PauseReasonBlueGreenPause,
 			StartTime: now,
 		}
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+		if requiresManualAction(cond.Reason, newRollout) {
+			previousTime := metav1.Time{Time: now.Time.Add(time.Second * -5)}
+			newRollout.Status.Duration.ManualPauseStartedAt = &previousTime
+		}
+	} else {
+		newRollout.Status.Duration.ManualPauseStartedAt = nil
+	}
+	if isCompleted {
+		newRollout.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
+		if available {
+			newRollout.Status.Duration.FinishedAt = &now
+		}
 	}
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
 	return newRollout
@@ -434,13 +502,17 @@ func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableRe
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, availableReplicas, hpaReplicas)
 	newRollout.Status.StableRS = stableRS
 	if pause {
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{
 			Reason:    v1alpha1.PauseReasonCanaryPauseStep,
 			StartTime: now,
 		}
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
+		if requiresManualAction(cond.Reason, newRollout) {
+			previousTime := metav1.Time{Time: now.Time.Add(time.Second * -5)}
+			newRollout.Status.Duration.ManualPauseStartedAt = &previousTime
+		}
 	}
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
 	return newRollout
@@ -541,6 +613,11 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 
+	dynamicClientObjects := f.objects
+	if len(f.dynamicOnlyObjects) > 0 {
+		dynamicClientObjects = append(append([]runtime.Object{}, f.objects...), f.dynamicOnlyObjects...)
+	}
+
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
@@ -560,7 +637,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		destGVR: destGVR.Resource + "List",
 	}
 
-	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, f.objects...)
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, dynamicClientObjects...)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
 	istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
@@ -568,11 +645,6 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(time.Millisecond, 10*time.Second), "Rollouts")
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Services")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
-
-	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr:               "localhost:8080",
-		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	})
 
 	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, f.kubeclient, k8sI)
 	if err != nil {
@@ -599,10 +671,11 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		RolloutWorkQueue:                rolloutWorkqueue,
 		ServiceWorkQueue:                serviceWorkqueue,
 		IngressWorkQueue:                ingressWorkqueue,
-		MetricsServer:                   metricsServer,
+		MetricsServer:                   f.metricsRecorder,
 		Recorder:                        record.NewFakeEventRecorder(),
-		RefResolver:                     &FakeWorkloadRefResolver{},
+		RefResolver:                     &FakeWorkloadRefResolver{resolveFn: f.workloadRefResolveFn},
 		EphemeralMetadataThreads:        DefaultEphemeralMetadataThreads,
+		EphemeralMetadataPodRetries:     DefaultEphemeralMetadataPodRetries,
 	})
 
 	c.enqueueRollout = func(obj any) {
@@ -625,13 +698,15 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	c.enqueueRolloutAfter = func(obj any, duration time.Duration) {
 		c.enqueueRollout(obj)
 	}
-	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
-		if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
-			return nil, nil
+	if f.fakeTrafficRouting != nil {
+		c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
+			if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+				return nil, nil
+			}
+			var reconcilers = []trafficrouting.TrafficRoutingReconciler{}
+			reconcilers = append(reconcilers, f.fakeTrafficRouting)
+			return reconcilers, nil
 		}
-		var reconcilers = []trafficrouting.TrafficRoutingReconciler{}
-		reconcilers = append(reconcilers, f.fakeTrafficRouting)
-		return reconcilers, nil
 	}
 
 	for _, r := range f.rolloutLister {
@@ -676,9 +751,101 @@ func (f *fixture) run(rolloutName string) {
 	f.runController(rolloutName, true, false, c, i, k8sI)
 }
 
+// runWithSyncs runs the controller syncHandler n times (e.g. 2 for two reconciliation loops) then verifies actions.
+func (f *fixture) runWithSyncs(rolloutName string, syncs int) {
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.runControllerWithSyncs(rolloutName, syncs, true, false, c, i, k8sI)
+}
+
 func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(rolloutName, startInformers, true, c, i, k8sI)
+}
+
+func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
+	if startInformers {
+		stopCh := make(chan struct{})
+		defer close(stopCh)
+		i.Start(stopCh)
+		k8sI.Start(stopCh)
+		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
+	}
+
+	for n := 0; n < syncs; n++ {
+		err := c.syncHandler(context.Background(), rolloutName)
+		allowErr := f.allowErrorOnLastSync && (n == syncs-1)
+		f.assertSyncHandlerResult(n, syncs, err, expectError, allowErr)
+		f.reseedRolloutInInformerIfNeeded(c, rolloutName, n, syncs)
+		f.reseedKubeResourcesInInformerIfNeeded(k8sI, n, syncs)
+	}
+
+	return f.verifyActionsAndReturn(c)
+}
+
+func (f *fixture) assertSyncHandlerResult(n, syncs int, err error, expectError, allowErr bool) {
+	if !expectError && err != nil && !allowErr {
+		f.t.Errorf("error syncing rollout (sync %d/%d): %v", n+1, syncs, err)
+		return
+	}
+	if expectError && err == nil {
+		f.t.Error("expected error syncing rollout, got nil")
+	}
+}
+
+// reseedRolloutInInformerIfNeeded re-seeds the rollout in the informer after a sync so the next sync
+// sees an updated typed Rollout (e.g. multi-sync tests that mutate status between reconciles).
+// No-op when syncs <= 1 or on the final sync index.
+func (f *fixture) reseedRolloutInInformerIfNeeded(c *Controller, rolloutName string, n, syncs int) {
+	if syncs <= 1 || n >= syncs-1 {
+		return
+	}
+	namespace, name, err := cache.SplitMetaNamespaceKey(rolloutName)
+	if err != nil {
+		f.t.Fatalf("re-seed rollout: split key: %v", err)
+	}
+	ro, err := f.client.ArgoprojV1alpha1().Rollouts(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed rollout: get: %v", err)
+	}
+	if f.reseedRolloutMutator != nil {
+		f.reseedRolloutMutator(ro)
+	}
+	c.rolloutVersionTracker.Forget(rolloutName)
+	if err := c.rolloutsIndexer.Update(ro); err != nil {
+		f.t.Fatalf("re-seed rollout: update indexer: %v", err)
+	}
+}
+
+// reseedKubeResourcesInInformerIfNeeded re-seeds ReplicaSets and Services from the fake kube client
+// into the informer indexers between syncs. The controller creates/updates these resources via the
+// fake client during a sync, but the informer only learns about them through asynchronous watch
+// propagation, which races with the next synchronous sync. Re-seeding makes the multi-sync harness
+// deterministic. No-op when syncs <= 1 or on the last sync.
+func (f *fixture) reseedKubeResourcesInInformerIfNeeded(k8sI kubeinformers.SharedInformerFactory, n, syncs int) {
+	if syncs <= 1 || n >= syncs-1 {
+		return
+	}
+	rsIndexer := k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer()
+	rsList, err := f.kubeclient.AppsV1().ReplicaSets(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed replicasets: list: %v", err)
+	}
+	for i := range rsList.Items {
+		if err := rsIndexer.Update(&rsList.Items[i]); err != nil {
+			f.t.Fatalf("re-seed replicasets: update indexer: %v", err)
+		}
+	}
+
+	svcIndexer := k8sI.Core().V1().Services().Informer().GetIndexer()
+	svcList, err := f.kubeclient.CoreV1().Services(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		f.t.Fatalf("re-seed services: list: %v", err)
+	}
+	for i := range svcList.Items {
+		if err := svcIndexer.Update(&svcList.Items[i]); err != nil {
+			f.t.Fatalf("re-seed services: update indexer: %v", err)
+		}
+	}
 }
 
 func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
@@ -698,6 +865,10 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		f.t.Error("expected error syncing rollout, got nil")
 	}
 
+	return f.verifyActionsAndReturn(c)
+}
+
+func (f *fixture) verifyActionsAndReturn(c *Controller) *Controller {
 	actions := filterInformerActions(f.client.Actions())
 	for i, action := range actions {
 		if len(f.actions) < i+1 {
@@ -730,7 +901,6 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		f.t.Errorf("%d expected actions did not happen:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
 	}
 	fakeRecorder := c.recorder.(*record.FakeEventRecorder)
-
 	f.events = fakeRecorder.Events()
 	return c
 }
@@ -777,7 +947,8 @@ func filterInformerActions(actions []core.Action) []core.Action {
 			action.Matches("list", "services") ||
 			action.Matches("watch", "services") ||
 			action.Matches("list", "ingresses") ||
-			action.Matches("watch", "ingresses") {
+			action.Matches("watch", "ingresses") ||
+			action.Matches("list", "pods") {
 			continue
 		}
 		ret = append(ret, action)
@@ -827,18 +998,11 @@ func (f *fixture) expectUpdatePodAction(p *corev1.Pod) int {
 	return len
 }
 
-func (f *fixture) expectListPodAction(namespace string) int {
-	len := len(f.kubeactions)
-	f.kubeactions = append(f.kubeactions, core.NewListAction(schema.GroupVersionResource{Resource: "pods"}, schema.GroupVersionKind{Kind: "Pod", Version: "v1"}, namespace, metav1.ListOptions{}))
-	return len
-}
-
-func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int { //nolint:unused
+func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
 	len := len(f.actions)
-	f.kubeactions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
+	f.actions = append(f.actions, core.NewGetAction(v1alpha1.RolloutGVR, rollout.Namespace, rollout.Name))
 	return len
 }
-
 func (f *fixture) expectCreateExperimentAction(ex *v1alpha1.Experiment) int {
 	action := core.NewCreateAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex)
 	len := len(f.actions)
@@ -933,8 +1097,27 @@ func (f *fixture) expectGetEndpointsAction(ep *corev1.Endpoints) int {
 	return len
 }
 
+// kubeActionAt returns the filtered kube action at the given index, failing the test (instead of
+// panicking) when fewer actions occurred than expected. This keeps a single failing test from
+// aborting the rest of the package via an index-out-of-range panic.
+func (f *fixture) kubeActionAt(index int) core.Action {
+	f.t.Helper()
+	actions := filterInformerActions(f.kubeclient.Actions())
+	require.Greaterf(f.t, len(actions), index, "expected at least %d kube actions, got %d", index+1, len(actions))
+	return actions[index]
+}
+
+// actionAt returns the filtered argoproj action at the given index, failing the test (instead of
+// panicking) when fewer actions occurred than expected.
+func (f *fixture) actionAt(index int) core.Action {
+	f.t.Helper()
+	actions := filterInformerActions(f.client.Actions())
+	require.Greaterf(f.t, len(actions), index, "expected at least %d rollout actions, got %d", index+1, len(actions))
+	return actions[index]
+}
+
 func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Created action, not %s", action.GetVerb())
@@ -948,7 +1131,7 @@ func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 }
 
 func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
@@ -962,7 +1145,7 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 }
 
 func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -977,7 +1160,7 @@ func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
 }
 
 func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
@@ -988,7 +1171,7 @@ func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32
 }
 
 func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy string) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
@@ -1001,22 +1184,16 @@ func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy s
 }
 
 func (f *fixture) verifyPatchedRolloutAborted(index int, rsName string) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
-	_, ok := action.(core.PatchAction)
-	if !ok {
-		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
-	}
-
 	ro := f.getPatchedRolloutAsObject(index)
 	assert.NotNil(f.t, ro)
 	assert.True(f.t, ro.Status.Abort)
 	assert.Equal(f.t, v1alpha1.RolloutPhaseDegraded, ro.Status.Phase)
-	expectedMsg := fmt.Sprintf("ProgressDeadlineExceeded: ReplicaSet %q has timed out progressing.", rsName)
-	assert.Equal(f.t, expectedMsg, ro.Status.Message)
+	expectedMsg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rsName)
+	assert.Contains(f.t, ro.Status.Message, expectedMsg)
 }
 
 func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) bool {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
@@ -1025,21 +1202,21 @@ func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) 
 }
 
 func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
-	if !ok {
-		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
-	}
+	require.True(f.t, ok, "Expected Update action, not %s", action.GetVerb())
 	obj := updateAction.GetObject()
 	rollout := &v1alpha1.Rollout{}
 	converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
-	objMap, _ := converter.ToUnstructured(obj)
-	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rollout)
+	objMap, err := converter.ToUnstructured(obj)
+	require.NoError(f.t, err)
+	err = converter.FromUnstructured(objMap, rollout)
+	require.NoError(f.t, err)
 	return rollout
 }
 
 func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nolint:unused
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1053,7 +1230,7 @@ func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nol
 }
 
 func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1067,7 +1244,7 @@ func (f *fixture) getCreatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
 }
 
 func (f *fixture) getCreatedExperiment(index int) *v1alpha1.Experiment {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	createAction, ok := action.(core.CreateAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1081,7 +1258,7 @@ func (f *fixture) getCreatedExperiment(index int) *v1alpha1.Experiment {
 }
 
 func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1096,7 +1273,7 @@ func (f *fixture) getPatchedExperiment(index int) *v1alpha1.Experiment {
 }
 
 func (f *fixture) getPatchedRollout(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1105,7 +1282,7 @@ func (f *fixture) getPatchedRollout(index int) string {
 }
 
 func (f *fixture) getPatchedRolloutWithoutConditions(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1124,7 +1301,7 @@ func (f *fixture) getPatchedRolloutWithoutConditions(index int) string {
 }
 
 func (f *fixture) getPatchedRolloutAsObject(index int) *v1alpha1.Rollout {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
@@ -1159,7 +1336,7 @@ func (f *fixture) expectDeleteReplicaSetAction(rs *appsv1.ReplicaSet) int {
 }
 
 func (f *fixture) getDeletedReplicaSet(index int) string { //nolint:unused
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1168,7 +1345,7 @@ func (f *fixture) getDeletedReplicaSet(index int) string { //nolint:unused
 }
 
 func (f *fixture) getDeletedAnalysisRun(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1177,7 +1354,7 @@ func (f *fixture) getDeletedAnalysisRun(index int) string {
 }
 
 func (f *fixture) getDeletedExperiment(index int) string {
-	action := filterInformerActions(f.client.Actions())[index]
+	action := f.actionAt(index)
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Delete action, not %s", action.GetVerb())
@@ -1186,7 +1363,7 @@ func (f *fixture) getDeletedExperiment(index int) string {
 }
 
 func (f *fixture) getUpdatedPod(index int) *corev1.Pod {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
+	action := f.kubeActionAt(index)
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Update action, not %s", action.GetVerb())
@@ -1215,11 +1392,12 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.objects = append(f.objects, r)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 
-	f.expectUpdateRolloutStatusAction(r)
-	f.expectPatchRolloutAction(r)
-	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
-	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
-	f.run(getKey(r, t))
+	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{}) // sync 1: create RS
+	f.expectUpdateRolloutStatusAction(r)                 // sync 1: update status
+	f.expectGetRolloutAction(r)                          // re-seed between syncs
+	f.expectPatchRolloutAction(r)                        // sync 2: patch status
+	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{}) // sync 2: scale up RS
+	f.runWithSyncs(getKey(r, t), 2)
 }
 
 func TestAdoptReplicaSet(t *testing.T) {
@@ -1311,12 +1489,12 @@ func TestRequeueStuckRollout(t *testing.T) {
 		},
 		{
 			name:               "Less than a second",
-			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(10)),
+			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](10)),
 			requeueImmediately: true,
 		},
 		{
 			name:    "More than a second",
-			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(20)),
+			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](20)),
 		},
 	}
 	for i := range tests {
@@ -1353,13 +1531,87 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
-	//updateIndex := f.expectUpdateRolloutAction(r)
-	f.expectUpdateRolloutStatusAction(r)
-	updateIndex := f.expectUpdateRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r)          // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r)                   // second reconciliation
+	updateIndex := f.expectUpdateRolloutAction(r) // sync 2: default .spec.replicas, then exit early
+	f.expectGetRolloutAction(r)                   // third reconciliation
+	f.expectPatchRolloutAction(r)                 // sync 3: patch status
 	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
-	f.run(getKey(r, t))
+	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.runWithSyncs(getKey(r, t), 3)
 	updatedRollout := f.getUpdatedRollout(updateIndex)
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
+}
+
+func TestSyncHandlerLogsUnderlyingErrorFromNewRolloutContext(t *testing.T) {
+	// When newRolloutContext returns (nil, err), syncHandler must include err in the log
+	// line, and emit at Warn for benign 409 conflicts (the workqueue retries) and Error
+	// for everything else.
+	cases := []struct {
+		name      string
+		injectErr error
+		wantLevel log.Level
+		wantMsg   string
+	}{
+		{
+			name: "conflict is logged at warn",
+			injectErr: errors.NewConflict(
+				schema.GroupResource{Group: "argoproj.io", Resource: "rollouts"},
+				"foo",
+				fmt.Errorf("the object has been modified; please apply your changes to the latest version and try again"),
+			),
+			wantLevel: log.WarnLevel,
+			wantMsg:   "the object has been modified",
+		},
+		{
+			name:      "non-conflict is logged at error",
+			injectErr: fmt.Errorf("boom"),
+			wantLevel: log.ErrorLevel,
+			wantMsg:   "boom",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+			f.rolloutLister = append(f.rolloutLister, r)
+			f.objects = append(f.objects, r)
+
+			c, i, k8sI := f.newController(noResyncPeriodFunc)
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			i.Start(stopCh)
+			k8sI.Start(stopCh)
+			assert.True(t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
+
+			f.client.PrependReactor("update", "rollouts", func(action core.Action) (bool, runtime.Object, error) {
+				if action.GetSubresource() == "status" {
+					return true, nil, tc.injectErr
+				}
+				return false, nil, nil
+			})
+
+			hook := logtest.NewGlobal()
+			defer hook.Reset()
+
+			assert.Error(t, c.syncHandler(context.Background(), getKey(r, t)))
+
+			var found *log.Entry
+			for _, e := range hook.AllEntries() {
+				if strings.HasPrefix(e.Message, "newRolloutContext returned nil") {
+					found = e
+					break
+				}
+			}
+			if found == nil {
+				t.Fatal("expected 'newRolloutContext returned nil' log entry, got none")
+			}
+			assert.Contains(t, found.Message, tc.wantMsg)
+			assert.Equal(t, tc.wantLevel, found.Level)
+		})
+	}
 }
 
 // TestSwitchInvalidSpecMessage verifies message is updated when reason for InvalidSpec changes
@@ -1400,13 +1652,47 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
+func TestInvalidWorkloadRef(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Selector = nil
+	r.Spec.Template = corev1.PodTemplateSpec{}
+	r.Spec.WorkloadRef = &v1alpha1.ObjectRef{
+		Kind: "Error",
+	}
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s],
+			"message": "%s: %s",
+			"phase": "Degraded"
+		}
+	}`
+	errmsg := "The Rollout \"foo\" is invalid: not found"
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))
+
+	patch := f.getPatchedRollout(patchIndex)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
+}
+
 // TestPodTemplateHashEquivalence verifies the hash is computed consistently when there are slight
 // variations made to the pod template in equivalent ways.
 func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedReplicaSetName to match the new hash.
-	expectedReplicaSetName := "guestbook-6c5667f666"
+	expectedReplicaSetName := "guestbook-6f496f9f78"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
@@ -1440,11 +1726,12 @@ requests:
 		f.serviceLister = append(f.serviceLister, activeSvc)
 		f.objects = append(f.objects, r)
 
-		f.expectUpdateRolloutStatusAction(r)
-		f.expectPatchRolloutAction(r)
 		rs := newReplicaSet(r, 1)
-		rsIdx := f.expectCreateReplicaSetAction(rs)
-		f.run(getKey(r, t))
+		rsIdx := f.expectCreateReplicaSetAction(rs) // sync 1: create RS
+		f.expectUpdateRolloutStatusAction(r)        // sync 1: update status
+		f.expectGetRolloutAction(r)                 // re-seed between syncs
+		f.expectPatchRolloutAction(r)               // sync 2: patch status
+		f.runWithSyncs(getKey(r, t), 2)
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
 		f.Close()
@@ -1477,6 +1764,8 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	r.Status.ReadyReplicas = 1
 	r.Status.BlueGreen.ActiveSelector = "fakepodhash"
 	r.Status.ObservedGeneration = "122"
+	r.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
+	r.Status.Duration.FinishedAt = ptr.To(timeutil.MetaNow())
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
@@ -1532,6 +1821,8 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	r.Status.AvailableReplicas = 1
 	r.Status.ReadyReplicas = 1
 	r.Status.ObservedGeneration = "122"
+	r.Status.Duration.CompletionStatus = ptr.To(v1alpha1.CompletionStatusPromoted)
+	r.Status.Duration.FinishedAt = ptr.To(timeutil.MetaNow())
 	rs := newReplicaSet(r, 1)
 	rs.Name = "foo-fakepodhash"
 	rs.Status.AvailableReplicas = 1
@@ -1570,7 +1861,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	activeSvc := newService("active", 80, nil, r)
 	rs := newReplicaSetWithStatus(r, 1, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true, false)
+	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true, true)
 	// StableRS is set to avoid running the migration code. When .status.canary.stableRS is removed, the line below can be deleted
 	//r.Status.Canary.StableRS = rsPodHash
 	r.Spec.Strategy.BlueGreen = nil
@@ -1579,6 +1870,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 			SetWeight: int32Ptr(1),
 		}},
 	}
+
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.kubeobjects = append(f.kubeobjects, rs, activeSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
@@ -1588,19 +1880,24 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	f.run(getKey(r, t))
 	patch := f.getPatchedRollout(i)
 
-	addedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "", true)
+	// The controller emits conditions in the order [Available, Completed, Progressing]
+	// because the Progressing condition is rewritten (and re-appended) this reconcile.
+	_, availableCondition := newAvailableCondition(true)
+	_, completedCondition := newCompletedCondition(true)
+	_, progressingCondition := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	expectedPatch := fmt.Sprintf(`{
 			"status": {
 				"blueGreen": {
 					"activeSelector": null
 				},
-				"conditions": %s,
+				"conditions": [%s, %s, %s],
 				"currentStepIndex": 1,
 				"currentStepHash": "%s",
 				"selector": "foo=bar"
 			}
-		}`, addedConditions, conditions.ComputeStepHash(r))
+		}`, availableCondition, completedCondition, progressingCondition, conditions.ComputeStepHash(r))
 	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
+	f.metricsRecorder.AssertNotCalled(t, "EmitRolloutDuration", mock.Anything)
 }
 
 func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
@@ -1631,7 +1928,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 	rolloutAnalysisFail := v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: "does-not-exist",
-			ClusterScope: false,
+			ClusterScope: ptr.To(false),
 		}},
 	}
 
@@ -1716,6 +2013,30 @@ func TestGetReferencedAnalyses(t *testing.T) {
 	})
 }
 
+// TestNewRolloutContextALBStatusNotAliased ensures newStatus does not alias the ALB status
+// of the rollout it was built from. Traffic routers mutate newStatus.ALB/ALBs in place
+// (e.g. ALB VerifyWeight); if those objects are shared with rollout.Status, the mutation is
+// visible on both sides of the diff in persistRolloutStatus, so target group updates are
+// never patched and the persisted ALB status stays frozen at its initial value
+// (https://github.com/argoproj/argo-rollouts/issues/3673).
+func TestNewRolloutContextALBStatusNotAliased(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Status.ALB = &v1alpha1.ALBStatus{Ingress: "ingress"}
+	r.Status.ALBs = []v1alpha1.ALBStatus{{Ingress: "ingress"}}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	roCtx, err := c.newRolloutContext(r)
+	assert.NoError(t, err)
+
+	roCtx.newStatus.ALB.CanaryTargetGroup.Name = "canary-tg"
+	roCtx.newStatus.ALBs[0].CanaryTargetGroup.Name = "canary-tg"
+	assert.Empty(t, r.Status.ALB.CanaryTargetGroup.Name)
+	assert.Empty(t, r.Status.ALBs[0].CanaryTargetGroup.Name)
+}
+
 func TestGetReferencedClusterAnalysisTemplate(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1723,7 +2044,7 @@ func TestGetReferencedClusterAnalysisTemplate(t *testing.T) {
 	roAnalysisTemplate := &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: "cluster-analysis-template-name",
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		}},
 	}
 	activeSvc := newService("active-service", 80, nil, r)
@@ -1759,7 +2080,7 @@ func TestGetInnerReferencedAnalysisTemplate(t *testing.T) {
 	roAnalysisTemplate := &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
 			TemplateName: "first-cluster-analysis-template-name",
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		}},
 	}
 	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplateWithAnalysisRefs("first-cluster-analysis-template-name", "second-cluster-analysis-template-name", "third-cluster-analysis-template-name"))
@@ -1836,7 +2157,7 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -1947,7 +2268,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -1978,7 +2299,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -2057,7 +2378,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -2176,7 +2497,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -2207,7 +2528,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: extensionsv1beta1.IngressSpec{
-				IngressClassName: pointer.StringPtr("alb"),
+				IngressClassName: ptr.To[string]("alb"),
 				Backend: &extensionsv1beta1.IngressBackend{
 					ServiceName: "active-service",
 					ServicePort: intstr.IntOrString{IntVal: 80},
@@ -2436,42 +2757,21 @@ func TestRolloutStrategyNotSet(t *testing.T) {
 	assert.Contains(t, patchedRollout, `Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'`)
 }
 
-// TestWriteBackToInformer verifies that after a rollout reconciles, the new version of the rollout
-// is written back to the informer
-func TestWriteBackToInformer(t *testing.T) {
+func TestSyncHandlerStaleCacheGuard(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r1 := newCanaryRollout("foo", 10, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Status.StableRS = ""
-	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	r := newCanaryRollout("foo", 10, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r.ResourceVersion = "100"
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
 
-	f.rolloutLister = append(f.rolloutLister, r1)
-	f.objects = append(f.objects, r1)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	roKey := getKey(r, t)
+	c.rolloutVersionTracker.Record(roKey, "200")
 
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
-	f.expectPatchRolloutAction(r1)
-
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
-	roKey := getKey(r1, t)
-	f.runController(roKey, true, false, c, i, k8sI)
-
-	// Verify the informer was updated with the new unstructured object after reconciliation
-	obj, exists, err := c.rolloutsIndexer.GetByKey(roKey)
-	assert.NoError(t, err)
-	assert.True(t, exists)
-
-	// The type returned from c.rolloutsIndexer.GetByKey is not always the same type it switches between
-	// *unstructured.Unstructured and *v1alpha1.Rollout the underlying cause is not fully known. We use the
-	// runtime.DefaultUnstructuredConverter to account for this.
-	unObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	assert.NoError(t, err)
-
-	stableRS, _, _ := unstructured.NestedString(unObj, "status", "stableRS")
-	assert.NotEmpty(t, stableRS)
-	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
+	err := c.syncHandler(context.Background(), roKey)
+	assert.ErrorIs(t, err, controllerutil.StaleCacheError)
 }
 
 func TestRun(t *testing.T) {

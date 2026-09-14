@@ -264,6 +264,9 @@ type Authentication struct {
 	// OAuth2 config
 	// +optional
 	OAuth2 OAuth2Config `json:"oauth2,omitempty" protobuf:"bytes,2,opt,name=oauth2"`
+	// BasicAuth config
+	// +optional
+	BasicAuth BasicAuthConfig `json:"basicAuth,omitempty" protobuf:"bytes,3,opt,name=basicAuth"`
 }
 
 type OAuth2Config struct {
@@ -287,6 +290,13 @@ type Sigv4Config struct {
 	RoleARN string `json:"roleArn,omitempty" protobuf:"bytes,3,opt,name=roleArn"`
 }
 
+type BasicAuthConfig struct {
+	// Username is the username in grafana cloud
+	Username string `json:"username,omitempty" protobuf:"bytes,1,opt,name=username"`
+	// Password is the access policy token
+	Password string `json:"password,omitempty" protobuf:"bytes,2,opt,name=password"`
+}
+
 // WavefrontMetric defines the wavefront query to perform canary analysis
 type WavefrontMetric struct {
 	// Address is the HTTP address and port of the wavefront server
@@ -304,6 +314,11 @@ type NewRelicMetric struct {
 	// Timeout represents the duration limit in seconds that will apply to the NRQL query
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,3,opt,name=timeout"`
+	// AccountID optionally overrides the account-id from the profile secret, allowing a single
+	// credential/profile to query any New Relic account. When empty, the account-id from the
+	// profile secret is used (backward compatible).
+	// +optional
+	AccountID string `json:"accountId,omitempty" protobuf:"bytes,4,opt,name=accountId"`
 }
 
 // JobMetric defines a job to run which acts as a metric
@@ -547,6 +562,8 @@ type KayentaMetric struct {
 	Threshold KayentaThreshold `json:"threshold" protobuf:"bytes,7,opt,name=threshold"`
 
 	Scopes []KayentaScope `json:"scopes" protobuf:"bytes,8,rep,name=scopes"`
+
+	Lookback bool `json:"lookback,omitempty" protobuf:"varint,9,opt,name=lookback"`
 }
 
 type KayentaThreshold struct {
@@ -564,8 +581,8 @@ type ScopeDetail struct {
 	Scope  string `json:"scope" protobuf:"bytes,1,opt,name=scope"`
 	Region string `json:"region" protobuf:"bytes,2,opt,name=region"`
 	Step   int64  `json:"step" protobuf:"varint,3,opt,name=step"`
-	Start  string `json:"start" protobuf:"bytes,4,opt,name=start"`
-	End    string `json:"end" protobuf:"bytes,5,opt,name=end"`
+	Start  string `json:"start,omitempty" protobuf:"bytes,4,opt,name=start"`
+	End    string `json:"end,omitempty" protobuf:"bytes,5,opt,name=end"`
 }
 
 type WebMetric struct {
@@ -630,6 +647,10 @@ type DatadogMetric struct {
 	// Secret refers to the name of the secret that should be used for an analysis and should exists in the namespace where the controller is.
 	// +optional
 	SecretRef SecretRef `json:"secretRef,omitempty" protobuf:"bytes,7,opt,name=secretRef"`
+	// +kubebuilder:default="10s"
+	// RequestTimeout overrides the HTTP client timeout for requests to the Datadog API (e.g. 10s, 30s; default: 10s).
+	// +optional
+	RequestTimeout DurationString `json:"requestTimeout,omitempty" protobuf:"bytes,8,opt,name=requestTimeout,casttype=DurationString"`
 }
 
 type SecretRef struct {

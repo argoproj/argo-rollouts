@@ -18,7 +18,7 @@ kubectl argo rollouts status ROLLOUT_NAME [flags]
 kubectl argo rollouts status guestbook
 
 # Show the rollout status
-kubectl argo rollouts status guestbook --watch false
+kubectl argo rollouts status guestbook --watch=false
 
 # Watch the rollout until it succeeds, fail if it takes more than 60 seconds
 kubectl argo rollouts status --timeout 60s guestbook

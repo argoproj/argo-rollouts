@@ -50,6 +50,8 @@ const (
 	DefaultRolloutPluginFolder = "plugin-bin"
 	// DefaultDescribeTagsLimit is the default number resources (ARNs) in a single call
 	DefaultDescribeTagsLimit int = 20
+	// Kubernetes_DNS_Limit is the maximum length of a DNS name in Kubernetes. Currently used for Analysis Job names
+	Kubernetes_DNS_Limit int = 63
 )
 
 const (
@@ -58,9 +60,10 @@ const (
 	DefaultIstioVersion                 = "v1alpha3"
 	DefaultSMITrafficSplitVersion       = "v1alpha1"
 	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
+	DefaultAlbTagKeyResourceID          = "ingress.k8s.aws/resource"
 	DefaultAppMeshCRDVersion            = "v1beta2"
-	DefaultTraefikAPIGroup              = "traefik.containo.us"
-	DefaultTraefikVersion               = "traefik.containo.us/v1alpha1"
+	DefaultTraefikAPIGroup              = "traefik.io"
+	DefaultTraefikVersion               = "traefik.io/v1alpha1"
 	DefaultApisixAPIGroup               = "apisix.apache.org"
 	DefaultApisixVersion                = "apisix.apache.org/v2"
 )
@@ -73,6 +76,7 @@ var (
 	ambassadorAPIVersion         = DefaultAmbassadorVersion
 	smiAPIVersion                = DefaultSMITrafficSplitVersion
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
+	albTagKeyResourceID          = DefaultAlbTagKeyResourceID
 	appmeshCRDVersion            = DefaultAppMeshCRDVersion
 	defaultMetricCleanupDelay    = DefaultMetricCleanupDelay
 	defaultDescribeTagsLimit     = DefaultDescribeTagsLimit
@@ -233,6 +237,18 @@ func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) (*time.Du
 	return &dur, wasSet
 }
 
+// HasExplicitAbortScaleDownDelay returns whether the user explicitly configured a delayed
+// scale-down on abort. An explicit abortScaleDownDelaySeconds: 0 returns false, since zero
+// disables scale-down entirely rather than delaying it. Under dynamicStableScale this is the
+// mode where the canary is held at full scale on abort until it receives a scale-down
+// deadline (rather than draining progressively), which the abort weight calculation
+// (GetDesiredCanaryWeight) and the scale-down delay logic (shouldDelayScaleDownOnAbort)
+// must agree on.
+func HasExplicitAbortScaleDownDelay(rollout *v1alpha1.Rollout) bool {
+	abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(rollout)
+	return wasSet && abortDelay != nil
+}
+
 func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
 	if rollout.Spec.Strategy.BlueGreen == nil {
 		return DefaultAutoPromotionEnabled
@@ -321,6 +337,14 @@ func SetTraefikAPIGroup(apiGroup string) {
 
 func GetTraefikAPIGroup() string {
 	return traefikAPIGroup
+}
+
+func SetalbTagKeyResourceID(tagKey string) {
+	albTagKeyResourceID = tagKey
+}
+
+func GetalbTagKeyResourceID() string {
+	return albTagKeyResourceID
 }
 
 func SetTargetGroupBindingAPIVersion(apiVersion string) {

@@ -2,7 +2,8 @@ import {RolloutRolloutWatchEvent, RolloutServiceApiFetchParamCreator} from '../.
 import {ListState, useLoading, useWatch, useWatchList} from '../utils/watch';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import * as React from 'react';
-import {NamespaceContext, RolloutAPIContext} from '../context/api';
+import {NamespaceContext, RolloutAPIContext, getApiBasePath} from '../context/api';
+import { notification } from 'antd';
 
 export const useRollouts = (): RolloutInfo[] => {
     const api = React.useContext(RolloutAPIContext);
@@ -11,8 +12,18 @@ export const useRollouts = (): RolloutInfo[] => {
 
     React.useEffect(() => {
         const fetchList = async () => {
-            const list = await api.rolloutServiceListRolloutInfos(namespaceCtx.namespace);
-            setRollouts(list.rollouts || []);
+            try {
+                const list = await api.rolloutServiceListRolloutInfos(namespaceCtx.namespace);
+                setRollouts(list.rollouts || []);
+            } catch (error) {
+                console.error('Error fetching rollouts:', error);
+                notification.error({
+                    message: 'Error fetching rollouts',
+                    description: error.message || 'An unexpected error occurred while fetching rollouts.',
+                    duration: 8,
+                    placement: 'bottomRight',
+                });
+            }
         };
         fetchList();
     }, [api, namespaceCtx]);
@@ -24,7 +35,7 @@ export const useWatchRollouts = (): ListState<RolloutInfo> => {
     const findRollout = React.useCallback((ri: RolloutInfo, change: RolloutRolloutWatchEvent) => ri.objectMeta.name === change.rolloutInfo?.objectMeta?.name, []);
     const getRollout = React.useCallback((c) => c.rolloutInfo as RolloutInfo, []);
     const namespaceCtx = React.useContext(NamespaceContext);
-    const streamUrl = RolloutServiceApiFetchParamCreator().rolloutServiceWatchRolloutInfos(namespaceCtx.namespace).url;
+    const streamUrl = getApiBasePath() + RolloutServiceApiFetchParamCreator().rolloutServiceWatchRolloutInfos(namespaceCtx.namespace).url;
 
     const init = useRollouts();
     const loading = useLoading(init);
@@ -52,7 +63,7 @@ export const useWatchRollout = (name: string, subscribe: boolean, timeoutAfter?:
 
         return JSON.parse(a.objectMeta.resourceVersion) === JSON.parse(b.objectMeta.resourceVersion);
     }, []);
-    const streamUrl = RolloutServiceApiFetchParamCreator().rolloutServiceWatchRolloutInfo(namespaceCtx.namespace, name).url;
+    const streamUrl = getApiBasePath() + RolloutServiceApiFetchParamCreator().rolloutServiceWatchRolloutInfo(namespaceCtx.namespace, name).url;
     const ri = useWatch<RolloutInfo>(streamUrl, subscribe, isEqual, timeoutAfter);
     if (callback && ri.objectMeta) {
         callback(ri);

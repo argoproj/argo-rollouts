@@ -20,7 +20,7 @@ This will create a new namespace, `argo-rollouts`, where Argo Rollouts controlle
 
 
 !!! tip
-    On GKE, you will need grant your account the ability to create new cluster roles:
+    On GKE, you will need to grant your account the ability to create new cluster roles:
 
     ```shell
     kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
@@ -34,7 +34,7 @@ on the same cluster.
   > and have to be installed separately. The CRD manifests are located in [manifests/crds](https://github.com/argoproj/argo-rollouts/blob/master/manifests/crds) directory.
   > Use the following command to install them:
   > ```bash
-  > kubectl apply -k https://github.com/argoproj/argo-rollouts/manifests/crds\?ref\=stable
+  > kubectl apply --server-side -k https://github.com/argoproj/argo-rollouts/manifests/crds\?ref\=stable
   > ```
 
 You can find released container images of the controller at [Quay.io](https://quay.io/repository/argoproj/argo-rollouts?tab=tags). There are also old releases
@@ -49,6 +49,14 @@ command line.
 
 ```shell
 brew install argoproj/tap/kubectl-argo-rollouts
+```
+
+### Using mise
+
+If you are an enthusiast user of [mise](https://github.com/jdx/mise) polyglot tool version manager, you can use a command like this :
+
+```shell
+mise use -g argo-rollouts
 ```
 
 ### Manual

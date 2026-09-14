@@ -2,6 +2,8 @@
 .idea/
 .DS_Store
 dist/
+github.com/
+k8s.io/
 *.iml
 # delve debug binaries
 __debug_bin*
@@ -19,4 +21,5 @@ server/static/*
 !server/static/.gitkeep
 coverage-output-e2e/
 coverage-output-unit/
-junit-unit-test.xml
+junit*
+

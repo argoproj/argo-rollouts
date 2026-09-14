@@ -15,11 +15,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
@@ -56,7 +58,7 @@ func analysisTemplateWithAnalysisRefs(name string, clusterScope bool, innerRefsN
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: clusterScope,
+			ClusterScope: &clusterScope,
 		})
 	}
 	return &v1alpha1.AnalysisTemplate{
@@ -88,7 +90,7 @@ func analysisTemplateWithOnlyRefs(name string, clusterScope bool, innerRefsName 
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: clusterScope,
+			ClusterScope: &clusterScope,
 		})
 	}
 	return &v1alpha1.AnalysisTemplate{
@@ -123,7 +125,7 @@ func clusterAnalysisTemplateWithAnalysisRefs(name string, innerRefsName ...strin
 	for _, innerTplName := range innerRefsName {
 		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
 			TemplateName: innerTplName,
-			ClusterScope: true,
+			ClusterScope: ptr.To(true),
 		})
 	}
 	return &v1alpha1.ClusterAnalysisTemplate{
@@ -211,7 +213,7 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	at := analysisTemplate("bar")
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
@@ -274,7 +276,7 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	at := analysisTemplate("bar")
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
@@ -335,14 +337,14 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	cat := clusterAnalysisTemplate("bar", "clusterexample")
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := clusterAnalysisRun(cat, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}},
 		},
 	}
@@ -393,12 +395,12 @@ func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r := newCanaryRollout("foo", 10, nil, nil, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r := newCanaryRollout("foo", 10, nil, nil, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: "missing",
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}},
 		},
 	}
@@ -434,7 +436,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 	}}
 	at := analysisTemplate("bar")
 	cat := clusterAnalysisTemplate("clusterbar", "clusterexample")
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	ar := &v1alpha1.AnalysisRun{
@@ -452,7 +454,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}, {
 				TemplateName: at.Name,
 			}},
@@ -515,7 +517,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplateAndInnerTempl
 	cat2 := clusterAnalysisTemplate("clusterbar2", "clusterexample-clusterbar2")
 	cat3 := clusterAnalysisTemplate("clusterbar3", "clusterexample-clusterbar3")
 	cat4 := clusterAnalysisTemplate("clusterbar4", "clusterexample-clusterbar4")
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	ar := &v1alpha1.AnalysisRun{
@@ -533,7 +535,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplateAndInnerTempl
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}, {
 				TemplateName: at.Name,
 			}},
@@ -597,7 +599,7 @@ func TestCreateBackgroundAnalysisRunWithTemplatesAndNoMetrics(t *testing.T) {
 	cat2 := clusterAnalysisTemplate("clusterbar2", "clusterexample-clusterbar2")
 	cat3 := clusterAnalysisTemplate("clusterbar3", "clusterexample-clusterbar3")
 	cat4 := clusterAnalysisTemplate("clusterbar4", "clusterexample-clusterbar4")
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	ar := &v1alpha1.AnalysisRun{
@@ -615,7 +617,7 @@ func TestCreateBackgroundAnalysisRunWithTemplatesAndNoMetrics(t *testing.T) {
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: cat.Name,
-				ClusterScope: true,
+				ClusterScope: ptr.To(true),
 			}, {
 				TemplateName: at.Name,
 			}},
@@ -675,7 +677,7 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	at := analysisTemplate("bar")
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
@@ -693,7 +695,7 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	//rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	// rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
@@ -746,7 +748,7 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 	at := analysisTemplate("bar")
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
@@ -814,7 +816,7 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseRunning
@@ -883,7 +885,7 @@ func TestCreateAnalysisRunOnPromotedAnalysisStepIfPreviousStepWasAnalysisToo(t *
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar0Step := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	ar0Step.Status.Phase = v1alpha1.AnalysisPhaseRunning
@@ -893,7 +895,7 @@ func TestCreateAnalysisRunOnPromotedAnalysisStepIfPreviousStepWasAnalysisToo(t *
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	//rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	// rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
@@ -913,11 +915,11 @@ func TestCreateAnalysisRunOnPromotedAnalysisStepIfPreviousStepWasAnalysisToo(t *
 	f.objects = append(f.objects, r2, at, ar0Step)
 
 	patchOldAnalysisIndex := f.expectPatchAnalysisRunAction(ar0Step)
-	//createdIndex := f.expectCreateAnalysisRunAction(ar0Step)
+	// createdIndex := f.expectCreateAnalysisRunAction(ar0Step)
 	index := f.expectPatchRolloutAction(r2)
 
 	// simulate promote action
-	r2.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+	r2.Status.CurrentStepIndex = ptr.To[int32](1)
 
 	f.run(getKey(r2, t))
 
@@ -956,7 +958,7 @@ func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	at.Spec.Metrics = append(at.Spec.Metrics, at.Spec.Metrics[0])
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 
-	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r, at)
 
@@ -985,14 +987,14 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
+		SetWeight: ptr.To[int32](10),
 	}}
 
 	at := analysisTemplate("bad-template")
 	at.Spec.Metrics = append(at.Spec.Metrics, at.Spec.Metrics[0])
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 
-	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{
@@ -1030,7 +1032,7 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 	defer f.Close()
 
 	steps := []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
+		SetWeight: ptr.To[int32](10),
 	}}
 
 	at := analysisTemplate("bad-template")
@@ -1039,7 +1041,7 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 	at2.Spec.Metrics = append(at2.Spec.Metrics, at2.Spec.Metrics[0])
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at, at2)
 
-	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{
@@ -1080,10 +1082,10 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
+		SetWeight: ptr.To[int32](10),
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
@@ -1142,7 +1144,7 @@ func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseRunning
@@ -1191,7 +1193,7 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	olderAr := ar.DeepCopy()
@@ -1259,7 +1261,7 @@ func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	arWithDiffPodHash := ar.DeepCopy()
@@ -1315,10 +1317,10 @@ func TestDeleteAnalysisRunsAfterRSDelete(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	r3 := bumpVersion(r2)
-	r3.Spec.RevisionHistoryLimit = pointer.Int32Ptr(0)
+	r3.Spec.RevisionHistoryLimit = ptr.To[int32](0)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r3)
 
 	rs1 := newReplicaSetWithStatus(r1, 0, 0)
@@ -1372,7 +1374,7 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	ar.Status = v1alpha1.AnalysisRunStatus{
@@ -1418,12 +1420,12 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{
-		{SetWeight: pointer.Int32Ptr(10)},
-		{SetWeight: pointer.Int32Ptr(20)},
-		{SetWeight: pointer.Int32Ptr(30)},
+		{SetWeight: ptr.To[int32](10)},
+		{SetWeight: ptr.To[int32](20)},
+		{SetWeight: ptr.To[int32](30)},
 	}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
@@ -1473,12 +1475,15 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 			}],
 			"controllerPause": true,
 			"phase": "Paused",
-			"message": "%s"
+			"message": "%s",
+			"duration": {
+				"manualPauseStartedAt": "%s"
+			}
 		}
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis, now)), patch)
 }
 
 func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
@@ -1496,7 +1501,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	ar.Status = v1alpha1.AnalysisRunStatus{
@@ -1537,11 +1542,14 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 			}],
 			"controllerPause": true,
 			"phase": "Paused",
-			"message": "%s"
+			"message": "%s",
+			"duration": {
+				"manualPauseStartedAt": "%s"
+			}
 		}
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis, now)), patch)
 }
 
 func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
@@ -1559,7 +1567,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	ar.Status = v1alpha1.AnalysisRunStatus{
@@ -1601,14 +1609,19 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 			"abort": true,
 			"abortedAt": "%s",
 			"phase": "Degraded",
-			"message": "RolloutAborted: %s"
+			"message": "RolloutAborted: %s",
+			"duration": {
+				"completionStatus": "Aborted",
+				"finishedAt": "%s"
+			}
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2) + ": " + ar.Status.Message
+	errmsg := "Step-based analysis phase error/failed: " + ar.Status.Message
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, errmsg, false)
-	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, errmsg)
+	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, fmt.Sprintf(conditions.RolloutAbortedMessage, 2)+": "+errmsg, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
@@ -1617,12 +1630,12 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{
-		{SetWeight: pointer.Int32Ptr(10)},
-		{SetWeight: pointer.Int32Ptr(20)},
-		{SetWeight: pointer.Int32Ptr(40)},
+		{SetWeight: ptr.To[int32](10)},
+		{SetWeight: ptr.To[int32](20)},
+		{SetWeight: ptr.To[int32](40)},
 	}
 
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
@@ -1677,14 +1690,19 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 			"abortedAt": "%s",
 			"abort": true,
 			"phase": "Degraded",
-			"message": "RolloutAborted: %s"
+			"message": "RolloutAborted: %s",
+			"duration": {
+				"completionStatus": "Aborted",
+				"finishedAt": "%s"
+			}
 		}
 	}`
-	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
-	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
+	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2) + ": Background analysis phase error/failed"
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "Background analysis phase error/failed", false)
 
 	now := timeutil.Now().UTC().Format(time.RFC3339)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg, now)), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
@@ -1702,7 +1720,7 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	olderAr := ar.DeepCopy()
@@ -1740,12 +1758,20 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 			"conditions": %s,
 			"abortedAt": "%s",
 			"phase": "Degraded",
-			"message": "RolloutAborted: %s"
+			"canary": {
+				"currentStepAnalysisRunStatus": null
+			},
+			"message": "RolloutAborted: %s",
+			"duration": {
+				"completionStatus": "Aborted",
+				"finishedAt": "%s"
+			}
 		}
 	}`
 	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
 	now := timeutil.Now().UTC().Format(time.RFC3339)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, now, errmsg)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, now, errmsg, now)), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
@@ -1754,10 +1780,10 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{
-		{SetWeight: pointer.Int32Ptr(10)},
+		{SetWeight: ptr.To[int32](10)},
 	}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](1), intstr.FromInt(0), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
@@ -1787,7 +1813,8 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
-	patchIndex := f.expectPatchRolloutAction(r2)
+	f.expectPatchAnalysisRunAction(ar)           // terminate the AR
+	patchIndex := f.expectPatchRolloutAction(r2) // patch status
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
@@ -1800,10 +1827,10 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{
-		{SetWeight: pointer.Int32Ptr(10)},
+		{SetWeight: ptr.To[int32](10)},
 	}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
@@ -1825,6 +1852,7 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
 		StartTime: timeutil.MetaNow(),
 	}}
+	r2.Status.Duration.ManualPauseStartedAt = ptr.To(timeutil.MetaNow())
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
@@ -1856,10 +1884,10 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{
-		{SetWeight: pointer.Int32Ptr(10)},
+		{SetWeight: ptr.To[int32](10)},
 	}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{
@@ -1876,11 +1904,12 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r1, at)
 
-	f.expectCreateReplicaSetAction(rs1)
+	f.expectCreateReplicaSetAction(rs1)   // create replica set
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
+	f.expectGetRolloutAction(r1)          // second reconciliation
 	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
-	f.expectPatchRolloutAction(r1)
-	f.run(getKey(r1, t))
+	f.expectPatchRolloutAction(r1)        // patch status
+	f.runWithSyncs(getKey(r1, t), 2)
 }
 
 // Same as TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout but when Status.StableRS is ""
@@ -1891,10 +1920,10 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{
-		{SetWeight: pointer.Int32Ptr(10)},
+		{SetWeight: ptr.To[int32](10)},
 	}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{
@@ -1911,11 +1940,12 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r1, at)
 
-	f.expectCreateReplicaSetAction(rs1)
+	f.expectCreateReplicaSetAction(rs1)   // create replica set
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
+	f.expectGetRolloutAction(r1)          // second reconciliation
 	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
-	f.expectPatchRolloutAction(r1)
-	f.run(getKey(r1, t))
+	f.expectPatchRolloutAction(r1)        // patch status
+	f.runWithSyncs(getKey(r1, t), 2)
 }
 
 func TestDoNotCreateBackgroundAnalysisRunWhenWithinRollbackWindow(t *testing.T) {
@@ -1924,7 +1954,7 @@ func TestDoNotCreateBackgroundAnalysisRunWhenWithinRollbackWindow(t *testing.T) 
 
 	at := analysisTemplate("bar")
 
-	r1 := newCanaryRollout("foo", 1, nil, nil, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, nil, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.AnalysisTemplateRef{
@@ -1965,7 +1995,7 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
@@ -2064,7 +2094,6 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	}`, newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, cleanPatch(expectedPatch), patch)
-
 }
 
 // TestDoNotCreatePrePromotionAnalysisRunOnNewRollout ensures that a pre-promotion analysis is not created
@@ -2091,11 +2120,12 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 
 	rs := newReplicaSet(r, 1)
 
-	f.expectCreateReplicaSetAction(rs)
-	f.expectUpdateRolloutStatusAction(r)
-	f.expectUpdateReplicaSetAction(rs) // scale RS
-	f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.expectCreateReplicaSetAction(rs)   // create replica set
+	f.expectUpdateRolloutStatusAction(r) // update rollout conditions
+	f.expectGetRolloutAction(r)          // second reconciliation
+	f.expectUpdateReplicaSetAction(rs)   // scale RS
+	f.expectPatchRolloutAction(r)        // patch status
+	f.runWithSyncs(getKey(r, t), 2)
 }
 
 // TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
@@ -2105,7 +2135,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 2, nil, "active", "preview")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
@@ -2147,7 +2177,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
@@ -2217,7 +2247,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(true)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](true)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
@@ -2258,6 +2288,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
@@ -2269,10 +2300,15 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 			"controllerPause": null,
 			"selector":"foo=bar,rollouts-pod-template-hash=%s",
 			"phase": "Healthy",
-			"message": null
+			"message": null,
+			"duration": {
+				"completionStatus": "Promoted",
+				"finishedAt": "%s"
+			}
 		}
-	}`, rs2PodHash, rs2PodHash, rs2PodHash)
+	}`, rs2PodHash, rs2PodHash, rs2PodHash, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
@@ -2281,7 +2317,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(true)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](true)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.AutoPromotionSeconds = 10
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
@@ -2302,8 +2338,8 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
-	now := metav1.NewTime(timeutil.MetaNow().Add(-10 * time.Second))
-	r2.Status.PauseConditions[0].StartTime = now
+	before := metav1.NewTime(timeutil.MetaNow().Add(-10 * time.Second))
+	r2.Status.PauseConditions[0].StartTime = before
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
@@ -2325,6 +2361,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
@@ -2335,10 +2372,15 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 			"controllerPause": null,
 			"selector":"foo=bar,rollouts-pod-template-hash=%s",
 			"phase": "Healthy",
-			"message": null
+			"message": null,
+			"duration": {
+				"completionStatus": "Promoted",
+				"finishedAt": "%s"
+			}
 		}
-	}`, rs2PodHash, rs2PodHash, rs2PodHash)
+	}`, rs2PodHash, rs2PodHash, rs2PodHash, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T) {
@@ -2347,7 +2389,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 
 	at := analysisTemplate("bar")
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
@@ -2401,7 +2443,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.AnalysisTemplateRef{{
@@ -2457,13 +2499,20 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 				}
 			},
 			"phase": "Degraded",
-			"message": "%s: %s"
+			"message": "%s: %s",
+			"duration": {
+				"completionStatus": "Aborted",
+				"finishedAt": "%s",
+				"manualPauseStartedAt": null,
+				"totalManualPauseDurationSeconds": 5
+			}
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
+	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "Blue/green pre-promotion analysis phase error/failed")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message, now)), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestCreatePostPromotionAnalysisRun(t *testing.T) {
@@ -2504,7 +2553,7 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 		"status": {
 			"blueGreen": {
 				"postPromotionAnalysisRunStatus":{
-					"name": "%s", 
+					"name": "%s",
 					"status": ""
 				}
 			}
@@ -2556,6 +2605,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"replicas":2,
@@ -2564,10 +2614,15 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 				"postPromotionAnalysisRunStatus":{"status":"Successful"}
 			},
 			"phase": "Healthy",
-			"message": null
+			"message": null,
+			"duration": {
+				"completionStatus": "Promoted",
+				"finishedAt": "%s"
+			}
 		}
-	}`, rs2PodHash)
+	}`, rs2PodHash, now)
 	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 // TestPostPromotionAnalysisRunHandleInconclusive ensures that the Rollout does not scale down a old ReplicaSet if
@@ -2623,16 +2678,20 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	expectedPatch := fmt.Sprint(`{
+	expectedPatch := `{
 		"status": {
 			"blueGreen": {
 				"postPromotionAnalysisRunStatus": {"status":"Inconclusive"}
 			},
 			"phase": "Paused",
-			"message": "InconclusiveAnalysisRun"
+			"message": "InconclusiveAnalysisRun",
+			"duration": {
+				"manualPauseStartedAt": "%s"
+			}
 		}
-	}`)
-	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+	}`
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now)), patch)
 }
 
 func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
@@ -2696,13 +2755,18 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 				}
 			},
 			"phase": "Degraded",
-			"message": "%s: %s"
+			"message": "%s: %s",
+			"duration": {
+				"completionStatus": "Aborted",
+				"finishedAt": "%s"
+			}
 		}
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
-	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
+	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "Blue/green post-promotion analysis phase error/failed")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
-	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message, now)), patch)
+	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
 }
 
 func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testing.T) {
@@ -2713,7 +2777,7 @@ func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testin
 		SetWeight: int32Ptr(10),
 	}}
 	at := analysisTemplate("bar")
-	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.ObjectMeta.Labels = make(map[string]string)
 	r1.Spec.Selector.MatchLabels["my-label"] = "1234"
 	r2 := bumpVersion(r1)
@@ -2725,7 +2789,7 @@ func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testin
 					TemplateName: at.Name,
 				},
 			},
-			AnalysisRunMetadata: v1alpha1.AnalysisRunMetadata{
+			AnalysisRunMetadata: &v1alpha1.AnalysisRunMetadata{
 				Annotations: map[string]string{"testAnnotationKey": "testAnnotationValue"},
 				Labels:      map[string]string{"testLabelKey": "testLabelValue"},
 			},
@@ -2765,10 +2829,10 @@ func TestCancelBackgroundAnalysisRunWhenRolloutAnalysisHasNoTemplate(t *testing.
 
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{
-		{SetWeight: pointer.Int32Ptr(10)},
+		{SetWeight: ptr.To[int32](10)},
 	}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](1), intstr.FromInt(0), intstr.FromInt(1))
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 1, 1, 1, false)
@@ -2801,6 +2865,124 @@ func TestCancelBackgroundAnalysisRunWhenRolloutAnalysisHasNoTemplate(t *testing.
 	assert.Contains(t, patch, `"currentBackgroundAnalysisRunStatus":null`)
 }
 
+// TestDoNotCreatePrePromotionAnalysisRunWithEmptyTemplates verifies that when PrePromotionAnalysis
+// is specified but has no templates (e.g., after a declarative deletion with server-side apply),
+// the controller does not attempt to create an AnalysisRun and the rollout proceeds normally.
+func TestDoNotCreatePrePromotionAnalysisRunWithEmptyTemplates(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To[bool](false)
+	r2 := bumpVersion(r1)
+	// PrePromotionAnalysis is set but has no templates - simulates field ownership scenario
+	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
+		AnalysisRunMetadata: &v1alpha1.AnalysisRunMetadata{},
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
+
+	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	previewSvc := newService("preview", 80, previewSelector, r2)
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	activeSvc := newService("active", 80, activeSelector, r2)
+
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+	// Should not create an AnalysisRun since templates are empty
+	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+
+	// Verify no prePromotionAnalysisRunStatus was set (analysis was skipped)
+	assert.NotContains(t, patch, "prePromotionAnalysisRunStatus")
+}
+
+// TestDoNotCreatePostPromotionAnalysisRunWithEmptyTemplates verifies that when PostPromotionAnalysis
+// is specified but has no templates, the controller does not attempt to create an AnalysisRun.
+func TestDoNotCreatePostPromotionAnalysisRunWithEmptyTemplates(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
+	r2 := bumpVersion(r1)
+	// PostPromotionAnalysis is set but has no templates - simulates field ownership scenario
+	r2.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
+		AnalysisRunMetadata: &v1alpha1.AnalysisRunMetadata{},
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	// Active service has been promoted to new RS (rs2), but stableRS is still old (rs1)
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true, true)
+
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	activeSvc := newService("active", 80, activeSelector, r2)
+
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc)
+
+	// Should not create an AnalysisRun since templates are empty
+	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+
+	// Verify no postPromotionAnalysisRunStatus was set (analysis was skipped)
+	assert.NotContains(t, patch, "postPromotionAnalysisRunStatus")
+}
+
+// TestDoNotCreateStepAnalysisRunWithEmptyTemplates verifies that when a canary step has
+// analysis specified but with no templates, the controller does not attempt to create an AnalysisRun.
+func TestDoNotCreateStepAnalysisRunWithEmptyTemplates(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: ptr.To[int32](10),
+		},
+		{
+			// Analysis is set but has no templates
+			Analysis: &v1alpha1.RolloutAnalysis{
+				AnalysisRunMetadata: &v1alpha1.AnalysisRunMetadata{},
+			},
+		},
+	}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](1), intstr.FromInt(0), intstr.FromInt(1))
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 1, 1, 1, false)
+
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.objects = append(f.objects, r1)
+
+	// Should not create an AnalysisRun since templates are empty
+	patchIndex := f.expectPatchRolloutAction(r1)
+	f.run(getKey(r1, t))
+	patch := f.getPatchedRollout(patchIndex)
+
+	// Verify no currentStepAnalysisRunStatus was set (analysis was skipped)
+	assert.NotContains(t, patch, "currentStepAnalysisRunStatus")
+}
+
 func concatMultipleSlices[T any](slices [][]T) []T {
 	var totalLen int
 
@@ -2817,4 +2999,228 @@ func concatMultipleSlices[T any](slices [][]T) []T {
 	}
 
 	return result
+}
+
+// TestSkipPrePromotionAnalysisRun tests the skipPrePromotionAnalysisRun function
+func TestSkipPrePromotionAnalysisRun(t *testing.T) {
+	t.Run("should skip when StableRS equals currentPodHash", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.StableRS = podHash
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when StableRS equals currentPodHash")
+	})
+
+	t.Run("should skip when activeSelector is empty", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		rollout.Status.BlueGreen.ActiveSelector = ""
+		rollout.Status.StableRS = "different-hash"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when activeSelector is empty")
+	})
+
+	t.Run("should skip when activeSelector equals currentPodHash", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+		rollout.Status.StableRS = "different-hash"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when activeSelector equals currentPodHash")
+	})
+
+	t.Run("should skip when currentPodHash is empty", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		newRS.Labels = nil // Remove labels to make podHash empty
+		rollout.Status.BlueGreen.ActiveSelector = "some-hash"
+		rollout.Status.StableRS = "different-hash"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when currentPodHash is empty")
+	})
+
+	t.Run("should not skip when currentAr is not nil", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 1) // Unsaturated
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+		currentAr := &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-ar",
+			},
+		}
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, currentAr)
+		assert.False(t, result, "Should not skip when currentAr is not nil, even if ReplicaSet is unsaturated")
+	})
+
+	t.Run("should skip when currentAr is nil and ReplicaSet is not saturated", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 1) // Unsaturated: 2 desired, 1 available
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+		// Set up annotations for IsSaturated check
+		if newRS.Annotations == nil {
+			newRS.Annotations = make(map[string]string)
+		}
+		newRS.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when currentAr is nil and ReplicaSet is not saturated")
+	})
+
+	t.Run("should not skip when currentAr is nil and ReplicaSet is saturated", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2) // Saturated: 2 desired, 2 available
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+		// Set up annotations for IsSaturated check
+		if newRS.Annotations == nil {
+			newRS.Annotations = make(map[string]string)
+		}
+		newRS.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.False(t, result, "Should not skip when currentAr is nil and ReplicaSet is saturated")
+	})
+
+	t.Run("should handle PreviewReplicaCount when currentAr is nil", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		previewCount := int32(3)
+		rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount = &previewCount
+		newRS := newReplicaSetWithStatus(rollout, 3, 3) // Matches preview count
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, nil)
+		assert.False(t, result, "Should not skip when PreviewReplicaCount matches and ReplicaSet is saturated")
+
+		// Test with unsaturated ReplicaSet
+		newRS2 := newReplicaSetWithStatus(rollout, 3, 2) // Doesn't match preview count
+		result2 := skipPrePromotionAnalysisRun(rollout, newRS2, nil)
+		assert.True(t, result2, "Should skip when PreviewReplicaCount doesn't match")
+	})
+
+	t.Run("should not skip when currentAr is not nil even with PreviewReplicaCount mismatch", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "preview")
+		previewCount := int32(3)
+		rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount = &previewCount
+		newRS := newReplicaSetWithStatus(rollout, 3, 2) // Doesn't match preview count
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+		currentAr := &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-ar",
+			},
+		}
+
+		result := skipPrePromotionAnalysisRun(rollout, newRS, currentAr)
+		assert.False(t, result, "Should not skip when currentAr is not nil, even with PreviewReplicaCount mismatch")
+	})
+}
+
+// TestSkipPostPromotionAnalysisRun tests the skipPostPromotionAnalysisRun function
+func TestSkipPostPromotionAnalysisRun(t *testing.T) {
+	t.Run("should skip when StableRS equals currentPodHash", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.StableRS = podHash
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when StableRS equals currentPodHash")
+	})
+
+	t.Run("should skip when activeSelector does not equal currentPodHash", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		rollout.Status.BlueGreen.ActiveSelector = "different-hash"
+		rollout.Status.StableRS = "different-hash"
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when activeSelector does not equal currentPodHash")
+	})
+
+	t.Run("should skip when currentPodHash is empty", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2)
+		newRS.Labels = nil // Remove labels to make podHash empty
+		rollout.Status.BlueGreen.ActiveSelector = "some-hash"
+		rollout.Status.StableRS = "some-hash"
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when currentPodHash is empty")
+	})
+
+	t.Run("should not skip when currentAr is not nil", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 1) // Unsaturated
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+		rollout.Status.StableRS = "different-hash"
+		currentAr := &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-ar",
+			},
+		}
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, currentAr)
+		assert.False(t, result, "Should not skip when currentAr is not nil, even if ReplicaSet is unsaturated")
+	})
+
+	t.Run("should skip when currentAr is nil and ReplicaSet is not saturated", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 1) // Unsaturated: 2 desired, 1 available
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+		rollout.Status.StableRS = "different-hash"
+		// Set up annotations for IsSaturated check
+		if newRS.Annotations == nil {
+			newRS.Annotations = make(map[string]string)
+		}
+		newRS.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, nil)
+		assert.True(t, result, "Should skip when currentAr is nil and ReplicaSet is not saturated")
+	})
+
+	t.Run("should not skip when currentAr is nil and ReplicaSet is saturated", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 2) // Saturated: 2 desired, 2 available
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+		rollout.Status.StableRS = "different-hash"
+		// Set up annotations for IsSaturated check
+		if newRS.Annotations == nil {
+			newRS.Annotations = make(map[string]string)
+		}
+		newRS.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, nil)
+		assert.False(t, result, "Should not skip when currentAr is nil and ReplicaSet is saturated")
+	})
+
+	t.Run("should not skip when currentAr is not nil even if ReplicaSet becomes unsaturated", func(t *testing.T) {
+		rollout := newBlueGreenRollout("test", 2, nil, "active", "")
+		newRS := newReplicaSetWithStatus(rollout, 2, 1) // Unsaturated
+		podHash := replicasetutil.GetPodTemplateHash(newRS)
+		rollout.Status.BlueGreen.ActiveSelector = podHash
+		rollout.Status.StableRS = "different-hash"
+		currentAr := &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-ar",
+			},
+		}
+
+		result := skipPostPromotionAnalysisRun(rollout, newRS, currentAr)
+		assert.False(t, result, "Should not skip when currentAr is not nil, even if ReplicaSet becomes unsaturated")
+	})
 }

@@ -39,6 +39,7 @@ const (
 	promoteFullPatch                            = `{"status":{"promoteFull":true}}`
 	clearPauseConditionsPatchWithStep           = `{"status":{"pauseConditions":null, "currentStepIndex":%d}}`
 	unpauseAndClearPauseConditionsPatchWithStep = `{"spec":{"paused":false},"status":{"pauseConditions":null, "currentStepIndex":%d}}`
+	unpauseAndPromoteFullPatch                  = `{"spec":{"paused":false},"status":{"promoteFull":true}}`
 
 	useBothSkipFlagsError         = "Cannot use skip-current-step and skip-all-steps flags at the same time"
 	skipFlagsWithBlueGreenError   = "Cannot skip steps of a bluegreen rollout. Run without a flags"
@@ -157,9 +158,13 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 		statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, len(rollout.Spec.Strategy.Canary.Steps)))
 		unifiedPatch = statusPatch
 	case full:
+		if rollout.Spec.Paused {
+			specPatch = []byte(unpausePatch)
+		}
 		if rollout.Status.CurrentPodHash != rollout.Status.StableRS {
 			statusPatch = []byte(promoteFullPatch)
 		}
+		unifiedPatch = []byte(unpauseAndPromoteFullPatch)
 	default:
 		unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
 		if rollout.Spec.Paused {

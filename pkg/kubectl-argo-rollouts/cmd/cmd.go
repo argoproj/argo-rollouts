@@ -41,7 +41,7 @@ const (
   %[1]s abort guestbook
 
   # Retry the guestbook rollout
-  %[1]s retry guestbook`
+  %[1]s retry rollout guestbook`
 )
 
 // NewCmdArgoRollouts returns new instance of rollouts command.

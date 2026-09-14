@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -37,7 +37,7 @@ func generateRollout(image string) v1alpha1.Rollout {
 			Annotations: make(map[string]string),
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: ptr.To[int32](1),
 			Selector: &metav1.LabelSelector{MatchLabels: podLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -693,12 +693,12 @@ func TestResetCurrentStepIndex(t *testing.T) {
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		Steps: []v1alpha1.CanaryStep{
 			{
-				SetWeight: pointer.Int32Ptr(1),
+				SetWeight: ptr.To[int32](1),
 			},
 		},
 	}
 	newStepIndex := ResetCurrentStepIndex(&ro)
-	assert.Equal(t, pointer.Int32Ptr(0), newStepIndex)
+	assert.Equal(t, ptr.To[int32](0), newStepIndex)
 
 	ro.Spec.Strategy.Canary.Steps = nil
 	newStepIndex = ResetCurrentStepIndex(&ro)
@@ -1039,6 +1039,24 @@ func TestIfInjectedAntiAffinityRuleNeedsUpdate(t *testing.T) {
 		}}
 
 	assert.True(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinity, ro))
+
+	// A pod affinity term keyed by the rollout unique label but with no Values
+	// (e.g. Operator: Exists) must not cause an index-out-of-range panic and
+	// should be treated as not needing an update.
+	rsAffinityExists := &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{{
+						Key:      v1alpha1.DefaultRolloutUniqueLabelKey,
+						Operator: metav1.LabelSelectorOperator("Exists"),
+					}},
+				},
+			}},
+		},
+	}
+
+	assert.False(t, IfInjectedAntiAffinityRuleNeedsUpdate(rsAffinityExists, ro))
 }
 
 func TestNeedsRestart(t *testing.T) {
@@ -1247,7 +1265,7 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     0,
@@ -1259,7 +1277,7 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     1,
@@ -1271,7 +1289,7 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: ptr.To[int32](1),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     2,
@@ -1283,7 +1301,7 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(0),
+				Replicas: ptr.To[int32](0),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     0,
@@ -1296,7 +1314,7 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(0),
+				Replicas: ptr.To[int32](0),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     1,
@@ -1311,7 +1329,7 @@ func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
 	t.Run("No Availability", func(t *testing.T) {
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(2),
+				Replicas: ptr.To[int32](2),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     0,
@@ -1323,7 +1341,7 @@ func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
 	t.Run("Partial Availability", func(t *testing.T) {
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(2),
+				Replicas: ptr.To[int32](2),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     2,
@@ -1335,7 +1353,7 @@ func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
 	t.Run("Full Availability", func(t *testing.T) {
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(2),
+				Replicas: ptr.To[int32](2),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     2,

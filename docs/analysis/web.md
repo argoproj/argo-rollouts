@@ -1,10 +1,11 @@
 # Web Metrics
 
 An HTTP request can be performed against some external service to obtain the measurement. This example
-makes an HTTP GET request to some URL. The webhook response must return JSON content. The result of
-the optional `jsonPath` expression will be assigned to the `result` variable that can be referenced
-in the `successCondition` and `failureCondition` expressions. If omitted, will use the entire body
-of the as the result variable.
+makes an HTTP GET request to some URL. The webhook response is typically JSON, but plain-text responses
+are also supported (see [Plain text responses](#plain-text-responses) below). When the response body is
+valid JSON, the result of the optional `jsonPath` expression will be assigned to the `result` variable
+that can be referenced in the `successCondition` and `failureCondition` expressions. If `jsonPath` is
+omitted, the entire response body is used as the `result` variable.
 
 ```yaml
   metrics:
@@ -48,6 +49,26 @@ was greater than `0.90`
 NOTE: if the result is a string, two convenience functions `asInt` and `asFloat` are provided
 to convert a result value to a numeric type so that mathematical comparison operators can be used
 (e.g. >, <, >=, <=).
+
+## Plain text responses
+
+If the webhook returns a plain-text body (not JSON), omit `jsonPath`. The raw response body string
+is assigned to `result` and `successCondition` / `failureCondition` are evaluated against it.
+
+For example, if the webhook returns the plain-text body `I am OK`, the following AnalysisTemplate
+marks the measurement as Successful:
+
+```yaml
+  metrics:
+  - name: health-check
+    successCondition: result == "I am OK"
+    provider:
+      web:
+        url: "http://my-server.com/health"
+```
+
+Similarly, an empty response body assigns an empty string to `result`, so conditions such as
+`result == ""` are evaluated accordingly.
 
 ## Optional web methods
 It is possible to use a POST or PUT requests, by specifying the `method` and either `body` or `jsonBody` fields

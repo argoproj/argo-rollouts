@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-rollouts/controller"
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	jobprovider "github.com/argoproj/argo-rollouts/metricproviders/job"
+	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
@@ -70,6 +71,9 @@ func newCommand() *cobra.Command {
 		serviceThreads                 int
 		ingressThreads                 int
 		ephemeralMetadataThreads       int
+		ephemeralMetadataPodRetries    int
+		targetGroupBindingVersion      string
+		albTagKeyResourceID            string
 		istioVersion                   string
 		trafficSplitVersion            string
 		traefikAPIGroup                string
@@ -103,12 +107,13 @@ func newCommand() *cobra.Command {
 			}
 			logutil.SetKLogLogger(logger)
 			logutil.SetKLogLevel(klogLevel)
-			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 
 			// set up signals so we handle the first shutdown signal gracefully
 			ctx := signals.SetupSignalHandlerContext()
 
 			defaults.SetVerifyTargetGroup(awsVerifyTargetGroup)
+			defaults.SetTargetGroupBindingAPIVersion(targetGroupBindingVersion)
+			defaults.SetalbTagKeyResourceID(albTagKeyResourceID)
 			defaults.SetIstioAPIVersion(istioVersion)
 			defaults.SetAmbassadorAPIVersion(ambassadorVersion)
 			defaults.SetSMIAPIVersion(trafficSplitVersion)
@@ -125,8 +130,14 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 			if namespaced {
 				namespace = configNS
-				log.Infof("Using namespace %s", namespace)
 			}
+			log.WithFields(log.Fields{
+				"version":     version.GetVersion(),
+				"namespace":   namespace,
+				"instanceID":  instanceID,
+				"metricsPort": metricsPort,
+				"healthzPort": healthzPort,
+			}).Info("Argo Rollouts controller starting")
 
 			k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
 			kubeclientmetrics.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
@@ -146,6 +157,16 @@ func newCommand() *cobra.Command {
 				kubeClient,
 				resyncDuration,
 				kubeinformers.WithNamespace(namespace))
+			// replicaSetInformerFactory uses a label selector to limit the ReplicaSets cached to only
+			// those managed by Rollouts. This reduces memory usage significantly on clusters with large
+			// numbers of ReplicaSets from Deployments or other controllers.
+			replicaSetInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+				kubeClient,
+				resyncDuration,
+				kubeinformers.WithNamespace(namespace),
+				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
+					options.LabelSelector = v1alpha1.DefaultRolloutUniqueLabelKey
+				}))
 			instanceIDSelector := controllerutil.InstanceIDRequirement(instanceID)
 			instanceIDTweakListFunc := func(options *metav1.ListOptions) {
 				options.LabelSelector = instanceIDSelector.String()
@@ -228,6 +249,7 @@ func newCommand() *cobra.Command {
 					kubeClient,
 					argoprojClient,
 					jobInformerFactory.Batch().V1().Jobs(),
+					jobInformerFactory.Core().V1().Pods(),
 					tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
 					tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
 					tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
@@ -248,10 +270,11 @@ func newCommand() *cobra.Command {
 					dynamicClient,
 					smiClient,
 					discoveryClient,
-					kubeInformerFactory.Apps().V1().ReplicaSets(),
+					replicaSetInformerFactory.Apps().V1().ReplicaSets(),
 					kubeInformerFactory.Core().V1().Services(),
 					ingressWrapper,
 					jobInformerFactory.Batch().V1().Jobs(),
+					jobInformerFactory.Core().V1().Pods(),
 					tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory),
 					tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory),
 					tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
@@ -274,8 +297,11 @@ func newCommand() *cobra.Command {
 					istioDynamicInformerFactory,
 					namespaced,
 					kubeInformerFactory,
+					replicaSetInformerFactory,
 					jobInformerFactory,
-					ephemeralMetadataThreads)
+					ephemeralMetadataThreads,
+					ephemeralMetadataPodRetries,
+					selfServiceNotificationEnabled)
 			}
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
@@ -293,7 +319,9 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&logFormat, "logformat", "", "Set the logging format. One of: text|json")
 	command.Flags().IntVar(&klogLevel, "kloglevel", 0, "Set the klog logging level")
-	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
+	command.Flags().IntVar(&metricsPort, "metricsPort", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
+	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over (deprecated, use --metricsPort)")
+	command.Flags().MarkDeprecated("metricsport", "use --metricsPort instead")
 	command.Flags().IntVar(&healthzPort, "healthzPort", controller.DefaultHealthzPort, "Set the port the healthz endpoint should be exposed over")
 	command.Flags().StringVar(&instanceID, "instance-id", "", "Indicates which argo rollout objects the controller should operate on")
 	command.Flags().Float32Var(&qps, "qps", defaults.DefaultQPS, "Maximum QPS (queries per second) to the K8s API server")
@@ -304,11 +332,14 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
 	command.Flags().IntVar(&ephemeralMetadataThreads, "ephemeral-metadata-threads", rollout.DefaultEphemeralMetadataThreads, "Set the number of worker threads for the Ephemeral Metadata reconciler")
+	command.Flags().IntVar(&ephemeralMetadataPodRetries, "ephemeral-metadata-update-pod-retries", rollout.DefaultEphemeralMetadataPodRetries, "Set the number of retries to update pod Ephemeral Metadata")
+	command.Flags().StringVar(&targetGroupBindingVersion, "aws-target-group-binding-api-version", defaults.DefaultTargetGroupBindingAPIVersion, "Set the default AWS TargetGroupBinding apiVersion that controller uses when verifying target group weights.")
+	command.Flags().StringVar(&albTagKeyResourceID, "alb-tag-key-resource-id", defaults.DefaultAlbTagKeyResourceID, "Set the default AWS LoadBalancer tag key for resource ID that controller uses when verifying target group weights.")
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	command.Flags().StringVar(&ambassadorVersion, "ambassador-api-version", defaults.DefaultAmbassadorVersion, "Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings.")
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
-	command.Flags().StringVar(&traefikAPIGroup, "traefik-api-group", defaults.DefaultTraefikAPIGroup, "Set the default Traerfik apiGroup that controller uses.")
-	command.Flags().StringVar(&traefikVersion, "traefik-api-version", defaults.DefaultTraefikVersion, "Set the default Traerfik apiVersion that controller uses.")
+	command.Flags().StringVar(&traefikAPIGroup, "traefik-api-group", defaults.DefaultTraefikAPIGroup, "Set the default Traefik apiGroup that controller uses.")
+	command.Flags().StringVar(&traefikVersion, "traefik-api-version", defaults.DefaultTraefikVersion, "Set the default Traefik apiVersion that controller uses.")
 	command.Flags().StringVar(&ingressVersion, "ingress-api-version", "", "Set the Ingress apiVersion that the controller should use.")
 	command.Flags().StringVar(&appmeshCRDVersion, "appmesh-crd-version", defaults.DefaultAppMeshCRDVersion, "Set the default AppMesh CRD Version that controller uses when manipulating resources.")
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")

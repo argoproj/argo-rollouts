@@ -21,15 +21,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
-// AWSLoadBalancerV2TagKeyResourceID is the tag applied to an AWS resource by the AWS Load Balancer
-// controller, to associate it to the corresponding kubernetes resource. This is used by the rollout
-// controller to identify the correct TargetGroups associated with the LoadBalancer. For AWS
-// target group service references, the format is: <namespace>/<ingress-name>-<service-name>:<port>
-// Example: ingress.k8s.aws/resource: default/alb-rollout-ingress-alb-rollout-stable:80
-// See: https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/guide/ingress/annotations/#resource-tags
-// https://github.com/kubernetes-sigs/aws-load-balancer-controller/blob/da8951f80521651e0a1ffe1361c011d6baad7706/pkg/deploy/tracking/provider.go#L19
-const AWSLoadBalancerV2TagKeyResourceID = "ingress.k8s.aws/resource"
-
 // TargetType is the targetType of your ELBV2 TargetGroup.
 //
 // * with `instance` TargetType, nodes with nodePort for your service will be registered as targets

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -26,6 +27,7 @@ import (
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 const Http = "http"
@@ -35,12 +37,11 @@ const Type = "Istio"
 
 const SpecHttpNotFound = "spec.http not found"
 
-// NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
+// NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state.
 func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister, replicaSets []*appsv1.ReplicaSet) *Reconciler {
 	return &Reconciler{
-		rollout: r,
-		log:     logutil.WithRollout(r),
-
+		rollout:               r,
+		log:                   logutil.WithRollout(r),
 		client:                client,
 		recorder:              recorder,
 		virtualServiceLister:  virtualServiceLister,
@@ -72,10 +73,11 @@ type virtualServicePatch struct {
 type virtualServicePatches []virtualServicePatch
 
 type svcSubsets struct {
-	canarySvc    string
-	stableSvc    string
-	canarySubset string
-	stableSubset string
+	canarySvc             string
+	stableSvc             string
+	canarySubset          string
+	stableSubset          string
+	additionalSubsetNames []string
 }
 
 const (
@@ -83,6 +85,27 @@ const (
 )
 
 func (patches virtualServicePatches) patchVirtualService(httpRoutes []any, tlsRoutes []any, tcpRoutes []any) error {
+	// Apply patches in an order that keeps destination indices valid. All
+	// non-delete patches (in-place weight updates and appends) are applied
+	// first so they operate on the original indices, then deletions are
+	// applied in descending index order so removing one destination does not
+	// shift the indices of the remaining deletions. Without this ordering,
+	// deleting a lower index first shrinks the slice and makes a later
+	// deletion's index either point at the wrong destination or fall out of
+	// range, which caused leftover experiment destinations in the
+	// VirtualService when an experiment completed.
+	slices.SortStableFunc(patches, func(a, b virtualServicePatch) int {
+		if a.toDelete != b.toDelete {
+			if a.toDelete {
+				return 1
+			}
+			return -1
+		}
+		if a.toDelete {
+			return b.destinationIndex - a.destinationIndex
+		}
+		return 0
+	})
 	for _, patch := range patches {
 		var route map[string]any
 		err := false
@@ -134,9 +157,11 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout, false)
 	canarySubset := ""
 	stableSubset := ""
+	var additionalSubsetNames []string
 	if r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule != nil {
 		canarySubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.CanarySubsetName
 		stableSubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.StableSubsetName
+		additionalSubsetNames = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.AdditionalSubsetNames
 	}
 
 	// Go through all the routes on the Istio Virtual Service looking for routes that are Istio mirror routes as well as on the
@@ -161,10 +186,11 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 
 	patches := virtualServicePatches{}
 	svcSubsets := svcSubsets{
-		canarySvc:    canarySvc,
-		stableSvc:    stableSvc,
-		canarySubset: canarySubset,
-		stableSubset: stableSubset,
+		canarySvc:             canarySvc,
+		stableSvc:             stableSvc,
+		canarySubset:          canarySubset,
+		stableSubset:          stableSubset,
+		additionalSubsetNames: additionalSubsetNames,
 	}
 	// Process HTTP Routes
 	for _, routeIdx := range httpRouteIndexesToPatch {
@@ -190,13 +216,36 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 	return patches
 }
 
+func isAnAdditionalSubsetName(subset string, additionalSubsetNames []string) bool {
+	return subset != "" && additionalSubsetNames != nil && slices.Contains(additionalSubsetNames, subset)
+}
+
 func processRoutes(routeType string, routeIdx int, destinations []VirtualServiceRouteDestination, desiredWeight int64, svcSubsets svcSubsets, patches virtualServicePatches, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
 	svcToDest := map[string]v1alpha1.WeightDestination{}
 	stableWeight := 100 - desiredWeight
+
+	// handle additional destinations weight distribution
 	for _, dest := range additionalDestinations {
 		svcToDest[dest.ServiceName] = dest
 		stableWeight -= int64(dest.Weight)
 	}
+
+	// update stable weights when taking into account additional subset DestinationRule weights
+	if svcSubsets.additionalSubsetNames != nil {
+		log.Debugf("Additional subset names encountered within rollout spec")
+		for _, destination := range destinations {
+			subset := destination.Destination.Subset
+			if isAnAdditionalSubsetName(subset, svcSubsets.additionalSubsetNames) {
+				stableWeight -= destination.Weight
+			}
+		}
+	}
+
+	// In case of a negative stableWeight, set to 0. Istio does not allow negative weights
+	if stableWeight < 0 {
+		stableWeight = 0
+	}
+
 	for idx, destination := range destinations {
 		host := getHost(destination)
 		subset := destination.Destination.Subset
@@ -209,14 +258,24 @@ func processRoutes(routeType string, routeIdx int, destinations []VirtualService
 			} else if dest, ok := svcToDest[host]; ok { // Patch weight for existing experiment services
 				patches = appendPatch(routeIdx, routeType, weight, int64(dest.Weight), idx, host, false, patches)
 				delete(svcToDest, host)
+			} else if isAnAdditionalSubsetName(subset, svcSubsets.additionalSubsetNames) { // Keep weight for additional subset DestinationRules unchanged
+				patches = appendPatch(routeIdx, routeType, weight, weight, idx, host, false, patches)
 			} else {
 				patches = appendPatch(routeIdx, routeType, weight, 0, idx, host, true, patches)
 			}
 		}
 	}
-	// Add new destinations for experiment services which don't exist yet
+	// Add new destinations for experiment services which don't exist yet.
+	// Iterate the services in a deterministic (sorted) order so the resulting
+	// destination ordering does not depend on Go's randomized map iteration.
 	idx := len(destinations)
-	for _, dest := range svcToDest {
+	newHosts := make([]string, 0, len(svcToDest))
+	for host := range svcToDest {
+		newHosts = append(newHosts, host)
+	}
+	slices.Sort(newHosts)
+	for _, host := range newHosts {
+		dest := svcToDest[host]
 		patches = appendPatch(routeIdx, routeType, 0, int64(dest.Weight), idx, dest.ServiceName, false, patches)
 		idx += 1
 	}
@@ -320,16 +379,36 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 	return newObj, len(patches) > 0, err
 }
 
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
-	// We need to check if the replicasets are ready here as well if we didn't define any services in the rollout
-	// See: https://github.com/argoproj/argo-rollouts/issues/2507
-	if r.rollout.Spec.Strategy.Canary.CanaryService == "" && r.rollout.Spec.Strategy.Canary.StableService == "" {
-
-		for _, rs := range r.replicaSets {
-			if *rs.Spec.Replicas > 0 && !replicasetutil.IsReplicaSetAvailable(rs) {
-				return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rs.Name)
-			}
+// shouldDelayDestinationRuleUpdate returns true if updating the DestinationRule should be
+// delayed because a traffic-receiving ReplicaSet is not yet fully available.
+// See: https://github.com/argoproj/argo-rollouts/issues/2507
+func (r *Reconciler) shouldDelayDestinationRuleUpdate(canaryHash, stableHash string) (bool, string) {
+	if r.rollout.Spec.Strategy.Canary.CanaryService != "" || r.rollout.Spec.Strategy.Canary.StableService != "" {
+		return false, ""
+	}
+	abortOrDynamicRollbackToStable := rolloututil.AbortOrDynamicRollbackToStable(r.rollout, r.replicaSets, stableHash)
+	for _, rs := range r.replicaSets {
+		if *rs.Spec.Replicas == 0 {
+			continue
 		}
+		rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		if rsHash == "" || (rsHash != stableHash && rsHash != canaryHash) {
+			continue
+		}
+		if abortOrDynamicRollbackToStable && rsHash == canaryHash {
+			continue
+		}
+		if !replicasetutil.IsReplicaSetAvailable(rs) {
+			return true, rs.Name
+		}
+	}
+	return false, ""
+}
+
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+	if shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(canaryHash, stableHash); shouldDelay {
+		r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
+		return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
 	}
 
 	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
@@ -1518,10 +1597,15 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
 		istioVirtualService, err := r.getVirtualService(namespace, vsvcName, client, ctx)
 		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				// VirtualService doesn't exist, nothing to remove
+				r.log.Debugf("VirtualService %s not found, skipping managed routes removal", vsvcName)
+				continue
+			}
 			return fmt.Errorf("[RemoveManagedRoutes] failed to get virtual service: %w", err)
 		}
 
-		httpRouteI, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
+		_, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
 		if err != nil {
 			return fmt.Errorf("[RemoveManagedRoutes] failed to get http routes from virtual service: %w", err)
 		}
@@ -1532,39 +1616,66 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 			return nil
 		}
 
+		// First, remove any header/mirror routes created by SetHeaderRoute/SetMirrorRoute steps
+		modified := false
+		if r.rollout.Spec.Strategy.Canary != nil && len(r.rollout.Spec.Strategy.Canary.Steps) > 0 {
+			for _, step := range r.rollout.Spec.Strategy.Canary.Steps {
+				if step.SetHeaderRoute != nil {
+					err := removeRoute(istioVirtualService, step.SetHeaderRoute.Name)
+					if err != nil {
+						log.Warnf("[RemoveManagedRoutes] failed to remove header route '%s': %v", step.SetHeaderRoute.Name, err)
+					} else {
+						modified = true
+						r.log.Infof("Removed header route '%s' from VirtualService", step.SetHeaderRoute.Name)
+					}
+				}
+				if step.SetMirrorRoute != nil {
+					err := removeRoute(istioVirtualService, step.SetMirrorRoute.Name)
+					if err != nil {
+						log.Warnf("[RemoveManagedRoutes] failed to remove mirror route '%s': %v", step.SetMirrorRoute.Name, err)
+					} else {
+						modified = true
+						r.log.Infof("Removed mirror route '%s' from VirtualService", step.SetMirrorRoute.Name)
+					}
+				}
+			}
+		}
+
+		// Then remove managed routes
 		managedRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes
-		if len(managedRoutes) == 0 {
-			return nil
-		}
-		httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes, err := splitManagedRoutesAndNonManagedRoutes(managedRoutes, httpRouteI)
-		if err != nil {
-			return fmt.Errorf("[RemoveManagedRoutes] failed to split managaed and non-managed routes: %w", err)
-		}
-
-		if len(httpRoutesWithinManagedRoutes) == 0 {
-			//no routes to remove
+		if len(managedRoutes) == 0 && !modified {
 			return nil
 		}
 
-		jsonNonManagedRoutes, err := json.Marshal(httpRoutesNotWithinManagedRoutes)
-		if err != nil {
-			return fmt.Errorf("[RemoveManagedRoutes] failed to marshal non-managed routes: %w", err)
-		}
-		var nonManagedRoutesI []any
-		if err := json.Unmarshal(jsonNonManagedRoutes, &nonManagedRoutesI); err != nil {
-			return fmt.Errorf("[RemoveManagedRoutes] failed to split managaed and non-managed routes: %w", err)
+		if len(managedRoutes) > 0 {
+			// Refresh httpRouteI after potential header route removals. At this point spec.http has already
+			// been validated and only local route mutations are applied, so the refreshed value remains a slice.
+			httpRouteI, _, _ := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
+
+			httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes, err := splitManagedRoutesAndNonManagedRoutes(managedRoutes, httpRouteI)
+			if err != nil {
+				return fmt.Errorf("[RemoveManagedRoutes] failed to split managed and non-managed routes: %w", err)
+			}
+
+			if len(httpRoutesWithinManagedRoutes) > 0 {
+				nonManagedRoutesI := make([]any, 0, len(httpRoutesNotWithinManagedRoutes))
+				for _, route := range httpRoutesNotWithinManagedRoutes {
+					nonManagedRoutesI = append(nonManagedRoutesI, route)
+				}
+
+				istioVirtualService.Object["spec"].(map[string]any)[Http] = nonManagedRoutesI
+				modified = true
+			}
 		}
 
-		if err := unstructured.SetNestedSlice(istioVirtualService.Object, nonManagedRoutesI, "spec", Http); err != nil {
-			return fmt.Errorf("[RemoveManagedRoutes] failed to set nested slice on virtual service to remove managed routes: %w", err)
-		}
-
-		_, err = client.Update(ctx, istioVirtualService, metav1.UpdateOptions{})
-		if err == nil {
-			r.log.Debugf("Updated VirtualService: %s", istioVirtualService)
-			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` removed all managed routes.", vsvcName)
-		} else {
-			return fmt.Errorf("[RemoveManagedRoutes] failed to update kubernetes virtual service: %w", err)
+		if modified {
+			_, err = client.Update(ctx, istioVirtualService, metav1.UpdateOptions{})
+			if err == nil {
+				r.log.Debugf("Updated VirtualService: %s", istioVirtualService)
+				r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` removed all managed routes.", vsvcName)
+			} else {
+				return fmt.Errorf("[RemoveManagedRoutes] failed to update kubernetes virtual service: %w", err)
+			}
 		}
 	}
 	return nil

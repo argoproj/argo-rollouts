@@ -29,23 +29,23 @@ type FakeArgoprojV1alpha1 struct {
 }
 
 func (c *FakeArgoprojV1alpha1) AnalysisRuns(namespace string) v1alpha1.AnalysisRunInterface {
-	return &FakeAnalysisRuns{c, namespace}
+	return newFakeAnalysisRuns(c, namespace)
 }
 
 func (c *FakeArgoprojV1alpha1) AnalysisTemplates(namespace string) v1alpha1.AnalysisTemplateInterface {
-	return &FakeAnalysisTemplates{c, namespace}
+	return newFakeAnalysisTemplates(c, namespace)
 }
 
 func (c *FakeArgoprojV1alpha1) ClusterAnalysisTemplates() v1alpha1.ClusterAnalysisTemplateInterface {
-	return &FakeClusterAnalysisTemplates{c}
+	return newFakeClusterAnalysisTemplates(c)
 }
 
 func (c *FakeArgoprojV1alpha1) Experiments(namespace string) v1alpha1.ExperimentInterface {
-	return &FakeExperiments{c, namespace}
+	return newFakeExperiments(c, namespace)
 }
 
 func (c *FakeArgoprojV1alpha1) Rollouts(namespace string) v1alpha1.RolloutInterface {
-	return &FakeRollouts{c, namespace}
+	return newFakeRollouts(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate
