@@ -116,6 +116,31 @@ func (s *CanarySuite) TestRolloutScalingWhenPaused() {
 		ExpectCanaryStablePodCount(1, 3)
 }
 
+// TestRolloutScalingWhenUserPaused verifies that a rollout paused by the user (spec.paused) still
+// honors changes to spec.replicas, for example from an HPA
+func (s *CanarySuite) TestRolloutScalingWhenUserPaused() {
+	s.Given().
+		RolloutObjects(`@functional/rollout-basic.yaml`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		PatchSpec(`
+spec:
+  paused: true`).
+		WaitForRolloutStatus("Paused").
+		ScaleRollout(4).
+		WaitForRolloutAvailableReplicas(4).
+		Then().
+		ExpectRevisionPodCount("1", 4).
+		ExpectRolloutStatus("Paused").
+		When().
+		ScaleRollout(2).
+		WaitForRolloutAvailableReplicas(2).
+		Then().
+		ExpectRevisionPodCount("1", 2).
+		ExpectRolloutStatus("Paused")
+}
+
 // TestRolloutWithMaxSurgeScalingDuringUpdate verifies behavior when scaling a rollout up/down in middle of update and with maxSurge 100%
 func (s *CanarySuite) TestRolloutWithMaxSurgeScalingDuringUpdate() {
 	s.Given().

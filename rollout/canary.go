@@ -414,11 +414,21 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	return c.persistRolloutStatus(&newStatus)
 }
 
+// reconcileCanaryReplicaSets reconciles the stable, new and old ReplicaSets as part of a canary
+// update, unless progress has been halted (see haltProgress).
 func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 	if haltReason := c.haltProgress(); haltReason != "" {
 		c.log.Infof("Skipping canary/stable ReplicaSet reconciliation: %s", haltReason)
 		return false, nil
 	}
+	return c.scaleCanaryReplicaSets()
+}
+
+// scaleCanaryReplicaSets adjusts the replica counts of the stable, new and old ReplicaSets to
+// match spec.replicas and the current canary step. It does not consult haltProgress: a scaling
+// event (e.g. spec.replicas changed by a user or an HPA) does not advance the update, so it must
+// be applied even while the rollout is paused by the user or by an inconclusive analysis.
+func (c *rolloutContext) scaleCanaryReplicaSets() (bool, error) {
 	err := c.removeScaleDownDeadlines()
 	if err != nil {
 		return false, err
