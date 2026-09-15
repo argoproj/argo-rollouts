@@ -69,14 +69,14 @@ func TestRecordLog(t *testing.T) {
 	log.SetOutput(buf)
 	rec.Warnf(&r, EventOptions{EventReason: "FooReason"}, "Rollout is %s", "foo")
 	logMessage = buf.String()
-	fmt.Println(logMessage)
+	t.Log(logMessage)
 	assert.True(t, strings.Contains(logMessage, "level=warning"))
 
 	buf = bytes.NewBufferString("")
 	log.SetOutput(buf)
 	rec.Eventf(&r, EventOptions{EventType: "Warning", EventReason: "FooReason"}, "Rollout is %s", "foo")
 	logMessage = buf.String()
-	fmt.Println(logMessage)
+	t.Log(logMessage)
 	assert.True(t, strings.Contains(logMessage, "level=warning"))
 
 }
@@ -126,6 +126,39 @@ func TestSendNotifications(t *testing.T) {
 	//ch := make(chan prometheus.HistogramVec, 1)
 	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
 	assert.Nil(t, err)
+}
+
+func TestSendNotificationsTriggerNotConfigured(t *testing.T) {
+	r := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "guestbook",
+			Namespace:   "default",
+			Annotations: map[string]string{"notifications.argoproj.io/subscribe.on-foo-reason.console": "console"},
+		},
+	}
+
+	newRec := func(runErr error) *FakeEventRecorder {
+		mockCtrl := gomock.NewController(t)
+		mockAPI := mocks.NewMockAPI(mockCtrl)
+		mockAPI.EXPECT().RunTrigger(gomock.Any(), gomock.Any()).Return(nil, runErr).AnyTimes()
+		mockAPI.EXPECT().GetConfig().Return(api.Config{
+			Triggers: map[string][]triggers.Condition{"on-foo-reason": {triggers.Condition{Send: []string{"my-template"}}}}}).AnyTimes()
+		rec := NewFakeEventRecorder()
+		rec.EventRecorderAdapter.apiFactory = &mocks.FakeFactory{Api: mockAPI}
+		return rec
+	}
+
+	// A "trigger is not configured" error is expected noise and must be skipped,
+	// not surfaced as a notification failure.
+	rec := newRec(fmt.Errorf("trigger 'on-foo-reason' is not configured"))
+	errs := rec.sendNotifications(rec.EventRecorderAdapter.apiFactory.(*mocks.FakeFactory).Api, &r, EventOptions{EventReason: "FooReason"})
+	assert.Nil(t, errs)
+
+	// Any other trigger error must still be returned.
+	rec = newRec(errors.New("boom"))
+	errs = rec.sendNotifications(rec.EventRecorderAdapter.apiFactory.(*mocks.FakeFactory).Api, &r, EventOptions{EventReason: "FooReason"})
+	require.Len(t, errs, 1)
+	assert.Contains(t, errs[0].Error(), "boom")
 }
 
 func TestSendNotificationsWhenCondition(t *testing.T) {
@@ -444,8 +477,10 @@ func TestSendNotificationsNoTrigger(t *testing.T) {
 	rec := NewFakeEventRecorder()
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 
+	// A "trigger is not configured" error is expected noise and is now skipped
+	// rather than surfaced as a notification failure (see #3459).
 	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "MissingReason"})
-	assert.Len(t, err, 1)
+	assert.Nil(t, err)
 }
 
 func createAnalysisRunInformer(ars []*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer {

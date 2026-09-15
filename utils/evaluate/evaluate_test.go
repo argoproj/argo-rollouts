@@ -13,6 +13,8 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
+const invalidRefCondition = "a == true"
+
 func TestEvaluateResultWithSuccess(t *testing.T) {
 	metric := v1alpha1.Metric{
 		SuccessCondition: "true",
@@ -82,7 +84,7 @@ func TestEvaluateResultNoFailureConditionAndNoSuccessCondition(t *testing.T) {
 
 func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
 	metric := v1alpha1.Metric{
-		SuccessCondition: "a == true",
+		SuccessCondition: invalidRefCondition,
 		FailureCondition: "true",
 	}
 	logCtx := logrus.WithField("test", "test")
@@ -94,7 +96,7 @@ func TestEvaluateResultWithErrorOnSuccessCondition(t *testing.T) {
 func TestEvaluateResultWithErrorOnFailureCondition(t *testing.T) {
 	metric := v1alpha1.Metric{
 		SuccessCondition: "true",
-		FailureCondition: "a == true",
+		FailureCondition: invalidRefCondition,
 	}
 	logCtx := logrus.WithField("test", "test")
 	status, err := EvaluateResult(true, metric, *logCtx)
@@ -375,4 +377,56 @@ func TestEvalQueryWithOrOperatorInEachOption(t *testing.T) {
 	evaluatedQuery, err := EvalQuery(`"some_arg" == "not_some_arg" ? "old_query or query1" : ( "some_arg" == "some_arg" ? 'old_query or sum(rate(some_metric{filter1="filter1_value",filter2="filter2_value",filter3=~"filter3_value",filter4=~"filter4_value",filter5!~"filter5_value"}[5m])) by(some_value))' : "old_query or query2")`)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedEvaluatedQuery, evaluatedQuery)
+func TestEvaluateResultErrorMessageWithNilResult(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "result[0] >= 0.95",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult(nil, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "metric result is nil or empty")
+	assert.Contains(t, err.Error(), "successCondition")
+}
+
+func TestEvaluateResultErrorMessageWithEmptySlice(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "result[0] >= 0.95",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult([]float64{}, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "metric result is nil or empty")
+	assert.Contains(t, err.Error(), "successCondition")
+}
+
+func TestEvaluateResultErrorMessageWithInvalidExpression(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: invalidRefCondition,
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "could not evaluate successCondition")
+	assert.Contains(t, err.Error(), invalidRefCondition)
+}
+
+func TestEvaluateResultErrorMessageOnFailureCondition(t *testing.T) {
+	metric := v1alpha1.Metric{
+		SuccessCondition: "true",
+		FailureCondition: "invalidVar == true",
+	}
+	logCtx := logrus.WithField("test", "test")
+	status, err := EvaluateResult(true, metric, *logCtx)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, status)
+	assert.Contains(t, err.Error(), "could not evaluate failureCondition")
+	assert.Contains(t, err.Error(), "invalidVar == true")
+}
+
+func TestIsNilOrEmpty(t *testing.T) {
+	assert.True(t, isNilOrEmpty(nil))
+	assert.True(t, isNilOrEmpty([]float64{}))
+	assert.True(t, isNilOrEmpty([]string{}))
+	assert.False(t, isNilOrEmpty([]float64{1.0}))
+	assert.False(t, isNilOrEmpty(42))
+	assert.False(t, isNilOrEmpty("hello"))
 }

@@ -27,20 +27,8 @@ const (
 
 	jobURLFormat = `%s/canary/%s?application=%s&metricsAccountName=%s&configurationAccountName=%s&storageAccountName=%s`
 
-	jobPayloadFormat = `
-							{
-								"scopes": {
-										%s
-								},
-                                "thresholds" : {
-                                    "pass": %d,
-                                    "marginal": %d
-                                }
-                            }`
-
 	resumeDelay           time.Duration = 15 * time.Second
 	httpConnectionTimeout time.Duration = 15 * time.Second
-	scopeFormat                         = `"%s":{"controlScope": %s, "experimentScope": %s}`
 )
 
 type Provider struct {
@@ -54,6 +42,29 @@ type canaryConfig struct {
 	UpdatedTimestamp    int
 	UpdatedTimestampIso string
 	Applications        []string
+}
+
+type AnalysisRequest struct {
+	Scopes     map[string]ScopeRequest `json:"scopes"`
+	Thresholds ThresholdsRequest       `json:"thresholds"`
+}
+
+type ScopeRequest struct {
+	ControlScope    ScopeDetailRequest `json:"controlScope"`
+	ExperimentScope ScopeDetailRequest `json:"experimentScope"`
+}
+
+type ThresholdsRequest struct {
+	Pass     int64 `json:"pass"`
+	Marginal int64 `json:"marginal"`
+}
+
+type ScopeDetailRequest struct {
+	Scope    string `json:"scope"`
+	Location string `json:"location"`
+	Step     int64  `json:"step"`
+	Start    string `json:"start,omitempty"`
+	End      string `json:"end,omitempty"`
 }
 
 // Type indicates provider is a kayenta provider
@@ -107,28 +118,29 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	jobURL := fmt.Sprintf(jobURLFormat, metric.Provider.Kayenta.Address, canaryConfigId, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.MetricsAccountName, metric.Provider.Kayenta.ConfigurationAccountName, metric.Provider.Kayenta.StorageAccountName)
 
-	var scopes string
-	for i, s := range metric.Provider.Kayenta.Scopes {
-		name := s.Name
-		controlScope, err := json.Marshal(s.ControlScope)
+	scopes := make(map[string]ScopeRequest)
+	for _, ks := range metric.Provider.Kayenta.Scopes {
+		s, err := getScopeRequest(ks, run.Status.StartedAt, startTime, metric.Interval, metric.Provider.Kayenta.Lookback)
 		if err != nil {
 			return metricutil.MarkMeasurementError(newMeasurement, err)
 		}
-
-		experimentScope, err := json.Marshal(s.ExperimentScope)
-		if err != nil {
-			return metricutil.MarkMeasurementError(newMeasurement, err)
-		}
-		scopes = scopes + fmt.Sprintf(scopeFormat, name, string(controlScope), string(experimentScope))
-		if i < (len(metric.Provider.Kayenta.Scopes) - 1) {
-			scopes = scopes + ","
-		}
-
+		scopes[ks.Name] = s
 	}
 
-	jobPayLoad := fmt.Sprintf(jobPayloadFormat, scopes, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
+	req := AnalysisRequest{
+		Scopes: scopes,
+		Thresholds: ThresholdsRequest{
+			Pass:     metric.Provider.Kayenta.Threshold.Pass,
+			Marginal: metric.Provider.Kayenta.Threshold.Marginal,
+		},
+	}
 
-	response, err := p.client.Post(jobURL, "application/json", bytes.NewBuffer([]byte(jobPayLoad)))
+	jobPayLoad, err := json.Marshal(req)
+	if err != nil {
+		return metricutil.MarkMeasurementError(newMeasurement, err)
+	}
+
+	response, err := p.client.Post(jobURL, "application/json", bytes.NewBuffer(jobPayLoad))
 	if err != nil || response.Body == nil || response.StatusCode != 200 {
 		if err == nil {
 			err = errors.New("Invalid Response")
@@ -231,6 +243,70 @@ func evaluateResult(score int, pass int, marginal int) v1alpha1.AnalysisPhase {
 	}
 }
 
+func getScopeRequest(scope v1alpha1.KayentaScope, experimentStartedAt *metav1.Time, startTime metav1.Time, interval v1alpha1.DurationString, lookback bool) (ScopeRequest, error) {
+	if (scope.ControlScope.Start == "") != (scope.ExperimentScope.Start == "") {
+		return ScopeRequest{}, errors.New("controlScope.start and experimentScope.start must both be set or be empty")
+	}
+
+	if (scope.ControlScope.End == "") != (scope.ExperimentScope.End == "") {
+		return ScopeRequest{}, errors.New("controlScope.end and experimentScope.end must both be set or be empty")
+	}
+
+	if scope.ControlScope.Start == "" && scope.ExperimentScope.Start == "" {
+		start, err := getStartTime(experimentStartedAt, startTime, interval, lookback)
+		if err != nil {
+			return ScopeRequest{}, err
+		}
+		scope.ControlScope.Start = start
+		scope.ExperimentScope.Start = start
+	}
+
+	if scope.ControlScope.End == "" && scope.ExperimentScope.End == "" {
+		end := getEndTime(startTime)
+		scope.ControlScope.End = end
+		scope.ExperimentScope.End = end
+	}
+
+	return scopeToScopeRequest(scope)
+}
+
+func getStartTime(experimentStartedAt *metav1.Time, currentTime metav1.Time, interval v1alpha1.DurationString, lookback bool) (string, error) {
+	var start string
+	if lookback {
+		start = experimentStartedAt.Format(time.RFC3339)
+	} else {
+		duration, err := interval.Duration()
+		if err != nil {
+			return "", fmt.Errorf("Invalid duration %q: %w", interval, err)
+		}
+		start = (currentTime.Add(-duration)).Format(time.RFC3339)
+	}
+	return start, nil
+}
+
+func getEndTime(currentTime metav1.Time) string {
+	return currentTime.Format(time.RFC3339)
+}
+
+func scopeToScopeRequest(scope v1alpha1.KayentaScope) (ScopeRequest, error) {
+	return ScopeRequest{
+		ControlScope: ScopeDetailRequest{
+			Scope:    scope.ControlScope.Scope,
+			Location: scope.ControlScope.Region,
+			Step:     scope.ControlScope.Step,
+			Start:    scope.ControlScope.Start,
+			End:      scope.ControlScope.End,
+		},
+		ExperimentScope: ScopeDetailRequest{
+			Scope:    scope.ExperimentScope.Scope,
+			Location: scope.ExperimentScope.Region,
+			Step:     scope.ExperimentScope.Step,
+			Start:    scope.ExperimentScope.Start,
+			End:      scope.ExperimentScope.End,
+		},
+	}, nil
+}
+
 // Terminate should not be used the kayenta provider since all the work should occur in the Run method
 func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	p.logCtx.Warn("kayenta provider should not execute the Terminate method")
@@ -250,7 +326,6 @@ func NewKayentaProvider(logCtx log.Entry, client http.Client) *Provider {
 }
 
 func NewHttpClient() http.Client {
-
 	c := http.Client{
 		Timeout: httpConnectionTimeout,
 	}

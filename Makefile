@@ -120,15 +120,21 @@ gen-proto: k8s-proto api-proto ui-proto
 .PHONY: k8s-proto
 k8s-proto: go-mod-vendor install-protoc-local install-go-tools-local $(TYPES) ## generate kubernetes protobuf files
 	mkdir -p ${PKG}
+	# Remove old generated files (including any symlinks)
+	rm -f pkg/apis/rollouts/v1alpha1/generated.proto
+	rm -f pkg/apis/rollouts/v1alpha1/generated.pb.go
 	cp -f $(CURDIR)/pkg/apis/rollouts/v1alpha1/*.* ${PKG}/
+	# Create symlink to work around go-to-protobuf path resolution issue in k8s.io/code-generator v0.34+
+	ln -sf $(CURDIR)/pkg/apis/rollouts/v1alpha1/generated.proto ${PKG}/generated.proto
 	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} go-to-protobuf \
 		--go-header-file=./hack/custom-boilerplate.go.txt \
 		--packages=${PKG} \
 		--apimachinery-packages=${APIMACHINERY_PKGS} \
 		--proto-import=${CURDIR}/vendor \
 		--proto-import=${GOPATH}/src \
-		--proto-import=${DIST_DIR}/protoc-include 
-	touch pkg/apis/rollouts/v1alpha1/generated.proto
+		--proto-import=${DIST_DIR}/protoc-include
+	# Remove the symlink before copying back
+	rm -f ${PKG}/generated.proto
 	cp -Rf $(CURDIR)/github.com/argoproj/argo-rollouts/pkg . | true
 	# cleaning up
 	rm -Rf $(CURDIR)/github.com/
@@ -147,7 +153,7 @@ api-proto: go-mod-vendor k8s-proto ## generate api protobuf files
 # generates ui related proto files
 .PHONY: ui-proto
 ui-proto: ## generate ui protobuf files
-	yarn --cwd ui run protogen
+	pnpm --dir ui run protogen
 
 # generates k8s client, informer, lister, deepcopy from types.go
 .PHONY: gen-k8scodegen
@@ -185,8 +191,8 @@ plugin: ui/dist ## build plugin
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME} ./cmd/kubectl-argo-rollouts
 
 ui/dist:
-	yarn --cwd ui install
-	yarn --cwd ui build
+	pnpm --dir ui install
+	pnpm --dir ui run build
 
 .PHONY: plugin-linux
 plugin-linux: ui/dist ## build plugin for linux
@@ -258,7 +264,7 @@ test-kustomize: ## run kustomize tests
 	./test/kustomize/test.sh
 
 setup-e2e:
-	@kubectl apply --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rollout-crd.yaml
+	@kubectl apply --server-side --force-conflicts --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rollout-crd.yaml
 	@kubectl apply --context='${E2E_K8S_CONTEXT}' -n argo-rollouts -f test/e2e/step-plugin/argo-rollouts-config.yaml
 	@rm -rf plugin-bin
 	@go build -gcflags="all=-N -l" -o plugin-bin/e2e-step-plugin test/cmd/step-plugin-e2e/main.go
@@ -285,7 +291,7 @@ coverage: test ## run coverage tests
 
 .PHONY: manifests
 manifests: ## generate manifests e.g. CRD, RBAC etc.
-	./hack/update-manifests.sh
+	REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) ./hack/update-manifests.sh
 
 .PHONY: clean
 clean: ## clean up build artifacts

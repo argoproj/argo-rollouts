@@ -83,6 +83,25 @@ func TestProcessNextWorkItemNormalSync(t *testing.T) {
 	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, nil))
 }
 
+func TestProcessNextWorkItemStaleCache(t *testing.T) {
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
+	q.Add("valid/key")
+	metricServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:               "localhost:8080",
+		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
+	})
+	syncHandler := func(ctx context.Context, key string) error {
+		return StaleCacheError
+	}
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, metricServer))
+	assert.Equal(t, 0, q.Len())
+	// Stale cache uses AddAfter, not AddRateLimited, so it must not increment the rate limiter.
+	assert.Equal(t, 0, q.NumRequeues("valid/key"))
+
+	time.Sleep(StaleCacheRequeueDelay + 50*time.Millisecond)
+	assert.Equal(t, 1, q.Len())
+}
+
 func TestProcessNextWorkItemSyncHandlerReturnError(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add("valid/key")
@@ -166,9 +185,9 @@ func TestEnqueueRateLimitedInvalidObject(t *testing.T) {
 
 func TestEnqueueParentObjectInvalidObject(t *testing.T) {
 	errorMessages := make([]error, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, utilruntime.ErrorHandler(func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err)
-	})
+	}))
 	invalidObject := "invalid-object"
 	enqueueFunc := func(obj any) {}
 	EnqueueParentObject(invalidObject, register.RolloutKind, enqueueFunc)
@@ -178,7 +197,7 @@ func TestEnqueueParentObjectInvalidObject(t *testing.T) {
 
 func TestEnqueueParentObjectInvalidTombstoneObject(t *testing.T) {
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 
@@ -191,7 +210,7 @@ func TestEnqueueParentObjectInvalidTombstoneObject(t *testing.T) {
 
 func TestEnqueueParentObjectNoOwner(t *testing.T) {
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	rs := &appsv1.ReplicaSet{
@@ -213,7 +232,7 @@ func TestEnqueueParentObjectDifferentOwnerKind(t *testing.T) {
 	experimentKind := v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	experiment := &v1alpha1.Experiment{
@@ -242,7 +261,7 @@ func TestEnqueueParentObjectOtherOwnerTypes(t *testing.T) {
 	deploymentKind := appsv1.SchemeGroupVersion.WithKind("Deployment")
 
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	deployment := &appsv1.Deployment{
@@ -271,7 +290,7 @@ func TestEnqueueParentObjectEnqueueExperiment(t *testing.T) {
 	experimentKind := v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	experiment := &v1alpha1.Experiment{
@@ -304,7 +323,7 @@ func TestEnqueueParentObjectEnqueueRollout(t *testing.T) {
 	rolloutKind := v1alpha1.SchemeGroupVersion.WithKind("Rollout")
 
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	rollout := &v1alpha1.Rollout{
@@ -336,7 +355,7 @@ func TestEnqueueParentObjectEnqueueRollout(t *testing.T) {
 func TestEnqueueParentObjectRecoverTombstoneObject(t *testing.T) {
 	experimentKind := v1alpha1.SchemeGroupVersion.WithKind("Experiment")
 	errorMessages := make([]string, 0)
-	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(err error) {
+	utilruntime.ErrorHandlers = append(utilruntime.ErrorHandlers, func(ctx context.Context, err error, _ string, _ ...interface{}) {
 		errorMessages = append(errorMessages, err.Error())
 	})
 	experiment := &v1alpha1.Experiment{

@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/argoproj/notifications-engine/pkg/docs"
 	"github.com/spf13/cobra"
@@ -40,6 +40,12 @@ func generateNotificationsDocs() {
 			log.Fatal(e)
 		}
 		if e := strReplaceDocFiles("argocd-notifications-secret", "argo-rollouts-notification-secret", files); e != nil {
+			log.Fatal(e)
+		}
+		if e := strReplaceDocFiles("../templates.md", "../../features/notifications.md#templates", files); e != nil {
+			log.Fatal(e)
+		}
+		if e := strReplaceDocFiles("../catalog.md#triggers", "../../features/notifications.md#custom-triggers", files); e != nil {
 			log.Fatal(e)
 		}
 	}

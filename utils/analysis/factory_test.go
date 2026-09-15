@@ -497,6 +497,15 @@ func Test_extractValueFromRollout(t *testing.T) {
 				},
 			},
 		},
+		Spec: v1alpha1.RolloutSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"version": "v1",
+					},
+				},
+			},
+		},
 	}
 	tests := map[string]struct {
 		path    string
@@ -538,6 +547,10 @@ func Test_extractValueFromRollout(t *testing.T) {
 		"should fail when path references a non-primitive value": {
 			path:    "status.pauseConditions[0]",
 			wantErr: "path status.pauseConditions[0] in rollout must terminate in a primitive value",
+		},
+		"should return a pod template label using dot notation": {
+			path: "spec.template.metadata.labels.version",
+			want: "v1",
 		},
 	}
 	for name, tt := range tests {

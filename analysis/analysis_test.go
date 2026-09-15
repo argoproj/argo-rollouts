@@ -1157,7 +1157,7 @@ func TestReconcileAnalysisRunTerminateSiblingAfterFail(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
 	// mocks terminate to cancel the in-progress measurement
-	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseInconclusive), nil)
 
 	for _, status := range []v1alpha1.AnalysisPhase{v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseInconclusive, v1alpha1.AnalysisPhaseError} {
 		run := newTerminatingRun(status, false)
@@ -1165,9 +1165,9 @@ func TestReconcileAnalysisRunTerminateSiblingAfterFail(t *testing.T) {
 
 		assert.Equal(t, status, newRun.Status.Phase)
 		assert.Equal(t, status, newRun.Status.MetricResults[1].Phase)
-		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, newRun.Status.MetricResults[0].Phase)
 		// ensure the in-progress measurement is now terminated
-		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Measurements[0].Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, newRun.Status.MetricResults[0].Measurements[0].Phase)
 		assert.NotNil(t, newRun.Status.MetricResults[0].Measurements[0].FinishedAt)
 		assert.Equal(t, "Metric Terminated", newRun.Status.MetricResults[0].Message)
 		assert.Equal(t, "Metric Terminated", newRun.Status.MetricResults[0].Measurements[0].Message)
@@ -2119,7 +2119,7 @@ func TestInvalidDryRunConfigThrowsError(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
 	// Mocks terminate to cancel the in-progress measurement
-	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseInconclusive), nil)
 
 	var dryRunArray []v1alpha1.DryRun
 	dryRunArray = append(dryRunArray, v1alpha1.DryRun{MetricName: "error-rate"})
@@ -2160,7 +2160,7 @@ func TestInvalidMeasurementsRetentionConfigThrowsError(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
 	// Mocks terminate to cancel the in-progress measurement
-	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("Terminate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseInconclusive), nil)
 
 	var measurementsRetentionArray []v1alpha1.MeasurementRetention
 	measurementsRetentionArray = append(measurementsRetentionArray, v1alpha1.MeasurementRetention{MetricName: "error-rate"})

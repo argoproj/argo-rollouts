@@ -6,7 +6,7 @@ import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 
 import './header.scss';
 import {Link, useHistory} from 'react-router-dom';
-import {AutoComplete, Button, Input, Tooltip} from 'antd';
+import {AutoComplete, Button, Input, notification, Tooltip} from 'antd';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
 
@@ -36,10 +36,20 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
 
     React.useEffect(() => {
         const getVersion = async () => {
+        try {
             const v = await api.rolloutServiceVersion();
             setVersion(v.rolloutsVersion);
-        };
-        getVersion();
+        } catch (error) {
+            console.error('Error fetching rollouts version:', error);
+            notification.error({
+                message: 'Error fetching rollouts version',
+                description: error.message || 'An unexpected error occurred while fetching the rollouts version.',
+                duration: 8,
+                placement: 'bottomRight',
+            });
+        }
+    };
+    getVersion();
     }, []);
 
     React.useEffect(() => {

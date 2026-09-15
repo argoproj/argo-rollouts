@@ -4,7 +4,7 @@
 
 The Experiment CRD allows users to have ephemeral runs of one or more ReplicaSets. In addition to
 running ephemeral ReplicaSets, the Experiment CRD can launch AnalysisRuns alongside the ReplicaSets.
-Generally, those AnalysisRun is used to confirm that new ReplicaSets are running as expected.
+Generally, those AnalysisRuns are used to confirm that new ReplicaSets are running as expected.
 
 A Service routing traffic to the Experiment ReplicaSet is also generated if a weight (which requires traffic routing)
 OR the Service attribute for that experiment is set.
@@ -29,8 +29,7 @@ the Rollout.
 ## Experiment Spec
 
 Below is an example of an experiment that creates two ReplicaSets with 1 replica each and runs them
-for 20 minutes once they both become available. Additionally, several AnalysisRuns are run to
-perform analysis against the pods of the Experiment 
+for 20 minutes once they both become available. Additionally, several AnalysisRuns are run to perform analysis against the pods of the Experiment.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

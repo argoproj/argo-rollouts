@@ -212,7 +212,7 @@ func IfInjectedAntiAffinityRuleNeedsUpdate(affinity *corev1.Affinity, rollout v1
 	currentPodHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	if podAffinityTerm != nil && rollout.Status.StableRS != currentPodHash {
 		for _, labelSelectorRequirement := range podAffinityTerm.LabelSelector.MatchExpressions {
-			if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey && labelSelectorRequirement.Values[0] != rollout.Status.StableRS {
+			if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey && len(labelSelectorRequirement.Values) > 0 && labelSelectorRequirement.Values[0] != rollout.Status.StableRS {
 				return true
 			}
 		}
@@ -284,7 +284,7 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 			otherRSs := GetOtherRSs(rollout, newRS, stableRS, allRSs)
 			newRSReplicaCount, _ = CalculateReplicaCountsForBasicCanary(rollout, newRS, stableRS, otherRSs)
 		} else {
-			newRSReplicaCount, _ = CalculateReplicaCountsForTrafficRoutedCanary(rollout, weights)
+			newRSReplicaCount, _ = CalculateReplicaCountsForTrafficRoutedCanary(rollout, newRS, stableRS, weights)
 		}
 		return newRSReplicaCount, nil
 	}

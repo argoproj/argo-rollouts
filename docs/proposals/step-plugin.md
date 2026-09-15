@@ -293,7 +293,7 @@ A utility function such as `PluginHelper.GetStatuses(rollout, pluginName)` can b
 A parameter such as `abortOnFailure` can be added to the Rollout plugin step configuration object.
 When specified, the controller can use the value to modify the default logic.
 
-##### I dont want my plugin execution time to count towards the progress deadline
+##### I don't want my plugin execution time to count towards the progress deadline
 
 A parameter such as `ignoreProgressDeadline` can be added to the Rollout plugin step configuration object.
 When specified, the controller can use the value to modify the default logic.

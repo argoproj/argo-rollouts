@@ -153,3 +153,56 @@ func TestGetRolloutDesinationRuleKeys(t *testing.T) {
 	assert.Len(t, keys, 1)
 	assert.Equal(t, "default/foo", keys[0])
 }
+
+func TestGetVirtualServiceNamespaceName(t *testing.T) {
+	tests := []struct {
+		name              string
+		input             string
+		expectedNamespace string
+		expectedName      string
+	}{
+		{
+			name:              "bare name, no namespace",
+			input:             "virtualservice",
+			expectedNamespace: "",
+			expectedName:      "virtualservice",
+		},
+		{
+			name:              "name.namespace cross-namespace shorthand",
+			input:             "virtualservice.istio",
+			expectedNamespace: "istio",
+			expectedName:      "virtualservice",
+		},
+		{
+			// Issue #4709: a VirtualService whose name contains a period must
+			// not have that period treated as a namespace separator. The VS
+			// "virtualservice.example" lives in namespace "istio" and is
+			// referenced as "virtualservice.example.istio". The namespace is the
+			// last segment; everything before it is the name.
+			name:              "name with period plus cross-namespace",
+			input:             "virtualservice.example.istio",
+			expectedNamespace: "istio",
+			expectedName:      "virtualservice.example",
+		},
+		{
+			name:              "multiple periods in name plus namespace",
+			input:             "my.virtual.service.istio",
+			expectedNamespace: "istio",
+			expectedName:      "my.virtual.service",
+		},
+		{
+			name:              "fully qualified with cluster.local suffix",
+			input:             "test.namespace.cluster.local",
+			expectedNamespace: "namespace",
+			expectedName:      "test",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ns, name := GetVirtualServiceNamespaceName(tc.input)
+			assert.Equal(t, tc.expectedNamespace, ns)
+			assert.Equal(t, tc.expectedName, name)
+		})
+	}
+}

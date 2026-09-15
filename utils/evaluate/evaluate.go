@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/antonmedv/expr"
-	"github.com/antonmedv/expr/file"
+	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/file"
 	"github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -23,13 +23,13 @@ func EvaluateResult(result any, metric v1alpha1.Metric, logCtx logrus.Entry) (v1
 	if metric.SuccessCondition != "" {
 		successCondition, err = EvalCondition(result, metric.SuccessCondition)
 		if err != nil {
-			return v1alpha1.AnalysisPhaseError, err
+			return v1alpha1.AnalysisPhaseError, formatEvalError(err, "successCondition", metric.SuccessCondition, result)
 		}
 	}
 	if metric.FailureCondition != "" {
 		failCondition, err = EvalCondition(result, metric.FailureCondition)
 		if err != nil {
-			return v1alpha1.AnalysisPhaseError, err
+			return v1alpha1.AnalysisPhaseError, formatEvalError(err, "failureCondition", metric.FailureCondition, result)
 		}
 	}
 
@@ -55,6 +55,28 @@ func EvaluateResult(result any, metric v1alpha1.Metric, logCtx logrus.Entry) (v1
 
 	// If we reach this code path, failCondition is false and successCondition is true
 	return v1alpha1.AnalysisPhaseSuccessful, nil
+}
+
+// formatEvalError wraps an expression evaluation error with context about the condition,
+// the expression, and the actual result value to help users understand why the evaluation failed.
+func formatEvalError(err error, conditionType string, expression string, result any) error {
+	if isNilOrEmpty(result) {
+		return fmt.Errorf("could not evaluate %s \"%s\": metric result is nil or empty: no data returned from the metric provider", conditionType, expression)
+	}
+	return fmt.Errorf("could not evaluate %s \"%s\": %w", conditionType, expression, err)
+}
+
+// isNilOrEmpty checks if a result value is nil or an empty slice/array
+func isNilOrEmpty(result any) bool {
+	if isNil(result) {
+		return true
+	}
+	v := reflect.ValueOf(result)
+	switch v.Kind() {
+	case reflect.Slice, reflect.Array:
+		return v.Len() == 0
+	}
+	return false
 }
 
 func EvalTime(expression string) (time.Time, error) {
