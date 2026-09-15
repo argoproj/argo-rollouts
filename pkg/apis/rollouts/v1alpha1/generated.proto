@@ -336,6 +336,10 @@ message Authentication {
   // BasicAuth config
   // +optional
   optional BasicAuthConfig basicAuth = 3;
+
+  // Google config, an empty object enables Application Default Credentials
+  // +optional
+  optional GoogleConfig google = 4;
 }
 
 message AwsResourceRef {
@@ -862,6 +866,12 @@ message FieldRef {
   optional string fieldPath = 1;
 }
 
+message GoogleConfig {
+  // OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+  // +optional
+  repeated string scopes = 1;
+}
+
 // GraphiteMetric defines the Graphite query to perform canary analysis
 message GraphiteMetric {
   // Address is the HTTP address and port of the Graphite server
@@ -1163,6 +1173,12 @@ message NewRelicMetric {
   // Timeout represents the duration limit in seconds that will apply to the NRQL query
   // +optional
   optional int64 timeout = 3;
+
+  // AccountID optionally overrides the account-id from the profile secret, allowing a single
+  // credential/profile to query any New Relic account. When empty, the account-id from the
+  // profile secret is used (backward compatible).
+  // +optional
+  optional string accountId = 4;
 }
 
 // NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing
@@ -1393,6 +1409,34 @@ message RolloutCondition {
 
   // A human readable message indicating details about the transition.
   optional string message = 6;
+}
+
+// RolloutDurationStatus tracks timing for a rollout attempt
+message RolloutDurationStatus {
+  // RolloutStartedAt is when the current rollout attempt started (StableRS diverged from CurrentPodHash)
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time rolloutStartedAt = 1;
+
+  // ManualPauseStartedAt is when the current manual pause began (nil if not in manual pause)
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time manualPauseStartedAt = 2;
+
+  // TotalManualPauseDurationSeconds is the accumulated time spent in manual pauses, in seconds
+  // +optional
+  optional int64 totalManualPauseDurationSeconds = 3;
+
+  // FinishedAt is when this rollout attempt reached its terminal state:
+  // (1) promoted and stable, (2) aborted, or (3) superseded.
+  // Nil means the attempt is still in progress.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 4;
+
+  // CompletionStatus is the outcome of this rollout attempt. It is set as soon as the
+  // outcome becomes known, which may be before the attempt finishes (e.g. a rollback is
+  // classified while it is still progressing). FinishedAt, not this field, is the
+  // terminal signal.
+  // +optional
+  optional string completionStatus = 5;
 }
 
 // RolloutExperimentStep defines a template that is used to create a experiment for a step
@@ -1660,6 +1704,10 @@ message RolloutStatus {
 
   // / ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario
   repeated ALBStatus albs = 26;
+
+  // Duration tracks timing information for the current rollout attempt
+  // +optional
+  optional RolloutDurationStatus duration = 27;
 }
 
 // RolloutStrategy defines strategy to apply during next rollout

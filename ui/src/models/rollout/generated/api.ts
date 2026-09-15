@@ -527,6 +527,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authenticat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
      */
     basicAuth?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1BasicAuthConfig;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GoogleConfig}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
+     */
+    google?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GoogleConfig;
 }
 /**
  * 
@@ -1124,6 +1130,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef
      */
     fieldPath?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GoogleConfig
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GoogleConfig {
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GoogleConfig
+     */
+    scopes?: Array<string>;
 }
 /**
  * 
@@ -1735,6 +1754,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMet
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
      */
     timeout?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
+     */
+    accountId?: string;
 }
 /**
  * 
@@ -2189,6 +2214,43 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutCond
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus {
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    rolloutStartedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    manualPauseStartedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    totalManualPauseDurationSeconds?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    finishedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus
+     */
+    completionStatus?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep {
@@ -2575,6 +2637,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
      */
     albs?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    duration?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutDurationStatus;
 }
 /**
  * 
