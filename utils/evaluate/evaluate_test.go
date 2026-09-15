@@ -377,6 +377,8 @@ func TestEvalQueryWithOrOperatorInEachOption(t *testing.T) {
 	evaluatedQuery, err := EvalQuery(`"some_arg" == "not_some_arg" ? "old_query or query1" : ( "some_arg" == "some_arg" ? 'old_query or sum(rate(some_metric{filter1="filter1_value",filter2="filter2_value",filter3=~"filter3_value",filter4=~"filter4_value",filter5!~"filter5_value"}[5m])) by(some_value))' : "old_query or query2")`)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedEvaluatedQuery, evaluatedQuery)
+}
+
 func TestEvaluateResultErrorMessageWithNilResult(t *testing.T) {
 	metric := v1alpha1.Metric{
 		SuccessCondition: "result[0] >= 0.95",
