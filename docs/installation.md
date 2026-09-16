@@ -1,6 +1,8 @@
 # Installation
 
-## Controller Installation
+For community [Helm charts](https://argoproj.github.io/argo-helm/) see [https://github.com/argoproj/argo-helm](https://github.com/argoproj/argo-helm).
+
+## Controller Installation with manifests
 
 Two types of installation:
 
