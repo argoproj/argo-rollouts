@@ -949,3 +949,63 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	assert.Equal(t, int32(13), roStatus.Status.ReadyReplicas)
 	assert.Equal(t, int32(0), roStatus.Status.UpdatedReplicas)
 }
+
+// TestIsWaitingForReplicaSetScaleDown proves isWaitingForReplicaSetScaleDown reports "waiting"
+// only for an "other" (neither new nor stable) ReplicaSet whose scale-down-deadline annotation is
+// still live. HasScaleDownDeadline alone (used before this fix) only checks that the annotation is
+// present, so an orphaned RS whose deadline already elapsed — but that hasn't been swept yet —
+// would latch this to true forever, permanently suppressing every call site that guards on it
+// (requeueStuckRollout, calculateRolloutConditions, evaluateProgressDeadlineAbort). See
+// https://github.com/argoproj/argo-rollouts/issues/4971.
+func TestIsWaitingForReplicaSetScaleDown(t *testing.T) {
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	newRS := rs("foo-new", 1, nil, timeutil.MetaNow(), nil)
+	stableRS := rs("foo-stable", 1, nil, timeutil.MetaNow(), nil)
+
+	withDeadline := func(deadline string) *appsv1.ReplicaSet {
+		other := rs("foo-other", 1, nil, timeutil.MetaNow(), nil)
+		other.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
+		return other
+	}
+
+	futureDeadline := timeutil.MetaNow().Add(time.Hour).UTC().Format(time.RFC3339)
+	pastDeadline := timeutil.MetaNow().Add(-time.Hour).UTC().Format(time.RFC3339)
+
+	tests := []struct {
+		name     string
+		otherRS  *appsv1.ReplicaSet
+		expected bool
+	}{
+		{
+			name:     "other RS with a live (future) scale-down deadline",
+			otherRS:  withDeadline(futureDeadline),
+			expected: true,
+		},
+		{
+			name:     "other RS with an expired scale-down deadline must not block progress forever",
+			otherRS:  withDeadline(pastDeadline),
+			expected: false,
+		},
+		{
+			name:     "other RS with no scale-down-deadline annotation at all",
+			otherRS:  rs("foo-other", 1, nil, timeutil.MetaNow(), nil),
+			expected: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			allRSs := []*appsv1.ReplicaSet{newRS, stableRS, test.otherRS}
+			assert.Equal(t, test.expected, isWaitingForReplicaSetScaleDown(r, newRS, stableRS, allRSs))
+		})
+	}
+
+	t.Run("no other RSs present", func(t *testing.T) {
+		assert.False(t, isWaitingForReplicaSetScaleDown(r, newRS, stableRS, []*appsv1.ReplicaSet{newRS, stableRS}))
+	})
+
+	t.Run("scale-down deadline on newRS/stableRS themselves never counts as waiting", func(t *testing.T) {
+		newRSWithDeadline := rs("foo-new", 1, nil, timeutil.MetaNow(), nil)
+		newRSWithDeadline.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = futureDeadline
+		assert.False(t, isWaitingForReplicaSetScaleDown(r, newRSWithDeadline, stableRS, []*appsv1.ReplicaSet{newRSWithDeadline, stableRS}))
+	})
+}
