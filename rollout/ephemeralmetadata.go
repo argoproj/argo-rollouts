@@ -30,7 +30,9 @@ func hasEphemeralMetadataConfigured(rollout *v1alpha1.Rollout) bool {
 		return rollout.Spec.Strategy.Canary.CanaryMetadata != nil || rollout.Spec.Strategy.Canary.StableMetadata != nil
 	}
 	if rollout.Spec.Strategy.BlueGreen != nil {
-		return rollout.Spec.Strategy.BlueGreen.PreviewMetadata != nil || rollout.Spec.Strategy.BlueGreen.ActiveMetadata != nil
+		return rollout.Spec.Strategy.BlueGreen.PreviewMetadata != nil ||
+			rollout.Spec.Strategy.BlueGreen.ActiveMetadata != nil ||
+			rollout.Spec.Strategy.BlueGreen.InactiveMetadata != nil
 	}
 	return false
 }
@@ -52,13 +54,17 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 	}
 
 	ctx := context.TODO()
-	var newMetadata, stableMetadata *v1alpha1.PodTemplateMetadata
+	var newMetadata, stableMetadata, inactiveMetadata *v1alpha1.PodTemplateMetadata
 	if c.rollout.Spec.Strategy.Canary != nil {
 		newMetadata = c.rollout.Spec.Strategy.Canary.CanaryMetadata
 		stableMetadata = c.rollout.Spec.Strategy.Canary.StableMetadata
 	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
 		newMetadata = c.rollout.Spec.Strategy.BlueGreen.PreviewMetadata
 		stableMetadata = c.rollout.Spec.Strategy.BlueGreen.ActiveMetadata
+		// inactiveMetadata is applied to a previously-active ReplicaSet that is being
+		// kept alive by ScaleDownDelaySeconds (the "standby" stack retained for rollback).
+		// It has no canary equivalent, so it stays nil for the canary strategy.
+		inactiveMetadata = c.rollout.Spec.Strategy.BlueGreen.InactiveMetadata
 	} else {
 		return nil
 	}
@@ -83,9 +89,17 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 		}
 	}
 
-	// Iterate all other ReplicaSets and verify we don't have injected metadata for them
+	// Iterate all other ReplicaSets. A previously-active ReplicaSet that is being kept alive by
+	// ScaleDownDelaySeconds (the demoted "standby" stack retained for rollback) receives the
+	// blueGreen InactiveMetadata; every other ReplicaSet has any previously-injected ephemeral
+	// metadata stripped (nil). Once the standby RS is finally scaled to zero, HasScaleDownDeadline
+	// no longer holds a live pod set and syncEphemeralMetadata(nil) removes the label again.
 	for _, rs := range c.otherRSs {
-		err := c.syncEphemeralMetadata(ctx, rs, nil)
+		podMetadata := (*v1alpha1.PodTemplateMetadata)(nil)
+		if inactiveMetadata != nil && replicasetutil.HasScaleDownDeadline(rs) && !isZeroReplicaReplicaSet(rs) {
+			podMetadata = inactiveMetadata
+		}
+		err := c.syncEphemeralMetadata(ctx, rs, podMetadata)
 		if err != nil {
 			return err
 		}

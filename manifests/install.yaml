@@ -31173,6 +31173,26 @@ spec:
                           This option is ignored if autoPromotionEnabled is set to false.
                         format: int32
                         type: integer
+                      inactiveMetadata:
+                        description: |-
+                          InactiveMetadata specify labels and annotations which will be attached to the previously-active
+                          (demoted) pods for the duration which they are kept alive by ScaleDownDelaySeconds after a
+                          promotion, and will be removed once that ReplicaSet is scaled down to zero. This allows the
+                          demoted/standby stack to be positively identified (e.g. for monitoring or rollback tooling)
+                          while it is retained for a fast rollback.
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            description: Annotations additional annotations to add
+                              to the experiment
+                            type: object
+                          labels:
+                            additionalProperties:
+                              type: string
+                            description: Labels Additional labels to add to the experiment
+                            type: object
+                        type: object
                       maxUnavailable:
                         anyOf:
                         - type: integer

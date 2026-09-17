@@ -169,6 +169,13 @@ spec:
         labels:
           role: preview
 
+      # inactiveMetadata will be merged and updated in-place into the previously-active
+      # (demoted) ReplicaSet's pods while it is kept alive by scaleDownDelaySeconds after a
+      # promotion, and removed once that ReplicaSet is scaled down to zero. +optional
+      inactiveMetadata:
+        labels:
+          role: standby
+
     # Canary update strategy
     canary:
       # Reference to a service which the controller will update to select

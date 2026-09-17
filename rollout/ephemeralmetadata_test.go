@@ -306,6 +306,93 @@ func TestReconcileEphemeralMetadata(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// TestReconcileBlueGreenInactiveEphemeralMetadata verifies that a demoted (previously-active)
+// ReplicaSet kept alive by ScaleDownDelaySeconds (has a scale-down-deadline annotation and
+// replicas > 0) receives the blueGreen InactiveMetadata, while a fully scaled-down ReplicaSet
+// with no deadline does not.
+func TestReconcileBlueGreenInactiveEphemeralMetadata(t *testing.T) {
+	selector := &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}}
+
+	// active (== stable, fully rolled out) ReplicaSet
+	newRS := &v1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo-active",
+			Namespace: metav1.NamespaceDefault,
+			Labels:    map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "active-hash"},
+		},
+		Spec: v1.ReplicaSetSpec{
+			Replicas: ptr.To[int32](3),
+			Selector: selector,
+			Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
+		},
+	}
+
+	// standby: previously-active ReplicaSet kept alive by scaleDownDelay
+	// (has a scale-down-deadline annotation and replicas > 0)
+	standbyRS := &v1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo-standby",
+			Namespace: metav1.NamespaceDefault,
+			Labels:    map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "standby-hash"},
+			Annotations: map[string]string{
+				v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: "2099-01-01T00:00:00Z",
+			},
+		},
+		Spec: v1.ReplicaSetSpec{
+			Replicas: ptr.To[int32](3),
+			Selector: selector,
+			Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
+		},
+	}
+
+	// retired: no scale-down-deadline and scaled to zero -> must NOT receive InactiveMetadata
+	retiredRS := &v1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "foo-retired", Namespace: metav1.NamespaceDefault},
+		Spec:       v1.ReplicaSetSpec{Replicas: ptr.To[int32](0), Selector: selector},
+	}
+
+	client := k8sfake.NewSimpleClientset(newRS, standbyRS)
+	mockContext := &rolloutContext{
+		reconcilerBase: reconcilerBase{
+			kubeclientset:            client,
+			ephemeralMetadataThreads: DefaultEphemeralMetadataThreads,
+		},
+		log: logrus.NewEntry(logrus.New()),
+		rollout: &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					BlueGreen: &v1alpha1.BlueGreenStrategy{
+						ActiveMetadata:   &v1alpha1.PodTemplateMetadata{Labels: map[string]string{"role": "active"}},
+						InactiveMetadata: &v1alpha1.PodTemplateMetadata{Labels: map[string]string{"role": "standby"}},
+					},
+				},
+			},
+			// fully rolled out: newRS is the stable RS
+			Status: v1alpha1.RolloutStatus{StableRS: "active-hash"},
+		},
+		newRS:    newRS,
+		stableRS: newRS,
+		otherRSs: []*v1.ReplicaSet{standbyRS, retiredRS},
+	}
+
+	err := mockContext.reconcileEphemeralMetadata()
+	assert.NoError(t, err)
+
+	// standby RS must have been patched with the inactive metadata
+	updatedStandby, err := client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Get(context.TODO(), "foo-standby", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "standby", updatedStandby.Spec.Template.Labels["role"])
+
+	// active RS keeps the active metadata (not standby)
+	updatedActive, err := client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Get(context.TODO(), "foo-active", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "active", updatedActive.Spec.Template.Labels["role"])
+
+	// retired RS (zero replicas, no deadline) must not have been created/updated in the client
+	_, err = client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Get(context.TODO(), "foo-retired", metav1.GetOptions{})
+	assert.True(t, errors.IsNotFound(err), "retired RS should not have received ephemeral metadata")
+}
+
 // TestSyncCanaryEphemeralMetadataReplicaSetAlreadyPatched verifies that even if the ephemeral metadata of a ReplicaSet
 // already has been patched, then it still patches the pods of the ReplicaSet that do not have the metadata yet.
 func TestSyncCanaryEphemeralMetadataReplicaSetAlreadyPatched(t *testing.T) {

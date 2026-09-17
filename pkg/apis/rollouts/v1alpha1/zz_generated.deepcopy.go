@@ -792,6 +792,11 @@ func (in *BlueGreenStrategy) DeepCopyInto(out *BlueGreenStrategy) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.InactiveMetadata != nil {
+		in, out := &in.InactiveMetadata, &out.InactiveMetadata
+		*out = new(PodTemplateMetadata)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

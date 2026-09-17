@@ -221,6 +221,13 @@ type BlueGreenStrategy struct {
 	// Default is 30 second
 	// +optional
 	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,14,opt,name=abortScaleDownDelaySeconds"`
+	// InactiveMetadata specify labels and annotations which will be attached to the previously-active
+	// (demoted) pods for the duration which they are kept alive by ScaleDownDelaySeconds after a
+	// promotion, and will be removed once that ReplicaSet is scaled down to zero. This allows the
+	// demoted/standby stack to be positively identified (e.g. for monitoring or rollback tooling)
+	// while it is retained for a fast rollback.
+	// +optional
+	InactiveMetadata *PodTemplateMetadata `json:"inactiveMetadata,omitempty" protobuf:"bytes,15,opt,name=inactiveMetadata"`
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection

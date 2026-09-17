@@ -1414,6 +1414,12 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Format:      "int32",
 						},
 					},
+					"inactiveMetadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InactiveMetadata specify labels and annotations which will be attached to the previously-active (demoted) pods for the duration which they are kept alive by ScaleDownDelaySeconds after a promotion, and will be removed once that ReplicaSet is scaled down to zero. This allows the demoted/standby stack to be positively identified (e.g. for monitoring or rollback tooling) while it is retained for a fast rollback.",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata"),
+						},
+					},
 				},
 				Required: []string{"activeService"},
 			},

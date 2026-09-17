@@ -43,7 +43,9 @@ spec:
 ```
 
 A Rollout using the blue-green strategy has the ability to attach ephemeral metadata to the active
-or preview Pods using the `activeMetadata` and `previewMetadata` fields respectively.
+or preview Pods using the `activeMetadata` and `previewMetadata` fields respectively. It can
+additionally attach metadata to the previously-active ("inactive"/standby) Pods that are kept alive
+by `scaleDownDelaySeconds` after a promotion, using the `inactiveMetadata` field.
 
 ```yaml
 spec:
@@ -55,7 +57,16 @@ spec:
       previewMetadata:
         labels:
           role: preview
+      inactiveMetadata:
+        labels:
+          role: standby
 ```
+
+`inactiveMetadata` is applied to a demoted ReplicaSet only while it is being retained by
+`scaleDownDelaySeconds` (i.e. it has a scale-down deadline and still has replicas), and is removed
+once that ReplicaSet is scaled down to zero. This makes the standby stack — kept alive for a fast
+rollback — positively identifiable by monitoring and rollback tooling, instead of only being
+distinguishable by the *absence* of the active/preview labels. There is no canary equivalent.
 
 During an update, the Rollout will create the desired ReplicaSet while also merging the metadata
 defined in `canaryMetadata`/`previewMetadata` to the desired ReplicaSet's `spec.template.metadata`.
