@@ -213,6 +213,15 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				if err != nil {
 					return err
 				}
+			} else {
+				// The abort weight has not fully drained yet, so the remaining canary weight still
+				// has to reach canary pods. Keep the canary Service on the canary ReplicaSet until
+				// the weight reaches 0, otherwise both Services select the stable ReplicaSet and
+				// the weight we are about to apply below sends all of it to an undersized stable.
+				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS, true)
+				if err != nil {
+					return err
+				}
 			}
 			err := reconciler.RemoveManagedRoutes()
 			if err != nil {
