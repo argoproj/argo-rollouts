@@ -1254,6 +1254,19 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		if c.pauseContext.IsAborted() {
 			return ""
 		}
+		// The traffic router failed to apply the desired routing state this reconcile, so we
+		// cannot trust that traffic has actually shifted to the canary. Promoting stable now
+		// would let the old stable ReplicaSet scale down while it may still be receiving
+		// traffic. Hold promotion until the router applies the desired state.
+		if c.trafficRoutingNotApplied {
+			return ""
+		}
+		// The desired traffic weight was applied but has not been verified with the underlying
+		// provider yet (e.g. ALB load balancer weights still propagating). This is the canary
+		// equivalent of the blue-green areTargetsVerified() check below.
+		if newStatus.Canary.Weights != nil && newStatus.Canary.Weights.Verified != nil && !*newStatus.Canary.Weights.Verified {
+			return ""
+		}
 		// Block promotion only when canary has fewer available than desired (e.g. still scaling up).
 		// When canary has >= desired (e.g. HPA scaled rollout down so desired=1 but canary still has 2),
 		// allow promotion so rollout can complete and then scale down to desired.
