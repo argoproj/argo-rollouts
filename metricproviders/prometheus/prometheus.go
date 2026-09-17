@@ -250,7 +250,7 @@ func newHTTPTransportWithCACert(caCert string) (*http.Transport, error) {
 	}
 
 	certPool := x509.NewCertPool()
-	if ok := certPool.AppendCertsFromPEM([]byte(caCert)); !ok {
+	if !certPool.AppendCertsFromPEM([]byte(caCert)) {
 		return nil, errors.New("failed to parse prometheus caCert as a PEM certificate bundle")
 	}
 	transport := newHTTPTransport(false)
