@@ -38,7 +38,11 @@ export const useWatchRollouts = (): ListState<RolloutInfo> => {
     const streamUrl = getApiBasePath() + RolloutServiceApiFetchParamCreator().rolloutServiceWatchRolloutInfos(namespaceCtx.namespace).url;
 
     const init = useRollouts();
-    const loading = useLoading(init);
+    const [initLoaded, setInitLoaded] = React.useState(false);
+    React.useEffect(() => {
+        setInitLoaded(true);
+    }, [init]);
+    const loading = useLoading(init) && !initLoaded;
 
     const [rollouts, setRollouts] = React.useState(init);
     const liveList = useWatchList<RolloutInfo, RolloutRolloutWatchEvent>(streamUrl, findRollout, getRollout, rollouts);
