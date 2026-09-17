@@ -309,6 +309,7 @@ func NewManager(
 	ephemeralMetadataThreads int,
 	ephemeralMetadataPodRetries int,
 	selfServiceNotificationEnabled bool,
+	notificationConfigNamespace string,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -332,7 +333,7 @@ func NewManager(
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
 
 	refResolver := rollout.NewInformerBasedWorkloadRefResolver(namespace, dynamicclientset, discoveryClient, argoprojclientset, rolloutsInformer.Informer())
-	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(analysisRunInformer), defaults.Namespace(), notificationSecretInformerFactory.Core().V1().Secrets().Informer(), notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer())
+	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(analysisRunInformer), notificationConfigNamespace, notificationSecretInformerFactory.Core().V1().Secrets().Informer(), notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer())
 	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, apiFactory)
 	toUnstructured := notificationcontroller.WithToUnstructured(objectToUnstructured)
 	// The namespace-support controller reads per-namespace configs; that only makes sense with
