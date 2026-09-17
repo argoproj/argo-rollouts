@@ -198,6 +198,7 @@ func NewAnalysisManager(
 	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
 	resyncPeriod time.Duration,
 	metricsPort int,
+	metricsHistogramBuckets []float64,
 	healthzPort int,
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
@@ -218,6 +219,7 @@ func NewAnalysisManager(
 		ClusterAnalysisTemplateLister: clusterAnalysisTemplateInformer.Lister(),
 		ExperimentLister:              nil,
 		K8SRequestProvider:            k8sRequestProvider,
+		HistogramBuckets:              metricsHistogramBuckets,
 	})
 
 	healthzServer := NewHealthzServer(fmt.Sprintf(listenAddr, healthzPort))
@@ -295,6 +297,7 @@ func NewManager(
 	resyncPeriod time.Duration,
 	instanceID string,
 	metricsPort int,
+	metricsHistogramBuckets []float64,
 	healthzPort int,
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	nginxIngressClasses []string,
