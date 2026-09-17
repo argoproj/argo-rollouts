@@ -1325,6 +1325,40 @@ func TestReconcileWeightsBaseCase(t *testing.T) {
 	assertTcpRouteWeightChanges(t, tcpRoutes[1], 3001, 0, 100)
 }
 
+func TestReconcileWeightsWithMaxTrafficWeight(t *testing.T) {
+	ro := rolloutWithHttpAndTlsAndTcpRoutes("stable", "canary", "vsvc", []string{"primary"},
+		[]v1alpha1.TLSRoute{{Port: 3000}},
+		[]v1alpha1.TCPRoute{{Port: 3000}},
+	)
+	ro.Spec.Strategy.Canary.TrafficRouting.MaxTrafficWeight = ptr.To[int32](1000)
+	r := &Reconciler{rollout: ro}
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularMixedVsvc)
+
+	virtualService := ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService
+	modifiedObj, _, err := r.reconcileVirtualService(obj, virtualService.Routes, virtualService.TLSRoutes, virtualService.TCPRoutes, 200,
+		v1alpha1.WeightDestination{ServiceName: "experiment", Weight: 100})
+	assert.NoError(t, err)
+	assert.NotNil(t, modifiedObj)
+
+	httpRoutes := extractHttpRoutes(t, modifiedObj)
+	checkDestination(t, httpRoutes[0].Route, "stable", 700)
+	checkDestination(t, httpRoutes[0].Route, "canary", 200)
+	checkDestination(t, httpRoutes[0].Route, "experiment", 100)
+	assertHttpRouteWeightChanges(t, httpRoutes[1], "secondary", 0, 100)
+
+	tlsRoutes := extractTlsRoutes(t, modifiedObj)
+	checkDestination(t, tlsRoutes[0].Route, "stable", 700)
+	checkDestination(t, tlsRoutes[0].Route, "canary", 200)
+	checkDestination(t, tlsRoutes[0].Route, "experiment", 100)
+	assertTlsRouteWeightChanges(t, tlsRoutes[1], nil, 3001, 0, 100)
+
+	tcpRoutes := extractTcpRoutes(t, modifiedObj)
+	checkDestination(t, tcpRoutes[0].Route, "stable", 700)
+	checkDestination(t, tcpRoutes[0].Route, "canary", 200)
+	checkDestination(t, tcpRoutes[0].Route, "experiment", 100)
+	assertTcpRouteWeightChanges(t, tcpRoutes[1], 3001, 0, 100)
+}
+
 func TestReconcileWeightsPingPongBaseCase(t *testing.T) {
 	r := &Reconciler{
 		rollout: rolloutWithHttpAndTlsAndTcpRoutesPingPong("vsvc", []string{"primary"},
