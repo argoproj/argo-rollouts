@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -474,13 +475,162 @@ func TestAbortScaleDownDelayDoesNotWedgeScalingEvent(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2) // desired-replicas annotation sync
-	f.expectPatchReplicaSetAction(rs2)                    // scale-down-deadline added
+	// The scale-down-deadline is not added in this reconcile: syncReplicasOnly does not reconcile
+	// traffic routing, so the recorded canary weight is still the pre-abort 50 and
+	// canaryTrafficShiftedAway() holds the annotation back. Terminating the scaling event is what
+	// lets the next reconcile take the full path, drive the abort weight to 0, and annotate then.
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
 	assert.Equal(t, int32(5), *updatedRS.Spec.Replicas, "canary RS must be held at scale during the abort delay")
 	assert.Equal(t, "4", updatedRS.Annotations[annotations.DesiredReplicasAnnotation], "desired-replicas annotation must be synced so the scaling event terminates and the next reconcile takes the full path")
+}
+
+// trafficWeightsFn builds recorded traffic weights given the canary and stable pod hashes.
+type trafficWeightsFn func(canaryHash, stableHash string) *v1alpha1.TrafficWeights
+
+// canaryWeightsAt records the canary at the given weight on the current canary RS. A nil verified
+// pointer models a router that does not verify weights (Istio, SMI, Nginx); non-nil models one
+// that does (ALB).
+func canaryWeightsAt(canaryWeight int32, verified *bool) trafficWeightsFn {
+	return func(canaryHash, stableHash string) *v1alpha1.TrafficWeights {
+		return &v1alpha1.TrafficWeights{
+			Canary:   v1alpha1.WeightDestination{Weight: canaryWeight, PodTemplateHash: canaryHash},
+			Stable:   v1alpha1.WeightDestination{Weight: 100 - canaryWeight, PodTemplateHash: stableHash},
+			Verified: verified,
+		}
+	}
+}
+
+func noCanaryWeights(string, string) *v1alpha1.TrafficWeights { return nil }
+
+// abortScaleDown is what reconcileNewReplicaSet did for an aborted rollout: whether it annotated
+// the new RS with the scale-down delay, and the event reasons it recorded.
+type abortScaleDown struct {
+	annotated bool
+	events    []string
+}
+
+// reconcileNewRSOnAbort wires a rolloutContext around ro and reconciles it once. newStatus stands
+// in for what reconcileTrafficRouting recorded earlier in the same reconcile.
+func reconcileNewRSOnAbort(t *testing.T, f *fixture, ro *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, newStatus v1alpha1.RolloutStatus) abortScaleDown {
+	t.Helper()
+	f.objects = append(f.objects, ro)
+	f.kubeobjects = append(f.kubeobjects, stableRS, newRS)
+	f.replicaSetLister = append(f.replicaSetLister, stableRS, newRS)
+	c, informers, _ := f.newController(noResyncPeriodFunc)
+	stopCh := make(chan struct{})
+	informers.Start(stopCh)
+	informers.WaitForCacheSync(stopCh)
+	close(stopCh)
+
+	res := abortScaleDown{}
+	fakeRecorder := record.NewFakeEventRecorder()
+	roCtx := rolloutContext{
+		log:            logutil.WithRollout(ro),
+		rollout:        ro,
+		newRS:          newRS,
+		stableRS:       stableRS,
+		allRSs:         []*appsv1.ReplicaSet{newRS, stableRS},
+		newStatus:      newStatus,
+		reconcilerBase: c.reconcilerBase,
+		pauseContext:   &pauseContext{rollout: ro},
+	}
+	roCtx.recorder = fakeRecorder
+
+	_, err := roCtx.reconcileNewReplicaSet()
+	assert.NoError(t, err)
+	res.events = fakeRecorder.Events()
+
+	for _, a := range f.kubeclient.Actions() {
+		if a.GetVerb() == "patch" && a.GetResource().Resource == "replicasets" {
+			res.annotated = true
+		}
+	}
+	return res
+}
+
+// TestScaleDownOnAbortWaitsForCanaryTrafficShift verifies that, on an aborted traffic-routed
+// canary, the scale-down-delay annotation is only added to the canary RS once the router has
+// stopped sending it traffic -- not while the canary is still in the traffic path.
+func TestScaleDownOnAbortWaitsForCanaryTrafficShift(t *testing.T) {
+	// reconcile sets up an aborted, traffic-routed canary with the stable RS fully scaled and
+	// reconciles it once. persisted is what a previous reconcile wrote to status; fresh is what
+	// reconcileTrafficRouting recorded on newStatus earlier in this same reconcile.
+	reconcile := func(persisted, fresh trafficWeightsFn) abortScaleDown {
+		f := newFixture(t)
+		defer f.Close()
+
+		steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](50)}, {Pause: &v1alpha1.RolloutPause{}}}
+		r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
+		r1.Spec.Strategy.Canary.CanaryService = "canary"
+		r1.Spec.Strategy.Canary.StableService = "stable"
+		r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{SMI: &v1alpha1.SMITrafficRouting{}}
+		r1.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = ptr.To[int32](30)
+		r2 := bumpVersion(r1)
+		r2.Status.Abort = true
+		r2.Status.AbortedAt = ptr.To(timeutil.MetaNow())
+
+		stableRS := newReplicaSetWithStatus(r1, 5, 5)
+		newRS := newReplicaSetWithStatus(r2, 5, 5)
+		stableHash := stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		canaryHash := newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		r2.Status.StableRS = stableHash
+		r2.Status.Canary.Weights = persisted(canaryHash, stableHash)
+
+		newStatus := *r2.Status.DeepCopy()
+		newStatus.Canary.Weights = fresh(canaryHash, stableHash)
+		return reconcileNewRSOnAbort(t, f, r2, newRS, stableRS, newStatus)
+	}
+	// steady models the common case where the previous reconcile already recorded what this one
+	// recomputed, for a rollout aborted just now.
+	steady := func(w trafficWeightsFn) bool { return reconcile(w, w).annotated }
+
+	assert.False(t, steady(canaryWeightsAt(50, nil)), "canary still has traffic -> no scale-down delay")
+	assert.True(t, steady(canaryWeightsAt(0, nil)), "traffic shifted off canary (router doesn't verify) -> annotate")
+	assert.False(t, steady(canaryWeightsAt(0, ptr.To(false))), "weight 0 but router hasn't verified the shift -> wait")
+	assert.True(t, steady(canaryWeightsAt(0, ptr.To(true))), "weight 0 and verified -> annotate")
+	assert.True(t, steady(noCanaryWeights), "no recorded weights (abort before any canary traffic) -> annotate")
+
+	// The gate must read the weights reconcileTrafficRouting recorded on newStatus earlier in this
+	// reconcile, not the still-serving values a previous reconcile persisted -- otherwise every
+	// abort pays an extra reconcile before the canary can be annotated.
+	assert.True(t, reconcile(canaryWeightsAt(50, nil), canaryWeightsAt(0, ptr.To(true))).annotated,
+		"router shifted away this reconcile -> annotate without waiting for the next one")
+
+	// The wait is indefinite, so it has to be visible to an operator.
+	waiting := reconcile(canaryWeightsAt(50, nil), canaryWeightsAt(50, nil))
+	assert.False(t, waiting.annotated)
+	assert.Contains(t, waiting.events, conditions.CanaryTrafficNotShiftedReason,
+		"waiting on the traffic shift must emit a warning event")
+	assert.NotContains(t, reconcile(canaryWeightsAt(0, nil), canaryWeightsAt(0, nil)).events,
+		conditions.CanaryTrafficNotShiftedReason, "no event once traffic has shifted away")
+}
+
+// TestScaleDownOnAbortBlueGreenUnaffected verifies that the canary traffic-shift gate does not
+// change blue-green abort scale-down, which reaches reconcileNewReplicaSet by the same path but
+// has no canary traffic router to wait on. Leftover status.canary.weights (which a rollout
+// converted from a traffic-routed canary carries until they are recomputed) must not wedge it.
+func TestScaleDownOnAbortBlueGreenUnaffected(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 5, nil, "active", "preview")
+	r1.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds = ptr.To[int32](30)
+	r2 := bumpVersion(r1)
+	r2.Status.Abort = true
+	r2.Status.AbortedAt = ptr.To(timeutil.MetaNow())
+
+	stableRS := newReplicaSetWithStatus(r1, 5, 5)
+	newRS := newReplicaSetWithStatus(r2, 5, 5)
+	r2.Status.StableRS = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r2.Status.BlueGreen.ActiveSelector = r2.Status.StableRS
+	r2.Status.Canary.Weights = canaryWeightsAt(50, nil)(
+		newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], r2.Status.StableRS)
+
+	res := reconcileNewRSOnAbort(t, f, r2, newRS, stableRS, *r2.Status.DeepCopy())
+	assert.True(t, res.annotated, "blue-green abort annotates the scale-down delay immediately")
 }
 
 func TestReconcileOldReplicaSet(t *testing.T) {

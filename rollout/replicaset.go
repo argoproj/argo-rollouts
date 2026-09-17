@@ -16,8 +16,10 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
@@ -194,14 +196,24 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 				return false, fmt.Errorf("failed to sync newRS desired-replicas annotation before adding abort scale-down delay: %w", err)
 			}
 			// Don't annotate until the stable RS is fully scaled, i.e. able to serve 100%
-			// of traffic, since the deadline scales the canary to zero unconditionally.
-			// With dynamicStableScale this holds once the abort weight has stepped down to
-			// zero (see GetDesiredCanaryWeight). >= tolerates stable transiently exceeding
-			// spec.Replicas (e.g. HPA scale-in).
+			// of traffic, AND the router has stopped sending traffic to the canary, since the
+			// deadline scales the canary to zero unconditionally. The latter is the guarantee
+			// scaleDownOldReplicaSetsForCanary already gives old RSs, via
+			// canProceedWithScaleDownAnnotation and isReplicaSetReferenced; neither covered the
+			// aborted canary, because it is the *new* RS. Like those guards, this one waits
+			// indefinitely rather than timing out; a warning event makes the wait visible.
+			// With dynamicStableScale the stable check holds once the abort weight has stepped
+			// down to zero (see GetDesiredCanaryWeight). >= tolerates stable transiently
+			// exceeding spec.Replicas (e.g. HPA scale-in).
 			if c.stableRS.Status.AvailableReplicas >= *c.rollout.Spec.Replicas {
-				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
-				if err != nil {
-					return false, err
+				if c.canaryTrafficShiftedAway() {
+					err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
+					if err != nil {
+						return false, err
+					}
+				} else {
+					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.CanaryTrafficNotShiftedReason},
+						conditions.CanaryTrafficNotShiftedMessage, c.newRS.Name)
 				}
 			}
 			// leave newRS scaled up until we annotate
@@ -272,6 +284,28 @@ func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
 		return false
 	}
 	return true
+}
+
+// canaryTrafficShiftedAway reports whether the traffic router has stopped sending traffic to the
+// canary ReplicaSet: the canary weight has reached 0 and, for routers that verify weights, that
+// shift has been verified.
+//
+// Weights are read from newStatus because reconcileTrafficRouting runs earlier in the same
+// reconcile and records there both the weight it just programmed and the result of the
+// VerifyWeight call it just made. The persisted status is a reconcile behind.
+func (c *rolloutContext) canaryTrafficShiftedAway() bool {
+	if c.rollout.Spec.Strategy.Canary == nil || c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		// Blue-green reaches reconcileNewReplicaSet by the same path, with no router to wait on.
+		return true
+	}
+	weights := c.newStatus.Canary.Weights
+	if weights == nil {
+		// Aborted before any canary traffic was shifted, so there is nothing to wait for.
+		return true
+	}
+	// The weight refers to c.newRS: the one path that records a different canary pod hash,
+	// IsDynamicallyRollingBackToStable, requires a fully promoted rollout, so is never an abort.
+	return weights.Canary.Weight == 0 && (weights.Verified == nil || *weights.Verified)
 }
 
 // reconcileOtherReplicaSets reconciles "other" ReplicaSets.
