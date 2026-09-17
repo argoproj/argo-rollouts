@@ -381,7 +381,11 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, new
 	maxWeight := weightutil.MaxTrafficWeight(rollout)
 	if setCanaryScaleReplicas != nil {
 		// a canary count was explicitly set
-		canaryCount = *setCanaryScaleReplicas
+		if rolloutSpecReplica == 0 {
+			canaryCount = 0
+		} else {
+			canaryCount = *setCanaryScaleReplicas
+		}
 	} else {
 		canaryCount = CheckMinPodsPerReplicaSet(rollout, trafficWeightToReplicas(rolloutSpecReplica, desiredWeight, maxWeight))
 	}

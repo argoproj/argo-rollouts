@@ -76,7 +76,7 @@ func (c *rolloutContext) reconcile() error {
 		return err
 	}
 
-	if isScalingEvent {
+	if isScalingEvent && !c.needsZeroReplicaFastTrackReconcile() {
 		return c.syncReplicasOnly()
 	}
 
