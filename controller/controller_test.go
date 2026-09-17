@@ -282,6 +282,7 @@ func TestNewManager(t *testing.T) {
 				rolloutController.DefaultEphemeralMetadataThreads,
 				rolloutController.DefaultEphemeralMetadataPodRetries,
 				selfService,
+				"default",
 			)
 
 			assert.NotNil(t, cm)
