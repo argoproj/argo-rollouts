@@ -402,6 +402,7 @@ func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.Set
 }
 
 func (s *ArgoRolloutsServer) PauseRollout(ctx context.Context, q *rollout.PauseRolloutRequest) (*v1alpha1.Rollout, error) {
+    log.Infof("PauseRollout called: ns=%s name=%s paused=%v", q.GetNamespace(), q.GetName(), q.GetPaused())
 	rolloutIf := s.Options.DynamicClientset.Resource(v1alpha1.RolloutGVR).Namespace(q.GetNamespace())
 	patch := []byte(fmt.Sprintf(`{"spec":{"paused":%t}}`, q.GetPaused()))
 	_, err := rolloutIf.Patch(ctx, q.GetName(), types.MergePatchType, patch, v1.PatchOptions{})
