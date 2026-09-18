@@ -47,7 +47,7 @@ type When struct {
 // GitHub action runners are slow and unpredictable.
 // Current backoff is about 15 seconds. It used to be less than a second.
 // If you see more flaky tests in the future try increasing the values here.
-var W = wait.Backoff{
+var reconcileBackoff = wait.Backoff{
 	Duration: 100 * time.Millisecond,
 	Factor:   1.5,
 	Jitter:   0.1,
