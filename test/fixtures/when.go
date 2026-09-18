@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/cache"
@@ -41,6 +42,16 @@ import (
 
 type When struct {
 	*Common
+}
+
+// GitHub action runners are slow and unpredictable.
+// Current backoff is about 15 seconds. It used to be less than a second.
+// If you see more flaky tests in the future try increasing the values here.
+var W = wait.Backoff{
+	Duration: 100 * time.Millisecond,
+	Factor:   1.5,
+	Jitter:   0.1,
+	Steps:    12,
 }
 
 func (w *When) ApplyManifests(yaml ...string) *When {
@@ -745,7 +756,7 @@ func (w *When) StopLoad() *When {
 // the controller has completed its reconciliation and is ready for a promote.
 func (w *When) waitForPauseConditionsSet() {
 	rolloutIf := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace)
-	err := retryutil.OnError(retryutil.DefaultBackoff, func(err error) bool {
+	err := retryutil.OnError(reconcileBackoff, func(err error) bool {
 		return true
 	}, func() error {
 		ro, err := rolloutIf.Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
@@ -775,7 +786,7 @@ func (w *When) clearControllerPauseIfNeeded() {
 	rolloutIf := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace)
 
 	// Poll until the controller processes the promote (clears controllerPause).
-	err := retryutil.OnError(retryutil.DefaultBackoff, func(err error) bool {
+	err := retryutil.OnError(reconcileBackoff, func(err error) bool {
 		return true
 	}, func() error {
 		ro, err := rolloutIf.Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
@@ -811,7 +822,7 @@ func (w *When) clearControllerPauseIfNeeded() {
 			_, scaleErr := rolloutIf.Patch(w.Context, w.rollout.GetName(), types.MergePatchType, scalePatch, metav1.PatchOptions{})
 			w.CheckError(scaleErr)
 
-			err = retryutil.OnError(retryutil.DefaultBackoff, func(err error) bool {
+			err = retryutil.OnError(reconcileBackoff, func(err error) bool {
 				return true
 			}, func() error {
 				ro, err := rolloutIf.Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
