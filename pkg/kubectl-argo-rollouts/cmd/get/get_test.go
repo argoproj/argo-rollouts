@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
@@ -566,27 +565,19 @@ NAME                                                     KIND         STATUS    
 }
 
 func TestGetRolloutTimedPauseRemaining(t *testing.T) {
-	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
-	timeutil.SetNowTimeFunc(func() time.Time { return now })
-	defer timeutil.SetNowTimeFunc(time.Now)
-
 	tf, ao := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
 	o := &GetOptions{ArgoRolloutsOptions: *ao}
 
-	dur := intstr.FromString("40s")
 	roInfo := &rollout.RolloutInfo{
-		ObjectMeta:   &metav1.ObjectMeta{Name: "canary-demo", Namespace: "test"},
-		Status:       "Paused",
-		Strategy:     "Canary",
-		Step:         "1/2",
-		SetWeight:    "40",
-		ActualWeight: "40",
-		Steps: []*v1alpha1.CanaryStep{
-			{Pause: &v1alpha1.RolloutPause{}},
-			{Pause: &v1alpha1.RolloutPause{Duration: &dur}},
-		},
-		PauseStartTime: now.Add(-25 * time.Second).UTC().Format(time.RFC3339),
+		ObjectMeta:            &metav1.ObjectMeta{Name: "canary-demo", Namespace: "test"},
+		Status:                "Paused",
+		Strategy:              "Canary",
+		Step:                  "1/2",
+		SetWeight:             "40",
+		ActualWeight:          "40",
+		PauseDurationSeconds:  40,
+		PauseRemainingSeconds: 15,
 	}
 
 	o.PrintRollout(roInfo)

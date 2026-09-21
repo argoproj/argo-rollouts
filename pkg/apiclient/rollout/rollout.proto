@@ -99,8 +99,17 @@ message RolloutInfo {
 
   repeated ContainerInfo initContainers = 21;
 
-  // pauseStartTime is the RFC3339 start time of the current canary pause step, empty when not paused on a step
-  string pauseStartTime = 22;
+  // pauseDurationSeconds is the current canary pause step's duration, normalized to whole seconds by the
+  // controller so clients never parse the duration grammar themselves. It is 0 when the rollout is not
+  // paused on a step or the pause is indefinite, and -1 when the configured duration is not parseable.
+  // Sub-second durations truncate toward zero (e.g. "500ms" is 0).
+  int32 pauseDurationSeconds = 22;
+
+  // pauseRemainingSeconds is how much of pauseDurationSeconds was left when this message was serialized.
+  // It is a snapshot, not a fact about the resource: clients animate or print from it directly rather than
+  // comparing timestamps, which keeps them correct even when the local clock is wrong. Invariant:
+  // 0 <= pauseRemainingSeconds <= pauseDurationSeconds, and it is only meaningful when pauseDurationSeconds > 0.
+  int32 pauseRemainingSeconds = 23;
 }
 
 message ExperimentInfo {
