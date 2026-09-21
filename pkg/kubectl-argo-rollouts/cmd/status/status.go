@@ -77,7 +77,6 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 				})
 				go controller.Run(ctx)
 				statusOptions.WatchStatus(ctx.Done(), rolloutUpdates)
-				defer close(rolloutUpdates)
 
 				// the final rollout info after timeout or reach Healthy or Degraded status
 				ri, err = controller.GetRolloutInfo()
