@@ -104,6 +104,25 @@ provider:
         roleArn: $ROLEARN
 ```
 
+### Utilizing Google Managed Prometheus
+
+Google Managed Prometheus can be used as the prometheus data source for analysis through its [Cloud Monitoring Prometheus API](https://cloud.google.com/stackdriver/docs/managed-prometheus/query-api-ui). Queries are authenticated with [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials), so on GKE the controller's service account needs [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) and the `roles/monitoring.viewer` role on the project you query, which is the `$PROJECT_ID` in the address and need not be the project the cluster runs in. Once you ensure the proper permissions are in place, you can use the Cloud Monitoring url in your ```provider``` block and add a google authentication block:
+
+```yaml
+provider:
+  prometheus:
+    address: https://monitoring.googleapis.com/v1/projects/$PROJECT_ID/location/global/prometheus
+    query: |
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+      )) /
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+      ))
+    authentication:
+      google: {}  # optional: scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+```
+
 ### With OAuth2
 
 You can setup an [OAuth2 client credential](https://datatracker.ietf.org/doc/html/rfc6749#section-4.4) flow using the following values:
