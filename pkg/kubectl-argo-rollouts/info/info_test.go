@@ -294,6 +294,47 @@ func TestRolloutInfoPauseNotInProgress(t *testing.T) {
 	assert.Equal(t, int32(0), roInfo.PauseRemainingSeconds)
 }
 
+// TestRolloutInfoPauseOnNonPauseStep covers status that disagrees with itself:
+// a canary pause condition is recorded, but the current step index does not
+// point at a pause step. There is nothing to count down, so both fields stay 0
+// rather than reporting a duration from an unrelated step.
+func TestRolloutInfoPauseOnNonPauseStep(t *testing.T) {
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	timeutil.SetNowTimeFunc(func() time.Time { return now })
+	defer timeutil.SetNowTimeFunc(time.Now)
+
+	pausedOn := func(steps []v1alpha1.CanaryStep, idx int32) *rollout.RolloutInfo {
+		ro := &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec:       v1alpha1.RolloutSpec{Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{Steps: steps}}},
+			Status: v1alpha1.RolloutStatus{
+				CurrentStepIndex: ptr.To[int32](idx),
+				PauseConditions: []v1alpha1.PauseCondition{
+					{Reason: v1alpha1.PauseReasonBlueGreenPause, StartTime: metav1.NewTime(now)},
+					{Reason: v1alpha1.PauseReasonCanaryPauseStep, StartTime: metav1.NewTime(now)},
+				},
+			},
+		}
+		return NewRolloutInfo(ro, nil, nil, nil, nil, nil)
+	}
+
+	// Current step is a setWeight, not a pause.
+	roInfo := pausedOn([]v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](20)}}, 0)
+	assert.Equal(t, int32(0), roInfo.PauseDurationSeconds)
+	assert.Equal(t, int32(0), roInfo.PauseRemainingSeconds)
+
+	// Step index past the end of the configured steps.
+	dur := intstr.FromString("15m")
+	roInfo = pausedOn([]v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{Duration: &dur}}}, 5)
+	assert.Equal(t, int32(0), roInfo.PauseDurationSeconds)
+	assert.Equal(t, int32(0), roInfo.PauseRemainingSeconds)
+
+	// No canary steps configured at all.
+	roInfo = pausedOn(nil, 0)
+	assert.Equal(t, int32(0), roInfo.PauseDurationSeconds)
+	assert.Equal(t, int32(0), roInfo.PauseRemainingSeconds)
+}
+
 // pausedCanary builds a canary rollout paused on a single pause step.
 func pausedCanary(duration *intstr.IntOrString, startTime metav1.Time) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{

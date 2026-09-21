@@ -280,7 +280,8 @@ func AnalysisRunsByRevision(r *rollout.RolloutInfo, rev int) []*rollout.Analysis
 // against their own clock. Both are 0 unless a timed pause is in progress;
 // duration is -1 when the configured value is not parseable.
 func pauseTiming(ro *v1alpha1.Rollout) (durationSeconds int32, remainingSeconds int32) {
-	if !isPausedOnCanaryStep(ro) {
+	startTime, paused := canaryPauseStart(ro)
+	if !paused {
 		return 0, 0
 	}
 	step, _ := replicasetutil.GetCurrentCanaryStep(ro)
@@ -291,36 +292,32 @@ func pauseTiming(ro *v1alpha1.Rollout) (durationSeconds int32, remainingSeconds 
 	if durationSeconds <= 0 {
 		return durationSeconds, 0
 	}
-	return durationSeconds, remainingOf(ro, durationSeconds)
+	return durationSeconds, remainingFrom(startTime, durationSeconds)
 }
 
-func isPausedOnCanaryStep(ro *v1alpha1.Rollout) bool {
+// canaryPauseStart reports when the current canary pause step began, and
+// whether the rollout is paused on one at all.
+func canaryPauseStart(ro *v1alpha1.Rollout) (time.Time, bool) {
 	for _, cond := range ro.Status.PauseConditions {
 		if cond.Reason == v1alpha1.PauseReasonCanaryPauseStep {
-			return true
+			return cond.StartTime.Time, true
 		}
 	}
-	return false
+	return time.Time{}, false
 }
 
-// remainingOf clamps to [0, durationSeconds] so clients can render the value
+// remainingFrom clamps to [0, durationSeconds] so clients can render the value
 // directly without guarding against a clock that disagrees with the pause start.
-func remainingOf(ro *v1alpha1.Rollout, durationSeconds int32) int32 {
-	for _, cond := range ro.Status.PauseConditions {
-		if cond.Reason != v1alpha1.PauseReasonCanaryPauseStep {
-			continue
-		}
-		elapsed := timeutil.Now().Sub(cond.StartTime.Time)
-		remaining := time.Duration(durationSeconds)*time.Second - elapsed
-		if remaining < 0 {
-			return 0
-		}
-		if remaining > time.Duration(durationSeconds)*time.Second {
-			return durationSeconds
-		}
-		return int32(remaining.Seconds())
+func remainingFrom(startTime time.Time, durationSeconds int32) int32 {
+	total := time.Duration(durationSeconds) * time.Second
+	remaining := total - timeutil.Now().Sub(startTime)
+	if remaining < 0 {
+		return 0
 	}
-	return 0
+	if remaining > total {
+		return durationSeconds
+	}
+	return int32(remaining.Seconds())
 }
 
 // PauseStepRemaining reports the time left on the current timed canary pause
