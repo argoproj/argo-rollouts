@@ -5,9 +5,6 @@ const webpack = require('webpack');
 
 module.exports = merge(common, {
     mode: 'development',
-    watchOptions: {
-        ignored: [/dist/, /node_modules/],
-    },
     plugins: [
         new BundleAnalyzerPlugin(),
         new webpack.DefinePlugin({
@@ -17,6 +14,9 @@ module.exports = merge(common, {
     devServer: {
         historyApiFallback: {
             disableDotRule: true,
+        },
+        watchOptions: {
+            ignored: [/dist/, /node_modules/],
         },
         headers: {
             'X-Frame-Options': 'SAMEORIGIN',
