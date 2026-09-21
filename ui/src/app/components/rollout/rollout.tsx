@@ -365,10 +365,20 @@ const PauseProgressBar = (props: {durationSeconds: number; remainingSeconds: num
         initial.current = computePauseProgress({durationSeconds: props.durationSeconds, remainingSeconds: props.remainingSeconds});
     }
 
-    // Paint the starting position first, then flip to the target on the next
-    // frame so the browser animates the transition instead of jumping.
+    // Paint the starting position first, then flip to the target so the browser
+    // animates the transition instead of jumping.
+    const barRef = React.useRef<HTMLDivElement>(null);
     const [running, setRunning] = React.useState(false);
     React.useEffect(() => {
+        const el = barRef.current;
+        if (!el) {
+            return;
+        }
+        // Reading a layout property forces the browser to commit the starting
+        // width before we change it. Without this both widths can land in one
+        // style recalculation, leaving nothing to transition from, and the fill
+        // snaps straight to 100%.
+        void el.offsetWidth;
         const id = requestAnimationFrame(() => setRunning(true));
         return () => cancelAnimationFrame(id);
     }, []);
@@ -382,7 +392,7 @@ const PauseProgressBar = (props: {durationSeconds: number; remainingSeconds: num
     // set on both renders and only flip the width once `running` is true.
     const {fillPercent, remainingMs} = initial.current;
 
-    return <div className='steps__step__pause-fill' style={{width: running ? '100%' : `${fillPercent}%`, transition: `width ${remainingMs}ms linear`}} />;
+    return <div ref={barRef} className='steps__step__pause-fill' style={{width: running ? '100%' : `${fillPercent}%`, transition: `width ${remainingMs}ms linear`}} />;
 };
 
 const Step = (props: {
