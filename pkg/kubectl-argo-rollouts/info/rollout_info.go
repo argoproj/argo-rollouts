@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -107,12 +106,7 @@ func NewRolloutInfo(
 		roInfo.InitContainers = append(roInfo.InitContainers, &rollout.ContainerInfo{Name: c.Name, Image: c.Image})
 	}
 
-	for _, cond := range ro.Status.PauseConditions {
-		if cond.Reason == v1alpha1.PauseReasonCanaryPauseStep {
-			roInfo.PauseStartTime = cond.StartTime.UTC().Format(time.RFC3339)
-			break
-		}
-	}
+	roInfo.PauseDurationSeconds, roInfo.PauseRemainingSeconds = pauseTiming(ro)
 
 	if ro.Status.RestartedAt != nil {
 		roInfo.RestartedAt = ro.Status.RestartedAt.String()
@@ -278,29 +272,66 @@ func AnalysisRunsByRevision(r *rollout.RolloutInfo, rev int) []*rollout.Analysis
 	return runs
 }
 
+// pauseTiming reports the current canary pause step's duration and how much of
+// it is left, both in whole seconds, for a rollout paused on a timed step.
+//
+// Normalizing here means clients never parse Go's duration grammar, and
+// reporting remaining as a snapshot means they never compare a server timestamp
+// against their own clock. Both are 0 unless a timed pause is in progress;
+// duration is -1 when the configured value is not parseable.
+func pauseTiming(ro *v1alpha1.Rollout) (durationSeconds int32, remainingSeconds int32) {
+	if !isPausedOnCanaryStep(ro) {
+		return 0, 0
+	}
+	step, _ := replicasetutil.GetCurrentCanaryStep(ro)
+	if step == nil || step.Pause == nil {
+		return 0, 0
+	}
+	durationSeconds = step.Pause.DurationSeconds()
+	if durationSeconds <= 0 {
+		return durationSeconds, 0
+	}
+	return durationSeconds, remainingOf(ro, durationSeconds)
+}
+
+func isPausedOnCanaryStep(ro *v1alpha1.Rollout) bool {
+	for _, cond := range ro.Status.PauseConditions {
+		if cond.Reason == v1alpha1.PauseReasonCanaryPauseStep {
+			return true
+		}
+	}
+	return false
+}
+
+// remainingOf clamps to [0, durationSeconds] so clients can render the value
+// directly without guarding against a clock that disagrees with the pause start.
+func remainingOf(ro *v1alpha1.Rollout, durationSeconds int32) int32 {
+	for _, cond := range ro.Status.PauseConditions {
+		if cond.Reason != v1alpha1.PauseReasonCanaryPauseStep {
+			continue
+		}
+		elapsed := timeutil.Now().Sub(cond.StartTime.Time)
+		remaining := time.Duration(durationSeconds)*time.Second - elapsed
+		if remaining < 0 {
+			return 0
+		}
+		if remaining > time.Duration(durationSeconds)*time.Second {
+			return durationSeconds
+		}
+		return int32(remaining.Seconds())
+	}
+	return 0
+}
+
 // PauseStepRemaining reports the time left on the current timed canary pause
 // step (e.g. "15s") when the rollout is paused on one, along with true. It
 // returns "", false for indefinite pauses, when no step pause is in progress,
-// or when the timing cannot be determined.
+// or when the configured duration is not parseable.
+//
+// The controller already did the arithmetic; this only formats.
 func PauseStepRemaining(roInfo *rollout.RolloutInfo) (string, bool) {
-	if roInfo.PauseStartTime == "" {
+	if roInfo.PauseDurationSeconds <= 0 {
 		return "", false
 	}
-	start, err := time.Parse(time.RFC3339, roInfo.PauseStartTime)
-	if err != nil {
-		return "", false
-	}
-	idx, err := strconv.Atoi(strings.SplitN(roInfo.Step, "/", 2)[0])
-	if err != nil || idx < 0 || idx >= len(roInfo.Steps) {
-		return "", false
-	}
-	pause := roInfo.Steps[idx].Pause
-	if pause == nil || pause.Duration == nil {
-		return "", false
-	}
-	remaining := start.Add(time.Duration(pause.DurationSeconds()) * time.Second).Sub(timeutil.Now())
-	if remaining < 0 {
-		remaining = 0
-	}
-	return duration.HumanDuration(remaining), true
+	return duration.HumanDuration(time.Duration(roInfo.PauseRemainingSeconds) * time.Second), true
 }

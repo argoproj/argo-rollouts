@@ -1,36 +1,29 @@
-export const durationToSeconds = (duration: string): number => {
-    if (!duration) {
-        return 0;
-    }
-    const match = duration.match(/^(\d+)(s|m|h)?$/);
-    if (!match) {
-        return 0;
-    }
-    const value = parseInt(match[1], 10);
-    switch (match[2]) {
-        case 'h':
-            return value * 3600;
-        case 'm':
-            return value * 60;
-        default:
-            return value;
-    }
-};
-
 export interface PauseProgress {
     fillPercent: number;
     remainingMs: number;
     done: boolean;
 }
 
-export const computePauseProgress = (params: {startTimeMs: number; durationSeconds: number; nowMs: number}): PauseProgress => {
-    const {startTimeMs, durationSeconds, nowMs} = params;
-    const totalMs = durationSeconds * 1000;
-    if (totalMs <= 0) {
-        return {fillPercent: 100, remainingMs: 0, done: true};
+// computePauseProgress positions the pause bar for a rollout paused on a timed
+// canary step.
+//
+// Both inputs come from the controller as whole seconds
+// (RolloutInfo.pauseDurationSeconds / pauseRemainingSeconds), so the UI neither
+// parses Go's duration grammar nor compares a server timestamp against the local
+// clock — a wrong clock on the viewer's machine cannot skew the bar.
+//
+// durationSeconds is 0 when the pause is indefinite or not in progress, and -1
+// when the controller could not parse the configured duration. Both yield null
+// so the caller renders no bar rather than an instantly-complete one.
+export const computePauseProgress = (params: {durationSeconds: number; remainingSeconds: number}): PauseProgress | null => {
+    const {durationSeconds, remainingSeconds} = params;
+    if (durationSeconds <= 0) {
+        return null;
     }
-    const elapsedMs = Math.max(0, nowMs - startTimeMs);
-    const fillPercent = Math.min(100, (elapsedMs / totalMs) * 100);
-    const remainingMs = Math.max(0, totalMs - elapsedMs);
-    return {fillPercent, remainingMs, done: elapsedMs >= totalMs};
+    const remaining = Math.min(Math.max(remainingSeconds, 0), durationSeconds);
+    return {
+        fillPercent: ((durationSeconds - remaining) / durationSeconds) * 100,
+        remainingMs: remaining * 1000,
+        done: remaining <= 0,
+    };
 };

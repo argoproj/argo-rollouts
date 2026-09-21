@@ -25,7 +25,7 @@ import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faChevronCircleDown, faChevronCircleUp, faCircleNotch} from '@fortawesome/free-solid-svg-icons';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 import { notification } from 'antd';
-import {computePauseProgress, durationToSeconds} from './pause-timer';
+import {computePauseProgress, PauseProgress} from './pause-timer';
 
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 export interface ImageInfo {
@@ -257,7 +257,8 @@ const Steps = (props: {rollout: RolloutInfo; curStep: number}) => (
                         complete={i < props.curStep}
                         current={i === props.curStep}
                         last={i === arr.length - 1}
-                        pauseStartTime={props.rollout.pauseStartTime}
+                        pauseDurationSeconds={props.rollout.pauseDurationSeconds}
+                        pauseRemainingSeconds={props.rollout.pauseRemainingSeconds}
                     />
                 ))}
         </div>
@@ -355,13 +356,13 @@ const parseDuration = (duration: string): string => {
 // pause elapses. Rather than tick every second, it paints the current position
 // once and then runs a single CSS transition to 100% over the remaining time,
 // so the fill sweeps smoothly and self-completes when the pause ends.
-const PauseProgressBar = (props: {startTime: string; durationSeconds: number}) => {
-    const initial = React.useRef<{valid: boolean; fillPercent: number; remainingMs: number}>();
-    if (!initial.current) {
-        const startTimeMs = new Date(props.startTime).getTime();
-        initial.current = isNaN(startTimeMs)
-            ? {valid: false, fillPercent: 0, remainingMs: 0}
-            : {valid: true, ...computePauseProgress({startTimeMs, durationSeconds: props.durationSeconds, nowMs: Date.now()})};
+//
+// Both inputs are whole seconds from the controller, so there is no duration
+// parsing and no dependence on the viewer's clock being correct.
+const PauseProgressBar = (props: {durationSeconds: number; remainingSeconds: number}) => {
+    const initial = React.useRef<PauseProgress | null>();
+    if (initial.current === undefined) {
+        initial.current = computePauseProgress({durationSeconds: props.durationSeconds, remainingSeconds: props.remainingSeconds});
     }
 
     // Paint the starting position first, then flip to the target on the next
@@ -372,7 +373,7 @@ const PauseProgressBar = (props: {startTime: string; durationSeconds: number}) =
         return () => cancelAnimationFrame(id);
     }, []);
 
-    if (!initial.current.valid) {
+    if (!initial.current) {
         return null;
     }
 
@@ -384,7 +385,14 @@ const PauseProgressBar = (props: {startTime: string; durationSeconds: number}) =
     return <div className='steps__step__pause-fill' style={{width: running ? '100%' : `${fillPercent}%`, transition: `width ${remainingMs}ms linear`}} />;
 };
 
-const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean; pauseStartTime?: string}) => {
+const Step = (props: {
+    step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep;
+    complete?: boolean;
+    current?: boolean;
+    last?: boolean;
+    pauseDurationSeconds?: number;
+    pauseRemainingSeconds?: number;
+}) => {
     const [openedTemplate, setOpenedTemplate] = React.useState('');
     const [openCanary, setOpenCanary] = React.useState(false);
     const [openAnalysis, setOpenAnalysis] = React.useState(false);
@@ -442,8 +450,8 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     return (
         <React.Fragment>
             <div style={{zIndex: 1}} className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
-                {props.current && props.step.pause && props.step.pause.duration && props.pauseStartTime && (
-                    <PauseProgressBar startTime={props.pauseStartTime} durationSeconds={durationToSeconds(`${props.step.pause.duration}`)} />
+                {props.current && props.step.pause && (props.pauseDurationSeconds ?? 0) > 0 && (
+                    <PauseProgressBar durationSeconds={props.pauseDurationSeconds} remainingSeconds={props.pauseRemainingSeconds ?? 0} />
                 )}
                 <div
                     className={`steps__step-title ${
