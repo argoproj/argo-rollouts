@@ -27,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.filter.outputs.backend_any_changed }}
+      frontend: ${{ steps.filter.outputs.frontend_any_changed }}
     steps:
       - uses: actions/checkout@v7
       - uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
@@ -37,6 +38,9 @@ jobs:
               - '!**.md'
               - '!docs/**'
               - '!examples/**'
+            frontend:
+              - 'ui/**'
+              - '.github/workflows/testing.yaml'
 
   event_file:
     name: 'Event File'
@@ -91,6 +95,34 @@ jobs:
           name: coverage-output-unit
           path: coverage-output-unit
 
+  test-ui:
+    name: Run UI unit tests
+    needs: [changes]
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: ui/package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Run UI tests
+        working-directory: ui
+        run: pnpm test
+
   test-e2e:
     needs: [changes]
     if: needs.changes.outputs.backend == 'true'
@@ -98,17 +130,17 @@ jobs:
       fail-fast: false
       matrix:
         kubernetes:
-          - version: '1.32'
-            k3s_version: '1.32.12+k3s1'
-            latest: false
-          - version: '1.33'
-            k3s_version: '1.33.8+k3s1'
-            latest: false
           - version: '1.34'
             k3s_version: '1.34.4+k3s1'
             latest: false
           - version: '1.35'
             k3s_version: '1.35.1+k3s1'
+            latest: false
+          - version: '1.36'
+            k3s_version: '1.36.4+k3s1'
+            latest: false
+          - version: '1.37'
+            k3s_version: '1.37.0+k3s1'
             latest: true
     name: Run end-to-end tests (${{ matrix.kubernetes.version }}, ${{ matrix.kubernetes.latest }})
     runs-on: ubuntu-latest
