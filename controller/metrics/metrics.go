@@ -67,8 +67,6 @@ type ServerConfig struct {
 	ClusterAnalysisTemplateLister rolloutlister.ClusterAnalysisTemplateLister
 	ExperimentLister              rolloutlister.ExperimentLister
 	K8SRequestProvider            *K8sRequestsCountProvider
-	// HistogramBuckets overrides DefaultReconcileHistogramBuckets, if non-empty.
-	HistogramBuckets []float64
 }
 
 // NewMetricsServer returns a new prometheus server which collects rollout metrics
@@ -76,10 +74,6 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	mux := http.NewServeMux()
 
 	reg := prometheus.NewRegistry()
-
-	if len(cfg.HistogramBuckets) > 0 {
-		SetReconcileHistogramBuckets(cfg.HistogramBuckets)
-	}
 
 	// Create new instances of duration metrics for test isolation
 	rolloutDurationTotal := prometheus.NewHistogramVec(

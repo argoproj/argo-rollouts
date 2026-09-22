@@ -12,37 +12,20 @@ var (
 	namespaceNameLabels = []string{"namespace", "name"}
 )
 
-// DefaultReconcileHistogramBuckets are the default buckets (seconds) for the reconcile
-// and notification_send histograms. Override with SetReconcileHistogramBuckets.
-var DefaultReconcileHistogramBuckets = []float64{0.01, 0.15, .25, .5, 1}
-
-func newReconcileHistogram(name, help string) *prometheus.HistogramVec {
-	return prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    name,
-			Help:    help,
-			Buckets: DefaultReconcileHistogramBuckets,
-		},
-		namespaceNameLabels,
-	)
-}
-
-// SetReconcileHistogramBuckets rebuilds the reconcile and notification_send histograms with
-// the given buckets. Must be called before NewMetricsServer/NewEventRecorder.
-func SetReconcileHistogramBuckets(buckets []float64) {
-	if len(buckets) == 0 {
-		return
-	}
-	DefaultReconcileHistogramBuckets = buckets
-	MetricRolloutReconcile = newReconcileHistogram("rollout_reconcile", "Rollout reconciliation performance.")
-	MetricAnalysisRunReconcile = newReconcileHistogram("analysis_run_reconcile", "Analysis Run reconciliation performance.")
-	MetricExperimentReconcile = newReconcileHistogram("experiment_reconcile", "Experiments reconciliation performance.")
-	MetricNotificationSend = newReconcileHistogram("notification_send", "Notification send performance.")
-}
+// reconcileHistogramBuckets are the buckets (seconds) for the rollout_reconcile,
+// analysis_run_reconcile, experiment_reconcile, and notification_send histograms.
+var reconcileHistogramBuckets = []float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60}
 
 // Rollout metrics
 var (
-	MetricRolloutReconcile = newReconcileHistogram("rollout_reconcile", "Rollout reconciliation performance.")
+	MetricRolloutReconcile = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "rollout_reconcile",
+			Help:    "Rollout reconciliation performance.",
+			Buckets: reconcileHistogramBuckets,
+		},
+		namespaceNameLabels,
+	)
 
 	MetricRolloutReconcileError = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -106,7 +89,14 @@ var (
 
 // AnalysisRun metrics
 var (
-	MetricAnalysisRunReconcile = newReconcileHistogram("analysis_run_reconcile", "Analysis Run reconciliation performance.")
+	MetricAnalysisRunReconcile = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "analysis_run_reconcile",
+			Help:    "Analysis Run reconciliation performance.",
+			Buckets: reconcileHistogramBuckets,
+		},
+		namespaceNameLabels,
+	)
 
 	MetricAnalysisRunReconcileError = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -164,7 +154,14 @@ var (
 
 // Experiment metrics
 var (
-	MetricExperimentReconcile = newReconcileHistogram("experiment_reconcile", "Experiments reconciliation performance.")
+	MetricExperimentReconcile = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "experiment_reconcile",
+			Help:    "Experiments reconciliation performance.",
+			Buckets: reconcileHistogramBuckets,
+		},
+		namespaceNameLabels,
+	)
 
 	MetricExperimentReconcileError = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -208,7 +205,14 @@ var (
 		append(namespaceNameLabels, "type", "reason"),
 	)
 
-	MetricNotificationSend = newReconcileHistogram("notification_send", "Notification send performance.")
+	MetricNotificationSend = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "notification_send",
+			Help:    "Notification send performance.",
+			Buckets: reconcileHistogramBuckets,
+		},
+		namespaceNameLabels,
+	)
 )
 
 // K8s Client metrics

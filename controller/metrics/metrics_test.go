@@ -103,52 +103,30 @@ func TestVersionInfo(t *testing.T) {
 	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }
 
-func TestNewMetricsServerCustomHistogramBuckets(t *testing.T) {
-	defer SetReconcileHistogramBuckets(DefaultReconcileHistogramBuckets)
-
-	cfg := newFakeServerConfig()
-	cfg.HistogramBuckets = []float64{1, 2, 4, 8}
-	metricsServ := NewMetricsServer(cfg)
-
-	metricsServ.IncRolloutReconcile(&v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "name"},
-	}, 500*time.Millisecond)
-
-	expectedResponse := `# HELP rollout_reconcile Rollout reconciliation performance.
-# TYPE rollout_reconcile histogram
-rollout_reconcile_bucket{name="name",namespace="ns",le="1"} 1
-rollout_reconcile_bucket{name="name",namespace="ns",le="2"} 1
-rollout_reconcile_bucket{name="name",namespace="ns",le="4"} 1
-rollout_reconcile_bucket{name="name",namespace="ns",le="8"} 1
-rollout_reconcile_bucket{name="name",namespace="ns",le="+Inf"} 1
-rollout_reconcile_sum{name="name",namespace="ns"} 0.5
-rollout_reconcile_count{name="name",namespace="ns"} 1`
-	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
-}
-
-func TestNewMetricsServerDefaultHistogramBuckets(t *testing.T) {
-	defer SetReconcileHistogramBuckets(DefaultReconcileHistogramBuckets)
-
+func TestNewMetricsServerReconcileHistogramBuckets(t *testing.T) {
 	metricsServ := NewMetricsServer(newFakeServerConfig())
 
 	metricsServ.IncRolloutReconcile(&v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "name"},
-	}, 500*time.Millisecond)
+	}, 5*time.Second)
 
-	expectedResponse := `rollout_reconcile_bucket{name="name",namespace="ns",le="0.5"} 1
-rollout_reconcile_bucket{name="name",namespace="ns",le="1"} 1`
+	expectedResponse := `# HELP rollout_reconcile Rollout reconciliation performance.
+# TYPE rollout_reconcile histogram
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.01"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.05"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.1"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.25"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.5"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="1"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="2.5"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="5"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="10"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="30"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="60"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="+Inf"} 1
+rollout_reconcile_sum{name="name",namespace="ns"} 5
+rollout_reconcile_count{name="name",namespace="ns"} 1`
 	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
-}
-
-func TestSetReconcileHistogramBucketsNoOpOnEmpty(t *testing.T) {
-	defer SetReconcileHistogramBuckets(DefaultReconcileHistogramBuckets)
-
-	before := MetricRolloutReconcile
-	SetReconcileHistogramBuckets(nil)
-	assert.Same(t, before, MetricRolloutReconcile)
-
-	SetReconcileHistogramBuckets([]float64{})
-	assert.Same(t, before, MetricRolloutReconcile)
 }
 
 func TestRemove(t *testing.T) {

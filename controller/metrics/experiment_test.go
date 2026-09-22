@@ -143,10 +143,16 @@ func TestIncExperimentReconcile(t *testing.T) {
 	expectedResponse := `# HELP experiment_reconcile Experiments reconciliation performance.
 # TYPE experiment_reconcile histogram
 experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="0.01"} 1
-experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="0.15"} 1
+experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="0.05"} 1
+experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="0.1"} 1
 experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="0.25"} 1
 experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="0.5"} 1
 experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="1"} 1
+experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="2.5"} 1
+experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="5"} 1
+experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="10"} 1
+experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="30"} 1
+experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="60"} 1
 experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="+Inf"} 1
 experiment_reconcile_sum{name="ex-test",namespace="ex-namespace"} 0.001
 experiment_reconcile_count{name="ex-test",namespace="ex-namespace"} 1`
