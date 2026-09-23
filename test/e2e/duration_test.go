@@ -276,6 +276,9 @@ func (s *DurationSuite) TestCanaryDuration_SupersededRollout() {
 			initialStartedAt = *ro.Status.Duration.RolloutStartedAt
 		}).
 		When().
+		// metav1.Time truncates to whole seconds, so give the next RolloutStartedAt
+		// a full second of separation to avoid a spurious NotEqual failure.
+		Sleep(1 * time.Second).
 		UpdateVersion("3").
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
@@ -342,16 +345,22 @@ func (s *DurationSuite) TestCanaryDuration_RollbackOutsideWindow() {
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
+		// metav1.Time truncates to whole seconds; isRollbackWithinWindow compares
+		// ReplicaSet CreationTimestamps, so give each revision a full second of
+		// separation to avoid a spurious fast-rollback decision.
+		Sleep(1 * time.Second).
 		// Complete a rollout to revision 2
 		UpdateVersion("2").
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
 		// Complete a rollout to revision 3
 		UpdateVersion("3").
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
 		// Complete a rollout to revision 4
 		UpdateVersion("4").
 		WaitForRolloutStatus("Paused").
@@ -384,11 +393,16 @@ func (s *DurationSuite) TestCanaryDuration_RollbackInsideWindow() {
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
+		// metav1.Time truncates to whole seconds; isRollbackWithinWindow compares
+		// ReplicaSet CreationTimestamps, so give each revision a full second of
+		// separation to avoid a spurious full-rollback decision.
+		Sleep(1 * time.Second).
 		// Complete a rollout to revision 2
 		UpdateVersion("2").
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
 		// Complete a rollout to revision 3
 		UpdateVersion("3").
 		WaitForRolloutStatus("Paused").
@@ -623,6 +637,9 @@ func (s *DurationSuite) TestBlueGreenDuration_SupersededRollout() {
 			initialStartedAt = *ro.Status.Duration.RolloutStartedAt
 		}).
 		When().
+		// metav1.Time truncates to whole seconds, so give the next RolloutStartedAt
+		// a full second of separation to avoid a spurious NotEqual failure.
+		Sleep(1 * time.Second).
 		UpdateVersion("3").
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
@@ -715,16 +732,22 @@ func (s *DurationSuite) TestBlueGreenDuration_RollbackOutsideWindow() {
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
+		// metav1.Time truncates to whole seconds; isRollbackWithinWindow compares
+		// ReplicaSet CreationTimestamps, so give each revision a full second of
+		// separation to avoid a spurious fast-rollback decision.
+		Sleep(1 * time.Second).
 		// Complete a rollout to revision 2
 		UpdateVersion("2").
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
 		// Complete a rollout to revision 3
 		UpdateVersion("3").
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
 		// Complete a rollout to revision 4
 		UpdateVersion("4").
 		WaitForRolloutStatus("Paused").
@@ -755,11 +778,16 @@ func (s *DurationSuite) TestBlueGreenDuration_RollbackInsideWindow() {
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
+		// metav1.Time truncates to whole seconds; isRollbackWithinWindow compares
+		// ReplicaSet CreationTimestamps, so give each revision a full second of
+		// separation to avoid a spurious full-rollback decision.
+		Sleep(1 * time.Second).
 		// Complete a rollout to revision 2
 		UpdateVersion("2").
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
 		// Complete a rollout to revision 3
 		UpdateVersion("3").
 		WaitForRolloutStatus("Paused").

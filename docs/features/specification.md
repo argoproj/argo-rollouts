@@ -172,11 +172,13 @@ spec:
     # Canary update strategy
     canary:
       # Reference to a service which the controller will update to select
-      # canary pods. Required for traffic routing.
+      # canary pods. Required for traffic routing, except for istio's
+      # subset-level traffic splitting.
       canaryService: canary-service
 
       # Reference to a service which the controller will update to select
-      # stable pods. Required for traffic routing.
+      # stable pods. Required for traffic routing, except for istio's
+      # subset-level traffic splitting.
       stableService: stable-service
 
       # Ping-pong spec allows zero-downtime rollouts for long-lived TCP/gRPC
@@ -326,7 +328,7 @@ spec:
         # Sets header based route with specified header values
         # Setting header based route will send all traffic to the canary for the requests
         # with a specified header, in this case request header "version":"2"
-        # (supported only with trafficRouting, for Istio only at the moment and any supported Gateway API providers via the plugin)
+        # (supported only with trafficRouting, for Istio, Apache APISIX , AWS ALB, and any supported Gateway API providers via the plugin)
         - setHeaderRoute:
             # Name of the route that will be created by argo rollouts this must also be configured
             # in spec.strategy.canary.trafficRouting.managedRoutes

@@ -1,8 +1,8 @@
 # Metric Plugins
 
-!!! warning "Alpha Feature (Since 1.5.0)"
+!!! warning "Beta Feature (Since 1.5.0)"
 
-    This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha)
+    This is a [beta-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta)
     feature that allows you to support metric providers that are not natively supported.
 
 Argo Rollouts supports getting analysis metrics via 3rd party [plugin system](../plugins.md). This allows users to extend the capabilities of Rollouts
@@ -121,3 +121,7 @@ If you have created a plugin, please submit a PR to add it to this list.
 
 - This is just a sample plugin that can be used as a starting point for creating your own plugin.
   It is not meant to be used in production. It is based on the built-in prometheus provider.
+
+### [rollouts-plugin-metric-signalfx](https://github.com/argoproj-labs/rollouts-plugin-metric-signalfx)
+
+- A metric plugin that integrates Splunk Observability Cloud (formerly SignalFx) through SignalFlow programs.

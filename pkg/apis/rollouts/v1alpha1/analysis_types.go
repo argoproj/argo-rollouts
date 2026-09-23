@@ -267,6 +267,9 @@ type Authentication struct {
 	// BasicAuth config
 	// +optional
 	BasicAuth BasicAuthConfig `json:"basicAuth,omitempty" protobuf:"bytes,3,opt,name=basicAuth"`
+	// Google config, an empty object enables Application Default Credentials
+	// +optional
+	Google *GoogleConfig `json:"google,omitempty" protobuf:"bytes,4,opt,name=google"`
 }
 
 type OAuth2Config struct {
@@ -288,6 +291,12 @@ type Sigv4Config struct {
 	Profile string `json:"profile,omitempty" protobuf:"bytes,2,opt,name=profile"`
 	// RoleARN is the IAM role used to sign the SIgV4 Request
 	RoleARN string `json:"roleArn,omitempty" protobuf:"bytes,3,opt,name=roleArn"`
+}
+
+type GoogleConfig struct {
+	// OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+	// +optional
+	Scopes []string `json:"scopes,omitempty" protobuf:"bytes,1,opt,name=scopes"`
 }
 
 type BasicAuthConfig struct {
@@ -314,6 +323,11 @@ type NewRelicMetric struct {
 	// Timeout represents the duration limit in seconds that will apply to the NRQL query
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,3,opt,name=timeout"`
+	// AccountID optionally overrides the account-id from the profile secret, allowing a single
+	// credential/profile to query any New Relic account. When empty, the account-id from the
+	// profile secret is used (backward compatible).
+	// +optional
+	AccountID string `json:"accountId,omitempty" protobuf:"bytes,4,opt,name=accountId"`
 }
 
 // JobMetric defines a job to run which acts as a metric
