@@ -59,6 +59,15 @@ type rolloutContext struct {
 	// annotation at the start of reconciliation (before it may be removed).
 	// Used to detect fast rollbacks where we skip pause/analysis steps.
 	newRSWithinDelay bool
+
+	// trafficRoutingNotApplied indicates the traffic router failed to apply (or intentionally
+	// deferred applying) the desired routing state this reconcile, e.g. an ingress update
+	// error or Istio delaying the DestinationRule switch while a traffic-receiving ReplicaSet
+	// is unavailable. It is treated as a non-fatal condition: reconciliation proceeds to
+	// status sync so abort/progressDeadline handling still runs (see #4626), but the current
+	// canary step must not be considered completed and stable must not be promoted, since the
+	// desired traffic state was never actually applied.
+	trafficRoutingNotApplied bool
 }
 
 func (c *rolloutContext) reconcile() error {
