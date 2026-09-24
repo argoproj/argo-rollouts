@@ -144,7 +144,7 @@ export const RolloutsHome = () => {
                         <FontAwesomeIcon icon={faCircleNotch} spin={true} style={{marginRight: '5px'}} />
                         Loading...
                     </div>
-                ) : (rollouts || []).length > 0 ? (
+                ) : (loading === false && (rollouts || []).length === 0) ? (
                     <React.Fragment>
                         {filters.displayMode === 'table' && <RolloutsTable rollouts={filteredRollouts} onFavoriteChange={handleFavoriteChange} favorites={favorites} />}
                         {filters.displayMode !== 'table' && <RolloutsGrid rollouts={filteredRollouts} onFavoriteChange={handleFavoriteChange} favorites={favorites} />}
