@@ -452,6 +452,55 @@ func TestShouldVerifyWeight(t *testing.T) {
 	assert.Equal(t, true, ShouldVerifyWeight(ro, 100))
 }
 
+// TestShouldVerifyWeightOnAbort covers the abort case: the canary weight is driven to 0 and the
+// canary is scaled down once the router reports the shift, so the shift must be verified whichever
+// step the rollout was on when it was aborted. CurrentStepIndex is reset to 0 on abort, and step 0
+// is not necessarily a setWeight step.
+func TestShouldVerifyWeightOnAbort(t *testing.T) {
+	newAbortedRollout := func(step v1alpha1.CanaryStep) *v1alpha1.Rollout {
+		ro := newCanaryRollout()
+		ro.Status.StableRS = "34feab23f"
+		ro.Status.CurrentStepIndex = ptr.To[int32](0)
+		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{step}
+		ro.Status.Abort = true
+		return ro
+	}
+
+	pauseStep := v1alpha1.CanaryStep{Pause: &v1alpha1.RolloutPause{}}
+	setWeightStep := v1alpha1.CanaryStep{SetWeight: ptr.To[int32](20)}
+
+	assert.True(t, ShouldVerifyWeight(newAbortedRollout(pauseStep), 0),
+		"aborted from a non-setWeight step: the abort weight of 0 still has to be verified")
+	assert.True(t, ShouldVerifyWeight(newAbortedRollout(setWeightStep), 0),
+		"aborted from a setWeight step: unchanged")
+
+	// The abort clause is specific to the weight being driven to 0; anything else falls through to
+	// the usual step-based check.
+	assert.False(t, ShouldVerifyWeight(newAbortedRollout(pauseStep), 20))
+	assert.True(t, ShouldVerifyWeight(newAbortedRollout(setWeightStep), 20))
+
+	// Not aborted, so a weight of 0 at a non-setWeight step is not verified.
+	notAborted := newAbortedRollout(pauseStep)
+	notAborted.Status.Abort = false
+	assert.False(t, ShouldVerifyWeight(notAborted, 0))
+
+	// Once the canary is at 0 replicas there is nothing left to protect, so stop polling the cloud
+	// provider on every resync of a rollout parked in the aborted state.
+	scaledDown := newAbortedRollout(setWeightStep)
+	scaledDown.Status.UpdatedReplicas = 0
+	assert.False(t, ShouldVerifyWeight(scaledDown, 0), "canary already at 0 replicas -> stop verifying")
+
+	// The preconditions still apply: nothing is verified before there is a stable RS, or once the
+	// rollout is fully promoted.
+	noStable := newAbortedRollout(pauseStep)
+	noStable.Status.StableRS = ""
+	assert.False(t, ShouldVerifyWeight(noStable, 0))
+
+	fullyPromoted := newAbortedRollout(pauseStep)
+	fullyPromoted.Status.CurrentPodHash = fullyPromoted.Status.StableRS
+	assert.False(t, ShouldVerifyWeight(fullyPromoted, 0))
+}
+
 func Test_isGenerationObserved(t *testing.T) {
 	tests := []struct {
 		name string
