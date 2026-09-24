@@ -99,6 +99,32 @@ func TestFindNewReplicaSet(t *testing.T) {
 	})
 }
 
+// TestFindNewReplicaSetExternalMutation verifies that FindNewReplicaSet returns nil (and does not
+// reuse an existing RS) when the RS pod template was externally mutated to match the desired spec
+// but the RS label still carries the old hash. This is the scenario described in
+// https://github.com/argoproj/argo-rollouts/issues/4976 where a BlueGreen rollout gets stuck
+// after an in-place container restart updates the image field inside the live RS without triggering
+// a proper RS replacement.
+func TestFindNewReplicaSetExternalMutation(t *testing.T) {
+	// roOld represents the rollout as it was when the RS was first created (image "v1").
+	roOld := generateRollout("v1")
+	// The RS was created from roOld — its label encodes the hash of the "v1" template.
+	rs := generateRS(roOld)
+	*(rs.Spec.Replicas) = 1
+
+	// roNew represents the rollout after an image-only update (image "v2").
+	roNew := generateRollout("v2")
+	// Simulate an external mutation: the live RS pod template now shows "v2" (e.g., the pod was
+	// OOMKilled and restarted in-place, updating the image field inside the RS spec), but its
+	// rollouts-pod-template-hash label still holds the old "v1" hash.
+	rs.Spec.Template.Spec.Containers[0].Image = "v2"
+
+	// FindNewReplicaSet must not return this RS: the RS label hash was computed from the old
+	// template, not the mutated one, so the third fallback should skip it.
+	actual := FindNewReplicaSet(&roNew, []*appsv1.ReplicaSet{&rs})
+	assert.Nil(t, actual, "expected nil because the RS was externally mutated — a new RS should be created")
+}
+
 func TestFindOldReplicaSets(t *testing.T) {
 	now := metav1.Now()
 	before := metav1.Time{Time: now.Add(-time.Minute)}
