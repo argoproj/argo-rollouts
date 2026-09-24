@@ -335,14 +335,14 @@ func TestCreateAnnotationBasedPath(t *testing.T) {
 		ni, _ := ing.GetNetworkingIngress()
 
 		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
-		ing.CreateAnnotationBasedPath("test-route")
+		ing.CreateAnnotationBasedPath("test-route", "v1backend")
 		assert.Equal(t, 2, len(ni.Spec.Rules[0].HTTP.Paths))
 	})
 	t.Run("v1 ingress, create existing path", func(t *testing.T) {
 		ing := networkingIngress()
 		ni, _ := ing.GetNetworkingIngress()
 
-		ing.CreateAnnotationBasedPath("v1backend")
+		ing.CreateAnnotationBasedPath("v1backend", "v1backend")
 		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
 	})
 	t.Run("v1beta1 ingress, create path", func(t *testing.T) {
@@ -350,14 +350,14 @@ func TestCreateAnnotationBasedPath(t *testing.T) {
 		ni, _ := ing.GetExtensionsIngress()
 
 		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
-		ing.CreateAnnotationBasedPath("test-route")
+		ing.CreateAnnotationBasedPath("test-route", "v1beta1backend")
 		assert.Equal(t, 2, len(ni.Spec.Rules[0].HTTP.Paths))
 	})
 	t.Run("v1beta1 ingress, create existing path", func(t *testing.T) {
 		ing := extensionsIngress()
 		ni, _ := ing.GetExtensionsIngress()
 
-		ing.CreateAnnotationBasedPath("v1beta1backend")
+		ing.CreateAnnotationBasedPath("v1beta1backend", "v1beta1backend")
 		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
 	})
 }
