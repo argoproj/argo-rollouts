@@ -32,7 +32,11 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return err
 	}
 
-	if replicasetutil.CheckPodSpecChange(c.rollout, c.newRS) {
+	// A pod template change normally short-circuits to a status sync and defers the rest of the
+	// reconciliation to the next pass. Rollouts that gate promotion on analysis or on a
+	// controller-managed pause run the full reconciliation instead, so the pause and analysis
+	// state of the new ReplicaSet is evaluated in the same pass the change is observed (#4503).
+	if replicasetutil.CheckPodSpecChange(c.rollout, c.newRS) && !blueGreenHasPromotionGates(c.rollout) {
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 	}
 
@@ -199,6 +203,14 @@ func needsBlueGreenControllerPause(ro *v1alpha1.Rollout) bool {
 		}
 	}
 	return ro.Spec.Strategy.BlueGreen.AutoPromotionSeconds > 0
+}
+
+// blueGreenHasPromotionGates returns true if promotion of the blue-green rollout is gated on
+// pre/post promotion analysis or on a controller-managed pause (autoPromotionEnabled: false or
+// autoPromotionSeconds > 0).
+func blueGreenHasPromotionGates(ro *v1alpha1.Rollout) bool {
+	bg := ro.Spec.Strategy.BlueGreen
+	return bg.PrePromotionAnalysis != nil || bg.PostPromotionAnalysis != nil || needsBlueGreenControllerPause(ro)
 }
 
 // scaleDownOldReplicaSetsForBlueGreen scales down old replica sets when rollout strategy is "Blue Green".
