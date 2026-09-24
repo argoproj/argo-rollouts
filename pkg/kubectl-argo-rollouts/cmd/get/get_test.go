@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
@@ -560,4 +562,25 @@ NAME                                                     KIND         STATUS    
       └──□ rollout-background-analysis-7d84d44bb8-z5wps  Pod          ✔ Running     7d   ready:1/1
 `, "\n")
 	assertStdout(t, expectedOut, o.IOStreams)
+}
+
+func TestGetRolloutTimedPauseRemaining(t *testing.T) {
+	tf, ao := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+	o := &GetOptions{ArgoRolloutsOptions: *ao}
+
+	roInfo := &rollout.RolloutInfo{
+		ObjectMeta:            &metav1.ObjectMeta{Name: "canary-demo", Namespace: "test"},
+		Status:                "Paused",
+		Strategy:              "Canary",
+		Step:                  "1/2",
+		SetWeight:             "40",
+		ActualWeight:          "40",
+		PauseDurationSeconds:  40,
+		PauseRemainingSeconds: 15,
+	}
+
+	o.PrintRollout(roInfo)
+	assert.Contains(t, o.Out.(*bytes.Buffer).String(), "Pause:")
+	assert.Contains(t, o.Out.(*bytes.Buffer).String(), "15s remaining")
 }

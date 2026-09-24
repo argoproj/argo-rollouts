@@ -8295,6 +8295,18 @@ export interface RolloutRolloutInfo {
      * @memberof RolloutRolloutInfo
      */
     initContainers?: Array<RolloutContainerInfo>;
+    /**
+     * pauseDurationSeconds is the current canary pause step's duration, normalized to whole seconds by the controller so clients never parse the duration grammar themselves. It is 0 when the rollout is not paused on a step or the pause is indefinite, and -1 when the configured duration is not parseable. Sub-second durations truncate toward zero (e.g. \"500ms\" is 0).
+     * @type {number}
+     * @memberof RolloutRolloutInfo
+     */
+    pauseDurationSeconds?: number;
+    /**
+     * pauseRemainingSeconds is how much of pauseDurationSeconds was left when this message was serialized. It is a snapshot, not a fact about the resource: clients animate or print from it directly rather than comparing timestamps, which keeps them correct even when the local clock is wrong. Invariant: 0 <= pauseRemainingSeconds <= pauseDurationSeconds, and it is only meaningful when pauseDurationSeconds > 0.
+     * @type {number}
+     * @memberof RolloutRolloutInfo
+     */
+    pauseRemainingSeconds?: number;
 }
 /**
  * 
