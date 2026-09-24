@@ -754,12 +754,35 @@ type SetCanaryScale struct {
 	MatchTrafficWeight bool `json:"matchTrafficWeight,omitempty" protobuf:"varint,3,opt,name=matchTrafficWeight"`
 }
 
+// BackgroundAnalysisStartPolicy indicates what the background analysis run waits for before it is
+// created.
+type BackgroundAnalysisStartPolicy string
+
+const (
+	// BackgroundAnalysisStartImmediately creates the background analysis run as soon as the
+	// rollout begins, without waiting for the canary to receive traffic. This is the default.
+	BackgroundAnalysisStartImmediately BackgroundAnalysisStartPolicy = "Immediately"
+	// BackgroundAnalysisStartOnCanaryTraffic delays creating the background analysis run until the
+	// traffic router has given the canary the weight the current step calls for. Only meaningful
+	// for a canary using traffic routing; a canary without one starts immediately either way.
+	BackgroundAnalysisStartOnCanaryTraffic BackgroundAnalysisStartPolicy = "CanaryTraffic"
+)
+
 // RolloutAnalysisBackground defines a template that is used to create a background analysisRun
 type RolloutAnalysisBackground struct {
 	RolloutAnalysis `json:",inline" protobuf:"bytes,1,opt,name=rolloutAnalysis"`
 	// StartingStep indicates which step the background analysis should start on
 	// If not listed, controller defaults to 0
 	StartingStep *int32 `json:"startingStep,omitempty" protobuf:"varint,2,opt,name=startingStep"`
+	// StartOn indicates what the background analysis run waits for before it is created.
+	// Immediately (the default) preserves the historical behaviour of creating it as soon as the
+	// rollout begins. CanaryTraffic waits until the canary is actually receiving the weight the
+	// current step calls for, so that canary-scoped metrics are not evaluated against a
+	// ReplicaSet with no traffic. Analysis that deliberately runs before traffic shifts, such as
+	// an approval or incident check, should stay on Immediately.
+	// +optional
+	// +kubebuilder:validation:Enum=Immediately;CanaryTraffic
+	StartOn BackgroundAnalysisStartPolicy `json:"startOn,omitempty" protobuf:"bytes,3,opt,name=startOn,casttype=BackgroundAnalysisStartPolicy"`
 }
 
 // RolloutAnalysis defines a template that is used to create a analysisRun
