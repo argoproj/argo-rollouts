@@ -103,6 +103,32 @@ func TestVersionInfo(t *testing.T) {
 	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }
 
+func TestNewMetricsServerReconcileHistogramBuckets(t *testing.T) {
+	metricsServ := NewMetricsServer(newFakeServerConfig())
+
+	metricsServ.IncRolloutReconcile(&v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "name"},
+	}, 5*time.Second)
+
+	expectedResponse := `# HELP rollout_reconcile Rollout reconciliation performance.
+# TYPE rollout_reconcile histogram
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.01"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.05"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.1"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.25"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.5"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="1"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="2.5"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="5"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="10"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="30"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="60"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="+Inf"} 1
+rollout_reconcile_sum{name="name",namespace="ns"} 5
+rollout_reconcile_count{name="name",namespace="ns"} 1`
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
+}
+
 func TestRemove(t *testing.T) {
 	defaults.SetMetricCleanupDelaySeconds(1)
 

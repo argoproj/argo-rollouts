@@ -190,10 +190,16 @@ func TestIncRolloutReconcile(t *testing.T) {
 # HELP rollout_reconcile Rollout reconciliation performance.
 # TYPE rollout_reconcile histogram
 rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="0.01"} 1
-rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="0.15"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="0.05"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="0.1"} 1
 rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="0.25"} 1
 rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="0.5"} 1
 rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="1"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="2.5"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="5"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="10"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="30"} 1
+rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="60"} 1
 rollout_reconcile_bucket{name="ro-test",namespace="ro-namespace",le="+Inf"} 1
 rollout_reconcile_sum{name="ro-test",namespace="ro-namespace"} 0.001
 rollout_reconcile_count{name="ro-test",namespace="ro-namespace"} 1

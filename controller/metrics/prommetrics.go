@@ -12,13 +12,17 @@ var (
 	namespaceNameLabels = []string{"namespace", "name"}
 )
 
+// reconcileHistogramBuckets are the buckets (seconds) for the rollout_reconcile,
+// analysis_run_reconcile, experiment_reconcile, and notification_send histograms.
+var reconcileHistogramBuckets = []float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60}
+
 // Rollout metrics
 var (
 	MetricRolloutReconcile = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "rollout_reconcile",
 			Help:    "Rollout reconciliation performance.",
-			Buckets: []float64{0.01, 0.15, .25, .5, 1},
+			Buckets: reconcileHistogramBuckets,
 		},
 		namespaceNameLabels,
 	)
@@ -89,7 +93,7 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "analysis_run_reconcile",
 			Help:    "Analysis Run reconciliation performance.",
-			Buckets: []float64{0.01, 0.15, .25, .5, 1},
+			Buckets: reconcileHistogramBuckets,
 		},
 		namespaceNameLabels,
 	)
@@ -154,7 +158,7 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "experiment_reconcile",
 			Help:    "Experiments reconciliation performance.",
-			Buckets: []float64{0.01, 0.15, .25, .5, 1},
+			Buckets: reconcileHistogramBuckets,
 		},
 		namespaceNameLabels,
 	)
@@ -205,7 +209,7 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "notification_send",
 			Help:    "Notification send performance.",
-			Buckets: []float64{0.01, 0.15, .25, .5, 1},
+			Buckets: reconcileHistogramBuckets,
 		},
 		namespaceNameLabels,
 	)
