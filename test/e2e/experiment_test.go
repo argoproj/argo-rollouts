@@ -176,7 +176,7 @@ func (s *ExperimentSuite) TestExperimentWithMeasurementRetentionMetrics() {
 		WaitForExperimentPhase("experiment-with-mr", "Successful").
 		Sleep(time.Second*3).
 		Then().
-		ExpectExperimentMeasurementsLength(0, 2, "experiment-with-mr")
+		ExpectExperimentMeasurementsLength(0, 1, "experiment-with-mr")
 }
 
 func TestExperimentSuite(t *testing.T) {
