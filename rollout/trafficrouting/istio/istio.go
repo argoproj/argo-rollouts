@@ -386,16 +386,18 @@ func (r *Reconciler) shouldDelayDestinationRuleUpdate(canaryHash, stableHash str
 	if r.rollout.Spec.Strategy.Canary.CanaryService != "" || r.rollout.Spec.Strategy.Canary.StableService != "" {
 		return false, ""
 	}
-	abortOrDynamicRollbackToStable := rolloututil.AbortOrDynamicRollbackToStable(r.rollout, r.replicaSets, stableHash)
+	requiredHash := canaryHash
+	if rolloututil.AbortOrDynamicRollbackToStable(r.rollout, r.replicaSets, stableHash) {
+		requiredHash = stableHash
+	}
+	// Only require availability from the direction of the switch: canary during forward
+	// progress, stable during abort/rollback. The caller checks stable capacity before UpdateHash.
 	for _, rs := range r.replicaSets {
 		if *rs.Spec.Replicas == 0 {
 			continue
 		}
 		rsHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-		if rsHash == "" || (rsHash != stableHash && rsHash != canaryHash) {
-			continue
-		}
-		if abortOrDynamicRollbackToStable && rsHash == canaryHash {
+		if rsHash == "" || rsHash != requiredHash {
 			continue
 		}
 		if !replicasetutil.IsReplicaSetAvailable(rs) {
