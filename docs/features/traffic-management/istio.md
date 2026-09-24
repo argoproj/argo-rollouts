@@ -249,6 +249,13 @@ During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts wil
 * modify the DestinationRule `spec.subsets[].labels` to contain the `rollouts-pod-template-hash`
   label of the canary and stable ReplicaSets
 
+When a subset label is about to be switched to a different ReplicaSet (e.g. on the initial
+deployment, on a rollback, or when the stable subset is promoted), the switch is delayed until that
+ReplicaSet has at least one available replica and meets
+`spec.strategy.canary.replicaProgressThreshold` (all of its replicas available when no threshold is
+configured). A ReplicaSet that a subset already points at does not delay the update, since how much
+traffic it receives is governed by that same threshold through the canary step gates.
+
 ### Additional Subset DestinationRule's
 
 Argo Rollouts also allows users to add additional subset DestinationRule's.
