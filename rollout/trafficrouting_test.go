@@ -388,6 +388,100 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
 		f.run(getKey(r2, t))
 	})
+
+	t.Run("Experiment Running but template completed - WeightDestination drained to 0", func(t *testing.T) {
+		// Once a template completes (its duration elapsed), the experiment controller
+		// begins scaling its ReplicaSet down to 0 and only deletes the Service after the
+		// pods have fully drained. While the Service still exists we must keep the
+		// destination in the route but set its weight to 0 so that no new traffic is sent
+		// to pods that are being torn down. The removed weight is returned to stable.
+		ex.Status.Phase = v1alpha1.AnalysisPhaseRunning
+		ex.Status.TemplateStatuses[0].Status = v1alpha1.TemplateStatusSuccessful
+		defer func() {
+			ex.Status.TemplateStatuses[0].Status = ""
+		}()
+		assertExperimentSetWeight(t, f, r2, 10, []v1alpha1.WeightDestination{{
+			ServiceName:     ex.Status.TemplateStatuses[0].ServiceName,
+			PodTemplateHash: ex.Status.TemplateStatuses[0].PodTemplateHash,
+			Weight:          0,
+		}})
+	})
+
+	t.Run("Experiment Successful - no WeightDestination created", func(t *testing.T) {
+		// Once the experiment reaches a terminal phase we emit no destinations; the
+		// traffic router then removes the experiment hosts from the route entirely and
+		// returns their share to stable. The drain-to-0 handling only applies while the
+		// experiment is still Running (see the template-completed cases above/below).
+		ex.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
+		ex.Status.TemplateStatuses[0].Status = v1alpha1.TemplateStatusSuccessful
+		defer func() {
+			ex.Status.TemplateStatuses[0].Status = ""
+		}()
+		assertExperimentSetWeight(t, f, r2, 10, nil)
+	})
+
+	t.Run("Experiment Running due to pending required analysis but template completed - WeightDestination drained to 0", func(t *testing.T) {
+		// When an experiment's duration elapses, the template status flips to
+		// Successful immediately (it is gated only on the duration and replica
+		// availability, not on analyses - see experiments/experiment.go). If the
+		// experiment also has a required-for-completion analysis that is still
+		// pending, the *experiment phase* is deferred to that analysis and therefore
+		// stays Running while the template's ReplicaSet is already scaling down. We
+		// must still drain the completed template's traffic to 0 in this window,
+		// keyed off the template status rather than the experiment phase.
+		ex.Status.Phase = v1alpha1.AnalysisPhaseRunning
+		ex.Status.TemplateStatuses[0].Status = v1alpha1.TemplateStatusSuccessful
+		ex.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{{
+			Name:        "required-analysis",
+			AnalysisRun: "required-analysis-run",
+			Phase:       v1alpha1.AnalysisPhaseRunning,
+		}}
+		defer func() {
+			ex.Status.TemplateStatuses[0].Status = ""
+			ex.Status.AnalysisRuns = nil
+		}()
+		assertExperimentSetWeight(t, f, r2, 10, []v1alpha1.WeightDestination{{
+			ServiceName:     ex.Status.TemplateStatuses[0].ServiceName,
+			PodTemplateHash: ex.Status.TemplateStatuses[0].PodTemplateHash,
+			Weight:          0,
+		}})
+	})
+
+	t.Run("Experiment Running but template Service torn down - no WeightDestination created", func(t *testing.T) {
+		// When an experiment finishes, its controller deletes the template Services
+		// and clears templateStatus.ServiceName, which can be observed while the
+		// experiment is still Running. In that state we must NOT emit a
+		// WeightDestination with an empty ServiceName, otherwise the traffic router
+		// produces a route destination with an empty host and Istio rejects the
+		// VirtualService, wedging the rollout on the experiment step.
+		ex.Status.Phase = v1alpha1.AnalysisPhaseRunning
+		originalServiceName := ex.Status.TemplateStatuses[0].ServiceName
+		ex.Status.TemplateStatuses[0].ServiceName = ""
+		ex.Status.TemplateStatuses[0].PodTemplateHash = ""
+		defer func() {
+			ex.Status.TemplateStatuses[0].ServiceName = originalServiceName
+			ex.Status.TemplateStatuses[0].PodTemplateHash = rs2PodHash
+		}()
+		assertExperimentSetWeight(t, f, r2, 10, nil)
+	})
+}
+
+// assertExperimentSetWeight runs the rollout reconcile and asserts that SetWeight was invoked
+// with the given desired weight and exactly the given weight destinations (order-sensitive).
+func assertExperimentSetWeight(t *testing.T, f *fixture, r2 *v1alpha1.Rollout, desiredWeight int32, expectedDestinations []v1alpha1.WeightDestination) {
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(gotWeight int32, gotDestinations ...v1alpha1.WeightDestination) error {
+		assert.Equal(t, desiredWeight, gotWeight)
+		assert.Len(t, gotDestinations, len(expectedDestinations))
+		for i, expected := range expectedDestinations {
+			assert.Equal(t, expected, gotDestinations[i])
+		}
+		return nil
+	})
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
+	f.run(getKey(r2, t))
 }
 
 func TestRolloutUsePreviousSetWeight(t *testing.T) {
