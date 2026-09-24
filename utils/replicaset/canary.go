@@ -227,8 +227,9 @@ func approximateWeightedCanaryStableReplicaCounts(specReplicas, desiredWeight, m
 	}
 	var options []canaryOption
 
-	ceilWeightedCanaryCount := int32(math.Ceil(float64(specReplicas*desiredWeight) / float64(maxWeight)))
-	floorWeightedCanaryCount := int32(math.Floor(float64(specReplicas*desiredWeight) / float64(maxWeight)))
+	weightedCanaryCount := float64(specReplicas) * float64(desiredWeight) / float64(maxWeight)
+	ceilWeightedCanaryCount := int32(math.Ceil(weightedCanaryCount))
+	floorWeightedCanaryCount := int32(math.Floor(weightedCanaryCount))
 
 	tied := floorCeilingTied(desiredWeight, maxWeight, specReplicas)
 
@@ -284,7 +285,7 @@ func floorCeilingTied(desiredWeight, maxWeight, totalReplicas int32) bool {
 // weightDelta calculates the difference that the canary replicas will be from the desired weight
 // This is used to pick the closest approximation of canary counts.
 func weightDelta(desiredWeight, maxWeight, canaryReplicas, totalReplicas int32) float64 {
-	actualWeight := float64(canaryReplicas*maxWeight) / float64(totalReplicas)
+	actualWeight := float64(canaryReplicas) * float64(maxWeight) / float64(totalReplicas)
 	return math.Abs(actualWeight - float64(desiredWeight))
 }
 

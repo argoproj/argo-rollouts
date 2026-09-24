@@ -146,7 +146,7 @@ func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWe
 	availableReplicas := rs.Status.AvailableReplicas
 	totalReplicas := *c.rollout.Spec.Replicas
 
-	desiredReplicas := (desiredWeight * totalReplicas) / weightutil.MaxTrafficWeight(c.rollout)
+	desiredReplicas := int32(int64(desiredWeight) * int64(totalReplicas) / int64(weightutil.MaxTrafficWeight(c.rollout)))
 	if availableReplicas < desiredReplicas &&
 		!replicasetutil.ReplicaProgressThresholdMet(c.rollout.Spec.Strategy.Canary.ReplicaProgressThreshold, rs, desiredReplicas) {
 		c.log.Infof("ReplicaSet '%s' has %d available replicas, waiting for %d", rs.Name, availableReplicas, desiredReplicas)
@@ -236,7 +236,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			// But we can only increase canary weight according to available replica counts of the canary.
 			// we will need to set the desiredWeight to 0 when the newRS is not available.
 			if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-				desiredWeight = (weightutil.MaxTrafficWeight(c.rollout) * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+				desiredWeight = int32(int64(weightutil.MaxTrafficWeight(c.rollout)) * int64(c.newRS.Status.AvailableReplicas) / int64(*c.rollout.Spec.Replicas))
 			} else if c.rollout.Status.Canary.Weights != nil {
 				desiredWeight = c.rollout.Status.Canary.Weights.Canary.Weight
 			}
