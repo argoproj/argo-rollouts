@@ -245,25 +245,25 @@ func (c *rolloutContext) getPreviewAndActiveServices() (*corev1.Service, *corev1
 }
 
 func (c *rolloutContext) reconcilePingAndPongService() error {
-	if trafficrouting.IsPingPongEnabled(c.rollout) && !rolloututils.IsFullyPromoted(c.rollout) {
-		_, canaryService := trafficrouting.GetStableAndCanaryServices(c.rollout, true)
-		if c.newRS != nil && c.stableRS != nil {
-			svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(canaryService)
-			if err != nil {
+	if !trafficrouting.IsPingPongEnabled(c.rollout) || rolloututils.IsFullyPromoted(c.rollout) {
+		return nil
+	}
+	_, canaryService := trafficrouting.GetStableAndCanaryServices(c.rollout, true)
+	if c.newRS != nil && c.stableRS != nil {
+		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(canaryService)
+		if err != nil {
+			return err
+		}
+		currentHash := serviceutil.GetRolloutSelectorLabel(svc)
+		if currentHash != "" && currentHash != replicasetutil.GetPodTemplateHash(c.newRS) {
+			c.pingPongServicePending = true
+			if err := c.drainPingPongService(currentHash); err != nil || c.pingPongServicePending {
 				return err
 			}
-			currentHash := serviceutil.GetRolloutSelectorLabel(svc)
-			if currentHash != "" && currentHash != replicasetutil.GetPodTemplateHash(c.newRS) {
-				c.pingPongServicePending = true
-				if err := c.drainPingPongService(currentHash); err != nil || c.pingPongServicePending {
-					return err
-				}
-			}
 		}
-		// Select the new revision before creating its pods so readiness gates can be injected.
-		return c.ensureSVCTargets(canaryService, c.newRS, false)
 	}
-	return nil
+	// Select the new revision before creating its pods so readiness gates can be injected.
+	return c.ensureSVCTargets(canaryService, c.newRS, false)
 }
 
 func (c *rolloutContext) reconcileStableAndCanaryService() error {
