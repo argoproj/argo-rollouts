@@ -276,26 +276,15 @@ func TestPingPongServiceReuseStillEvaluatesProgressDeadline(t *testing.T) {
 				for i := 0; i < 2; i++ {
 					roCtx, err := ctrl.newRolloutContext(ro)
 					require.NoError(t, err)
-					err = roCtx.rolloutCanary()
-					if tc.verifyErr != nil {
-						require.ErrorIs(t, err, tc.verifyErr)
-					} else {
-						require.NoError(t, err)
-					}
+					require.ErrorIs(t, roCtx.rolloutCanary(), tc.verifyErr)
 					ro, err = f.client.ArgoprojV1alpha1().Rollouts(ro.Namespace).Get(context.Background(), ro.Name, metav1.GetOptions{})
 					require.NoError(t, err)
 				}
 				assert.Equal(t, abort && !tc.paused, ro.Status.Abort)
 				progressing := conditions.GetRolloutCondition(ro.Status, v1alpha1.RolloutProgressing)
 				require.NotNil(t, progressing)
-				switch {
-				case tc.paused:
-					assert.NotEqual(t, conditions.TimedOutReason, progressing.Reason)
-				case abort:
-					assert.Equal(t, conditions.RolloutAbortedReason, progressing.Reason)
-				default:
-					assert.Equal(t, conditions.TimedOutReason, progressing.Reason)
-				}
+				assert.Equal(t, !abort && !tc.paused, progressing.Reason == conditions.TimedOutReason, progressing.Reason)
+				assert.Equal(t, ro.Status.Abort, progressing.Reason == conditions.RolloutAbortedReason, progressing.Reason)
 				svc, err := f.kubeclient.CoreV1().Services(ro.Namespace).Get(context.Background(), canaryService.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 				assert.Equal(t, canaryService.Spec.Selector, svc.Spec.Selector)
