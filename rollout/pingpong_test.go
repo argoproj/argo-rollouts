@@ -147,6 +147,42 @@ func TestPingPongServiceReuseVerificationSupport(t *testing.T) {
 	}
 }
 
+func TestPingPongServiceReuseStopsOnRoutingError(t *testing.T) {
+	for _, operation := range []string{"RemoveManagedRoutes", "SetWeight"} {
+		t.Run(operation, func(t *testing.T) {
+			f, ro, canaryService, rss := newPingPongReuseFixture(t)
+			router := newUnmockedFakeTrafficRoutingReconciler()
+			f.fakeTrafficRouting = router
+			routingErr := errors.New("traffic router unavailable")
+			if operation == "RemoveManagedRoutes" {
+				router.On(operation).Return(routingErr).Once()
+			} else {
+				router.On("RemoveManagedRoutes").Return(nil).Once()
+				router.On(operation, int32(0)).Return(routingErr).Once()
+			}
+			ctrl, _, _ := f.newController(noResyncPeriodFunc)
+			roCtx, err := ctrl.newRolloutContext(ro)
+			require.NoError(t, err)
+			require.ErrorIs(t, roCtx.rolloutCanary(), routingErr)
+
+			svc, err := f.kubeclient.CoreV1().Services(ro.Namespace).Get(context.Background(), canaryService.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, canaryService.Spec.Selector, svc.Spec.Selector)
+			for i, want := range []int32{10, 5, 0} {
+				rs, err := f.kubeclient.AppsV1().ReplicaSets(ro.Namespace).Get(context.Background(), rss[i].Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				assert.Equal(t, want, *rs.Spec.Replicas)
+			}
+			persisted, err := f.client.ArgoprojV1alpha1().Rollouts(ro.Namespace).Get(context.Background(), ro.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, ro.Status.Canary.Weights, persisted.Status.Canary.Weights)
+			assert.Equal(t, ro.Status.CurrentStepIndex, persisted.Status.CurrentStepIndex)
+			router.AssertNotCalled(t, "VerifyWeight", mock.Anything)
+			router.AssertExpectations(t)
+		})
+	}
+}
+
 func TestPingPongServiceReuseWaitsBeforeFullPromotion(t *testing.T) {
 	f, ro, _, rss := newPingPongReuseFixture(t)
 	ro.Status.PromoteFull = true
