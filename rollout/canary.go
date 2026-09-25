@@ -7,6 +7,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -58,7 +59,15 @@ func (c *rolloutContext) rolloutCanary() error {
 	}
 
 	if err := c.reconcilePingAndPongService(); c.pingPongServicePending {
-		return errors.Join(err, c.syncRolloutStatusCanary())
+		var cleanupErr error
+		if c.haltProgress() == "" {
+			// Free capacity for stable pods without touching replicas still selected by a service.
+			unreferencedRSs := controller.FilterReplicaSets(c.otherRSs, func(rs *appsv1.ReplicaSet) bool {
+				return !c.isReplicaSetReferenced(rs)
+			})
+			_, cleanupErr = c.scaleDownOldReplicaSetsForCanary(unreferencedRSs)
+		}
+		return errors.Join(err, cleanupErr, c.syncRolloutStatusCanary())
 	} else if err != nil {
 		return err
 	}

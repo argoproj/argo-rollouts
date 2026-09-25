@@ -19,7 +19,9 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -191,35 +193,127 @@ func TestPingPongServiceReuseRestoresStableCapacity(t *testing.T) {
 }
 
 func TestPingPongServiceReuseStillEvaluatesProgressDeadline(t *testing.T) {
-	for _, verifyErr := range []error{nil, errors.New("weight lookup failed")} {
-		t.Run(fmt.Sprint(verifyErr), func(t *testing.T) {
-			f, ro, canaryService, _ := newPingPongReuseFixture(t)
-			ro.Spec.ProgressDeadlineSeconds = ptr.To[int32](30)
-			ro.Spec.ProgressDeadlineAbort = true
-			ro.Status.Replicas = 15
-			ro.Status.AvailableReplicas = 15
-			ro.Status.ReadyReplicas = 15
-			ro.Status.HPAReplicas = 15
-			cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.ReplicaSetUpdatedReason, "waiting")
-			cond.LastUpdateTime = metav1.NewTime(timeutil.MetaNow().Add(-time.Minute))
-			ro.Status.Conditions = []v1alpha1.RolloutCondition{*cond}
-			router := newUnmockedFakeTrafficRoutingReconciler()
-			f.fakeTrafficRouting = router
-			router.On("RemoveManagedRoutes").Return(nil)
-			router.On("SetWeight", int32(0)).Return(nil)
-			router.On("VerifyWeight", int32(0)).Return(ptr.To(false), verifyErr)
-			ctrl, _, _ := f.newController(noResyncPeriodFunc)
-			roCtx, err := ctrl.newRolloutContext(ro)
-			require.NoError(t, err)
-			err = roCtx.rolloutCanary()
-			if verifyErr != nil {
-				require.ErrorIs(t, err, verifyErr)
-			} else {
+	for _, tc := range []struct {
+		name      string
+		prepare   func(*v1alpha1.Rollout, *appsv1.ReplicaSet)
+		verifyErr error
+		paused    bool
+	}{
+		{name: "verification pending"},
+		{name: "verification error", verifyErr: errors.New("weight lookup failed")},
+		{name: "expired scale-down annotation", prepare: func(_ *v1alpha1.Rollout, rs *appsv1.ReplicaSet) {
+			rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.MetaNow().Add(-time.Hour).UTC().Format(time.RFC3339)
+		}},
+		{name: "pause step not started", prepare: func(ro *v1alpha1.Rollout, _ *appsv1.ReplicaSet) {
+			ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{}}}
+			ro.Status.CurrentStepHash = conditions.ComputeStepHash(ro)
+		}},
+		{name: "user pause", paused: true, prepare: func(ro *v1alpha1.Rollout, _ *appsv1.ReplicaSet) {
+			ro.Spec.Paused = true
+		}},
+		{name: "active pause condition", paused: true, prepare: func(ro *v1alpha1.Rollout, _ *appsv1.ReplicaSet) {
+			ro.Status.ControllerPause = true
+			ro.Status.PauseConditions = []v1alpha1.PauseCondition{{Reason: v1alpha1.PauseReasonInconclusiveAnalysis, StartTime: timeutil.MetaNow()}}
+		}},
+	} {
+		for _, abort := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/abort=%t", tc.name, abort), func(t *testing.T) {
+				f, ro, canaryService, rss := newPingPongReuseFixture(t)
+				ro.Spec.ProgressDeadlineSeconds = ptr.To[int32](30)
+				ro.Spec.ProgressDeadlineAbort = abort
+				ro.Status.Replicas = 15
+				ro.Status.AvailableReplicas = 15
+				ro.Status.ReadyReplicas = 15
+				ro.Status.HPAReplicas = 15
+				cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.ReplicaSetUpdatedReason, "waiting")
+				cond.LastUpdateTime = metav1.NewTime(timeutil.MetaNow().Add(-time.Minute))
+				ro.Status.Conditions = []v1alpha1.RolloutCondition{*cond}
+				if tc.prepare != nil {
+					tc.prepare(ro, rss[1])
+				}
+				router := newUnmockedFakeTrafficRoutingReconciler()
+				f.fakeTrafficRouting = router
+				router.On("RemoveManagedRoutes").Return(nil)
+				router.On("SetWeight", int32(0)).Return(nil)
+				router.On("VerifyWeight", int32(0)).Return(ptr.To(false), tc.verifyErr)
+				ctrl, _, _ := f.newController(noResyncPeriodFunc)
+				for i := 0; i < 2; i++ {
+					roCtx, err := ctrl.newRolloutContext(ro)
+					require.NoError(t, err)
+					err = roCtx.rolloutCanary()
+					if tc.verifyErr != nil {
+						require.ErrorIs(t, err, tc.verifyErr)
+					} else {
+						require.NoError(t, err)
+					}
+					ro, err = f.client.ArgoprojV1alpha1().Rollouts(ro.Namespace).Get(context.Background(), ro.Name, metav1.GetOptions{})
+					require.NoError(t, err)
+				}
+				assert.Equal(t, abort && !tc.paused, ro.Status.Abort)
+				progressing := conditions.GetRolloutCondition(ro.Status, v1alpha1.RolloutProgressing)
+				require.NotNil(t, progressing)
+				switch {
+				case tc.paused:
+					assert.NotEqual(t, conditions.TimedOutReason, progressing.Reason)
+				case abort:
+					assert.Equal(t, conditions.RolloutAbortedReason, progressing.Reason)
+				default:
+					assert.Equal(t, conditions.TimedOutReason, progressing.Reason)
+				}
+				svc, err := f.kubeclient.CoreV1().Services(ro.Namespace).Get(context.Background(), canaryService.Name, metav1.GetOptions{})
 				require.NoError(t, err)
+				assert.Equal(t, canaryService.Spec.Selector, svc.Spec.Selector)
+			})
+		}
+	}
+}
+
+func TestPingPongServiceReuseReleasesUnusedCapacity(t *testing.T) {
+	for _, missingWeights := range []bool{false, true} {
+		t.Run(fmt.Sprintf("missingWeights=%t", missingWeights), func(t *testing.T) {
+			f, ro, canaryService, rss := newPingPongReuseFixture(t)
+			ro.Spec.Strategy.Canary.DynamicStableScale = true
+			ro.Spec.Strategy.Canary.TrafficRouting.ALB = &v1alpha1.ALBTrafficRouting{Ingress: "alb", RootService: "root", ServicePort: 80}
+			rootSvc := newService("root", 80, nil, ro)
+			ingress := newIngress("alb", canaryService, rootSvc)
+			f.kubeobjects = append(f.kubeobjects, rootSvc, ingress)
+			f.serviceLister = append(f.serviceLister, rootSvc)
+			f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
+			if missingWeights {
+				ro.Status.Canary.Weights = nil
+			} else {
+				ro.Status.Canary.Weights.Canary.PodTemplateHash = ro.Status.CurrentPodHash
 			}
-			persisted, err := f.client.ArgoprojV1alpha1().Rollouts(ro.Namespace).Get(context.Background(), ro.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-			assert.True(t, persisted.Status.Abort)
+			rss[0].Status.Replicas = 5
+			rss[0].Status.ReadyReplicas = 5
+			rss[0].Status.AvailableReplicas = 5
+			// The selected canary must retain even its pending pods while traffic still reaches it.
+			rss[1].Spec.Replicas = ptr.To[int32](8)
+			oldRo := ro.DeepCopy()
+			oldRo.Spec.Template.Spec.Containers[0].Image = "other:0"
+			oldRo.Annotations[annotations.RevisionAnnotation] = "0"
+			oldRS := newReplicaSetWithStatus(oldRo, 10, 10)
+			oldRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.MetaNow().Add(-time.Hour).UTC().Format(time.RFC3339)
+			f.kubeobjects = append(f.kubeobjects, oldRS)
+			f.replicaSetLister = append(f.replicaSetLister, oldRS)
+			ctrl, _, kubeInformers := f.newController(noResyncPeriodFunc)
+			for i := 0; i < 2; i++ {
+				roCtx, err := ctrl.newRolloutContext(ro)
+				require.NoError(t, err)
+				require.NoError(t, roCtx.rolloutCanary())
+				ro, err = f.client.ArgoprojV1alpha1().Rollouts(ro.Namespace).Get(context.Background(), ro.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				list, err := f.kubeclient.AppsV1().ReplicaSets(ro.Namespace).List(context.Background(), metav1.ListOptions{})
+				require.NoError(t, err)
+				for _, rs := range list.Items {
+					require.NoError(t, kubeInformers.Apps().V1().ReplicaSets().Informer().GetIndexer().Update(rs.DeepCopy()))
+				}
+			}
+			for i, rs := range append(rss, oldRS) {
+				actual, err := f.kubeclient.AppsV1().ReplicaSets(ro.Namespace).Get(context.Background(), rs.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				assert.Equal(t, []int32{10, 8, 0, 0}[i], *actual.Spec.Replicas, rs.Name)
+			}
 			svc, err := f.kubeclient.CoreV1().Services(ro.Namespace).Get(context.Background(), canaryService.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, canaryService.Spec.Selector, svc.Spec.Selector)

@@ -833,6 +833,14 @@ func isWaitingForReplicaSetScaleDown(r *v1alpha1.Rollout, newRS, stableRS *appsv
 	return false
 }
 
+func (c *rolloutContext) isProgressDeadlineSuspended() bool {
+	if c.pingPongServicePending {
+		// Draining precedes steps and scale-down delays; only an actual pause suspends its deadline.
+		return c.rollout.Spec.Paused || len(c.rollout.Status.PauseConditions) > 0
+	}
+	return isIndefiniteStep(c.rollout) || isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs)
+}
+
 // evaluateProgressDeadlineAbort aborts the rollout (via the pause context) when an in-flight
 // update has exceeded its progress deadline and spec.progressDeadlineAbort is set.
 func (c *rolloutContext) evaluateProgressDeadlineAbort(newStatus *v1alpha1.RolloutStatus) {
@@ -853,7 +861,7 @@ func (c *rolloutContext) evaluateProgressDeadlineAbort(newStatus *v1alpha1.Rollo
 		return
 	}
 	// Some steps do not count against the lack of progress
-	if isIndefiniteStep(c.rollout) || isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs) {
+	if c.isProgressDeadlineSuspended() {
 		return
 	}
 	// Check if the existing Progressing condition has timed out
@@ -954,7 +962,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutS
 				conditions.RemoveRolloutCondition(newStatus, v1alpha1.RolloutProgressing)
 			}
 			conditions.SetRolloutCondition(newStatus, *condition)
-		case !isIndefiniteStep(c.rollout) && !isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs) && conditions.RolloutTimedOut(c.rollout, newStatus):
+		case !c.isProgressDeadlineSuspended() && conditions.RolloutTimedOut(c.rollout, newStatus):
 
 			// Update the rollout with a timeout condition. If the condition already exists,
 			// we ignore this update.
@@ -1101,7 +1109,7 @@ func (c *rolloutContext) requeueStuckRollout(newStatus v1alpha1.RolloutStatus) t
 	}
 	// No need to estimate progress if the rollout is complete or already timed out.
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
-	if conditions.RolloutHealthy(c.rollout, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused || c.rollout.Status.Abort || isIndefiniteStep(c.rollout) {
+	if conditions.RolloutHealthy(c.rollout, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused || c.rollout.Status.Abort || (isIndefiniteStep(c.rollout) && !c.pingPongServicePending) {
 		return time.Duration(-1)
 	}
 	// If there is no sign of progress at this point then there is a high chance that the
