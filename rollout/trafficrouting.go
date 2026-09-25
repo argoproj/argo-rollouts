@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin"
 
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -155,6 +156,60 @@ func (c *rolloutContext) checkReplicasAvailable(rs *appsv1.ReplicaSet, desiredWe
 
 	return true
 
+}
+
+// drainPingPongService resets traffic before replacing a service's pod selector.
+// Keep the previous hash in status until the service switches, so subsequent reconciles
+// continue verifying the reset and retain the ReplicaSet still selected by the service.
+func (c *rolloutContext) drainPingPongService(currentHash string) error {
+	scaled, stableRS, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas))
+	if err != nil {
+		return err
+	}
+	c.stableRS = stableRS
+	if scaled {
+		return nil
+	}
+	if !c.checkReplicasAvailable(c.stableRS, weightutil.MaxTrafficWeight(c.rollout)) {
+		c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
+		return nil
+	}
+
+	reconcilers, err := c.newTrafficRoutingReconciler(c)
+	if err != nil {
+		return err
+	}
+	verified := true
+	var verification *bool
+	for _, reconciler := range reconcilers {
+		c.log.Infof("Draining ping-pong service with traffic router '%s'", reconciler.Type())
+		if err := reconciler.RemoveManagedRoutes(); err != nil {
+			return err
+		}
+		if err := reconciler.SetWeight(0); err != nil {
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
+			return err
+		}
+		_, c.newStatus.Canary.Weights = calculateWeightStatus(c.rollout, currentHash, replicasetutil.GetPodTemplateHash(c.stableRS), 0)
+		weightVerified, err := reconciler.VerifyWeight(0)
+		if err != nil {
+			c.newStatus.Canary.Weights.Verified = ptr.To(false)
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.WeightVerifyErrorReason}, conditions.WeightVerifyErrorMessage, err)
+			return err
+		}
+		if weightVerified != nil {
+			verified = verified && *weightVerified
+			verification = ptr.To(verified)
+		}
+		c.newStatus.Canary.Weights.Verified = verification
+	}
+	if !verified {
+		c.log.Info("Delaying ping-pong service switch until canary weight 0 is verified")
+		c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
+		return nil
+	}
+	c.pingPongServicePending = false
+	return nil
 }
 
 // this currently only be used in the canary strategy

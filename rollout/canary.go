@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
@@ -56,7 +57,9 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
-	if err := c.reconcilePingAndPongService(); err != nil {
+	if err := c.reconcilePingAndPongService(); c.pingPongServicePending {
+		return errors.Join(err, c.syncRolloutStatusCanary())
+	} else if err != nil {
 		return err
 	}
 
@@ -373,6 +376,11 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 				newStatus.CurrentStepIndex = &stepCount
 			}
 		}
+		return c.persistRolloutStatus(&newStatus)
+	}
+
+	if c.pingPongServicePending {
+		newStatus.CurrentStepIndex = currentStepIndex
 		return c.persistRolloutStatus(&newStatus)
 	}
 

@@ -29,6 +29,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
@@ -323,6 +324,18 @@ func (c *rolloutContext) isScalingEvent() (bool, error) {
 	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
 		return false, fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in isScalingEvent: %w", err)
+	}
+	// A scaling-only pass must not create the next ping-pong pods before the service
+	// has been drained and repointed, or they will miss pod readiness gate injection.
+	if trafficrouting.IsPingPongEnabled(c.rollout) && !rolloututil.IsFullyPromoted(c.rollout) && c.newRS != nil {
+		_, canaryService := trafficrouting.GetStableAndCanaryServices(c.rollout, true)
+		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(canaryService)
+		if err != nil {
+			return false, err
+		}
+		if serviceutil.GetRolloutSelectorLabel(svc) != replicasetutil.GetPodTemplateHash(c.newRS) {
+			return false, nil
+		}
 	}
 
 	// We only care about scaling events on the newRS and stableRS because these are the only replicasets that we ever
