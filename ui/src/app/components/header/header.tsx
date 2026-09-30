@@ -49,7 +49,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
             });
         }
     };
-    getVersion();
+    void getVersion();
     }, []);
 
     React.useEffect(() => {
@@ -90,6 +90,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                             style={{width: 200}}
                             className='rollouts-header__namespace-selector'
                             options={(namespaceInfo.availableNamespaces || []).map((ns) => ({label: ns, value: ns}))}
+                            filterOption={(inputValue, option) => option.value.toUpperCase().includes(inputValue.toUpperCase())}
                             placeholder='Namespace'
                             onChange={(val) => setNsInput(val)}
                             onSelect={(val) => {
