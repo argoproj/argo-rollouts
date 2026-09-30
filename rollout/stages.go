@@ -3,6 +3,11 @@ package rollout
 import (
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -12,8 +17,8 @@ const (
 	// stageContinue: proceed to the next stage.
 	stageContinue stageOutcome = iota
 	// stageStop: halt the pipeline and fall through to status sync. When err is set, the failure
-	// blocks progression for this pass, is returned for workqueue backoff, and status still
-	// syncs (#4626).
+	// is recorded (ReconcileSucceeded=False), blocks progression for this pass, is returned for
+	// workqueue backoff, and status still syncs (#4626).
 	stageStop
 	// stageStopNoStatus: halt without status sync. Used for the pod-restart early exit (no err)
 	// and ReplicaSet-sync failures (err set), where c.newRS is unreliable and a status computed
@@ -24,6 +29,9 @@ const (
 type stageResult struct {
 	outcome stageOutcome
 	err     error
+	// reason is the ReconcileSucceeded=False reason (and event reason) recorded for a failure.
+	// Defaults to ReconciliationError.
+	reason string
 }
 
 type strategyStage struct {
@@ -58,9 +66,7 @@ func (c *rolloutContext) runStages(stages []strategyStage) error {
 		case stageContinue:
 		case stageStop:
 			if res.err != nil {
-				// The cluster may not match the state that step advancement or full promotion
-				// would persist; hold both for the rest of this pass.
-				c.progressionBlocked = true
+				c.recordStageFailure(res)
 				return res.err
 			}
 			c.log.Infof("stage %s: stopping further changes, proceeding to status sync", s.name)
@@ -70,7 +76,26 @@ func (c *rolloutContext) runStages(stages []strategyStage) error {
 			return res.err
 		}
 	}
+	// Reconcile work completed without error; ReconcileSucceeded may recover to True.
+	c.markStageSucceeded()
 	return nil
+}
+
+// recordStageFailure records ReconcileSucceeded=False, emits a warning event, and holds step
+// advancement and full promotion for the rest of this pass, since the cluster may not match the
+// state they would persist. The event is emitted only when the condition transitions (new
+// failure or changed reason), not on every retry.
+func (c *rolloutContext) recordStageFailure(res stageResult) {
+	c.progressionBlocked = true
+	reason := res.reason
+	if reason == "" {
+		reason = conditions.RolloutReconciliationErrorReason
+	}
+	c.setStageCondition(v1alpha1.RolloutReconcileSucceeded, corev1.ConditionFalse, reason, res.err.Error())
+	prevCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutReconcileSucceeded)
+	if prevCond == nil || prevCond.Status != corev1.ConditionFalse || prevCond.Reason != reason {
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: reason}, "%s", res.err.Error())
+	}
 }
 
 // carryOverUnreconciledStatus keeps the previous values of status fields owned by stages that did
@@ -159,21 +184,33 @@ func canaryStageRevisionHistory(c *rolloutContext) stageResult {
 
 func canaryStagePingPongService(c *rolloutContext) stageResult {
 	if err := c.reconcilePingAndPongService(); err != nil {
-		return stageResult{outcome: stageStop, err: err}
+		return stageResult{
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.ServiceUpdateErrorReason,
+		}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStageStableCanaryService(c *rolloutContext) stageResult {
 	if err := c.reconcileStableAndCanaryService(); err != nil {
-		return stageResult{outcome: stageStop, err: err}
+		return stageResult{
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.ServiceUpdateErrorReason,
+		}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStageTrafficRouting(c *rolloutContext) stageResult {
 	if err := c.reconcileTrafficRouting(); err != nil {
-		return stageResult{outcome: stageStop, err: err}
+		return stageResult{
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.TrafficRoutingErrorReason,
+		}
 	}
 	return stageResult{outcome: stageContinue}
 }

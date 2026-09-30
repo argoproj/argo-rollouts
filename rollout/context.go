@@ -70,6 +70,15 @@ type rolloutContext struct {
 	// persist.
 	progressionBlocked bool
 
+	// stageConditions holds the in-memory ReconcileSucceeded condition when reconcile work fails
+	// this pass. Merged into newStatus by mergeStageConditions.
+	stageConditions map[v1alpha1.RolloutConditionType]v1alpha1.RolloutCondition
+
+	// stageSuccesses records that reconcile work completed without error this pass.
+	// mergeStageConditions only lets a previously-False ReconcileSucceeded recover to True when
+	// stageSuccesses is set.
+	stageSuccesses map[v1alpha1.RolloutConditionType]bool
+
 	// experimentsReconciled and analysisReconciled record that the stage owning the
 	// corresponding status fields (current Experiment, current AnalysisRuns) completed this pass.
 	// See carryOverUnreconciledStatus.
