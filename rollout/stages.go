@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -16,9 +17,14 @@ type stageOutcome int
 const (
 	// stageContinue: proceed to the next stage.
 	stageContinue stageOutcome = iota
+	// stageContinueWithError: a cosmetic stage failed. Record ReconcileSucceeded=False, keep
+	// running the remaining stages (nothing downstream depends on it for traffic safety), and
+	// surface the error after the status sync for workqueue backoff. Unlike a stageStop failure,
+	// it does not block step advancement or full promotion.
+	stageContinueWithError
 	// stageStop: halt the pipeline and fall through to status sync. When err is set, the failure
-	// is recorded (ReconcileSucceeded=False), blocks progression for this pass, is returned for
-	// workqueue backoff, and status still syncs (#4626).
+	// is recorded (ReconcileSucceeded=False), blocks step advancement and full promotion for this
+	// pass, is returned for workqueue backoff, and status still syncs (#4626).
 	stageStop
 	// stageStopNoStatus: halt without status sync. Used for the pod-restart early exit (no err)
 	// and ReplicaSet-sync failures (err set), where c.newRS is unreliable and a status computed
@@ -65,6 +71,7 @@ var blueGreenStages = []strategyStage{
 	{"targetGroups", blueGreenStageTargetGroups},
 	{"analysis", blueGreenStageAnalysis},
 	{"ephemeralMetadata", blueGreenStageEphemeralMetadata},
+	{"revisionHistory", blueGreenStageRevisionHistory},
 }
 
 func (c *rolloutContext) runCanaryStages() error {
@@ -82,33 +89,45 @@ func (c *rolloutContext) runBlueGreenStages(previewSvc, activeSvc *corev1.Servic
 }
 
 func (c *rolloutContext) runStages(stages []strategyStage) error {
+	// errs collects stageContinueWithError failures so they survive a later stop.
+	var errs []error
 	for _, s := range stages {
 		res := s.run(c)
 		switch res.outcome {
 		case stageContinue:
+		case stageContinueWithError:
+			c.recordStageFailure(res)
+			errs = append(errs, res.err)
 		case stageStop:
 			if res.err != nil {
 				c.recordStageFailure(res)
-				return res.err
+				// The cluster may not match the state that step advancement or full promotion
+				// would persist; hold both for the rest of this pass.
+				c.progressionBlocked = true
+				errs = append(errs, res.err)
+			} else {
+				c.log.Infof("stage %s: stopping further changes, proceeding to status sync", s.name)
 			}
-			c.log.Infof("stage %s: stopping further changes, proceeding to status sync", s.name)
-			return nil
+			return errors.Join(errs...)
 		case stageStopNoStatus:
 			c.skipStatusSync = true
-			return res.err
+			if res.err != nil {
+				errs = append(errs, res.err)
+			}
+			return errors.Join(errs...)
 		}
 	}
-	// Reconcile work completed without error; ReconcileSucceeded may recover to True.
-	c.markStageSucceeded()
-	return nil
+	if len(errs) == 0 {
+		// Reconcile work completed without error; ReconcileSucceeded may recover to True.
+		c.markStageSucceeded()
+	}
+	return errors.Join(errs...)
 }
 
-// recordStageFailure records ReconcileSucceeded=False, emits a warning event, and holds step
-// advancement and full promotion for the rest of this pass, since the cluster may not match the
-// state they would persist. The event is emitted only when the condition transitions (new
-// failure or changed reason), not on every retry.
+// recordStageFailure records ReconcileSucceeded=False and emits a warning event. The event is
+// emitted only when the condition transitions (new failure or changed reason), not on every
+// retry.
 func (c *rolloutContext) recordStageFailure(res stageResult) {
-	c.progressionBlocked = true
 	reason := res.reason
 	if reason == "" {
 		reason = conditions.RolloutReconciliationErrorReason
@@ -195,14 +214,16 @@ func canaryStagePodRestart(c *rolloutContext) stageResult {
 
 func canaryStageEphemeralMetadata(c *rolloutContext) stageResult {
 	if err := c.reconcileEphemeralMetadata(); err != nil {
-		return stageResult{outcome: stageStop, err: err}
+		// Cosmetic: pod metadata labeling must not block services/traffic/scaling or progression.
+		return stageResult{outcome: stageContinueWithError, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStageRevisionHistory(c *rolloutContext) stageResult {
 	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
-		return stageResult{outcome: stageStop, err: err}
+		// Cosmetic: old-revision cleanup must not block services/traffic/scaling or progression.
+		return stageResult{outcome: stageContinueWithError, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
@@ -359,7 +380,16 @@ func blueGreenStageAnalysis(c *rolloutContext) stageResult {
 
 func blueGreenStageEphemeralMetadata(c *rolloutContext) stageResult {
 	if err := c.reconcileEphemeralMetadata(); err != nil {
-		return stageResult{outcome: stageStop, err: err}
+		// Cosmetic: pod metadata labeling must not block the service switch, scaling, or promotion.
+		return stageResult{outcome: stageContinueWithError, err: err}
+	}
+	return stageResult{outcome: stageContinue}
+}
+
+func blueGreenStageRevisionHistory(c *rolloutContext) stageResult {
+	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
+		// Cosmetic: old-revision cleanup must not block the service switch, scaling, or promotion.
+		return stageResult{outcome: stageContinueWithError, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }

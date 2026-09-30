@@ -366,10 +366,90 @@ func TestBlueGreenStageTableMatchesLegacyOrder(t *testing.T) {
 		"targetGroups",
 		"analysis",
 		"ephemeralMetadata",
+		"revisionHistory",
 	}
 	names := make([]string, len(blueGreenStages))
 	for i, stage := range blueGreenStages {
 		names[i] = stage.name
 	}
 	assert.Equal(t, expected, names)
+}
+
+// TestStageContinueWithErrorKeepsApplying verifies the stageContinueWithError plumbing: a
+// cosmetic stage failure records its condition and keeps the pipeline running (services, traffic
+// routing, and scaling still run this pass) without blocking progression, while the error is
+// still returned for workqueue backoff — including when a later stage stops the pipeline normally.
+func TestStageContinueWithErrorKeepsApplying(t *testing.T) {
+	orig := canaryStages
+	defer func() { canaryStages = orig }()
+	cosmeticErr := errors.New("revision history cleanup failed")
+
+	t.Run("later stages still run and the error is returned", func(t *testing.T) {
+		laterStageRan := false
+		canaryStages = []strategyStage{
+			{"cosmetic", func(c *rolloutContext) stageResult {
+				return stageResult{outcome: stageContinueWithError, err: cosmeticErr}
+			}},
+			{"later", func(c *rolloutContext) stageResult {
+				laterStageRan = true
+				return stageResult{outcome: stageContinue}
+			}},
+		}
+		ctx := &rolloutContext{
+			rollout:        &v1alpha1.Rollout{},
+			reconcilerBase: reconcilerBase{recorder: record.NewFakeEventRecorder()},
+		}
+		err := ctx.runCanaryStages()
+		assert.True(t, laterStageRan, "a cosmetic failure must not stop the remaining stages")
+		assert.ErrorIs(t, err, cosmeticErr)
+		cond := ctx.stageConditions[v1alpha1.RolloutReconcileSucceeded]
+		assert.Equal(t, corev1.ConditionFalse, cond.Status)
+		assert.False(t, ctx.stageSuccesses[v1alpha1.RolloutReconcileSucceeded],
+			"a pass with a cosmetic failure must not mark ReconcileSucceeded as recovered")
+		assert.False(t, ctx.progressionBlocked,
+			"a cosmetic failure must not block step advancement or full promotion")
+	})
+
+	t.Run("error survives a later stageStop", func(t *testing.T) {
+		canaryStages = []strategyStage{
+			{"cosmetic", func(c *rolloutContext) stageResult {
+				return stageResult{outcome: stageContinueWithError, err: cosmeticErr}
+			}},
+			{"pause", func(c *rolloutContext) stageResult {
+				return stageResult{outcome: stageStop}
+			}},
+		}
+		ctx := &rolloutContext{
+			rollout:        &v1alpha1.Rollout{},
+			log:            logutil.WithRollout(&v1alpha1.Rollout{}),
+			reconcilerBase: reconcilerBase{recorder: record.NewFakeEventRecorder()},
+		}
+		err := ctx.runCanaryStages()
+		assert.ErrorIs(t, err, cosmeticErr, "a cosmetic failure must not be swallowed by a later normal stop")
+	})
+}
+
+// TestBlueGreenStageContinueWithErrorKeepsApplying verifies cosmetic stage failures on blue-green
+// still allow the remaining stages in the pipeline to run.
+func TestBlueGreenStageContinueWithErrorKeepsApplying(t *testing.T) {
+	orig := blueGreenStages
+	defer func() { blueGreenStages = orig }()
+	cosmeticErr := errors.New("revision history cleanup failed")
+	laterStageRan := false
+	blueGreenStages = []strategyStage{
+		{"cosmetic", func(c *rolloutContext) stageResult {
+			return stageResult{outcome: stageContinueWithError, err: cosmeticErr}
+		}},
+		{"later", func(c *rolloutContext) stageResult {
+			laterStageRan = true
+			return stageResult{outcome: stageContinue}
+		}},
+	}
+	ctx := &rolloutContext{
+		rollout:        &v1alpha1.Rollout{},
+		reconcilerBase: reconcilerBase{recorder: record.NewFakeEventRecorder()},
+	}
+	err := ctx.runBlueGreenStages(nil, nil)
+	assert.True(t, laterStageRan)
+	assert.ErrorIs(t, err, cosmeticErr)
 }

@@ -1325,8 +1325,9 @@ const (
 	// RolloutReconcileSucceeded indicates the controller completed its reconcile work without error
 	// on the last full pass (True), or hit an error while reconciling (False). The reason
 	// distinguishes failure category (e.g. TrafficRoutingError, ServiceUpdateError,
-	// ReconciliationError). Other failure modes use separate conditions (InvalidSpec, Progressing,
-	// ReplicaFailure).
+	// ReconciliationError). Failures in cosmetic reconcile work (ephemeral pod metadata, revision
+	// history cleanup) are recorded here too but do not hold step progression or promotion. Other
+	// failure modes use separate conditions (InvalidSpec, Progressing, ReplicaFailure).
 	RolloutReconcileSucceeded RolloutConditionType = "ReconcileSucceeded"
 )
 
