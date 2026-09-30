@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -2178,4 +2179,144 @@ func TestIsDynamicallyRollingBackToStable(t *testing.T) {
 			assert.Equal(t, tc.expectedResult, rbToStable)
 		})
 	}
+}
+
+// TestCanaryStableReplicaSetScaleDownHeldWhileWeightUnverified verifies that the stable
+// ReplicaSet is never scaled down based on traffic weights the provider has not verified yet.
+func TestCanaryStableReplicaSetScaleDownHeldWhileWeightUnverified(t *testing.T) {
+	tests := []struct {
+		name           string
+		verified       *bool
+		expectedScaled bool
+	}{
+		{"unverified weights hold stable scale-down", ptr.To[bool](false), false},
+		{"verified weights allow stable scale-down", ptr.To[bool](true), true},
+		{"nil verification allows stable scale-down", nil, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			steps := []v1alpha1.CanaryStep{
+				{SetWeight: ptr.To[int32](10)},
+				{Pause: &v1alpha1.RolloutPause{}},
+			}
+			r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(0))
+			r2 := bumpVersion(r1)
+			r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+			r2.Spec.Strategy.Canary.CanaryService = "canary"
+			r2.Spec.Strategy.Canary.StableService = "stable"
+			r2.Spec.Strategy.Canary.DynamicStableScale = true
+
+			rs1 := newReplicaSetWithStatus(r1, 10, 10)
+			rs2 := newReplicaSetWithStatus(r2, 10, 10)
+			rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+			stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+
+			r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 20, 10, 20, false)
+			r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+				Canary:   v1alpha1.WeightDestination{Weight: 100, ServiceName: "canary", PodTemplateHash: rs2PodHash},
+				Stable:   v1alpha1.WeightDestination{Weight: 0, ServiceName: "stable", PodTemplateHash: rs1PodHash},
+				Verified: tc.verified,
+			}
+
+			f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+			f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+			f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+			f.rolloutLister = append(f.rolloutLister, r2)
+			f.objects = append(f.objects, r2)
+
+			ctrl, _, _ := f.newController(noResyncPeriodFunc)
+			roCtx, err := ctrl.newRolloutContext(r2)
+			assert.NoError(t, err)
+
+			scaled, err := roCtx.reconcileCanaryStableReplicaSet()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedScaled, scaled,
+				"stable scale-down must only happen when weights are verified or verification is not implemented")
+		})
+	}
+}
+
+// TestPromotionHeldWhileWeightUnverified verifies that the canary is not promoted to stable while
+// the desired traffic weights have not been verified by the traffic provider.
+func TestPromotionHeldWhileWeightUnverified(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}, {Pause: &v1alpha1.RolloutPause{}}}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 10, 10)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), nil)
+
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+	assert.NotContains(t, f.getPatchedRollout(patchIndex), fmt.Sprintf(`"stableRS":"%s"`, rs2PodHash))
+}
+
+// TestPromoteFullHeldEmitsEvent verifies that a user-requested full promotion (promote --full)
+// held by the unverified-weights safety gate emits an event explaining why the forced promotion
+// did not take effect.
+func TestPromoteFullHeldEmitsEvent(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}, {Pause: &v1alpha1.RolloutPause{}}}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 10, 10)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	r2.Status.PromoteFull = true
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes").Return(nil)
+
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+	assert.NotContains(t, f.getPatchedRollout(patchIndex), fmt.Sprintf(`"stableRS":"%s"`, rs2PodHash),
+		"unverified weights must still hold the forced promotion")
+	assert.Contains(t, strings.Join(f.events, " "), conditions.PromoteFullHeldReason,
+		"the held promotion must be surfaced to the operator via an event")
 }

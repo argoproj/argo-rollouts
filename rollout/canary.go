@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
 func (c *rolloutContext) rolloutCanary() error {
@@ -126,6 +127,13 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// Therefore, we send c.rollout.Status.Canary.Weights so that the stable scaling happens in
 		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
 		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.newRS, c.stableRS, c.rollout.Status.Canary.Weights)
+		// Never scale down the stable ReplicaSet based on weights the traffic provider has not
+		// verified yet (e.g. ALB load balancer weights still propagating): the provider may
+		// still be routing traffic to stable. Scale-up is still allowed.
+		if weightutil.VerificationPending(c.rollout.Status.Canary.Weights) && desiredStableRSReplicaCount < *c.stableRS.Spec.Replicas {
+			c.log.Infof("Holding stable ReplicaSet at %d replicas (desired %d): desired traffic weights are not yet verified", *c.stableRS.Spec.Replicas, desiredStableRSReplicaCount)
+			desiredStableRSReplicaCount = *c.stableRS.Spec.Replicas
+		}
 	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
@@ -323,7 +331,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.newStatus.Canary.Weights) {
 			return false
 		}
-		if c.newStatus.Canary.Weights != nil && c.newStatus.Canary.Weights.Verified != nil && !*c.newStatus.Canary.Weights.Verified {
+		if weightutil.VerificationPending(c.newStatus.Canary.Weights) {
 			// we haven't yet verified the target weight after the setWeight
 			return false
 		}
