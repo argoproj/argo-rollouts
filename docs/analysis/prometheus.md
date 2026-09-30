@@ -251,6 +251,10 @@ If your prometheus server presents a certificate signed by a private or self-sig
 PEM-encoded CA certificate bundle. This trusts the given CA for TLS verification purposes while keeping certificate
 verification enabled, as opposed to `insecure: true` which disables verification altogether.
 
+Note that when `caCert` is set, only the CA certificates in that bundle are trusted for the prometheus connection (the
+system's default trust store is not consulted), so include every CA needed to verify the server's certificate chain.
+If both `insecure: true` and `caCert` are set, `insecure` takes precedence and verification is skipped.
+
 ```yaml
 provider:
   prometheus:

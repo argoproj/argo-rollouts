@@ -482,6 +482,30 @@ func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	assert.Equal(t, arg, newMetric.SuccessCondition)
 }
 
+// TestResolveMetricArgsWithMultilinePrometheusCACert verifies that a multi-line PEM bundle supplied
+// as an argument (e.g. from a Secret via valueFrom.secretKeyRef) is substituted into the prometheus
+// caCert field intact, newlines included, as documented in docs/analysis/prometheus.md.
+func TestResolveMetricArgsWithMultilinePrometheusCACert(t *testing.T) {
+	caCert := "-----BEGIN CERTIFICATE-----\nMIIBszCCAVmgAwIBAgIUQ\nZm9vYmFy\n-----END CERTIFICATE-----\n"
+	arguments := []v1alpha1.Argument{{
+		Name:  "prometheus-ca-cert",
+		Value: &caCert,
+	}}
+	metric := v1alpha1.Metric{
+		Name: "success-rate",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "https://prometheus.example.com",
+				Query:   "up",
+				CACert:  "{{ args.prometheus-ca-cert }}",
+			},
+		},
+	}
+	newMetric, err := ResolveMetricArgs(metric, arguments)
+	assert.NoError(t, err)
+	assert.Equal(t, caCert, newMetric.Provider.Prometheus.CACert)
+}
+
 func Test_extractValueFromRollout(t *testing.T) {
 	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
