@@ -59,6 +59,22 @@ type rolloutContext struct {
 	// annotation at the start of reconciliation (before it may be removed).
 	// Used to detect fast rollbacks where we skip pause/analysis steps.
 	newRSWithinDelay bool
+
+	// skipStatusSync ends the pass without a status sync. Set by the pod-restart early exit and
+	// by ReplicaSet-sync failures (stageStopNoStatus), where c.newRS is unreliable and a status
+	// computed from it would persist corrupted values (see rolloutCanary and runStages).
+	skipStatusSync bool
+
+	// progressionBlocked is set when a stage failed this pass. Step advancement and full
+	// promotion are held while it is set, since the cluster may not match the state they would
+	// persist.
+	progressionBlocked bool
+
+	// experimentsReconciled and analysisReconciled record that the stage owning the
+	// corresponding status fields (current Experiment, current AnalysisRuns) completed this pass.
+	// See carryOverUnreconciledStatus.
+	experimentsReconciled bool
+	analysisReconciled    bool
 }
 
 func (c *rolloutContext) reconcile() error {
