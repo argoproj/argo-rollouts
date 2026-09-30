@@ -470,8 +470,8 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 
 	err = roCtx.reconcile()
 	// Record the ResourceVersion even when reconcile returned an error: a stage failure is
-	// routinely joined with a successful status patch (rolloutCanary returns
-	// errors.Join(stageErr, syncRolloutStatusCanary())), and newRollout.ResourceVersion comes
+	// routinely joined with a successful status patch (rolloutCanary/rolloutBlueGreen return
+	// errors.Join(stageErr, syncRolloutStatus(...))), and newRollout.ResourceVersion comes
 	// from a write the API server accepted. Skipping the Record here would let the quick
 	// workqueue retry pass the IsCacheStale check with the pre-patch rollout and reconcile off
 	// stale status (CurrentStepIndex, weights, conditions).

@@ -55,8 +55,30 @@ var canaryStages = []strategyStage{
 	{"stepPlugins", canaryStageStepPlugins},
 }
 
+var blueGreenStages = []strategyStage{
+	{"previewService", blueGreenStagePreviewService},
+	{"podTemplateChange", blueGreenStagePodTemplateChange},
+	{"podRestart", blueGreenStagePodRestart},
+	{"replicaSets", blueGreenStageReplicaSets},
+	{"pause", blueGreenStagePause},
+	{"activeService", blueGreenStageActiveService},
+	{"targetGroups", blueGreenStageTargetGroups},
+	{"analysis", blueGreenStageAnalysis},
+	{"ephemeralMetadata", blueGreenStageEphemeralMetadata},
+}
+
 func (c *rolloutContext) runCanaryStages() error {
 	return c.runStages(canaryStages)
+}
+
+func (c *rolloutContext) runBlueGreenStages(previewSvc, activeSvc *corev1.Service) error {
+	c.blueGreenPreviewSvc = previewSvc
+	c.blueGreenActiveSvc = activeSvc
+	defer func() {
+		c.blueGreenPreviewSvc = nil
+		c.blueGreenActiveSvc = nil
+	}()
+	return c.runStages(blueGreenStages)
 }
 
 func (c *rolloutContext) runStages(stages []strategyStage) error {
@@ -115,6 +137,9 @@ func (c *rolloutContext) carryOverUnreconciledStatus() {
 			c.newStatus.Canary.CurrentStepAnalysisRunStatus = prev.Canary.CurrentStepAnalysisRunStatus
 			c.newStatus.Canary.CurrentBackgroundAnalysisRunStatus = prev.Canary.CurrentBackgroundAnalysisRunStatus
 		}
+	} else if c.rollout.Spec.Strategy.BlueGreen != nil && !c.analysisReconciled {
+		c.newStatus.BlueGreen.PrePromotionAnalysisRunStatus = prev.BlueGreen.PrePromotionAnalysisRunStatus
+		c.newStatus.BlueGreen.PostPromotionAnalysisRunStatus = prev.BlueGreen.PostPromotionAnalysisRunStatus
 	}
 }
 
@@ -262,6 +287,78 @@ func canaryStageCanaryPause(c *rolloutContext) stageResult {
 
 func canaryStageStepPlugins(c *rolloutContext) stageResult {
 	if err := c.stepPluginContext.reconcile(c); err != nil {
+		return stageResult{outcome: stageStop, err: err}
+	}
+	return stageResult{outcome: stageContinue}
+}
+
+func blueGreenStagePreviewService(c *rolloutContext) stageResult {
+	// This must happen right after the new replicaset is created.
+	if err := c.reconcilePreviewService(c.blueGreenPreviewSvc); err != nil {
+		return stageResult{
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.ServiceUpdateErrorReason,
+		}
+	}
+	return stageResult{outcome: stageContinue}
+}
+
+func blueGreenStagePodTemplateChange(c *rolloutContext) stageResult {
+	if replicasetutil.CheckPodSpecChange(c.rollout, c.newRS) {
+		// A pod template change is handled entirely by the status sync.
+		return stageResult{outcome: stageStop}
+	}
+	return stageResult{outcome: stageContinue}
+}
+
+func blueGreenStagePodRestart(c *rolloutContext) stageResult {
+	if _, err := c.podRestarter.Reconcile(c); err != nil {
+		return stageResult{outcome: stageStop, err: err}
+	}
+	return stageResult{outcome: stageContinue}
+}
+
+func blueGreenStageReplicaSets(c *rolloutContext) stageResult {
+	if err := c.reconcileBlueGreenReplicaSets(c.blueGreenActiveSvc); err != nil {
+		return stageResult{outcome: stageStop, err: err}
+	}
+	return stageResult{outcome: stageContinue}
+}
+
+func blueGreenStagePause(c *rolloutContext) stageResult {
+	c.reconcileBlueGreenPause(c.blueGreenActiveSvc, c.blueGreenPreviewSvc)
+	return stageResult{outcome: stageContinue}
+}
+
+func blueGreenStageActiveService(c *rolloutContext) stageResult {
+	if err := c.reconcileActiveService(c.blueGreenActiveSvc); err != nil {
+		return stageResult{
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.ServiceUpdateErrorReason,
+		}
+	}
+	return stageResult{outcome: stageContinue}
+}
+
+func blueGreenStageTargetGroups(c *rolloutContext) stageResult {
+	if err := c.awsVerifyTargetGroups(c.blueGreenActiveSvc); err != nil {
+		return stageResult{outcome: stageStop, err: err}
+	}
+	return stageResult{outcome: stageContinue}
+}
+
+func blueGreenStageAnalysis(c *rolloutContext) stageResult {
+	if err := c.reconcileAnalysisRuns(); err != nil {
+		return stageResult{outcome: stageStop, err: err}
+	}
+	c.analysisReconciled = true
+	return stageResult{outcome: stageContinue}
+}
+
+func blueGreenStageEphemeralMetadata(c *rolloutContext) stageResult {
+	if err := c.reconcileEphemeralMetadata(); err != nil {
 		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}

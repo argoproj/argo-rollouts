@@ -3,6 +3,7 @@ package rollout
 import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -62,7 +63,8 @@ type rolloutContext struct {
 
 	// skipStatusSync ends the pass without a status sync. Set by the pod-restart early exit and
 	// by ReplicaSet-sync failures (stageStopNoStatus), where c.newRS is unreliable and a status
-	// computed from it would persist corrupted values (see rolloutCanary and runStages).
+	// computed from it would persist corrupted values (see rolloutCanary, rolloutBlueGreen, and
+	// runStages).
 	skipStatusSync bool
 
 	// progressionBlocked is set when a stage failed this pass. Step advancement and full
@@ -84,6 +86,10 @@ type rolloutContext struct {
 	// See carryOverUnreconciledStatus.
 	experimentsReconciled bool
 	analysisReconciled    bool
+
+	// blueGreenPreviewSvc and blueGreenActiveSvc are set for the duration of runBlueGreenStages.
+	blueGreenPreviewSvc *corev1.Service
+	blueGreenActiveSvc  *corev1.Service
 }
 
 func (c *rolloutContext) reconcile() error {
