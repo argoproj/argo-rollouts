@@ -187,6 +187,9 @@ const (
 	LoadBalancerNotFoundMessage = "Failed to find load balancer: %s"
 
 	RolloutAddedToInformerReason = "RolloutAddedToInformer"
+
+	// PromoteFullHeldReason is emitted when a requested full promotion is held.
+	PromoteFullHeldReason = "PromoteFullHeld"
 )
 
 // NewRolloutCondition creates a new rollout condition.
