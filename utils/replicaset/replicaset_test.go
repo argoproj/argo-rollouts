@@ -688,6 +688,44 @@ func TestCheckStepHashChange(t *testing.T) {
 	assert.True(t, checkStepHashChange(&ro))
 }
 
+func TestShouldSkipBlueGreenReconciliation(t *testing.T) {
+	t.Run("Blue-Green with PrePromotionAnalysis should not skip", func(t *testing.T) {
+		ro := generateRollout("nginx")
+		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+			PrePromotionAnalysis: &v1alpha1.RolloutAnalysis{},
+		}
+		assert.False(t, ShouldSkipBlueGreenReconciliation(&ro))
+	})
+
+	t.Run("Blue-Green with PostPromotionAnalysis should not skip", func(t *testing.T) {
+		ro := generateRollout("nginx")
+		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+			PostPromotionAnalysis: &v1alpha1.RolloutAnalysis{},
+		}
+		assert.False(t, ShouldSkipBlueGreenReconciliation(&ro))
+	})
+
+	t.Run("Blue-Green with manual promotion should not skip", func(t *testing.T) {
+		ro := generateRollout("nginx")
+		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
+			AutoPromotionEnabled: ptr.To[bool](false),
+		}
+		assert.False(t, ShouldSkipBlueGreenReconciliation(&ro))
+	})
+
+	t.Run("Blue-Green without analysis or manual promotion should skip", func(t *testing.T) {
+		ro := generateRollout("nginx")
+		ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
+		assert.True(t, ShouldSkipBlueGreenReconciliation(&ro))
+	})
+
+	t.Run("Non-Blue-Green rollout should skip", func(t *testing.T) {
+		ro := generateRollout("nginx")
+		ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
+		assert.True(t, ShouldSkipBlueGreenReconciliation(&ro))
+	})
+}
+
 func TestResetCurrentStepIndex(t *testing.T) {
 	ro := generateRollout("nginx")
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{

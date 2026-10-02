@@ -492,6 +492,25 @@ func CheckPodSpecChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) boo
 	return false
 }
 
+// ShouldSkipBlueGreenReconciliation determines if Blue-Green rollout reconciliation should be skipped
+// when a pod spec change is detected. Returns false (don't skip) for rollouts with analysis or manual promotion.
+func ShouldSkipBlueGreenReconciliation(rollout *v1alpha1.Rollout) bool {
+	if rollout.Spec.Strategy.BlueGreen == nil {
+		return true // Not a Blue-Green rollout, use default behavior
+	}
+
+	hasPrePromotionAnalysis := rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis != nil
+	hasPostPromotionAnalysis := rollout.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil
+	needsManualPromotion := rollout.Spec.Strategy.BlueGreen.AutoPromotionEnabled != nil && !*rollout.Spec.Strategy.BlueGreen.AutoPromotionEnabled
+
+	// If the rollout has analysis or needs manual promotion, don't skip reconciliation
+	if hasPrePromotionAnalysis || hasPostPromotionAnalysis || needsManualPromotion {
+		return false
+	}
+
+	return true // No special conditions, can skip reconciliation
+}
+
 // PodTemplateOrStepsChanged detects if there is a change in either the pod template, or canary steps
 func PodTemplateOrStepsChanged(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) bool {
 	if checkStepHashChange(rollout) {
