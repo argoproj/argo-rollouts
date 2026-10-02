@@ -33,6 +33,8 @@
 
     &__step {
         padding: 15px 18px;
+        position: relative;
+        overflow: hidden;
 
         border-radius: 10px;
         border: 1px solid $argo-color-gray-4;
@@ -66,6 +68,8 @@
             margin: 0 -16px;
             display: flex;
             align-items: center;
+            position: relative;
+            z-index: 1;
             &--experiment {
                 padding-bottom: 8px;
                 border-bottom: 1px solid $argo-color-gray-6;
@@ -101,6 +105,16 @@
             &-value {
                 white-space: pre-wrap;
             }
+        }
+
+        &__pause-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 0;
+            background-color: rgba($argo-running-color, 0.15);
+            pointer-events: none;
         }
     }
 
