@@ -261,7 +261,8 @@ func newCommand() *cobra.Command {
 					clusterDynamicInformerFactory,
 					namespaced,
 					kubeInformerFactory,
-					jobInformerFactory)
+					jobInformerFactory,
+				)
 			} else {
 				cm = controller.NewManager(
 					namespace,
