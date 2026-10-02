@@ -17,93 +17,13 @@ import (
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
+// rolloutCanary is the top-level canary reconcile. It runs the canary stages in order, then syncs
+// status unless a stage ended the pass without one (stageStopNoStatus).
 func (c *rolloutContext) rolloutCanary() error {
-	var err error
-	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
-		c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
-		if err != nil {
-			return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary with PodTemplateOrStepsChanged: %w", err)
-		}
-		return c.syncRolloutStatusCanary()
+	stageErr := c.runCanaryStages()
+	if c.skipStatusSync {
+		return stageErr
 	}
-
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
-	if err != nil {
-		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err)
-	}
-
-	restarted, err := c.podRestarter.Reconcile(c)
-	if err != nil {
-		return err
-	}
-	if restarted > 0 {
-		// If we restarted any pods, we can no longer trust the current availability counts of our
-		// ReplicaSets, since those counts do not factor in the unavailability of pods we just
-		// restarted. We would cause downtime if we continue the reconciliation and *also* scale
-		// down a ReplicaSet (e.g. because of a canary update scaling). Therefore, we return early,
-		// so that the *next* reconciliation will have an accurate availability count to calculate
-		// the safe number of pods to scale down for the update.
-		c.log.Infof("Finished reconciliation due to %d restarted pods", restarted)
-		return nil
-	}
-
-	err = c.reconcileEphemeralMetadata()
-	if err != nil {
-		return err
-	}
-
-	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
-		return err
-	}
-
-	if err := c.reconcilePingAndPongService(); err != nil {
-		return err
-	}
-
-	if err := c.reconcileStableAndCanaryService(); err != nil {
-		return err
-	}
-
-	if err := c.reconcileTrafficRouting(); err != nil {
-		return err
-	}
-
-	err = c.reconcileExperiments()
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileAnalysisRuns()
-	if c.pauseContext.HasAddPause() {
-		c.log.Info("Detected pause due to inconclusive AnalysisRun")
-		return c.syncRolloutStatusCanary()
-	}
-	if err != nil {
-		return err
-	}
-
-	// isReconciling if changes are made to canary or stable RS
-	isReconciling, err := c.reconcileCanaryReplicaSets()
-	if err != nil {
-		return err
-	}
-	if isReconciling {
-		c.log.Info("Not finished reconciling ReplicaSets")
-		return c.syncRolloutStatusCanary()
-	}
-
-	// isReconciling if a new paused condition is added
-	isReconciling = c.reconcileCanaryPause()
-	if isReconciling {
-		c.log.Infof("Not finished reconciling Canary Pause")
-		return c.syncRolloutStatusCanary()
-	}
-
-	err = c.stepPluginContext.reconcile(c)
-	if err != nil {
-		return err
-	}
-
 	return c.syncRolloutStatusCanary()
 }
 
