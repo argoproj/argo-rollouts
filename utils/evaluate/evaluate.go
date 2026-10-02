@@ -267,7 +267,7 @@ func isNil(in any) (out bool) {
 	}
 
 	switch reflect.TypeOf(in).Kind() {
-	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+	case reflect.Pointer, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
 		out = reflect.ValueOf(in).IsNil()
 	}
 
@@ -281,7 +281,7 @@ func valueFromPointer(in any) (out any) {
 		return
 	}
 
-	if reflect.TypeOf(in).Kind() != reflect.Ptr {
+	if reflect.TypeOf(in).Kind() != reflect.Pointer {
 		out = in
 		return
 	}
