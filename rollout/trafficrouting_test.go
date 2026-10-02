@@ -2294,3 +2294,55 @@ func TestDynamicStableScaleNewCanarySupersedeShouldNotOverloadStable(t *testing.
 			"checkReplicasAvailable should return early. Calls observed: %v", setWeightCalls)
 	f.fakeTrafficRouting.AssertNotCalled(t, "UpdateHash", mock.Anything, mock.Anything, mock.Anything)
 }
+
+func TestRolloutPromoteFullWithZeroReplicasAndDynamicStableScale(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetCanaryScale: &v1alpha1.SetCanaryScale{
+				Replicas: ptr.To[int32](1),
+			},
+		},
+		{
+			SetWeight: ptr.To[int32](100),
+		},
+	}
+	r1 := newCanaryRollout("foo", 0, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+	r2.Spec.Strategy.Canary.DynamicStableScale = true
+
+	rs1 := newReplicaSetWithStatus(r1, 0, 0)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 1, 0, false)
+	r2.Status.PromoteFull = true
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchRolloutAction(r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+		assert.Equal(t, int32(100), desiredWeight)
+		return nil
+	})
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
+	f.run(getKey(r2, t))
+}
