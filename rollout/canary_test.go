@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"testing"
@@ -14,9 +15,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -2178,4 +2181,178 @@ func TestIsDynamicallyRollingBackToStable(t *testing.T) {
 			assert.Equal(t, tc.expectedResult, rbToStable)
 		})
 	}
+}
+
+// TestCanaryStatusSyncedDespiteStageError verifies stage failures still sync status,
+// hold step progression, and return an error for workqueue backoff.
+func TestCanaryStatusSyncedDespiteStageError(t *testing.T) {
+	t.Run("traffic routing SetWeight error", func(t *testing.T) {
+		f, ro := newTrafficWeightFixture(t)
+		defer f.Close()
+		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("routing failed"))
+		patchIndex := f.expectPatchRolloutAction(ro)
+		f.runExpectError(getKey(ro, t), true)
+		patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
+		assert.Nil(t, patchedRollout.Status.CurrentStepIndex)
+		rs2PodHash := ro.Status.CurrentPodHash
+		assert.NotContains(t, f.getPatchedRollout(patchIndex), fmt.Sprintf(`"stableRS":"%s"`, rs2PodHash),
+			"must not promote stable to the canary ReplicaSet")
+	})
+
+	t.Run("invalid step analysis template", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		at := analysisTemplate("bad-template")
+		at.Spec.Metrics = append(at.Spec.Metrics, at.Spec.Metrics[0])
+		f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+
+		steps := []v1alpha1.CanaryStep{{
+			SetWeight: ptr.To[int32](10),
+			Analysis: &v1alpha1.RolloutAnalysis{
+				Templates: []v1alpha1.AnalysisTemplateRef{{TemplateName: "bad-template"}},
+			},
+		}}
+		r := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
+		rs := newReplicaSetWithStatus(r, 10, 10)
+		r.Status.StableRS = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		f.rolloutLister = append(f.rolloutLister, r)
+		f.objects = append(f.objects, r, at)
+		f.kubeobjects = append(f.kubeobjects, rs)
+		f.replicaSetLister = append(f.replicaSetLister, rs)
+
+		patchIndex := f.expectPatchRolloutAction(r)
+		f.runExpectError(getKey(r, t), true)
+		patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
+		if patchedRollout.Status.CurrentStepIndex != nil {
+			assert.Equal(t, int32(0), *patchedRollout.Status.CurrentStepIndex)
+		}
+	})
+}
+
+// TestCanaryProgressDeadlineAbortDespiteServiceError verifies progressDeadlineAbort still runs
+// when a service selector switch fails persistently.
+func TestCanaryProgressDeadlineAbortDespiteServiceError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	progressDeadlineSeconds := int32(1)
+	r1.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
+	r1.Spec.ProgressDeadlineAbort = true
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 11, 1, 11, false)
+	msg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", rs2.Name)
+	progressingTimeoutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+	conditions.SetRolloutCondition(&r2.Status, *progressingTimeoutCond)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	_ = f.expectPatchServiceAction(canarySvc, rs2PodHash)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.kubeclient.Fake.PrependReactor("patch", "services", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("admission webhook denied service update")
+	})
+	f.runController(getKey(r2, t), true, true, c, i, k8sI)
+	f.verifyPatchedRolloutAborted(patchIndex, rs2.Name)
+}
+
+// TestCosmeticStageFailureDoesNotBlockProgression verifies that a cosmetic stage failure (here a
+// revision-history ReplicaSet deletion denied by RBAC) is surfaced as ReconcileSucceeded=False and
+// a reconcile error, but does not hold step advancement or full promotion.
+func TestCosmeticStageFailureDoesNotBlockProgression(t *testing.T) {
+	denyReplicaSetDeletion := func(f *fixture) {
+		f.kubeclient.PrependReactor("delete", "replicasets", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, fmt.Errorf("rbac denied replicaset deletion")
+		})
+	}
+	assertCosmeticFailureRecorded := func(t *testing.T, patched *v1alpha1.Rollout) {
+		t.Helper()
+		cond := conditions.GetRolloutCondition(patched.Status, v1alpha1.RolloutReconcileSucceeded)
+		if assert.NotNil(t, cond) {
+			assert.Equal(t, corev1.ConditionFalse, cond.Status)
+			assert.Equal(t, conditions.RolloutReconciliationErrorReason, cond.Reason)
+		}
+	}
+
+	t.Run("step advancement", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}}
+		r1 := newCanaryRollout("foo", 10, ptr.To[int32](0), steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+		rs1 := newReplicaSetWithStatus(r1, 9, 9)
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		r2 := bumpVersion(r1)
+		rs2 := newReplicaSetWithStatus(r2, 0, 0) // scaled-down old revision: deletion candidate
+		r3 := bumpVersion(r2)
+		rs3 := newReplicaSetWithStatus(r3, 1, 1)
+
+		f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+		r3 = updateCanaryRolloutStatus(r3, rs1PodHash, 10, 1, 10, false)
+		f.rolloutLister = append(f.rolloutLister, r3)
+		f.objects = append(f.objects, r3)
+
+		c, i, k8sI := f.newController(noResyncPeriodFunc)
+		denyReplicaSetDeletion(f)
+		f.expectDeleteReplicaSetAction(rs2)
+		patchIndex := f.expectPatchRolloutAction(r3)
+		f.runController(getKey(r3, t), true, true, c, i, k8sI)
+
+		patched := f.getPatchedRolloutAsObject(patchIndex)
+		if assert.NotNil(t, patched.Status.CurrentStepIndex) {
+			assert.Equal(t, int32(1), *patched.Status.CurrentStepIndex, "a cosmetic failure must not hold step advancement")
+		}
+		assertCosmeticFailureRecorded(t, patched)
+	})
+
+	t.Run("full promotion", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		steps := []v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{}}}
+		r0 := newCanaryRollout("foo", 10, ptr.To[int32](0), steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+		rs0 := newReplicaSetWithStatus(r0, 0, 0) // scaled-down old revision: deletion candidate
+		r1 := bumpVersion(r0)
+		rs1 := newReplicaSetWithStatus(r1, 0, 0)
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		r2 := bumpVersion(r1)
+		rs2 := newReplicaSetWithStatus(r2, 10, 10)
+		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		f.kubeobjects = append(f.kubeobjects, rs0, rs1, rs2)
+		f.replicaSetLister = append(f.replicaSetLister, rs0, rs1, rs2)
+		r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 10, 10, false)
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.objects = append(f.objects, r2)
+
+		c, i, k8sI := f.newController(noResyncPeriodFunc)
+		denyReplicaSetDeletion(f)
+		f.expectDeleteReplicaSetAction(rs0)
+		patchIndex := f.expectPatchRolloutAction(r2)
+		f.runController(getKey(r2, t), true, true, c, i, k8sI)
+
+		patched := f.getPatchedRolloutAsObject(patchIndex)
+		assert.Equal(t, rs2PodHash, patched.Status.StableRS, "a cosmetic failure must not hold full promotion")
+		assertCosmeticFailureRecorded(t, patched)
+	})
 }
