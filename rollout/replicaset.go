@@ -414,6 +414,10 @@ func (c *rolloutContext) isReplicaSetReferenced(rs *appsv1.ReplicaSet) bool {
 	var servicesToCheck []string
 	if ro.Spec.Strategy.Canary != nil {
 		servicesToCheck = []string{ro.Spec.Strategy.Canary.CanaryService, ro.Spec.Strategy.Canary.StableService}
+		if pingPong := ro.Spec.Strategy.Canary.PingPong; c.pingPongServicePending && pingPong != nil {
+			// During reuse, a service can still serve a revision no longer recorded in status.
+			servicesToCheck = append(servicesToCheck, pingPong.PingService, pingPong.PongService)
+		}
 	} else {
 		servicesToCheck = []string{ro.Spec.Strategy.BlueGreen.ActiveService, ro.Spec.Strategy.BlueGreen.PreviewService}
 	}

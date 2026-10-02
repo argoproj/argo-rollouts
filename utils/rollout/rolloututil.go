@@ -241,6 +241,13 @@ func CanaryStepString(c v1alpha1.CanaryStep) string {
 // ShouldVerifyWeight We use this to test if we should verify weights because weight verification could involve
 // API calls to the cloud provider which could incur rate limiting
 func ShouldVerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32) bool {
+	// A ping-pong service must stop receiving traffic before it selects the next revision,
+	// including when the new rollout starts with a pause or setCanaryScale step.
+	if desiredWeight == 0 && ro.Spec.Strategy.Canary != nil && ro.Spec.Strategy.Canary.PingPong != nil &&
+		ro.Status.StableRS != "" && !IsFullyPromoted(ro) &&
+		(ro.Status.Canary.Weights == nil || ro.Status.Canary.Weights.Canary.PodTemplateHash != ro.Status.CurrentPodHash) {
+		return true
+	}
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(ro)
 	// If we are in the middle of an update at a setWeight step, also perform weight verification.
 	// Note that we don't do this every reconciliation because weight verification typically involves

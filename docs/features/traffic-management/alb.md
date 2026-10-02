@@ -351,6 +351,14 @@ to the "canary" (e.g., pong). The Rollout then swaps the roles of the ping and p
 The Rollout status object tracks which service is currently stable through the `status.canary.currentPingPong` field.
 This approach enables the use of pod readiness gate injection since the services maintain their labels throughout the rollout process.
 
+Before reusing a service for a new revision, the controller restores stable capacity, removes managed
+routes, and sets the canary weight to zero. When traffic weight verification is enabled, it waits for
+the router to verify zero weight before changing the service selector. The selector still changes
+before new pods are created, preserving readiness gate injection. This also applies when a new
+revision interrupts an in-progress canary. Routers with disabled or unimplemented weight verification
+do not provide this verification barrier; setting the desired weight alone does not confirm that the
+load balancer has applied it.
+
 !!! important
 
     Ping-Pong feature available since Argo Rollouts v1.2

@@ -452,6 +452,33 @@ func TestShouldVerifyWeight(t *testing.T) {
 	assert.Equal(t, true, ShouldVerifyWeight(ro, 100))
 }
 
+func TestShouldVerifyWeightBeforePingPongServiceReuse(t *testing.T) {
+	for _, step := range []v1alpha1.CanaryStep{
+		{Pause: &v1alpha1.RolloutPause{}},
+		{SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: ptr.To[int32](1)}},
+	} {
+		t.Run(CanaryStepString(step), func(t *testing.T) {
+			ro := newCanaryRollout()
+			ro.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: "ping", PongService: "pong"}
+			ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{step}
+			ro.Status.CurrentStepIndex = ptr.To[int32](0)
+			ro.Status.StableRS = "stable"
+			ro.Status.CurrentPodHash = "new-canary"
+			ro.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+				Canary:   v1alpha1.WeightDestination{PodTemplateHash: "previous-canary", Weight: 0},
+				Verified: ptr.To(false),
+			}
+			assert.True(t, ShouldVerifyWeight(ro, 0), "keep checking a pending drain even after recording weight zero")
+			ro.Status.Canary.Weights.Canary.PodTemplateHash = ro.Status.CurrentPodHash
+			assert.False(t, ShouldVerifyWeight(ro, 0), "normal pauses and scaling steps should not continually query the provider")
+			ro.Status.Canary.Weights = nil
+			assert.True(t, ShouldVerifyWeight(ro, 0))
+			ro.Status.StableRS = ""
+			assert.False(t, ShouldVerifyWeight(ro, 0), "initial deployments have no service to drain")
+		})
+	}
+}
+
 func Test_isGenerationObserved(t *testing.T) {
 	tests := []struct {
 		name string
