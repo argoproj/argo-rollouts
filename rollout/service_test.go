@@ -230,6 +230,93 @@ func newIngress(name string, canary, stable *corev1.Service) *extensionsv1beta1.
 	return &ingress
 }
 
+// TestCanaryAbortWithTrafficRoutingLeavesCanaryServiceAlone verifies that while a canary rollout
+// with traffic routing is aborted, reconcileStableAndCanaryService() does not touch the canary
+// Service selector at all. reconcileTrafficRouting() owns that selector during an abort and resets
+// it to stable once the desired canary weight has drained. Mutating it here as well made the two
+// reconcilers fight, re-patching the selector on every reconcile for the whole
+// abortScaleDownDelaySeconds window. Fixes #3078.
+func TestCanaryAbortWithTrafficRoutingLeavesCanaryServiceAlone(t *testing.T) {
+	for _, dynamicStableScale := range []bool{false, true} {
+		t.Run(fmt.Sprintf("dynamicStableScale=%t", dynamicStableScale), func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](5)}}
+			r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
+			r1.Spec.Strategy.Canary.DynamicStableScale = dynamicStableScale
+			r1.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = ptr.To[int32](600)
+			r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{Nginx: &v1alpha1.NginxTrafficRouting{StableIngress: "stable-ingress"}}
+			r1.Spec.Strategy.Canary.CanaryService = "canary"
+			r1.Spec.Strategy.Canary.StableService = "stable"
+			r1.Status.Abort = true
+			r1.Status.AbortedAt = &metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
+
+			r2 := bumpVersion(r1)
+			r2.Status.Abort = true
+			r2.Status.AbortedAt = r1.Status.AbortedAt
+
+			// abortScaleDownDelaySeconds keeps the canary ReplicaSet fully available after the abort
+			rsStable := newReplicaSetWithStatus(r1, 5, 5)
+			rsCanary := newReplicaSetWithStatus(r2, 3, 3)
+			rsStableHash := rsStable.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			rsCanaryHash := rsCanary.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+			canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsStableHash}, r1)
+			stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsStableHash}, r1)
+
+			stableIng := &extensionsv1beta1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "stable-ingress",
+					Namespace: metav1.NamespaceDefault,
+				},
+				Spec: extensionsv1beta1.IngressSpec{
+					Rules: []extensionsv1beta1.IngressRule{{
+						IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+							HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+								Paths: []extensionsv1beta1.HTTPIngressPath{{
+									Path: "/",
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: "stable",
+										ServicePort: intstr.FromInt(80),
+									},
+								}},
+							},
+						},
+					}},
+				},
+			}
+
+			f.kubeobjects = append(f.kubeobjects, canarySvc, stableSvc, stableIng)
+			f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+			f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(stableIng))
+			f.rolloutLister = append(f.rolloutLister, r2)
+			f.objects = append(f.objects, r2)
+
+			ctrl, _, _ := f.newController(noResyncPeriodFunc)
+			roCtx, err := ctrl.newRolloutContext(r2)
+			assert.NoError(t, err)
+			roCtx.newRS = rsCanary
+			roCtx.stableRS = rsStable
+
+			// Canary Service already reset to stable: must not be flipped back to the canary
+			// ReplicaSet, even though the canary ReplicaSet is fully available. Without this the
+			// selector is flipped here and reset again by reconcileTrafficRouting() every loop.
+			err = roCtx.reconcileStableAndCanaryService()
+			assert.NoError(t, err)
+			assert.Equal(t, rsStableHash, canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+
+			// Canary Service still on the canary ReplicaSet: resetting it to stable is
+			// reconcileTrafficRouting()'s job, so this reconciler must leave it untouched.
+			canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] = rsCanaryHash
+
+			err = roCtx.reconcileStableAndCanaryService()
+			assert.NoError(t, err)
+			assert.Equal(t, rsCanaryHash, canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+		})
+	}
+}
+
 // TestBlueGreenAWSVerifyTargetGroupsNotYetReady verifies we don't proceed with setting stable with
 // the blue-green strategy until target group verification is successful
 func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
