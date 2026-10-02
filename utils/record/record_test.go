@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
+	k8srecord "k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	argofake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -39,6 +40,64 @@ import (
 var (
 	noResyncPeriodFunc = func() time.Duration { return 0 }
 )
+
+type recordingAPIFactory struct {
+	api                       api.API
+	err                       error
+	getAPICalls               int
+	getAPIsFromNamespaceCalls int
+	namespace                 string
+}
+
+func (f *recordingAPIFactory) GetAPI() (api.API, error) {
+	f.getAPICalls++
+	return f.api, f.err
+}
+
+func (f *recordingAPIFactory) GetAPIsFromNamespace(namespace string) (map[string]api.API, error) {
+	f.getAPIsFromNamespaceCalls++
+	f.namespace = namespace
+	if f.err != nil {
+		return nil, f.err
+	}
+	return map[string]api.API{namespace: f.api}, nil
+}
+
+func newTestEventRecorder(apiFactory api.Factory, selfServiceNotificationEnabled bool) *EventRecorderAdapter {
+	recorder := NewEventRecorder(
+		fake.NewSimpleClientset(),
+		prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "rollout_events_total",
+			},
+			[]string{"name", "namespace", "type", "reason"},
+		),
+		prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "notification_send_error",
+			},
+			[]string{"name", "namespace", "type", "reason"},
+		),
+		prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "notification_send_success",
+			},
+			[]string{"name", "namespace", "type", "reason"},
+		),
+		prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "notification_send_performance",
+				Help:    "Notification send performance.",
+				Buckets: []float64{0.01, 0.15, .25, .5, 1},
+			},
+			[]string{"namespace", "name"},
+		),
+		apiFactory,
+		selfServiceNotificationEnabled,
+	).(*EventRecorderAdapter)
+	recorder.Recorder = k8srecord.NewFakeRecorder(1000)
+	return recorder
+}
 
 func TestRecordLog(t *testing.T) {
 	prevOutput := log.StandardLogger().Out
@@ -99,6 +158,94 @@ func TestIncCounter(t *testing.T) {
 	m.Write(&buf)
 	assert.Equal(t, float64(3), *buf.Counter.Value)
 	assert.Equal(t, []string{"FooReason", "FooReason", "FooReason"}, rec.Events())
+}
+
+func TestEventRecorderNotificationAPIScope(t *testing.T) {
+	rollout := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: "team-a",
+		},
+	}
+
+	tests := []struct {
+		name                           string
+		selfServiceNotificationEnabled bool
+		wantGetAPICalls                int
+		wantGetAPIsFromNamespaceCalls  int
+		wantNamespace                  string
+	}{
+		{
+			name:                           "self service disabled uses controller namespace API",
+			selfServiceNotificationEnabled: false,
+			wantGetAPICalls:                1,
+			wantGetAPIsFromNamespaceCalls:  0,
+		},
+		{
+			name:                           "self service enabled uses rollout namespace APIs",
+			selfServiceNotificationEnabled: true,
+			wantGetAPICalls:                0,
+			wantGetAPIsFromNamespaceCalls:  1,
+			wantNamespace:                  "team-a",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+			mockAPI := mocks.NewMockAPI(mockCtrl)
+			mockAPI.EXPECT().GetConfig().Return(api.Config{}).AnyTimes()
+			apiFactory := &recordingAPIFactory{api: mockAPI}
+			rec := newTestEventRecorder(apiFactory, tt.selfServiceNotificationEnabled)
+
+			rec.Eventf(&rollout, EventOptions{EventReason: "FooReason"}, "something happened")
+
+			assert.Equal(t, tt.wantGetAPICalls, apiFactory.getAPICalls)
+			assert.Equal(t, tt.wantGetAPIsFromNamespaceCalls, apiFactory.getAPIsFromNamespaceCalls)
+			assert.Equal(t, tt.wantNamespace, apiFactory.namespace)
+		})
+	}
+}
+
+func TestEventRecorderNotificationAPIScopeError(t *testing.T) {
+	expectedErr := errors.New("failed to get notification api")
+
+	tests := []struct {
+		name                           string
+		selfServiceNotificationEnabled bool
+		wantGetAPICalls                int
+		wantGetAPIsFromNamespaceCalls  int
+		wantNamespace                  string
+	}{
+		{
+			name:            "self service disabled returns GetAPI error",
+			wantGetAPICalls: 1,
+		},
+		{
+			name:                           "self service enabled returns namespace API error",
+			selfServiceNotificationEnabled: true,
+			wantGetAPIsFromNamespaceCalls:  1,
+			wantNamespace:                  "team-a",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			apiFactory := &recordingAPIFactory{err: expectedErr}
+			rec := &EventRecorderAdapter{
+				apiFactory:                     apiFactory,
+				selfServiceNotificationEnabled: tt.selfServiceNotificationEnabled,
+			}
+
+			apis, err := rec.getNotificationAPIs("team-a")
+
+			assert.Nil(t, apis)
+			assert.ErrorIs(t, err, expectedErr)
+			assert.Equal(t, tt.wantGetAPICalls, apiFactory.getAPICalls)
+			assert.Equal(t, tt.wantGetAPIsFromNamespaceCalls, apiFactory.getAPIsFromNamespaceCalls)
+			assert.Equal(t, tt.wantNamespace, apiFactory.namespace)
+		})
+	}
 }
 
 func TestSendNotifications(t *testing.T) {
