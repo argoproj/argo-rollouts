@@ -185,7 +185,20 @@ func TestReconcileTrafficRoutingVerifyWeightEndOfRollout(t *testing.T) {
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), nil)
-	f.runExpectError(getKey(r2, t), true)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	// An unverified weight at the end of the rollout is expected and transient (e.g. ALB load
+	// balancer weights still propagating), so it must not fail the reconcile (that would block
+	// abort/progressDeadline evaluation, see #4626) and must not emit warning events. It must
+	// however hold stable promotion: promoting now would let the old stable ReplicaSet scale
+	// down while the load balancer may still be sending it traffic.
+	patch := f.getPatchedRollout(patchIndex)
+	assert.NotContains(t, patch, fmt.Sprintf(`"stableRS":"%s"`, rs2PodHash),
+		"stable must not be promoted while the desired weight is unverified; patch: %s", patch)
+	eventsStr := strings.Join(f.events, " ")
+	assert.NotContains(t, eventsStr, "TrafficRoutingError",
+		"an unverified weight at end of rollout is routine and must not emit warning events")
 }
 
 func TestRolloutUseDesiredWeight(t *testing.T) {
