@@ -298,7 +298,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		if (c.newRS == nil || c.newRS.Status.AvailableReplicas == 0) &&
 			c.rollout.Status.Canary.Weights != nil && c.rollout.Status.Canary.Weights.Canary.Weight > 0 {
 			if err := reconciler.SetWeight(desiredWeight, weightDestinations...); err != nil {
-				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
 				return err
 			}
 		}
@@ -310,7 +309,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 
 		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
 		if err != nil {
-			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
 			return err
 		}
 
@@ -343,12 +341,13 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				logCtx := logutil.WithRollout(c.rollout)
 				logCtx.Info("rollout enqueue due to trafficrouting")
 				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
-				// At the end of the rollout we need to verify the weight is correct, and return an error if not because we don't want the rest of the
-				// reconcile process to continue. We don't need to do this if we are in the middle of the rollout because the rest of the reconcile
-				// process won't scale down the old replicasets yet due to being in the middle of some steps.
-				if desiredWeight == weightutil.MaxTrafficWeight(c.rollout) && len(c.rollout.Spec.Strategy.Canary.Steps) >= int(*c.rollout.Status.CurrentStepIndex) {
-					return fmt.Errorf("end of rollout, desired weight %d not yet verified", desiredWeight)
-				}
+				// An unverified weight is expected and transient, so hold its consequences
+				// instead of failing the reconcile: step progression is held by
+				// completedCurrentCanaryStep(), and stable promotion and stable scale-down
+				// (which previously made an unverified weight dangerous at the end of the
+				// rollout) are held by shouldFullPromote() and
+				// reconcileCanaryStableReplicaSet(). Failing here would block
+				// abort/progressDeadline evaluation until the weight verified (see #4626).
 			}
 		}
 	}
