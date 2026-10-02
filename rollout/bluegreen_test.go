@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	core "k8s.io/client-go/testing"
@@ -21,6 +22,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/hash"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -1736,4 +1738,39 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
+}
+
+// TestBlueGreenFastTrackRequiresNoStableRS verifies that isBlueGreenFastTracked only treats a
+// missing active-service selector as a signal to fast-track (skip pause/analysis) when there is no
+// stable ReplicaSet yet (a genuine initial deploy). If a stable ReplicaSet already exists, a missing
+// selector (e.g. cleared by something outside the controller) must not fast-track an unrelated new
+// update, since doing so bypasses prePromotionAnalysis and autoPromotionEnabled=false.
+func TestBlueGreenFastTrackRequiresNoStableRS(t *testing.T) {
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r2 := bumpVersion(r1)
+
+	stableRS := newReplicaSetWithStatus(r1, 1, 1)
+	newRS := newReplicaSetWithStatus(r2, 1, 1)
+
+	// active service's selector has no rollouts-pod-template-hash entry at all
+	activeSvc := newService("active", 80, map[string]string{}, r2)
+
+	newCtx := func(stableRS *appsv1.ReplicaSet) *rolloutContext {
+		return &rolloutContext{
+			rollout:  r2,
+			newRS:    newRS,
+			stableRS: stableRS,
+			log:      logutil.WithRollout(r2),
+		}
+	}
+
+	t.Run("GenuineInitialDeployIsFastTracked", func(t *testing.T) {
+		ctx := newCtx(nil)
+		assert.True(t, ctx.isBlueGreenFastTracked(activeSvc))
+	})
+
+	t.Run("ExistingStableRSIsNotFastTrackedDespiteEmptySelector", func(t *testing.T) {
+		ctx := newCtx(stableRS)
+		assert.False(t, ctx.isBlueGreenFastTracked(activeSvc))
+	})
 }

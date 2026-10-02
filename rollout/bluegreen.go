@@ -118,7 +118,11 @@ func (c *rolloutContext) isBlueGreenFastTracked(activeSvc *corev1.Service) bool 
 	if c.rollout.Status.PromoteFull {
 		return true
 	}
-	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok {
+	if _, ok := activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]; !ok && c.stableRS == nil {
+		// The active service has never had a selector, which only legitimately happens on the very
+		// first rollout (no stable ReplicaSet recorded yet). If a stable ReplicaSet already exists,
+		// a missing/cleared selector indicates the active service was reset by something else, and we
+		// must not treat that as a signal to fast-track (skip pause/analysis) an unrelated new update.
 		return true
 	}
 	if activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] == c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
