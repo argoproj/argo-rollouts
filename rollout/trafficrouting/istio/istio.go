@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -36,6 +37,14 @@ const Tcp = "tcp"
 const Type = "Istio"
 
 const SpecHttpNotFound = "spec.http not found"
+
+// ErrDestinationRuleUpdateDelayed indicates that the DestinationRule host subset switch was
+// intentionally skipped this reconcile because a traffic-receiving ReplicaSet is not yet fully
+// available (see shouldDelayDestinationRuleUpdate). This is a transient, expected condition:
+// callers must retry on the next reconcile instead of treating it as a fatal error, otherwise
+// rollouts can get stuck without ever reaching abort/progressDeadline handling.
+// See: https://github.com/argoproj/argo-rollouts/issues/4626
+var ErrDestinationRuleUpdateDelayed = errors.New("destination rule update delayed: replicaset not fully available")
 
 // NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state.
 func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister, replicaSets []*appsv1.ReplicaSet) *Reconciler {
@@ -408,7 +417,7 @@ func (r *Reconciler) shouldDelayDestinationRuleUpdate(canaryHash, stableHash str
 func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
 	if shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(canaryHash, stableHash); shouldDelay {
 		r.log.Infof("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
-		return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available", rsName)
+		return fmt.Errorf("delaying destination rule switch: ReplicaSet %s not fully available: %w", rsName, ErrDestinationRuleUpdateDelayed)
 	}
 
 	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule

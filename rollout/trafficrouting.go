@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -305,6 +306,18 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 
 		err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
 		if err != nil {
+			if errors.Is(err, istio.ErrDestinationRuleUpdateDelayed) {
+				// The traffic-receiving ReplicaSet isn't available yet, so the DestinationRule
+				// switch was intentionally skipped this round. This is expected and transient:
+				// returning it as a fatal error here would short-circuit rolloutCanary()
+				// before it reaches syncRolloutStatusCanary(), which handles abort and
+				// progressDeadline. Retry on the next reconcile instead, but flag the delay so
+				// the current step is not treated as completed (SetWeight did not run).
+				// See: https://github.com/argoproj/argo-rollouts/issues/4626
+				c.trafficRoutingDelayed = true
+				c.log.Infof("%v", err)
+				return nil
+			}
 			return err
 		}
 
