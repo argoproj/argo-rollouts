@@ -2,10 +2,13 @@ package client
 
 import (
 	"fmt"
+	"io"
 	"os/exec"
 	"sync"
 
+	"github.com/hashicorp/go-hclog"
 	goPlugin "github.com/hashicorp/go-plugin"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -68,6 +71,7 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricProv
 				Plugins:         pluginMap,
 				Cmd:             exec.Command(pluginPath, args...),
 				Managed:         true,
+				Logger:          newPluginLogger(),
 			})
 
 			rpcClient, err := m.pluginClient[pluginName].Client()
@@ -107,4 +111,28 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricProv
 	}
 
 	return nil, fmt.Errorf("no plugin found")
+}
+
+// newPluginLogger builds the hclog.Logger used for the go-plugin client's own log output
+// (handshake/lifecycle logs, and the plugin process's stderr relay). By default go-plugin
+// falls back to its own unstructured text logger whenever ClientConfig.Logger is nil, which
+// is inconsistent with the controller's own logs when the controller is run with
+// `--logformat json`: every other component's logs are JSON, but metric plugin logs remain
+// plain text. When the controller's standard logger is configured for JSON output, mirror
+// that here so the plugin logger's output is JSON too. Returns nil (go-plugin's own default
+// logger) in every other case, preserving prior behavior exactly.
+func newPluginLogger() hclog.Logger {
+	return newPluginLoggerWithOutput(hclog.DefaultOutput)
+}
+
+func newPluginLoggerWithOutput(w io.Writer) hclog.Logger {
+	if _, ok := log.StandardLogger().Formatter.(*log.JSONFormatter); !ok {
+		return nil
+	}
+	return hclog.New(&hclog.LoggerOptions{
+		Output:     w,
+		Level:      hclog.Trace,
+		Name:       "plugin",
+		JSONFormat: true,
+	})
 }
