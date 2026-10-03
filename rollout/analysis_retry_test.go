@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
 		ready           bool
 		manualPromotion bool
 		scalingEvent    bool
+		serviceFailure  bool
 	}{
 		{name: "FailedUnavailable", phase: v1alpha1.AnalysisPhaseFailed, manualPromotion: true},
 		{name: "ErrorUnavailable", phase: v1alpha1.AnalysisPhaseError},
@@ -32,6 +34,7 @@ func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
 		{name: "ErrorReady", phase: v1alpha1.AnalysisPhaseError, ready: true, manualPromotion: true},
 		{name: "ManualAbortRunning", phase: v1alpha1.AnalysisPhaseRunning, ready: true},
 		{name: "RetryDuringScaling", phase: v1alpha1.AnalysisPhaseFailed, scalingEvent: true},
+		{name: "RetryAfterServiceFailure", phase: v1alpha1.AnalysisPhaseFailed, serviceFailure: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -67,6 +70,9 @@ func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
 			r2.Status.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{Name: oldAR.Name, Status: phase}
 			active := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: stableHash}, r2)
 			preview := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: candidateHash}, r2)
+			if tt.serviceFailure {
+				preview.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] = stableHash
+			}
 			f.objects = append(f.objects, r2, at, oldAR)
 			f.kubeobjects = append(f.kubeobjects, rs1, rs2, active, preview)
 			f.rolloutLister = append(f.rolloutLister, r2)
@@ -90,7 +96,7 @@ func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
 
 			// Feed persisted API state into the caches without asynchronous informer watches.
 			// Each pass must rediscover the current analysis from the persisted rollout status.
-			reconcile := func() *v1alpha1.Rollout {
+			reconcile := func(expectError ...bool) *v1alpha1.Rollout {
 				ro, err := ros.Get(ctx, r2.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 				require.NoError(t, c.rolloutsIndexer.Update(ro))
@@ -110,10 +116,25 @@ func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
 				for n := range arList.Items {
 					require.NoError(t, i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Update(&arList.Items[n]))
 				}
-				require.NoError(t, c.syncHandler(ctx, key))
+				err = c.syncHandler(ctx, key)
+				if len(expectError) > 0 && expectError[0] {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+				}
 				ro, err = ros.Get(ctx, r2.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 				return ro
+			}
+			failNextServiceUpdate := func() {
+				failNext := true
+				f.kubeclient.PrependReactor("*", "services", func(action core.Action) (bool, runtime.Object, error) {
+					if !failNext || (action.GetVerb() != "patch" && action.GetVerb() != "update") {
+						return false, nil, nil
+					}
+					failNext = false
+					return true, nil, errors.New("service update temporarily unavailable")
+				})
 			}
 
 			if phase == v1alpha1.AnalysisPhaseRunning {
@@ -126,6 +147,12 @@ func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
 			// This is the same status-only patch used by the retry CLI.
 			_, err := ros.Patch(ctx, r2.Name, patchtypes.MergePatchType, []byte(`{"status":{"abort":false}}`), metav1.PatchOptions{}, "status")
 			require.NoError(t, err)
+			if tt.serviceFailure {
+				// A failed stage may preserve this attempt's state, but must not restore
+				// the aborted attempt's analysis as current after retry has begun.
+				failNextServiceUpdate()
+				reconcile(true)
+			}
 			if !tt.ready {
 				for n := 0; n < 3; n++ {
 					ro := reconcile()
@@ -201,6 +228,15 @@ func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
 			fresh.Status.Phase = v1alpha1.AnalysisPhaseFailed
 			_, err = ars.UpdateStatus(ctx, fresh, metav1.UpdateOptions{})
 			require.NoError(t, err)
+			if tt.serviceFailure {
+				// In contrast, a transient error within the fresh attempt must not drop
+				// its terminal run before the controller can process the new failure.
+				stalePreview := []byte(`{"spec":{"selector":{"` + v1alpha1.DefaultRolloutUniqueLabelKey + `":"` + stableHash + `"}}}`)
+				_, err = svcs.Patch(ctx, preview.Name, patchtypes.MergePatchType, stalePreview, metav1.PatchOptions{})
+				require.NoError(t, err)
+				failNextServiceUpdate()
+				reconcile(true)
+			}
 			ro = reconcile()
 			require.True(t, ro.Status.Abort)
 			reconcile() // return traffic to stable and schedule candidate scale-down
