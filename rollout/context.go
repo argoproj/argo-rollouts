@@ -83,6 +83,7 @@ func (c *rolloutContext) reconcile() error {
 		// Retry starts a new post-promotion attempt. Detach the previous run before
 		// either a scaling-only or full reconciliation clears AbortedAt, so its result
 		// cannot abort the new attempt while we wait for the candidate to be promoted.
+		// Status recovery after a stage error must preserve this attempt boundary too.
 		if err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{c.currentArs.BlueGreenPostPromotion}); err != nil {
 			return err
 		}
