@@ -1,7 +1,9 @@
 package rollout
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,9 +14,13 @@ import (
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	core "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -1989,6 +1995,279 @@ func TestDoNotCreateBackgroundAnalysisRunWhenWithinRollbackWindow(t *testing.T) 
 	f.run(getKey(r2, t))
 }
 
+func TestCanaryAnalysisRetry(t *testing.T) {
+	tests := []struct {
+		name           string
+		step           bool
+		background     bool
+		phase          v1alpha1.AnalysisPhase
+		scaling        bool
+		scalingFailure bool
+		statusFailure  bool
+		pause          bool
+	}{
+		{name: "StepFailed", step: true, phase: v1alpha1.AnalysisPhaseFailed},
+		{name: "StepErrorDuringScaling", step: true, phase: v1alpha1.AnalysisPhaseError, scaling: true},
+		{name: "BackgroundError", background: true, phase: v1alpha1.AnalysisPhaseError},
+		{name: "BackgroundFailedDuringScaling", background: true, phase: v1alpha1.AnalysisPhaseFailed, scaling: true},
+		{name: "StepAndBackgroundDuringScaling", step: true, background: true, phase: v1alpha1.AnalysisPhaseFailed, scaling: true},
+		{name: "TerminatingStepDuringScaling", step: true, phase: v1alpha1.AnalysisPhaseRunning, scaling: true},
+		{name: "TerminatingBackground", background: true, phase: v1alpha1.AnalysisPhaseRunning},
+		{name: "ScalingFailure", step: true, background: true, phase: v1alpha1.AnalysisPhaseError, scaling: true, scalingFailure: true},
+		{name: "StatusFailure", step: true, background: true, phase: v1alpha1.AnalysisPhaseFailed, statusFailure: true},
+		{name: "PauseAndStartingStep", step: true, background: true, phase: v1alpha1.AnalysisPhaseError, scaling: true, pause: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+			ctx := context.Background()
+			at := analysisTemplate("retry-metric")
+			analysis := v1alpha1.RolloutAnalysis{Templates: []v1alpha1.AnalysisTemplateRef{{TemplateName: at.Name}}}
+			steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](50)}}
+			if tt.step {
+				steps = []v1alpha1.CanaryStep{{Analysis: &analysis}}
+			}
+			if tt.pause {
+				steps = append([]v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{}}}, steps...)
+			}
+			r1 := newCanaryRollout("retry-canary", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+			r2 := bumpVersion(r1)
+			if tt.background {
+				r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{RolloutAnalysis: analysis}
+				if tt.pause {
+					r2.Spec.Strategy.Canary.Analysis.StartingStep = ptr.To[int32](1)
+				}
+			}
+			rs1 := newReplicaSetWithStatus(r1, 1, 1)
+			rs2 := newReplicaSetWithStatus(r2, 0, 0)
+			if tt.scaling {
+				rs1.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+			}
+			stable := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			candidate := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			r2 = updateCanaryRolloutStatus(r2, stable, 1, 0, 1, false)
+			r2.Status.Abort = true
+			now := timeutil.MetaNow()
+			r2.Status.AbortedAt = &now
+			var oldRuns []*v1alpha1.AnalysisRun
+			if tt.step {
+				old := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
+				index := 0
+				if tt.pause {
+					index = 1
+					old.Labels[v1alpha1.RolloutCanaryStepIndexLabel] = "1"
+				}
+				old.Name = fmt.Sprintf("%s-%s-2-%d", r2.Name, candidate, index)
+				oldRuns = append(oldRuns, old)
+				r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{Name: old.Name, Status: tt.phase}
+			}
+			if tt.background {
+				old := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
+				oldRuns = append(oldRuns, old)
+				r2.Status.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{Name: old.Name, Status: tt.phase}
+			}
+			f.objects = append(f.objects, r2, at)
+			for _, old := range oldRuns {
+				old.Status.Phase = tt.phase
+				// Termination is asynchronous: a manually aborted run may still report Running.
+				old.Spec.Terminate = tt.phase == v1alpha1.AnalysisPhaseRunning
+				f.objects = append(f.objects, old)
+				f.analysisRunLister = append(f.analysisRunLister, old)
+			}
+			f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+			f.rolloutLister = append(f.rolloutLister, r2)
+			f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+			f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+			c, i, k := f.newController(noResyncPeriodFunc)
+			ros := f.client.ArgoprojV1alpha1().Rollouts(r2.Namespace)
+			ars := f.client.ArgoprojV1alpha1().AnalysisRuns(r2.Namespace)
+			rss := f.kubeclient.AppsV1().ReplicaSets(r2.Namespace)
+			key := getKey(r2, t)
+
+			// Rebuild caches from persisted API state so retries span real reconciliation passes.
+			reconcile := func(expectError bool) *v1alpha1.Rollout {
+				ro, err := ros.Get(ctx, r2.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.NoError(t, c.rolloutsIndexer.Update(ro))
+				c.rolloutVersionTracker.Forget(key)
+				sets, err := rss.List(ctx, metav1.ListOptions{})
+				require.NoError(t, err)
+				for j := range sets.Items {
+					require.NoError(t, k.Apps().V1().ReplicaSets().Informer().GetIndexer().Update(&sets.Items[j]))
+				}
+				runs, err := ars.List(ctx, metav1.ListOptions{})
+				require.NoError(t, err)
+				for j := range runs.Items {
+					require.NoError(t, i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Update(&runs.Items[j]))
+				}
+				err = c.syncHandler(ctx, key)
+				if expectError {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+				}
+				ro, err = ros.Get(ctx, r2.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				return ro
+			}
+			failNextWrite := func(resource string) {
+				fail := true
+				reactor := func(action core.Action) (bool, runtime.Object, error) {
+					if action.GetVerb() != "patch" && action.GetVerb() != "update" {
+						return false, nil, nil
+					}
+					if !fail {
+						return false, nil, nil
+					}
+					fail = false
+					return true, nil, errors.New("API temporarily unavailable")
+				}
+				if resource == "rollouts" {
+					f.client.PrependReactor("*", resource, reactor)
+				} else {
+					f.kubeclient.PrependReactor("*", resource, reactor)
+				}
+			}
+			retry := func() {
+				_, err := ros.Patch(ctx, r2.Name, types.MergePatchType, []byte(`{"status":{"abort":false}}`), metav1.PatchOptions{}, "status")
+				require.NoError(t, err)
+			}
+			currentRuns := func(ro *v1alpha1.Rollout) []*v1alpha1.AnalysisRun {
+				var runs []*v1alpha1.AnalysisRun
+				refs := []*v1alpha1.RolloutAnalysisRunStatus{}
+				if tt.step {
+					refs = append(refs, ro.Status.Canary.CurrentStepAnalysisRunStatus)
+				}
+				if tt.background {
+					refs = append(refs, ro.Status.Canary.CurrentBackgroundAnalysisRunStatus)
+				}
+				for _, ref := range refs {
+					require.NotNil(t, ref)
+					run, err := ars.Get(ctx, ref.Name, metav1.GetOptions{})
+					require.NoError(t, err)
+					assert.False(t, run.Spec.Terminate)
+					assert.Equal(t, candidate, run.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+					assert.Equal(t, "2", run.Annotations[annotations.RevisionAnnotation])
+					runs = append(runs, run)
+				}
+				return runs
+			}
+
+			retry()
+			if tt.scalingFailure {
+				failNextWrite("replicasets")
+				reconcile(true)
+			}
+			if tt.statusFailure {
+				failNextWrite("rollouts")
+				reconcile(true)
+			}
+			ro := reconcile(false)
+			require.False(t, ro.Status.Abort)
+
+			// Reconstruct the controller after retry has begun, including any created runs.
+			f.objects = []runtime.Object{ro, at}
+			runs, err := ars.List(ctx, metav1.ListOptions{})
+			require.NoError(t, err)
+			for j := range runs.Items {
+				f.objects = append(f.objects, &runs.Items[j])
+			}
+			sets, err := rss.List(ctx, metav1.ListOptions{})
+			require.NoError(t, err)
+			f.kubeobjects = nil
+			for j := range sets.Items {
+				f.kubeobjects = append(f.kubeobjects, &sets.Items[j])
+			}
+			c, i, k = f.newController(noResyncPeriodFunc)
+			ros = f.client.ArgoprojV1alpha1().Rollouts(r2.Namespace)
+			ars = f.client.ArgoprojV1alpha1().AnalysisRuns(r2.Namespace)
+			rss = f.kubeclient.AppsV1().ReplicaSets(r2.Namespace)
+			for j := 0; j < 3; j++ {
+				ro = reconcile(false)
+				require.False(t, ro.Status.Abort, "the previous analysis must not re-abort the first retry")
+			}
+			resume := func() {
+				if tt.pause {
+					require.NotEmpty(t, ro.Status.PauseConditions, "retry must preserve the manual pause")
+					_, err := ros.Patch(ctx, r2.Name, types.MergePatchType, []byte(`{"status":{"pauseConditions":null}}`), metav1.PatchOptions{}, "status")
+					require.NoError(t, err)
+					for j := 0; j < 3; j++ {
+						ro = reconcile(false)
+					}
+				}
+			}
+			if tt.pause {
+				runs, err := ars.List(ctx, metav1.ListOptions{})
+				require.NoError(t, err)
+				assert.Len(t, runs.Items, len(oldRuns), "analysis must wait for its starting step")
+			}
+			resume()
+			fresh := currentRuns(ro)
+			for j, old := range oldRuns {
+				assert.NotEqual(t, old.Name, fresh[j].Name)
+				historical, err := ars.Get(ctx, old.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				assert.Equal(t, tt.phase, historical.Status.Phase)
+			}
+			runs, err = ars.List(ctx, metav1.ListOptions{})
+			require.NoError(t, err)
+			assert.Len(t, runs.Items, 2*len(oldRuns), "only one fresh attempt is created")
+
+			fresh[0].Status.Phase = v1alpha1.AnalysisPhaseFailed
+			_, err = ars.UpdateStatus(ctx, fresh[0], metav1.UpdateOptions{})
+			require.NoError(t, err)
+			if tt.scalingFailure {
+				// An error during a fresh attempt must not discard its pending failure.
+				stableRS, err := rss.Get(ctx, rs1.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				stableRS.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+				_, err = rss.Update(ctx, stableRS, metav1.UpdateOptions{})
+				require.NoError(t, err)
+				failNextWrite("replicasets")
+				reconcile(true)
+			}
+			for j := 0; j < 3 && !ro.Status.Abort; j++ {
+				ro = reconcile(false)
+			}
+			require.True(t, ro.Status.Abort, "a fresh failure must still abort")
+			reconcile(false)
+			retry()
+			for j := 0; j < 3; j++ {
+				ro = reconcile(false)
+				require.False(t, ro.Status.Abort)
+			}
+			resume()
+			last := currentRuns(ro)
+			for j, run := range last {
+				assert.NotEqual(t, fresh[j].Name, run.Name)
+				run.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
+				_, err := ars.UpdateStatus(ctx, run, metav1.UpdateOptions{})
+				require.NoError(t, err)
+			}
+			for j := 0; j < 6; j++ {
+				// Model pods becoming ready as their ReplicaSets reach the requested sizes.
+				sets, err := rss.List(ctx, metav1.ListOptions{})
+				require.NoError(t, err)
+				for _, rs := range sets.Items {
+					rs.Status.Replicas = *rs.Spec.Replicas
+					rs.Status.ReadyReplicas = *rs.Spec.Replicas
+					rs.Status.AvailableReplicas = *rs.Spec.Replicas
+					_, err := rss.UpdateStatus(ctx, &rs, metav1.UpdateOptions{})
+					require.NoError(t, err)
+				}
+				ro = reconcile(false)
+			}
+			assert.False(t, ro.Status.Abort)
+			assert.Equal(t, candidate, ro.Status.StableRS)
+			assert.Equal(t, v1alpha1.RolloutPhaseHealthy, ro.Status.Phase)
+			runs, err = ars.List(ctx, metav1.ListOptions{})
+			require.NoError(t, err)
+			assert.Len(t, runs.Items, 3*len(oldRuns), "completed analysis must not be duplicated")
+		})
+	}
+}
+
 func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -2767,6 +3046,285 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message, now)), patch)
 	f.metricsRecorder.AssertNumberOfCalls(t, "EmitRolloutDuration", 1)
+}
+
+func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
+	tests := []struct {
+		name            string
+		phase           v1alpha1.AnalysisPhase
+		ready           bool
+		manualPromotion bool
+		scalingEvent    bool
+		serviceFailure  bool
+	}{
+		{name: "FailedUnavailable", phase: v1alpha1.AnalysisPhaseFailed, manualPromotion: true},
+		{name: "ErrorUnavailable", phase: v1alpha1.AnalysisPhaseError},
+		{name: "FailedReady", phase: v1alpha1.AnalysisPhaseFailed, ready: true},
+		{name: "ErrorReady", phase: v1alpha1.AnalysisPhaseError, ready: true, manualPromotion: true},
+		{name: "ManualAbortRunning", phase: v1alpha1.AnalysisPhaseRunning, ready: true},
+		{name: "RetryDuringScaling", phase: v1alpha1.AnalysisPhaseFailed, scalingEvent: true},
+		{name: "RetryAfterServiceFailure", phase: v1alpha1.AnalysisPhaseFailed, serviceFailure: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			phase := tt.phase
+			f := newFixture(t)
+			defer f.Close()
+			ctx := context.Background()
+			at := analysisTemplate("post-analysis")
+			r1 := newBlueGreenRollout("retry-post-analysis", 1, nil, "active", "preview")
+			r2 := bumpVersion(r1)
+			r2.Spec.Strategy.BlueGreen.AutoPromotionEnabled = ptr.To(!tt.manualPromotion)
+			r2.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds = ptr.To[int32](1)
+			r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = ptr.To[int32](600)
+			r2.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
+				Templates: []v1alpha1.AnalysisTemplateRef{{TemplateName: at.Name}},
+			}
+			rs1 := newReplicaSetWithStatus(r1, 1, 1)
+			rs2 := newReplicaSetWithStatus(r2, 0, 0)
+			if tt.ready {
+				rs2 = newReplicaSetWithStatus(r2, 1, 1)
+			}
+			if tt.scalingEvent {
+				rs1.Annotations[annotations.DesiredReplicasAnnotation] = "2"
+			}
+			stableHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			candidateHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			r2 = updateBlueGreenRolloutStatus(r2, candidateHash, stableHash, stableHash, 1, 0, 1, 1, false, true, false)
+			r2.Status.Abort = true
+			now := timeutil.MetaNow()
+			r2.Status.AbortedAt = &now
+			oldAR := analysisRun(at, v1alpha1.RolloutTypePostPromotionLabel, r2)
+			oldAR.Status.Phase = phase
+			r2.Status.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{Name: oldAR.Name, Status: phase}
+			active := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: stableHash}, r2)
+			preview := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: candidateHash}, r2)
+			if tt.serviceFailure {
+				preview.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] = stableHash
+			}
+			f.objects = append(f.objects, r2, at, oldAR)
+			f.kubeobjects = append(f.kubeobjects, rs1, rs2, active, preview)
+			f.rolloutLister = append(f.rolloutLister, r2)
+			f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+			f.analysisRunLister = append(f.analysisRunLister, oldAR)
+			f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+			f.serviceLister = append(f.serviceLister, active, preview)
+			c, i, k8sI := f.newController(noResyncPeriodFunc)
+			ros := f.client.ArgoprojV1alpha1().Rollouts(r2.Namespace)
+			ars := f.client.ArgoprojV1alpha1().AnalysisRuns(r2.Namespace)
+			rss := f.kubeclient.AppsV1().ReplicaSets(r2.Namespace)
+			svcs := f.kubeclient.CoreV1().Services(r2.Namespace)
+			checkActiveTraffic := func(core.Action) (bool, runtime.Object, error) {
+				activeSvc, err := svcs.Get(ctx, active.Name, metav1.GetOptions{})
+				assert.NoError(t, err)
+				assert.Equal(t, candidateHash, activeSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey], "post analysis must only start after active traffic switches to the candidate")
+				return false, nil, nil
+			}
+			f.client.PrependReactor("create", "analysisruns", checkActiveTraffic)
+			key := getKey(r2, t)
+
+			// Feed persisted API state into the caches without asynchronous informer watches.
+			// Each pass must rediscover the current analysis from the persisted rollout status.
+			reconcile := func(expectError ...bool) *v1alpha1.Rollout {
+				ro, err := ros.Get(ctx, r2.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.NoError(t, c.rolloutsIndexer.Update(ro))
+				c.rolloutVersionTracker.Forget(key)
+				rsList, err := rss.List(ctx, metav1.ListOptions{})
+				require.NoError(t, err)
+				for n := range rsList.Items {
+					require.NoError(t, k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer().Update(&rsList.Items[n]))
+				}
+				svcList, err := svcs.List(ctx, metav1.ListOptions{})
+				require.NoError(t, err)
+				for n := range svcList.Items {
+					require.NoError(t, k8sI.Core().V1().Services().Informer().GetIndexer().Update(&svcList.Items[n]))
+				}
+				arList, err := ars.List(ctx, metav1.ListOptions{})
+				require.NoError(t, err)
+				for n := range arList.Items {
+					require.NoError(t, i.Argoproj().V1alpha1().AnalysisRuns().Informer().GetIndexer().Update(&arList.Items[n]))
+				}
+				err = c.syncHandler(ctx, key)
+				if len(expectError) > 0 && expectError[0] {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+				}
+				ro, err = ros.Get(ctx, r2.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				return ro
+			}
+			failNextServiceUpdate := func() {
+				failNext := true
+				f.kubeclient.PrependReactor("*", "services", func(action core.Action) (bool, runtime.Object, error) {
+					if !failNext || (action.GetVerb() != "patch" && action.GetVerb() != "update") {
+						return false, nil, nil
+					}
+					failNext = false
+					return true, nil, errors.New("service update temporarily unavailable")
+				})
+			}
+
+			if phase == v1alpha1.AnalysisPhaseRunning {
+				// A manual abort must terminate the in-flight analysis before retrying.
+				reconcile()
+				terminated, err := ars.Get(ctx, oldAR.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.True(t, terminated.Spec.Terminate)
+			}
+			// This is the same status-only patch used by the retry CLI.
+			_, err := ros.Patch(ctx, r2.Name, types.MergePatchType, []byte(`{"status":{"abort":false}}`), metav1.PatchOptions{}, "status")
+			require.NoError(t, err)
+			if tt.serviceFailure {
+				// A failed stage may preserve this attempt's state, but must not restore
+				// the aborted attempt's analysis as current after retry has begun.
+				failNextServiceUpdate()
+				reconcile(true)
+			}
+			if !tt.ready {
+				for n := 0; n < 3; n++ {
+					ro := reconcile()
+					assert.False(t, ro.Status.Abort, "old %s analysis must not re-abort retry while candidate is unavailable (pass %d)", phase, n)
+					assert.Equal(t, stableHash, ro.Status.BlueGreen.ActiveSelector)
+					arList, err := ars.List(ctx, metav1.ListOptions{})
+					require.NoError(t, err)
+					assert.Len(t, arList.Items, 1, "post analysis must wait for active traffic")
+					if n == 0 {
+						// Restart from persisted objects while the candidate remains unavailable.
+						// No in-memory attempt state may be needed while readiness is delayed.
+						f.objects = []runtime.Object{ro, at}
+						for j := range arList.Items {
+							f.objects = append(f.objects, &arList.Items[j])
+						}
+						rsList, err := rss.List(ctx, metav1.ListOptions{})
+						require.NoError(t, err)
+						svcList, err := svcs.List(ctx, metav1.ListOptions{})
+						require.NoError(t, err)
+						f.kubeobjects = nil
+						for j := range rsList.Items {
+							f.kubeobjects = append(f.kubeobjects, &rsList.Items[j])
+						}
+						for j := range svcList.Items {
+							f.kubeobjects = append(f.kubeobjects, &svcList.Items[j])
+						}
+						c, i, k8sI = f.newController(noResyncPeriodFunc)
+						f.client.PrependReactor("create", "analysisruns", checkActiveTraffic)
+						ros = f.client.ArgoprojV1alpha1().Rollouts(r2.Namespace)
+						ars = f.client.ArgoprojV1alpha1().AnalysisRuns(r2.Namespace)
+						rss = f.kubeclient.AppsV1().ReplicaSets(r2.Namespace)
+						svcs = f.kubeclient.CoreV1().Services(r2.Namespace)
+					}
+				}
+				candidate, err := rss.Get(ctx, rs2.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Equal(t, int32(1), *candidate.Spec.Replicas, "retry must scale up the desired candidate")
+				candidate.Status.Replicas = 1
+				candidate.Status.ReadyReplicas = 1
+				candidate.Status.AvailableReplicas = 1
+				_, err = rss.UpdateStatus(ctx, candidate, metav1.UpdateOptions{})
+				require.NoError(t, err)
+			}
+			ro := reconcile()
+			// Manual promotion remains required when autoPromotionEnabled is false.
+			assert.False(t, ro.Status.Abort)
+			if tt.manualPromotion {
+				assert.Equal(t, stableHash, ro.Status.BlueGreen.ActiveSelector)
+				_, err := ros.Patch(ctx, r2.Name, types.MergePatchType, []byte(`{"status":{"pauseConditions":null}}`), metav1.PatchOptions{}, "status")
+				require.NoError(t, err)
+			}
+			for n := 0; n < 3; n++ {
+				ro = reconcile()
+			}
+			assert.False(t, ro.Status.Abort)
+			assert.Equal(t, candidateHash, ro.Status.BlueGreen.ActiveSelector)
+			require.NotNil(t, ro.Status.BlueGreen.PostPromotionAnalysisRunStatus)
+			assert.NotEqual(t, oldAR.Name, ro.Status.BlueGreen.PostPromotionAnalysisRunStatus.Name)
+			arList, err := ars.List(ctx, metav1.ListOptions{})
+			require.NoError(t, err)
+			assert.Len(t, arList.Items, 2)
+			historical, err := ars.Get(ctx, oldAR.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, phase, historical.Status.Phase)
+			fresh, err := ars.Get(ctx, ro.Status.BlueGreen.PostPromotionAnalysisRunStatus.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, candidateHash, fresh.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+			assert.Equal(t, "2", fresh.Annotations[annotations.RevisionAnnotation])
+			assert.False(t, fresh.Spec.Terminate)
+			assert.False(t, fresh.Status.Phase.Completed(), "retry must evaluate a new analysis")
+
+			// A new failure must still abort, and another retry must evaluate a third run.
+			fresh.Status.Phase = v1alpha1.AnalysisPhaseFailed
+			_, err = ars.UpdateStatus(ctx, fresh, metav1.UpdateOptions{})
+			require.NoError(t, err)
+			if tt.serviceFailure {
+				// In contrast, a transient error within the fresh attempt must not drop
+				// its terminal run before the controller can process the new failure.
+				stalePreview := []byte(`{"spec":{"selector":{"` + v1alpha1.DefaultRolloutUniqueLabelKey + `":"` + stableHash + `"}}}`)
+				_, err = svcs.Patch(ctx, preview.Name, types.MergePatchType, stalePreview, metav1.PatchOptions{})
+				require.NoError(t, err)
+				failNextServiceUpdate()
+				reconcile(true)
+			}
+			ro = reconcile()
+			require.True(t, ro.Status.Abort)
+			reconcile() // return traffic to stable and schedule candidate scale-down
+			assert.Equal(t, stableHash, reconcile().Status.BlueGreen.ActiveSelector)
+			later := timeutil.Now().Add(2 * time.Second)
+			timeutil.SetNowTimeFunc(func() time.Time { return later })
+			reconcile() // let the abort scale-down deadline expire
+			candidate, err := rss.Get(ctx, rs2.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Zero(t, *candidate.Spec.Replicas)
+			candidate.Status.Replicas = 0
+			candidate.Status.AvailableReplicas = 0
+			candidate.Status.ReadyReplicas = 0
+			_, err = rss.UpdateStatus(ctx, candidate, metav1.UpdateOptions{})
+			require.NoError(t, err)
+			_, err = ros.Patch(ctx, r2.Name, types.MergePatchType, []byte(`{"status":{"abort":false}}`), metav1.PatchOptions{}, "status")
+			require.NoError(t, err)
+			for n := 0; n < 3; n++ {
+				ro = reconcile()
+				require.False(t, ro.Status.Abort)
+				assert.Equal(t, stableHash, ro.Status.BlueGreen.ActiveSelector)
+			}
+			candidate, err = rss.Get(ctx, rs2.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			candidate.Status.Replicas = 1
+			candidate.Status.AvailableReplicas = 1
+			candidate.Status.ReadyReplicas = 1
+			_, err = rss.UpdateStatus(ctx, candidate, metav1.UpdateOptions{})
+			require.NoError(t, err)
+			reconcile()
+			if tt.manualPromotion {
+				_, err = ros.Patch(ctx, r2.Name, types.MergePatchType, []byte(`{"status":{"pauseConditions":null}}`), metav1.PatchOptions{}, "status")
+				require.NoError(t, err)
+			}
+			for n := 0; n < 3; n++ {
+				ro = reconcile()
+			}
+			require.False(t, ro.Status.Abort)
+			require.NotNil(t, ro.Status.BlueGreen.PostPromotionAnalysisRunStatus)
+			lastName := ro.Status.BlueGreen.PostPromotionAnalysisRunStatus.Name
+			assert.NotEqual(t, fresh.Name, lastName)
+			assert.NotEqual(t, oldAR.Name, lastName)
+			last, err := ars.Get(ctx, lastName, metav1.GetOptions{})
+			require.NoError(t, err)
+			last.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
+			_, err = ars.UpdateStatus(ctx, last, metav1.UpdateOptions{})
+			require.NoError(t, err)
+			for n := 0; n < 3; n++ {
+				ro = reconcile()
+			}
+			assert.False(t, ro.Status.Abort)
+			assert.Equal(t, candidateHash, ro.Status.StableRS)
+			assert.Equal(t, candidateHash, ro.Status.BlueGreen.ActiveSelector)
+			assert.Equal(t, v1alpha1.RolloutPhaseHealthy, ro.Status.Phase)
+			arList, err = ars.List(ctx, metav1.ListOptions{})
+			require.NoError(t, err)
+			assert.Len(t, arList.Items, 3, "successful post analysis must not be duplicated")
+		})
+	}
 }
 
 func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testing.T) {
