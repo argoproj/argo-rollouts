@@ -79,6 +79,15 @@ func (c *rolloutContext) reconcile() error {
 		// exit early since we modified the rollout
 		return nil
 	}
+	if c.rollout.Spec.Strategy.BlueGreen != nil && !c.rollout.Status.Abort && c.rollout.Status.AbortedAt != nil {
+		// Retry starts a new post-promotion attempt. Detach the previous run before
+		// either a scaling-only or full reconciliation clears AbortedAt, so its result
+		// cannot abort the new attempt while we wait for the candidate to be promoted.
+		if err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{c.currentArs.BlueGreenPostPromotion}); err != nil {
+			return err
+		}
+		c.currentArs.BlueGreenPostPromotion = nil
+	}
 
 	isScalingEvent, err := c.isScalingEvent()
 	if err != nil {
