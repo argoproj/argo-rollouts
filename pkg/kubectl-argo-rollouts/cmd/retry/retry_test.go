@@ -65,17 +65,18 @@ func TestRetryRolloutCmd(t *testing.T) {
 	ro := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "guestbook",
-			Namespace: metav1.NamespaceDefault,
+			Namespace: "test",
 		},
 		Status: v1alpha1.RolloutStatus{Abort: true},
 	}
 
 	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
 	defer tf.Cleanup()
+	o.RESTClientGetter = tf.WithNamespace(ro.Namespace)
 	cmd := NewCmdRetryRollout(o)
 	o.AddKubectlFlags(cmd)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
-	cmd.SetArgs([]string{"guestbook"})
+	cmd.SetArgs([]string{"guestbook", "-n", "test"})
 	err := cmd.Execute()
 	assert.Nil(t, err)
 
@@ -191,6 +192,7 @@ func TestRetryRolloutPreservesStatus(t *testing.T) {
 			expected := ro.DeepCopy()
 			if tt.abort {
 				expected.Status.Abort = false
+				expected.Status.BlueGreen.PrePromotionAnalysisRunStatus = nil
 				expected.Status.BlueGreen.PostPromotionAnalysisRunStatus = nil
 				expected.Status.Canary.CurrentStepAnalysisRunStatus = nil
 				expected.Status.Canary.CurrentBackgroundAnalysisRunStatus = nil

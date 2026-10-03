@@ -18,7 +18,7 @@ import (
 const (
 	// Detach analysis from the aborted attempt so retry evaluates fresh runs when
 	// their normal readiness, promotion and starting-step gates allow it.
-	retryRolloutPatch    = `{"status":{"abort":false,"blueGreen":{"postPromotionAnalysisRunStatus":null},"canary":{"currentStepAnalysisRunStatus":null,"currentBackgroundAnalysisRunStatus":null}}}`
+	retryRolloutPatch    = `{"status":{"abort":false,"blueGreen":{"prePromotionAnalysisRunStatus":null,"postPromotionAnalysisRunStatus":null},"canary":{"currentStepAnalysisRunStatus":null,"currentBackgroundAnalysisRunStatus":null}}}`
 	retryExperimentPatch = `{"status":null}`
 )
 
