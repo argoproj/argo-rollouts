@@ -85,9 +85,10 @@ func (c *rolloutContext) reconcile() error {
 		// cannot abort the new attempt while it waits to progress.
 		// Status recovery after a stage error must preserve this attempt boundary too.
 		if c.rollout.Spec.Strategy.BlueGreen != nil {
-			if err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{c.currentArs.BlueGreenPostPromotion}); err != nil {
+			if err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{c.currentArs.BlueGreenPrePromotion, c.currentArs.BlueGreenPostPromotion}); err != nil {
 				return err
 			}
+			c.currentArs.BlueGreenPrePromotion = nil
 			c.currentArs.BlueGreenPostPromotion = nil
 		} else if c.rollout.Spec.Strategy.Canary != nil {
 			if err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{c.currentArs.CanaryStep, c.currentArs.CanaryBackground}); err != nil {

@@ -282,6 +282,7 @@ func (c *rolloutContext) syncReplicasOnly() error {
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
 		if !c.rollout.Status.Abort && c.rollout.Status.AbortedAt != nil {
+			newStatus.BlueGreen.PrePromotionAnalysisRunStatus = nil
 			newStatus.BlueGreen.PostPromotionAnalysisRunStatus = nil
 		}
 		_, activeSvc, err := c.getPreviewAndActiveServices()
