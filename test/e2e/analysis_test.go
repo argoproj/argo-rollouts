@@ -397,7 +397,7 @@ spec:
   replicas: 2
   strategy:
     blueGreen:
-      abortScaleDownDelaySeconds: 0
+      abortScaleDownDelaySeconds: 1
       activeService: pre-promotion-fail-active
       previewService: pre-promotion-fail-preview
       previewReplicaCount: 1
@@ -433,6 +433,7 @@ spec:
 		When().
 		UpdateSpec().
 		WaitForRolloutStatus("Degraded").
+		WaitForRevisionPodCount("2", 0).
 		Then().
 		ExpectAnalysisRunCount(1).
 		ExpectStableRevision("1").
@@ -462,7 +463,19 @@ spec:
 		ExpectAnalysisRunCount(2).
 		ExpectStableRevision("2").
 		ExpectActiveRevision("2").
-		ExpectPreviewRevision("2")
+		ExpectPreviewRevision("2").
+		ExpectAnalysisRuns("old failed pre-analysis retained and fresh retry succeeded", func(runs *v1alpha1.AnalysisRunList) bool {
+			failed, successful := 0, 0
+			for _, run := range runs.Items {
+				if run.Status.Phase == v1alpha1.AnalysisPhaseFailed {
+					failed++
+				}
+				if run.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
+					successful++
+				}
+			}
+			return failed == 1 && successful == 1
+		})
 }
 
 func (s *AnalysisSuite) TestBlueGreenPostPromotionRetry() {
