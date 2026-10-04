@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -24,6 +25,8 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -1995,7 +1998,14 @@ func TestDoNotCreateBackgroundAnalysisRunWhenWithinRollbackWindow(t *testing.T) 
 	f.run(getKey(r2, t))
 }
 
+type retryRolloutRequest func(clientset.RolloutInterface, string) (*v1alpha1.Rollout, error)
+
 func TestCanaryAnalysisRetry(t *testing.T) {
+	testCanaryAnalysisRetry(t, retry.RetryRollout)
+}
+
+func testCanaryAnalysisRetry(t *testing.T, requestRetry retryRolloutRequest, onlyCases ...string) {
+	t.Helper()
 	tests := []struct {
 		name           string
 		step           bool
@@ -2018,6 +2028,9 @@ func TestCanaryAnalysisRetry(t *testing.T) {
 		{name: "PauseAndStartingStep", step: true, background: true, phase: v1alpha1.AnalysisPhaseError, scaling: true, pause: true},
 	}
 	for _, tt := range tests {
+		if len(onlyCases) > 0 && !slices.Contains(onlyCases, tt.name) {
+			continue
+		}
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFixture(t)
 			defer f.Close()
@@ -2130,11 +2143,7 @@ func TestCanaryAnalysisRetry(t *testing.T) {
 				}
 			}
 			retry := func() {
-				abort := "false"
-				if tt.background {
-					abort = "null"
-				} // Original Argo CD retry removes status.abort.
-				_, err := ros.Patch(ctx, r2.Name, types.MergePatchType, []byte(`{"status":{"abort":`+abort+`}}`), metav1.PatchOptions{}, "status")
+				_, err := requestRetry(ros, r2.Name)
 				require.NoError(t, err)
 			}
 			currentRuns := func(ro *v1alpha1.Rollout) []*v1alpha1.AnalysisRun {
@@ -2295,6 +2304,37 @@ func TestCanaryAnalysisRetry(t *testing.T) {
 	}
 }
 
+// TestAnalysisRetryWithAbortRemoval exercises the original Argo CD action, which
+// removes status.abort without clearing prior analysis references. The caller-side
+// alternative intentionally does not promise this contract.
+func TestAnalysisRetryWithAbortRemoval(t *testing.T) {
+	removeAbort := func(rollouts clientset.RolloutInterface, name string) (*v1alpha1.Rollout, error) {
+		ctx := context.Background()
+		before, err := rollouts.Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		after, err := rollouts.Patch(ctx, name, types.MergePatchType, []byte(`{"status":{"abort":null}}`), metav1.PatchOptions{}, "status")
+		if err == nil {
+			require.NotNil(t, after.Status.AbortedAt, "the controller must still observe the retry boundary")
+			require.Equal(t, before.Status.BlueGreen.PrePromotionAnalysisRunStatus, after.Status.BlueGreen.PrePromotionAnalysisRunStatus)
+			require.Equal(t, before.Status.BlueGreen.PostPromotionAnalysisRunStatus, after.Status.BlueGreen.PostPromotionAnalysisRunStatus)
+			require.Equal(t, before.Status.Canary.CurrentStepAnalysisRunStatus, after.Status.Canary.CurrentStepAnalysisRunStatus)
+			require.Equal(t, before.Status.Canary.CurrentBackgroundAnalysisRunStatus, after.Status.Canary.CurrentBackgroundAnalysisRunStatus)
+		}
+		return after, err
+	}
+	t.Run("PrePromotion", func(t *testing.T) {
+		testBlueGreenPrePromotionAnalysisRetry(t, removeAbort, "FailedDuringScaling", "ManualAbortRunning")
+	})
+	t.Run("PostPromotion", func(t *testing.T) {
+		testBlueGreenPostPromotionAnalysisRetry(t, removeAbort, "FailedUnavailable", "RetryAfterServiceFailure")
+	})
+	t.Run("CanaryStepAndBackground", func(t *testing.T) {
+		testCanaryAnalysisRetry(t, removeAbort, "StepAndBackgroundDuringScaling", "TerminatingStepDuringScaling")
+	})
+}
+
 // reconcileAnalysisRetryUntil waits for a persisted outcome, rather than prescribing
 // how many controller passes an analysis retry must take.
 func reconcileAnalysisRetryUntil(t *testing.T, reconcile func() *v1alpha1.Rollout, done func(*v1alpha1.Rollout) bool, outcome string) *v1alpha1.Rollout {
@@ -2311,6 +2351,11 @@ func reconcileAnalysisRetryUntil(t *testing.T, reconcile func() *v1alpha1.Rollou
 }
 
 func TestBlueGreenPrePromotionAnalysisRetry(t *testing.T) {
+	testBlueGreenPrePromotionAnalysisRetry(t, retry.RetryRollout)
+}
+
+func testBlueGreenPrePromotionAnalysisRetry(t *testing.T, requestRetry retryRolloutRequest, onlyCases ...string) {
+	t.Helper()
 	cases := []struct {
 		name           string
 		phase          v1alpha1.AnalysisPhase
@@ -2327,6 +2372,9 @@ func TestBlueGreenPrePromotionAnalysisRetry(t *testing.T) {
 		{name: "ManualAbortRunning", phase: v1alpha1.AnalysisPhaseRunning, scaling: true},
 	}
 	for _, tt := range cases {
+		if len(onlyCases) > 0 && !slices.Contains(onlyCases, tt.name) {
+			continue
+		}
 		t.Run(tt.name, func(t *testing.T) {
 			phase, scaling := tt.phase, tt.scaling
 			f := newFixture(t)
@@ -2415,18 +2463,8 @@ func TestBlueGreenPrePromotionAnalysisRetry(t *testing.T) {
 					f.kubeclient.PrependReactor("*", resource, reactor)
 				}
 			}
-			// The original Argo CD action removes abort; the upstream CLI sets it false.
-			// Neither request clears old analysis references.
-			abort := "false"
-			if scaling {
-				abort = "null"
-			}
-			_, err := ros.Patch(ctx, r2.Name, types.MergePatchType, []byte(`{"status":{"abort":`+abort+`}}`), metav1.PatchOptions{}, "status")
+			_, err := requestRetry(ros, r2.Name)
 			require.NoError(t, err)
-			requested, err := ros.Get(ctx, r2.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-			require.NotNil(t, requested.Status.BlueGreen.PrePromotionAnalysisRunStatus)
-			require.Equal(t, old.Name, requested.Status.BlueGreen.PrePromotionAnalysisRunStatus.Name, "the retry caller leaves cleanup to the controller")
 			if tt.serviceFailure {
 				failNextWrite("services")
 				reconcile(true)
@@ -2504,7 +2542,7 @@ func TestBlueGreenPrePromotionAnalysisRetry(t *testing.T) {
 				reconcile(true)
 			}
 			ro = reconcileAnalysisRetryUntil(t, step, func(ro *v1alpha1.Rollout) bool { return ro.Status.Abort }, "a fresh pre-analysis failure still aborts")
-			_, err = ros.Patch(ctx, r2.Name, types.MergePatchType, []byte(`{"status":{"abort":`+abort+`}}`), metav1.PatchOptions{}, "status")
+			_, err = requestRetry(ros, r2.Name)
 			require.NoError(t, err)
 			ro = reconcileAnalysisRetryUntil(t, step, func(ro *v1alpha1.Rollout) bool {
 				require.False(t, ro.Status.Abort)
@@ -3310,6 +3348,11 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 }
 
 func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
+	testBlueGreenPostPromotionAnalysisRetry(t, retry.RetryRollout)
+}
+
+func testBlueGreenPostPromotionAnalysisRetry(t *testing.T, requestRetry retryRolloutRequest, onlyCases ...string) {
+	t.Helper()
 	tests := []struct {
 		name            string
 		phase           v1alpha1.AnalysisPhase
@@ -3327,6 +3370,9 @@ func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
 		{name: "RetryAfterServiceFailure", phase: v1alpha1.AnalysisPhaseFailed, serviceFailure: true},
 	}
 	for _, tt := range tests {
+		if len(onlyCases) > 0 && !slices.Contains(onlyCases, tt.name) {
+			continue
+		}
 		t.Run(tt.name, func(t *testing.T) {
 			phase := tt.phase
 			f := newFixture(t)
@@ -3435,8 +3481,8 @@ func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
 				require.NoError(t, err)
 				require.True(t, terminated.Spec.Terminate)
 			}
-			// This is the same status-only patch used by the retry CLI.
-			_, err := ros.Patch(ctx, r2.Name, types.MergePatchType, []byte(`{"status":{"abort":false}}`), metav1.PatchOptions{}, "status")
+			// Exercise the public retry operation used by the CLI and dashboard server.
+			_, err := requestRetry(ros, r2.Name)
 			require.NoError(t, err)
 			if tt.serviceFailure {
 				// A failed stage may preserve this attempt's state, but must not restore
@@ -3552,7 +3598,7 @@ func TestBlueGreenPostPromotionAnalysisRetry(t *testing.T) {
 			candidate.Status.ReadyReplicas = 0
 			_, err = rss.UpdateStatus(ctx, candidate, metav1.UpdateOptions{})
 			require.NoError(t, err)
-			_, err = ros.Patch(ctx, r2.Name, types.MergePatchType, []byte(`{"status":{"abort":false}}`), metav1.PatchOptions{}, "status")
+			_, err = requestRetry(ros, r2.Name)
 			require.NoError(t, err)
 			ro = reconcileAnalysisRetryUntil(t, step, func(ro *v1alpha1.Rollout) bool {
 				require.False(t, ro.Status.Abort)
