@@ -506,6 +506,7 @@ spec:
                 command: [sh, -c, "exit {{args.exit-code}}"]
 `, exitCode)
 	}
+	var previousPre, previousPost string
 	s.Given().
 		RolloutObjects(newService("post-retry-active", "post-retry")).
 		RolloutObjects(newService("post-retry-preview", "post-retry")).
@@ -516,13 +517,21 @@ kind: Rollout
 metadata:
   name: post-retry
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     blueGreen:
       activeService: post-retry-active
       previewService: post-retry-preview
       abortScaleDownDelaySeconds: 1
       scaleDownDelaySeconds: 600
+      previewReplicaCount: 1
+      autoPromotionSeconds: 10
+      prePromotionAnalysis:
+        templates:
+        - templateName: sleep-job
+        args:
+        - name: duration
+          value: "5"
       postPromotionAnalysis:
         templates:
         - templateName: post-retry-job
@@ -556,17 +565,37 @@ spec:
 		WaitForActiveRevision("1").
 		WaitForRevisionPodCount("2", 0).
 		Then().
-		ExpectAnalysisRunCount(1).
+		ExpectAnalysisRunCount(2).
+		ExpectRollout("failed post-attempt retains its successful pre-analysis and checkpoint", func(ro *v1alpha1.Rollout) bool {
+			pre, post := ro.Status.BlueGreen.PrePromotionAnalysisRunStatus, ro.Status.BlueGreen.PostPromotionAnalysisRunStatus
+			if pre == nil || post == nil {
+				return false
+			}
+			previousPre, previousPost = pre.Name, post.Name
+			return pre.Status == v1alpha1.AnalysisPhaseSuccessful && post.Status == v1alpha1.AnalysisPhaseFailed && ro.Status.BlueGreen.ScaleUpPreviewCheckPoint
+		}).
 		ExpectStableRevision("1").
 		When().
 		ApplyManifests(template("0")).
 		RetryRollout().
+		WaitForRolloutCondition(func(ro *v1alpha1.Rollout) bool {
+			pre := ro.Status.BlueGreen.PrePromotionAnalysisRunStatus
+			return pre != nil && pre.Name != previousPre
+		}, "retry starts a fresh pre-analysis at preview size").
+		Then().
+		ExpectActiveRevision("1").
+		ExpectRevisionPodCount("2", 1).
+		When().
 		WaitForActiveRevision("2").
 		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectStableRevision("2").
 		ExpectActiveRevision("2").
-		ExpectAnalysisRunCount(2).
+		ExpectAnalysisRunCount(4).
+		ExpectRollout("retry uses a fresh post-analysis", func(ro *v1alpha1.Rollout) bool {
+			post := ro.Status.BlueGreen.PostPromotionAnalysisRunStatus
+			return post != nil && post.Name != previousPost && post.Status == v1alpha1.AnalysisPhaseSuccessful
+		}).
 		ExpectAnalysisRuns("failed attempt retained and fresh attempt succeeded", func(runs *v1alpha1.AnalysisRunList) bool {
 			failed, successful := 0, 0
 			for _, run := range runs.Items {
@@ -577,7 +606,7 @@ spec:
 					successful++
 				}
 			}
-			return failed == 1 && successful == 1
+			return failed == 1 && successful == 3
 		})
 }
 
