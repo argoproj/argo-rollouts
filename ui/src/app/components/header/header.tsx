@@ -93,6 +93,8 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                             filterOption={(inputValue, option) => option.value.toUpperCase().includes(inputValue.toUpperCase())}
                             placeholder='Namespace'
                             onChange={(val) => setNsInput(val)}
+                            onFocus={() => setNsInput('')}
+                            onBlur={() => setNsInput(namespaceInfo.namespace)}
                             onSelect={(val) => {
                                 const selectedNamespace = val ? val : nsInput;
                                 props.changeNamespace(selectedNamespace);
