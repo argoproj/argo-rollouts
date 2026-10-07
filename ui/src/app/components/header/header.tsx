@@ -90,11 +90,10 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                             style={{width: 200}}
                             className='rollouts-header__namespace-selector'
                             options={(namespaceInfo.availableNamespaces || []).map((ns) => ({label: ns, value: ns}))}
-                            filterOption={(inputValue, option) => option.value.toUpperCase().includes(inputValue.toUpperCase())}
+                            filterOption={true}
+                            allowClear={true}
                             placeholder='Namespace'
                             onChange={(val) => setNsInput(val)}
-                            onFocus={() => setNsInput('')}
-                            onBlur={() => setNsInput(namespaceInfo.namespace)}
                             onSelect={(val) => {
                                 const selectedNamespace = val ? val : nsInput;
                                 props.changeNamespace(selectedNamespace);
