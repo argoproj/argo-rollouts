@@ -60,33 +60,42 @@ func (r RpcPluginWrapper) WatchedGVK() (schema.GroupVersionKind, error) {
 }
 
 // GetResourceStatus gets the current status of the workload.
-func (r RpcPluginWrapper) GetResourceStatus(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) (*ResourceStatus, error) {
-	status, rpcErr := r.RpcResourcePlugin.GetResourceStatus(namespace, workloadRef)
+func (r RpcPluginWrapper) GetResourceStatus(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) (*ResourceStatus, error) {
+	status, rpcErr := r.RpcResourcePlugin.GetResourceStatus(rolloutPlugin)
 	return status, asError(rpcErr, "get resource status")
 }
 
 // SetWeight sets the canary weight
-func (r RpcPluginWrapper) SetWeight(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) error {
-	return asError(r.RpcResourcePlugin.SetWeight(namespace, workloadRef, weight), "set weight")
+func (r RpcPluginWrapper) SetWeight(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) error {
+	return asError(r.RpcResourcePlugin.SetWeight(rolloutPlugin, weight), "set weight")
 }
 
 // VerifyWeight verifies that the canary weight has been achieved
-func (r RpcPluginWrapper) VerifyWeight(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, error) {
-	verified, rpcErr := r.RpcResourcePlugin.VerifyWeight(namespace, workloadRef, weight)
+func (r RpcPluginWrapper) VerifyWeight(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) (bool, error) {
+	verified, rpcErr := r.RpcResourcePlugin.VerifyWeight(rolloutPlugin, weight)
 	return verified, asError(rpcErr, "verify weight")
 }
 
 // PromoteFull skips all remaining steps and promotes the new version to stable immediately
-func (r RpcPluginWrapper) PromoteFull(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error {
-	return asError(r.RpcResourcePlugin.PromoteFull(namespace, workloadRef), "promote")
+func (r RpcPluginWrapper) PromoteFull(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	return asError(r.RpcResourcePlugin.PromoteFull(rolloutPlugin), "promote")
+}
+
+// Validate returns the plugin's message as-is (no "failed to" prefix), since it becomes the
+// RolloutPlugin's InvalidSpec message.
+func (r RpcPluginWrapper) Validate(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	if e := r.RpcResourcePlugin.Validate(rolloutPlugin); e.HasError() {
+		return e
+	}
+	return nil
 }
 
 // Abort aborts the rollout
-func (r RpcPluginWrapper) Abort(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error {
-	return asError(r.RpcResourcePlugin.Abort(namespace, workloadRef), "abort")
+func (r RpcPluginWrapper) Abort(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	return asError(r.RpcResourcePlugin.Abort(rolloutPlugin), "abort")
 }
 
 // Restart restarts aborted rollout
-func (r RpcPluginWrapper) Restart(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error {
-	return asError(r.RpcResourcePlugin.Restart(namespace, workloadRef), "restart")
+func (r RpcPluginWrapper) Restart(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	return asError(r.RpcResourcePlugin.Restart(rolloutPlugin), "restart")
 }

@@ -30,20 +30,25 @@ func (pCtx *pauseContext) RemovePauseCondition(reason v1alpha1.PauseReason) {
 	pCtx.removePauseReasons = append(pCtx.removePauseReasons, reason)
 }
 
+// ClearPauseConditions drops all existing pause conditions. Pauses added after the clear in the
+// same reconcile (e.g. a pause step at step 0 of a newly detected revision) are still applied.
 func (pCtx *pauseContext) ClearPauseConditions() {
 	pCtx.clearPauseConditions = true
+	pCtx.addPauseReasons = nil
 }
 
 func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutPluginStatus) {
-	if pCtx.clearPauseConditions {
-		return
-	}
 	pCtx.CalculatePauseConditions(newStatus)
 }
 
 func (pCtx *pauseContext) CalculatePauseConditions(newStatus *v1alpha1.RolloutPluginStatus) {
 	now := timeutil.MetaNow()
 	controllerPause := pCtx.rolloutPlugin.Status.ControllerPause
+	existingConditions := pCtx.rolloutPlugin.Status.PauseConditions
+	if pCtx.clearPauseConditions {
+		controllerPause = false
+		existingConditions = nil
+	}
 	statusToRemove := map[v1alpha1.PauseReason]bool{}
 	for i := range pCtx.removePauseReasons {
 		statusToRemove[pCtx.removePauseReasons[i]] = true
@@ -51,7 +56,7 @@ func (pCtx *pauseContext) CalculatePauseConditions(newStatus *v1alpha1.RolloutPl
 
 	pauseAlreadyExists := map[v1alpha1.PauseReason]bool{}
 	newPauseConditions := []v1alpha1.PauseCondition{}
-	for _, cond := range pCtx.rolloutPlugin.Status.PauseConditions {
+	for _, cond := range existingConditions {
 		if remove := statusToRemove[cond.Reason]; !remove {
 			newPauseConditions = append(newPauseConditions, cond)
 		}

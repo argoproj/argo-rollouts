@@ -685,7 +685,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginNewRevisionClearsAbort() {
 
 // Progress Timeout Tests
 
-// TestRolloutPluginTimeoutNoAbort tests the plugin config timeout exceeded without abort.
+// TestRolloutPluginTimeoutNoAbort tests spec.timeoutSeconds exceeded without abort.
 func (s *RolloutPluginSuite) TestRolloutPluginTimeoutNoAbort() {
 	s.Given().
 		RolloutPluginObjects(`
@@ -700,8 +700,7 @@ spec:
     name: rp-deadline-no-abort
   plugin:
     name: argoproj/statefulset
-    config:
-      timeoutSeconds: 5
+  timeoutSeconds: 5
   strategy:
     canary:
       steps:
@@ -757,7 +756,7 @@ spec:
 		})
 }
 
-// TestRolloutPluginTimeoutAbort tests the plugin config timeout exceeded with abort enabled.
+// TestRolloutPluginTimeoutAbort tests spec.timeoutSeconds exceeded with abort enabled.
 func (s *RolloutPluginSuite) TestRolloutPluginTimeoutAbort() {
 	s.Given().
 		RolloutPluginObjects(`
@@ -772,9 +771,8 @@ spec:
     name: rp-deadline-abort
   plugin:
     name: argoproj/statefulset
-    config:
-      timeoutSeconds: 5
-      timeoutAbort: true
+  timeoutSeconds: 5
+  timeoutAbort: true
   strategy:
     canary:
       steps:
@@ -1016,6 +1014,84 @@ spec:
 			}
 			return true
 		}, "InvalidSpecRemoved", 60*time.Second).
+		Then().
+		ExpectNoRolloutPluginCondition(rov1.RolloutPluginConditionInvalidSpec)
+}
+
+// TestRolloutPluginInvalidSpecRejectedByPlugin tests that a spec rejected by the plugin's Validate
+// (the built-in StatefulSet plugin defines no plugin.config) is marked InvalidSpec with the plugin's
+// reason, and that removing the config clears the condition and lets the rollout become Healthy.
+func (s *RolloutPluginSuite) TestRolloutPluginInvalidSpecRejectedByPlugin() {
+	s.Given().
+		RolloutPluginObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: rp-plugin-rejects
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: rp-plugin-rejects
+  plugin:
+    name: argoproj/statefulset
+    config:
+      maxSurge: 2
+  strategy:
+    canary:
+      steps:
+      - setWeight: 50
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rp-plugin-rejects
+spec:
+  serviceName: rp-plugin-rejects
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rp-plugin-rejects
+  template:
+    metadata:
+      labels:
+        app: rp-plugin-rejects
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: busybox
+        image: quay.io/prometheus/busybox:latest
+        command: ["/bin/sh", "-c", "while true; do sleep 30; done"]
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
+			return conditions.GetRolloutPluginCondition(rp.Status, rov1.RolloutPluginConditionInvalidSpec) != nil
+		}, "InvalidSpec", 60*time.Second).
+		Then().
+		ExpectRolloutPluginCondition(rov1.RolloutPluginConditionInvalidSpec).
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			cond := conditions.GetRolloutPluginCondition(rp.Status, rov1.RolloutPluginConditionInvalidSpec)
+			assert.Equal(s.T(), conditions.RolloutPluginInvalidSpecReason, cond.Reason)
+			assert.Contains(s.T(), cond.Message, "Plugin 'argoproj/statefulset' rejected the spec")
+			assert.Contains(s.T(), cond.Message, "spec.plugin.config is not supported by the statefulset plugin")
+			assert.NotEqual(s.T(), rov1.RolloutPluginPhaseHealthy, rp.Status.Phase)
+		}).
+		When().
+		PatchRolloutPluginSpec(`
+spec:
+  plugin:
+    config: null
+`).
+		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
+			return conditions.GetRolloutPluginCondition(rp.Status, rov1.RolloutPluginConditionInvalidSpec) == nil
+		}, "InvalidSpecRemoved", 60*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 120*time.Second).
 		Then().
 		ExpectNoRolloutPluginCondition(rov1.RolloutPluginConditionInvalidSpec)
 }

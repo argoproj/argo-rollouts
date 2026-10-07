@@ -64,18 +64,23 @@ type RpcResourcePlugin interface {
 	// can register a manager-level watch for it deterministically at startup.
 	// Called once per plugin at startup.
 	WatchedGVK() (WatchedGVK, RpcError)
-	// GetResourceStatus gets the current status of the referenced workload
-	GetResourceStatus(namespace string, workloadRef v1alpha1.WorkloadRef) (*ResourceStatus, RpcError)
+	// Validate checks the plugin-specific parts of the RolloutPlugin (e.g. spec.plugin.config,
+	// spec.workloadRef.kind). A non-empty error marks the RolloutPlugin InvalidSpec with the
+	// error message; the controller does not call any other workload method until it passes.
+	Validate(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
+	// GetResourceStatus gets the current status of the workload referenced by
+	// rolloutPlugin.Spec.WorkloadRef in rolloutPlugin.Namespace.
+	GetResourceStatus(rolloutPlugin *v1alpha1.RolloutPlugin) (*ResourceStatus, RpcError)
 	// SetWeight updates the weight (percentage of pods updated)
-	SetWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) RpcError
+	SetWeight(rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) RpcError
 	// VerifyWeight checks if the desired weight has been achieved
-	VerifyWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, RpcError)
+	VerifyWeight(rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) (bool, RpcError)
 	// PromoteFull skips all remaining steps and promotes the new version to stable immediately
-	PromoteFull(namespace string, workloadRef v1alpha1.WorkloadRef) RpcError
+	PromoteFull(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
 	// Abort aborts the rollout and reverts to the stable version.
-	Abort(namespace string, workloadRef v1alpha1.WorkloadRef) RpcError
+	Abort(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
 	// Restart returns the workload to baseline state for restart
-	Restart(namespace string, workloadRef v1alpha1.WorkloadRef) RpcError
+	Restart(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
 	// Type returns the type of the resource plugin
 	Type() string
 }
@@ -189,7 +194,7 @@ type PluginItem struct {
 	Sha256 string `json:"sha256" yaml:"sha256"`
 	// Type of the plugin
 	Type PluginType
-	// Disabled indicates if the plugin should be ignored when referenced in Rollout custom resources. Only valid for a plugin of type Step.
+	// Disabled indicates if the plugin should be ignored when referenced in Rollout or RolloutPlugin custom resources. Only valid for plugins of type Step and ResourcePlugin.
 	Disabled bool `json:"disabled" yaml:"disabled"`
 	// Args holds command line arguments to initialize the plugin
 	Args []string `json:"args" yaml:"args"`

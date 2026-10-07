@@ -92,40 +92,49 @@ type ResourcePlugin interface {
 	// startup.
 	WatchedGVK() (schema.GroupVersionKind, error)
 
+	// The workload methods below receive the whole RolloutPlugin, so a plugin can read the
+	// namespace, spec.workloadRef and its per-RolloutPlugin spec.plugin.config. Plugins must
+	// treat it as read-only.
+
+	// Validate checks the plugin-specific parts of the spec
+	// An error marks the RolloutPlugin InvalidSpec with its message and
+	// no other workload method is called until it passes.
+	Validate(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error
+
 	// GetResourceStatus gets the current status of the referenced workload
-	GetResourceStatus(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) (*ResourceStatus, error)
+	GetResourceStatus(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) (*ResourceStatus, error)
 
 	// SetWeight updates the weight (percentage of pods updated)
-	SetWeight(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) error
+	SetWeight(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) error
 
 	// VerifyWeight checks if the desired weight has been achieved
-	VerifyWeight(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, error)
+	VerifyWeight(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) (bool, error)
 
 	// PromoteFull promotes the new version to stable
-	PromoteFull(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error
+	PromoteFull(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error
 
 	// Abort aborts the rollout and reverts to the stable version.
-	Abort(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error
+	Abort(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error
 
 	// Restart returns the workload to baseline state for restart
-	Restart(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error
+	Restart(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error
 }
 
 // abortRollback calls plugin.Abort (which may only complete one unit of work, e.g. one pod of a
 // multi-replica StatefulSet rollback) and reports whether the rollback has fully converged.
-func abortRollback(ctx context.Context, plugin ResourcePlugin, namespace string, workloadRef v1alpha1.WorkloadRef) (bool, error) {
-	if err := plugin.Abort(ctx, namespace, workloadRef); err != nil {
+func abortRollback(ctx context.Context, plugin ResourcePlugin, rolloutPlugin *v1alpha1.RolloutPlugin) (bool, error) {
+	if err := plugin.Abort(ctx, rolloutPlugin); err != nil {
 		return false, err
 	}
-	resourceStatus, err := plugin.GetResourceStatus(ctx, namespace, workloadRef)
+	resourceStatus, err := plugin.GetResourceStatus(ctx, rolloutPlugin)
 	if err != nil {
 		return false, err
 	}
 	return resourceStatus.UpdatedReplicas == 0 && resourceStatus.Ready, nil
 }
 
-func (r *RolloutPluginReconciler) reconcileAbort(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, namespace string, workloadRef v1alpha1.WorkloadRef, reason, abortedMessage, inProgressMessage string, logCtx *log.Entry) (done bool, result ctrl.Result, err error) {
-	doneRollback, abortErr := abortRollback(ctx, plugin, namespace, workloadRef)
+func (r *RolloutPluginReconciler) reconcileAbort(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, reason, abortedMessage, inProgressMessage string, logCtx *log.Entry) (done bool, result ctrl.Result, err error) {
+	doneRollback, abortErr := abortRollback(ctx, plugin, rolloutPlugin)
 	if abortErr != nil {
 		logCtx.WithError(abortErr).Error("Failed to abort rollout")
 		newStatus.Message = fmt.Sprintf("Failed to abort rollout: %v", abortErr)
@@ -177,6 +186,20 @@ func (r *RolloutPluginReconciler) markAborted(rolloutPlugin *v1alpha1.RolloutPlu
 		}, message)
 	}
 	logCtx.Info("Rollout aborted successfully")
+}
+
+// clearAbortedState lifts a persisted abort.
+func clearAbortedState(newStatus *v1alpha1.RolloutPluginStatus) {
+	newStatus.Aborted = false
+	newStatus.AbortedAt = nil
+	newStatus.AbortedRevision = ""
+}
+
+// clearCurrentAnalysisRuns drops the current step/background AnalysisRun references so the next
+// analysis creates fresh runs. The old runs become "other" runs and are cancelled.
+func clearCurrentAnalysisRuns(newStatus *v1alpha1.RolloutPluginStatus) {
+	newStatus.Canary.CurrentStepAnalysisRunStatus = nil
+	newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
 }
 
 // ResourceStatus is an alias for the shared type to avoid import changes in existing code.
@@ -271,13 +294,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
 	}
 
-	refErr := r.validateReferencedResources(ctx, rolloutPlugin, newStatus, logCtx)
-	if prevInvalidSpecCond != nil && refErr == nil {
-		logCtx.Info("RolloutPlugin spec is now valid, removing InvalidSpec condition")
-		conditions.RemoveRolloutPluginCondition(newStatus, v1alpha1.RolloutPluginConditionInvalidSpec)
-	}
-
-	if refErr != nil {
+	if refErr := r.validateReferencedResources(ctx, rolloutPlugin, newStatus, logCtx); refErr != nil {
 		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
 	}
 
@@ -297,11 +314,32 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
 	}
 
-	workloadRef := rolloutPlugin.Spec.WorkloadRef
-	namespace := rolloutPlugin.Namespace
+	if err := plugin.Validate(ctx, rolloutPlugin); err != nil {
+		msg := fmt.Sprintf("Plugin '%s' rejected the spec: %s", rolloutPlugin.Spec.Plugin.Name, err.Error())
+		logCtx.WithField("reason", msg).Warn("RolloutPlugin spec validation by plugin failed")
+		// Reuse the previous condition when unchanged so re-validation doesn't churn its timestamps.
+		invalidCond := prevInvalidSpecCond
+		if invalidCond == nil || invalidCond.Message != msg {
+			invalidCond = conditions.NewRolloutPluginCondition(v1alpha1.RolloutPluginConditionInvalidSpec, corev1.ConditionTrue, conditions.RolloutPluginInvalidSpecReason, msg)
+			if r.Recorder != nil {
+				r.Recorder.Warnf(rolloutPlugin, record.EventOptions{EventReason: conditions.RolloutPluginInvalidSpecReason}, msg)
+			}
+		}
+		newStatus.Message = msg
+		conditions.SetRolloutPluginCondition(newStatus, *invalidCond)
+		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
+	}
+
+	if prevInvalidSpecCond != nil {
+		logCtx.Info("RolloutPlugin spec is now valid, removing InvalidSpec condition")
+		conditions.RemoveRolloutPluginCondition(newStatus, v1alpha1.RolloutPluginConditionInvalidSpec)
+		// Time spent waiting for the spec to be fixed isn't a lack of progress, so restart the
+		// timeoutSeconds clock like a resume does; otherwise fixing the spec immediately times out.
+		conditions.TouchRolloutPluginProgressingCondition(newStatus)
+	}
 
 	if newStatus.Restart && newStatus.Aborted {
-		return r.processRestart(ctx, rolloutPlugin, newStatus, plugin, namespace, workloadRef, logCtx)
+		return r.processRestart(ctx, rolloutPlugin, newStatus, plugin, logCtx)
 	}
 
 	if newStatus.Restart && !newStatus.Aborted {
@@ -354,13 +392,13 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	if newStatus.Abort && !newStatus.Aborted {
 		logCtx.Info("Manual abort requested via status.Abort field")
 
-		_, result, err := r.reconcileAbort(ctx, rolloutPlugin, newStatus, plugin, namespace, workloadRef,
+		_, result, err := r.reconcileAbort(ctx, rolloutPlugin, newStatus, plugin,
 			conditions.RolloutPluginAbortedReason, "Rollout aborted by user", "Aborting rollout", logCtx)
 		return result, err
 	}
 
 	// Check and update pause/resume conditions before timeout check
-	// This ensures that pause time doesn't count toward the plugin config timeoutSeconds
+	// This ensures that pause time doesn't count toward spec.timeoutSeconds
 	if err := checkPausedConditions(rolloutPlugin, newStatus, logCtx); err != nil {
 		logCtx.WithError(err).Error("Failed to check paused conditions")
 		return ctrl.Result{}, err
@@ -395,7 +433,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		// occurred (condition unchanged). The action is identical, so we do not branch on condChanged.
 		if defaults.GetRolloutPluginTimeoutAbort(rolloutPlugin) && !newStatus.Aborted {
 			logCtx.Info("Aborting RolloutPlugin due to timeout (timeoutAbort=true)")
-			done, result, err := r.reconcileAbort(ctx, rolloutPlugin, newStatus, plugin, namespace, workloadRef,
+			done, result, err := r.reconcileAbort(ctx, rolloutPlugin, newStatus, plugin,
 				conditions.RolloutPluginAbortedReason, "Rollout aborted due to timeout", "Aborting rollout due to timeout", logCtx)
 			if err != nil {
 				return ctrl.Result{}, err
@@ -410,7 +448,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	}
 
 	// Get the current status of the referenced workload
-	resourceStatus, err := plugin.GetResourceStatus(ctx, namespace, workloadRef)
+	resourceStatus, err := plugin.GetResourceStatus(ctx, rolloutPlugin)
 	if err != nil {
 		logCtx.WithError(err).Error("Failed to get resource status")
 		newStatus.Message = fmt.Sprintf("Failed to get resource status: %v", err)
@@ -448,8 +486,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 
 		if newStatus.AbortedRevision != "" && resourceStatus.UpdatedRevision != newStatus.AbortedRevision {
 			logCtx.Info("New revision detected, clearing aborted state")
-			newStatus.Aborted = false
-			newStatus.AbortedRevision = ""
+			clearAbortedState(newStatus)
 		}
 
 		timeoutCond := conditions.GetRolloutPluginCondition(*newStatus, v1alpha1.RolloutPluginConditionProgressing)
@@ -472,11 +509,18 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		newStatus.PauseConditions = nil
 		newStatus.ControllerPause = false
 		pCtx.ClearPauseConditions()
+
+		// The new revision gets fresh analysis runs; without this, a step-0 analysis (or
+		// background analysis) would reuse the previous revision's AnalysisRun.
+		clearCurrentAnalysisRuns(newStatus)
 	}
 
 	// Check if we need to start a rollout
+	// A paused rollout (Progressing=Unknown/Paused) is the same revision already in progress, not
+	// a fresh one; IsRolloutPluginInProgress keeps this block from resetting CurrentStepIndex and
+	// re-running completed steps while paused.
 	if resourceStatus.CurrentRevision != resourceStatus.UpdatedRevision {
-		if !conditions.IsRolloutPluginProgressing(newStatus) {
+		if !conditions.IsRolloutPluginInProgress(newStatus) {
 			// If timed out (without abort), don't restart — stay degraded.
 			// Without this guard, the TimedOut condition (Progressing=False) causes
 			// this block to fire and overwrite it with Progressing=True, creating
@@ -485,13 +529,6 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 			if progCond != nil && progCond.Reason == conditions.RolloutPluginTimedOutReason {
 				logCtx.Info("Rollout has timed out, staying in degraded state")
 				pCtx.CalculatePauseStatus(newStatus)
-				return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
-			}
-
-			// If paused, this is the same revision already progressing, not a fresh one — skip,
-			// otherwise this block would reset CurrentStepIndex and re-run completed steps every
-			// reconcile until resumed.
-			if progCond != nil && progCond.Reason == conditions.RolloutPluginPausedReason {
 				return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
 			}
 
@@ -506,8 +543,8 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 						"abortedRevision": newStatus.AbortedRevision,
 						"newRevision":     resourceStatus.UpdatedRevision,
 					}).Info("New revision detected, clearing aborted state")
-					newStatus.Aborted = false
-					newStatus.AbortedRevision = ""
+					clearAbortedState(newStatus)
+					clearCurrentAnalysisRuns(newStatus)
 				}
 			}
 
@@ -534,10 +571,10 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		}
 	}
 
-	// PromoteFull only gets cleared inside processCanaryRollout, which only runs while
-	// progressing. If it's set with nothing to promote, clear it here instead of letting it
-	// persist and silently full-promote the next revision that comes along.
-	if newStatus.PromoteFull && !conditions.IsRolloutPluginProgressing(newStatus) {
+	// PromoteFull only gets cleared inside processCanaryRollout, which only runs while a
+	// rollout is in progress. If it's set with nothing to promote, clear it here instead of
+	// letting it persist and silently full-promote the next revision that comes along.
+	if newStatus.PromoteFull && !conditions.IsRolloutPluginInProgress(newStatus) {
 		logCtx.Info("PromoteFull requested but no rollout is in progress; clearing")
 		newStatus.PromoteFull = false
 		newStatus.Message = "No rollout in progress to promote"
@@ -548,8 +585,11 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		}
 	}
 
-	if conditions.IsRolloutPluginProgressing(newStatus) {
-		result, err := r.processRollout(ctx, rolloutPlugin, newStatus, plugin, namespace, workloadRef, pCtx, logCtx)
+	// Step/analysis reconciliation runs while paused too: pausing
+	// only stops workload-mutating steps, while pause-step durations are still evaluated and
+	// analysis keeps running.
+	if conditions.IsRolloutPluginInProgress(newStatus) {
+		result, err := r.processRollout(ctx, rolloutPlugin, newStatus, plugin, pCtx, logCtx)
 		if err != nil {
 			logCtx.WithError(err).Error("Failed to process rollout")
 			return result, err
@@ -589,7 +629,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 
 // checkPausedConditions checks if the given RolloutPlugin is paused or not and adds an appropriate condition.
 // These conditions are needed so that we won't accidentally report lack of progress for resumed rollouts
-// that were paused for longer than the plugin config timeoutSeconds.
+// that were paused for longer than spec.timeoutSeconds.
 func checkPausedConditions(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, logCtx *log.Entry) error {
 	progCond := conditions.GetRolloutPluginCondition(*newStatus, v1alpha1.RolloutPluginConditionProgressing)
 	progCondPaused := progCond != nil && progCond.Reason == conditions.RolloutPluginPausedReason
@@ -597,13 +637,15 @@ func checkPausedConditions(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1a
 	// Paused state is determined by spec.Paused (manual) or PauseConditions (controller-set step pauses)
 	isPaused := rolloutPlugin.Spec.Paused || len(newStatus.PauseConditions) > 0
 	abortCondExists := progCond != nil && progCond.Reason == conditions.RolloutPluginAbortedReason
-	completedCondExists := conditions.GetRolloutPluginCondition(*newStatus, v1alpha1.RolloutPluginConditionCompleted) != nil
+	// Completed is kept as False (not removed) once a new revision starts, so check its status.
+	completedCond := conditions.GetRolloutPluginCondition(*newStatus, v1alpha1.RolloutPluginConditionCompleted)
+	completed := completedCond != nil && completedCond.Status == corev1.ConditionTrue
 
 	var updatedConditions []*v1alpha1.RolloutPluginCondition
 
 	// Update Progressing condition when pause state changes only when there's an active rolloutplugin (not completed)
 	// When paused, the Progressing condition is ConditionUnknown, and we need to be able to transition it back to ConditionTrue on resume.
-	if (isPaused != progCondPaused) && !abortCondExists && !completedCondExists {
+	if progCond != nil && (isPaused != progCondPaused) && !abortCondExists && !completed {
 		if isPaused {
 			// Set Progressing condition to Paused
 			updatedConditions = append(updatedConditions,
@@ -656,10 +698,10 @@ func checkPausedConditions(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1a
 }
 
 // processRollout processes the rollout steps based on strategy
-func (r *RolloutPluginReconciler) processRollout(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, namespace string, workloadRef v1alpha1.WorkloadRef, pCtx *pauseContext, logCtx *log.Entry) (ctrl.Result, error) {
+func (r *RolloutPluginReconciler) processRollout(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, pCtx *pauseContext, logCtx *log.Entry) (ctrl.Result, error) {
 	strategy := rolloutPlugin.Spec.Strategy
 	if strategy.Canary != nil {
-		return r.processCanaryRollout(ctx, rolloutPlugin, newStatus, plugin, namespace, workloadRef, pCtx, logCtx)
+		return r.processCanaryRollout(ctx, rolloutPlugin, newStatus, plugin, pCtx, logCtx)
 	}
 
 	logCtx.Info("No strategy defined")
@@ -668,7 +710,7 @@ func (r *RolloutPluginReconciler) processRollout(ctx context.Context, rolloutPlu
 }
 
 // processCanaryRollout processes a canary rollout
-func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, namespace string, workloadRef v1alpha1.WorkloadRef, pCtx *pauseContext, logCtx *log.Entry) (ctrl.Result, error) {
+func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, pCtx *pauseContext, logCtx *log.Entry) (ctrl.Result, error) {
 	canary := rolloutPlugin.Spec.Strategy.Canary
 	if canary == nil || len(canary.Steps) == 0 {
 		logCtx.Info("No canary steps defined")
@@ -682,7 +724,7 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 		logCtx.Info("PromoteFull is set, skipping remaining steps and promoting immediately")
 
 		// Promote the rollout
-		if err := plugin.PromoteFull(ctx, namespace, workloadRef); err != nil {
+		if err := plugin.PromoteFull(ctx, rolloutPlugin); err != nil {
 			logCtx.WithError(err).Error("Failed to promote during full promotion")
 			newStatus.Message = fmt.Sprintf("Failed to promote: %v", err)
 			return ctrl.Result{}, err
@@ -719,11 +761,16 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 
 	currentStepIndex := *newStatus.CurrentStepIndex
 	if currentStepIndex >= int32(len(canary.Steps)) {
+		if msg := pausedHoldMessage(rolloutPlugin, newStatus); msg != "" {
+			newStatus.Message = msg
+			return ctrl.Result{}, nil
+		}
+
 		// All steps completed (or PromoteFull advanced past last step).
 		// Call Promote to finalize the rollout — what this means is plugin-defined
 		// (e.g. set partition=0 for StatefulSet).
 		// May be called more than once per rollout (e.g. while waiting for pods to converge).
-		if err := plugin.PromoteFull(ctx, namespace, workloadRef); err != nil {
+		if err := plugin.PromoteFull(ctx, rolloutPlugin); err != nil {
 			logCtx.WithError(err).Error("Failed to promote")
 			newStatus.Message = fmt.Sprintf("Failed to promote: %v", err)
 			return ctrl.Result{}, err
@@ -763,7 +810,7 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 	// the still-failed AnalysisRun, so a not-yet-done abort keeps retrying on its own.
 	if analysisAbortMessage != "" && !newStatus.Aborted {
 		logCtx.Error("Analysis failed, aborting rollout")
-		done, result, err := r.reconcileAbort(ctx, rolloutPlugin, newStatus, plugin, namespace, workloadRef,
+		done, result, err := r.reconcileAbort(ctx, rolloutPlugin, newStatus, plugin,
 			conditions.RolloutPluginAnalysisRunFailedReason, analysisAbortMessage, analysisAbortMessage, logCtx)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -778,17 +825,25 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 		return ctrl.Result{}, nil
 	}
 
+	// While paused, hold at the current step: no workload mutation and no step advancement.
+	// Resuming is a watched change that re-triggersreconciliation, so no requeue is needed here.
+	if msg := pausedHoldMessage(rolloutPlugin, newStatus); msg != "" {
+		logCtx.WithField("stepIndex", currentStepIndex).Info("Rollout is paused, holding at current step")
+		newStatus.Message = msg
+		return ctrl.Result{}, nil
+	}
+
 	// Process setWeight step
 	if currentStep.SetWeight != nil {
 		weight := *currentStep.SetWeight
 
-		if err := plugin.SetWeight(ctx, namespace, workloadRef, weight); err != nil {
+		if err := plugin.SetWeight(ctx, rolloutPlugin, weight); err != nil {
 			logCtx.WithError(err).Error("Failed to set weight")
 			newStatus.Message = fmt.Sprintf("Failed to set weight: %v", err)
 			return ctrl.Result{}, err
 		}
 
-		verified, err := plugin.VerifyWeight(ctx, namespace, workloadRef, weight)
+		verified, err := plugin.VerifyWeight(ctx, rolloutPlugin, weight)
 		if err != nil {
 			logCtx.WithError(err).Error("Failed to verify weight")
 			newStatus.Message = fmt.Sprintf("Failed to verify weight: %v", err)
@@ -910,7 +965,7 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 			}
 
 			duration := time.Duration(seconds) * time.Second
-			elapsed := time.Since(pauseCondition.StartTime.Time)
+			elapsed := timeutil.Now().Sub(pauseCondition.StartTime.Time)
 			remaining := duration - elapsed
 			newStatus.Message = fmt.Sprintf("Paused (remaining: %s)", remaining.Round(time.Second))
 			return ctrl.Result{RequeueAfter: remaining}, nil
@@ -933,7 +988,23 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 	return ctrl.Result{Requeue: true}, nil
 }
 
-func (r *RolloutPluginReconciler) processRestart(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, namespace string, workloadRef v1alpha1.WorkloadRef, logCtx *log.Entry) (ctrl.Result, error) {
+// pausedHoldMessage returns a non-empty message when the rollout must hold at its current step:
+// it is manually paused (spec.paused), or paused by the controller for a reason other than a
+// canary pause step (e.g. inconclusive analysis). Pause steps are driven by the pause step logic
+// itself, which keeps evaluating their duration while paused.
+func pausedHoldMessage(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus) string {
+	if rolloutPlugin.Spec.Paused {
+		return "manually paused"
+	}
+	for _, cond := range newStatus.PauseConditions {
+		if cond.Reason != v1alpha1.PauseReasonCanaryPauseStep {
+			return fmt.Sprintf("paused: %s", cond.Reason)
+		}
+	}
+	return ""
+}
+
+func (r *RolloutPluginReconciler) processRestart(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, logCtx *log.Entry) (ctrl.Result, error) {
 	logCtx.WithFields(log.Fields{"attempt": newStatus.RestartCount + 1}).Info("Processing rollout restart from step 0")
 
 	if !newStatus.Aborted {
@@ -951,7 +1022,7 @@ func (r *RolloutPluginReconciler) processRestart(ctx context.Context, rolloutPlu
 	}
 
 	// Call plugin Restart() to return workload to baseline
-	if err := plugin.Restart(ctx, namespace, workloadRef); err != nil {
+	if err := plugin.Restart(ctx, rolloutPlugin); err != nil {
 		logCtx.WithError(err).Error("Plugin restart failed")
 		newStatus.Message = fmt.Sprintf("Restart failed: plugin restart error: %v", err)
 
@@ -962,15 +1033,18 @@ func (r *RolloutPluginReconciler) processRestart(ctx context.Context, rolloutPlu
 	}
 
 	newStatus.RestartCount++
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	newStatus.RestartedAt = &now
 
 	stepZero := int32(0)
 	newStatus.CurrentStepIndex = &stepZero
 	newStatus.PauseConditions = nil
 	newStatus.ControllerPause = false
-	newStatus.Aborted = false
+	clearAbortedState(newStatus)
 	newStatus.Abort = false
+	// Restarting from step 0 re-runs analysis from scratch; otherwise the failed AnalysisRun
+	// that caused the abort would be picked up again and immediately re-abort.
+	clearCurrentAnalysisRuns(newStatus)
 	newStatus.Message = fmt.Sprintf("Restart attempt %d: restarting from step 0", newStatus.RestartCount)
 
 	condition := conditions.NewRolloutPluginCondition(
@@ -1018,7 +1092,7 @@ func calculateFinalRolloutPluginConditions(rolloutPlugin *v1alpha1.RolloutPlugin
 		condChanged = conditions.SetRolloutPluginCondition(newStatus, *unhealthyCond) || condChanged
 	}
 
-	if !conditions.IsRolloutPluginProgressing(newStatus) && newStatus.CurrentRevision != "" && newStatus.CurrentRevision == newStatus.UpdatedRevision {
+	if !conditions.IsRolloutPluginInProgress(newStatus) && newStatus.CurrentRevision != "" && newStatus.CurrentRevision == newStatus.UpdatedRevision {
 		completedCond := conditions.NewRolloutPluginCondition(
 			v1alpha1.RolloutPluginConditionCompleted,
 			corev1.ConditionTrue,
@@ -1364,7 +1438,7 @@ func verifyRolloutPluginSpec(rolloutPlugin *v1alpha1.RolloutPlugin, prevCond *v1
 		return nil
 	}
 	if prevCond != nil && prevCond.Message == msg {
-		prevCond.LastUpdateTime = metav1.Now()
+		prevCond.LastUpdateTime = timeutil.MetaNow()
 		return prevCond
 	}
 	return conditions.NewRolloutPluginCondition(v1alpha1.RolloutPluginConditionInvalidSpec, corev1.ConditionTrue, conditions.RolloutPluginInvalidSpecReason, msg)

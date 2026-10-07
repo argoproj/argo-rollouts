@@ -2639,6 +2639,11 @@ func (in *RolloutPluginSpec) DeepCopyInto(out *RolloutPluginSpec) {
 		*out = new(AnalysisRunStrategy)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.TimeoutSeconds != nil {
+		in, out := &in.TimeoutSeconds, &out.TimeoutSeconds
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 

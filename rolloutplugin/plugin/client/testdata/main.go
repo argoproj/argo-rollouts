@@ -23,25 +23,28 @@ func (p *testPlugin) WatchedGVK() (types.WatchedGVK, types.RpcError) {
 	return types.WatchedGVK{Group: "apps", Version: "v1", Kind: "StatefulSet"}, types.RpcError{}
 }
 
-func (p *testPlugin) GetResourceStatus(_ string, _ v1alpha1.WorkloadRef) (*types.ResourceStatus, types.RpcError) {
+func (p *testPlugin) GetResourceStatus(_ *v1alpha1.RolloutPlugin) (*types.ResourceStatus, types.RpcError) {
 	return &types.ResourceStatus{}, types.RpcError{}
 }
 
-func (p *testPlugin) SetWeight(_ string, _ v1alpha1.WorkloadRef, _ int32) types.RpcError {
+func (p *testPlugin) SetWeight(_ *v1alpha1.RolloutPlugin, _ int32) types.RpcError {
 	return types.RpcError{}
 }
 
-func (p *testPlugin) VerifyWeight(_ string, _ v1alpha1.WorkloadRef, _ int32) (bool, types.RpcError) {
+func (p *testPlugin) VerifyWeight(_ *v1alpha1.RolloutPlugin, _ int32) (bool, types.RpcError) {
 	return true, types.RpcError{}
 }
 
-func (p *testPlugin) PromoteFull(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
+func (p *testPlugin) PromoteFull(_ *v1alpha1.RolloutPlugin) types.RpcError {
 	return types.RpcError{}
 }
-func (p *testPlugin) Abort(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
+func (p *testPlugin) Validate(_ *v1alpha1.RolloutPlugin) types.RpcError {
 	return types.RpcError{}
 }
-func (p *testPlugin) Restart(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
+func (p *testPlugin) Abort(_ *v1alpha1.RolloutPlugin) types.RpcError {
+	return types.RpcError{}
+}
+func (p *testPlugin) Restart(_ *v1alpha1.RolloutPlugin) types.RpcError {
 	return types.RpcError{}
 }
 func (p *testPlugin) Type() string { return "test" }

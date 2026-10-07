@@ -2,7 +2,10 @@ package statefulset
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -13,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,12 +38,76 @@ type Plugin struct {
 	client client.Client
 }
 
-func NewPlugin(logCtx *log.Entry) *Plugin {
-	return &Plugin{logCtx: logCtx}
+// NewPlugin builds the plugin from the args of its rolloutPlugins ConfigMap entry,
+// Supported flags:
+//
+//	--loglevel   log level for this plugin only (defaults to the controller's level)
+//	--logformat  log format for this plugin only, text|json (defaults to the controller's format)
+func NewPlugin(logCtx *log.Entry, args []string) (*Plugin, error) {
+	fs := flag.NewFlagSet("statefulset", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	logLevel := fs.String("loglevel", "", "Set the logging level for the statefulset plugin. One of: debug|info|warn|error")
+	logFormat := fs.String("logformat", "", "Set the logging format for the statefulset plugin. One of: text|json")
+	if err := fs.Parse(args); err != nil {
+		return nil, fmt.Errorf("invalid args for statefulset plugin: %w", err)
+	}
+	if fs.NArg() > 0 {
+		return nil, fmt.Errorf("invalid args for statefulset plugin: unexpected positional arguments %v", fs.Args())
+	}
+	if *logLevel == "" && *logFormat == "" {
+		return &Plugin{logCtx: logCtx}, nil
+	}
+	level := logCtx.Logger.GetLevel()
+	if *logLevel != "" {
+		var err error
+		if level, err = log.ParseLevel(*logLevel); err != nil {
+			return nil, fmt.Errorf("invalid args for statefulset plugin: %w", err)
+		}
+	}
+	formatter := logCtx.Logger.Formatter
+	switch strings.ToLower(*logFormat) {
+	case "":
+	case "json":
+		formatter = &log.JSONFormatter{}
+	case "text":
+		formatter = &log.TextFormatter{FullTimestamp: true}
+	default:
+		return nil, fmt.Errorf("invalid args for statefulset plugin: unknown logformat %q, must be one of: text|json", *logFormat)
+	}
+	return &Plugin{logCtx: withLogger(logCtx, level, formatter)}, nil
+}
+
+// withLogger returns a copy of logCtx backed by its own logger so the level and format apply
+// to this plugin only;
+func withLogger(logCtx *log.Entry, level log.Level, formatter log.Formatter) *log.Entry {
+	base := logCtx.Logger
+	l := &log.Logger{
+		Out:          base.Out,
+		Formatter:    formatter,
+		Hooks:        base.Hooks,
+		ReportCaller: base.ReportCaller,
+		ExitFunc:     base.ExitFunc,
+		Level:        level,
+	}
+	return log.NewEntry(l).WithFields(logCtx.Data)
 }
 
 func (p *Plugin) WatchedGVK() (schema.GroupVersionKind, error) {
 	return appsv1.SchemeGroupVersion.WithKind("StatefulSet"), nil
+}
+
+// Validate rejects RolloutPlugins this plugin can't manage: the workloadRef must be an apps/v1
+// StatefulSet, and spec.plugin.config must be empty since this plugin defines no config fields currently.
+func (p *Plugin) Validate(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	ref := rolloutPlugin.Spec.WorkloadRef
+	gvk := appsv1.SchemeGroupVersion.WithKind("StatefulSet")
+	if ref.APIVersion != gvk.GroupVersion().String() || ref.Kind != gvk.Kind {
+		return fmt.Errorf("spec.workloadRef must reference a %s %s, got %s %s", gvk.GroupVersion().String(), gvk.Kind, ref.APIVersion, ref.Kind)
+	}
+	if cfg := strings.TrimSpace(string(rolloutPlugin.Spec.Plugin.Config)); cfg != "" && cfg != "null" && cfg != "{}" {
+		return fmt.Errorf("spec.plugin.config is not supported by the statefulset plugin currently, got %s", cfg)
+	}
+	return nil
 }
 
 // WatchObject supplies a concrete Go type so SetupWithManager can register a typed watch.
@@ -243,7 +311,8 @@ func (p *Plugin) Init(namespace string) error {
 }
 
 // GetResourceStatus gets the current status of the StatefulSet
-func (p *Plugin) GetResourceStatus(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) (*rolloutplugin.ResourceStatus, error) {
+func (p *Plugin) GetResourceStatus(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) (*rolloutplugin.ResourceStatus, error) {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 	if namespace == "" {
 		return nil, fmt.Errorf("namespace is required")
 	}
@@ -305,7 +374,8 @@ func (p *Plugin) GetResourceStatus(ctx context.Context, namespace string, worklo
 }
 
 // SetWeight sets the canary weight by adjusting the partition field using Server-Side Apply
-func (p *Plugin) SetWeight(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) error {
+func (p *Plugin) SetWeight(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) error {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 
 	// Get the StatefulSet from cache
 	sts := &appsv1.StatefulSet{}
@@ -349,7 +419,8 @@ func (p *Plugin) SetWeight(ctx context.Context, namespace string, workloadRef v1
 }
 
 // VerifyWeight verifies that the canary weight has been achieved
-func (p *Plugin) VerifyWeight(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, error) {
+func (p *Plugin) VerifyWeight(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) (bool, error) {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 
 	// Get the StatefulSet from cache
 	sts := &appsv1.StatefulSet{}
@@ -381,27 +452,67 @@ func (p *Plugin) VerifyWeight(ctx context.Context, namespace string, workloadRef
 		return false, nil
 	}
 
+	// The StatefulSet controller must have observed the partition patch, otherwise its status
+	// still describes the previous spec.
+	if sts.Status.ObservedGeneration != sts.Generation {
+		p.logCtx.WithFields(log.Fields{
+			"generation":         sts.Generation,
+			"observedGeneration": sts.Status.ObservedGeneration,
+		}).Info("StatefulSet status not yet observed latest generation")
+		return false, nil
+	}
+
 	expectedUpdated := updatedCountForWeight(replicas, weight)
 
-	// Get actual updated replicas from StatefulSet status
-	actualUpdated := sts.Status.UpdatedReplicas
+	availableUpdated, err := p.availableUpdatedPods(ctx, sts, expectedPartition, replicas)
+	if err != nil {
+		return false, err
+	}
 
 	p.logCtx.WithFields(log.Fields{
 		"expectedPartition": expectedPartition,
 		"actualPartition":   partition,
 		"expectedUpdated":   expectedUpdated,
-		"actualUpdated":     actualUpdated,
-		"readyReplicas":     sts.Status.ReadyReplicas,
+		"updatedReplicas":   sts.Status.UpdatedReplicas,
+		"availableUpdated":  availableUpdated,
 		"totalReplicas":     replicas,
 	}).Info("Weight verification")
 
-	verified := partition == expectedPartition && actualUpdated >= expectedUpdated
+	return availableUpdated >= expectedUpdated, nil
+}
 
-	return verified, nil
+// availableUpdatedPods counts pods with ordinal >= partition that are on the StatefulSet's
+// UpdateRevision and Available.
+func (p *Plugin) availableUpdatedPods(ctx context.Context, sts *appsv1.StatefulSet, partition, replicas int32) (int32, error) {
+	updateRevision := sts.Status.UpdateRevision
+	if updateRevision == "" {
+		return 0, nil
+	}
+	now := metav1.Now()
+	var available int32
+	for i := max(partition, ordinalStart(sts)); i < ordinalStart(sts)+replicas; i++ {
+		podName := fmt.Sprintf("%s-%d", sts.Name, i)
+		pod := &corev1.Pod{}
+		err := p.client.Get(ctx, client.ObjectKey{Name: podName, Namespace: sts.Namespace}, pod)
+		if errors.IsNotFound(err) {
+			continue
+		}
+		if err != nil {
+			return 0, fmt.Errorf("failed to get pod %s: %w", podName, err)
+		}
+		if pod.Labels[appsv1.StatefulSetRevisionLabel] != updateRevision || pod.DeletionTimestamp != nil {
+			continue
+		}
+		if podutil.IsPodAvailable(pod, sts.Spec.MinReadySeconds, now) {
+			available++
+		}
+	}
+	return available, nil
 }
 
 // PromoteFull completes the rollout by setting partition to 0
-func (p *Plugin) PromoteFull(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error {
+func (p *Plugin) PromoteFull(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": namespace,
@@ -422,7 +533,8 @@ func (p *Plugin) PromoteFull(ctx context.Context, namespace string, workloadRef 
 // never blocks Reconcile for more than one pod's worth of work. The caller determines overall
 // completion. Progress is re-derived from live cluster state on every call rather than tracked separately,
 // so it survives a controller restart mid-abort.
-func (p *Plugin) Abort(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error {
+func (p *Plugin) Abort(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 	sts := &appsv1.StatefulSet{}
 	if err := p.client.Get(ctx, client.ObjectKey{
 		Name:      workloadRef.Name,
@@ -497,7 +609,8 @@ func podReady(pod *corev1.Pod) bool {
 }
 
 // Restart returns the StatefulSet to baseline state (partition = replicas) for restarts
-func (p *Plugin) Restart(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error {
+func (p *Plugin) Restart(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 	p.logCtx.WithFields(log.Fields{
 		"name":      workloadRef.Name,
 		"namespace": namespace,

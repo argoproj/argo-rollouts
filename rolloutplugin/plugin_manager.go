@@ -18,7 +18,9 @@ const BuiltinPluginScheme = "builtin"
 // BuiltinPluginFactory constructs an in-process ResourcePlugin. Factories are defined
 // where the concrete built-ins can be imported (cmd/rollouts-controller), avoiding the
 // statefulset -> rolloutplugin import cycle that a direct reference here would create.
-type BuiltinPluginFactory func(logCtx *log.Entry) ResourcePlugin
+// args are the ConfigMap entry's args, the same ones an external plugin receives as
+// command-line arguments; a factory should reject args it doesn't understand.
+type BuiltinPluginFactory func(logCtx *log.Entry, args []string) (ResourcePlugin, error)
 
 var (
 	// globalPluginManager is the singleton instance of the plugin manager
@@ -147,7 +149,11 @@ func (pm *DefaultPluginManager) RegisterBuiltinPlugins(items []types.PluginItem,
 		if !ok {
 			return fmt.Errorf("rolloutPlugins entry %q references unknown built-in plugin %q", item.Name, id)
 		}
-		if err := pm.RegisterPlugin(item.Name, factory(log.WithField("plugin", item.Name)), namespace); err != nil {
+		plugin, err := factory(log.WithField("plugin", item.Name), item.Args)
+		if err != nil {
+			return fmt.Errorf("rolloutPlugins entry %q: failed to create built-in plugin %q: %w", item.Name, id, err)
+		}
+		if err := pm.RegisterPlugin(item.Name, plugin, namespace); err != nil {
 			return err
 		}
 		pm.mu.Lock()

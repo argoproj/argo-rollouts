@@ -140,8 +140,9 @@ func (r *RolloutPluginReconciler) reconcileAnalysisRuns(ctx context.Context, rp 
 	// Split current and other analysis runs
 	currentArs, otherArs := r.filterCurrentAnalysisRuns(allArs, rp)
 
-	// Check if we should skip analysis reconciliation
-	notProgressing := !conditions.IsRolloutPluginProgressing(&rp.Status)
+	// Check if we should skip analysis reconciliation. A paused rollout is still in progress,
+	// so its analysis keeps running.
+	notProgressing := !conditions.IsRolloutPluginInProgress(&rp.Status)
 	if notProgressing {
 		logCtx.Info("Skipping analysis - not in progress")
 		allArsToCancel := append(currentArs.ToArray(), otherArs...)

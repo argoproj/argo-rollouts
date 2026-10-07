@@ -414,7 +414,9 @@ func newCommand() *cobra.Command {
 				// the same as external plugins. An entry with a builtin:// location (e.g.
 				// "builtin://statefulset") registers the corresponding in-process plugin below.
 				builtinFactories := map[string]rolloutplugin.BuiltinPluginFactory{
-					"statefulset": func(logCtx *log.Entry) rolloutplugin.ResourcePlugin { return statefulset.NewPlugin(logCtx) },
+					"statefulset": func(logCtx *log.Entry, args []string) (rolloutplugin.ResourcePlugin, error) {
+						return statefulset.NewPlugin(logCtx, args)
+					},
 				}
 				cfg, err := rolloutsConfig.GetConfig()
 				if err != nil {

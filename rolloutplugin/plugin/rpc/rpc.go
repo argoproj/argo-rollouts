@@ -16,23 +16,20 @@ type InitPluginArgs struct {
 	Namespace string
 }
 
-// WorkloadRefArgs carries a namespace and WorkloadRef, shared by every RPC method whose only
-// arguments are the target namespace and workload (GetResourceStatus, PromoteFull, Abort, Restart).
-type WorkloadRefArgs struct {
-	Namespace   string
-	WorkloadRef v1alpha1.WorkloadRef
+// RolloutPluginArgs carries the RolloutPlugin, shared by every RPC method whose only
+// argument is the RolloutPlugin (Validate, GetResourceStatus, PromoteFull, Abort, Restart).
+type RolloutPluginArgs struct {
+	RolloutPlugin v1alpha1.RolloutPlugin
 }
 
 type SetWeightArgs struct {
-	Namespace   string
-	WorkloadRef v1alpha1.WorkloadRef
-	Weight      int32
+	RolloutPlugin v1alpha1.RolloutPlugin
+	Weight        int32
 }
 
 type VerifyWeightArgs struct {
-	Namespace   string
-	WorkloadRef v1alpha1.WorkloadRef
-	Weight      int32
+	RolloutPlugin v1alpha1.RolloutPlugin
+	Weight        int32
 }
 
 // Responses for RPC calls
@@ -53,7 +50,7 @@ type WatchedGVKResponse struct {
 
 func init() {
 	gob.RegisterName("rolloutplugin.InitPluginArgs", new(InitPluginArgs))
-	gob.RegisterName("rolloutplugin.WorkloadRefArgs", new(WorkloadRefArgs))
+	gob.RegisterName("rolloutplugin.RolloutPluginArgs", new(RolloutPluginArgs))
 	gob.RegisterName("rolloutplugin.SetWeightArgs", new(SetWeightArgs))
 	gob.RegisterName("rolloutplugin.VerifyWeightArgs", new(VerifyWeightArgs))
 	gob.RegisterName("rolloutplugin.GetResourceStatusResponse", new(GetResourceStatusResponse))
@@ -92,9 +89,9 @@ func (c *PluginRPCClient) WatchedGVK() (types.WatchedGVK, types.RpcError) {
 }
 
 // GetResourceStatus gets the current status of the workload
-func (c *PluginRPCClient) GetResourceStatus(namespace string, workloadRef v1alpha1.WorkloadRef) (*types.ResourceStatus, types.RpcError) {
+func (c *PluginRPCClient) GetResourceStatus(rolloutPlugin *v1alpha1.RolloutPlugin) (*types.ResourceStatus, types.RpcError) {
 	var resp GetResourceStatusResponse
-	var args any = WorkloadRefArgs{Namespace: namespace, WorkloadRef: workloadRef}
+	var args any = RolloutPluginArgs{RolloutPlugin: *rolloutPlugin}
 	err := c.client.Call("Plugin.GetResourceStatus", &args, &resp)
 	if err != nil {
 		return nil, types.RpcError{ErrorString: fmt.Sprintf("GetResourceStatus rpc call error: %s", err)}
@@ -103,9 +100,9 @@ func (c *PluginRPCClient) GetResourceStatus(namespace string, workloadRef v1alph
 }
 
 // SetWeight sets the canary weight
-func (c *PluginRPCClient) SetWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) types.RpcError {
+func (c *PluginRPCClient) SetWeight(rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) types.RpcError {
 	var resp types.RpcError
-	var args any = SetWeightArgs{Namespace: namespace, WorkloadRef: workloadRef, Weight: weight}
+	var args any = SetWeightArgs{RolloutPlugin: *rolloutPlugin, Weight: weight}
 	err := c.client.Call("Plugin.SetWeight", &args, &resp)
 	if err != nil {
 		return types.RpcError{ErrorString: fmt.Sprintf("SetWeight rpc call error: %s", err)}
@@ -114,9 +111,9 @@ func (c *PluginRPCClient) SetWeight(namespace string, workloadRef v1alpha1.Workl
 }
 
 // VerifyWeight verifies that the canary weight has been achieved
-func (c *PluginRPCClient) VerifyWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, types.RpcError) {
+func (c *PluginRPCClient) VerifyWeight(rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) (bool, types.RpcError) {
 	var resp VerifyWeightResponse
-	var args any = VerifyWeightArgs{Namespace: namespace, WorkloadRef: workloadRef, Weight: weight}
+	var args any = VerifyWeightArgs{RolloutPlugin: *rolloutPlugin, Weight: weight}
 	err := c.client.Call("Plugin.VerifyWeight", &args, &resp)
 	if err != nil {
 		return false, types.RpcError{ErrorString: fmt.Sprintf("VerifyWeight rpc call error: %s", err)}
@@ -125,9 +122,9 @@ func (c *PluginRPCClient) VerifyWeight(namespace string, workloadRef v1alpha1.Wo
 }
 
 // PromoteFull skips remaining steps and promotes new version to stable
-func (c *PluginRPCClient) PromoteFull(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
+func (c *PluginRPCClient) PromoteFull(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
 	var resp types.RpcError
-	var args any = WorkloadRefArgs{Namespace: namespace, WorkloadRef: workloadRef}
+	var args any = RolloutPluginArgs{RolloutPlugin: *rolloutPlugin}
 	err := c.client.Call("Plugin.PromoteFull", &args, &resp)
 	if err != nil {
 		return types.RpcError{ErrorString: fmt.Sprintf("PromoteFull rpc call error: %s", err)}
@@ -135,10 +132,21 @@ func (c *PluginRPCClient) PromoteFull(namespace string, workloadRef v1alpha1.Wor
 	return resp
 }
 
-// Abort aborts the rollout
-func (c *PluginRPCClient) Abort(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
+// Validate checks the plugin-specific parts of the RolloutPlugin spec
+func (c *PluginRPCClient) Validate(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
 	var resp types.RpcError
-	var args any = WorkloadRefArgs{Namespace: namespace, WorkloadRef: workloadRef}
+	var args any = RolloutPluginArgs{RolloutPlugin: *rolloutPlugin}
+	err := c.client.Call("Plugin.Validate", &args, &resp)
+	if err != nil {
+		return types.RpcError{ErrorString: fmt.Sprintf("Validate rpc call error: %s", err)}
+	}
+	return resp
+}
+
+// Abort aborts the rollout
+func (c *PluginRPCClient) Abort(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
+	var resp types.RpcError
+	var args any = RolloutPluginArgs{RolloutPlugin: *rolloutPlugin}
 	err := c.client.Call("Plugin.Abort", &args, &resp)
 	if err != nil {
 		return types.RpcError{ErrorString: fmt.Sprintf("Abort rpc call error: %s", err)}
@@ -147,9 +155,9 @@ func (c *PluginRPCClient) Abort(namespace string, workloadRef v1alpha1.WorkloadR
 }
 
 // Restart returns the workload to baseline state for restart
-func (c *PluginRPCClient) Restart(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
+func (c *PluginRPCClient) Restart(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
 	var resp types.RpcError
-	var args any = WorkloadRefArgs{Namespace: namespace, WorkloadRef: workloadRef}
+	var args any = RolloutPluginArgs{RolloutPlugin: *rolloutPlugin}
 	err := c.client.Call("Plugin.Restart", &args, &resp)
 	if err != nil {
 		return types.RpcError{ErrorString: fmt.Sprintf("Restart rpc call error: %s", err)}
@@ -194,12 +202,12 @@ func (s *PluginRPCServer) WatchedGVK(args any, resp *WatchedGVKResponse) error {
 
 // GetResourceStatus handles the GetResourceStatus RPC call
 func (s *PluginRPCServer) GetResourceStatus(args any, resp *GetResourceStatusResponse) error {
-	getStatusArgs, ok := args.(*WorkloadRefArgs)
+	getStatusArgs, ok := args.(*RolloutPluginArgs)
 	if !ok {
 		resp.Error = types.RpcError{ErrorString: fmt.Sprintf("invalid args %v", args)}
 		return nil
 	}
-	status, rpcErr := s.Impl.GetResourceStatus(getStatusArgs.Namespace, getStatusArgs.WorkloadRef)
+	status, rpcErr := s.Impl.GetResourceStatus(&getStatusArgs.RolloutPlugin)
 	resp.Status = status
 	resp.Error = rpcErr
 	return nil
@@ -212,7 +220,7 @@ func (s *PluginRPCServer) SetWeight(args any, resp *types.RpcError) error {
 		*resp = types.RpcError{ErrorString: fmt.Sprintf("invalid args %v", args)}
 		return nil
 	}
-	*resp = s.Impl.SetWeight(setWeightArgs.Namespace, setWeightArgs.WorkloadRef, setWeightArgs.Weight)
+	*resp = s.Impl.SetWeight(&setWeightArgs.RolloutPlugin, setWeightArgs.Weight)
 	return nil
 }
 
@@ -223,7 +231,7 @@ func (s *PluginRPCServer) VerifyWeight(args any, resp *VerifyWeightResponse) err
 		resp.Error = types.RpcError{ErrorString: fmt.Sprintf("invalid args %v", args)}
 		return nil
 	}
-	verified, rpcErr := s.Impl.VerifyWeight(verifyWeightArgs.Namespace, verifyWeightArgs.WorkloadRef, verifyWeightArgs.Weight)
+	verified, rpcErr := s.Impl.VerifyWeight(&verifyWeightArgs.RolloutPlugin, verifyWeightArgs.Weight)
 	resp.Verified = verified
 	resp.Error = rpcErr
 	return nil
@@ -231,34 +239,45 @@ func (s *PluginRPCServer) VerifyWeight(args any, resp *VerifyWeightResponse) err
 
 // PromoteFull handles the PromoteFull RPC call
 func (s *PluginRPCServer) PromoteFull(args any, resp *types.RpcError) error {
-	promoteFullArgs, ok := args.(*WorkloadRefArgs)
+	promoteFullArgs, ok := args.(*RolloutPluginArgs)
 	if !ok {
 		*resp = types.RpcError{ErrorString: fmt.Sprintf("invalid args %v", args)}
 		return nil
 	}
-	*resp = s.Impl.PromoteFull(promoteFullArgs.Namespace, promoteFullArgs.WorkloadRef)
+	*resp = s.Impl.PromoteFull(&promoteFullArgs.RolloutPlugin)
+	return nil
+}
+
+// Validate handles the Validate RPC call
+func (s *PluginRPCServer) Validate(args any, resp *types.RpcError) error {
+	validateArgs, ok := args.(*RolloutPluginArgs)
+	if !ok {
+		*resp = types.RpcError{ErrorString: fmt.Sprintf("invalid args %v", args)}
+		return nil
+	}
+	*resp = s.Impl.Validate(&validateArgs.RolloutPlugin)
 	return nil
 }
 
 // Abort handles the Abort RPC call
 func (s *PluginRPCServer) Abort(args any, resp *types.RpcError) error {
-	abortArgs, ok := args.(*WorkloadRefArgs)
+	abortArgs, ok := args.(*RolloutPluginArgs)
 	if !ok {
 		*resp = types.RpcError{ErrorString: fmt.Sprintf("invalid args %v", args)}
 		return nil
 	}
-	*resp = s.Impl.Abort(abortArgs.Namespace, abortArgs.WorkloadRef)
+	*resp = s.Impl.Abort(&abortArgs.RolloutPlugin)
 	return nil
 }
 
 // Restart handles the Restart RPC call
 func (s *PluginRPCServer) Restart(args any, resp *types.RpcError) error {
-	restartArgs, ok := args.(*WorkloadRefArgs)
+	restartArgs, ok := args.(*RolloutPluginArgs)
 	if !ok {
 		*resp = types.RpcError{ErrorString: fmt.Sprintf("invalid args %v", args)}
 		return nil
 	}
-	*resp = s.Impl.Restart(restartArgs.Namespace, restartArgs.WorkloadRef)
+	*resp = s.Impl.Restart(&restartArgs.RolloutPlugin)
 	return nil
 }
 

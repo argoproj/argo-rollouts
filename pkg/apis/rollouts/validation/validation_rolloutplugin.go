@@ -1,13 +1,11 @@
 package validation
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 const (
@@ -38,16 +36,8 @@ func ValidateRolloutPlugin(rp *v1alpha1.RolloutPlugin) string {
 		return "RolloutPlugin spec.strategy.canary is required"
 	}
 
-	// spec.plugin.config is opaque, but the controller honors timeoutSeconds/timeoutAbort
-	// out of it. Reject malformed config and a non-positive timeout up front.
-	if len(spec.Plugin.Config) > 0 {
-		var pluginCfg defaults.ResourcePluginConfig
-		if err := json.Unmarshal(spec.Plugin.Config, &pluginCfg); err != nil {
-			return fmt.Sprintf("RolloutPlugin spec.plugin.config is not valid: %v", err)
-		}
-		if pluginCfg.TimeoutSeconds != nil && *pluginCfg.TimeoutSeconds <= 0 {
-			return "RolloutPlugin spec.plugin.config.timeoutSeconds must be greater than 0"
-		}
+	if spec.TimeoutSeconds != nil && *spec.TimeoutSeconds <= 0 {
+		return "RolloutPlugin spec.timeoutSeconds must be greater than 0"
 	}
 
 	// Validate canary steps

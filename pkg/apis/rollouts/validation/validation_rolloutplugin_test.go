@@ -24,32 +24,35 @@ func validRolloutPlugin() *v1alpha1.RolloutPlugin {
 	}
 }
 
-func TestValidateRolloutPlugin_TimeoutConfig(t *testing.T) {
-	t.Run("valid positive timeoutSeconds in plugin config", func(t *testing.T) {
+func TestValidateRolloutPlugin_TimeoutSeconds(t *testing.T) {
+	deadline := func(v int32) *int32 { return &v }
+
+	t.Run("valid positive timeoutSeconds", func(t *testing.T) {
 		rp := validRolloutPlugin()
-		rp.Spec.Plugin.Config = []byte(`{"timeoutSeconds": 300, "timeoutAbort": true}`)
+		rp.Spec.TimeoutSeconds = deadline(300)
+		rp.Spec.TimeoutAbort = true
 		assert.Equal(t, "", ValidateRolloutPlugin(rp))
 	})
 
 	t.Run("zero timeoutSeconds is rejected", func(t *testing.T) {
 		rp := validRolloutPlugin()
-		rp.Spec.Plugin.Config = []byte(`{"timeoutSeconds": 0}`)
-		assert.Equal(t, "RolloutPlugin spec.plugin.config.timeoutSeconds must be greater than 0", ValidateRolloutPlugin(rp))
+		rp.Spec.TimeoutSeconds = deadline(0)
+		assert.Equal(t, "RolloutPlugin spec.timeoutSeconds must be greater than 0", ValidateRolloutPlugin(rp))
 	})
 
 	t.Run("negative timeoutSeconds is rejected", func(t *testing.T) {
 		rp := validRolloutPlugin()
-		rp.Spec.Plugin.Config = []byte(`{"timeoutSeconds": -5}`)
-		assert.Equal(t, "RolloutPlugin spec.plugin.config.timeoutSeconds must be greater than 0", ValidateRolloutPlugin(rp))
+		rp.Spec.TimeoutSeconds = deadline(-5)
+		assert.Equal(t, "RolloutPlugin spec.timeoutSeconds must be greater than 0", ValidateRolloutPlugin(rp))
 	})
 
-	t.Run("malformed plugin config is rejected", func(t *testing.T) {
+	t.Run("plugin config is opaque to validation", func(t *testing.T) {
 		rp := validRolloutPlugin()
-		rp.Spec.Plugin.Config = []byte(`{not json`)
-		assert.Contains(t, ValidateRolloutPlugin(rp), "spec.plugin.config is not valid")
+		rp.Spec.Plugin.Config = []byte(`{"anything": {"nested": true}}`)
+		assert.Equal(t, "", ValidateRolloutPlugin(rp))
 	})
 
-	t.Run("absent config is valid (default timeout applies)", func(t *testing.T) {
+	t.Run("absent timeoutSeconds is valid (default applies)", func(t *testing.T) {
 		rp := validRolloutPlugin()
 		assert.Equal(t, "", ValidateRolloutPlugin(rp))
 	})

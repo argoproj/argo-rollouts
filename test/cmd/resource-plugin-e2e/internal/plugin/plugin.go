@@ -51,7 +51,8 @@ func (p *RpcPlugin) WatchedGVK() (types.WatchedGVK, types.RpcError) {
 	return types.WatchedGVK{Group: "apps", Version: "v1", Kind: "StatefulSet"}, types.RpcError{}
 }
 
-func (p *RpcPlugin) GetResourceStatus(namespace string, workloadRef v1alpha1.WorkloadRef) (*types.ResourceStatus, types.RpcError) {
+func (p *RpcPlugin) GetResourceStatus(rolloutPlugin *v1alpha1.RolloutPlugin) (*types.ResourceStatus, types.RpcError) {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("GetResourceStatus: apiVersion=%s kind=%s name=%s", workloadRef.APIVersion, workloadRef.Kind, workloadRef.Name)
 
 	if p.kubeClient == nil {
@@ -78,7 +79,8 @@ func statefulSetResourceStatus(sts *appsv1.StatefulSet) *types.ResourceStatus {
 	}
 }
 
-func (p *RpcPlugin) SetWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) types.RpcError {
+func (p *RpcPlugin) SetWeight(rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) types.RpcError {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("SetWeight: name=%s weight=%d", workloadRef.Name, weight)
 
 	sts, err := p.kubeClient.AppsV1().StatefulSets(namespace).Get(context.Background(), workloadRef.Name, metav1.GetOptions{})
@@ -94,12 +96,14 @@ func (p *RpcPlugin) SetWeight(namespace string, workloadRef v1alpha1.WorkloadRef
 	return p.patchPartition(namespace, workloadRef.Name, partition)
 }
 
-func (p *RpcPlugin) VerifyWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, types.RpcError) {
+func (p *RpcPlugin) VerifyWeight(rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) (bool, types.RpcError) {
+	workloadRef := rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("VerifyWeight: name=%s weight=%d", workloadRef.Name, weight)
 	return true, types.RpcError{}
 }
 
-func (p *RpcPlugin) PromoteFull(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
+func (p *RpcPlugin) PromoteFull(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("PromoteFull: name=%s", workloadRef.Name)
 	return p.patchPartition(namespace, workloadRef.Name, 0)
 }
@@ -138,12 +142,18 @@ func (p *RpcPlugin) patchPartition(namespace, name string, partition int32) type
 
 func boolPtr(b bool) *bool { return &b }
 
-func (p *RpcPlugin) Abort(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
+func (p *RpcPlugin) Validate(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
+	return types.RpcError{}
+}
+
+func (p *RpcPlugin) Abort(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
+	workloadRef := rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("Abort: name=%s", workloadRef.Name)
 	return types.RpcError{}
 }
 
-func (p *RpcPlugin) Restart(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
+func (p *RpcPlugin) Restart(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
+	workloadRef := rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("Restart: name=%s", workloadRef.Name)
 	return types.RpcError{}
 }

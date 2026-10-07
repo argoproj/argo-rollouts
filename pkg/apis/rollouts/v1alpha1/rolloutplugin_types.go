@@ -49,6 +49,18 @@ type RolloutPluginSpec struct {
 
 	// Paused pauses the rollout at its current step.
 	Paused bool `json:"paused,omitempty" protobuf:"varint,6,opt,name=paused"`
+
+	// TimeoutSeconds is the maximum time in seconds for a rollout to make progress
+	// before it is considered to be failed. The controller continues to process failed
+	// rollouts and a condition with a ProgressDeadlineExceeded reason is surfaced in the
+	// status. Time spent paused does not count. Defaults to 600s.
+	// +optional
+	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty" protobuf:"varint,7,opt,name=timeoutSeconds"`
+
+	// TimeoutAbort is whether to abort the update when TimeoutSeconds
+	// is exceeded.
+	// +optional
+	TimeoutAbort bool `json:"timeoutAbort,omitempty" protobuf:"varint,8,opt,name=timeoutAbort"`
 }
 
 // WorkloadRef references a Kubernetes resource to be managed by the RolloutPlugin
