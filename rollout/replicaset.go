@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -116,7 +117,14 @@ func (c *rolloutContext) removeScaleDownDeadlines() error {
 	}
 	if c.stableRS != nil {
 		if len(toRemove) == 0 || c.stableRS.Name != c.newRS.Name {
-			toRemove = append(toRemove, c.stableRS)
+			// When dynamicStableScale is enabled and we are mid-rollout, preserve the
+			// scale-down-deadline annotation on the stable RS so that scaleDownDelaySeconds
+			// is honored during step progression.
+			if c.isDynamicScaleDownDelayEnabled() {
+				c.log.Infof("Preserving scale-down-deadline on stable RS '%s' for dynamic scale down delay", c.stableRS.Name)
+			} else {
+				toRemove = append(toRemove, c.stableRS)
+			}
 		}
 	}
 	for _, rs := range toRemove {
@@ -146,6 +154,20 @@ func (c *rolloutContext) syncNewRSReplicasAnnotation() error {
 	}
 	c.newRS = newRS
 	return nil
+}
+
+// isDynamicScaleDownDelayEnabled returns true when the rollout uses dynamicStableScale with
+// traffic routing, has scaleDownDelaySeconds configured, and is actively progressing through
+// canary steps (not aborted, not fully promoted). When true, the stable RS scale-down is
+// delayed by scaleDownDelaySeconds to allow pods to drain connections gracefully.
+func (c *rolloutContext) isDynamicScaleDownDelayEnabled() bool {
+	return c.rollout.Spec.Strategy.Canary != nil &&
+		c.rollout.Spec.Strategy.Canary.DynamicStableScale &&
+		c.rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
+		c.rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds != nil &&
+		!rolloututil.IsFullyPromoted(c.rollout) &&
+		!c.pauseContext.IsAborted() &&
+		!c.rollout.Status.PromoteFull
 }
 
 func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
