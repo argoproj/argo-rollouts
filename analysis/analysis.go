@@ -31,6 +31,8 @@ const (
 	// SuccessfulAssessmentRunTerminatedResult is used for logging purposes when the metrics evaluation
 	// is successful and the run is terminated.
 	SuccessfulAssessmentRunTerminatedResult = "Metric Assessment Result - Successful: Run Terminated"
+
+	sharedSecretLabel = "argo-rollouts.argoproj.io/shared-secret"
 )
 
 // metricTask holds the metric which need to be measured during this reconciliation along with
@@ -271,16 +273,27 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 		if arg.ValueFrom != nil && arg.ValueFrom.SecretKeyRef != nil {
 			ref := arg.ValueFrom.SecretKeyRef
 			secretNamespace := namespace
-			if ref.ControllerNamespace {
-				secretNamespace = defaults.Namespace()
+			if ref.SharedSecret {
+				if c.analysisSharedSecretNamespace == "" {
+					return nil, nil, fmt.Errorf("failed to resolve analysis argument %q: shared-secret references are disabled", arg.Name)
+				}
+
+				secretNamespace = c.analysisSharedSecretNamespace
 			}
 
 			secret, err := c.kubeclientset.CoreV1().Secrets(secretNamespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
-					return nil, nil, fmt.Errorf("secret %s not found in namespace %s (controllerNamespace=%t)", ref.Name, secretNamespace, ref.ControllerNamespace)
+					return nil, nil, fmt.Errorf("secret %s not found in namespace %s", ref.Name, secretNamespace)
 				}
 				return nil, nil, err
+			}
+
+			if ref.SharedSecret && c.sharedSecretStrict {
+				if secret.Labels[sharedSecretLabel] != "true" {
+					return nil, nil, fmt.Errorf(
+						"failed to resolve analysis argument %q: secret %q in shared secret namespace %q is not labeled for use by AnalysisRuns", arg.Name, ref.Name, secretNamespace)
+				}
 			}
 
 			secretContentBytes, ok := secret.Data[ref.Key]
