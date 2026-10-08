@@ -104,13 +104,15 @@ func isGenerationObserved(ro *v1alpha1.Rollout) bool {
 
 // IsUnpausing detects if we are in the process of unpausing a rollout. This is determined by seeing
 // if status.controllerPause is true, but the list of pause conditions (status.pauseConditions)
-// is empty. This implies that a user cleared the pause conditions but controller has not yet
-// observed or reacted to it.
+// is empty and spec.paused is still true. This implies that a user cleared the pause conditions
+// via external means (like the plugin) but has not yet set spec.paused to false.
+// If spec.paused is false, it means the user has already resumed the rollout, so this is not
+// an unpausing state anymore - it's just a brief window before the controller updates status.controllerPause.
 // NOTE: this function is necessary because unlike metadata.generation & status.observedGeneration
 // status.controllerPause & status.pauseConditions are both status fields and does not benefit from
 // the auto-incrementing behavior of metadata.generation.
 func IsUnpausing(ro *v1alpha1.Rollout) bool {
-	return ro.Status.ControllerPause && len(ro.Status.PauseConditions) == 0
+	return ro.Status.ControllerPause && len(ro.Status.PauseConditions) == 0 && ro.Spec.Paused
 }
 
 func isWorkloadGenerationObserved(ro *v1alpha1.Rollout) bool {
