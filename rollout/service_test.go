@@ -317,6 +317,41 @@ func TestCanaryAbortWithTrafficRoutingLeavesCanaryServiceAlone(t *testing.T) {
 	}
 }
 
+// TestCanaryAbortWithoutTrafficRoutingReturnsCanaryServiceError verifies that a failure to reset the
+// canary Service to stable during a basic canary abort is surfaced to the caller.
+func TestCanaryAbortWithoutTrafficRoutingReturnsCanaryServiceError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](5)}}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r2 := bumpVersion(r1)
+	r2.Status.Abort = true
+	r2.Status.AbortedAt = &metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
+
+	rsStable := newReplicaSetWithStatus(r1, 5, 5)
+	rsStableHash := rsStable.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsStableHash}, r1)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsStableHash}, r1)
+
+	f.kubeobjects = append(f.kubeobjects, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	ctrl, _, k8sI := f.newController(noResyncPeriodFunc)
+	roCtx, err := ctrl.newRolloutContext(r2)
+	assert.NoError(t, err)
+	roCtx.newRS = newReplicaSetWithStatus(r2, 3, 3)
+	roCtx.stableRS = rsStable
+	assert.NoError(t, k8sI.Core().V1().Services().Informer().GetIndexer().Delete(canarySvc))
+
+	err = roCtx.reconcileStableAndCanaryService()
+	assert.ErrorContains(t, err, `"canary" not found`)
+}
+
 // TestBlueGreenAWSVerifyTargetGroupsNotYetReady verifies we don't proceed with setting stable with
 // the blue-green strategy until target group verification is successful
 func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
