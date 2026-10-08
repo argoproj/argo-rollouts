@@ -12,6 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -227,7 +228,8 @@ func TestRunSuccessfully(t *testing.T) {
 	assert.Equal(t, nil, p.GarbageCollect(run, metric, 0))
 
 	measurement2 := p.Terminate(run, metric, measurement)
-	assert.Equal(t, measurement, measurement2)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, measurement2.Phase)
+	assert.NotNil(t, measurement2.FinishedAt)
 }
 
 func TestRunBadJobResponse(t *testing.T) {
@@ -863,6 +865,31 @@ func TestRunStartAndEndMismatched(t *testing.T) {
 
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement4.Phase)
 	assert.Contains(t, measurement4.Message, "controlScope.end and experimentScope.end must both be set or be empty")
+}
+
+// TestTerminate reproduces https://github.com/argoproj/argo-rollouts/issues/4815: Terminate
+// must resolve a still-Running measurement to a completed phase. Previously it returned the
+// measurement unchanged, which left Phase as Running forever - analysis.go only stops calling
+// Terminate once the measurement's Phase reports Completed(), so this caused Terminate to be
+// invoked again on every subsequent reconcile.
+func TestTerminate(t *testing.T) {
+	e := *log.NewEntry(log.New())
+	c := NewTestClient(func(req *http.Request) *http.Response {
+		t.Fatal("Terminate should not make any HTTP calls")
+		return nil
+	})
+
+	p := NewKayentaProvider(e, c)
+
+	measurement := v1alpha1.Measurement{
+		Phase: v1alpha1.AnalysisPhaseRunning,
+	}
+
+	result := p.Terminate(newAnalysisRun(), buildMetric(), measurement)
+
+	assert.True(t, result.Phase.Completed(), "Terminate must resolve the measurement to a completed phase")
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, result.Phase)
+	require.NotNil(t, result.FinishedAt)
 }
 
 // RoundTripFunc .
