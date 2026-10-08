@@ -2094,6 +2094,8 @@ func TestTrafficRoutingErrorsWhenNewCanaryHasNoReplicas(t *testing.T) {
 				assert.Equal(t, int32(0), *patchedRollout.Status.CurrentStepIndex,
 					"traffic routing error must not complete the current step")
 			}
+			eventsStr := strings.Join(f.events, " ")
+			assert.Contains(t, eventsStr, "TrafficRoutingError", "traffic routing error must be surfaced as an event")
 		})
 	}
 }
@@ -2213,8 +2215,8 @@ spec:
 	f.expectUpdateReplicaSetAction(rs3)
 	f.expectUpdateRolloutAction(r6)
 	f.expectPatchRolloutAction(r6)
-	f.expectGetRolloutAction(r6) // re-seed between syncs
-	// Sync 2 fails with "delaying destination rule switch"; its status sync has nothing to patch.
+	f.expectGetRolloutAction(r6)   // re-seed between syncs
+	f.expectPatchRolloutAction(r6) // sync 2: status sync records ReconcileSucceeded=False for the delayed destination rule switch
 
 	assert.Nil(t, f.fakeTrafficRouting, "test must use real Istio reconciler (fakeTrafficRouting=nil)")
 

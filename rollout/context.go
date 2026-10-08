@@ -67,6 +67,12 @@ type rolloutContext struct {
 	// progressionBlocked holds step advancement and full promotion after a stage failure.
 	progressionBlocked bool
 
+	// stageConditions holds this pass's ReconcileSucceeded=False condition, if any.
+	stageConditions map[v1alpha1.RolloutConditionType]v1alpha1.RolloutCondition
+
+	// stageSuccesses lets a False ReconcileSucceeded recover to True after a clean pass.
+	stageSuccesses map[v1alpha1.RolloutConditionType]bool
+
 	// Set when the experiments/analysis stages complete; see carryOverUnreconciledStatus.
 	experimentsReconciled bool
 	analysisReconciled    bool
