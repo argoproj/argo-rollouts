@@ -244,3 +244,63 @@ provider:
         istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
       ))
 ```
+
+## Connecting to a prometheus server with a self-signed certificate
+
+If your prometheus server presents a certificate signed by a private or self-signed CA, you can set `caCert` to a
+PEM-encoded CA certificate bundle. This trusts the given CA for TLS verification purposes while keeping certificate
+verification enabled, as opposed to `insecure: true` which disables verification altogether.
+
+Note that when `caCert` is set, only the CA certificates in that bundle are trusted for the prometheus connection (the
+system's default trust store is not consulted), so include every CA needed to verify the server's certificate chain.
+If both `insecure: true` and `caCert` are set, `insecure` takes precedence and verification is skipped.
+
+```yaml
+provider:
+  prometheus:
+    address: https://prometheus.example.com
+    caCert: |
+      -----BEGIN CERTIFICATE-----
+      MIIDXTCCAkWgAwIBAgIJAJC1...
+      -----END CERTIFICATE-----
+    query: |
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+      )) /
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+      ))
+```
+
+The certificate can also be sourced from a Kubernetes Secret by referencing it as an [AnalysisTemplate argument](../features/analysis.md#analysis-template-arguments):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+  - name: service-name
+  # from secret
+  - name: prometheus-ca-cert
+    valueFrom:
+      secretKeyRef:
+        name: prometheus-ca-cert
+        key: ca.crt
+  metrics:
+  - name: success-rate
+    successCondition: result[0] >= 0.95
+    provider:
+      prometheus:
+        address: https://prometheus.example.com
+        # placeholders are resolved when an AnalysisRun is created
+        caCert: "{{ args.prometheus-ca-cert }}"
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+          )) /
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+          ))
+```
