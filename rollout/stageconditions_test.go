@@ -178,12 +178,10 @@ func TestStageFailureEventOnlyOnTransition(t *testing.T) {
 	ctx, recorder := newCtx(nil)
 	ctx.recordStageFailure(failure)
 	assert.Equal(t, []string{conditions.TrafficRoutingErrorReason}, recorder.Events(), "a new failure must emit an event")
-	assert.True(t, ctx.progressionBlocked)
 
 	ctx, recorder = newCtx(conditions.NewRolloutCondition(v1alpha1.RolloutReconcileSucceeded, corev1.ConditionFalse, conditions.TrafficRoutingErrorReason, "routing failed"))
 	ctx.recordStageFailure(failure)
 	assert.Empty(t, recorder.Events(), "a repeated failure with the same reason must not emit an event")
-	assert.True(t, ctx.progressionBlocked)
 
 	ctx, recorder = newCtx(conditions.NewRolloutCondition(v1alpha1.RolloutReconcileSucceeded, corev1.ConditionFalse, conditions.ServiceUpdateErrorReason, "service update failed"))
 	ctx.recordStageFailure(failure)

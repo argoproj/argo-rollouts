@@ -1834,3 +1834,44 @@ func TestBlueGreenStageFailurePreservesPrePromotionAnalysisRun(t *testing.T) {
 	assert.NotContains(t, patch, "prePromotionAnalysisRunStatus",
 		"the current pre-promotion AnalysisRun must stay recorded in status; patch: %s", patch)
 }
+
+func TestBlueGreenRevisionHistoryFailureDoesNotBlockServiceSwitch(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 2, ptr.To[int32](0), "active", "preview")
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+
+	rs1 := newReplicaSetWithStatus(r1, 0, 0) // scaled-down old revision: deletion candidate
+	rs2 := newReplicaSetWithStatus(r2, 2, 2) // stable / currently active
+	rs3 := newReplicaSetWithStatus(r3, 2, 2) // new, fully available
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs3PodHash := rs3.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r3 = updateBlueGreenRolloutStatus(r3, rs3PodHash, rs2PodHash, rs2PodHash, 4, 2, 4, 4, false, true, false)
+
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	activeSvc := newService("active", 80, activeSelector, r3)
+	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}
+	previewSvc := newService("preview", 80, previewSelector, r3)
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2, rs3)
+	f.rolloutLister = append(f.rolloutLister, r3)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.kubeclient.PrependReactor("delete", "replicasets", func(action core.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("rbac denied replicaset deletion")
+	})
+
+	servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs3PodHash)
+	_ = f.expectDeleteReplicaSetAction(rs1)
+	_ = f.expectPatchRolloutAction(r3)
+	f.runController(getKey(r3, t), true, true, c, i, k8sI)
+
+	// active service must still switch to the new ReplicaSet despite the cleanup failure
+	f.verifyPatchedService(servicePatchIndex, rs3PodHash, "")
+}

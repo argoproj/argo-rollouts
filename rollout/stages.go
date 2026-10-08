@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -16,6 +17,9 @@ type stageOutcome int
 const (
 	// stageContinue: proceed to the next stage.
 	stageContinue stageOutcome = iota
+	// stageContinueWithError: record the failure and keep running. The error is returned after the
+	// status sync but does not block progression.
+	stageContinueWithError
 	// stageStop: halt the pipeline and fall through to status sync. A non-nil err is recorded
 	// (ReconcileSucceeded=False), blocks progression for this pass, and is returned after the sync.
 	stageStop
@@ -61,6 +65,7 @@ var blueGreenStages = []strategyStage{
 	{"targetGroups", blueGreenStageTargetGroups},
 	{"analysis", blueGreenStageAnalysis},
 	{"ephemeralMetadata", blueGreenStageEphemeralMetadata},
+	{"revisionHistory", blueGreenStageRevisionHistory},
 }
 
 func (c *rolloutContext) runCanaryStages() error {
@@ -78,31 +83,42 @@ func (c *rolloutContext) runBlueGreenStages(previewSvc, activeSvc *corev1.Servic
 }
 
 func (c *rolloutContext) runStages(stages []strategyStage) error {
+	// errs collects stageContinueWithError failures so they survive a later stop.
+	var errs []error
 	for _, s := range stages {
 		res := s.run(c)
 		switch res.outcome {
 		case stageContinue:
+		case stageContinueWithError:
+			c.recordStageFailure(res)
+			errs = append(errs, res.err)
 		case stageStop:
 			if res.err != nil {
 				c.recordStageFailure(res)
-				return res.err
+				c.progressionBlocked = true
+				errs = append(errs, res.err)
+			} else {
+				c.log.Infof("stage %s: stopping further changes, proceeding to status sync", s.name)
 			}
-			c.log.Infof("stage %s: stopping further changes, proceeding to status sync", s.name)
-			return nil
+			return errors.Join(errs...)
 		case stageStopNoStatus:
 			c.skipStatusSync = true
-			return res.err
+			if res.err != nil {
+				errs = append(errs, res.err)
+			}
+			return errors.Join(errs...)
 		}
 	}
-	// Reconcile work completed without error; ReconcileSucceeded may recover to True.
-	c.markStageSucceeded()
-	return nil
+	if len(errs) == 0 {
+		// Reconcile work completed without error; ReconcileSucceeded may recover to True.
+		c.markStageSucceeded()
+	}
+	return errors.Join(errs...)
 }
 
-// recordStageFailure sets ReconcileSucceeded=False and blocks progression for this pass. The
-// warning event is only emitted when the condition changes.
+// recordStageFailure sets ReconcileSucceeded=False. The warning event is only emitted when the
+// condition changes.
 func (c *rolloutContext) recordStageFailure(res stageResult) {
-	c.progressionBlocked = true
 	reason := res.reason
 	if reason == "" {
 		reason = conditions.RolloutReconciliationErrorReason
@@ -184,14 +200,16 @@ func canaryStagePodRestart(c *rolloutContext) stageResult {
 
 func canaryStageEphemeralMetadata(c *rolloutContext) stageResult {
 	if err := c.reconcileEphemeralMetadata(); err != nil {
-		return stageResult{outcome: stageStop, err: err}
+		// Cosmetic: must not block the rest of the pass.
+		return stageResult{outcome: stageContinueWithError, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStageRevisionHistory(c *rolloutContext) stageResult {
 	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
-		return stageResult{outcome: stageStop, err: err}
+		// Cosmetic: must not block the rest of the pass.
+		return stageResult{outcome: stageContinueWithError, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
@@ -348,7 +366,16 @@ func blueGreenStageAnalysis(c *rolloutContext) stageResult {
 
 func blueGreenStageEphemeralMetadata(c *rolloutContext) stageResult {
 	if err := c.reconcileEphemeralMetadata(); err != nil {
-		return stageResult{outcome: stageStop, err: err}
+		// Cosmetic: must not block the rest of the pass.
+		return stageResult{outcome: stageContinueWithError, err: err}
+	}
+	return stageResult{outcome: stageContinue}
+}
+
+func blueGreenStageRevisionHistory(c *rolloutContext) stageResult {
+	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
+		// Cosmetic: must not block the rest of the pass.
+		return stageResult{outcome: stageContinueWithError, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
