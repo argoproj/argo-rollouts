@@ -20,5 +20,8 @@ spec:
       containers:
         - name: argo-rollouts-dashboard
           image: quay.io/argoproj/kubectl-argo-rollouts
+          args:
+            - dashboard
+            - --address=0.0.0.0
           ports:
             - containerPort: 3100

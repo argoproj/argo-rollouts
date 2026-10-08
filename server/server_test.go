@@ -98,7 +98,7 @@ func TestNewHTTPServer(t *testing.T) {
 		httpServer := s.newHTTPServer(ctx, port)
 
 		assert.NotNil(t, httpServer)
-		assert.Equal(t, "0.0.0.0:8080", httpServer.Addr)
+		assert.Equal(t, "127.0.0.1:8080", httpServer.Addr)
 		assert.NotNil(t, httpServer.Handler)
 	})
 
