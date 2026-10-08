@@ -37,10 +37,6 @@
                                             "secretKeyRef": {
                                                 "description": "Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom",
                                                 "properties": {
-                                                    "controllerNamespace": {
-                                                        "description": "ControllerNamespace indicates the secret should be read from the namespace\nwhere the argo-rollouts controller is deployed.",
-                                                        "type": "boolean"
-                                                    },
                                                     "key": {
                                                         "description": "Key is the key of the secret to select from.",
                                                         "type": "string"
@@ -48,6 +44,10 @@
                                                     "name": {
                                                         "description": "Name is the name of the secret",
                                                         "type": "string"
+                                                    },
+                                                    "sharedSecret": {
+                                                        "description": "SharedSecret indicates the secret should be read from the namespace\nmentioned by --analysis-shared-secret-namespace flag.",
+                                                        "type": "boolean"
                                                     }
                                                 },
                                                 "required": [
@@ -6522,10 +6522,6 @@
                                             "secretKeyRef": {
                                                 "description": "Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom",
                                                 "properties": {
-                                                    "controllerNamespace": {
-                                                        "description": "ControllerNamespace indicates the secret should be read from the namespace\nwhere the argo-rollouts controller is deployed.",
-                                                        "type": "boolean"
-                                                    },
                                                     "key": {
                                                         "description": "Key is the key of the secret to select from.",
                                                         "type": "string"
@@ -6533,6 +6529,10 @@
                                                     "name": {
                                                         "description": "Name is the name of the secret",
                                                         "type": "string"
+                                                    },
+                                                    "sharedSecret": {
+                                                        "description": "SharedSecret indicates the secret should be read from the namespace\nmentioned by --analysis-shared-secret-namespace flag.",
+                                                        "type": "boolean"
                                                     }
                                                 },
                                                 "required": [
@@ -13023,10 +13023,6 @@
                                             "secretKeyRef": {
                                                 "description": "Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom",
                                                 "properties": {
-                                                    "controllerNamespace": {
-                                                        "description": "ControllerNamespace indicates the secret should be read from the namespace\nwhere the argo-rollouts controller is deployed.",
-                                                        "type": "boolean"
-                                                    },
                                                     "key": {
                                                         "description": "Key is the key of the secret to select from.",
                                                         "type": "string"
@@ -13034,6 +13030,10 @@
                                                     "name": {
                                                         "description": "Name is the name of the secret",
                                                         "type": "string"
+                                                    },
+                                                    "sharedSecret": {
+                                                        "description": "SharedSecret indicates the secret should be read from the namespace\nmentioned by --analysis-shared-secret-namespace flag.",
+                                                        "type": "boolean"
                                                     }
                                                 },
                                                 "required": [
@@ -19528,10 +19528,6 @@
                                                         "secretKeyRef": {
                                                             "description": "Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom",
                                                             "properties": {
-                                                                "controllerNamespace": {
-                                                                    "description": "ControllerNamespace indicates the secret should be read from the namespace\nwhere the argo-rollouts controller is deployed.",
-                                                                    "type": "boolean"
-                                                                },
                                                                 "key": {
                                                                     "description": "Key is the key of the secret to select from.",
                                                                     "type": "string"
@@ -19539,6 +19535,10 @@
                                                                 "name": {
                                                                     "description": "Name is the name of the secret",
                                                                     "type": "string"
+                                                                },
+                                                                "sharedSecret": {
+                                                                    "description": "SharedSecret indicates the secret should be read from the namespace\nmentioned by --analysis-shared-secret-namespace flag.",
+                                                                    "type": "boolean"
                                                                 }
                                                             },
                                                             "required": [

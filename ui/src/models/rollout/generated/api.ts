@@ -2873,11 +2873,11 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRe
      */
     key?: string;
     /**
-     * ControllerNamespace indicates the secret should be read from the namespace where the argo-rollouts controller is deployed.
+     * SharedSecret indicates the secret should be read from the namespace mentioned by --analysis-shared-secret-namespace flag.
      * @type {boolean}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef
      */
-    controllerNamespace?: boolean;
+    sharedSecret?: boolean;
 }
 /**
  * 

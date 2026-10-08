@@ -1667,8 +1667,7 @@ func TestSecretNotFound(t *testing.T) {
 		incompleteMeasurement: nil,
 	}}
 	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	expectedErr := fmt.Sprintf("secret %s not found in namespace %s (controllerNamespace=%t)",
-		args[0].ValueFrom.SecretKeyRef.Name, metav1.NamespaceDefault, args[0].ValueFrom.SecretKeyRef.ControllerNamespace)
+	expectedErr := fmt.Sprintf("secret %s not found in namespace %s", args[0].ValueFrom.SecretKeyRef.Name, metav1.NamespaceDefault)
 	assert.Equal(t, expectedErr, err.Error())
 }
 
@@ -2607,31 +2606,39 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfNoCompletedAt(t *testing.T) {
 	assert.Empty(t, f.client.Fake.Actions())
 }
 
-func TestResolveArgsUsesRunNamespaceByDefault(t *testing.T) {
+func TestResolveArgsUsesSharedSecretNamespaceWhenEnabled(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	runSecret := &corev1.Secret{
+	sharedNamespace := "shared-secrets"
+
+	sharedSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "token-secret",
-			Namespace: metav1.NamespaceDefault,
+			Namespace: sharedNamespace,
+			Labels: map[string]string{
+				sharedSecretLabel: "true",
+			},
 		},
 		Data: map[string][]byte{
-			"apiToken": []byte("run-token"),
+			"apiToken": []byte("shared-token"),
 		},
 	}
 
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	_, _ = f.kubeclient.CoreV1().Secrets(metav1.NamespaceDefault).Create(context.TODO(), runSecret, metav1.CreateOptions{})
+	c, _, _ := f.newControllerWithSharedSecret(noResyncPeriodFunc, sharedNamespace, true)
+
+	_, err := f.kubeclient.CoreV1().Secrets(sharedNamespace).
+		Create(context.TODO(), sharedSecret, metav1.CreateOptions{})
+	require.NoError(t, err)
 
 	args := []v1alpha1.Argument{
 		{
 			Name: "api-token",
 			ValueFrom: &v1alpha1.ValueFrom{
 				SecretKeyRef: &v1alpha1.SecretKeyRef{
-					Name: "token-secret",
-					Key:  "apiToken",
-					//controllerNamespace=false(default)
+					Name:         "token-secret",
+					Key:          "apiToken",
+					SharedSecret: true,
 				},
 			},
 		},
@@ -2648,37 +2655,44 @@ func TestResolveArgsUsesRunNamespaceByDefault(t *testing.T) {
 	resolvedTasks, secrets, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
 	require.NoError(t, err)
 	require.NotNil(t, resolvedTasks)
-	assert.Contains(t, secrets, "run-token")
-	assert.Equal(t, "run-token", *args[0].Value)
+	assert.Contains(t, secrets, "shared-token")
+	require.NotNil(t, args[0].Value)
+	assert.Equal(t, "shared-token", *args[0].Value)
 }
 
-func TestResolveArgsUsesControllerNamespaceWhenEnabled(t *testing.T) {
+// TestResolveArgsReturnsErrorWhenStrictAndSecretUnlabeled verifies that with strict mode on
+// (the default), a shared secret that exists in the configured namespace but is missing the
+// required label is rejected rather than resolved.
+func TestResolveArgsReturnsErrorWhenStrictAndSecretUnlabeled(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	t.Setenv("POD_NAMESPACE", "argo-rollouts")
+	sharedNamespace := "shared-secrets"
 
-	controllerSecret := &corev1.Secret{
+	unlabeledSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "token-secret",
-			Namespace: "argo-rollouts",
+			Namespace: sharedNamespace,
 		},
 		Data: map[string][]byte{
-			"apiToken": []byte("controller-token"),
+			"apiToken": []byte("shared-token"),
 		},
 	}
 
-	c, _, _ := f.newController(noResyncPeriodFunc)
-	_, _ = f.kubeclient.CoreV1().Secrets("argo-rollouts").Create(context.TODO(), controllerSecret, metav1.CreateOptions{})
+	c, _, _ := f.newControllerWithSharedSecret(noResyncPeriodFunc, sharedNamespace, true)
+
+	_, err := f.kubeclient.CoreV1().Secrets(sharedNamespace).
+		Create(context.TODO(), unlabeledSecret, metav1.CreateOptions{})
+	require.NoError(t, err)
 
 	args := []v1alpha1.Argument{
 		{
 			Name: "api-token",
 			ValueFrom: &v1alpha1.ValueFrom{
 				SecretKeyRef: &v1alpha1.SecretKeyRef{
-					Name:                "token-secret",
-					Key:                 "apiToken",
-					ControllerNamespace: true,
+					Name:         "token-secret",
+					Key:          "apiToken",
+					SharedSecret: true,
 				},
 			},
 		},
@@ -2692,18 +2706,17 @@ func TestResolveArgsUsesControllerNamespaceWhenEnabled(t *testing.T) {
 		},
 	}
 
-	resolvedTasks, secrets, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	require.NoError(t, err)
-	require.NotNil(t, resolvedTasks)
-	assert.Contains(t, secrets, "controller-token")
-	assert.Equal(t, "controller-token", *args[0].Value)
+	_, _, err = c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "not labeled")
+	assert.ErrorContains(t, err, "token-secret")
 }
 
-func TestResolveArgsReturnsErrorWhenControllerNamespaceSecretMissing(t *testing.T) {
+// TestResolveArgsRejectsSharedSecretWhenNamespaceUnset verifies that a sharedSecret reference is
+// rejected (feature disabled) when the admin has not configured a shared-secret namespace.
+func TestResolveArgsRejectsSharedSecretWhenNamespaceUnset(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
-
-	t.Setenv("POD_NAMESPACE", "argo-rollouts")
 
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
@@ -2712,9 +2725,9 @@ func TestResolveArgsReturnsErrorWhenControllerNamespaceSecretMissing(t *testing.
 			Name: "api-token",
 			ValueFrom: &v1alpha1.ValueFrom{
 				SecretKeyRef: &v1alpha1.SecretKeyRef{
-					Name:                "token-secret",
-					Key:                 "apiToken",
-					ControllerNamespace: true,
+					Name:         "token-secret",
+					Key:          "apiToken",
+					SharedSecret: true,
 				},
 			},
 		},
@@ -2729,7 +2742,6 @@ func TestResolveArgsReturnsErrorWhenControllerNamespaceSecretMissing(t *testing.
 	}
 
 	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	assert.Error(t, err)
-	expected := fmt.Sprintf("secret %s not found in namespace %s (controllerNamespace=%t)", "token-secret", "argo-rollouts", true)
-	assert.Equal(t, expected, err.Error())
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "disabled")
 }
