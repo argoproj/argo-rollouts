@@ -20,7 +20,7 @@ locally if you wish to make code contributions to Argo Rollouts.
 Argo Rollout additionally uses the following tools
 
 - `golangci-lint` to lint the project.
-- `protoc` and `swagger-codegen` to generate proto related files
+- `protoc` to generate proto related files. `swagger-codegen` is pinned and run in Docker by `hack/swagger-codegen.sh`, so it does not need to be installed.
 - `pnpm` to build the UI ([install via Corepack](https://nodejs.org/api/corepack.html): `corepack enable`)
 
 Run the following commands to install them:
@@ -36,7 +36,7 @@ go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 Brew users can quickly install the lot:
 
 ```bash
-brew install go kubectl kustomize golangci-lint protobuf swagger-codegen k3d
+brew install go kubectl kustomize golangci-lint protobuf k3d
 ```
 
 Set up environment variables (e.g. is `~/.bashrc`):
