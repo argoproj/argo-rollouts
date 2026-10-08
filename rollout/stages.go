@@ -19,8 +19,7 @@ const (
 	// stageStop: halt the pipeline and fall through to status sync. A non-nil err is recorded
 	// (ReconcileSucceeded=False), blocks progression for this pass, and is returned after the sync.
 	stageStop
-	// stageStopNoStatus: halt without status sync (pod-restart early exit, ReplicaSet-sync
-	// failures, blue-green stage errors).
+	// stageStopNoStatus: halt without status sync (pod-restart early exit, ReplicaSet-sync failures).
 	stageStopNoStatus
 )
 
@@ -127,6 +126,9 @@ func (c *rolloutContext) carryOverUnreconciledStatus() {
 			c.newStatus.Canary.CurrentStepAnalysisRunStatus = prev.Canary.CurrentStepAnalysisRunStatus
 			c.newStatus.Canary.CurrentBackgroundAnalysisRunStatus = prev.Canary.CurrentBackgroundAnalysisRunStatus
 		}
+	} else if c.rollout.Spec.Strategy.BlueGreen != nil && !c.analysisReconciled {
+		c.newStatus.BlueGreen.PrePromotionAnalysisRunStatus = prev.BlueGreen.PrePromotionAnalysisRunStatus
+		c.newStatus.BlueGreen.PostPromotionAnalysisRunStatus = prev.BlueGreen.PostPromotionAnalysisRunStatus
 	}
 }
 
@@ -282,7 +284,11 @@ func canaryStageStepPlugins(c *rolloutContext) stageResult {
 func blueGreenStagePreviewService(c *rolloutContext) stageResult {
 	// This must happen right after the new replicaset is created.
 	if err := c.reconcilePreviewService(c.blueGreenPreviewSvc); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.ServiceUpdateErrorReason,
+		}
 	}
 	return stageResult{outcome: stageContinue}
 }
@@ -297,14 +303,14 @@ func blueGreenStagePodTemplateChange(c *rolloutContext) stageResult {
 
 func blueGreenStagePodRestart(c *rolloutContext) stageResult {
 	if _, err := c.podRestarter.Reconcile(c); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func blueGreenStageReplicaSets(c *rolloutContext) stageResult {
 	if err := c.reconcileBlueGreenReplicaSets(c.blueGreenActiveSvc); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
@@ -316,28 +322,33 @@ func blueGreenStagePause(c *rolloutContext) stageResult {
 
 func blueGreenStageActiveService(c *rolloutContext) stageResult {
 	if err := c.reconcileActiveService(c.blueGreenActiveSvc); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{
+			outcome: stageStop,
+			err:     err,
+			reason:  conditions.ServiceUpdateErrorReason,
+		}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func blueGreenStageTargetGroups(c *rolloutContext) stageResult {
 	if err := c.awsVerifyTargetGroups(c.blueGreenActiveSvc); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func blueGreenStageAnalysis(c *rolloutContext) stageResult {
 	if err := c.reconcileAnalysisRuns(); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
+	c.analysisReconciled = true
 	return stageResult{outcome: stageContinue}
 }
 
 func blueGreenStageEphemeralMetadata(c *rolloutContext) stageResult {
 	if err := c.reconcileEphemeralMetadata(); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }

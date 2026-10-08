@@ -348,4 +348,15 @@ func TestCarryOverUnreconciledStatus(t *testing.T) {
 		assert.Nil(t, ctx.newStatus.Canary.CurrentStepAnalysisRunStatus, "a completed stage may clear the current AnalysisRun")
 		assert.Nil(t, ctx.newStatus.Canary.CurrentBackgroundAnalysisRunStatus)
 	})
+
+	t.Run("blue-green analysis that did not complete keeps the previous values", func(t *testing.T) {
+		ro := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		ro.Status.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{Name: "foo-pre"}
+		ro.Status.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{Name: "foo-post"}
+		ctx := &rolloutContext{rollout: ro}
+		ctx.carryOverUnreconciledStatus()
+		assert.Equal(t, "foo-pre", ctx.newStatus.BlueGreen.PrePromotionAnalysisRunStatus.Name)
+		assert.Equal(t, "foo-post", ctx.newStatus.BlueGreen.PostPromotionAnalysisRunStatus.Name)
+		assert.Empty(t, ctx.newStatus.Canary.CurrentExperiment, "canary fields must not be carried over for blue-green")
+	})
 }
