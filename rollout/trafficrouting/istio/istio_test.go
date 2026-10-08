@@ -3534,7 +3534,7 @@ func TestShouldDelayDestinationRuleUpdate(t *testing.T) {
 		otherRS := createUnavailableRS("other789", 1) // Unavailable but not a traffic target
 		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS, otherRS}
 
-		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("", ""), "canary456", "stable123")
 		assert.False(t, shouldDelay, "unavailable RS with hash other789 should not delay; only canary and stable are targets")
 		assert.Empty(t, rsName)
 	})
@@ -3544,7 +3544,7 @@ func TestShouldDelayDestinationRuleUpdate(t *testing.T) {
 		canaryRS := createUnavailableRS("canary456", 1)
 		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
 
-		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("", ""), "canary456", "stable123")
 		assert.True(t, shouldDelay)
 		assert.Equal(t, "rs-canary456", rsName)
 	})
@@ -3554,7 +3554,7 @@ func TestShouldDelayDestinationRuleUpdate(t *testing.T) {
 		canaryRS := createAvailableRS("canary456", 1)
 		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
 
-		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("", ""), "canary456", "stable123")
 		assert.True(t, shouldDelay)
 		assert.Equal(t, "rs-stable123", rsName)
 	})
@@ -3568,7 +3568,7 @@ func TestShouldDelayDestinationRuleUpdate(t *testing.T) {
 		stableRS := createAvailableRS("stable123", 1)
 		rSvc.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
 
-		shouldDelay, rsName := rSvc.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		shouldDelay, rsName := rSvc.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("", ""), "canary456", "stable123")
 		assert.False(t, shouldDelay, "delay check is skipped when canary/stable services are set")
 		assert.Empty(t, rsName)
 	})
@@ -3578,10 +3578,274 @@ func TestShouldDelayDestinationRuleUpdate(t *testing.T) {
 		canaryRS := createUnavailableRS("canary456", 0) // Scaled down; "unavailable" but should not block
 		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
 
-		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("", ""), "canary456", "stable123")
 		assert.False(t, shouldDelay, "RS with 0 replicas should be skipped")
 		assert.Empty(t, rsName)
 	})
+}
+
+// destinationRuleWithSubsetLabels returns a DestinationRule whose canary and stable subsets carry
+// the given rollouts-pod-template-hash labels. An empty label leaves the subset unlabeled, as it is
+// before a rollout has relabeled it for the first time.
+func destinationRuleWithSubsetLabels(canaryLabel, stableLabel string) *DestinationRule {
+	labels := func(hash string) map[string]string {
+		if hash == "" {
+			return map[string]string{}
+		}
+		return map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: hash}
+	}
+	return &DestinationRule{Spec: DestinationRuleSpec{Subsets: []Subset{
+		{Name: "stable", Labels: labels(stableLabel)},
+		{Name: "canary", Labels: labels(canaryLabel)},
+	}}}
+}
+
+func destinationRuleUnstructuredWithSubsetLabels(canaryLabel, stableLabel string) *unstructured.Unstructured {
+	labels := func(hash string) string {
+		if hash == "" {
+			return "    labels: {}"
+		}
+		return "    labels:\n      rollouts-pod-template-hash: " + hash
+	}
+	return unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+  annotations:
+    argo-rollouts.argoproj.io/managed-by-rollouts: rollout
+spec:
+  host: ratings.prod.svc.cluster.local
+  subsets:
+  - name: stable
+` + labels(stableLabel) + `
+  - name: canary
+` + labels(canaryLabel) + `
+`)
+}
+
+// subsetGateRollout returns a subset-routed rollout with no canary/stable Services, which is the
+// only configuration where shouldDelayDestinationRuleUpdate applies.
+func subsetGateRollout(threshold *v1alpha1.ReplicaProgressThreshold) *v1alpha1.Rollout {
+	ro := rolloutWithDestinationRule(nil)
+	ro.Spec.Strategy.Canary.CanaryService = ""
+	ro.Spec.Strategy.Canary.StableService = ""
+	ro.Spec.Strategy.Canary.ReplicaProgressThreshold = threshold
+	return ro
+}
+
+func subsetGateRS(ro *v1alpha1.Rollout, hash string, replicas, available int32) *appsv1.ReplicaSet {
+	return &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rs-" + hash,
+			UID:       uuid.NewUUID(),
+			Namespace: metav1.NamespaceDefault,
+			Labels:    map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: hash},
+		},
+		Spec: appsv1.ReplicaSetSpec{
+			Replicas: &replicas,
+			Template: ro.Spec.Template,
+		},
+		Status: appsv1.ReplicaSetStatus{Replicas: replicas, AvailableReplicas: available},
+	}
+}
+
+// TestShouldDelayDestinationRuleUpdateOnlyForChangingSubsets verifies that only ReplicaSets whose
+// hash is about to be written to a subset gate the update. A ReplicaSet a subset already points at
+// never delays it, even when it is not fully available: relabeling it is a no-op, and traffic
+// shifts to it are gated by AtDesiredReplicaCountsForCanary instead.
+func TestShouldDelayDestinationRuleUpdateOnlyForChangingSubsets(t *testing.T) {
+	ro := subsetGateRollout(nil)
+	reconcilerWith := func(rss ...*appsv1.ReplicaSet) *Reconciler {
+		return NewReconciler(ro, testutil.NewFakeDynamicClient(), record.NewFakeEventRecorder(), nil, nil, rss)
+	}
+
+	t.Run("subsets already point at canary and stable - partially available canary does not delay", func(t *testing.T) {
+		r := reconcilerWith(subsetGateRS(ro, "stable123", 10, 10), subsetGateRS(ro, "canary456", 10, 3))
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("canary456", "stable123"), "canary456", "stable123")
+		assert.False(t, shouldDelay)
+		assert.Empty(t, rsName)
+	})
+
+	// Reproduces #4839: a degraded stable RS used to wedge the rollout forever, since the gate
+	// returned true on every reconcile even though the stable subset needed no change.
+	t.Run("subsets already point at canary and stable - degraded stable does not delay", func(t *testing.T) {
+		r := reconcilerWith(subsetGateRS(ro, "stable123", 10, 7), subsetGateRS(ro, "canary456", 10, 10))
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("canary456", "stable123"), "canary456", "stable123")
+		assert.False(t, shouldDelay)
+		assert.Empty(t, rsName)
+	})
+
+	// The #2507 protection: a subset must not be pointed at a ReplicaSet that cannot serve it.
+	t.Run("canary subset switching to a not yet available RS delays", func(t *testing.T) {
+		r := reconcilerWith(subsetGateRS(ro, "stable123", 10, 10), subsetGateRS(ro, "canary456", 10, 3))
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("old999", "stable123"), "canary456", "stable123")
+		assert.True(t, shouldDelay)
+		assert.Equal(t, "rs-canary456", rsName)
+	})
+
+	t.Run("canary subset switching while stable is degraded only checks canary", func(t *testing.T) {
+		r := reconcilerWith(subsetGateRS(ro, "stable123", 10, 7), subsetGateRS(ro, "canary456", 10, 10))
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("old999", "stable123"), "canary456", "stable123")
+		assert.False(t, shouldDelay)
+		assert.Empty(t, rsName)
+	})
+
+	t.Run("stable subset switching on promotion delays until the new RS is available", func(t *testing.T) {
+		r := reconcilerWith(subsetGateRS(ro, "stable123", 10, 10), subsetGateRS(ro, "canary456", 10, 6))
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("canary456", "stable123"), "canary456", "canary456")
+		assert.True(t, shouldDelay)
+		assert.Equal(t, "rs-canary456", rsName)
+
+		r = reconcilerWith(subsetGateRS(ro, "stable123", 10, 10), subsetGateRS(ro, "canary456", 10, 10))
+		shouldDelay, rsName = r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("canary456", "stable123"), "canary456", "canary456")
+		assert.False(t, shouldDelay)
+		assert.Empty(t, rsName)
+	})
+
+	t.Run("unlabeled subsets are treated as changing", func(t *testing.T) {
+		r := reconcilerWith(subsetGateRS(ro, "stable123", 10, 10), subsetGateRS(ro, "canary456", 10, 3))
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("", ""), "canary456", "stable123")
+		assert.True(t, shouldDelay)
+		assert.Equal(t, "rs-canary456", rsName)
+	})
+
+	t.Run("nil DestinationRule is treated as changing", func(t *testing.T) {
+		r := reconcilerWith(subsetGateRS(ro, "stable123", 10, 10), subsetGateRS(ro, "canary456", 10, 3))
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(nil, "canary456", "stable123")
+		assert.True(t, shouldDelay)
+		assert.Equal(t, "rs-canary456", rsName)
+	})
+
+	// #4823/#4128: an abort must not be blocked by the broken canary it is aborting away from,
+	// even when the canary subset is the one being relabeled.
+	t.Run("aborting does not delay on an unavailable canary being relabeled", func(t *testing.T) {
+		abortingRO := subsetGateRollout(nil)
+		abortingRO.Status.Abort = true
+		r := NewReconciler(abortingRO, testutil.NewFakeDynamicClient(), record.NewFakeEventRecorder(), nil, nil, []*appsv1.ReplicaSet{
+			subsetGateRS(abortingRO, "stable123", 10, 10),
+			subsetGateRS(abortingRO, "canary456", 10, 0),
+		})
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("old999", "stable123"), "canary456", "stable123")
+		assert.False(t, shouldDelay, "abort must not be blocked by the canary it is aborting away from")
+		assert.Empty(t, rsName)
+
+		// Control: the same state without the abort still delays, so the subtest above is
+		// exercising the abort skip and not some other exemption.
+		r.rollout.Status.Abort = false
+		shouldDelay, rsName = r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("old999", "stable123"), "canary456", "stable123")
+		assert.True(t, shouldDelay)
+		assert.Equal(t, "rs-canary456", rsName)
+	})
+
+	t.Run("RS scaling down with more available than desired does not delay", func(t *testing.T) {
+		r := reconcilerWith(subsetGateRS(ro, "stable123", 5, 8), subsetGateRS(ro, "canary456", 10, 10))
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("", ""), "canary456", "stable123")
+		assert.False(t, shouldDelay)
+		assert.Empty(t, rsName)
+	})
+}
+
+// TestShouldDelayDestinationRuleUpdateReplicaProgressThreshold verifies the subset switch honors
+// spec.strategy.canary.replicaProgressThreshold, as AtDesiredReplicaCountsForCanary,
+// checkReplicasAvailable and shouldFullPromote already do.
+func TestShouldDelayDestinationRuleUpdateReplicaProgressThreshold(t *testing.T) {
+	percent90 := &v1alpha1.ReplicaProgressThreshold{Type: v1alpha1.ProgressTypePercentage, Value: 90}
+	pods5 := &v1alpha1.ReplicaProgressThreshold{Type: v1alpha1.ProgressTypePods, Value: 5}
+	pods0 := &v1alpha1.ReplicaProgressThreshold{Type: v1alpha1.ProgressTypePods, Value: 0}
+	percent0 := &v1alpha1.ReplicaProgressThreshold{Type: v1alpha1.ProgressTypePercentage, Value: 0}
+
+	testCases := []struct {
+		name            string
+		threshold       *v1alpha1.ReplicaProgressThreshold
+		canaryAvailable int32
+		expectDelay     bool
+	}{
+		{"no threshold requires all replicas", nil, 9, true},
+		{"no threshold passes at all replicas", nil, 10, false},
+		{"percent threshold met", percent90, 9, false},
+		{"percent threshold not met", percent90, 8, true},
+		{"pods threshold met", pods5, 5, false},
+		{"pods threshold not met", pods5, 4, true},
+		// The CRD sets no minimum on the threshold value, so a zero threshold must not relabel a
+		// subset onto a ReplicaSet with nothing available - that is the #2507 downtime.
+		{"zero pods threshold still requires an available replica", pods0, 0, true},
+		{"zero pods threshold passes with one available replica", pods0, 1, false},
+		{"zero percent threshold still requires an available replica", percent0, 0, true},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ro := subsetGateRollout(tc.threshold)
+			r := NewReconciler(ro, testutil.NewFakeDynamicClient(), record.NewFakeEventRecorder(), nil, nil, []*appsv1.ReplicaSet{
+				subsetGateRS(ro, "stable123", 10, 10),
+				subsetGateRS(ro, "canary456", 10, tc.canaryAvailable),
+			})
+
+			shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate(destinationRuleWithSubsetLabels("", "stable123"), "canary456", "stable123")
+			assert.Equal(t, tc.expectDelay, shouldDelay)
+			if tc.expectDelay {
+				assert.Equal(t, "rs-canary456", rsName)
+			} else {
+				assert.Empty(t, rsName)
+			}
+		})
+	}
+}
+
+// TestUpdateHashUnchangedSubsetsWithPartiallyAvailableCanary verifies that once the DestinationRule
+// already points at the canary and stable ReplicaSets, UpdateHash no longer errors - and therefore
+// no longer blocks SetWeight - while the canary is scaling up between setWeight steps.
+func TestUpdateHashUnchangedSubsetsWithPartiallyAvailableCanary(t *testing.T) {
+	ro := subsetGateRollout(nil)
+	client := testutil.NewFakeDynamicClient(destinationRuleUnstructuredWithSubsetLabels("abc123", "def456"))
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, []*appsv1.ReplicaSet{
+		subsetGateRS(ro, "def456", 10, 10),
+		subsetGateRS(ro, "abc123", 10, 2),
+	})
+	client.ClearActions()
+
+	err := r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err)
+	assert.Len(t, client.Actions(), 0, "DestinationRule already has both hashes, so nothing should be written")
+}
+
+// TestUpdateHashThresholdMetSwitchesSubset verifies the canary subset is relabeled as soon as the
+// new ReplicaSet meets the configured threshold, rather than at 100% availability.
+func TestUpdateHashThresholdMetSwitchesSubset(t *testing.T) {
+	ro := subsetGateRollout(&v1alpha1.ReplicaProgressThreshold{Type: v1alpha1.ProgressTypePercentage, Value: 80})
+	client := testutil.NewFakeDynamicClient(destinationRuleUnstructuredWithSubsetLabels("old999", "def456"))
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, []*appsv1.ReplicaSet{
+		subsetGateRS(ro, "def456", 10, 10),
+		subsetGateRS(ro, "abc123", 10, 8),
+	})
+	client.ClearActions()
+
+	err := r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+}
+
+// TestUpdateHashNoDestinationRuleKeepsAvailabilityGate verifies the gate is unchanged for rollouts
+// with no DestinationRule and no canary/stable Services (e.g. ping-pong), where there are no
+// subsets to diff.
+func TestUpdateHashNoDestinationRuleKeepsAvailabilityGate(t *testing.T) {
+	ro := subsetGateRollout(nil)
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule = nil
+	client := testutil.NewFakeDynamicClient()
+
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil, []*appsv1.ReplicaSet{subsetGateRS(ro, "def456", 10, 10), subsetGateRS(ro, "abc123", 10, 2)})
+	err := r.UpdateHash("abc123", "def456")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "delaying destination rule switch")
+
+	r = NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil, []*appsv1.ReplicaSet{subsetGateRS(ro, "def456", 10, 10), subsetGateRS(ro, "abc123", 10, 10)})
+	assert.NoError(t, r.UpdateHash("abc123", "def456"))
+	assert.Len(t, client.Actions(), 0)
 }
 
 func TestUpdateHashInvalidDestinationRule(t *testing.T) {
