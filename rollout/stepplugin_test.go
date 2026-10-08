@@ -14,6 +14,8 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/mocks"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -724,15 +726,18 @@ func Test_stepPluginContext_reconcile_Retry_After_Abort(t *testing.T) {
 			},
 		}
 		roCtx.rollout.Status.CurrentStepIndex = int32Ptr(0)
-		roCtx.rollout.Status.Abort = false
-		roCtx.rollout.Status.AbortedAt = nil
+		client := fake.NewSimpleClientset(roCtx.rollout)
+		retried, err := retry.RetryRollout(client.ArgoprojV1alpha1().Rollouts(roCtx.rollout.Namespace), roCtx.rollout.Name)
+		require.NoError(t, err)
+		roCtx.rollout = retried
+		roCtx.pauseContext.rollout = retried
 
 		stepPluginMock := mocks.NewStepPlugin(t)
 		stepPluginResolver.On("Resolve", int32(0), mock.Anything, mock.Anything).Return(stepPluginMock, nil)
 		runStatus := newStepPluginStatus(v1alpha1.StepPluginOperationRun, v1alpha1.StepPluginPhaseSuccessful)
 		stepPluginMock.On("Run", roCtx.rollout).Return(runStatus, nil)
 
-		err := roCtx.stepPluginContext.reconcile(roCtx)
+		err = roCtx.stepPluginContext.reconcile(roCtx)
 
 		require.NoError(t, err)
 		require.Len(t, roCtx.stepPluginContext.stepPluginStatuses, 1)
