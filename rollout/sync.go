@@ -281,6 +281,10 @@ func (c *rolloutContext) syncReplicasOnly() error {
 
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
+		if !c.rollout.Status.Abort && c.rollout.Status.AbortedAt != nil {
+			newStatus.BlueGreen.PrePromotionAnalysisRunStatus = nil
+			newStatus.BlueGreen.PostPromotionAnalysisRunStatus = nil
+		}
 		_, activeSvc, err := c.getPreviewAndActiveServices()
 		if err != nil {
 			return nil
@@ -303,6 +307,10 @@ func (c *rolloutContext) syncReplicasOnly() error {
 	// The controller wants to use the rolloutCanary method to reconcile the rollout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
 	if c.rollout.Spec.Strategy.Canary != nil {
+		if !c.rollout.Status.Abort && c.rollout.Status.AbortedAt != nil {
+			newStatus.Canary.CurrentStepAnalysisRunStatus = nil
+			newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
+		}
 		if _, err := c.reconcileCanaryReplicaSets(); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync

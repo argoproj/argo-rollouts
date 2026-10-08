@@ -162,6 +162,131 @@ func (s *AnalysisSuite) TestCanaryFailInlineMultipleAnalysis() {
 }
 
 // TestBlueGreenAnalysis tests blue-green with pre/post analysis and then fast-tracked rollback
+func (s *AnalysisSuite) TestCanaryStepAnalysisRetry() {
+	s.testCanaryAnalysisRetry(false)
+}
+
+func (s *AnalysisSuite) TestCanaryBackgroundAnalysisRetry() {
+	s.testCanaryAnalysisRetry(true)
+}
+
+func (s *AnalysisSuite) testCanaryAnalysisRetry(background bool) {
+	template := func(exitCode string) string {
+		return fmt.Sprintf(`
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: canary-retry-job
+spec:
+  args:
+  - name: exit-code
+    value: "%s"
+  metrics:
+  - name: job
+    count: 1
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+              - name: job
+                image: nginx:1.19-alpine
+                command: [sh, -c, "exit {{args.exit-code}}"]
+`, exitCode)
+	}
+	strategy := `
+      steps:
+      - setWeight: 50
+      - analysis:
+          templates:
+          - templateName: canary-retry-job
+      - setWeight: 100`
+	if background {
+		strategy = `
+      analysis:
+        templates:
+        - templateName: canary-retry-job
+      steps:
+      - setWeight: 50
+      - pause: {}
+      - setWeight: 100`
+	}
+	when := s.Given().
+		RolloutObjects(template("1")).
+		RolloutObjects(fmt.Sprintf(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: canary-retry
+spec:
+  replicas: 2
+  strategy:
+    canary:%s
+  selector:
+    matchLabels:
+      app: canary-retry
+  template:
+    metadata:
+      labels:
+        app: canary-retry
+    spec:
+      containers:
+      - name: canary-retry
+        image: nginx:1.19-alpine
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 1
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
+`, strategy)).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Degraded").
+		WaitForRevisionPodCount("2", 0).
+		Then().
+		ExpectStableRevision("1").
+		ExpectAnalysisRunCount(1).
+		When().
+		ApplyManifests(template("0")).
+		ScaleRollout(3).
+		RetryRollout()
+	if background {
+		when.WaitForRolloutCondition(func(ro *v1alpha1.Rollout) bool {
+			current := ro.Status.Canary.CurrentBackgroundAnalysisRunStatus
+			return current != nil && current.Status == v1alpha1.AnalysisPhaseSuccessful
+		}, "current background analysis succeeded").
+			WaitForRolloutStatus("Paused").
+			PromoteRollout()
+	}
+	when.WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectStableRevision("2").
+		ExpectRevisionPodCount("2", 3).
+		ExpectAnalysisRunCount(2).
+		ExpectAnalysisRuns("failed attempt retained and first retry succeeded", func(runs *v1alpha1.AnalysisRunList) bool {
+			failed, successful := 0, 0
+			for _, run := range runs.Items {
+				switch run.Status.Phase {
+				case v1alpha1.AnalysisPhaseFailed:
+					failed++
+				case v1alpha1.AnalysisPhaseSuccessful:
+					successful++
+				}
+			}
+			return failed == 1 && successful == 1
+		})
+}
+
 func (s *AnalysisSuite) TestBlueGreenAnalysis() {
 	original := `
 apiVersion: argoproj.io/v1alpha1
@@ -272,7 +397,7 @@ spec:
   replicas: 2
   strategy:
     blueGreen:
-      abortScaleDownDelaySeconds: 0
+      abortScaleDownDelaySeconds: 1
       activeService: pre-promotion-fail-active
       previewService: pre-promotion-fail-preview
       previewReplicaCount: 1
@@ -308,6 +433,7 @@ spec:
 		When().
 		UpdateSpec().
 		WaitForRolloutStatus("Degraded").
+		WaitForRevisionPodCount("2", 0).
 		Then().
 		ExpectAnalysisRunCount(1).
 		ExpectStableRevision("1").
@@ -337,7 +463,122 @@ spec:
 		ExpectAnalysisRunCount(2).
 		ExpectStableRevision("2").
 		ExpectActiveRevision("2").
-		ExpectPreviewRevision("2")
+		ExpectPreviewRevision("2").
+		ExpectAnalysisRuns("old failed pre-analysis retained and fresh retry succeeded", func(runs *v1alpha1.AnalysisRunList) bool {
+			failed, successful := 0, 0
+			for _, run := range runs.Items {
+				if run.Status.Phase == v1alpha1.AnalysisPhaseFailed {
+					failed++
+				}
+				if run.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
+					successful++
+				}
+			}
+			return failed == 1 && successful == 1
+		})
+}
+
+func (s *AnalysisSuite) TestBlueGreenPostPromotionRetry() {
+	// Changing the template's default fixes the analysis without changing the desired revision.
+	template := func(exitCode string) string {
+		return fmt.Sprintf(`
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: post-retry-job
+spec:
+  args:
+  - name: exit-code
+    value: "%s"
+  metrics:
+  - name: job
+    count: 1
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+              - name: job
+                image: nginx:1.19-alpine
+                command: [sh, -c, "exit {{args.exit-code}}"]
+`, exitCode)
+	}
+	s.Given().
+		RolloutObjects(newService("post-retry-active", "post-retry")).
+		RolloutObjects(newService("post-retry-preview", "post-retry")).
+		RolloutObjects(template("1")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: post-retry
+spec:
+  replicas: 1
+  strategy:
+    blueGreen:
+      activeService: post-retry-active
+      previewService: post-retry-preview
+      abortScaleDownDelaySeconds: 1
+      scaleDownDelaySeconds: 600
+      postPromotionAnalysis:
+        templates:
+        - templateName: post-retry-job
+  selector:
+    matchLabels:
+      app: post-retry
+  template:
+    metadata:
+      labels:
+        app: post-retry
+    spec:
+      containers:
+      - name: post-retry
+        image: nginx:1.19-alpine
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 1
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Degraded").
+		WaitForActiveRevision("1").
+		WaitForRevisionPodCount("2", 0).
+		Then().
+		ExpectAnalysisRunCount(1).
+		ExpectStableRevision("1").
+		When().
+		ApplyManifests(template("0")).
+		RetryRollout().
+		WaitForActiveRevision("2").
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectStableRevision("2").
+		ExpectActiveRevision("2").
+		ExpectAnalysisRunCount(2).
+		ExpectAnalysisRuns("failed attempt retained and fresh attempt succeeded", func(runs *v1alpha1.AnalysisRunList) bool {
+			failed, successful := 0, 0
+			for _, run := range runs.Items {
+				switch run.Status.Phase {
+				case v1alpha1.AnalysisPhaseFailed:
+					failed++
+				case v1alpha1.AnalysisPhaseSuccessful:
+					successful++
+				}
+			}
+			return failed == 1 && successful == 1
+		})
 }
 
 func (s *AnalysisSuite) TestBlueGreenPostPromotionFail() {
