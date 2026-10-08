@@ -857,6 +857,8 @@ func (c *rolloutContext) evaluateProgressDeadlineAbort(newStatus *v1alpha1.Rollo
 }
 
 func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutStatus) {
+	c.mergeStageConditions(newStatus)
+
 	isPaused := len(newStatus.PauseConditions) > 0 || c.rollout.Spec.Paused
 	isAborted := c.pauseContext.IsAborted()
 
@@ -1244,6 +1246,14 @@ func (c *rolloutContext) isRollbackWithinWindow() bool {
 	return false
 }
 
+// warnPromoteFullHeld emits an event when a requested full promotion is held.
+func (c *rolloutContext) warnPromoteFullHeld(reason string) {
+	if !c.rollout.Status.PromoteFull {
+		return
+	}
+	c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.PromoteFullHeldReason}, "Full promotion is held: %s", reason)
+}
+
 // shouldFullPromote returns a reason string explaining why a rollout should fully promote, marking
 // the desired ReplicaSet as stable. Returns empty string if the rollout is in middle of update
 func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) string {
@@ -1252,6 +1262,10 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		return "Initial deploy"
 	} else if c.rollout.Spec.Strategy.Canary != nil {
 		if c.pauseContext.IsAborted() {
+			return ""
+		}
+		if c.progressionBlocked {
+			c.warnPromoteFullHeld("a stage failed to apply changes during this reconciliation")
 			return ""
 		}
 		// Block promotion only when canary has fewer available than desired (e.g. still scaling up).

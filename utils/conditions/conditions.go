@@ -133,7 +133,7 @@ const (
 	// RolloutExperimentFailedMessage is added in a rollout when the experiment owned by a rollout fails to show any progress
 	RolloutExperimentFailedMessage = "Experiment '%s' owned by the Rollout '%q' has timed out."
 
-	// RolloutReconciliationErrorReason is added in a rollout when the reconciliation returns an error preventing progress
+	// RolloutReconciliationErrorReason is the ReconcileSucceeded=False reason for generic failures.
 	RolloutReconciliationErrorReason = "ReconciliationError"
 	// RolloutReconciliationErrorMessage is added in a rollout when the reconciliation returns an error preventing progress
 	RolloutReconciliationErrorMessage = "Reconciliation failed with error: %v"
@@ -187,6 +187,16 @@ const (
 	LoadBalancerNotFoundMessage = "Failed to find load balancer: %s"
 
 	RolloutAddedToInformerReason = "RolloutAddedToInformer"
+
+	// TrafficRoutingErrorReason is recorded on ReconcileSucceeded=False when traffic routing fails.
+	TrafficRoutingErrorReason = "TrafficRoutingError"
+	// ServiceUpdateErrorReason is recorded on ReconcileSucceeded=False when a service update fails.
+	ServiceUpdateErrorReason = "ServiceUpdateError"
+	// StageConditionAppliedReason is recorded when ReconcileSucceeded recovers to True.
+	StageConditionAppliedReason = "Applied"
+
+	// PromoteFullHeldReason is emitted when a requested full promotion is held.
+	PromoteFullHeldReason = "PromoteFullHeld"
 )
 
 // NewRolloutCondition creates a new rollout condition.

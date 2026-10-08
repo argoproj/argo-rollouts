@@ -545,6 +545,43 @@ func (s *IstioSuite) TestIstioPingPongUpdate() {
 		})
 }
 
+// The Istio reconciler errors on every pass while the canary is unavailable; the rollout must
+// still time out and auto-abort.
+func (s *IstioSuite) TestIstioSubsetSplitProgressDeadlineAbortWithUnavailableCanary() {
+	s.Given().
+		RolloutObjects("@istio/istio-subset-split-progress-deadline-abort.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		PatchSpec(`
+spec:
+  progressDeadlineAbort: true
+  progressDeadlineSeconds: 10
+  template:
+    spec:
+      containers:
+      - name: istio-subset-split-pda
+        image: nginx:1.19-alpine-argo-error
+        command: null`).
+		WaitForRolloutStatus("Degraded").
+		Sleep(3 * time.Second).
+		Then().
+		ExpectRollout("Abort=True", func(r *v1alpha1.Rollout) bool {
+			return r.Status.Abort
+		}).
+		Assert(func(t *fixtures.Then) {
+			// traffic must never have shifted to the unavailable canary
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+
+			// stable subset must still point at the stable ReplicaSet
+			rs1 := t.GetReplicaSetByRevision("1")
+			destrule := t.GetDestinationRule()
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+		})
+}
+
 func (s *IstioSuite) TestIstioSubsetSplitInStableDownscaleAfterCanaryAbort() {
 	s.Given().
 		RolloutObjects("@istio/istio-subset-split-in-stable-downscale-after-canary-abort.yaml").
