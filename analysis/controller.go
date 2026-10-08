@@ -74,34 +74,41 @@ type Controller struct {
 	// Kubernetes API.
 	recorder     record.EventRecorder
 	resyncPeriod time.Duration
+
+	analysisSharedSecretNamespace string
+	sharedSecretStrict            bool
 }
 
 // ControllerConfig describes the data required to instantiate a new analysis controller
 type ControllerConfig struct {
-	KubeClientSet        kubernetes.Interface
-	ArgoProjClientset    clientset.Interface
-	AnalysisRunInformer  informers.AnalysisRunInformer
-	JobInformer          batchinformers.JobInformer
-	JobPodsInformer      coreinformer.PodInformer
-	ResyncPeriod         time.Duration
-	AnalysisRunWorkQueue workqueue.RateLimitingInterface
-	MetricsServer        *metrics.MetricsServer
-	Recorder             record.EventRecorder
+	KubeClientSet                 kubernetes.Interface
+	ArgoProjClientset             clientset.Interface
+	AnalysisRunInformer           informers.AnalysisRunInformer
+	JobInformer                   batchinformers.JobInformer
+	JobPodsInformer               coreinformer.PodInformer
+	ResyncPeriod                  time.Duration
+	AnalysisRunWorkQueue          workqueue.RateLimitingInterface
+	MetricsServer                 *metrics.MetricsServer
+	Recorder                      record.EventRecorder
+	AnalysisSharedSecretNamespace string
+	SharedSecretStrict            bool
 }
 
 // NewController returns a new analysis controller
 func NewController(cfg ControllerConfig) *Controller {
 	controller := &Controller{
-		kubeclientset:        cfg.KubeClientSet,
-		argoProjClientset:    cfg.ArgoProjClientset,
-		analysisRunLister:    cfg.AnalysisRunInformer.Lister(),
-		metricsServer:        cfg.MetricsServer,
-		analysisRunWorkQueue: cfg.AnalysisRunWorkQueue,
-		jobInformer:          cfg.JobInformer,
-		jobPodsInformer:      cfg.JobPodsInformer,
-		analysisRunSynced:    cfg.AnalysisRunInformer.Informer().HasSynced,
-		recorder:             cfg.Recorder,
-		resyncPeriod:         cfg.ResyncPeriod,
+		kubeclientset:                 cfg.KubeClientSet,
+		argoProjClientset:             cfg.ArgoProjClientset,
+		analysisRunLister:             cfg.AnalysisRunInformer.Lister(),
+		metricsServer:                 cfg.MetricsServer,
+		analysisRunWorkQueue:          cfg.AnalysisRunWorkQueue,
+		jobInformer:                   cfg.JobInformer,
+		jobPodsInformer:               cfg.JobPodsInformer,
+		analysisRunSynced:             cfg.AnalysisRunInformer.Informer().HasSynced,
+		recorder:                      cfg.Recorder,
+		resyncPeriod:                  cfg.ResyncPeriod,
+		analysisSharedSecretNamespace: cfg.AnalysisSharedSecretNamespace,
+		sharedSecretStrict:            cfg.SharedSecretStrict,
 	}
 
 	controller.enqueueAnalysis = func(obj any) {
