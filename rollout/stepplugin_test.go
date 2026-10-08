@@ -9,12 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/mocks"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 )
@@ -71,18 +73,45 @@ func Test_stepPluginContext_reconcile_ReconciliationError(t *testing.T) {
 
 	stepPluginResolver.On("Resolve", mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("test error"))
 
-	var requeuedAfter time.Duration
-	roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {
-		requeuedAfter = duration
-	}
-
 	err := roCtx.stepPluginContext.reconcile(roCtx)
 
-	require.NoError(t, err)
+	require.ErrorContains(t, err, "test error")
 	assert.Equal(t, roCtx.rollout.Status.Canary.StepPluginStatuses, roCtx.stepPluginContext.stepPluginStatuses)
-	assert.Equal(t, defaultControllerErrorBackoff, requeuedAfter)
-	assert.True(t, roCtx.stepPluginContext.hasError)
+}
 
+func Test_stepPluginContext_reconcile_ReconciliationErrorBlocksProgression(t *testing.T) {
+	orig := canaryStages
+	defer func() { canaryStages = orig }()
+	canaryStages = []strategyStage{{"stepPlugins", canaryStageStepPlugins}}
+
+	stepPluginResolver := mocks.NewResolver(t)
+	r := newStepPluginRollout()
+	logCtx := logutil.WithRollout(r)
+	roCtx := &rolloutContext{
+		rollout: r,
+		log:     logCtx,
+		reconcilerBase: reconcilerBase{
+			enqueueRolloutAfter: func(obj any, duration time.Duration) { t.Error("enqueueRolloutAfter should not be called") },
+			recorder:            record.NewFakeEventRecorder(),
+		},
+		pauseContext: &pauseContext{
+			rollout: r,
+			log:     logCtx,
+		},
+		stepPluginContext: &stepPluginContext{
+			resolver: stepPluginResolver,
+			log:      logCtx,
+		},
+	}
+	stepPluginResolver.On("Resolve", mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("test error"))
+
+	err := roCtx.runCanaryStages()
+
+	require.ErrorContains(t, err, "test error")
+	assert.True(t, roCtx.progressionBlocked, "a plugin error must hold step progression")
+	cond := roCtx.stageConditions[v1alpha1.RolloutReconcileSucceeded]
+	assert.Equal(t, corev1.ConditionFalse, cond.Status)
+	assert.Equal(t, conditions.RolloutReconciliationErrorReason, cond.Reason)
 }
 
 func Test_stepPluginContext_reconcile_SuccessfulReconciliation(t *testing.T) {
@@ -452,20 +481,13 @@ func Test_stepPluginContext_reconcile_FullyPromoted(t *testing.T) {
 			},
 		}
 
-		var requeuedAfter time.Duration
-		roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {
-			requeuedAfter = duration
-		}
-
 		stepPluginMock.On("Terminate", mock.Anything).Return(nil, fmt.Errorf("error"))
 
 		err := roCtx.stepPluginContext.reconcile(roCtx)
 
-		require.NoError(t, err)
+		require.ErrorContains(t, err, "failed to terminate plugin")
 		require.Len(t, roCtx.stepPluginContext.stepPluginStatuses, 1)
 		assert.Equal(t, roCtx.rollout.Status.Canary.StepPluginStatuses, roCtx.stepPluginContext.stepPluginStatuses)
-		assert.Equal(t, defaultControllerErrorBackoff, requeuedAfter)
-		assert.True(t, roCtx.stepPluginContext.hasError)
 	})
 }
 
@@ -632,22 +654,15 @@ func Test_stepPluginContext_reconcile_Aborted(t *testing.T) {
 			},
 		}
 
-		var requeuedAfter time.Duration
-		roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {
-			requeuedAfter = duration
-		}
-
 		stepPluginMock := mocks.NewStepPlugin(t)
 		stepPluginResolver.On("Resolve", int32(0), mock.Anything, mock.Anything).Return(stepPluginMock, nil)
 		stepPluginMock.On("Abort", mock.Anything).Return(nil, fmt.Errorf("error"))
 
 		err := roCtx.stepPluginContext.reconcile(roCtx)
 
-		require.NoError(t, err)
+		require.ErrorContains(t, err, "failed to abort plugin")
 		require.Len(t, roCtx.stepPluginContext.stepPluginStatuses, 1)
 		assert.Equal(t, roCtx.rollout.Status.Canary.StepPluginStatuses, roCtx.stepPluginContext.stepPluginStatuses)
-		assert.Equal(t, defaultControllerErrorBackoff, requeuedAfter)
-		assert.True(t, roCtx.stepPluginContext.hasError)
 	})
 }
 
@@ -741,7 +756,7 @@ func Test_stepPluginContext_reconcile_Retry_After_Abort(t *testing.T) {
 }
 
 func Test_stepPluginContext_isStepPluginCompleted(t *testing.T) {
-	newRolloutContext := func(statuses []*v1alpha1.StepPluginStatus, hasError bool) *rolloutContext {
+	newRolloutContext := func(statuses []*v1alpha1.StepPluginStatus) *rolloutContext {
 		r := newStepPluginRollout()
 		logCtx := logutil.WithRollout(r)
 		roCtx := &rolloutContext{
@@ -755,7 +770,6 @@ func Test_stepPluginContext_isStepPluginCompleted(t *testing.T) {
 		for _, s := range statuses {
 			roCtx.stepPluginContext.stepPluginStatuses = append(roCtx.stepPluginContext.stepPluginStatuses, *s)
 		}
-		roCtx.stepPluginContext.hasError = hasError
 		return roCtx
 	}
 
@@ -763,7 +777,6 @@ func Test_stepPluginContext_isStepPluginCompleted(t *testing.T) {
 		name     string
 		statuses []*v1alpha1.StepPluginStatus
 		index    int32
-		hasError bool
 		want     bool
 	}{
 		{
@@ -779,15 +792,6 @@ func Test_stepPluginContext_isStepPluginCompleted(t *testing.T) {
 			},
 			index: 0,
 			want:  true,
-		},
-		{
-			name: "With transient error",
-			statuses: []*v1alpha1.StepPluginStatus{
-				{Index: 0, Operation: v1alpha1.StepPluginOperationRun, Phase: v1alpha1.StepPluginPhaseSuccessful},
-			},
-			index:    0,
-			hasError: true,
-			want:     false,
 		},
 		{
 			name: "Phase is failed",
@@ -850,7 +854,7 @@ func Test_stepPluginContext_isStepPluginCompleted(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := newRolloutContext(tt.statuses, tt.hasError)
+			c := newRolloutContext(tt.statuses)
 			if got := c.stepPluginContext.isStepPluginCompleted(tt.index, c.rollout.Spec.Strategy.Canary.Steps[tt.index].Plugin); got != tt.want {
 				t.Errorf("rolloutContext.isStepPluginCompleted() = %v, want %v", got, tt.want)
 			}
