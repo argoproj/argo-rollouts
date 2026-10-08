@@ -570,3 +570,59 @@ func (s *IstioSuite) TestIstioSubsetSplitInStableDownscaleAfterCanaryAbort() {
 
 	s.TearDownSuite()
 }
+
+// TestIstioCanaryBackgroundAnalysisWaitsForCanaryWeight verifies that a background AnalysisRun is
+// not started until the canary is actually receiving traffic (its recorded weight has reached the
+// step's setWeight). The new revision's canary pod is held un-ready so the canary stays at weight
+// 0; without the gate the controller would create the AnalysisRun immediately against that
+// zero-traffic ReplicaSet. Once the canary pod is marked ready the weight reaches 50 and the
+// AnalysisRun is created.
+func (s *IstioSuite) TestIstioCanaryBackgroundAnalysisWaitsForCanaryWeight() {
+	s.Given().
+		RolloutObjects("@istio/istio-canary-background-analysis.yaml").
+		When().
+		ApplyManifests("@functional/analysistemplate-sleep-job.yaml"). // reuse the shared template
+		ApplyManifests().
+		MarkPodsReady("1", 2). // revision 1 fully available
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0). // nothing rolling out yet
+		When().
+		UpdateSpec().                    // revision 2
+		WaitForRevisionPodCount("2", 1). // canary RS scaled up, but its pod is NOT marked ready
+		// Wait for the controller to record weights for the new canary rather than sleeping.
+		// reconcileTrafficRouting runs before reconcileAnalysisRuns in the same reconcile, so once
+		// these weights are persisted the controller has already had its chance to create the
+		// background run for this ReplicaSet and declined. Asserting its absence below is then a
+		// statement about the gate, not about how fast the test ran.
+		WaitForRolloutCondition(func(ro *v1alpha1.Rollout) bool {
+			w := ro.Status.Canary.Weights
+			return w != nil && w.Canary.PodTemplateHash == ro.Status.CurrentPodHash && w.Canary.Weight == 0
+		}, "canary weights recorded at 0 for the new ReplicaSet").
+		Then().
+		// Canary pod is not ready, so the canary weight is still 0; the background analysis must be
+		// delayed (without the fix it would already exist here, running against 0 traffic).
+		Assert(func(t *fixtures.Then) {
+			ro := t.GetRollout()
+			// Assert the router was programmed for *this* canary at weight 0, rather than simply
+			// having no recorded weights: otherwise the analysis would be held back by the
+			// "no weights recorded yet" branch of the gate and this would not be exercising the
+			// weight comparison it is meant to.
+			canaryHash := t.GetReplicaSetByRevision("2").Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			weights := ro.Status.Canary.Weights
+			assert.NotNil(s.T(), weights, "weights should be recorded for the new canary")
+			if weights != nil {
+				assert.Equal(s.T(), canaryHash, weights.Canary.PodTemplateHash)
+				assert.Equal(s.T(), int32(0), weights.Canary.Weight,
+					"canary should still be at weight 0 while its pod is not ready")
+			}
+		}).
+		ExpectAnalysisRunCount(0).
+		When().
+		MarkPodsReady("2", 1).          // canary becomes ready -> weight reaches setWeight (50)
+		WaitForRolloutStatus("Paused"). // progresses to the pause step
+		Then().
+		ExpectAnalysisRunCount(1) // background analysis is created now that the canary has traffic
+
+	s.TearDownSuite()
+}
