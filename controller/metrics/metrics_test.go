@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -101,6 +102,63 @@ func TestVersionInfo(t *testing.T) {
 # TYPE argo_rollouts_controller_info gauge`
 	metricsServ := NewMetricsServer(newFakeServerConfig())
 	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
+}
+
+func TestNewMetricsServerReconcileHistogramBuckets(t *testing.T) {
+	metricsServ := NewMetricsServer(newFakeServerConfig())
+
+	metricsServ.IncRolloutReconcile(&v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "name"},
+	}, 5*time.Second)
+
+	expectedResponse := `# HELP rollout_reconcile Rollout reconciliation performance.
+# TYPE rollout_reconcile histogram
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.01"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.05"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.1"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.25"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="0.5"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="1"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="2.5"} 0
+rollout_reconcile_bucket{name="name",namespace="ns",le="5"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="10"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="30"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="60"} 1
+rollout_reconcile_bucket{name="name",namespace="ns",le="+Inf"} 1
+rollout_reconcile_sum{name="name",namespace="ns"} 5
+rollout_reconcile_count{name="name",namespace="ns"} 1`
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
+}
+
+func TestReconcileHistogramsEmitNativeHistograms(t *testing.T) {
+	for _, h := range []*prometheus.HistogramVec{
+		MetricRolloutReconcile,
+		MetricAnalysisRunReconcile,
+		MetricExperimentReconcile,
+		MetricNotificationSend,
+	} {
+		reg := prometheus.NewPedanticRegistry()
+		require.NoError(t, reg.Register(h))
+		h.WithLabelValues("native-ns", "native-name").Observe(5)
+
+		families, err := reg.Gather()
+		require.NoError(t, err)
+		require.Len(t, families, 1)
+
+		var found bool
+		for _, m := range families[0].GetMetric() {
+			if m.GetLabel()[1].GetValue() != "native-ns" {
+				continue
+			}
+			found = true
+			hist := m.GetHistogram()
+			assert.NotNil(t, hist.Schema, "%s should expose a native histogram schema", families[0].GetName())
+			assert.NotEmpty(t, hist.GetPositiveSpan(), "%s should have native buckets", families[0].GetName())
+			assert.Len(t, hist.GetBucket(), len(reconcileHistogramBuckets), "%s classic buckets", families[0].GetName())
+		}
+		assert.True(t, found)
+		h.DeleteLabelValues("native-ns", "native-name")
+	}
 }
 
 func TestRemove(t *testing.T) {
