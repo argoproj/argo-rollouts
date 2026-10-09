@@ -706,6 +706,36 @@ func (s *AnalysisSuite) TestAnalysisWithSecret() {
 		ExpectStableRevision("2")
 }
 
+// TestAnalysisWithSharedSecret verifies the opt-in shared-secret feature end to end: an AnalysisRun
+// resolves a secretKeyRef marked sharedSecret: true from the controller's configured
+// --analysis-shared-secret-namespace (argo-rollouts) rather than its own namespace. The secret carries
+// the argo-rollouts.argoproj.io/shared-secret label so it passes the default strict-mode check.
+func (s *AnalysisSuite) TestAnalysisWithSharedSecret() {
+	s.Given().
+		RolloutObjects("@functional/rollout-shared-secret.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			ar := t.GetRolloutAnalysisRuns().Items[0]
+			assert.Equal(s.T(), v1alpha1.AnalysisPhaseSuccessful, ar.Status.Phase)
+			metricResult := ar.Status.MetricResults[0]
+			assert.Equal(s.T(), int32(2), metricResult.Count)
+		}).
+		When().
+		WaitForInlineAnalysisRunPhase("Successful").
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectStableRevision("2")
+}
+
 func (s *AnalysisSuite) TestAnalysisWithArgs() {
 	s.Given().
 		RolloutObjects("@functional/rollout-secret-withArgs.yaml").
