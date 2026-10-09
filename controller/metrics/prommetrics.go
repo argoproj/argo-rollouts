@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/argoproj/argo-rollouts/utils/version"
@@ -16,6 +18,13 @@ var (
 // analysis_run_reconcile, experiment_reconcile, and notification_send histograms.
 var reconcileHistogramBuckets = []float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60}
 
+// Native histogram settings for the same metrics; only used by scrapers that negotiate protobuf.
+const (
+	nativeHistogramBucketFactor     = 1.1
+	nativeHistogramMaxBucketNumber  = 100
+	nativeHistogramMinResetDuration = time.Hour
+)
+
 // Rollout metrics
 var (
 	MetricRolloutReconcile = prometheus.NewHistogramVec(
@@ -23,6 +32,10 @@ var (
 			Name:    "rollout_reconcile",
 			Help:    "Rollout reconciliation performance.",
 			Buckets: reconcileHistogramBuckets,
+
+			NativeHistogramBucketFactor:     nativeHistogramBucketFactor,
+			NativeHistogramMaxBucketNumber:  nativeHistogramMaxBucketNumber,
+			NativeHistogramMinResetDuration: nativeHistogramMinResetDuration,
 		},
 		namespaceNameLabels,
 	)
@@ -94,6 +107,10 @@ var (
 			Name:    "analysis_run_reconcile",
 			Help:    "Analysis Run reconciliation performance.",
 			Buckets: reconcileHistogramBuckets,
+
+			NativeHistogramBucketFactor:     nativeHistogramBucketFactor,
+			NativeHistogramMaxBucketNumber:  nativeHistogramMaxBucketNumber,
+			NativeHistogramMinResetDuration: nativeHistogramMinResetDuration,
 		},
 		namespaceNameLabels,
 	)
@@ -159,6 +176,10 @@ var (
 			Name:    "experiment_reconcile",
 			Help:    "Experiments reconciliation performance.",
 			Buckets: reconcileHistogramBuckets,
+
+			NativeHistogramBucketFactor:     nativeHistogramBucketFactor,
+			NativeHistogramMaxBucketNumber:  nativeHistogramMaxBucketNumber,
+			NativeHistogramMinResetDuration: nativeHistogramMinResetDuration,
 		},
 		namespaceNameLabels,
 	)
@@ -210,6 +231,10 @@ var (
 			Name:    "notification_send",
 			Help:    "Notification send performance.",
 			Buckets: reconcileHistogramBuckets,
+
+			NativeHistogramBucketFactor:     nativeHistogramBucketFactor,
+			NativeHistogramMaxBucketNumber:  nativeHistogramMaxBucketNumber,
+			NativeHistogramMinResetDuration: nativeHistogramMinResetDuration,
 		},
 		namespaceNameLabels,
 	)
