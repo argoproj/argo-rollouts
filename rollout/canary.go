@@ -304,11 +304,14 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	if c.rollout.Status.PromoteFull || c.isRollbackWithinWindow() {
+	// A stage failure still syncs status, but the cluster may not match a skipped-to-the-end
+	// step index. Leave the index, pauses, and abort alone until a later pass can promote.
+	if !c.progressionBlocked && (c.rollout.Status.PromoteFull || c.isRollbackWithinWindow()) {
 		c.pauseContext.ClearPauseConditions()
 		c.pauseContext.RemoveAbort()
 		if stepCount > 0 {
 			currentStepIndex = &stepCount
+			newStatus.Canary.CurrentExperiment = ""
 		}
 	}
 
@@ -335,6 +338,8 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		stepStr := rolloututil.CanaryStepString(*currentStep)
 		*currentStepIndex++
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
+		// The step is done; a finished Experiment for it is no longer current.
+		newStatus.Canary.CurrentExperiment = ""
 
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutStepCompletedReason}, conditions.RolloutStepCompletedMessage, int(*currentStepIndex), stepCount, stepStr)
 		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonCanaryPauseStep)

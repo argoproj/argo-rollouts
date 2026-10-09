@@ -123,8 +123,13 @@ func TestPromoteFullHeldWhileStageFailed(t *testing.T) {
 
 	patchIndex := f.expectPatchRolloutAction(ro)
 	f.runExpectError(getKey(ro, t), true)
-	assert.NotContains(t, f.getPatchedRollout(patchIndex), fmt.Sprintf(`"stableRS":"%s"`, ro.Status.CurrentPodHash),
+	patch := f.getPatchedRollout(patchIndex)
+	assert.NotContains(t, patch, fmt.Sprintf(`"stableRS":"%s"`, ro.Status.CurrentPodHash),
 		"a stage failure must hold the forced promotion")
+	assert.NotContains(t, patch, `"currentStepIndex"`,
+		"a held full promotion must not rewrite the step index; patch: %s", patch)
+	assert.NotContains(t, patch, `"promoteFull":false`,
+		"PromoteFull stays set until the promotion is applied; patch: %s", patch)
 	assert.Contains(t, f.events, conditions.PromoteFullHeldReason,
 		"the held promotion must be surfaced to the operator via an event")
 }
