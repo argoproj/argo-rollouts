@@ -44,6 +44,10 @@
                                                     "name": {
                                                         "description": "Name is the name of the secret",
                                                         "type": "string"
+                                                    },
+                                                    "sharedSecret": {
+                                                        "description": "SharedSecret indicates the secret should be read from the namespace\nmentioned by --analysis-shared-secret-namespace flag.",
+                                                        "type": "boolean"
                                                     }
                                                 },
                                                 "required": [
@@ -6525,6 +6529,10 @@
                                                     "name": {
                                                         "description": "Name is the name of the secret",
                                                         "type": "string"
+                                                    },
+                                                    "sharedSecret": {
+                                                        "description": "SharedSecret indicates the secret should be read from the namespace\nmentioned by --analysis-shared-secret-namespace flag.",
+                                                        "type": "boolean"
                                                     }
                                                 },
                                                 "required": [
@@ -13022,6 +13030,10 @@
                                                     "name": {
                                                         "description": "Name is the name of the secret",
                                                         "type": "string"
+                                                    },
+                                                    "sharedSecret": {
+                                                        "description": "SharedSecret indicates the secret should be read from the namespace\nmentioned by --analysis-shared-secret-namespace flag.",
+                                                        "type": "boolean"
                                                     }
                                                 },
                                                 "required": [
@@ -19523,6 +19535,10 @@
                                                                 "name": {
                                                                     "description": "Name is the name of the secret",
                                                                     "type": "string"
+                                                                },
+                                                                "sharedSecret": {
+                                                                    "description": "SharedSecret indicates the secret should be read from the namespace\nmentioned by --analysis-shared-secret-namespace flag.",
+                                                                    "type": "boolean"
                                                                 }
                                                             },
                                                             "required": [

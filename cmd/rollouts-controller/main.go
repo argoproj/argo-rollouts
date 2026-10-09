@@ -89,6 +89,8 @@ func newCommand() *cobra.Command {
 		selfServiceNotificationEnabled bool
 		controllersEnabled             []string
 		pprofAddress                   string
+		analysisSharedSecretNamespace  string
+		sharedSecretStrict             bool
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
@@ -261,7 +263,10 @@ func newCommand() *cobra.Command {
 					clusterDynamicInformerFactory,
 					namespaced,
 					kubeInformerFactory,
-					jobInformerFactory)
+					jobInformerFactory,
+					analysisSharedSecretNamespace,
+					sharedSecretStrict,
+				)
 			} else {
 				cm = controller.NewManager(
 					namespace,
@@ -301,7 +306,9 @@ func newCommand() *cobra.Command {
 					jobInformerFactory,
 					ephemeralMetadataThreads,
 					ephemeralMetadataPodRetries,
-					selfServiceNotificationEnabled)
+					selfServiceNotificationEnabled,
+					analysisSharedSecretNamespace,
+					sharedSecretStrict)
 			}
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
@@ -355,6 +362,8 @@ func newCommand() *cobra.Command {
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", false, "Allows rollouts controller to pull notification config from the namespace that the rollout resource is in. This is useful for self-service notification.")
 	command.Flags().StringSliceVar(&controllersEnabled, "controllers", nil, "Explicitly specify the list of controllers to run, currently only supports 'analysis', eg. --controller=analysis. Default: all controllers are enabled")
 	command.Flags().StringVar(&pprofAddress, "enable-pprof-address", "", "Enable pprof profiling on controller by providing a server address.")
+	command.Flags().StringVar(&analysisSharedSecretNamespace, "analysis-shared-secret-namespace", "", "Namespace containing secrets that may be referenced by AnalysisRuns")
+	command.Flags().BoolVar(&sharedSecretStrict, "analysis-shared-secret-strict", true, "Require shared secrets referenced by AnalysisRuns to carry the required label")
 	return &command
 }
 

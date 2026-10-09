@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1666,7 +1667,8 @@ func TestSecretNotFound(t *testing.T) {
 		incompleteMeasurement: nil,
 	}}
 	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
-	assert.Equal(t, "secrets \"secret-does-not-exist\" not found", err.Error())
+	expectedErr := fmt.Sprintf("secret %s not found in namespace %s", args[0].ValueFrom.SecretKeyRef.Name, metav1.NamespaceDefault)
+	assert.Equal(t, expectedErr, err.Error())
 }
 
 func TestKeyNotInSecret(t *testing.T) {
@@ -2602,4 +2604,144 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfNoCompletedAt(t *testing.T) {
 	// No error, no deletion issued.
 	assert.NoError(t, err)
 	assert.Empty(t, f.client.Fake.Actions())
+}
+
+func TestResolveArgsUsesSharedSecretNamespaceWhenEnabled(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	sharedNamespace := "shared-secrets"
+
+	sharedSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "token-secret",
+			Namespace: sharedNamespace,
+			Labels: map[string]string{
+				sharedSecretLabel: "true",
+			},
+		},
+		Data: map[string][]byte{
+			"apiToken": []byte("shared-token"),
+		},
+	}
+
+	c, _, _ := f.newControllerWithSharedSecret(noResyncPeriodFunc, sharedNamespace, true)
+
+	_, err := f.kubeclient.CoreV1().Secrets(sharedNamespace).
+		Create(context.TODO(), sharedSecret, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	args := []v1alpha1.Argument{
+		{
+			Name: "api-token",
+			ValueFrom: &v1alpha1.ValueFrom{
+				SecretKeyRef: &v1alpha1.SecretKeyRef{
+					Name:         "token-secret",
+					Key:          "apiToken",
+					SharedSecret: true,
+				},
+			},
+		},
+	}
+
+	tasks := []metricTask{
+		{
+			metric: v1alpha1.Metric{
+				Name: "webmetric",
+			},
+		},
+	}
+
+	resolvedTasks, secrets, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+	require.NoError(t, err)
+	require.NotNil(t, resolvedTasks)
+	assert.Contains(t, secrets, "shared-token")
+	require.NotNil(t, args[0].Value)
+	assert.Equal(t, "shared-token", *args[0].Value)
+}
+
+// TestResolveArgsReturnsErrorWhenStrictAndSecretUnlabeled verifies that with strict mode on
+// (the default), a shared secret that exists in the configured namespace but is missing the
+// required label is rejected rather than resolved.
+func TestResolveArgsReturnsErrorWhenStrictAndSecretUnlabeled(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	sharedNamespace := "shared-secrets"
+
+	unlabeledSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "token-secret",
+			Namespace: sharedNamespace,
+		},
+		Data: map[string][]byte{
+			"apiToken": []byte("shared-token"),
+		},
+	}
+
+	c, _, _ := f.newControllerWithSharedSecret(noResyncPeriodFunc, sharedNamespace, true)
+
+	_, err := f.kubeclient.CoreV1().Secrets(sharedNamespace).
+		Create(context.TODO(), unlabeledSecret, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	args := []v1alpha1.Argument{
+		{
+			Name: "api-token",
+			ValueFrom: &v1alpha1.ValueFrom{
+				SecretKeyRef: &v1alpha1.SecretKeyRef{
+					Name:         "token-secret",
+					Key:          "apiToken",
+					SharedSecret: true,
+				},
+			},
+		},
+	}
+
+	tasks := []metricTask{
+		{
+			metric: v1alpha1.Metric{
+				Name: "webmetric",
+			},
+		},
+	}
+
+	_, _, err = c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "not labeled")
+	assert.ErrorContains(t, err, "token-secret")
+}
+
+// TestResolveArgsRejectsSharedSecretWhenNamespaceUnset verifies that a sharedSecret reference is
+// rejected (feature disabled) when the admin has not configured a shared-secret namespace.
+func TestResolveArgsRejectsSharedSecretWhenNamespaceUnset(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	args := []v1alpha1.Argument{
+		{
+			Name: "api-token",
+			ValueFrom: &v1alpha1.ValueFrom{
+				SecretKeyRef: &v1alpha1.SecretKeyRef{
+					Name:         "token-secret",
+					Key:          "apiToken",
+					SharedSecret: true,
+				},
+			},
+		},
+	}
+
+	tasks := []metricTask{
+		{
+			metric: v1alpha1.Metric{
+				Name: "webmetric",
+			},
+		},
+	}
+
+	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "disabled")
 }

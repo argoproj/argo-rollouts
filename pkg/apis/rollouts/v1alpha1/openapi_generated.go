@@ -5273,6 +5273,13 @@ func schema_pkg_apis_rollouts_v1alpha1_SecretKeyRef(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"sharedSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SharedSecret indicates the secret should be read from the namespace mentioned by --analysis-shared-secret-namespace flag.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"name", "key"},
 			},
