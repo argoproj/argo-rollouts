@@ -311,6 +311,10 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		c.pauseContext.RemoveAbort()
 		if stepCount > 0 {
 			currentStepIndex = &stepCount
+			// currentStepIndex now points past the end, so the Experiment step is over. A rollback
+			// still inside the window may have just set currentExperiment to that Experiment's name.
+			// Leaving the name set would store two conflicting facts, so clear it. promote --full
+			// already left the name empty.
 			newStatus.Canary.CurrentExperiment = ""
 		}
 	}
