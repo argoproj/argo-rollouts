@@ -197,9 +197,11 @@ func (c *rolloutContext) reconcileExperiments() error {
 				message += ": " + currentEx.Status.Message
 			}
 			c.pauseContext.AddAbort(message)
-		case v1alpha1.AnalysisPhaseSuccessful:
-			// Do not set current Experiment after successful experiment
 		default:
+			// Keep the current Experiment (including a Successful one) in status until the step
+			// advances; syncRolloutStatusCanary clears it then. Otherwise a pass that cannot
+			// advance (paused, or a later stage failed) would persist an empty name and the next
+			// pass would create a replacement Experiment for the same step.
 			c.SetCurrentExperiment(currentEx)
 		}
 	}
