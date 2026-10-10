@@ -2,15 +2,19 @@ package metrics
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 
@@ -21,6 +25,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informerfactory "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	rolloutlister "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -597,4 +602,82 @@ func TestEmitRolloutDuration_NilFinishedAt(t *testing.T) {
 	expected := ``
 	err := testutil.GatherAndCompare(m.registry, strings.NewReader(expected), "rollout_duration_seconds", "rollout_progression_duration_seconds", "rollout_manual_pause_duration_seconds")
 	require.NoError(t, err)
+}
+
+// blockingRolloutLister wraps a RolloutLister and blocks every List call until release is
+// closed, recording how many List calls were actually made. It lets a test hold a /metrics
+// scrape open inside the collector, the way a very large informer cache would.
+type blockingRolloutLister struct {
+	rolloutlister.RolloutLister
+	listCalls atomic.Int64
+	release   chan struct{}
+}
+
+func (b *blockingRolloutLister) List(selector labels.Selector) ([]*v1alpha1.Rollout, error) {
+	b.listCalls.Add(1)
+	<-b.release
+	return b.RolloutLister.List(selector)
+}
+
+// TestMetricsHandlerBoundsConcurrentScrapes verifies the two protections that keep a slow
+// /metrics endpoint from taking the controller down: concurrent scrapes share a single
+// collection cycle, and scrapes past MaxScrapesInFlight are rejected instead of piling up.
+func TestMetricsHandlerBoundsConcurrentScrapes(t *testing.T) {
+	cfg := newFakeServerConfig()
+	lister := &blockingRolloutLister{RolloutLister: cfg.RolloutLister, release: make(chan struct{})}
+	cfg.RolloutLister = lister
+	metricsServ := NewMetricsServer(cfg)
+
+	// Count the requests that made it into the metrics handler so the test can wait for all
+	// of them to be in flight rather than sleeping.
+	var inFlight atomic.Int64
+	handler := metricsServ.Handler
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inFlight.Add(1)
+		defer inFlight.Add(-1)
+		handler.ServeHTTP(w, r)
+	}))
+	defer ts.Close()
+
+	get := func(client *http.Client) (int, error) {
+		resp, err := client.Get(ts.URL + MetricsPath)
+		if err != nil {
+			return 0, err
+		}
+		defer resp.Body.Close()
+		io.Copy(io.Discard, resp.Body)
+		return resp.StatusCode, nil
+	}
+
+	// Fill every in-flight slot. All of these block inside the rollout collector.
+	var wg sync.WaitGroup
+	codes := make([]int, MaxScrapesInFlight)
+	for i := 0; i < MaxScrapesInFlight; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			code, err := get(http.DefaultClient)
+			assert.NoError(t, err)
+			codes[i] = code
+		}(i)
+	}
+	require.Eventually(t, func() bool {
+		return inFlight.Load() == int64(MaxScrapesInFlight)
+	}, 30*time.Second, 10*time.Millisecond, "scrapes never all became in-flight")
+
+	// One more scrape than the handler allows is rejected immediately rather than queued.
+	// The timeout keeps this from hanging forever if the in-flight limit is ever dropped.
+	code, err := get(&http.Client{Timeout: 30 * time.Second})
+	require.NoError(t, err, "scrape past the in-flight limit was queued instead of rejected")
+	assert.Equal(t, http.StatusServiceUnavailable, code)
+
+	close(lister.release)
+	wg.Wait()
+
+	for i, code := range codes {
+		assert.Equal(t, http.StatusOK, code, "scrape %d", i)
+	}
+	// Concurrent scrapes are coalesced, so the collectors walked the informer cache once for
+	// all MaxScrapesInFlight requests instead of once per request.
+	assert.Equal(t, int64(1), lister.listCalls.Load())
 }

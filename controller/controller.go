@@ -519,6 +519,12 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 		}
 	}()
 
+	// leadershipLost records that the controller stopped leading for a reason other than a
+	// shutdown signal (typically a failure to renew the lease against the API server). It is
+	// only written from the leader election callbacks, which RunOrDie invokes synchronously
+	// before it returns, so no synchronization is needed.
+	leadershipLost := false
+
 	if !electOpts.LeaderElect {
 		log.Info("Leader election is turned off. Running in single-instance mode")
 		go c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
@@ -556,7 +562,21 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 					c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
 				},
 				OnStoppedLeading: func() {
-					log.Infof("OnStoppedLeading called, shutting down: %s, context err: %s", id, ctx.Err())
+					if ctx.Err() != nil {
+						// The context is only cancelled by the signal handler, so this is an
+						// ordinary shutdown and leadership was given up on the way out.
+						log.Infof("OnStoppedLeading called, shutting down: %s, context err: %s", id, ctx.Err())
+						return
+					}
+					// Nothing asked us to stop, so the lease was lost while the controller was
+					// still running: renewing it did not complete within the renew deadline.
+					// Log it loudly and exit non-zero, otherwise the process exits 0 and the
+					// restart shows up as "Terminated: Completed" with nothing explaining it.
+					leadershipLost = true
+					log.Errorf("Lost leadership of lease %s/%s held as %s, exiting. The lease could not be renewed within the renew deadline of %s, "+
+						"which usually means the controller is saturated or its requests to the API server are being throttled. Consider raising --qps/--burst, "+
+						"--leader-election-lease-duration and --leader-election-renew-deadline, or reducing the number of objects a single controller watches.",
+						electOpts.LeaderElectionNamespace, lockName, id, electOpts.LeaderElectionRenewDeadline)
 				},
 				OnNewLeader: func(identity string) {
 					log.Infof("New leader elected: %s", identity)
@@ -582,6 +602,10 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 	c.metricsServer.Shutdown(ctxWithTimeout)
 
 	c.wg.Wait()
+
+	if leadershipLost {
+		return fmt.Errorf("lost leadership of lease %s/%s", electOpts.LeaderElectionNamespace, leaseLockName(c.instanceID))
+	}
 
 	return nil
 }
