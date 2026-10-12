@@ -795,6 +795,50 @@ func TestSendNotificationsOncePer(t *testing.T) {
 		assert.Equal(t, 2, *sent)
 	})
 
+	t.Run("WhenNotTriggeredDoesNotSend", func(t *testing.T) {
+		r := newRollout("abc")
+		cr := triggers.ConditionResult{Key: "[0].whenhash", OncePer: "abc", Triggered: false, Templates: []string{"my-template"}}
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{When: "false", OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, cr)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 0, *sent)
+		assert.NotContains(t, r.Annotations, notifiedAnnotation)
+	})
+
+	t.Run("NoRolloutsClientSendsEveryTime", func(t *testing.T) {
+		r := newRollout("abc")
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, emptyConditionResult)
+		rec.rolloutsClient = nil
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 2, *sent)
+		assert.NotContains(t, r.Annotations, notifiedAnnotation)
+	})
+
+	t.Run("InvalidOncePerExpressionSendsEveryTime", func(t *testing.T) {
+		r := newRollout("abc")
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{OncePer: "rollout.status.(", Send: []string{"my-template"}}, emptyConditionResult)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 2, *sent)
+		assert.NotContains(t, r.Annotations, notifiedAnnotation)
+	})
+
+	t.Run("UnreadableNotifiedStateIsCleared", func(t *testing.T) {
+		r := newRollout("abc")
+		r.Annotations[notifiedAnnotation] = "not-json"
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{Send: []string{"my-template"}}, emptyConditionResult)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 1, *sent)
+		assert.NotContains(t, r.Annotations, notifiedAnnotation)
+		persisted, err := rec.rolloutsClient.ArgoprojV1alpha1().Rollouts("default").Get(t.Context(), "guestbook", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotContains(t, persisted.Annotations, notifiedAnnotation)
+	})
+
 	t.Run("PersistErrorIsReturned", func(t *testing.T) {
 		r := newRollout("abc")
 		rec, mockAPI, _ := newRec(t, r, triggers.Condition{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, emptyConditionResult)
