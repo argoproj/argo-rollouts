@@ -1259,6 +1259,93 @@ spec:
           value: "Bearer {{ args.api-token }}"
 ```
 
+### Shared Secrets (cross-namespace)
+
+By default an AnalysisRun resolves `secretKeyRef` arguments only from its own namespace. A cluster
+administrator can optionally allow AnalysisRuns to read secrets from a single, dedicated namespace by
+starting the controller with:
+
+```
+--analysis-shared-secret-namespace <namespace>   # empty (default) = feature disabled
+--analysis-shared-secret-strict                   # default: true
+```
+
+An argument then opts in to the shared namespace with `secretKeyRef.sharedSecret: true`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+spec:
+  args:
+  - name: api-token
+    valueFrom:
+      secretKeyRef:
+        name: token-secret
+        key: apiToken
+        sharedSecret: true   # read from the configured shared namespace instead of the run's namespace
+```
+
+When `sharedSecret` is `false` or unset, the existing behavior is preserved and the secret is resolved
+from the AnalysisRun's own namespace. As before, this applies only to AnalysisRuns — AnalysisTemplates
+do not resolve secrets.
+
+**Strict mode (on by default).** When `--analysis-shared-secret-strict` is `true`, a secret in the
+shared namespace is only readable if it carries the label:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: token-secret
+  namespace: <shared namespace>
+  labels:
+    argo-rollouts.argoproj.io/shared-secret: "true"
+data:
+  apiToken: <base64-encoded-token>
+```
+
+This ensures AnalysisRuns can only read secrets that were explicitly created for this purpose, rather
+than every secret that happens to live in the shared namespace. This mirrors how Argo CD restricts
+[`tokenRef`](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Appset-Any-Namespace/#tokenref-restrictions)
+references with a required label, except strict mode is **on by default** here.
+
+The resulting behavior is:
+
+| Admin flag | Strict mode | Which secrets an AnalysisRun can read from the shared namespace | Risk |
+| --- | --- | --- | --- |
+| unset (default) | — | None — shared secrets are disabled | None |
+| set | on (default) | Only secrets carrying the `argo-rollouts.argoproj.io/shared-secret: "true"` label | Low |
+| set | explicitly off | Any secret in the configured namespace | Highest |
+
+!!! danger "Multi-tenant clusters: shared secrets are readable in plaintext by anyone who can create an AnalysisRun"
+
+    Any user who can create an AnalysisRun (directly, or via a Rollout/Experiment that references an
+    AnalysisTemplate) can exfiltrate the **plaintext** of every shared secret they are allowed to
+    reference — for example by sending it to an attacker-controlled endpoint through a Web metric URL
+    or header, or a Job metric command. Labeling and strict mode limit *which* secrets are reachable;
+    they do **not** keep the value confidential once referenced.
+
+    For a tenant to read unrelated secrets, an administrator must explicitly (1) enable
+    `--analysis-shared-secret-namespace`, (2) disable strict mode **or** label a sensitive secret, and
+    (3) point the flag at a namespace that holds sensitive secrets. Never point this flag at a
+    namespace containing secrets unrelated to analysis (such as the controller's own namespace, which
+    holds the notification secret), and prefer a dedicated namespace that contains only labeled,
+    analysis-specific secrets.
+
+#### RBAC and namespaced installs
+
+The controller reads the secret using its own ServiceAccount, so that account needs `get` permission
+on secrets in the namespace you set with `--analysis-shared-secret-namespace`. Using k8s RBAC to limit
+who else can read that namespace is the main way to control access to the shared secrets.
+
+With the cluster-wide [install](../installation.md) (`install.yaml`), the controller already has this
+access across namespaces, so you only need to point the flag at your chosen namespace.
+
+With the namespaced [install](../installation.md) (`namespace-install.yaml`), the controller can only
+read secrets in the single namespace it is installed in. In that mode, set
+`--analysis-shared-secret-namespace` to that same namespace — pointing it anywhere else will fail
+because the controller has no permission to read secrets there.
+
 ## Handling Metric Results
 
 ### NaN and Infinity
