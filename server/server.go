@@ -57,6 +57,10 @@ type ServerOptions struct {
 	DynamicClientset  dynamic.Interface
 	Namespace         string
 	RootPath          string
+	// ListenAddr is the address the dashboard/API server listens on. Defaults to
+	// localhost-only (defaultListenAddr) when empty, since the dashboard command is
+	// typically run on a user's workstation.
+	ListenAddr string
 }
 
 const (
@@ -75,16 +79,31 @@ func NewServer(o ServerOptions) *ArgoRolloutsServer {
 	return &ArgoRolloutsServer{Options: o}
 }
 
-const (
-	listenAddr  = "0.0.0.0"
-	connectAddr = "localhost"
-)
+const defaultListenAddr = "127.0.0.1"
+
+func (s *ArgoRolloutsServer) listenAddr() string {
+	if s.Options.ListenAddr != "" {
+		return s.Options.ListenAddr
+	}
+	return defaultListenAddr
+}
+
+// connectAddr returns the address the grpc-gateway should connect to, to reach the
+// in-process gRPC server.
+func (s *ArgoRolloutsServer) connectAddr() string {
+	switch addr := s.listenAddr(); addr {
+	case "0.0.0.0", "::", "":
+		return "localhost"
+	default:
+		return addr
+	}
+}
 
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
 	mux := http.NewServeMux()
 
 	httpS := http.Server{
-		Addr:    net.JoinHostPort(listenAddr, fmt.Sprintf("%d", port)),
+		Addr:    net.JoinHostPort(s.listenAddr(), fmt.Sprintf("%d", port)),
 		Handler: mux,
 	}
 
@@ -103,7 +122,7 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	}
 	opts = append(opts, grpc.WithInsecure())
 
-	endpoint := net.JoinHostPort(connectAddr, fmt.Sprintf("%d", port))
+	endpoint := net.JoinHostPort(s.connectAddr(), fmt.Sprintf("%d", port))
 	err := rollout.RegisterRolloutServiceHandlerFromEndpoint(ctx, gwmux, endpoint, opts)
 	if err != nil {
 		panic(err)
@@ -152,7 +171,7 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 	var conn net.Listener
 	var realErr error
 	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		conn, realErr = net.Listen("tcp", fmt.Sprintf(":%d", port))
+		conn, realErr = net.Listen("tcp", net.JoinHostPort(s.listenAddr(), fmt.Sprintf("%d", port)))
 		if realErr != nil {
 			log.Warnf("failed listen: %v", realErr)
 			return false, nil
@@ -161,9 +180,9 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 	})
 	errors.CheckError(realErr)
 
-	startupMessage := fmt.Sprintf("Argo Rollouts api-server serving on port %d (namespace: %s)", port, s.Options.Namespace)
+	startupMessage := fmt.Sprintf("Argo Rollouts api-server serving on port %s %d (namespace: %s)", s.listenAddr(), port, s.Options.Namespace)
 	if dashboard {
-		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at http://localhost:%d/%s", port, s.Options.RootPath)
+		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at http://%s:%d/%s", s.listenAddr(), port, s.Options.RootPath)
 	}
 
 	log.Info(startupMessage)
