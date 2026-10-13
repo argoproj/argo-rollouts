@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	argofake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -700,4 +703,22 @@ func TestWorkloadRefObjectMap(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, ok)
 	assert.NotNil(t, selectorMap)
+}
+
+// TestPromoteEventReasonsHaveCatalogTriggers verifies the promote event reasons map to triggers
+// that are shipped in the notifications catalog
+func TestPromoteEventReasonsHaveCatalogTriggers(t *testing.T) {
+	for reason, expectedTrigger := range map[string]string{
+		"RolloutPromoted":     "on-rollout-promoted",
+		"RolloutPromotedFull": "on-rollout-promoted-full",
+	} {
+		trigger := translateReasonToTrigger(reason)
+		assert.Equal(t, expectedTrigger, trigger)
+
+		data, err := os.ReadFile(filepath.Join("..", "..", "manifests", "notifications", trigger+".yaml"))
+		require.NoError(t, err)
+		var cm corev1.ConfigMap
+		require.NoError(t, yaml.Unmarshal(data, &cm))
+		assert.Contains(t, cm.Data, "trigger."+trigger)
+	}
 }
