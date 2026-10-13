@@ -8690,6 +8690,12 @@ spec:
                 description: PromoteFull indicates if the rollout should perform a
                   full promotion, skipping analysis and pauses.
                 type: boolean
+              promoteFullAt:
+                description: |-
+                  PromoteFullAt indicates when the controller reconciled a full promotion requested via status.promoteFull.
+                  The controller uses it to emit the RolloutPromotedFull event only once per promotion.
+                format: date-time
+                type: string
               readyReplicas:
                 description: Total number of ready pods targeted by this rollout.
                 format: int32

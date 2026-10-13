@@ -2609,6 +2609,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStat
     promoteFull?: boolean;
     /**
      * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    promoteFullAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
      * @type {string}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
      */

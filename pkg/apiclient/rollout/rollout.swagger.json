@@ -2387,6 +2387,10 @@
           "type": "boolean",
           "description": "PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses."
         },
+        "promoteFullAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "description": "PromoteFullAt indicates when the controller reconciled a full promotion requested via status.promoteFull.\nThe controller uses it to emit the RolloutPromotedFull event only once per promotion."
+        },
         "phase": {
           "type": "string",
           "title": "Phase is the rollout phase. Clients should only rely on the value if status.observedGeneration equals metadata.generation"
