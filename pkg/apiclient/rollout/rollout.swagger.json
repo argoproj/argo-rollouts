@@ -848,6 +848,10 @@
         "basicAuth": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.BasicAuthConfig",
           "title": "BasicAuth config\n+optional"
+        },
+        "google": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GoogleConfig",
+          "title": "Google config, an empty object enables Application Default Credentials\n+optional"
         }
       },
       "title": "Authentication method"
@@ -1265,6 +1269,18 @@
         "fieldPath": {
           "type": "string",
           "title": "Required: Path of the field to select in the specified API version"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GoogleConfig": {
+      "type": "object",
+      "properties": {
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read\n+optional"
         }
       }
     },

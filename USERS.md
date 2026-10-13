@@ -86,5 +86,6 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [WeLab Bank](https://www.welab.bank/)
 1. [Wolt](https://wolt.com/)
 1. [X3M ads](https://x3mads.com)
+1. [Yahoo](https://yahoo.com)
 1. [Yotpo](https://www.yotpo.com/)
 1. [Yuno](https://y.uno/)
