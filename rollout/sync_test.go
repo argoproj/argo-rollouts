@@ -13,8 +13,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	testclient "k8s.io/client-go/testing"
@@ -221,12 +223,49 @@ func TestReconcileRevisionHistoryLimit(t *testing.T) {
 			for _, action := range k8sfake.Actions() {
 				deleteAction := action.(testclient.DeleteAction)
 				assert.True(t, test.expectedDeleted[deleteAction.GetName()])
-				// Foreground deletion keeps the ReplicaSet around until its pods are gone,
-				// so PodDisruptionBudgets can still find the pods' controller.
 				policy := deleteAction.GetDeleteOptions().PropagationPolicy
 				if assert.NotNil(t, policy) {
 					assert.Equal(t, metav1.DeletePropagationForeground, *policy)
 				}
+			}
+		})
+	}
+}
+
+func TestReconcileRevisionHistoryLimitDeleteError(t *testing.T) {
+	tests := []struct {
+		name      string
+		deleteErr error
+		expectErr bool
+	}{
+		{name: "delete error is returned", deleteErr: errors.New("delete failed"), expectErr: true},
+		{name: "not found is ignored", deleteErr: apierrors.NewNotFound(schema.GroupResource{Resource: "replicasets"}, "foo")},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			r := newBlueGreenRollout("baz", 1, int32Ptr(0), "", "")
+			kubeClient := k8sfake.Clientset{}
+			kubeClient.AddReactor("delete", "replicasets", func(testclient.Action) (bool, runtime.Object, error) {
+				return true, nil, test.deleteErr
+			})
+			rs := &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", CreationTimestamp: metav1.Now()},
+				Spec:       appsv1.ReplicaSetSpec{Replicas: int32Ptr(0)},
+			}
+			roCtx := &rolloutContext{
+				rollout: r,
+				log:     logutil.WithRollout(r),
+				reconcilerBase: reconcilerBase{
+					argoprojclientset: &fake.Clientset{},
+					kubeclientset:     &kubeClient,
+					recorder:          record.NewFakeEventRecorder(),
+				},
+			}
+			err := roCtx.reconcileRevisionHistoryLimit([]*appsv1.ReplicaSet{rs})
+			if test.expectErr {
+				assert.ErrorIs(t, err, test.deleteErr)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
