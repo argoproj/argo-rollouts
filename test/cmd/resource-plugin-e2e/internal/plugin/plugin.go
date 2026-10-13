@@ -22,6 +22,8 @@ var _ rpc.ResourcePlugin = &RpcPlugin{}
 
 const fieldManager = "argo-rollouts-resource-e2e-plugin"
 
+var errNotInitialized = types.RpcError{ErrorString: "kube client not initialized"}
+
 // RpcPlugin is a minimal resource plugin for E2E testing.
 type RpcPlugin struct {
 	LogCtx     *log.Entry
@@ -51,11 +53,12 @@ func (p *RpcPlugin) WatchedGVK() (types.WatchedGVK, types.RpcError) {
 	return types.WatchedGVK{Group: "apps", Version: "v1", Kind: "StatefulSet"}, types.RpcError{}
 }
 
-func (p *RpcPlugin) GetResourceStatus(namespace string, workloadRef v1alpha1.WorkloadRef) (*types.ResourceStatus, types.RpcError) {
+func (p *RpcPlugin) GetResourceStatus(rolloutPlugin *v1alpha1.RolloutPlugin) (*types.ResourceStatus, types.RpcError) {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("GetResourceStatus: apiVersion=%s kind=%s name=%s", workloadRef.APIVersion, workloadRef.Kind, workloadRef.Name)
 
 	if p.kubeClient == nil {
-		return nil, types.RpcError{ErrorString: "kube client not initialized"}
+		return nil, errNotInitialized
 	}
 
 	sts, err := p.kubeClient.AppsV1().StatefulSets(namespace).Get(context.Background(), workloadRef.Name, metav1.GetOptions{})
@@ -68,6 +71,10 @@ func (p *RpcPlugin) GetResourceStatus(namespace string, workloadRef v1alpha1.Wor
 
 // statefulSetResourceStatus converts a StatefulSet into a ResourceStatus.
 func statefulSetResourceStatus(sts *appsv1.StatefulSet) *types.ResourceStatus {
+	replicas := int32(1)
+	if sts.Spec.Replicas != nil {
+		replicas = *sts.Spec.Replicas
+	}
 	return &types.ResourceStatus{
 		Replicas:          sts.Status.Replicas,
 		UpdatedReplicas:   sts.Status.UpdatedReplicas,
@@ -75,12 +82,20 @@ func statefulSetResourceStatus(sts *appsv1.StatefulSet) *types.ResourceStatus {
 		AvailableReplicas: sts.Status.AvailableReplicas,
 		CurrentRevision:   sts.Status.CurrentRevision,
 		UpdatedRevision:   sts.Status.UpdateRevision,
+		// Reads are live, so the status already reflects this plugin's own last patch.
+		Ready: sts.Status.ObservedGeneration == sts.Generation && sts.Status.ReadyReplicas == replicas &&
+			(sts.Status.CurrentRevision == sts.Status.UpdateRevision || sts.Status.CurrentReplicas+sts.Status.UpdatedReplicas == replicas),
+		ObservedResourceVersion: sts.ResourceVersion,
 	}
 }
 
-func (p *RpcPlugin) SetWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) types.RpcError {
+func (p *RpcPlugin) SetWeight(rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) types.RpcError {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("SetWeight: name=%s weight=%d", workloadRef.Name, weight)
 
+	if p.kubeClient == nil {
+		return errNotInitialized
+	}
 	sts, err := p.kubeClient.AppsV1().StatefulSets(namespace).Get(context.Background(), workloadRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return types.RpcError{ErrorString: fmt.Sprintf("SetWeight: failed to get StatefulSet: %v", err)}
@@ -94,18 +109,23 @@ func (p *RpcPlugin) SetWeight(namespace string, workloadRef v1alpha1.WorkloadRef
 	return p.patchPartition(namespace, workloadRef.Name, partition)
 }
 
-func (p *RpcPlugin) VerifyWeight(namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, types.RpcError) {
+func (p *RpcPlugin) VerifyWeight(rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) (bool, types.RpcError) {
+	workloadRef := rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("VerifyWeight: name=%s weight=%d", workloadRef.Name, weight)
 	return true, types.RpcError{}
 }
 
-func (p *RpcPlugin) PromoteFull(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
+func (p *RpcPlugin) PromoteFull(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
+	namespace, workloadRef := rolloutPlugin.Namespace, rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("PromoteFull: name=%s", workloadRef.Name)
 	return p.patchPartition(namespace, workloadRef.Name, 0)
 }
 
 // patchPartition updates the StatefulSet's partition
 func (p *RpcPlugin) patchPartition(namespace, name string, partition int32) types.RpcError {
+	if p.kubeClient == nil {
+		return errNotInitialized
+	}
 	patch := map[string]interface{}{
 		"apiVersion": "apps/v1",
 		"kind":       "StatefulSet",
@@ -138,12 +158,18 @@ func (p *RpcPlugin) patchPartition(namespace, name string, partition int32) type
 
 func boolPtr(b bool) *bool { return &b }
 
-func (p *RpcPlugin) Abort(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
+func (p *RpcPlugin) Validate(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
+	return types.RpcError{}
+}
+
+func (p *RpcPlugin) Abort(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
+	workloadRef := rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("Abort: name=%s", workloadRef.Name)
 	return types.RpcError{}
 }
 
-func (p *RpcPlugin) Restart(namespace string, workloadRef v1alpha1.WorkloadRef) types.RpcError {
+func (p *RpcPlugin) Restart(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
+	workloadRef := rolloutPlugin.Spec.WorkloadRef
 	p.LogCtx.Infof("Restart: name=%s", workloadRef.Name)
 	return types.RpcError{}
 }

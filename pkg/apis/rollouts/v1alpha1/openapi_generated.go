@@ -4883,6 +4883,20 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginSpec(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
+					"timeoutSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TimeoutSeconds is the maximum time in seconds for a rollout to make progress before it is considered to be failed. The controller continues to process failed rollouts and a condition with a ProgressDeadlineExceeded reason is surfaced in the status. Time spent paused does not count. Defaults to 600s.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"timeoutAbort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TimeoutAbort is whether to abort the update when TimeoutSeconds is exceeded.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"workloadRef", "plugin", "strategy"},
 			},
@@ -4939,6 +4953,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStatus(ref common.ReferenceC
 							Description: "CurrentStepIndex is the index of the current step in the rollout",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+					"currentStepHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentStepHash is the hash of the steps the rollout is running. A change to the steps mid-rollout restarts the rollout from step 0.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"pauseConditions": {

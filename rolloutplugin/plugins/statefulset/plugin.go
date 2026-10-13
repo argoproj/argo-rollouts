@@ -2,7 +2,12 @@ package statefulset
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"io"
+	"math"
+	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -13,85 +18,113 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"k8s.io/client-go/rest"
+	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rolloutplugin"
+	"github.com/argoproj/argo-rollouts/utils/resourceversion"
 )
 
 const (
 	// FieldManager is the field manager name used for Server-Side Apply
 	FieldManager = "argo-rollouts-statefulset-plugin"
+
+	// blockedPartition holds every pod on CurrentRevision. It is far above any replica count so
+	// pods added by a scale-up are also created on CurrentRevision, not on the UpdateRevision.
+	blockedPartition int32 = math.MaxInt32
 )
 
 // This is a built-in plugin that runs in-process, avoiding RPC overhead
 type Plugin struct {
-	logCtx *log.Entry
-	client client.Client
+	logCtx     *log.Entry
+	restConfig *rest.Config
+	client     client.Client
+
+	// versionTracker records the resourceVersion of this plugin's latest partition patch per
+	// StatefulSet UID, until the cache catches up with it. A cached StatefulSet from before the
+	// patch still looks fully observed (observedGeneration == generation), so its stale status
+	// could otherwise be reported as Ready, e.g. completing an abort whose rollback hasn't started.
+	// versionTrackerOnce lazily creates it, so plugins built as struct literals get it too.
+	versionTrackerOnce sync.Once
+	versionTracker     *resourceversion.Tracker
 }
 
-func NewPlugin(logCtx *log.Entry) *Plugin {
-	return &Plugin{logCtx: logCtx}
+// NewPlugin builds the plugin from the args of its rolloutPlugins ConfigMap entry,
+// Supported flags:
+//
+//	--loglevel   log level for this plugin only (defaults to the controller's level)
+//	--logformat  log format for this plugin only, text|json (defaults to the controller's format)
+//
+// restConfig is the controller's, so the plugin's client honors its kubeconfig, context, QPS and
+// burst flags. The client is created by Init.
+func NewPlugin(logCtx *log.Entry, restConfig *rest.Config, args []string) (*Plugin, error) {
+	fs := flag.NewFlagSet("statefulset", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	logLevel := fs.String("loglevel", "", "Set the logging level for the statefulset plugin. One of: debug|info|warn|error")
+	logFormat := fs.String("logformat", "", "Set the logging format for the statefulset plugin. One of: text|json")
+	if err := fs.Parse(args); err != nil {
+		return nil, fmt.Errorf("invalid args for statefulset plugin: %w", err)
+	}
+	if fs.NArg() > 0 {
+		return nil, fmt.Errorf("invalid args for statefulset plugin: unexpected positional arguments %v", fs.Args())
+	}
+	if *logLevel == "" && *logFormat == "" {
+		return &Plugin{logCtx: logCtx, restConfig: restConfig}, nil
+	}
+	level := logCtx.Logger.GetLevel()
+	if *logLevel != "" {
+		var err error
+		if level, err = log.ParseLevel(*logLevel); err != nil {
+			return nil, fmt.Errorf("invalid args for statefulset plugin: %w", err)
+		}
+	}
+	formatter := logCtx.Logger.Formatter
+	switch strings.ToLower(*logFormat) {
+	case "":
+	case "json":
+		formatter = &log.JSONFormatter{}
+	case "text":
+		formatter = &log.TextFormatter{FullTimestamp: true}
+	default:
+		return nil, fmt.Errorf("invalid args for statefulset plugin: unknown logformat %q, must be one of: text|json", *logFormat)
+	}
+	return &Plugin{logCtx: withLogger(logCtx, level, formatter), restConfig: restConfig}, nil
+}
+
+// withLogger returns a copy of logCtx backed by its own logger so the level and format apply
+// to this plugin only;
+func withLogger(logCtx *log.Entry, level log.Level, formatter log.Formatter) *log.Entry {
+	base := logCtx.Logger
+	l := &log.Logger{
+		Out:          base.Out,
+		Formatter:    formatter,
+		Hooks:        base.Hooks,
+		ReportCaller: base.ReportCaller,
+		ExitFunc:     base.ExitFunc,
+		Level:        level,
+	}
+	return log.NewEntry(l).WithFields(logCtx.Data)
 }
 
 func (p *Plugin) WatchedGVK() (schema.GroupVersionKind, error) {
 	return appsv1.SchemeGroupVersion.WithKind("StatefulSet"), nil
 }
 
-// WatchObject supplies a concrete Go type so SetupWithManager can register a typed watch.
-func (p *Plugin) WatchObject() client.Object {
-	return &appsv1.StatefulSet{}
-}
-
-// WatchPredicate filters StatefulSet watch events down to ones that actually indicate progress
-// (spec change, revision change, or replica-count change), so periodic resyncs and other
-// status-only churn don't trigger a reconcile.
-func (p *Plugin) WatchPredicate() predicate.Predicate {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			return true
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldSts, ok1 := e.ObjectOld.(*appsv1.StatefulSet)
-			newSts, ok2 := e.ObjectNew.(*appsv1.StatefulSet)
-			if !ok1 || !ok2 {
-				return true
-			}
-
-			// Skip if ResourceVersion is the same (periodic resync)
-			if oldSts.ResourceVersion == newSts.ResourceVersion {
-				return false
-			}
-
-			// Trigger reconcile if spec changed (generation changed)
-			if oldSts.Generation != newSts.Generation {
-				return true
-			}
-
-			// Trigger reconcile if revision changed (rollout in progress)
-			if oldSts.Status.CurrentRevision != newSts.Status.CurrentRevision ||
-				oldSts.Status.UpdateRevision != newSts.Status.UpdateRevision {
-				return true
-			}
-
-			// Trigger reconcile if replica counts changed
-			if oldSts.Status.ReadyReplicas != newSts.Status.ReadyReplicas ||
-				oldSts.Status.UpdatedReplicas != newSts.Status.UpdatedReplicas ||
-				oldSts.Status.AvailableReplicas != newSts.Status.AvailableReplicas {
-				return true
-			}
-
-			// Skip other status-only updates
-			return false
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			return true
-		},
+// Validate rejects RolloutPlugins this plugin can't manage: the workloadRef must be an apps/v1
+// StatefulSet, and spec.plugin.config must be empty since this plugin defines no config fields currently.
+func (p *Plugin) Validate(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	ref := rolloutPlugin.Spec.WorkloadRef
+	gvk := appsv1.SchemeGroupVersion.WithKind("StatefulSet")
+	if ref.APIVersion != gvk.GroupVersion().String() || ref.Kind != gvk.Kind {
+		return fmt.Errorf("spec.workloadRef must reference a %s %s, got %s %s", gvk.GroupVersion().String(), gvk.Kind, ref.APIVersion, ref.Kind)
 	}
+	if cfg := strings.TrimSpace(string(rolloutPlugin.Spec.Plugin.Config)); cfg != "" && cfg != "null" && cfg != "{}" {
+		return fmt.Errorf("spec.plugin.config is not supported by the statefulset plugin currently, got %s", cfg)
+	}
+	return nil
 }
 
 // patchPartition sets spec.updateStrategy.rollingUpdate.partition on the StatefulSet using
@@ -115,7 +148,38 @@ func (p *Plugin) patchPartition(ctx context.Context, name, namespace string, par
 			},
 		},
 	}
-	return p.client.Patch(ctx, stsPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldManager))
+	if err := p.client.Patch(ctx, stsPatch, client.Apply, client.ForceOwnership, client.FieldOwner(FieldManager)); err != nil {
+		return err
+	}
+	// The patch response carries the StatefulSet's post-write resourceVersion.
+	p.recordWrite(stsPatch)
+	return nil
+}
+
+func (p *Plugin) getVersionTracker() *resourceversion.Tracker {
+	p.versionTrackerOnce.Do(func() {
+		p.versionTracker = resourceversion.NewTracker()
+	})
+	return p.versionTracker
+}
+
+// recordWrite remembers the resourceVersion returned by a successful write to sts, so its status
+// isn't reported Ready until the cache has observed it.
+func (p *Plugin) recordWrite(sts client.Object) {
+	p.getVersionTracker().Record(string(sts.GetUID()), sts.GetResourceVersion())
+}
+
+// getStatefulSet reads the RolloutPlugin's StatefulSet from the plugin's cache.
+func (p *Plugin) getStatefulSet(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) (*appsv1.StatefulSet, error) {
+	if rolloutPlugin.Namespace == "" {
+		return nil, fmt.Errorf("namespace is required")
+	}
+	sts := &appsv1.StatefulSet{}
+	key := client.ObjectKey{Namespace: rolloutPlugin.Namespace, Name: rolloutPlugin.Spec.WorkloadRef.Name}
+	if err := p.client.Get(ctx, key, sts); err != nil {
+		return nil, fmt.Errorf("failed to get StatefulSet: %w", err)
+	}
+	return sts, nil
 }
 
 // rejectOnDelete errors out on a StatefulSet with updateStrategy: OnDelete. apps/v1 rejects a
@@ -148,37 +212,136 @@ func updatedCountForWeight(replicas, weight int32) int32 {
 	return ceilDiv(replicas*weight, 100)
 }
 
-// desiredPartition returns the partition value for weight% traffic on a StatefulSet with the
-// given ordinal start and replica count.
-func desiredPartition(start, replicas, weight int32) int32 {
-	return start + replicas - updatedCountForWeight(replicas, weight)
+// desiredPartition returns the partition for weight% traffic. The StatefulSet controller counts
+// the partition from spec.ordinals.start (pod index, not ordinal), so the start is not added here.
+// A weight that updates no pods blocks the StatefulSet entirely.
+func desiredPartition(replicas, weight int32) int32 {
+	updated := updatedCountForWeight(replicas, weight)
+	if updated <= 0 {
+		return blockedPartition
+	}
+	return replicas - updated
 }
 
-// blockPartition patches the StatefulSet's partition above the highest real ordinal
-// (start+replicas, not just replicas — a pod's ordinal is start+i), so any pod the StatefulSet
-// controller recreates lands on CurrentRevision instead of the still-referenced UpdateRevision.
-func (p *Plugin) blockPartition(ctx context.Context, sts *appsv1.StatefulSet, replicas int32) (bool, error) {
-	blockingPartition := ordinalStart(sts) + replicas
-	currentPartition := int32(0)
+func partitionOf(sts *appsv1.StatefulSet) int32 {
 	if sts.Spec.UpdateStrategy.RollingUpdate != nil && sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
-		currentPartition = *sts.Spec.UpdateStrategy.RollingUpdate.Partition
+		return *sts.Spec.UpdateStrategy.RollingUpdate.Partition
 	}
-	if currentPartition == blockingPartition {
+	return 0
+}
+
+func replicasOf(sts *appsv1.StatefulSet) int32 {
+	if sts.Spec.Replicas != nil {
+		return *sts.Spec.Replicas
+	}
+	return 1
+}
+
+// blockPartition patches the StatefulSet's partition to blockedPartition, so any pod the
+// StatefulSet controller creates or recreates lands on CurrentRevision.
+func (p *Plugin) blockPartition(ctx context.Context, sts *appsv1.StatefulSet) (bool, error) {
+	if partitionOf(sts) == blockedPartition {
 		return false, nil
 	}
-	if err := p.patchPartition(ctx, sts.Name, sts.Namespace, blockingPartition); err != nil {
+	if err := p.patchPartition(ctx, sts.Name, sts.Namespace, blockedPartition); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-// Init initializes the plugin by creating a k8s client with informer cache.
-func (p *Plugin) Init(namespace string) error {
-	p.logCtx.Info("Initializing StatefulSet plugin")
-
-	config, err := ctrl.GetConfig()
+// getPod returns the pod at the given index (ordinal start+index), or nil if it doesn't exist.
+func (p *Plugin) getPod(ctx context.Context, sts *appsv1.StatefulSet, index int32) (*corev1.Pod, error) {
+	podName := fmt.Sprintf("%s-%d", sts.Name, ordinalStart(sts)+index)
+	pod := &corev1.Pod{}
+	err := p.client.Get(ctx, client.ObjectKey{Name: podName, Namespace: sts.Namespace}, pod)
+	if errors.IsNotFound(err) {
+		return nil, nil
+	}
 	if err != nil {
-		return fmt.Errorf("failed to get k8s config: %w", err)
+		return nil, fmt.Errorf("failed to get pod %s: %w", podName, err)
+	}
+	return pod, nil
+}
+
+// deletePod deletes the pod only if it is still the same object (UID precondition), so a stale
+// cache can't delete the replacement the StatefulSet controller already created under the same name.
+func (p *Plugin) deletePod(ctx context.Context, pod *corev1.Pod, reason string) error {
+	p.logCtx.WithFields(log.Fields{"pod": pod.Name, "revision": pod.Labels[appsv1.StatefulSetRevisionLabel]}).Info(reason)
+	uid := pod.UID
+	if err := p.client.Delete(ctx, pod, client.Preconditions{UID: &uid}); err != nil && !errors.IsNotFound(err) && !errors.IsConflict(err) {
+		return fmt.Errorf("failed to delete pod %s: %w", pod.Name, err)
+	}
+	return nil
+}
+
+// syncPodsToPartition does at most one pod deletion per call, highest index first, so the pods
+// match the partition:
+//   - a pod below the partition not on CurrentRevision (left by a lower setWeight, a scale-up, or
+//     an earlier canary revision) is deleted, and the StatefulSet controller recreates it on
+//     CurrentRevision;
+//   - with OrderedReady pod management, a not-Ready pod at or above the partition on an outdated
+//     revision is deleted. The StatefulSet controller won't replace a not-Ready pod itself, so
+//     without this a broken canary blocks every later revision (the manual step Kubernetes
+//     documents for a forced rollback).
+//
+// It waits while any pod is missing, terminating or not Ready, so it never takes down more than
+// one pod at a time.
+func (p *Plugin) syncPodsToPartition(ctx context.Context, sts *appsv1.StatefulSet, partition int32) error {
+	currentRevision, updateRevision := sts.Status.CurrentRevision, sts.Status.UpdateRevision
+	if sts.Status.ObservedGeneration != sts.Generation || currentRevision == "" || updateRevision == "" {
+		return nil
+	}
+	orderedReady := sts.Spec.PodManagementPolicy != appsv1.ParallelPodManagement
+	for i := replicasOf(sts) - 1; i >= 0; i-- {
+		pod, err := p.getPod(ctx, sts, i)
+		if err != nil {
+			return err
+		}
+		if pod == nil || pod.DeletionTimestamp != nil {
+			return nil
+		}
+		revision := pod.Labels[appsv1.StatefulSetRevisionLabel]
+		ready := podReady(pod)
+		if i >= partition && orderedReady && revision != updateRevision && !ready {
+			return p.deletePod(ctx, pod, "Deleting not-Ready pod on an outdated revision so the StatefulSet can update it")
+		}
+		if i < partition && currentRevision != updateRevision && revision != currentRevision {
+			return p.deletePod(ctx, pod, "Deleting pod below the partition to roll it back to CurrentRevision")
+		}
+		if !ready {
+			return nil
+		}
+	}
+	return nil
+}
+
+// podsBelowPartitionPending reports whether a pod below the partition is not yet back on
+// CurrentRevision, i.e. syncPodsToPartition still has pods to roll back.
+func (p *Plugin) podsBelowPartitionPending(ctx context.Context, sts *appsv1.StatefulSet, partition int32) (bool, error) {
+	if sts.Status.CurrentRevision == sts.Status.UpdateRevision {
+		return false, nil
+	}
+	for i := min(partition, replicasOf(sts)) - 1; i >= 0; i-- {
+		pod, err := p.getPod(ctx, sts, i)
+		if err != nil {
+			return false, err
+		}
+		if pod == nil || pod.DeletionTimestamp != nil {
+			return true, nil
+		}
+		if pod.Labels[appsv1.StatefulSetRevisionLabel] != sts.Status.CurrentRevision {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Init creates the plugin's client from the controller's rest config. It reads StatefulSets and
+// pods from the plugin's own cache, scoped to the controller's watch namespace and stopped with
+// ctx, and writes to the API server.
+func (p *Plugin) Init(ctx context.Context, namespace string) error {
+	if p.restConfig == nil {
+		return fmt.Errorf("statefulset plugin requires a Kubernetes rest config")
 	}
 
 	scheme := runtime.NewScheme()
@@ -189,72 +352,44 @@ func (p *Plugin) Init(namespace string) error {
 		return fmt.Errorf("failed to add corev1 to scheme: %w", err)
 	}
 
-	cacheOpts := cache.Options{
-		Scheme: scheme,
+	cacheOpts := cache.Options{Scheme: scheme}
+	if namespace != metav1.NamespaceAll {
+		cacheOpts.DefaultNamespaces = map[string]cache.Config{namespace: {}}
 	}
-
-	if namespace != "" && namespace != metav1.NamespaceAll {
-		p.logCtx.WithField("namespace", namespace).Info("Creating namespaced cache for StatefulSet plugin")
-		cacheOpts.DefaultNamespaces = map[string]cache.Config{
-			namespace: {},
-		}
-	} else {
-		p.logCtx.Info("Creating cluster-wide cache for StatefulSet plugin")
-	}
-
-	cacheInstance, err := cache.New(config, cacheOpts)
+	readCache, err := cache.New(p.restConfig, cacheOpts)
 	if err != nil {
 		return fmt.Errorf("failed to create cache: %w", err)
 	}
-
-	// The cache must run for the lifetime of the plugin (the whole controller process),
-	// so it is started on a background context that is never cancelled.
 	go func() {
-		if err := cacheInstance.Start(context.Background()); err != nil {
+		if err := readCache.Start(ctx); err != nil {
 			p.logCtx.WithError(err).Error("Cache failed to start")
 		}
 	}()
-
-	// Wait for cache to sync with a timeout context
-	syncCtx, syncCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer syncCancel()
-
-	p.logCtx.Info("Waiting for cache to sync...")
-	if !cacheInstance.WaitForCacheSync(syncCtx) {
-		return fmt.Errorf("failed to sync cache within timeout")
+	// Informers are added on first use; this only waits for the cache to start, since reads
+	// fail before it has.
+	startCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if !readCache.WaitForCacheSync(startCtx) {
+		return fmt.Errorf("cache did not start")
 	}
-	p.logCtx.Info("Cache synced successfully")
 
-	// client that reads from cache and writes to API server
-	k8sClient, err := client.New(config, client.Options{
+	k8sClient, err := client.New(p.restConfig, client.Options{
 		Scheme: scheme,
-		Cache: &client.CacheOptions{
-			Reader: cacheInstance,
-		},
+		Cache:  &client.CacheOptions{Reader: readCache},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create k8s client: %w", err)
 	}
-
 	p.client = k8sClient
-	p.logCtx.Info("StatefulSet plugin initialized successfully with cache")
-
+	p.logCtx.WithField("namespace", namespace).Info("StatefulSet plugin initialized")
 	return nil
 }
 
 // GetResourceStatus gets the current status of the StatefulSet
-func (p *Plugin) GetResourceStatus(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) (*rolloutplugin.ResourceStatus, error) {
-	if namespace == "" {
-		return nil, fmt.Errorf("namespace is required")
-	}
-
-	sts := &appsv1.StatefulSet{}
-	err := p.client.Get(ctx, client.ObjectKey{
-		Name:      workloadRef.Name,
-		Namespace: namespace,
-	}, sts)
+func (p *Plugin) GetResourceStatus(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) (*rolloutplugin.ResourceStatus, error) {
+	sts, err := p.getStatefulSet(ctx, rolloutPlugin)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get StatefulSet from cache: %w", err)
+		return nil, err
 	}
 
 	if err := rejectOnDelete(sts); err != nil {
@@ -279,18 +414,24 @@ func (p *Plugin) GetResourceStatus(ctx context.Context, namespace string, worklo
 	currentRevision := sts.Status.CurrentRevision
 	updateRevision := sts.Status.UpdateRevision
 
-	// Ready requires the status to reflect the latest spec (observedGeneration caught up),
-	// not just a stale ReadyReplicas count from before the last change.
-	ready := sts.Status.ObservedGeneration == sts.Generation && sts.Status.ReadyReplicas == replicas
+	// Ready requires the status to reflect the latest spec (observedGeneration caught up, and
+	// the cache caught up with our own last patch), not just a stale ReadyReplicas count from
+	// before the last change. While the revisions differ it also requires every pod to be on one
+	// of them: a pod left on an earlier canary revision counts in neither, and an abort must roll
+	// it back too.
+	ready := p.getVersionTracker().Observed(string(sts.UID), sts.ResourceVersion) &&
+		sts.Status.ObservedGeneration == sts.Generation && sts.Status.ReadyReplicas == replicas &&
+		(currentRevision == updateRevision || sts.Status.CurrentReplicas+sts.Status.UpdatedReplicas == replicas)
 
 	status := &rolloutplugin.ResourceStatus{
-		Replicas:          replicas,
-		UpdatedReplicas:   updatedReplicas,
-		ReadyReplicas:     sts.Status.ReadyReplicas,
-		AvailableReplicas: sts.Status.AvailableReplicas,
-		CurrentRevision:   currentRevision,
-		UpdatedRevision:   updateRevision,
-		Ready:             ready,
+		Replicas:                replicas,
+		UpdatedReplicas:         updatedReplicas,
+		ReadyReplicas:           sts.Status.ReadyReplicas,
+		AvailableReplicas:       sts.Status.AvailableReplicas,
+		CurrentRevision:         currentRevision,
+		UpdatedRevision:         updateRevision,
+		Ready:                   ready,
+		ObservedResourceVersion: sts.ResourceVersion,
 	}
 
 	p.logCtx.WithFields(log.Fields{
@@ -299,39 +440,25 @@ func (p *Plugin) GetResourceStatus(ctx context.Context, namespace string, worklo
 		"updatedReplicas": updatedReplicas,
 		"readyReplicas":   sts.Status.ReadyReplicas,
 		"ready":           ready,
-	}).Debug("StatefulSet status retrieved from cache")
+	}).Debug("StatefulSet status retrieved")
 
 	return status, nil
 }
 
-// SetWeight sets the canary weight by adjusting the partition field using Server-Side Apply
-func (p *Plugin) SetWeight(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) error {
-
-	// Get the StatefulSet from cache
-	sts := &appsv1.StatefulSet{}
-	err := p.client.Get(ctx, client.ObjectKey{
-		Name:      workloadRef.Name,
-		Namespace: namespace,
-	}, sts)
+// SetWeight sets the partition for weight% using Server-Side Apply. It is called on every
+// reconcile of a canary step, so once the partition is in place it also rolls back pods left on
+// the UpdateRevision below it (a lower weight or a scale-up) and unblocks a stuck rollout,
+// one pod per call.
+func (p *Plugin) SetWeight(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) error {
+	sts, err := p.getStatefulSet(ctx, rolloutPlugin)
 	if err != nil {
-		return fmt.Errorf("failed to get StatefulSet: %w", err)
+		return err
 	}
 
-	replicas := int32(1)
-	if sts.Spec.Replicas != nil {
-		replicas = *sts.Spec.Replicas
-	}
-
-	partition := desiredPartition(ordinalStart(sts), replicas, weight)
-
-	currentPartition := int32(0)
-	if sts.Spec.UpdateStrategy.RollingUpdate != nil && sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
-		currentPartition = *sts.Spec.UpdateStrategy.RollingUpdate.Partition
-	}
-
+	partition := desiredPartition(replicasOf(sts), weight)
+	currentPartition := partitionOf(sts)
 	if currentPartition == partition {
-		// Partition already set, no need to patch
-		return nil
+		return p.syncPodsToPartition(ctx, sts, partition)
 	}
 
 	p.logCtx.WithFields(log.Fields{
@@ -349,29 +476,15 @@ func (p *Plugin) SetWeight(ctx context.Context, namespace string, workloadRef v1
 }
 
 // VerifyWeight verifies that the canary weight has been achieved
-func (p *Plugin) VerifyWeight(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef, weight int32) (bool, error) {
-
-	// Get the StatefulSet from cache
-	sts := &appsv1.StatefulSet{}
-	err := p.client.Get(ctx, client.ObjectKey{
-		Name:      workloadRef.Name,
-		Namespace: namespace,
-	}, sts)
+func (p *Plugin) VerifyWeight(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) (bool, error) {
+	sts, err := p.getStatefulSet(ctx, rolloutPlugin)
 	if err != nil {
-		return false, fmt.Errorf("failed to get StatefulSet from cache: %w", err)
+		return false, err
 	}
 
-	replicas := int32(1)
-	if sts.Spec.Replicas != nil {
-		replicas = *sts.Spec.Replicas
-	}
-
-	partition := int32(0)
-	if sts.Spec.UpdateStrategy.RollingUpdate != nil && sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
-		partition = *sts.Spec.UpdateStrategy.RollingUpdate.Partition
-	}
-
-	expectedPartition := desiredPartition(ordinalStart(sts), replicas, weight)
+	replicas := replicasOf(sts)
+	partition := partitionOf(sts)
+	expectedPartition := desiredPartition(replicas, weight)
 
 	if partition != expectedPartition {
 		p.logCtx.WithFields(log.Fields{
@@ -381,39 +494,112 @@ func (p *Plugin) VerifyWeight(ctx context.Context, namespace string, workloadRef
 		return false, nil
 	}
 
+	// The StatefulSet controller must have observed the partition patch, otherwise its status
+	// still describes the previous spec.
+	if sts.Status.ObservedGeneration != sts.Generation {
+		p.logCtx.WithFields(log.Fields{
+			"generation":         sts.Generation,
+			"observedGeneration": sts.Status.ObservedGeneration,
+		}).Info("StatefulSet status not yet observed latest generation")
+		return false, nil
+	}
+
+	// Pods below the partition must be back on CurrentRevision, otherwise more pods than the
+	// weight allows still run a new revision.
+	if pending, err := p.podsBelowPartitionPending(ctx, sts, partition); err != nil || pending {
+		return false, err
+	}
+
 	expectedUpdated := updatedCountForWeight(replicas, weight)
 
-	// Get actual updated replicas from StatefulSet status
-	actualUpdated := sts.Status.UpdatedReplicas
+	availableUpdated, err := p.availableUpdatedPods(ctx, sts, expectedPartition, replicas)
+	if err != nil {
+		return false, err
+	}
 
 	p.logCtx.WithFields(log.Fields{
 		"expectedPartition": expectedPartition,
 		"actualPartition":   partition,
 		"expectedUpdated":   expectedUpdated,
-		"actualUpdated":     actualUpdated,
-		"readyReplicas":     sts.Status.ReadyReplicas,
+		"updatedReplicas":   sts.Status.UpdatedReplicas,
+		"availableUpdated":  availableUpdated,
 		"totalReplicas":     replicas,
 	}).Info("Weight verification")
 
-	verified := partition == expectedPartition && actualUpdated >= expectedUpdated
-
-	return verified, nil
+	return availableUpdated >= expectedUpdated, nil
 }
 
-// PromoteFull completes the rollout by setting partition to 0
-func (p *Plugin) PromoteFull(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error {
-	p.logCtx.WithFields(log.Fields{
-		"name":      workloadRef.Name,
-		"namespace": namespace,
-	}).Info("Promoting rollout")
+// availableUpdatedPods counts pods with index >= partition that are on the StatefulSet's
+// UpdateRevision and Available.
+func (p *Plugin) availableUpdatedPods(ctx context.Context, sts *appsv1.StatefulSet, partition, replicas int32) (int32, error) {
+	updateRevision := sts.Status.UpdateRevision
+	if updateRevision == "" {
+		return 0, nil
+	}
+	now := metav1.Now()
+	var available int32
+	for i := max(partition, 0); i < replicas; i++ {
+		pod, err := p.getPod(ctx, sts, i)
+		if err != nil {
+			return 0, err
+		}
+		if pod == nil || pod.Labels[appsv1.StatefulSetRevisionLabel] != updateRevision || pod.DeletionTimestamp != nil {
+			continue
+		}
+		if podutil.IsPodAvailable(pod, sts.Spec.MinReadySeconds, now) {
+			available++
+		}
+	}
+	return available, nil
+}
 
-	partition := int32(0)
-	if err := p.patchPartition(ctx, workloadRef.Name, namespace, partition); err != nil {
+// PromoteFull rolls every pod to the revision being promoted (partition 0). The controller calls
+// it on every reconcile until the rollout completes; once the StatefulSet has converged it puts
+// the blocking partition back, so the next template change waits for the controller instead of
+// rolling out to every pod immediately.
+func (p *Plugin) PromoteFull(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	sts, err := p.getStatefulSet(ctx, rolloutPlugin)
+	if err != nil {
 		return fmt.Errorf("failed to promote StatefulSet: %w", err)
 	}
+	logCtx := p.logCtx.WithFields(log.Fields{"name": sts.Name, "namespace": sts.Namespace})
 
-	p.logCtx.WithField("partition", partition).Info("Successfully promoted rollout")
-	return nil
+	// Until the StatefulSet controller observes the latest spec, its revisions may describe an
+	// older template.
+	if sts.Status.ObservedGeneration != sts.Generation {
+		return nil
+	}
+
+	// A newer revision than the one being promoted must not be rolled out to every pod; hold it
+	// until the controller starts a rollout for it.
+	if sts.Status.UpdateRevision != rolloutPlugin.Status.UpdatedRevision {
+		if _, err := p.blockPartition(ctx, sts); err != nil {
+			return fmt.Errorf("failed to promote StatefulSet: %w", err)
+		}
+		return nil
+	}
+
+	replicas := replicasOf(sts)
+	converged := sts.Status.CurrentRevision == sts.Status.UpdateRevision &&
+		sts.Status.UpdatedReplicas == replicas && sts.Status.ReadyReplicas == replicas
+	if converged {
+		if patched, err := p.blockPartition(ctx, sts); err != nil {
+			return fmt.Errorf("failed to promote StatefulSet: %w", err)
+		} else if patched {
+			logCtx.Info("Rollout promoted, partition blocked until the next rollout")
+		}
+		return nil
+	}
+
+	if partitionOf(sts) != 0 {
+		logCtx.Info("Promoting rollout")
+		if err := p.patchPartition(ctx, sts.Name, sts.Namespace, 0); err != nil {
+			return fmt.Errorf("failed to promote StatefulSet: %w", err)
+		}
+		logCtx.WithField("partition", 0).Info("Successfully promoted rollout")
+		return nil
+	}
+	return p.syncPodsToPartition(ctx, sts, 0)
 }
 
 // Abort rolls the StatefulSet back to CurrentRevision. It does at most one unit of work per
@@ -422,23 +608,14 @@ func (p *Plugin) PromoteFull(ctx context.Context, namespace string, workloadRef 
 // never blocks Reconcile for more than one pod's worth of work. The caller determines overall
 // completion. Progress is re-derived from live cluster state on every call rather than tracked separately,
 // so it survives a controller restart mid-abort.
-func (p *Plugin) Abort(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error {
-	sts := &appsv1.StatefulSet{}
-	if err := p.client.Get(ctx, client.ObjectKey{
-		Name:      workloadRef.Name,
-		Namespace: namespace,
-	}, sts); err != nil {
-		return fmt.Errorf("failed to get StatefulSet: %w", err)
+func (p *Plugin) Abort(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	sts, err := p.getStatefulSet(ctx, rolloutPlugin)
+	if err != nil {
+		return err
 	}
-
-	replicas := int32(1)
-	if sts.Spec.Replicas != nil {
-		replicas = *sts.Spec.Replicas
-	}
-	start := ordinalStart(sts)
 
 	// Block further rollout so recreated pods land on CurrentRevision.
-	if patched, err := p.blockPartition(ctx, sts, replicas); err != nil {
+	if patched, err := p.blockPartition(ctx, sts); err != nil {
 		return fmt.Errorf("failed to update StatefulSet during abort: %w", err)
 	} else if patched {
 		return nil
@@ -451,17 +628,15 @@ func (p *Plugin) Abort(ctx context.Context, namespace string, workloadRef v1alph
 		return nil
 	}
 
-	// Highest-ordinal pod not yet rolled back to targetRevision.
-	for i := start + replicas - 1; i >= start; i-- {
-		podName := fmt.Sprintf("%s-%d", sts.Name, i)
-		pod := &corev1.Pod{}
-		err := p.client.Get(ctx, client.ObjectKey{Name: podName, Namespace: namespace}, pod)
-		if errors.IsNotFound(err) {
+	// Highest-index pod not yet rolled back to targetRevision.
+	for i := replicasOf(sts) - 1; i >= 0; i-- {
+		pod, err := p.getPod(ctx, sts, i)
+		if err != nil {
+			return fmt.Errorf("abort: %w", err)
+		}
+		if pod == nil {
 			// StatefulSet controller hasn't recreated it yet.
 			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("failed to get pod %s during abort: %w", podName, err)
 		}
 
 		if pod.Labels[appsv1.StatefulSetRevisionLabel] == targetRevision {
@@ -475,11 +650,7 @@ func (p *Plugin) Abort(ctx context.Context, namespace string, workloadRef v1alph
 			return nil // deletion in flight, wait for the replacement
 		}
 
-		p.logCtx.WithField("pod", podName).Info("Deleting pod on new revision to force rollback")
-		if err := p.client.Delete(ctx, pod); err != nil && !errors.IsNotFound(err) {
-			return fmt.Errorf("failed to delete pod %s during abort: %w", podName, err)
-		}
-		return nil
+		return p.deletePod(ctx, pod, "Deleting pod on new revision to force rollback")
 	}
 
 	p.logCtx.Info("Abort rollback complete, all pods on CurrentRevision and Ready")
@@ -496,35 +667,23 @@ func podReady(pod *corev1.Pod) bool {
 	return false
 }
 
-// Restart returns the StatefulSet to baseline state (partition = replicas) for restarts
-func (p *Plugin) Restart(ctx context.Context, namespace string, workloadRef v1alpha1.WorkloadRef) error {
+// Restart blocks the StatefulSet's partition so the restarted rollout begins from step 0 with
+// no pods updated.
+func (p *Plugin) Restart(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	sts, err := p.getStatefulSet(ctx, rolloutPlugin)
+	if err != nil {
+		return err
+	}
 	p.logCtx.WithFields(log.Fields{
-		"name":      workloadRef.Name,
-		"namespace": namespace,
+		"name":      sts.Name,
+		"namespace": sts.Namespace,
 	}).Info("Restarting StatefulSet for restart")
 
-	sts := &appsv1.StatefulSet{}
-	err := p.client.Get(ctx, client.ObjectKey{
-		Name:      workloadRef.Name,
-		Namespace: namespace,
-	}, sts)
-	if err != nil {
-		return fmt.Errorf("failed to get StatefulSet: %w", err)
-	}
-
-	replicas := int32(1)
-	if sts.Spec.Replicas != nil {
-		replicas = *sts.Spec.Replicas
-	}
-
-	if _, err := p.blockPartition(ctx, sts, replicas); err != nil {
+	if _, err := p.blockPartition(ctx, sts); err != nil {
 		return fmt.Errorf("failed to restart StatefulSet: %w", err)
 	}
 
-	p.logCtx.WithFields(log.Fields{
-		"replicas": replicas,
-	}).Info("Successfully restarted StatefulSet")
-
+	p.logCtx.Info("Successfully restarted StatefulSet")
 	return nil
 }
 

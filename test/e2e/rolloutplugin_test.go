@@ -5,6 +5,7 @@ package e2e
 
 import (
 	"context"
+	"math"
 	"strconv"
 	"testing"
 	"time"
@@ -103,6 +104,10 @@ spec:
             memory: 16Mi
             cpu: 1m
 `
+
+// rpBlockedPartition is the partition the StatefulSet plugin holds whenever pods must not move to
+// a new revision on their own: after an abort and once a rollout completes.
+const rpBlockedPartition int32 = math.MaxInt32
 
 type RolloutPluginSuite struct {
 	fixtures.E2ESuite
@@ -418,7 +423,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbort() {
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseDegraded, rp.Status.Phase)
 			assert.NotNil(s.T(), rp.Status.AbortedAt)
 		}).
-		ExpectStatefulSetPartition(2)
+		ExpectStatefulSetPartition(rpBlockedPartition)
 }
 
 // TestRolloutPluginAbortBeforePause tests aborting before reaching a pause step.
@@ -440,7 +445,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbortBeforePause() {
 			assert.True(s.T(), rp.Status.Aborted)
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseDegraded, rp.Status.Phase)
 		}).
-		ExpectStatefulSetPartition(4)
+		ExpectStatefulSetPartition(rpBlockedPartition)
 }
 
 // TestRolloutPluginAbortIdempotent tests that aborting an already-aborted rollout is idempotent.
@@ -473,7 +478,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbortIdempotent() {
 			assert.NotNil(s.T(), rp.Status.AbortedAt)
 			assert.Equal(s.T(), firstAbortedAt, rp.Status.AbortedAt.Time, "AbortedAt timestamp should not change on second abort")
 		}).
-		ExpectStatefulSetPartition(2)
+		ExpectStatefulSetPartition(rpBlockedPartition)
 }
 
 // Restart Tests
@@ -685,7 +690,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginNewRevisionClearsAbort() {
 
 // Progress Timeout Tests
 
-// TestRolloutPluginTimeoutNoAbort tests the plugin config timeout exceeded without abort.
+// TestRolloutPluginTimeoutNoAbort tests spec.timeoutSeconds exceeded without abort.
 func (s *RolloutPluginSuite) TestRolloutPluginTimeoutNoAbort() {
 	s.Given().
 		RolloutPluginObjects(`
@@ -700,8 +705,7 @@ spec:
     name: rp-deadline-no-abort
   plugin:
     name: argoproj/statefulset
-    config:
-      timeoutSeconds: 5
+  timeoutSeconds: 5
   strategy:
     canary:
       steps:
@@ -757,7 +761,7 @@ spec:
 		})
 }
 
-// TestRolloutPluginTimeoutAbort tests the plugin config timeout exceeded with abort enabled.
+// TestRolloutPluginTimeoutAbort tests spec.timeoutSeconds exceeded with abort enabled.
 func (s *RolloutPluginSuite) TestRolloutPluginTimeoutAbort() {
 	s.Given().
 		RolloutPluginObjects(`
@@ -772,9 +776,8 @@ spec:
     name: rp-deadline-abort
   plugin:
     name: argoproj/statefulset
-    config:
-      timeoutSeconds: 5
-      timeoutAbort: true
+  timeoutSeconds: 5
+  timeoutAbort: true
   strategy:
     canary:
       steps:
@@ -1016,6 +1019,84 @@ spec:
 			}
 			return true
 		}, "InvalidSpecRemoved", 60*time.Second).
+		Then().
+		ExpectNoRolloutPluginCondition(rov1.RolloutPluginConditionInvalidSpec)
+}
+
+// TestRolloutPluginInvalidSpecRejectedByPlugin tests that a spec rejected by the plugin's Validate
+// (the built-in StatefulSet plugin defines no plugin.config) is marked InvalidSpec with the plugin's
+// reason, and that removing the config clears the condition and lets the rollout become Healthy.
+func (s *RolloutPluginSuite) TestRolloutPluginInvalidSpecRejectedByPlugin() {
+	s.Given().
+		RolloutPluginObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: rp-plugin-rejects
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: rp-plugin-rejects
+  plugin:
+    name: argoproj/statefulset
+    config:
+      maxSurge: 2
+  strategy:
+    canary:
+      steps:
+      - setWeight: 50
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rp-plugin-rejects
+spec:
+  serviceName: rp-plugin-rejects
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rp-plugin-rejects
+  template:
+    metadata:
+      labels:
+        app: rp-plugin-rejects
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: busybox
+        image: quay.io/prometheus/busybox:latest
+        command: ["/bin/sh", "-c", "while true; do sleep 30; done"]
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
+			return conditions.GetRolloutPluginCondition(rp.Status, rov1.RolloutPluginConditionInvalidSpec) != nil
+		}, "InvalidSpec", 60*time.Second).
+		Then().
+		ExpectRolloutPluginCondition(rov1.RolloutPluginConditionInvalidSpec).
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			cond := conditions.GetRolloutPluginCondition(rp.Status, rov1.RolloutPluginConditionInvalidSpec)
+			assert.Equal(s.T(), conditions.RolloutPluginInvalidSpecReason, cond.Reason)
+			assert.Contains(s.T(), cond.Message, "Plugin 'argoproj/statefulset' rejected the spec")
+			assert.Contains(s.T(), cond.Message, "spec.plugin.config is not supported by the statefulset plugin")
+			assert.NotEqual(s.T(), rov1.RolloutPluginPhaseHealthy, rp.Status.Phase)
+		}).
+		When().
+		PatchRolloutPluginSpec(`
+spec:
+  plugin:
+    config: null
+`).
+		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
+			return conditions.GetRolloutPluginCondition(rp.Status, rov1.RolloutPluginConditionInvalidSpec) == nil
+		}, "InvalidSpecRemoved", 60*time.Second).
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 120*time.Second).
 		Then().
 		ExpectNoRolloutPluginCondition(rov1.RolloutPluginConditionInvalidSpec)
 }
@@ -1635,7 +1716,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginAbortEvent() {
 			reasons := t.GetRolloutPluginEventReasons()
 			assert.Contains(s.T(), reasons, conditions.RolloutPluginAbortedReason, "Should have RolloutPluginAborted event")
 		}).
-		ExpectStatefulSetPartition(2)
+		ExpectStatefulSetPartition(rpBlockedPartition)
 }
 
 // Status Field Tests
@@ -1752,6 +1833,275 @@ func (s *RolloutPluginSuite) TestRolloutPluginStatefulSetPartition() {
 		PromoteRolloutPlugin().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
 		Then().
-		// After completion, partition should be 0
-		ExpectStatefulSetPartition(0)
+		// After completion the partition is blocked again, so the next template change waits for
+		// the controller instead of rolling out on its own.
+		ExpectStatefulSetPartition(rpBlockedPartition)
+}
+
+// TestRolloutPluginNoStepsBlocksPartition tests that a canary without steps promotes the new
+// revision and blocks the partition again once every pod has converged.
+func (s *RolloutPluginSuite) TestRolloutPluginNoStepsBlocksPartition() {
+	var stableRevision string
+	s.Given().
+		HealthyRolloutPlugin(rpCanary2Replicas).
+		When().
+		Then().
+		Assert(func(t *fixtures.Then) {
+			stableRevision = t.GetRolloutPlugin().Status.CurrentRevision
+		}).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
+			return rp.Status.Phase == rov1.RolloutPluginPhaseHealthy && rp.Status.CurrentRevision != stableRevision &&
+				rp.Status.CurrentRevision == rp.Status.UpdatedRevision
+		}, "healthy on the new revision", 300*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			sts := t.GetStatefulSet()
+			assert.Equal(s.T(), sts.Status.UpdateRevision, sts.Status.CurrentRevision)
+			assert.Equal(s.T(), int32(2), sts.Status.UpdatedReplicas)
+		}).
+		ExpectStatefulSetPartition(rpBlockedPartition)
+}
+
+// TestRolloutPluginRevertToStable tests that reverting the StatefulSet to the stable template
+// mid-canary rolls the canary pods back right away instead of running the steps again.
+func (s *RolloutPluginSuite) TestRolloutPluginRevertToStable() {
+	var stableRevision string
+	s.Given().
+		HealthyRolloutPlugin(rpCanary4Replicas, `
+- setWeight: 50
+- pause: {}`).
+		When().
+		Then().
+		Assert(func(t *fixtures.Then) {
+			stableRevision = t.GetRolloutPlugin().Status.CurrentRevision
+		}).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:latest").
+		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
+			return rp.Status.Phase == rov1.RolloutPluginPhaseHealthy && rp.Status.UpdatedRevision == stableRevision
+		}, "healthy on the stable revision", 300*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.Equal(s.T(), stableRevision, rp.Status.CurrentRevision)
+			assert.False(s.T(), rp.Status.Aborted)
+			sts := t.GetStatefulSet()
+			assert.Equal(s.T(), stableRevision, sts.Status.CurrentRevision)
+			assert.Equal(s.T(), stableRevision, sts.Status.UpdateRevision)
+			assert.Equal(s.T(), int32(4), sts.Status.UpdatedReplicas)
+		}).
+		ExpectStatefulSetPartition(rpBlockedPartition)
+}
+
+// TestRolloutPluginPromoteFullAfterAbort tests that promoteFull resumes an aborted rollout and
+// promotes the canary revision to every pod.
+func (s *RolloutPluginSuite) TestRolloutPluginPromoteFullAfterAbort() {
+	s.Given().
+		HealthyRolloutPlugin(rpCanary2Replicas, `
+- setWeight: 50
+- pause: {}`).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
+		AbortRolloutPlugin().
+		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
+			return rp.Status.Aborted
+		}, "status.aborted=true", 300*time.Second).
+		PromoteRolloutPluginFull().
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.False(s.T(), rp.Status.Aborted)
+			assert.Empty(s.T(), rp.Status.AbortedRevision)
+			assert.False(s.T(), rp.Status.PromoteFull)
+			assert.Equal(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision)
+			sts := t.GetStatefulSet()
+			assert.Equal(s.T(), "quay.io/prometheus/busybox:glibc", sts.Spec.Template.Spec.Containers[0].Image)
+			assert.Equal(s.T(), sts.Status.UpdateRevision, sts.Status.CurrentRevision)
+			assert.Equal(s.T(), int32(2), sts.Status.UpdatedReplicas)
+		}).
+		ExpectStatefulSetPartition(rpBlockedPartition)
+}
+
+// TestRolloutPluginAbortIgnoredWhenFullyUpdated tests that an abort requested once every pod
+// already runs the canary revision is ignored with a warning event, since there is no stable pod
+// left to roll back to.
+func (s *RolloutPluginSuite) TestRolloutPluginAbortIgnoredWhenFullyUpdated() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	s.Given().
+		StartEventWatch(ctx).
+		HealthyRolloutPlugin(rpCanary2Replicas, `
+- setWeight: 100
+- pause: {}`).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			// The StatefulSet reports the new revision as current once every pod is updated and Ready.
+			assert.Eventually(s.T(), func() bool {
+				sts := t.GetStatefulSet()
+				return sts.Status.CurrentRevision == sts.Status.UpdateRevision
+			}, 60*time.Second, time.Second)
+		}).
+		When().
+		AbortRolloutPlugin().
+		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
+			return !rp.Status.Abort
+		}, "status.abort=false", 60*time.Second).
+		Sleep(2*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.False(s.T(), rp.Status.Aborted)
+			assert.Equal(s.T(), rov1.RolloutPluginPhasePaused, rp.Status.Phase)
+			assert.Contains(s.T(), t.GetRolloutPluginEventReasons(), conditions.RolloutPluginAbortIgnoredReason)
+		}).
+		When().
+		PromoteRolloutPlugin().
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second)
+}
+
+// TestRolloutPluginStepsChangedMidRollout tests that editing the canary steps during a rollout
+// restarts it from the first of the new steps, including when the current step index is past the
+// end of the new steps.
+func (s *RolloutPluginSuite) TestRolloutPluginStepsChangedMidRollout() {
+	s.Given().
+		HealthyRolloutPlugin(rpCanary4Replicas, `
+- setWeight: 25
+- pause: {}
+- setWeight: 50
+- pause: {}`).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
+		PromoteRolloutPlugin().
+		WaitForRolloutPluginCanaryStepIndex(3, 300*time.Second).
+		WaitForStatefulSetPartition(2).
+		PatchRolloutPluginSpec(`
+spec:
+  strategy:
+    canary:
+      steps:
+      - setWeight: 75
+      - pause: {}`).
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
+		WaitForStatefulSetPartition(1).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rp := t.GetRolloutPlugin()
+			assert.Equal(s.T(), rov1.RolloutPluginPhasePaused, rp.Status.Phase)
+			assert.NotEqual(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision, "the rollout must not have been promoted")
+		}).
+		When().
+		PromoteRolloutPlugin().
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second)
+}
+
+// TestRolloutPluginScaleDuringCanary tests that scaling the StatefulSet while paused at a step
+// keeps the canary at the step's weight of the new replica count.
+func (s *RolloutPluginSuite) TestRolloutPluginScaleDuringCanary() {
+	s.Given().
+		HealthyRolloutPlugin(rpCanary4Replicas, `
+- setWeight: 50
+- pause: {}`).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
+		WaitForStatefulSetPartition(2).
+		ScaleStatefulSet(6).
+		// 50% of 6 replicas is 3 canary pods: ordinals 3-5.
+		WaitForStatefulSetPartition(3, 120*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			assert.Eventually(s.T(), func() bool {
+				sts := t.GetStatefulSet()
+				return sts.Status.UpdatedReplicas == 3 && sts.Status.ReadyReplicas == 6
+			}, 120*time.Second, time.Second, "3 of 6 pods on the canary revision")
+		}).
+		When().
+		PromoteRolloutPlugin().
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			sts := t.GetStatefulSet()
+			assert.Equal(s.T(), int32(6), sts.Status.UpdatedReplicas)
+			assert.Equal(s.T(), sts.Status.UpdateRevision, sts.Status.CurrentRevision)
+		}).
+		ExpectStatefulSetPartition(rpBlockedPartition)
+}
+
+// TestRolloutPluginAbortTerminatesAnalysis tests that an abort terminates the running background
+// AnalysisRun (an indefinite one here) instead of leaving it running after the rollout is aborted.
+func (s *RolloutPluginSuite) TestRolloutPluginAbortTerminatesAnalysis() {
+	s.Given().
+		RolloutPluginObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: rp-abort-analysis
+spec:
+  workloadRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: rp-abort-analysis
+  plugin:
+    name: argoproj/statefulset
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: rp-web-background
+      steps:
+      - setWeight: 50
+      - pause: {}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rp-abort-analysis
+spec:
+  serviceName: rp-abort-analysis
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rp-abort-analysis
+  template:
+    metadata:
+      labels:
+        app: rp-abort-analysis
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: busybox
+        image: quay.io/prometheus/busybox:latest
+        command: ["/bin/sh", "-c", "while true; do sleep 30; done"]
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForStatefulSetReady().
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
+		WaitForRolloutPluginBackgroundAnalysisRunPhase("Running").
+		AbortRolloutPlugin().
+		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseDegraded, 300*time.Second).
+		Then().
+		ExpectRolloutPluginAnalysisRunCount(1).
+		Assert(func(t *fixtures.Then) {
+			for _, ar := range t.GetRolloutPluginAnalysisRuns().Items {
+				assert.True(s.T(), ar.Spec.Terminate, "AnalysisRun %s should be terminated by the abort", ar.Name)
+			}
+		})
 }

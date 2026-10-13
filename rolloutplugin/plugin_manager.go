@@ -1,6 +1,7 @@
 package rolloutplugin
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"net/url"
@@ -18,7 +19,9 @@ const BuiltinPluginScheme = "builtin"
 // BuiltinPluginFactory constructs an in-process ResourcePlugin. Factories are defined
 // where the concrete built-ins can be imported (cmd/rollouts-controller), avoiding the
 // statefulset -> rolloutplugin import cycle that a direct reference here would create.
-type BuiltinPluginFactory func(logCtx *log.Entry) ResourcePlugin
+// args are the ConfigMap entry's args, the same ones an external plugin receives as
+// command-line arguments; a factory should reject args it doesn't understand.
+type BuiltinPluginFactory func(logCtx *log.Entry, args []string) (ResourcePlugin, error)
 
 var (
 	// globalPluginManager is the singleton instance of the plugin manager
@@ -50,7 +53,11 @@ type DefaultPluginManager struct {
 	// namespace is the controller's watch namespace
 	namespace string
 
-	// mu protects plugins, builtinEnabled and externalEnabled maps
+	// started is set by Start, once this replica is the leader. External plugins connected
+	// before that are only spawned, not initialized.
+	started bool
+
+	// mu protects plugins, builtinEnabled, externalEnabled and started
 	mu sync.RWMutex
 }
 
@@ -75,7 +82,7 @@ func GetGlobalPluginManager(namespace string) *DefaultPluginManager {
 // GetPlugin returns a plugin by name.
 //
 // Built-in plugins are registered eagerly at startup and cached in pm.plugins, so they are
-// returned directly. Anything not in that map is treated as an external RPC plugin and is
+// returned directly. Enabled external RPC plugins are
 // (re)derived on every call rather than cached: the underlying process is de-duplicated and
 // liveness-checked by the client registry (client.GetResourcePlugin only re-execs when the
 // process has Exited() and Pings the live connection each call). Re-deriving the wrapper
@@ -85,20 +92,27 @@ func GetGlobalPluginManager(namespace string) *DefaultPluginManager {
 func (pm *DefaultPluginManager) GetPlugin(name string) (ResourcePlugin, error) {
 	pm.mu.RLock()
 	plugin, exists := pm.plugins[name]
+	enabled := pm.externalEnabled[name]
+	started := pm.started
 	pm.mu.RUnlock()
 	if exists {
 		return plugin, nil
 	}
+	// Only plugins enabled at startup have a workload watch, so anything else (disabled or not
+	// configured) is rejected instead of being started.
+	if !enabled {
+		return nil, fmt.Errorf("plugin '%s' is not enabled in the rolloutPlugins ConfigMap", name)
+	}
 
-	rpcPlugin, err := newRpcPlugin(name, pm.namespace)
+	rpcPlugin, err := newRpcPlugin(name, pm.namespace, started)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load external plugin '%s': %w", name, err)
 	}
 	return rpcPlugin, nil
 }
 
-// RegisterPlugin registers a plugin with a specific name.
-func (pm *DefaultPluginManager) RegisterPlugin(name string, plugin ResourcePlugin, namespace string) error {
+// RegisterPlugin registers a plugin with a specific name. It is initialized by Start.
+func (pm *DefaultPluginManager) RegisterPlugin(name string, plugin ResourcePlugin) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
@@ -106,14 +120,39 @@ func (pm *DefaultPluginManager) RegisterPlugin(name string, plugin ResourcePlugi
 		return fmt.Errorf("plugin '%s' already registered", name)
 	}
 
-	// Initialize the plugin once during registration
-	if err := plugin.Init(namespace); err != nil {
-		return fmt.Errorf("failed to initialize plugin '%s': %w", name, err)
-	}
-
 	pm.plugins[name] = plugin
-	log.WithField("plugin", name).Info("Plugin registered and initialized successfully")
+	log.WithField("plugin", name).Info("Plugin registered successfully")
 
+	return nil
+}
+
+// Start initializes every enabled plugin with the controller's watch namespace. It must be
+// called once this replica becomes the leader, before the RolloutPlugin controller starts, so
+// plugins only create clients and start watches on the leader; ctx is the leader context, which
+// stops them if leadership is lost. External plugins started later (e.g. after a crash) are
+// initialized when they are connected.
+func (pm *DefaultPluginManager) Start(ctx context.Context) error {
+	pm.mu.Lock()
+	pm.started = true
+	builtins := maps.Clone(pm.plugins)
+	externalNames := make([]string, 0, len(pm.externalEnabled))
+	for name := range pm.externalEnabled {
+		externalNames = append(externalNames, name)
+	}
+	pm.mu.Unlock()
+
+	for name, plugin := range builtins {
+		if err := plugin.Init(ctx, pm.namespace); err != nil {
+			return fmt.Errorf("failed to initialize plugin '%s': %w", name, err)
+		}
+		log.WithField("plugin", name).Info("Plugin initialized successfully")
+	}
+	for _, name := range externalNames {
+		if _, err := pm.GetPlugin(name); err != nil {
+			return fmt.Errorf("failed to initialize plugin '%s': %w", name, err)
+		}
+		log.WithField("plugin", name).Info("Plugin initialized successfully")
+	}
 	return nil
 }
 
@@ -127,7 +166,7 @@ func (pm *DefaultPluginManager) RegisterPlugin(name string, plugin ResourcePlugi
 // in externalEnabled, but not connected yet — EnabledPlugins connects those on demand. This
 // means "enabled" is defined the same way for builtin and external plugins: present in the
 // ConfigMap and not Disabled, decided once here at startup.
-func (pm *DefaultPluginManager) RegisterBuiltinPlugins(items []types.PluginItem, factories map[string]BuiltinPluginFactory, namespace string) error {
+func (pm *DefaultPluginManager) RegisterBuiltinPlugins(items []types.PluginItem, factories map[string]BuiltinPluginFactory) error {
 	for _, item := range items {
 		if item.Type != types.PluginTypeResourcePlugin || item.Disabled {
 			continue
@@ -147,7 +186,11 @@ func (pm *DefaultPluginManager) RegisterBuiltinPlugins(items []types.PluginItem,
 		if !ok {
 			return fmt.Errorf("rolloutPlugins entry %q references unknown built-in plugin %q", item.Name, id)
 		}
-		if err := pm.RegisterPlugin(item.Name, factory(log.WithField("plugin", item.Name)), namespace); err != nil {
+		plugin, err := factory(log.WithField("plugin", item.Name), item.Args)
+		if err != nil {
+			return fmt.Errorf("rolloutPlugins entry %q: failed to create built-in plugin %q: %w", item.Name, id, err)
+		}
+		if err := pm.RegisterPlugin(item.Name, plugin); err != nil {
 			return err
 		}
 		pm.mu.Lock()
@@ -160,7 +203,8 @@ func (pm *DefaultPluginManager) RegisterBuiltinPlugins(items []types.PluginItem,
 // EnabledPlugins returns every plugin enabled in the rolloutPlugins ConfigMap, keyed by the
 // name a RolloutPlugin references via spec.plugin.name. Builtins are already-registered
 // instances; external plugins are connected here (spawned + handshaked) if they haven't been
-// already, so the result is guaranteed to cover every configured, enabled plugin.
+// already, so the result is guaranteed to cover every configured, enabled plugin. Before Start,
+// plugins are not initialized, so only WatchedGVK may be called on them.
 func (pm *DefaultPluginManager) EnabledPlugins() (map[string]ResourcePlugin, error) {
 	pm.mu.RLock()
 	result := make(map[string]ResourcePlugin, len(pm.plugins)+len(pm.externalEnabled))

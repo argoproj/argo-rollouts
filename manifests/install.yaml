@@ -31230,6 +31230,19 @@ spec:
                         type: array
                     type: object
                 type: object
+              timeoutAbort:
+                description: |-
+                  TimeoutAbort is whether to abort the update when TimeoutSeconds
+                  is exceeded.
+                type: boolean
+              timeoutSeconds:
+                description: |-
+                  TimeoutSeconds is the maximum time in seconds for a rollout to make progress
+                  before it is considered to be failed. The controller continues to process failed
+                  rollouts and a condition with a ProgressDeadlineExceeded reason is surfaced in the
+                  status. Time spent paused does not count. Defaults to 600s.
+                format: int32
+                type: integer
               workloadRef:
                 description: WorkloadRef is a reference to the workload (StatefulSet,
                   DaemonSet, etc.) being managed
@@ -31508,6 +31521,11 @@ spec:
               currentRevision:
                 description: CurrentRevision is the hash/version of the current stable
                   workload
+                type: string
+              currentStepHash:
+                description: |-
+                  CurrentStepHash is the hash of the steps the rollout is running. A change to the
+                  steps mid-rollout restarts the rollout from step 0.
                 type: string
               currentStepIndex:
                 description: CurrentStepIndex is the index of the current step in
@@ -40618,6 +40636,8 @@ rules:
   - analysistemplates
   - clusteranalysistemplates
   - analysisruns
+  - rolloutplugins
+  - rolloutplugins/status
   verbs:
   - create
   - delete
@@ -40648,6 +40668,8 @@ rules:
   - analysistemplates
   - clusteranalysistemplates
   - analysisruns
+  - rolloutplugins
+  - rolloutplugins/status
   verbs:
   - create
   - delete
@@ -40677,6 +40699,7 @@ rules:
   - analysistemplates
   - clusteranalysistemplates
   - analysisruns
+  - rolloutplugins
   verbs:
   - get
   - list

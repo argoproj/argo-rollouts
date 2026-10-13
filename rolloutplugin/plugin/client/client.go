@@ -19,6 +19,8 @@ type pluginRegistry struct {
 	rpcConnClient map[string]goPlugin.ClientProtocol
 	// instances holds the dispensed, typed plugin interface ready for method calls.
 	instances map[string]types.RpcResourcePlugin
+	// initialized records which running plugin processes InitPlugin was called on.
+	initialized map[string]bool
 }
 
 var registry *pluginRegistry
@@ -45,29 +47,32 @@ var testBeforePing func(pluginName string)
 
 // GetResourcePlugin returns a singleton plugin client for the given resource plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the rolloutplugin object.
-func GetResourcePlugin(pluginName, namespace string) (types.RpcResourcePlugin, error) {
+// With initialize, InitPlugin is called the first time a plugin process is returned (including after
+// it was restarted); without it, the process is only started, e.g. to ask for its WatchedGVK.
+func GetResourcePlugin(pluginName, namespace string, initialize bool) (types.RpcResourcePlugin, error) {
 	once.Do(func() {
 		registry = &pluginRegistry{
 			processClient: make(map[string]*goPlugin.Client),
 			rpcConnClient: make(map[string]goPlugin.ClientProtocol),
 			instances:     make(map[string]types.RpcResourcePlugin),
+			initialized:   make(map[string]bool),
 		}
 	})
-	p, err := registry.startPlugin(pluginName, namespace)
+	p, err := registry.startPlugin(pluginName, namespace, initialize)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start plugin system: %w", err)
 	}
 	return p, nil
 }
 
-func (r *pluginRegistry) startPlugin(pluginName, namespace string) (types.RpcResourcePlugin, error) {
+func (r *pluginRegistry) startPlugin(pluginName, namespace string, initialize bool) (types.RpcResourcePlugin, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
-	return r.startPluginLocked(pluginName, namespace)
+	return r.startPluginLocked(pluginName, namespace, initialize)
 }
 
 // startPluginLocked contains the core logic and must be called with mutex held.
-func (r *pluginRegistry) startPluginLocked(pluginName, namespace string) (types.RpcResourcePlugin, error) {
+func (r *pluginRegistry) startPluginLocked(pluginName, namespace string, initialize bool) (types.RpcResourcePlugin, error) {
 	if r.processClient[pluginName] == nil || r.processClient[pluginName].Exited() {
 
 		pluginPath, args, err := getPluginInfo(pluginName, types.PluginTypeResourcePlugin)
@@ -101,11 +106,12 @@ func (r *pluginRegistry) startPluginLocked(pluginName, namespace string) (types.
 			return nil, fmt.Errorf("unexpected type from plugin")
 		}
 		r.instances[pluginName] = typedPlugin
+		r.initialized[pluginName] = false
 
-		resp := r.instances[pluginName].InitPlugin(namespace)
-		if resp.HasError() {
-			r.cleanupPlugin(pluginName)
-			return nil, fmt.Errorf("unable to initialize plugin via rpc (%s): %w", pluginName, resp)
+		if initialize {
+			if err := r.initPluginLocked(pluginName, namespace); err != nil {
+				return nil, err
+			}
 		}
 
 		// Ping to verify liveness after init
@@ -123,12 +129,19 @@ func (r *pluginRegistry) startPluginLocked(pluginName, namespace string) (types.
 			r.processClient[pluginName].Kill()
 			r.processClient[pluginName] = nil
 			// Recursively call to reinitialize (mutex already held)
-			return r.startPluginLocked(pluginName, namespace)
+			return r.startPluginLocked(pluginName, namespace, initialize)
 		}
 
 		if err := r.rpcConnClient[pluginName].Ping(); err != nil {
 			r.cleanupPlugin(pluginName)
 			return nil, fmt.Errorf("could not ping plugin, will cleanup process so we can restart it next reconcile (%w)", err)
+		}
+
+		// Started before initialization was allowed (e.g. before this replica became the leader).
+		if initialize && !r.initialized[pluginName] {
+			if err := r.initPluginLocked(pluginName, namespace); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -139,6 +152,18 @@ func (r *pluginRegistry) startPluginLocked(pluginName, namespace string) (types.
 	return r.instances[pluginName], nil
 }
 
+// initPluginLocked calls InitPlugin, cleaning the plugin up on failure so it is restarted on the
+// next call. Must be called with mutex held.
+func (r *pluginRegistry) initPluginLocked(pluginName, namespace string) error {
+	resp := r.instances[pluginName].InitPlugin(namespace)
+	if resp.HasError() {
+		r.cleanupPlugin(pluginName)
+		return fmt.Errorf("unable to initialize plugin via rpc (%s): %w", pluginName, resp)
+	}
+	r.initialized[pluginName] = true
+	return nil
+}
+
 // cleanupPlugin kills and removes all references for a plugin so it can be restarted.
 func (r *pluginRegistry) cleanupPlugin(pluginName string) {
 	if r.processClient[pluginName] != nil {
@@ -147,4 +172,5 @@ func (r *pluginRegistry) cleanupPlugin(pluginName string) {
 	r.processClient[pluginName] = nil
 	r.rpcConnClient[pluginName] = nil
 	r.instances[pluginName] = nil
+	delete(r.initialized, pluginName)
 }

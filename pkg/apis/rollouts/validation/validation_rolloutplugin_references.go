@@ -36,14 +36,15 @@ func ValidateAnalysisTemplateForRolloutPlugin(rp *v1alpha1.RolloutPlugin, templa
 	templateNames := GetAnalysisTemplateNames(templates)
 	value := fmt.Sprintf("templateNames: %s", templateNames)
 
+	// valueFrom args are only resolved when the AnalysisRun is created, so they get a placeholder
+	// here. Literal values are always set, even when empty, matching runtime arg resolution.
 	args := make([]v1alpha1.Argument, 0, len(templates.Args))
 	for _, a := range templates.Args {
-		arg := v1alpha1.Argument{Name: a.Name}
-		if a.Value != "" {
-			val := a.Value
-			arg.Value = &val
+		val := a.Value
+		if a.ValueFrom != nil {
+			val = "dummy-value"
 		}
-		args = append(args, arg)
+		args = append(args, v1alpha1.Argument{Name: a.Name, Value: &val})
 	}
 
 	_, err := analysisutil.NewAnalysisRunFromTemplates(

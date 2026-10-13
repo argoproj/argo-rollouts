@@ -3,6 +3,7 @@ package rolloutplugin
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -140,8 +141,9 @@ func (r *RolloutPluginReconciler) reconcileAnalysisRuns(ctx context.Context, rp 
 	// Split current and other analysis runs
 	currentArs, otherArs := r.filterCurrentAnalysisRuns(allArs, rp)
 
-	// Check if we should skip analysis reconciliation
-	notProgressing := !conditions.IsRolloutPluginProgressing(&rp.Status)
+	// Check if we should skip analysis reconciliation. A paused rollout is still in progress,
+	// so its analysis keeps running.
+	notProgressing := !conditions.IsRolloutPluginInProgress(&rp.Status) || rp.Status.Aborted
 	if notProgressing {
 		logCtx.Info("Skipping analysis - not in progress")
 		allArsToCancel := append(currentArs.ToArray(), otherArs...)
@@ -332,12 +334,24 @@ func (r *RolloutPluginReconciler) reconcileBackgroundAnalysisRun(ctx context.Con
 	return currentAr, abortMessage, nil
 }
 
-// convertAnalysisRunArgsToArguments converts AnalysisRunArgument to Argument.
-// Value must stay nil when ValueFrom resolved something, since MergeArgs
-// prefers a non-nil Value over ValueFrom and would otherwise clobber the resolved value with "".
+// convertAnalysisRunArgsToArguments converts AnalysisRunArgument to Argument, resolving
+// valueFrom.
 func convertAnalysisRunArgsToArguments(rp *v1alpha1.RolloutPlugin, args []v1alpha1.AnalysisRunArgument) ([]v1alpha1.Argument, error) {
 	result := make([]v1alpha1.Argument, len(args))
 	for i, arg := range args {
+		if arg.ValueFrom != nil && arg.ValueFrom.PodTemplateHashValue != nil {
+			var value string
+			switch *arg.ValueFrom.PodTemplateHashValue {
+			case v1alpha1.Stable:
+				value = rp.Status.CurrentRevision
+			case v1alpha1.Latest:
+				value = rp.Status.UpdatedRevision
+			default:
+				return nil, fmt.Errorf("unsupported podTemplateHashValue %q for arg %q", *arg.ValueFrom.PodTemplateHashValue, arg.Name)
+			}
+			result[i] = v1alpha1.Argument{Name: arg.Name, Value: &value}
+			continue
+		}
 		if arg.ValueFrom == nil || arg.ValueFrom.FieldRef == nil {
 			result[i] = v1alpha1.Argument{Name: arg.Name, Value: &arg.Value}
 			continue
@@ -391,20 +405,24 @@ func (r *RolloutPluginReconciler) createAnalysisRun(ctx context.Context, rp *v1a
 		name += "-" + infix
 	}
 
-	arLabels := map[string]string{
+	// analysisRunMetadata is applied first so it can't override the controller's own labels.
+	arLabels := map[string]string{}
+	annotations := map[string]string{}
+	if analysisSpec.AnalysisRunMetadata != nil {
+		maps.Copy(arLabels, analysisSpec.AnalysisRunMetadata.Labels)
+		maps.Copy(annotations, analysisSpec.AnalysisRunMetadata.Annotations)
+	}
+	maps.Copy(arLabels, map[string]string{
 		v1alpha1.RolloutTypeLabel:           rolloutType,
 		v1alpha1.RolloutPluginNameLabel:     rp.Name,
 		v1alpha1.RolloutPluginRevisionLabel: revision,
-	}
+	})
 	if stepIndex >= 0 {
 		arLabels[v1alpha1.RolloutCanaryStepIndexLabel] = strconv.Itoa(int(stepIndex))
 	}
 	if r.InstanceID != "" {
 		arLabels[v1alpha1.LabelKeyControllerInstanceID] = r.InstanceID
 	}
-
-	// TODO: anything to add here?
-	annotations := map[string]string{}
 
 	convertedArgs, err := convertAnalysisRunArgsToArguments(rp, analysisSpec.Args)
 	if err != nil {
@@ -443,6 +461,15 @@ func (r *RolloutPluginReconciler) createAnalysisRun(ctx context.Context, rp *v1a
 	}
 
 	return createdAr, nil
+}
+
+// cancelAllAnalysisRuns terminates every AnalysisRun of the RolloutPlugin that is still running.
+func (r *RolloutPluginReconciler) cancelAllAnalysisRuns(ctx context.Context, rp *v1alpha1.RolloutPlugin, logCtx *log.Entry) error {
+	ars, err := r.getAnalysisRunsForRolloutPlugin(ctx, rp)
+	if err != nil {
+		return err
+	}
+	return r.cancelAnalysisRuns(ctx, ars, logCtx)
 }
 
 // cancelAnalysisRuns terminates analysis runs that are not yet completed.

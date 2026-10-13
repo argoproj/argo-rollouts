@@ -26,10 +26,12 @@ func rolloutPluginUniqueName(t *testing.T) string {
 	}
 	name = strings.ToLower(name)
 	name = nonAlphanumericDash.ReplaceAllString(name, "-")
-	if len(name) > 63 {
-		name = name[:63]
+	// StatefulSet names must be at most 52 characters, since the controller-revision-hash
+	// label value appends a hash to them.
+	if len(name) > 52 {
+		name = name[:52]
 	}
-	return name
+	return strings.TrimRight(name, "-")
 }
 
 type Given struct {
