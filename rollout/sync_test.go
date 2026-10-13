@@ -219,8 +219,14 @@ func TestReconcileRevisionHistoryLimit(t *testing.T) {
 			assert.Nil(t, err)
 			assert.Equal(t, len(test.expectedDeleted), len(k8sfake.Actions()))
 			for _, action := range k8sfake.Actions() {
-				rsName := action.(testclient.DeleteAction).GetName()
-				assert.True(t, test.expectedDeleted[rsName])
+				deleteAction := action.(testclient.DeleteAction)
+				assert.True(t, test.expectedDeleted[deleteAction.GetName()])
+				// Foreground deletion keeps the ReplicaSet around until its pods are gone,
+				// so PodDisruptionBudgets can still find the pods' controller.
+				policy := deleteAction.GetDeleteOptions().PropagationPolicy
+				if assert.NotNil(t, policy) {
+					assert.Equal(t, metav1.DeletePropagationForeground, *policy)
+				}
 			}
 		})
 	}

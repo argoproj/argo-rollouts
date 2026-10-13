@@ -666,7 +666,12 @@ func (c *rolloutContext) reconcileRevisionHistoryLimit(oldRSs []*appsv1.ReplicaS
 			continue
 		}
 		c.log.Infof("Trying to cleanup replica set %q", rs.Name)
-		if err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Delete(ctx, rs.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+		// Delete in the foreground so the ReplicaSet is kept until its pods are gone. With the default
+		// background deletion, terminating pods are briefly left without a controller, which makes
+		// PodDisruptionBudgets that use a percentage report an error.
+		propagationPolicy := metav1.DeletePropagationForeground
+		deleteOpts := metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
+		if err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Delete(ctx, rs.Name, deleteOpts); err != nil && !errors.IsNotFound(err) {
 			// Return error instead of aggregating and continuing DELETEs on the theory
 			// that we may be overloading the api server.
 			return err
