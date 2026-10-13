@@ -11,6 +11,8 @@ patches:
   - path: on-rollout-updated.yaml
   - path: on-rollout-aborted.yaml
   - path: on-rollout-paused.yaml
+  - path: on-rollout-promoted.yaml
+  - path: on-rollout-promoted-full.yaml
   - path: on-analysis-run-running.yaml
   - path: on-analysis-run-error.yaml
   - path: on-analysis-run-failed.yaml
