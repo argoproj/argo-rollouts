@@ -3,6 +3,7 @@ package rollout
 import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -59,6 +60,14 @@ type rolloutContext struct {
 	// annotation at the start of reconciliation (before it may be removed).
 	// Used to detect fast rollbacks where we skip pause/analysis steps.
 	newRSWithinDelay bool
+
+	// skipStatusSync ends the pass without a status sync. Set by stageStopNoStatus: the pod-restart
+	// early exit and stage errors (see runStages).
+	skipStatusSync bool
+
+	// blueGreenPreviewSvc and blueGreenActiveSvc are set for the duration of runBlueGreenStages.
+	blueGreenPreviewSvc *corev1.Service
+	blueGreenActiveSvc  *corev1.Service
 }
 
 func (c *rolloutContext) reconcile() error {
