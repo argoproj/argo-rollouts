@@ -336,7 +336,7 @@ func (c *Common) GetRolloutPluginInlineAnalysisRun() *rov1.AnalysisRun {
 			continue
 		}
 		if latest == nil {
-			latest = &arun
+			latest = &aruns.Items[i]
 			continue
 		}
 		if arun.CreationTimestamp.After(latest.CreationTimestamp.Time) {

@@ -1,10 +1,13 @@
 package conditions
 
 import (
+	"encoding/json"
+	"fmt"
+	"hash/fnv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -41,6 +44,8 @@ const (
 	RolloutPluginAbortedReason = "RolloutPluginAborted"
 	// RolloutPluginAbortedMessage is the message for abort
 	RolloutPluginAbortedMessage = "RolloutPlugin aborted"
+	// RolloutPluginAbortIgnoredReason indicates a user abort was ignored because there was nothing to roll back
+	RolloutPluginAbortIgnoredReason = "AbortIgnored"
 
 	// RolloutPluginRestartedReason indicates the RolloutPlugin was restarted from step 0
 	RolloutPluginRestartedReason = "RolloutPluginRestarted"
@@ -81,8 +86,8 @@ func NewRolloutPluginCondition(condType v1alpha1.RolloutPluginConditionType, sta
 	return &v1alpha1.RolloutPluginCondition{
 		Type:               condType,
 		Status:             status,
-		LastUpdateTime:     metav1.Now(),
-		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     timeutil.MetaNow(),
+		LastTransitionTime: timeutil.MetaNow(),
 		Reason:             reason,
 		Message:            message,
 	}
@@ -133,28 +138,42 @@ func filterOutRolloutPluginCondition(conditions []v1alpha1.RolloutPluginConditio
 	return newConditions
 }
 
-// RolloutPluginTimedOut checks if the RolloutPlugin has timed out based on the plugin config timeoutSeconds.
+// RolloutPluginTimedOut checks if the RolloutPlugin has timed out based on spec.timeoutSeconds.
 func RolloutPluginTimedOut(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus) bool {
 	condition := GetRolloutPluginCondition(*newStatus, v1alpha1.RolloutPluginConditionProgressing)
 	if condition == nil || condition.Reason == RolloutPluginAbortedReason || condition.Reason == RolloutPluginPausedReason {
 		return false
 	}
 
-	// Already timed out - if the spec was edited since the last completed reconcile, allow
-	// re-evaluation. rolloutPlugin.Status.ObservedGeneration (not newStatus, which reconcile
-	// already set equal to rolloutPlugin.Generation before this runs) holds that prior value.
+	// Once timed out, stays timed out until a new revision, promoteFull, a
+	// pause/resume or an abort/retry replaces the condition. A spec edit doesn't reset it, so
+	// enabling timeoutAbort after the timeout still aborts.
 	if condition.Reason == RolloutPluginTimedOutReason {
-		if rolloutPlugin.Status.ObservedGeneration != rolloutPlugin.Generation {
-			return false
-		}
 		return true
 	}
 
 	from := condition.LastUpdateTime
 	now := timeutil.Now()
-	timeoutSeconds := defaults.GetRolloutPluginTimeoutSecondsOrDefault(rolloutPlugin)
-	delta := time.Duration(timeoutSeconds) * time.Second
+	deadlineSeconds := defaults.GetRolloutPluginTimeoutSecondsOrDefault(rolloutPlugin)
+	delta := time.Duration(deadlineSeconds) * time.Second
 	return from.Add(delta).Before(now)
+}
+
+// ComputeRolloutPluginStepHash returns a hash of the canary steps,
+// so a mid-rollout change to the steps can be detected.
+func ComputeRolloutPluginStepHash(rolloutPlugin *v1alpha1.RolloutPlugin) string {
+	if rolloutPlugin.Spec.Strategy.Canary == nil {
+		return ""
+	}
+	stepHasher := fnv.New32a()
+	stepsBytes, err := json.Marshal(rolloutPlugin.Spec.Strategy.Canary.Steps)
+	if err != nil {
+		panic(err)
+	}
+	if _, err := stepHasher.Write(stepsBytes); err != nil {
+		panic(err)
+	}
+	return rand.SafeEncodeString(fmt.Sprint(stepHasher.Sum32()))
 }
 
 // TouchRolloutPluginProgressingCondition refreshes LastUpdateTime on an active Progressing
@@ -167,7 +186,7 @@ func TouchRolloutPluginProgressingCondition(newStatus *v1alpha1.RolloutPluginSta
 		return
 	}
 	touched := *cond
-	touched.LastUpdateTime = metav1.Now()
+	touched.LastUpdateTime = timeutil.MetaNow()
 	newConditions := filterOutRolloutPluginCondition(newStatus.Conditions, v1alpha1.RolloutPluginConditionProgressing)
 	newStatus.Conditions = append(newConditions, touched)
 }
@@ -178,12 +197,24 @@ func IsRolloutPluginProgressing(status *v1alpha1.RolloutPluginStatus) bool {
 	return cond != nil && cond.Status == corev1.ConditionTrue
 }
 
+// IsRolloutPluginInProgress returns true if a rollout is underway: Progressing is True, or it is
+// Unknown because the rollout is paused mid-update. Step and analysis reconciliation keep running
+// while paused (pausing only stops workload-mutating steps).
+func IsRolloutPluginInProgress(status *v1alpha1.RolloutPluginStatus) bool {
+	cond := GetRolloutPluginCondition(*status, v1alpha1.RolloutPluginConditionProgressing)
+	if cond == nil {
+		return false
+	}
+	return cond.Status == corev1.ConditionTrue ||
+		(cond.Status == corev1.ConditionUnknown && cond.Reason == RolloutPluginPausedReason)
+}
+
 // RolloutPluginIsHealthy returns true if the RolloutPlugin is considered healthy.
 func RolloutPluginIsHealthy(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus) bool {
 	if newStatus.Aborted {
 		return false
 	}
-	if IsRolloutPluginProgressing(newStatus) {
+	if IsRolloutPluginInProgress(newStatus) {
 		return false
 	}
 	if newStatus.CurrentRevision == "" || newStatus.CurrentRevision != newStatus.UpdatedRevision {

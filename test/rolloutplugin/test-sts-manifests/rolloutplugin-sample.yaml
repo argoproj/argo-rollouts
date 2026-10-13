@@ -60,10 +60,8 @@ spec:
   # Plugin configuration
   plugin:
     name: argoproj/statefulset
-    # Optional: plugin-specific configuration
-    config:
-      # Any StatefulSet-specific settings
-      a: b
+    # plugin.config is plugin-specific; the built-in StatefulSet plugin defines no config fields yet
+    # and rejects a non-empty config.
   
   # Analysis configuration for retaining analysis run history
   analysis:

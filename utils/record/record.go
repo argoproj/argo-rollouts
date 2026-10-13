@@ -229,13 +229,10 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 		logCtx = logCtx.WithField("event_reason", opts.EventReason)
 		e.Recorder.Eventf(object, opts.EventType, opts.EventReason, messageFmt, args...)
 
-		// Increment rollout_events_total counter
+		// Increment the events counter (rollout_events_total, or rolloutplugin_events_total for
+		// the RolloutPlugin recorder)
 		kind, namespace, name := logutil.KindNamespaceName(logCtx)
-		if kind == "Rollout" {
-			e.RolloutEventCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
-		}
-		// Also increment for RolloutPlugin - TODOH separate metric?
-		if kind == "RolloutPlugin" {
+		if kind == "Rollout" || kind == "RolloutPlugin" {
 			e.RolloutEventCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 		}
 

@@ -390,6 +390,14 @@ func newCommand() *cobra.Command {
 						ByObject: map[client.Object]cache.ByObject{
 							&v1alpha1.RolloutPlugin{}: rolloutPluginCacheByObject,
 						},
+						// Workload watches cache only metadata, whose largest part is often
+						// managedFields, which the controller never reads.
+						DefaultTransform: func(obj any) (any, error) {
+							if workload, ok := obj.(*metav1.PartialObjectMetadata); ok {
+								workload.SetManagedFields(nil)
+							}
+							return obj, nil
+						},
 					},
 				}
 				if namespaced && namespace != metav1.NamespaceAll {
@@ -414,13 +422,15 @@ func newCommand() *cobra.Command {
 				// the same as external plugins. An entry with a builtin:// location (e.g.
 				// "builtin://statefulset") registers the corresponding in-process plugin below.
 				builtinFactories := map[string]rolloutplugin.BuiltinPluginFactory{
-					"statefulset": func(logCtx *log.Entry) rolloutplugin.ResourcePlugin { return statefulset.NewPlugin(logCtx) },
+					"statefulset": func(logCtx *log.Entry, args []string) (rolloutplugin.ResourcePlugin, error) {
+						return statefulset.NewPlugin(logCtx, config, args)
+					},
 				}
 				cfg, err := rolloutsConfig.GetConfig()
 				if err != nil {
 					log.Fatalf("Failed to get config for built-in plugin registration: %s", err.Error())
 				}
-				if err := pluginManager.RegisterBuiltinPlugins(cfg.GetAllPlugins(), builtinFactories, namespace); err != nil {
+				if err := pluginManager.RegisterBuiltinPlugins(cfg.GetAllPlugins(), builtinFactories); err != nil {
 					log.Fatalf("Failed to register built-in plugins: %s", err.Error())
 				}
 
@@ -433,7 +443,7 @@ func newCommand() *cobra.Command {
 				)
 				rolloutPluginRecorder := record.NewEventRecorder(
 					kubeClient,
-					metrics.MetricRolloutEventsTotal,
+					metrics.MetricRolloutPluginEventsTotal,
 					metrics.MetricNotificationFailedTotal,
 					metrics.MetricNotificationSuccessTotal,
 					metrics.MetricNotificationSend,
@@ -513,6 +523,24 @@ func newCommand() *cobra.Command {
 						log.Info("Became leader, starting RolloutPlugin controllers")
 					case <-ctx.Done():
 						return // shutting down before we ever led
+					}
+
+					// The analysis-only manager (--controllers=analysis,rolloutplugin) does not start the
+					// notification informers, so start them here. Start is a no-op for already started ones.
+					for _, factory := range []kubeinformers.SharedInformerFactory{notificationConfigMapInformerFactory, notificationSecretInformerFactory} {
+						factory.Start(leaderCtx.Done())
+						for informerType, synced := range factory.WaitForCacheSync(leaderCtx.Done()) {
+							if !synced {
+								log.Errorf("Failed to wait for RolloutPlugin notification %v cache to sync", informerType)
+								return
+							}
+						}
+					}
+
+					// Plugins create their clients and start their watches only on the leader.
+					if err := pluginManager.Start(leaderCtx); err != nil {
+						log.WithError(err).Error("Failed to start RolloutPlugin plugins")
+						os.Exit(1)
 					}
 
 					var pluginWg sync.WaitGroup
@@ -605,7 +633,7 @@ func newCommand() *cobra.Command {
 	command.Flags().DurationVar(&electOpts.LeaderElectionRenewDeadline, "leader-election-renew-deadline", controller.DefaultLeaderElectionRenewDeadline, "The interval between attempts by the acting master to renew a leadership slot before it stops leading. This must be less than or equal to the lease duration. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled.")
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", false, "Allows rollouts controller to pull notification config from the namespace that the rollout resource is in. This is useful for self-service notification.")
-	command.Flags().StringSliceVar(&controllersEnabled, "controllers", nil, "Explicitly specify the list of controllers to run. Supported values: 'analysis', 'rolloutplugin'. Examples: --controllers=analysis (analysis only), --controllers=rolloutplugin (rolloutplugin only), --controllers=analysis,rolloutplugin (analysis + rolloutplugin). Default: analysis + rollout/experiment/service/ingress controllers (no rolloutplugin)")
+	command.Flags().StringSliceVar(&controllersEnabled, "controllers", nil, "Explicitly specify the list of controllers to run. Supported values: 'analysis', 'rolloutplugin'. Examples: --controllers=analysis (analysis only), --controllers=rolloutplugin (default controllers + rolloutplugin), --controllers=analysis,rolloutplugin (analysis + rolloutplugin). Default: analysis + rollout/experiment/service/ingress controllers (no rolloutplugin)")
 	command.Flags().StringVar(&pprofAddress, "enable-pprof-address", "", "Enable pprof profiling on controller by providing a server address.")
 	return &command
 }

@@ -30,22 +30,25 @@ func (p *testRpcPlugin) InitPlugin(_ string) types.RpcError { return types.RpcEr
 func (p *testRpcPlugin) WatchedGVK() (types.WatchedGVK, types.RpcError) {
 	return types.WatchedGVK{Group: "apps", Version: "v1", Kind: "StatefulSet"}, types.RpcError{}
 }
-func (p *testRpcPlugin) GetResourceStatus(_ string, _ v1alpha1.WorkloadRef) (*types.ResourceStatus, types.RpcError) {
+func (p *testRpcPlugin) GetResourceStatus(_ *v1alpha1.RolloutPlugin) (*types.ResourceStatus, types.RpcError) {
 	return &types.ResourceStatus{}, types.RpcError{}
 }
-func (p *testRpcPlugin) SetWeight(_ string, _ v1alpha1.WorkloadRef, _ int32) types.RpcError {
+func (p *testRpcPlugin) SetWeight(_ *v1alpha1.RolloutPlugin, _ int32) types.RpcError {
 	return types.RpcError{}
 }
-func (p *testRpcPlugin) VerifyWeight(_ string, _ v1alpha1.WorkloadRef, _ int32) (bool, types.RpcError) {
+func (p *testRpcPlugin) VerifyWeight(_ *v1alpha1.RolloutPlugin, _ int32) (bool, types.RpcError) {
 	return true, types.RpcError{}
 }
-func (p *testRpcPlugin) PromoteFull(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
+func (p *testRpcPlugin) PromoteFull(_ *v1alpha1.RolloutPlugin) types.RpcError {
 	return types.RpcError{}
 }
-func (p *testRpcPlugin) Abort(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
+func (p *testRpcPlugin) Validate(_ *v1alpha1.RolloutPlugin) types.RpcError {
 	return types.RpcError{}
 }
-func (p *testRpcPlugin) Restart(_ string, _ v1alpha1.WorkloadRef) types.RpcError {
+func (p *testRpcPlugin) Abort(_ *v1alpha1.RolloutPlugin) types.RpcError {
+	return types.RpcError{}
+}
+func (p *testRpcPlugin) Restart(_ *v1alpha1.RolloutPlugin) types.RpcError {
 	return types.RpcError{}
 }
 func (p *testRpcPlugin) Type() string { return "TestRPCPlugin" }
@@ -104,6 +107,7 @@ func initSingleton() {
 			processClient: make(map[string]*goPlugin.Client),
 			rpcConnClient: make(map[string]goPlugin.ClientProtocol),
 			instances:     make(map[string]types.RpcResourcePlugin),
+			initialized:   make(map[string]bool),
 		}
 	})
 }
@@ -130,7 +134,7 @@ func overrideGetPluginInfo(binary string, args ...string) func() {
 
 func TestGetResourcePlugin_NotConfigured(t *testing.T) {
 	resetSingleton()
-	result, err := GetResourcePlugin("nonexistent-plugin", "")
+	result, err := GetResourcePlugin("nonexistent-plugin", "", true)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "unable to start plugin system")
@@ -153,7 +157,7 @@ func TestStartPlugin_ExistingPluginPingSuccess(t *testing.T) {
 	assert.True(t, ok)
 	registry.instances[pluginName] = p
 
-	result, err := registry.startPlugin(pluginName, "")
+	result, err := registry.startPlugin(pluginName, "", true)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -178,7 +182,7 @@ func TestStartPlugin_ExistingPluginPingFailure(t *testing.T) {
 	pluginClient.Kill()
 	time.Sleep(100 * time.Millisecond)
 
-	result, err := registry.startPlugin(pluginName, "")
+	result, err := registry.startPlugin(pluginName, "", true)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "could not ping plugin")
@@ -199,7 +203,7 @@ func TestStartPlugin_ReinitializeWhenRpcClientNil(t *testing.T) {
 	registry.rpcConnClient[pluginName] = nil
 	registry.instances[pluginName] = nil
 
-	result, err := registry.startPlugin(pluginName, "")
+	result, err := registry.startPlugin(pluginName, "", true)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "unable to find plugin")
@@ -217,7 +221,7 @@ func TestStartPlugin_NewPluginFullFlow(t *testing.T) {
 	pluginClient.Kill()
 	time.Sleep(50 * time.Millisecond)
 
-	result, err := registry.startPlugin(pluginName, "")
+	result, err := registry.startPlugin(pluginName, "", true)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "unable to find plugin")
@@ -231,15 +235,16 @@ func TestStartPlugin_FullInitFlow(t *testing.T) {
 	initSingleton()
 	pluginName := "test-plugin"
 
-	result, err := registry.startPlugin(pluginName, "")
+	result, err := registry.startPlugin(pluginName, "", true)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.NotNil(t, registry.processClient[pluginName])
 	assert.NotNil(t, registry.rpcConnClient[pluginName])
 	assert.NotNil(t, registry.instances[pluginName])
+	assert.True(t, registry.initialized[pluginName])
 
 	// Second call should reuse the cached client
-	result2, err := registry.startPlugin(pluginName, "")
+	result2, err := registry.startPlugin(pluginName, "", true)
 	assert.NoError(t, err)
 	assert.NotNil(t, result2)
 
@@ -254,7 +259,7 @@ func TestStartPlugin_InitPluginHasError(t *testing.T) {
 	defer overrideGetPluginInfo(pluginBinary, "--fail-init")()
 
 	initSingleton()
-	result, err := registry.startPlugin("test-plugin", "")
+	result, err := registry.startPlugin("test-plugin", "", true)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "unable to initialize plugin via rpc")
@@ -268,13 +273,35 @@ func TestStartPlugin_InitPluginHasError(t *testing.T) {
 
 	// A second call must attempt InitPlugin again (and fail again, since the plugin binary
 	// still has --fail-init), not silently succeed via a stale cached instance.
-	result2, err2 := registry.startPlugin("test-plugin", "")
+	result2, err2 := registry.startPlugin("test-plugin", "", true)
 	assert.Error(t, err2)
 	assert.Nil(t, result2)
 
 	if registry.processClient["test-plugin"] != nil {
 		registry.processClient["test-plugin"].Kill()
 	}
+}
+
+// TestStartPlugin_DeferredInit verifies a plugin started without initialize (e.g. on a
+// non-leader replica) is not initialized until a later call asks for it.
+func TestStartPlugin_DeferredInit(t *testing.T) {
+	resetSingleton()
+	pluginBinary := buildTestPluginBinary(t)
+	defer overrideGetPluginInfo(pluginBinary, "--fail-init")()
+
+	initSingleton()
+	pluginName := "test-plugin"
+
+	result, err := registry.startPlugin(pluginName, "", false)
+	assert.NoError(t, err, "InitPlugin must not be called without initialize")
+	assert.NotNil(t, result)
+	assert.False(t, registry.initialized[pluginName])
+
+	result, err = registry.startPlugin(pluginName, "", true)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "unable to initialize plugin via rpc")
+	assert.Nil(t, registry.processClient[pluginName], "a failed deferred init must clean up the process")
 }
 
 func TestStartPlugin_GetPluginClientError(t *testing.T) {
@@ -294,7 +321,7 @@ func TestStartPlugin_GetPluginClientError(t *testing.T) {
 	defer overrideGetPluginInfo(pluginBinary)()
 	initSingleton()
 
-	result, err := registry.startPlugin("test-plugin", "")
+	result, err := registry.startPlugin("test-plugin", "", true)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "unable to get plugin client")
@@ -310,7 +337,7 @@ func TestStartPlugin_DispenseError(t *testing.T) {
 	defer func() { pluginMap = origPluginMap }()
 
 	initSingleton()
-	result, err := registry.startPlugin("test-plugin", "")
+	result, err := registry.startPlugin("test-plugin", "", true)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "unable to dispense plugin")
@@ -339,7 +366,7 @@ func TestStartPlugin_PingFailure(t *testing.T) {
 	initSingleton()
 	pluginName := "test-plugin"
 
-	result, err := registry.startPlugin(pluginName, "")
+	result, err := registry.startPlugin(pluginName, "", true)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "could not ping plugin")
@@ -368,7 +395,7 @@ func TestStartPlugin_TypeAssertionFailure(t *testing.T) {
 	defer func() { pluginMap = origPluginMap }()
 
 	initSingleton()
-	result, err := registry.startPlugin("test-plugin", "")
+	result, err := registry.startPlugin("test-plugin", "", true)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "unexpected type from plugin")
@@ -395,7 +422,7 @@ func TestGetResourcePlugin_WithExistingPlugin(t *testing.T) {
 	assert.True(t, ok)
 	registry.instances[pluginName] = p
 
-	result, err := GetResourcePlugin(pluginName, "")
+	result, err := GetResourcePlugin(pluginName, "", true)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }

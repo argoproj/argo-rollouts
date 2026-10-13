@@ -874,6 +874,18 @@ func (w *When) UpdateStatefulSetImage(image string) *When {
 	return w
 }
 
+// ScaleStatefulSet sets the StatefulSet's replica count
+func (w *When) ScaleStatefulSet(replicas int32) *When {
+	if w.statefulSet == nil {
+		w.t.Fatal("StatefulSet not set")
+	}
+	patchBytes := []byte(fmt.Sprintf(`{"spec":{"replicas":%d}}`, replicas))
+	_, err := w.kubeClient.AppsV1().StatefulSets(w.namespace).Patch(w.Context, w.statefulSet.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	w.CheckError(err)
+	w.log.Infof("Scaled StatefulSet to %d replicas", replicas)
+	return w
+}
+
 // SetStatefulSetAnnotation sets an annotation on the StatefulSet
 func (w *When) SetStatefulSetAnnotation(key, value string) *When {
 	if w.statefulSet == nil {
