@@ -1003,6 +1003,9 @@ type RolloutStatus struct {
 	// PromoteFullAt indicates when the controller reconciled a full promotion requested via status.promoteFull.
 	// The controller uses it to emit the RolloutPromotedFull event only once per promotion.
 	PromoteFullAt *metav1.Time `json:"promoteFullAt,omitempty" protobuf:"bytes,28,opt,name=promoteFullAt"`
+	// Promote is set by the promote action (CLI or dashboard) to request a promotion to the next step.
+	// The controller emits a RolloutPromoted event and clears it in the same status update.
+	Promote bool `json:"promote,omitempty" protobuf:"varint,29,opt,name=promote"`
 	// Phase is the rollout phase. Clients should only rely on the value if status.observedGeneration equals metadata.generation
 	Phase RolloutPhase `json:"phase,omitempty" protobuf:"bytes,22,opt,name=phase,casttype=RolloutPhase"`
 	// Message provides details on why the rollout is in its current phase

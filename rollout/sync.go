@@ -1019,6 +1019,10 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	// Record when a full promotion was first reconciled, so the event is emitted once
 	c.calculatePromoteFullStatus(newStatus)
 
+	// status.promote is a one-shot request from the promote action. It is acknowledged with a
+	// RolloutPromoted event and cleared in the same patch
+	newStatus.Promote = false
+
 	// After that, calculate the rollout conditions, which requires the abort/pause fields to be evaluated
 	c.calculateRolloutConditions(newStatus)
 
@@ -1090,6 +1094,9 @@ func (c *rolloutContext) sendStateChangeEvents(prevStatus, newStatus *v1alpha1.R
 			// which should not be mistaken as a RolloutResumed
 			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutResumedReason}, conditions.RolloutResumedMessage)
 		}
+	}
+	if prevStatus.Promote {
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutPromotedReason}, conditions.RolloutPromotedMessage)
 	}
 	if prevStatus.PromoteFull && prevStatus.PromoteFullAt == nil {
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutPromotedFullReason}, conditions.RolloutPromotedFullMessage)

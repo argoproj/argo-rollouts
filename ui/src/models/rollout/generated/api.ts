@@ -2614,6 +2614,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStat
      */
     promoteFullAt?: K8sIoApimachineryPkgApisMetaV1Time;
     /**
+     * Promote is set by the promote action (CLI or dashboard) to request a promotion to the next step. The controller emits a RolloutPromoted event and clears it in the same status update.
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    promote?: boolean;
+    /**
      * 
      * @type {string}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus

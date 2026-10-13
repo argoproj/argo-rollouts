@@ -542,6 +542,23 @@ func TestSendStateChangeEvents(t *testing.T) {
 			},
 			expectedEventReasons: nil,
 		},
+		{
+			prevStatus: v1alpha1.RolloutStatus{
+				Promote: true,
+			},
+			newStatus:            v1alpha1.RolloutStatus{},
+			expectedEventReasons: []string{conditions.RolloutPromotedReason},
+		},
+		{
+			prevStatus: v1alpha1.RolloutStatus{
+				PauseConditions: []v1alpha1.PauseCondition{
+					{Reason: v1alpha1.PauseReasonCanaryPauseStep, StartTime: now},
+				},
+				Promote: true,
+			},
+			newStatus:            v1alpha1.RolloutStatus{},
+			expectedEventReasons: []string{conditions.RolloutResumedReason, conditions.RolloutPromotedReason},
+		},
 	}
 	for _, test := range tests {
 		roCtx := &rolloutContext{}
