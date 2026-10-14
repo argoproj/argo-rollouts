@@ -66,14 +66,7 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 
 	if fullyRolledOut {
 		// We are in a steady-state (fully rolled out). newRS is the stableRS. there is no longer a canary
-		// If newRS was promoted from canary (or preview), a pod that missed the promotion-time sync
-		// still carries the canary metadata, while the ReplicaSet's ephemeral-metadata annotation
-		// now only records the stable metadata. Pass the canary metadata so it can be removed.
-		var staleMetadata *v1alpha1.PodTemplateMetadata
-		if c.rollout.Status.StableRS != "" {
-			staleMetadata = newMetadata
-		}
-		err := c.syncEphemeralMetadata(ctx, c.newRS, stableMetadata, staleMetadata)
+		err := c.syncEphemeralMetadata(ctx, c.newRS, stableMetadata, c.staleEphemeralMetadata(newMetadata))
 		if err != nil {
 			return err
 		}
@@ -98,6 +91,17 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 		}
 	}
 	return nil
+}
+
+// staleEphemeralMetadata returns the canary (or preview) metadata when newRS was promoted from it.
+// A pod that missed the promotion-time sync still carries that metadata, while the ReplicaSet's
+// ephemeral-metadata annotation now only records the stable metadata. It is taken from the current
+// spec, so values changed or removed after the promotion are not recognized.
+func (c *rolloutContext) staleEphemeralMetadata(newMetadata *v1alpha1.PodTemplateMetadata) *v1alpha1.PodTemplateMetadata {
+	if c.rollout.Status.StableRS == "" {
+		return nil
+	}
+	return newMetadata
 }
 
 // syncEphemeralMetadata syncs podMetadata to the ReplicaSet and its pods. staleMetadata is metadata
