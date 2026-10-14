@@ -66,18 +66,25 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 
 	if fullyRolledOut {
 		// We are in a steady-state (fully rolled out). newRS is the stableRS. there is no longer a canary
-		err := c.syncEphemeralMetadata(ctx, c.newRS, stableMetadata)
+		// If newRS was promoted from canary (or preview), a pod that missed the promotion-time sync
+		// still carries the canary metadata, while the ReplicaSet's ephemeral-metadata annotation
+		// now only records the stable metadata. Pass the canary metadata so it can be removed.
+		var staleMetadata *v1alpha1.PodTemplateMetadata
+		if c.rollout.Status.StableRS != "" {
+			staleMetadata = newMetadata
+		}
+		err := c.syncEphemeralMetadata(ctx, c.newRS, stableMetadata, staleMetadata)
 		if err != nil {
 			return err
 		}
 	} else {
 		// we are in a upgrading state. newRS is a canary
-		err := c.syncEphemeralMetadata(ctx, c.newRS, newMetadata)
+		err := c.syncEphemeralMetadata(ctx, c.newRS, newMetadata, nil)
 		if err != nil {
 			return err
 		}
 		// sync stable metadata to the stable rs
-		err = c.syncEphemeralMetadata(ctx, c.stableRS, stableMetadata)
+		err = c.syncEphemeralMetadata(ctx, c.stableRS, stableMetadata, nil)
 		if err != nil {
 			return err
 		}
@@ -85,7 +92,7 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 
 	// Iterate all other ReplicaSets and verify we don't have injected metadata for them
 	for _, rs := range c.otherRSs {
-		err := c.syncEphemeralMetadata(ctx, rs, nil)
+		err := c.syncEphemeralMetadata(ctx, rs, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -93,7 +100,10 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 	return nil
 }
 
-func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) error {
+// syncEphemeralMetadata syncs podMetadata to the ReplicaSet and its pods. staleMetadata is metadata
+// a previous role of the ReplicaSet may have injected into its pods (see RemoveStaleEphemeralPodMetadata);
+// it is nil unless the ReplicaSet was promoted.
+func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.ReplicaSet, podMetadata, staleMetadata *v1alpha1.PodTemplateMetadata) error {
 	if rs == nil {
 		return nil
 	}
@@ -127,13 +137,15 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 		return err
 	}
 	existingPodMetadata := replicasetutil.ParseExistingPodMetadata(originalRSCopy)
+	// The pod template new pods of this ReplicaSet are created from, after the sync above
+	podTemplateMetadata := modifiedRS.Spec.Template.ObjectMeta
 
 	var eg errgroup.Group
 	eg.SetLimit(c.ephemeralMetadataThreads)
 
 	for _, pod := range pods {
 		eg.Go(func() error {
-			return c.updatePodMetadataWithRetry(ctx, pod, existingPodMetadata, podMetadata)
+			return c.updatePodMetadataWithRetry(ctx, pod, existingPodMetadata, podMetadata, staleMetadata, &podTemplateMetadata)
 		})
 	}
 
@@ -141,7 +153,7 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 }
 
 // updatePodMetadataWithRetry attempts to update a pod's ephemeral metadata with exponential backoff retry
-func (c *rolloutContext) updatePodMetadataWithRetry(ctx context.Context, pod *corev1.Pod, existingPodMetadata, podMetadata *v1alpha1.PodTemplateMetadata) error {
+func (c *rolloutContext) updatePodMetadataWithRetry(ctx context.Context, pod *corev1.Pod, existingPodMetadata, podMetadata, staleMetadata *v1alpha1.PodTemplateMetadata, podTemplateMetadata *metav1.ObjectMeta) error {
 	fetchedPod := pod.DeepCopy()
 	var lastUpdateErr error
 
@@ -153,6 +165,8 @@ func (c *rolloutContext) updatePodMetadataWithRetry(ctx context.Context, pod *co
 		}
 
 		newPodObjectMeta, podModified := replicasetutil.SyncEphemeralPodMetadata(&fetchedPod.ObjectMeta, existingPodMetadata, podMetadata)
+		newPodObjectMeta, staleRemoved := replicasetutil.RemoveStaleEphemeralPodMetadata(newPodObjectMeta, staleMetadata, podMetadata, podTemplateMetadata)
+		podModified = podModified || staleRemoved
 		if !podModified {
 			// No changes needed, exit successfully
 			return nil
