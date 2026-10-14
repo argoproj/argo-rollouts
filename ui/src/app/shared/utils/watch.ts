@@ -12,20 +12,8 @@ enum ReadyState {
 export interface ListState<T> {
     loading: boolean;
     items: T[];
+    error: Error | null;
 }
-
-export const useLoading = (list: any[], minLength?: number) => {
-    const [loading, setLoading] = React.useState(true);
-    React.useEffect(() => {
-        if (!list) {
-            return;
-        }
-        if (list.length > (minLength || 0)) {
-            setLoading(false);
-        }
-    }, [list, minLength]);
-    return loading;
-};
 
 function fromEventSource(url: string): Observable<string> {
     return Observable.create((observer: Observer<any>) => {
