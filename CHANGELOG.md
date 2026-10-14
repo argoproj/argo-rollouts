@@ -1,4 +1,28 @@
 
+<a name="v1.10.1"></a>
+## [v1.10.1](https://github.com/argoproj/argo-rollouts/compare/v1.10.0...v1.10.1) (2026-10-12)
+
+### Fix
+
+* **controller:** allow Bidirectional mountPropagation on privileged containers. Fixes [#3130](https://github.com/argoproj/argo-rollouts/issues/3130) (cherry-pick [#4789](https://github.com/argoproj/argo-rollouts/issues/4789) for 1.10) ([#5028](https://github.com/argoproj/argo-rollouts/issues/5028))
+
+### BREAKING CHANGE
+
+
+the kubectl argo rollouts dashboard command and the bundled
+argo-rollouts-dashboard Deployment now bind to 127.0.0.1 by default instead of
+0.0.0.0. Deployments that expose the dashboard via a Kubernetes Service must set
+--address 0.0.0.0 explicitly.
+
+
+
+* docs: write versions in documentation about address argument
+
+Updated warning to important note and clarified dashboard binding behavior for affected versions
+
+---------
+
+
 <a name="v1.10.0"></a>
 ## [v1.10.0](https://github.com/argoproj/argo-rollouts/compare/v1.10.0-rc1...v1.10.0) (2026-08-05)
 
@@ -22,7 +46,7 @@
 
 
 <a name="v1.10.0-rc1"></a>
-## [v1.10.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.9.1...v1.10.0-rc1) (2026-06-30)
+## [v1.10.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.9.2...v1.10.0-rc1) (2026-06-30)
 
 ### Build
 
@@ -94,10 +118,6 @@
 
 * **metricprovider:** make Datadog API request timeout configurable ([#4812](https://github.com/argoproj/argo-rollouts/issues/4812))
 
-### Feat!
-
-* update default Traefik API group to v3 ([#4572](https://github.com/argoproj/argo-rollouts/issues/4572))
-
 ### Fix
 
 * allow plugins to implement ping-pong (and not just ALB/Istio) ([#4740](https://github.com/argoproj/argo-rollouts/issues/4740))
@@ -151,6 +171,26 @@
 
 * use t.Log instead of fmt.Println ([#4735](https://github.com/argoproj/argo-rollouts/issues/4735))
 * make tests resilient to nil ptr ([#4782](https://github.com/argoproj/argo-rollouts/issues/4782))
+
+
+<a name="v1.9.2"></a>
+## [v1.9.2](https://github.com/argoproj/argo-rollouts/compare/v1.9.1...v1.9.2) (2026-10-12)
+
+### BREAKING CHANGE
+
+
+the kubectl argo rollouts dashboard command and the bundled
+argo-rollouts-dashboard Deployment now bind to 127.0.0.1 by default instead of
+0.0.0.0. Deployments that expose the dashboard via a Kubernetes Service must set
+--address 0.0.0.0 explicitly.
+
+
+
+* docs: write versions in documentation about address argument
+
+Updated warning to important note and clarified dashboard binding behavior for affected versions
+
+---------
 
 
 <a name="v1.9.1"></a>
@@ -218,7 +258,7 @@
 
 
 <a name="v1.9.0-rc1"></a>
-## [v1.9.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.8.4...v1.9.0-rc1) (2025-11-07)
+## [v1.9.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.8.5...v1.9.0-rc1) (2025-11-07)
 
 ### Build
 
@@ -441,6 +481,22 @@
 ### Refactor
 
 * **controller:** context refactor ([#4291](https://github.com/argoproj/argo-rollouts/issues/4291))
+
+
+<a name="v1.8.5"></a>
+## [v1.8.5](https://github.com/argoproj/argo-rollouts/compare/v1.8.4...v1.8.5) (2026-10-12)
+
+### Fix
+
+* update yarn.lock with correct dependencies ([#4637](https://github.com/argoproj/argo-rollouts/issues/4637))
+
+### BREAKING CHANGE
+
+
+the kubectl argo rollouts dashboard command and the bundled
+argo-rollouts-dashboard Deployment now bind to 127.0.0.1 by default instead of
+0.0.0.0. Deployments that expose the dashboard via a Kubernetes Service must set
+--address 0.0.0.0 explicitly.
 
 
 <a name="v1.8.4"></a>
