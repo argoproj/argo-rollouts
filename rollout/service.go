@@ -92,6 +92,11 @@ func (c *rolloutContext) reconcilePreviewService(previewSvc *corev1.Service) err
 }
 
 func (c *rolloutContext) reconcileActiveService(activeSvc *corev1.Service) error {
+	// A traffic-only rollback pins the existing backend while keeping the
+	// desired PodTemplate intact. Do not let a completed promotion overwrite it.
+	if targetHash, _ := c.trafficRollbackHashes(); targetHash != "" && targetHash != legacyDeploymentTrafficTarget {
+		return c.switchServiceSelector(activeSvc, targetHash, c.rollout)
+	}
 	if haltReason := c.haltProgress(); haltReason != "" {
 		c.log.Infof("Skipping active service reconciliation: %s", haltReason)
 		return nil
@@ -261,11 +266,16 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		return err
 	}
 
-	if c.pauseContext != nil && c.pauseContext.IsAborted() && c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
-		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
-		if err != nil {
-			return err
+	if c.pauseContext != nil && c.pauseContext.IsAborted() {
+		if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+			err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+			if err != nil {
+				return err
+			}
 		}
+		// Traffic-routed aborts switch the canary service in reconcileTrafficRouting,
+		// once the stable ReplicaSet can safely accept the remaining traffic. Do not
+		// point it back to newRS here or the two reconcilers will flap the selector.
 		return nil
 	}
 

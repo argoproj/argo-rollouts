@@ -217,6 +217,13 @@ plugin-windows: ui/dist  ## build plugin for windows
 controller: ## build controller binary
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller ./cmd/rollouts-controller
 
+.PHONY: promotion-controller pod-annotation-trafficrouter
+promotion-controller: ## build the optional declarative promotion controller
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-promotion-controller ./cmd/rollouts-promotion-controller
+
+pod-annotation-trafficrouter: ## build the optional Pod annotation traffic router
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-pod-annotation-trafficrouter ./cmd/rollouts-pod-annotation-trafficrouter
+
 .PHONY: builder-image
 builder-image: ## build builder image
 	DOCKER_BUILDKIT=1 docker build  -t $(IMAGE_PREFIX)argo-rollouts-ci-builder:$(IMAGE_TAG) --target builder .

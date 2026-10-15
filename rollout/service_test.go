@@ -19,6 +19,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/aws"
 	"github.com/argoproj/argo-rollouts/utils/aws/mocks"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -103,6 +104,27 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, roCtx)
 	})
+}
+
+func TestActiveServiceHonorsRetainedTrafficOverride(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	ro := newRollout("example", 2, nil, map[string]string{"app": "example"})
+	ro.Spec.Strategy = v1alpha1.RolloutStrategy{BlueGreen: &v1alpha1.BlueGreenStrategy{ActiveService: "active"}}
+	ro.Annotations = map[string]string{annotations.TrafficOverrideHashAnnotation: "retained", annotations.TrafficOverrideSourceHashAnnotation: "candidate"}
+	svc := newService("active", 80, map[string]string{"app": "example", v1alpha1.DefaultRolloutUniqueLabelKey: "candidate"}, ro)
+	f.kubeobjects = append(f.kubeobjects, svc)
+	f.serviceLister = append(f.serviceLister, svc)
+	f.objects = append(f.objects, ro)
+	f.rolloutLister = append(f.rolloutLister, ro)
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, err := c.newRolloutContext(ro)
+	assert.NoError(t, err)
+	assert.NoError(t, ctx.reconcileActiveService(svc))
+	assert.Equal(t, "retained", svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+	// Reconciliation must stay pinned, even after the ordinary promotion gate.
+	assert.NoError(t, ctx.reconcileActiveService(svc))
+	assert.Equal(t, "retained", svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
 }
 
 func TestActiveServiceNotFound(t *testing.T) {

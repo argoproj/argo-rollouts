@@ -64,7 +64,7 @@ RUN touch ui/dist/node_modules.marker && \
 
 ARG TARGETOS
 ARG TARGETARCH
-ARG MAKE_TARGET="controller plugin"
+ARG MAKE_TARGET="controller promotion-controller pod-annotation-trafficrouter plugin"
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make ${MAKE_TARGET}
 
 ####################################################################################################
@@ -88,6 +88,8 @@ CMD ["dashboard"]
 FROM gcr.io/distroless/static-debian12
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
+COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-promotion-controller /bin/
+COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-pod-annotation-trafficrouter /bin/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Use numeric user, allows kubernetes to identify this user as being

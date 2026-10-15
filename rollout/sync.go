@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -117,7 +118,17 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 
 func (c *rolloutContext) setRolloutRevision(revision string) error {
 	if annotations.SetRolloutRevision(c.rollout, revision) {
-		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
+		patch, err := json.Marshal(map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]string{
+					annotations.RevisionAnnotation: revision,
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(context.TODO(), c.rollout.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			c.log.WithError(err).Error("Error: updating rollout revision")
 			return err

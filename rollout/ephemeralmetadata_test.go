@@ -23,6 +23,21 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 )
 
+func TestWithoutPodTemplateAnnotation(t *testing.T) {
+	metadata := &v1alpha1.PodTemplateMetadata{
+		Labels: map[string]string{"rollout-role": "preview"},
+		Annotations: map[string]string{
+			"example.com/traffic-weight": "0",
+			"example.com/keep":           "value",
+		},
+	}
+
+	filtered := withoutPodTemplateAnnotation(metadata, "example.com/traffic-weight")
+	assert.Equal(t, map[string]string{"rollout-role": "preview"}, filtered.Labels)
+	assert.Equal(t, map[string]string{"example.com/keep": "value"}, filtered.Annotations)
+	assert.Equal(t, "0", metadata.Annotations["example.com/traffic-weight"], "the Rollout spec must not be mutated")
+}
+
 // TestSyncCanaryEphemeralMetadataInitialRevision verifies when we create a revision 1 ReplicaSet
 // (with no previous revisions), that the ReplicaSet will get the stable metadata.
 func TestSyncCanaryEphemeralMetadataInitialRevision(t *testing.T) {

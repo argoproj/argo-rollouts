@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-rollouts-promotion-controller
+  labels:
+    app.kubernetes.io/name: argo-rollouts-promotion-controller
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argo-rollouts-promotion-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argo-rollouts-promotion-controller
+    spec:
+      serviceAccountName: argo-rollouts-promotion-controller
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: controller
+        # Build this proposal's image and override it in an installation overlay.
+        image: argo-rollouts:declarative-promotion
+        imagePullPolicy: IfNotPresent
+        command: [/bin/rollouts-promotion-controller]
+        args:
+        - --leader-elect=true
+        - --leader-election-namespace=$(POD_NAMESPACE)
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        ports:
+        - name: healthz
+          containerPort: 8081
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 30
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -149,6 +150,9 @@ func (c *rolloutContext) syncNewRSReplicasAnnotation() error {
 }
 
 func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
+	if c.hasTrafficRollbackOverride() && !c.hasNewRevisionAfterTrafficRollback() {
+		return false, nil
+	}
 	if c.newRS == nil {
 		return false, nil
 	}
@@ -277,6 +281,15 @@ func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
 // reconcileOtherReplicaSets reconciles "other" ReplicaSets.
 // Other ReplicaSets are ReplicaSets are neither the new or stable (allRSs - newRS - stableRS)
 func (c *rolloutContext) reconcileOtherReplicaSets() (bool, error) {
+	if c.hasTrafficRollbackOverride() {
+		if !c.hasNewRevisionAfterTrafficRollback() {
+			return false, nil
+		}
+		return c.scaleDownSupersededTrafficRollbackReplicaSets()
+	}
+	if scaled, err := c.scaleDownReplicaSetsSupersededByTemplateRollback(); scaled || err != nil {
+		return scaled, err
+	}
 	otherRSs := controller.FilterActiveReplicaSets(c.otherRSs)
 	oldPodsCount := replicasetutil.GetReplicaCountForReplicaSets(otherRSs)
 	if oldPodsCount == 0 {
@@ -306,6 +319,100 @@ func (c *rolloutContext) reconcileOtherReplicaSets() (bool, error) {
 	}
 	if hasScaled {
 		c.log.Infof("Scaled down old RSes")
+	}
+	return hasScaled, nil
+}
+
+// scaleDownReplicaSetsSupersededByTemplateRollback removes newer failed
+// candidates when the desired PodTemplate is rolled back to the older stable
+// ReplicaSet. They never became the production baseline, so retaining them for
+// scaleDownDelaySeconds only consumes surge capacity and can block the next
+// release. A traffic-only rollback is excluded above and keeps both revisions.
+func (c *rolloutContext) scaleDownReplicaSetsSupersededByTemplateRollback() (bool, error) {
+	// Preserve ordinary Rollout retention semantics unless this workload opted
+	// into the Deployment adoption lifecycle.
+	if c.rollout.GetAnnotations()[annotations.LegacyAdoptionStateAnnotation] == "" {
+		return false, nil
+	}
+	if c.newRS == nil || c.stableRS == nil {
+		return false, nil
+	}
+	newHash := replicasetutil.GetPodTemplateHash(c.newRS)
+	stableHash := replicasetutil.GetPodTemplateHash(c.stableRS)
+	if newHash == "" || stableHash == "" || newHash != stableHash {
+		return false, nil
+	}
+
+	hasScaled := false
+	for _, targetRS := range controller.FilterActiveReplicaSets(c.otherRSs) {
+		if !targetRS.CreationTimestamp.After(c.newRS.CreationTimestamp.Time) {
+			continue
+		}
+		if targetRS.Spec.Replicas == nil || *targetRS.Spec.Replicas == 0 {
+			continue
+		}
+		scaled, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, 0)
+		if err != nil {
+			return hasScaled, fmt.Errorf("failed to scale ReplicaSet %s superseded by template rollback: %w", targetRS.Name, err)
+		}
+		hasScaled = hasScaled || scaled
+	}
+	return hasScaled, nil
+}
+
+func (c *rolloutContext) hasTrafficRollbackOverride() bool {
+	return c.rollout.Annotations != nil && strings.TrimSpace(c.rollout.Annotations[annotations.TrafficOverrideHashAnnotation]) != ""
+}
+
+func (c *rolloutContext) trafficRollbackHashes() (string, string) {
+	if c.rollout.Annotations == nil {
+		return "", ""
+	}
+	return strings.TrimSpace(c.rollout.Annotations[annotations.TrafficOverrideHashAnnotation]),
+		strings.TrimSpace(c.rollout.Annotations[annotations.TrafficOverrideSourceHashAnnotation])
+}
+
+// hasNewRevisionAfterTrafficRollback distinguishes the revision which was
+// active when traffic was rolled back from a later desired revision. Overrides
+// created by older controllers have no source hash and remain conservatively
+// frozen until a forward promotion clears them.
+func (c *rolloutContext) hasNewRevisionAfterTrafficRollback() bool {
+	targetHash, sourceHash := c.trafficRollbackHashes()
+	if targetHash == "" || sourceHash == "" || c.newRS == nil {
+		return false
+	}
+	newHash := replicasetutil.GetPodTemplateHash(c.newRS)
+	return newHash != "" && newHash != targetHash && newHash != sourceHash
+}
+
+func (c *rolloutContext) trafficRollbackBaselineForNewRevision() string {
+	if !c.hasNewRevisionAfterTrafficRollback() {
+		return ""
+	}
+	targetHash, _ := c.trafficRollbackHashes()
+	return targetHash
+}
+
+// scaleDownSupersededTrafficRollbackReplicaSets frees surge capacity for the
+// next revision. The rollback target normally becomes c.stableRS; an explicit
+// hash guard also protects it when a stale context still classifies it as an
+// older RS. Every other running RS is inactive while the override is in effect
+// and can be reduced without moving production traffic.
+func (c *rolloutContext) scaleDownSupersededTrafficRollbackReplicaSets() (bool, error) {
+	hasScaled := false
+	targetHash, _ := c.trafficRollbackHashes()
+	for _, targetRS := range controller.FilterActiveReplicaSets(c.otherRSs) {
+		if replicasetutil.GetPodTemplateHash(targetRS) == targetHash {
+			continue
+		}
+		if targetRS.Spec.Replicas == nil || *targetRS.Spec.Replicas == 0 {
+			continue
+		}
+		scaled, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, 0)
+		if err != nil {
+			return hasScaled, fmt.Errorf("failed to scale superseded traffic rollback ReplicaSet %s: %w", targetRS.Name, err)
+		}
+		hasScaled = hasScaled || scaled
 	}
 	return hasScaled, nil
 }
@@ -392,6 +499,9 @@ func (c *rolloutContext) isReplicaSetReferenced(rs *appsv1.ReplicaSet) bool {
 		return false
 	}
 	ro := c.rollout
+	if ro.Annotations != nil && ro.Annotations[annotations.TrafficOverrideHashAnnotation] == rsPodHash {
+		return true
+	}
 	referencesToCheck := []string{
 		ro.Status.StableRS,
 		ro.Status.CurrentPodHash,

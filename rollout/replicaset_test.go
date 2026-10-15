@@ -753,6 +753,144 @@ func TestIsReplicaSetReferenced(t *testing.T) {
 	}
 }
 
+func TestTrafficOverridePreventsReplicaSetScaleDown(t *testing.T) {
+	rollout := newCanaryRollout("test", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	rollout.Annotations = map[string]string{annotations.TrafficOverrideHashAnnotation: "retained"}
+	roCtx := &rolloutContext{rollout: rollout}
+	rs := &appsv1.ReplicaSet{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: "retained",
+	}}}
+	if !roCtx.isReplicaSetReferenced(rs) {
+		t.Fatal("traffic override target must remain referenced")
+	}
+}
+
+func TestTrafficRollbackOverrideFreezesReplicaSetReconciliation(t *testing.T) {
+	rollout := newCanaryRollout("freeze", 3, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	rollout.Annotations = map[string]string{annotations.TrafficOverrideHashAnnotation: "stable"}
+	ctx := rolloutContext{
+		rollout: rollout,
+		newRS:   rs("freeze-new", 1, nil, noTimestamp, nil),
+		otherRSs: []*appsv1.ReplicaSet{
+			rs("freeze-old", 3, nil, noTimestamp, nil),
+		},
+	}
+	scaled, err := ctx.reconcileNewReplicaSet()
+	if err != nil || scaled {
+		t.Fatalf("traffic rollback must freeze new ReplicaSet reconciliation: scaled=%v err=%v", scaled, err)
+	}
+	scaled, err = ctx.reconcileOtherReplicaSets()
+	if err != nil || scaled {
+		t.Fatalf("traffic rollback must freeze old ReplicaSet reconciliation: scaled=%v err=%v", scaled, err)
+	}
+}
+
+func TestTrafficRollbackRecognizesNextRevision(t *testing.T) {
+	rollout := newCanaryRollout("next", 3, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	rollout.Annotations = map[string]string{
+		annotations.TrafficOverrideHashAnnotation:       "blue",
+		annotations.TrafficOverrideSourceHashAnnotation: "green",
+	}
+	ctx := rolloutContext{rollout: rollout, newRS: rs("next-a-plus", 0, map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: "a-plus",
+	}, noTimestamp, nil)}
+	if !ctx.hasNewRevisionAfterTrafficRollback() {
+		t.Fatal("a desired hash different from the rollback target and source must start a new revision")
+	}
+	if baseline := ctx.trafficRollbackBaselineForNewRevision(); baseline != "blue" {
+		t.Fatalf("expected rollback baseline blue, got %q", baseline)
+	}
+
+	ctx.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "green"
+	if ctx.hasNewRevisionAfterTrafficRollback() {
+		t.Fatal("the revision which was rolled back must remain frozen")
+	}
+}
+
+func TestTrafficRollbackScalesDownSupersededRevisionForNextRelease(t *testing.T) {
+	rollout := newCanaryRollout("next", 3, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	rollout.Annotations = map[string]string{
+		annotations.TrafficOverrideHashAnnotation:       "blue",
+		annotations.TrafficOverrideSourceHashAnnotation: "green",
+	}
+	failedRS := rs("next-green", 3, map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: "green",
+	}, noTimestamp, nil)
+	baselineRS := rs("next-blue", 3, map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: "blue",
+	}, noTimestamp, nil)
+	client := k8sfake.NewSimpleClientset(failedRS, baselineRS)
+	ctx := rolloutContext{
+		rollout: rollout,
+		pauseContext: &pauseContext{
+			rollout: rollout,
+			log:     logutil.WithRollout(rollout),
+		},
+		newRS: rs("next-a-plus", 0, map[string]string{
+			v1alpha1.DefaultRolloutUniqueLabelKey: "a-plus",
+		}, noTimestamp, nil),
+		// Include the rollback target to cover a stale context during a
+		// simultaneous PodTemplate and replica-count update.
+		otherRSs: []*appsv1.ReplicaSet{failedRS, baselineRS},
+		reconcilerBase: reconcilerBase{
+			kubeclientset:     client,
+			argoprojclientset: &fake.Clientset{},
+			recorder:          record.NewFakeEventRecorder(),
+		},
+	}
+	scaled, err := ctx.reconcileOtherReplicaSets()
+	if err != nil || !scaled {
+		t.Fatalf("expected superseded revision to scale down, scaled=%t err=%v", scaled, err)
+	}
+	updated, err := client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Get(context.Background(), failedRS.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Spec.Replicas == nil || *updated.Spec.Replicas != 0 {
+		t.Fatalf("expected superseded revision at zero replicas, got %v", updated.Spec.Replicas)
+	}
+	baseline, err := client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Get(context.Background(), baselineRS.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseline.Spec.Replicas == nil || *baseline.Spec.Replicas != 3 {
+		t.Fatalf("rollback baseline must remain at three replicas, got %v", baseline.Spec.Replicas)
+	}
+}
+
+func TestTemplateRollbackScalesDownNewerFailedRevisionImmediately(t *testing.T) {
+	rollout := newCanaryRollout("rollback", 3, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	rollout.Annotations = map[string]string{annotations.LegacyAdoptionStateAnnotation: annotations.LegacyAdoptionStatePromoted}
+	stableRS := rs("rollback-stable", 3, map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: "stable",
+	}, timeutil.MetaTime(time.Now().Add(-time.Hour)), nil)
+	failedRS := rs("rollback-failed", 3, map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: "failed",
+	}, timeutil.MetaNow(), nil)
+	failedRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = time.Now().Add(8 * time.Hour).UTC().Format(time.RFC3339)
+	rollout.Status.StableRS = "stable"
+	client := k8sfake.NewSimpleClientset(stableRS, failedRS)
+	ctx := rolloutContext{
+		rollout:      rollout,
+		newRS:        stableRS,
+		stableRS:     stableRS,
+		otherRSs:     []*appsv1.ReplicaSet{failedRS},
+		pauseContext: &pauseContext{rollout: rollout, log: logutil.WithRollout(rollout)},
+		reconcilerBase: reconcilerBase{
+			kubeclientset:     client,
+			argoprojclientset: &fake.Clientset{},
+			recorder:          record.NewFakeEventRecorder(),
+		},
+	}
+
+	scaled, err := ctx.reconcileOtherReplicaSets()
+	assert.NoError(t, err)
+	assert.True(t, scaled)
+	updated, err := client.AppsV1().ReplicaSets(metav1.NamespaceDefault).Get(context.Background(), failedRS.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, int32(0), *updated.Spec.Replicas)
+}
+
 func TestIsReplicaSetReferencedByIstioDestinationRule(t *testing.T) {
 	const testDestRuleName = "test-destrule"
 

@@ -153,6 +153,7 @@ type Manager struct {
 	jobSynced                     cache.InformerSynced
 	jobPodsSynced                 cache.InformerSynced
 	replicasSetSynced             cache.InformerSynced
+	deploymentSynced              cache.InformerSynced
 	configMapSynced               cache.InformerSynced
 	secretSynced                  cache.InformerSynced
 
@@ -344,6 +345,11 @@ func NewManager(
 	}
 	notificationsController := newNotificationController(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory, toUnstructured)
 
+	var deploymentInformer appsinformers.DeploymentInformer
+	if kubeInformerFactory != nil {
+		deploymentInformer = kubeInformerFactory.Apps().V1().Deployments()
+	}
+
 	rolloutController := rollout.NewController(rollout.ControllerConfig{
 		Namespace:                       namespace,
 		KubeClientSet:                   kubeclientset,
@@ -359,6 +365,7 @@ func NewManager(
 		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
 		IstioDestinationRuleInformer:    istioDestinationRuleInformer,
 		ReplicaSetInformer:              replicaSetInformer,
+		DeploymentInformer:              deploymentInformer,
 		ServicesInformer:                servicesInformer,
 		IngressWrapper:                  ingressWrap,
 		RolloutsInformer:                rolloutsInformer,
@@ -466,6 +473,9 @@ func NewManager(
 		istioPrimaryDynamicClient:            istioPrimaryDynamicClient,
 		notificationConfigMapInformerFactory: notificationConfigMapInformerFactory,
 		notificationSecretInformerFactory:    notificationSecretInformerFactory,
+	}
+	if deploymentInformer != nil {
+		cm.deploymentSynced = deploymentInformer.Informer().HasSynced
 	}
 
 	_, err := rolloutsConfig.InitializeConfig(kubeclientset, defaults.DefaultRolloutsConfigMapName)
@@ -635,7 +645,11 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 
 		// Wait for the caches to be synced before starting workers
 		log.Info("Waiting for controller's informer caches to sync")
-		if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.jobPodsSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
+		syncs := []cache.InformerSynced{c.serviceSynced, c.ingressSynced, c.jobSynced, c.jobPodsSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced}
+		if c.deploymentSynced != nil {
+			syncs = append(syncs, c.deploymentSynced)
+		}
+		if ok := cache.WaitForCacheSync(ctx.Done(), syncs...); !ok {
 			log.Fatalf("failed to wait for caches to sync, exiting")
 		}
 		// only wait for cluster scoped informers to sync if we are running in cluster-wide mode

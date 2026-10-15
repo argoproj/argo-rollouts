@@ -1,0 +1,53 @@
+# Deploy a baseline first, then change blue to green to establish a preview.
+# The initial creation has no previous revision to promote away from.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: example-bluegreen
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: example-bluegreen
+  template:
+    metadata:
+      labels:
+        app: example-bluegreen
+    spec:
+      containers:
+      - name: app
+        image: argoproj/rollouts-demo:blue
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+  strategy:
+    blueGreen:
+      activeService: example-bluegreen-active
+      previewService: example-bluegreen-preview
+      autoPromotionEnabled: false
+      scaleDownDelaySeconds: 300
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-bluegreen-active
+spec:
+  selector:
+    app: example-bluegreen
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-bluegreen-preview
+spec:
+  selector:
+    app: example-bluegreen
+  ports:
+  - port: 80
+    targetPort: 8080

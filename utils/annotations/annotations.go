@@ -28,6 +28,42 @@ const (
 	DesiredReplicasAnnotation = RolloutLabel + "/desired-replicas"
 	// WorkloadGenerationAnnotation is the generation of the referenced workload
 	WorkloadGenerationAnnotation = RolloutLabel + "/workload-generation"
+	// TrafficOverrideHashAnnotation pins traffic to an already running ReplicaSet
+	// without changing the Rollout PodTemplate. Traffic-router plugins may honor
+	// this override while the referenced ReplicaSet remains retained.
+	TrafficOverrideHashAnnotation = RolloutLabel + "/traffic-override-hash"
+	// TrafficOverrideSourceHashAnnotation records the desired ReplicaSet at the
+	// time traffic was rolled back. When a later PodTemplate produces a different
+	// hash, the Rollout controller can safely treat the override target as the
+	// stable baseline for the new revision.
+	TrafficOverrideSourceHashAnnotation = RolloutLabel + "/traffic-override-source-hash"
+	// TrafficRollbackRequestAnnotation is written by an external lifecycle
+	// integration, such as a Helm post-rollback hook. Its opaque value provides
+	// deduplicated request identity on the same CR; the controller owns the snapshot.
+	TrafficRollbackRequestAnnotation = RolloutLabel + "/traffic-rollback-request"
+	// LegacyAdoptionStateAnnotation keeps the traffic lifecycle for a first
+	// workloadRef adoption. Pending means legacy Deployment Pods still carry
+	// production traffic; promoted means traffic has explicitly moved to the
+	// Rollout-owned baseline ReplicaSet.
+	LegacyAdoptionStateAnnotation = RolloutLabel + "/legacy-adoption-state"
+	LegacyAdoptionStatePending    = "pending"
+	LegacyAdoptionStatePromoting  = "promoting"
+	LegacyAdoptionStatePromoted   = "promoted"
+	// LegacyAdoptionPromotedAnnotation is owned exclusively by the promotion
+	// controller. Charts must never render it: the durable marker must survive
+	// Helm upgrades and rollbacks whose stored manifests still contain pending.
+	LegacyAdoptionPromotedAnnotation = RolloutLabel + "/legacy-adoption-promoted"
+	// Legacy adoption traffic settings are stored on the Rollout so both the
+	// Rollout controller and promotion controller can reconcile or restore the
+	// same traffic state without depending on a Helm release revision.
+	LegacyAdoptionBaseSelectorAnnotation     = RolloutLabel + "/legacy-adoption-base-selector"
+	LegacyAdoptionWeightAnnotationAnnotation = RolloutLabel + "/legacy-adoption-weight-annotation"
+	LegacyAdoptionActiveWeightAnnotation     = RolloutLabel + "/legacy-adoption-active-weight"
+	LegacyAdoptionCandidateWeightAnnotation  = RolloutLabel + "/legacy-adoption-candidate-weight"
+	LegacyAdoptionLegacyWeightAnnotation     = RolloutLabel + "/legacy-adoption-legacy-weight"
+	LegacyAdoptionInactiveWeightAnnotation   = RolloutLabel + "/legacy-adoption-inactive-weight"
+	LegacyAdoptionDeploymentPausedAnnotation = RolloutLabel + "/legacy-adoption-deployment-paused"
+	LegacyAdoptionCleanupFinalizer           = RolloutLabel + "/legacy-adoption-cleanup"
 	// NotificationEngineAnnotation the annotation notification engine uses to determine if it should notify
 	NotificationEngineAnnotation = "notified.notifications.argoproj.io"
 )
@@ -217,11 +253,13 @@ func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 }
 
 var annotationsToSkip = map[string]bool{
-	corev1.LastAppliedConfigAnnotation: true,
-	RevisionAnnotation:                 true,
-	RevisionHistoryAnnotation:          true,
-	DesiredReplicasAnnotation:          true,
-	NotificationEngineAnnotation:       true,
+	corev1.LastAppliedConfigAnnotation:  true,
+	RevisionAnnotation:                  true,
+	RevisionHistoryAnnotation:           true,
+	DesiredReplicasAnnotation:           true,
+	NotificationEngineAnnotation:        true,
+	TrafficOverrideHashAnnotation:       true,
+	TrafficOverrideSourceHashAnnotation: true,
 }
 
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key

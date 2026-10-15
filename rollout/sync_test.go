@@ -56,6 +56,41 @@ func rs(name string, replicas int, selector map[string]string, timestamp metav1.
 	}
 }
 
+func TestSetRolloutRevisionPreservesNewerLiveSpec(t *testing.T) {
+	live := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "workload", Namespace: metav1.NamespaceDefault},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{Steps: []v1alpha1.CanaryStep{
+				{SetWeight: int32Ptr(0)},
+				{Pause: &v1alpha1.RolloutPause{}},
+			}}},
+		},
+	}
+	stale := live.DeepCopy()
+	stale.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{SetWeight: int32Ptr(100)}}
+
+	rolloutsClient := fake.NewSimpleClientset(live)
+	ctx := &rolloutContext{
+		rollout: stale,
+		log:     logutil.WithRollout(stale),
+		reconcilerBase: reconcilerBase{
+			argoprojclientset: rolloutsClient,
+			refResolver:       &FakeWorkloadRefResolver{},
+			recorder:          record.NewFakeEventRecorder(),
+		},
+	}
+
+	err := ctx.setRolloutRevision("2")
+	assert.NoError(t, err)
+
+	updated, err := rolloutsClient.ArgoprojV1alpha1().Rollouts(metav1.NamespaceDefault).Get(context.Background(), live.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "2", updated.Annotations[annotations.RevisionAnnotation])
+	assert.Len(t, updated.Spec.Strategy.Canary.Steps, 2)
+	assert.Len(t, ctx.rollout.Spec.Strategy.Canary.Steps, 2)
+	assert.Equal(t, "patch", rolloutsClient.Actions()[0].GetVerb())
+}
+
 func TestReconcileRevisionHistoryLimit(t *testing.T) {
 	now := timeutil.MetaNow()
 	before := metav1.Time{Time: now.Add(-time.Minute)}
@@ -403,7 +438,7 @@ func TestCanaryPromoteFull(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // sync 1: create new ReplicaSet (size 0)
-	f.expectUpdateRolloutAction(r2)                        // sync 1: update rollout revision
+	f.expectPatchRolloutRevisionAction(r2)                 // sync 1: update rollout revision
 	f.expectUpdateRolloutStatusAction(r2)                  // sync 1: update rollout conditions
 	f.expectGetRolloutAction(r2)                           // re-seed between syncs
 	patchedRolloutIndex := f.expectPatchRolloutAction(r2)  // sync 2: patch status
@@ -925,7 +960,7 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, oldRs, stableRs)
 
 	createdRS2Index := f.expectCreateReplicaSetAction(stableRs) // sync 1: create RS
-	f.expectUpdateRolloutAction(r2)                             // sync 1: update rollout revision
+	f.expectPatchRolloutRevisionAction(r2)                      // sync 1: update rollout revision
 	f.expectUpdateRolloutStatusAction(r2)                       // sync 1: update status
 	f.expectGetRolloutAction(r2)                                // re-seed between syncs
 	updatedROIndex := f.expectPatchRolloutAction(r2)            // sync 2: patch status

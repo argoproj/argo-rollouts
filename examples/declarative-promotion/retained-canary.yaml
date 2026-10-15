@@ -1,0 +1,97 @@
+# Requires the proposed controllers and an annotation-aware traffic router.
+# The example.com annotation does not implement traffic routing on its own.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: example
+spec:
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: example
+  template:
+    metadata:
+      labels:
+        app: example
+      annotations:
+        example.com/traffic-weight: '[{"host":"preview.example.com","weight":100},{"weight":0}]'
+    spec:
+      containers:
+      - name: app
+        image: argoproj/rollouts-demo:blue
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+  strategy:
+    canary:
+      stableService: example-stable
+      canaryService: example-canary
+      maxSurge: 100%
+      maxUnavailable: 0
+      dynamicStableScale: false
+      scaleDownDelaySeconds: 28800
+      scaleDownDelayRevisionLimit: 5
+      abortScaleDownDelaySeconds: 28800
+      trafficRouting:
+        plugins:
+          argoproj/pod-annotation-traffic-router:
+            annotationKey: example.com/traffic-weight
+            baseSelector: app=example
+            maxPodWeight: 100
+            weightCalculation: aggregatePerPod
+            prettyJSON: true
+            stableWeightTemplate: '[{"host":"preview.example.com","weight":0},{"weight":"__ROLLOUT_WEIGHT__"}]'
+            canaryWeightTemplate: '[{"host":"preview.example.com","weight":100},{"weight":"__ROLLOUT_WEIGHT__"}]'
+            promotedWeightTemplate: '[{"host":"preview.example.com","weight":100},{"weight":"__ROLLOUT_WEIGHT__"}]'
+            inactiveWeightTemplate: '[{"host":"preview.example.com","weight":0},{"weight":0}]'
+      steps:
+      - setCanaryScale:
+          weight: 100
+      - setWeight: 0
+      - pause: {}
+      - setWeight: 20
+      - pause:
+          duration: 60s
+      - setWeight: 50
+      - pause:
+          duration: 60s
+      - setWeight: 100
+      - pause: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-stable
+spec:
+  selector:
+    app: example
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-canary
+spec:
+  selector:
+    app: example
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+# Use this backend only with an annotation-aware router that respects weight 0.
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-routing-backend
+spec:
+  selector:
+    app: example
+  ports:
+  - port: 80
+    targetPort: 8080

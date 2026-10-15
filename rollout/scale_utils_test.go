@@ -14,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 )
@@ -179,5 +180,47 @@ func TestScaleDeployment(t *testing.T) {
 		updatedDeployment, err := k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
 		assert.Nil(t, err)
 		assert.Equal(t, *updatedDeployment.Spec.Replicas, test.expectedCount)
+	}
+}
+
+func TestScaleDownPromotedLegacyDeploymentForNewRevision(t *testing.T) {
+	tests := []struct {
+		name            string
+		promoted        bool
+		newHash         string
+		stableHash      string
+		trafficOverride string
+		expectedScaled  bool
+	}{
+		{name: "promoted adoption starts next revision", promoted: true, newHash: "next", stableHash: "stable", expectedScaled: true},
+		{name: "pending adoption preserves legacy pods", newHash: "next", stableHash: "stable"},
+		{name: "same revision preserves legacy pods", promoted: true, newHash: "stable", stableHash: "stable"},
+		{name: "legacy traffic rollback preserves legacy pods", promoted: true, newHash: "next", stableHash: "stable", trafficOverride: legacyDeploymentTrafficTarget},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownNever, 3, true, nil)
+			ctx.rollout.Annotations = map[string]string{}
+			if test.promoted {
+				ctx.rollout.Annotations[annotations.LegacyAdoptionPromotedAnnotation] = "true"
+			}
+			if test.trafficOverride != "" {
+				ctx.rollout.Annotations[annotations.TrafficOverrideHashAnnotation] = test.trafficOverride
+			}
+			ctx.newRS = rs("next", 0, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: test.newHash}, noTimestamp, nil)
+			ctx.stableRS = rs("stable", 3, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: test.stableHash}, noTimestamp, nil)
+
+			scaled, err := ctx.scaleDownPromotedLegacyDeploymentForNewRevision()
+			assert.NoError(t, err)
+			assert.Equal(t, test.expectedScaled, scaled)
+			deployment, err := ctx.kubeclientset.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
+			assert.NoError(t, err)
+			if test.expectedScaled {
+				assert.Equal(t, int32(0), *deployment.Spec.Replicas)
+			} else {
+				assert.Equal(t, int32(3), *deployment.Spec.Replicas)
+			}
+		})
 	}
 }

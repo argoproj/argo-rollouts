@@ -27,3 +27,5 @@ type ClusterAnalysisTemplateExpansion interface{}
 type ExperimentExpansion interface{}
 
 type RolloutExpansion interface{}
+
+type RolloutPromotionExpansion interface{}

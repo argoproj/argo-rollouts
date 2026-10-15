@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/podannotation"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
@@ -62,6 +63,9 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 	} else {
 		return nil
 	}
+	managedAnnotationKey := podannotation.ManagedAnnotationKey(c.rollout)
+	newMetadata = withoutPodTemplateAnnotation(newMetadata, managedAnnotationKey)
+	stableMetadata = withoutPodTemplateAnnotation(stableMetadata, managedAnnotationKey)
 	fullyRolledOut := c.rollout.Status.StableRS == "" || c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS)
 
 	if fullyRolledOut {
@@ -91,6 +95,18 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 		}
 	}
 	return nil
+}
+
+func withoutPodTemplateAnnotation(metadata *v1alpha1.PodTemplateMetadata, key string) *v1alpha1.PodTemplateMetadata {
+	if metadata == nil || key == "" {
+		return metadata
+	}
+	if _, found := metadata.Annotations[key]; !found {
+		return metadata
+	}
+	filtered := metadata.DeepCopy()
+	delete(filtered.Annotations, key)
+	return filtered
 }
 
 func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.ReplicaSet, podMetadata *v1alpha1.PodTemplateMetadata) error {

@@ -29,6 +29,12 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 	}
 	c.newRS = newRS
 
+	if rollbackBaseline := c.trafficRollbackBaselineForNewRevision(); rollbackBaseline != "" {
+		if err := c.switchServiceSelector(activeSvc, rollbackBaseline, c.rollout); err != nil {
+			return fmt.Errorf("failed to restore active service to traffic rollback baseline %s: %w", rollbackBaseline, err)
+		}
+	}
+
 	stageErr := c.runBlueGreenStages(previewSvc, activeSvc)
 	if c.skipStatusSync {
 		return stageErr
@@ -51,7 +57,15 @@ func (c *rolloutContext) reconcileBlueGreenStableReplicaSet() error {
 }
 
 func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service) error {
-	err := c.removeScaleDownDeadlines()
+	scaledLegacyDeployment, err := c.scaleDownPromotedLegacyDeploymentForNewRevision()
+	if err != nil {
+		return err
+	}
+	if scaledLegacyDeployment {
+		c.log.Info("Scaled down promoted legacy Deployment before starting the next revision")
+		return nil
+	}
+	err = c.removeScaleDownDeadlines()
 	if err != nil {
 		return err
 	}
@@ -233,6 +247,9 @@ func GetScaleDownRevisionLimit(ro *v1alpha1.Rollout) int32 {
 func (c *rolloutContext) syncRolloutStatusBlueGreen(previewSvc *corev1.Service, activeSvc *corev1.Service) error {
 	newStatus := c.calculateBaseStatus()
 	newStatus.StableRS = c.rollout.Status.StableRS
+	if rollbackBaseline := c.trafficRollbackBaselineForNewRevision(); rollbackBaseline != "" {
+		newStatus.StableRS = rollbackBaseline
+	}
 
 	if replicasetutil.CheckPodSpecChange(c.rollout, c.newRS) {
 		c.resetRolloutStatus(&newStatus)

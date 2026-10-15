@@ -661,6 +661,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		AnalysisTemplateInformer:        i.Argoproj().V1alpha1().AnalysisTemplates(),
 		ClusterAnalysisTemplateInformer: i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
 		ReplicaSetInformer:              k8sI.Apps().V1().ReplicaSets(),
+		DeploymentInformer:              k8sI.Apps().V1().Deployments(),
 		ServicesInformer:                k8sI.Core().V1().Services(),
 		IngressWrapper:                  ingressWrapper,
 		RolloutsInformer:                i.Argoproj().V1alpha1().Rollouts(),
@@ -942,6 +943,8 @@ func filterInformerActions(actions []core.Action) []core.Action {
 			action.Matches("watch", "clusteranalysistemplates") ||
 			action.Matches("list", "rollouts") ||
 			action.Matches("watch", "rollouts") ||
+			action.Matches("list", "deployments") ||
+			action.Matches("watch", "deployments") ||
 			action.Matches("list", "replicaSets") ||
 			action.Matches("watch", "replicaSets") ||
 			action.Matches("list", "services") ||
@@ -1051,6 +1054,17 @@ func (f *fixture) expectUpdateRolloutAction(rollout *v1alpha1.Rollout) int {
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
 	return len
+}
+
+func (f *fixture) expectPatchRolloutRevisionAction(rollout *v1alpha1.Rollout) int {
+	rolloutSchema := schema.GroupVersionResource{
+		Group:    "argoproj.io",
+		Version:  "v1alpha1",
+		Resource: "rollouts",
+	}
+	index := len(f.actions)
+	f.actions = append(f.actions, core.NewPatchAction(rolloutSchema, rollout.Namespace, rollout.Name, types.MergePatchType, nil))
+	return index
 }
 
 func (f *fixture) expectUpdateRolloutStatusAction(rollout *v1alpha1.Rollout) int {
@@ -1213,6 +1227,21 @@ func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
 	err = converter.FromUnstructured(objMap, rollout)
 	require.NoError(f.t, err)
 	return rollout
+}
+
+func (f *fixture) getPatchedRolloutRevision(index int) string {
+	action := f.actionAt(index)
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	var patch struct {
+		Metadata struct {
+			Annotations map[string]string `json:"annotations"`
+		} `json:"metadata"`
+	}
+	require.NoError(f.t, json.Unmarshal(patchAction.GetPatch(), &patch))
+	return patch.Metadata.Annotations[annotations.RevisionAnnotation]
 }
 
 func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nolint:unused
@@ -2772,6 +2801,49 @@ func TestSyncHandlerStaleCacheGuard(t *testing.T) {
 
 	err := c.syncHandler(context.Background(), roKey)
 	assert.ErrorIs(t, err, controllerutil.StaleCacheError)
+}
+
+func TestLegacyAdoptionRollbackStarted(t *testing.T) {
+	namespace := "test"
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "example", Namespace: namespace},
+		Spec:       appsv1.DeploymentSpec{Paused: false},
+	}
+	activeService := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "active", Namespace: namespace}}
+	previewService := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "preview", Namespace: namespace}}
+	client := k8sfake.NewSimpleClientset(deployment, activeService, previewService)
+	controller := &Controller{reconcilerBase: reconcilerBase{kubeclientset: client}}
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: namespace,
+			Annotations: map[string]string{
+				annotations.LegacyAdoptionStateAnnotation: annotations.LegacyAdoptionStatePromoted,
+			},
+		},
+		Spec: v1alpha1.RolloutSpec{
+			WorkloadRef: &v1alpha1.ObjectRef{APIVersion: "apps/v1", Kind: "Deployment", Name: "example"},
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{StableService: "active", CanaryService: "preview"},
+			},
+		},
+	}
+
+	started, err := controller.legacyAdoptionRollbackStarted(context.Background(), rollout)
+	require.NoError(t, err)
+	require.True(t, started)
+
+	deployment.Spec.Paused = true
+	_, err = client.AppsV1().Deployments(namespace).Update(context.Background(), deployment, metav1.UpdateOptions{})
+	require.NoError(t, err)
+	started, err = controller.legacyAdoptionRollbackStarted(context.Background(), rollout)
+	require.NoError(t, err)
+	require.False(t, started)
+
+	require.NoError(t, client.CoreV1().Services(namespace).Delete(context.Background(), "preview", metav1.DeleteOptions{}))
+	started, err = controller.legacyAdoptionRollbackStarted(context.Background(), rollout)
+	require.NoError(t, err)
+	require.True(t, started)
 }
 
 func TestRun(t *testing.T) {

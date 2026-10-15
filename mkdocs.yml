@@ -35,6 +35,7 @@ nav:
     - Canary: features/canary/index.md
   - Rollout Spec: features/specification.md
   - Canary Step Plugin: features/canary/plugins.md
+  - Declarative Promotion (Proposal): features/declarative-promotion.md
   - HPA: features/hpa-support.md
   - VPA: features/vpa-support.md
   - Ephemeral Metadata: features/ephemeral-metadata.md

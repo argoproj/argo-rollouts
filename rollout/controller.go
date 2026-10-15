@@ -16,7 +16,9 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -43,7 +45,9 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/podannotation"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -99,6 +103,7 @@ type ControllerConfig struct {
 	AnalysisTemplateInformer        informers.AnalysisTemplateInformer
 	ClusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer
 	ReplicaSetInformer              appsinformers.ReplicaSetInformer
+	DeploymentInformer              appsinformers.DeploymentInformer
 	ServicesInformer                coreinformers.ServiceInformer
 	IngressWrapper                  IngressWrapper
 	RolloutsInformer                informers.RolloutInformer
@@ -296,6 +301,35 @@ func NewController(cfg ControllerConfig) *Controller {
 			}
 		},
 	})
+	if cfg.DeploymentInformer != nil {
+		cfg.DeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			UpdateFunc: func(oldObj, newObj any) {
+				oldDeployment, oldOK := oldObj.(*appsv1.Deployment)
+				newDeployment, newOK := newObj.(*appsv1.Deployment)
+				if !oldOK || !newOK || !oldDeployment.Spec.Paused || newDeployment.Spec.Paused {
+					return
+				}
+				rollouts, err := controller.rolloutsLister.Rollouts(newDeployment.Namespace).List(labels.Everything())
+				if err != nil {
+					utilruntime.HandleError(err)
+					return
+				}
+				for _, rollout := range rollouts {
+					if rollout.Spec.WorkloadRef == nil || rollout.Spec.WorkloadRef.Kind != "Deployment" || rollout.Spec.WorkloadRef.Name != newDeployment.Name {
+						continue
+					}
+					if rollout.GetAnnotations()[annotations.LegacyAdoptionStateAnnotation] == "" {
+						continue
+					}
+					reconciler := podannotation.NewReconciler(cfg.KubeClientSet)
+					if err := reconciler.RestoreLegacyAdoption(context.Background(), rollout); err != nil {
+						utilruntime.HandleError(fmt.Errorf("restore legacy adoption traffic after Deployment resume: %w", err))
+					}
+					controllerutil.EnqueueRateLimited(rollout, cfg.RolloutWorkQueue)
+				}
+			},
+		})
+	}
 
 	cfg.ReplicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
@@ -418,7 +452,41 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	logCtx.Info("Started syncing rollout")
 
 	if r.ObjectMeta.DeletionTimestamp != nil {
+		if slice.ContainsString(r.Finalizers, annotations.LegacyAdoptionCleanupFinalizer, nil) {
+			logCtx.Info("Restoring legacy Deployment traffic before deleting adopted rollout")
+			reconciler := podannotation.NewReconciler(c.kubeclientset)
+			if err := reconciler.RestoreLegacyAdoptionForDeletion(ctx, r); err != nil {
+				return fmt.Errorf("restore legacy adoption traffic before deleting rollout: %w", err)
+			}
+			finalizers := make([]string, 0, len(r.Finalizers)-1)
+			for _, finalizer := range r.Finalizers {
+				if finalizer != annotations.LegacyAdoptionCleanupFinalizer {
+					finalizers = append(finalizers, finalizer)
+				}
+			}
+			patch, err := json.Marshal(map[string]interface{}{"metadata": map[string]interface{}{"finalizers": finalizers}})
+			if err != nil {
+				return err
+			}
+			if _, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(namespace).Patch(ctx, name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil && !k8serrors.IsNotFound(err) {
+				return fmt.Errorf("remove legacy adoption cleanup finalizer: %w", err)
+			}
+			return nil
+		}
 		logCtx.Info("No reconciliation as rollout marked for deletion")
+		return nil
+	}
+
+	rollbackStarted, err := c.legacyAdoptionRollbackStarted(ctx, r)
+	if err != nil {
+		return fmt.Errorf("detect legacy adoption rollback: %w", err)
+	}
+	if rollbackStarted {
+		logCtx.Info("Restoring legacy Deployment traffic at the start of Helm rollback")
+		reconciler := podannotation.NewReconciler(c.kubeclientset)
+		if err := reconciler.RestoreLegacyAdoption(ctx, r); err != nil {
+			return fmt.Errorf("restore legacy adoption traffic at the start of Helm rollback: %w", err)
+		}
 		return nil
 	}
 
@@ -481,6 +549,49 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		c.rolloutVersionTracker.Record(key, roCtx.newRollout.ResourceVersion)
 	}
 	return nil
+}
+
+func (c *Controller) legacyAdoptionRollbackStarted(ctx context.Context, rollout *v1alpha1.Rollout) (bool, error) {
+	state := rollout.GetAnnotations()[annotations.LegacyAdoptionStateAnnotation]
+	switch state {
+	case annotations.LegacyAdoptionStatePending, annotations.LegacyAdoptionStatePromoting, annotations.LegacyAdoptionStatePromoted:
+	default:
+		return false, nil
+	}
+	if rollout.Spec.WorkloadRef == nil || rollout.Spec.WorkloadRef.Kind != "Deployment" || rollout.Spec.WorkloadRef.Name == "" {
+		return false, nil
+	}
+	deployment, err := c.kubeclientset.AppsV1().Deployments(rollout.Namespace).Get(ctx, rollout.Spec.WorkloadRef.Name, metav1.GetOptions{})
+	if k8serrors.IsNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if !deployment.Spec.Paused {
+		return true, nil
+	}
+
+	serviceNames := make([]string, 0, 2)
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		serviceNames = append(serviceNames, rollout.Spec.Strategy.BlueGreen.ActiveService, rollout.Spec.Strategy.BlueGreen.PreviewService)
+	}
+	if rollout.Spec.Strategy.Canary != nil {
+		serviceNames = append(serviceNames, rollout.Spec.Strategy.Canary.StableService, rollout.Spec.Strategy.Canary.CanaryService)
+	}
+	for _, serviceName := range serviceNames {
+		if serviceName == "" {
+			continue
+		}
+		_, err := c.kubeclientset.CoreV1().Services(rollout.Namespace).Get(ctx, serviceName, metav1.GetOptions{})
+		if k8serrors.IsNotFound(err) {
+			return true, nil
+		}
+		if err != nil {
+			return false, err
+		}
+	}
+	return false, nil
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {

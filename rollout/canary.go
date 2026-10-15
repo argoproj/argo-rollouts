@@ -277,6 +277,9 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS
+	if rollbackBaseline := c.trafficRollbackBaselineForNewRevision(); rollbackBaseline != "" {
+		newStatus.StableRS = rollbackBaseline
+	}
 	newStatus.CurrentStepHash = conditions.ComputeStepHash(c.rollout)
 	stepCount := int32(len(c.rollout.Spec.Strategy.Canary.Steps))
 
@@ -341,7 +344,15 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 		c.log.Infof("Skipping canary/stable ReplicaSet reconciliation: %s", haltReason)
 		return false, nil
 	}
-	err := c.removeScaleDownDeadlines()
+	scaledLegacyDeployment, err := c.scaleDownPromotedLegacyDeploymentForNewRevision()
+	if err != nil {
+		return false, err
+	}
+	if scaledLegacyDeployment {
+		c.log.Info("Scaled down promoted legacy Deployment before starting the next revision")
+		return true, nil
+	}
+	err = c.removeScaleDownDeadlines()
 	if err != nil {
 		return false, err
 	}

@@ -30625,6 +30625,510 @@
                     "version": "v1alpha1"
                 }
             ]
+        },
+        "io.argoproj.v1alpha1.RolloutPromotion": {
+            "properties": {
+                "spec": {
+                    "description": "RolloutPromotionSpec describes a single, replay-safe promotion request.",
+                    "properties": {
+                        "rollouts": {
+                            "items": {
+                                "description": "RolloutPromotionTarget identifies a Rollout and optional safety expectations.",
+                                "properties": {
+                                    "activeService": {
+                                        "type": "string"
+                                    },
+                                    "expectedActiveServiceHash": {
+                                        "type": "string"
+                                    },
+                                    "expectedCurrentPodHash": {
+                                        "type": "string"
+                                    },
+                                    "expectedCurrentStepIndex": {
+                                        "description": "ExpectedCurrentStepIndex prevents a stale canary request from advancing a later pause.\nThe pointer preserves step zero as an explicit safety expectation.",
+                                        "format": "int32",
+                                        "minimum": 0,
+                                        "type": "integer"
+                                    },
+                                    "expectedPodTemplateHash": {
+                                        "description": "ExpectedPodTemplateHash is the SHA256 of the JSON encoded spec.template.\nIt binds a request even before status.currentPodHash has been reconciled.",
+                                        "type": "string"
+                                    },
+                                    "expectedRolloutUID": {
+                                        "description": "ExpectedRolloutUID prevents a completed request for an earlier Rollout\nobject from being replayed against a newly created object with the same\nname and ReplicaSet hash.",
+                                        "type": "string"
+                                    },
+                                    "expectedStableRS": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                    },
+                                    "namespace": {
+                                        "type": "string"
+                                    },
+                                    "previewService": {
+                                        "type": "string"
+                                    },
+                                    "readiness": {
+                                        "description": "Readiness defers transient preconditions to the controller without relaxing\nidentity or step guards. Omission preserves the legacy request contract.",
+                                        "properties": {
+                                            "allowedCurrentStepIndexes": {
+                                                "items": {
+                                                    "format": "int32",
+                                                    "type": "integer"
+                                                },
+                                                "type": "array",
+                                                "x-kubernetes-list-type": "atomic"
+                                            },
+                                            "requireCurrentPodHash": {
+                                                "type": "boolean"
+                                            },
+                                            "requirePaused": {
+                                                "type": "boolean"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "rollbackTarget": {
+                                        "description": "RollbackTarget resolves a dynamic rollback destination. \"stable\" restores\nthe ReplicaSet currently recorded in Rollout status.stableRS. It is\nmutually exclusive with ToRevision.",
+                                        "enum": [
+                                            "stable"
+                                        ],
+                                        "type": "string"
+                                    },
+                                    "strategy": {
+                                        "enum": [
+                                            "auto",
+                                            "blueGreen",
+                                            "canary"
+                                        ],
+                                        "type": "string"
+                                    },
+                                    "toRevision": {
+                                        "format": "int64",
+                                        "minimum": 0,
+                                        "type": "integer"
+                                    },
+                                    "traffic": {
+                                        "description": "Traffic selects an optional traffic adapter. Omission uses native Rollout\nactions only. WeightSwitch remains a compatible alias for podAnnotation;\nsetting both is rejected.",
+                                        "properties": {
+                                            "applyOnPromotion": {
+                                                "description": "ApplyOnPromotion defaults to true. Canary TrafficRouters normally own the\nforward weight steps, so use false when only snapshot rollback is needed.",
+                                                "type": "boolean"
+                                            },
+                                            "config": {
+                                                "additionalProperties": {
+                                                    "type": "string"
+                                                },
+                                                "type": "object"
+                                            },
+                                            "provider": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "provider"
+                                        ],
+                                        "type": "object"
+                                    },
+                                    "weightSwitch": {
+                                        "description": "RolloutPromotionWeightSwitch defines the legacy post-promotion annotation patch.\nCanary traffic weights are reconciled by the Rollout TrafficRouter instead.",
+                                        "properties": {
+                                            "activeWeight": {
+                                                "type": "string"
+                                            },
+                                            "annotationKey": {
+                                                "type": "string"
+                                            },
+                                            "applyOnPromotion": {
+                                                "default": true,
+                                                "description": "ApplyOnPromotion controls the legacy post-promotion patch. Snapshot traffic\nrollback still uses this configuration when the value is false.",
+                                                "type": "boolean"
+                                            },
+                                            "baseSelector": {
+                                                "type": "string"
+                                            },
+                                            "enabled": {
+                                                "default": false,
+                                                "type": "boolean"
+                                            },
+                                            "inactiveWeight": {
+                                                "type": "string"
+                                            },
+                                            "reapplyDelaySeconds": {
+                                                "default": 0,
+                                                "format": "int32",
+                                                "minimum": 0,
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ],
+                                "type": "object"
+                            },
+                            "minItems": 1,
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                        }
+                    },
+                    "required": [
+                        "rollouts"
+                    ],
+                    "type": "object"
+                },
+                "status": {
+                    "description": "RolloutPromotionStatus records the observed result of a promotion request.",
+                    "properties": {
+                        "conditions": {
+                            "items": {
+                                "description": "Condition contains details for one aspect of the current state of this API Resource.",
+                                "properties": {
+                                    "lastTransitionTime": {
+                                        "description": "lastTransitionTime is the last time the condition transitioned from one status to another.\nThis should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.",
+                                        "format": "date-time",
+                                        "type": "string"
+                                    },
+                                    "message": {
+                                        "description": "message is a human readable message indicating details about the transition.\nThis may be an empty string.",
+                                        "maxLength": 32768,
+                                        "type": "string"
+                                    },
+                                    "observedGeneration": {
+                                        "description": "observedGeneration represents the .metadata.generation that the condition was set based upon.\nFor instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date\nwith respect to the current state of the instance.",
+                                        "format": "int64",
+                                        "minimum": 0,
+                                        "type": "integer"
+                                    },
+                                    "reason": {
+                                        "description": "reason contains a programmatic identifier indicating the reason for the condition's last transition.\nProducers of specific condition types may define expected values and meanings for this field,\nand whether the values are considered a guaranteed API.\nThe value should be a CamelCase string.\nThis field may not be empty.",
+                                        "maxLength": 1024,
+                                        "minLength": 1,
+                                        "pattern": "^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$",
+                                        "type": "string"
+                                    },
+                                    "status": {
+                                        "description": "status of the condition, one of True, False, Unknown.",
+                                        "enum": [
+                                            "True",
+                                            "False",
+                                            "Unknown"
+                                        ],
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "description": "type of condition in CamelCase or in foo.example.com/CamelCase.",
+                                        "maxLength": 316,
+                                        "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "lastTransitionTime",
+                                    "message",
+                                    "reason",
+                                    "status",
+                                    "type"
+                                ],
+                                "type": "object"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-map-keys": [
+                                "type"
+                            ],
+                            "x-kubernetes-list-type": "map"
+                        },
+                        "processedRequestIDs": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                        },
+                        "targets": {
+                            "items": {
+                                "description": "RolloutPromotionTargetStatus records the controller-observed state of one target.",
+                                "properties": {
+                                    "aborted": {
+                                        "type": "boolean"
+                                    },
+                                    "actionAlreadyComplete": {
+                                        "type": "boolean"
+                                    },
+                                    "actionApplied": {
+                                        "type": "boolean"
+                                    },
+                                    "activeSelector": {
+                                        "type": "string"
+                                    },
+                                    "activeService": {
+                                        "type": "string"
+                                    },
+                                    "activeServiceHash": {
+                                        "type": "string"
+                                    },
+                                    "baselineCurrentPodHash": {
+                                        "type": "string"
+                                    },
+                                    "canaryWeight": {
+                                        "format": "int32",
+                                        "type": "integer"
+                                    },
+                                    "canaryWeightVerified": {
+                                        "type": "boolean"
+                                    },
+                                    "controllerPause": {
+                                        "type": "boolean"
+                                    },
+                                    "currentPodHash": {
+                                        "type": "string"
+                                    },
+                                    "currentStepAnalysisPhase": {
+                                        "type": "string"
+                                    },
+                                    "currentStepIndex": {
+                                        "format": "int32",
+                                        "type": "integer"
+                                    },
+                                    "expectedActiveServiceHash": {
+                                        "type": "string"
+                                    },
+                                    "expectedCurrentPodHash": {
+                                        "type": "string"
+                                    },
+                                    "expectedCurrentStepIndex": {
+                                        "format": "int32",
+                                        "type": "integer"
+                                    },
+                                    "expectedRolloutUID": {
+                                        "type": "string"
+                                    },
+                                    "expectedStableRS": {
+                                        "type": "string"
+                                    },
+                                    "message": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "namespace": {
+                                        "type": "string"
+                                    },
+                                    "pauseConditions": {
+                                        "format": "int32",
+                                        "type": "integer"
+                                    },
+                                    "phase": {
+                                        "type": "string"
+                                    },
+                                    "previewService": {
+                                        "type": "string"
+                                    },
+                                    "previousStepIndex": {
+                                        "format": "int32",
+                                        "type": "integer"
+                                    },
+                                    "promoted": {
+                                        "type": "boolean"
+                                    },
+                                    "resolvedToRevision": {
+                                        "format": "int64",
+                                        "type": "integer"
+                                    },
+                                    "rollbackTarget": {
+                                        "type": "string"
+                                    },
+                                    "rolloutPhase": {
+                                        "type": "string"
+                                    },
+                                    "rolloutUID": {
+                                        "type": "string"
+                                    },
+                                    "specPaused": {
+                                        "type": "boolean"
+                                    },
+                                    "stableRS": {
+                                        "type": "string"
+                                    },
+                                    "stepCount": {
+                                        "format": "int32",
+                                        "type": "integer"
+                                    },
+                                    "strategy": {
+                                        "type": "string"
+                                    },
+                                    "toRevision": {
+                                        "format": "int64",
+                                        "type": "integer"
+                                    },
+                                    "trafficApplied": {
+                                        "type": "boolean"
+                                    },
+                                    "trafficProvider": {
+                                        "type": "string"
+                                    },
+                                    "trafficRollbackApplied": {
+                                        "type": "boolean"
+                                    },
+                                    "trafficRollbackTargetHash": {
+                                        "type": "string"
+                                    },
+                                    "trafficVerified": {
+                                        "type": "boolean"
+                                    },
+                                    "verified": {
+                                        "type": "boolean"
+                                    },
+                                    "weightSwitchActiveHash": {
+                                        "type": "string"
+                                    },
+                                    "weightSwitchActivePods": {
+                                        "format": "int32",
+                                        "type": "integer"
+                                    },
+                                    "weightSwitchActiveReplicaSets": {
+                                        "format": "int32",
+                                        "type": "integer"
+                                    },
+                                    "weightSwitchApplied": {
+                                        "type": "boolean"
+                                    },
+                                    "weightSwitchEnabled": {
+                                        "type": "boolean"
+                                    },
+                                    "weightSwitchInactivePods": {
+                                        "format": "int32",
+                                        "type": "integer"
+                                    },
+                                    "weightSwitchInactiveReplicaSets": {
+                                        "format": "int32",
+                                        "type": "integer"
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ],
+                                "type": "object"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                        },
+                        "trafficSnapshots": {
+                            "items": {
+                                "description": "RolloutPromotionTrafficSnapshot is the serving baseline and restoration state recorded\nimmediately before a forward promotion action.",
+                                "properties": {
+                                    "createdAt": {
+                                        "format": "date-time",
+                                        "type": "string"
+                                    },
+                                    "id": {
+                                        "type": "string"
+                                    },
+                                    "requestID": {
+                                        "type": "string"
+                                    },
+                                    "targets": {
+                                        "items": {
+                                            "description": "RolloutPromotionTrafficSnapshotTarget contains enough information to restore\ntraffic to an existing ReplicaSet without changing workload desired state.",
+                                            "properties": {
+                                                "activeHash": {
+                                                    "type": "string"
+                                                },
+                                                "activeWeight": {
+                                                    "type": "string"
+                                                },
+                                                "annotationKey": {
+                                                    "type": "string"
+                                                },
+                                                "baseSelector": {
+                                                    "type": "string"
+                                                },
+                                                "inactiveWeight": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "namespace": {
+                                                    "type": "string"
+                                                },
+                                                "reapplyDelaySeconds": {
+                                                    "format": "int32",
+                                                    "type": "integer"
+                                                },
+                                                "strategy": {
+                                                    "type": "string"
+                                                },
+                                                "traffic": {
+                                                    "description": "Traffic is used by new snapshots. The annotation fields below are retained\nonly to read snapshots written by older promotion controllers.",
+                                                    "properties": {
+                                                        "config": {
+                                                            "additionalProperties": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": "object"
+                                                        },
+                                                        "data": {
+                                                            "additionalProperties": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": "object"
+                                                        },
+                                                        "provider": {
+                                                            "type": "string"
+                                                        },
+                                                        "rolloutUID": {
+                                                            "type": "string"
+                                                        },
+                                                        "version": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "provider",
+                                                        "rolloutUID",
+                                                        "version"
+                                                    ],
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "required": [
+                                                "activeHash",
+                                                "name"
+                                            ],
+                                            "type": "object"
+                                        },
+                                        "type": "array",
+                                        "x-kubernetes-list-type": "atomic"
+                                    }
+                                },
+                                "required": [
+                                    "createdAt",
+                                    "id",
+                                    "targets"
+                                ],
+                                "type": "object"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "x-kubernetes-group-version-kind": [
+                {
+                    "group": "argoproj.io",
+                    "kind": "RolloutPromotion",
+                    "version": "v1alpha1"
+                }
+            ]
         }
     }
 }

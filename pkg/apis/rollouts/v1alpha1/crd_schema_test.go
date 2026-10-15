@@ -20,6 +20,7 @@ func TestCRDDescriptionsPreserved(t *testing.T) {
 
 	crdFiles := map[string]string{
 		"Rollout":          "rollout-crd.yaml",
+		"RolloutPromotion": "rollout-promotion-crd.yaml",
 		"AnalysisTemplate": "analysis-template-crd.yaml",
 		"AnalysisRun":      "analysis-run-crd.yaml",
 		"Experiment":       "experiment-crd.yaml",

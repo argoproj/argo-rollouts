@@ -1,0 +1,26 @@
+# Apply after deploying bluegreen.yaml and updating its PodTemplate to a new version.
+# Replace the two identity placeholders from the intended live Rollout.
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPromotion
+metadata:
+  name: example-service-promotion
+spec:
+  requestID: release-2
+  action: promote
+  strategy: blueGreen
+  trafficRollback:
+    enabled: true
+    historyLimit: 10
+  rollouts:
+  - name: example
+    expectedRolloutUID: REPLACE_WITH_ROLLOUT_UID
+    expectedCurrentPodHash: REPLACE_WITH_CANDIDATE_HASH
+    readiness:
+      requireCurrentPodHash: true
+      requirePaused: true
+    traffic:
+      provider: serviceSelector
+      applyOnPromotion: false
+# To restore the retained previous Service backend without recreating Pods:
+# kubectl annotate rolloutpromotion example-service-promotion \
+#   rollouts.argoproj.io/traffic-rollback-request=rollback-1 --overwrite

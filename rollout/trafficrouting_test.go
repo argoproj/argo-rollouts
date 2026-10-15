@@ -1415,7 +1415,7 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	f.expectUpdateReplicaSetAction(rs1)                 // Updates the revision annotation from 1 to 3 from func isScalingEvent
-	f.expectUpdateRolloutAction(r2)                     // Update the rollout revision from 1 to 3
+	f.expectPatchRolloutRevisionAction(r2)              // Update the rollout revision from 1 to 3
 	scaleUpIndex := f.expectUpdateReplicaSetAction(rs1) // Scale The replicaset from 1 to 10 from func scaleReplicaSet
 	f.expectPatchRolloutAction(r2)                      // Updates the rollout status from the scaling to 10 action
 
@@ -1593,7 +1593,7 @@ func TestCheckReplicaSetAvailable(t *testing.T) {
 	fix.objects = append(fix.objects, rollout2)
 
 	fix.expectUpdateReplicaSetAction(replicaSet1)
-	fix.expectUpdateRolloutAction(rollout2)
+	fix.expectPatchRolloutRevisionAction(rollout2)
 	fix.expectUpdateReplicaSetAction(replicaSet1)
 	fix.expectPatchRolloutAction(rollout2)
 	fix.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
@@ -2147,7 +2147,7 @@ spec:
 	f.virtualServiceLister = append(f.virtualServiceLister, fooVsvc)
 
 	f.expectUpdateReplicaSetAction(rs3)
-	f.expectUpdateRolloutAction(r6)
+	f.expectPatchRolloutRevisionAction(r6)
 	f.expectPatchRolloutAction(r6)
 	f.expectGetRolloutAction(r6) // re-seed between syncs
 	// Sync 2 returns error "delaying destination rule switch" and does not complete, so we do NOT expect update rs6 or second patch.
