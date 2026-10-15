@@ -912,6 +912,10 @@ message IstioDestinationRule {
   // AdditionalSubsetNames contains a list of additional names for subset DestinationRules that are not controlled by Argo Rollouts
   // +optional
   repeated string additionalSubsetNames = 4;
+
+  // Namespace of the DestinationRule. Defaults to the Rollout namespace.
+  // +optional
+  optional string namespace = 5;
 }
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
@@ -939,6 +943,11 @@ message IstioVirtualService {
 
   // A list of TCP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
   repeated TCPRoute tcpRoutes = 4;
+
+  // Namespace of the VirtualService. Defaults to the Rollout namespace. A namespace given in
+  // the name ("name.namespace") takes precedence over this field.
+  // +optional
+  optional string namespace = 5;
 }
 
 // JobMetric defines a job to run which acts as a metric

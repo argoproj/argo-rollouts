@@ -1231,6 +1231,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestin
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestinationRule
      */
     additionalSubsetNames?: Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestinationRule
+     */
+    namespace?: string;
 }
 /**
  * 
@@ -1287,6 +1293,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtua
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtualService
      */
     tcpRoutes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TCPRoute>;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtualService
+     */
+    namespace?: string;
 }
 /**
  * 

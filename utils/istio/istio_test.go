@@ -152,6 +152,12 @@ func TestGetRolloutDesinationRuleKeys(t *testing.T) {
 	keys := GetRolloutDesinationRuleKeys(ro)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, "default/foo", keys[0])
+
+	// rollout references a destination rule in another namespace
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.Namespace = "istio-routing"
+	keys = GetRolloutDesinationRuleKeys(ro)
+	assert.Len(t, keys, 1)
+	assert.Equal(t, "istio-routing/foo", keys[0])
 }
 
 func TestGetVirtualServiceNamespaceName(t *testing.T) {
@@ -205,4 +211,93 @@ func TestGetVirtualServiceNamespaceName(t *testing.T) {
 			assert.Equal(t, tc.expectedName, name)
 		})
 	}
+}
+
+func TestGetVirtualServiceRefNamespaceName(t *testing.T) {
+	tests := []struct {
+		name              string
+		vsvc              v1alpha1.IstioVirtualService
+		expectedNamespace string
+		expectedName      string
+	}{
+		{
+			name:              "no namespace defaults to the rollout namespace",
+			vsvc:              v1alpha1.IstioVirtualService{Name: "vsvc"},
+			expectedNamespace: "default",
+			expectedName:      "vsvc",
+		},
+		{
+			name:              "namespace field",
+			vsvc:              v1alpha1.IstioVirtualService{Name: "vsvc", Namespace: "istio-routing"},
+			expectedNamespace: "istio-routing",
+			expectedName:      "vsvc",
+		},
+		{
+			name:              "name.namespace shorthand",
+			vsvc:              v1alpha1.IstioVirtualService{Name: "vsvc.istio-routing"},
+			expectedNamespace: "istio-routing",
+			expectedName:      "vsvc",
+		},
+		{
+			name:              "name.namespace shorthand takes precedence over the namespace field",
+			vsvc:              v1alpha1.IstioVirtualService{Name: "vsvc.istio-routing", Namespace: "other"},
+			expectedNamespace: "istio-routing",
+			expectedName:      "vsvc",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			namespace, name := GetVirtualServiceRefNamespaceName(tt.vsvc, metav1.NamespaceDefault)
+			assert.Equal(t, tt.expectedNamespace, namespace)
+			assert.Equal(t, tt.expectedName, name)
+		})
+	}
+}
+
+func TestGetRolloutVirtualServiceKeysNamespaceField(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Istio: &v1alpha1.IstioTrafficRouting{
+							VirtualServices: []v1alpha1.IstioVirtualService{
+								{Name: "test1", Namespace: "istio-routing"},
+								{Name: "test2.other", Namespace: "istio-routing"},
+								{Name: "test3"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, []string{"istio-routing/test1", "other/test2", "default/test3"}, GetRolloutVirtualServiceKeys(ro))
+}
+
+func TestDestinationRuleManagedByValue(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+	}
+
+	// same namespace keeps the plain Rollout name
+	value := GetDestinationRuleManagedByValue(ro, metav1.NamespaceDefault)
+	assert.Equal(t, "foo", value)
+	namespace, name := ParseDestinationRuleManagedByValue(value, metav1.NamespaceDefault)
+	assert.Equal(t, metav1.NamespaceDefault, namespace)
+	assert.Equal(t, "foo", name)
+
+	// another namespace records the Rollout namespace too
+	value = GetDestinationRuleManagedByValue(ro, "istio-routing")
+	assert.Equal(t, "default/foo", value)
+	namespace, name = ParseDestinationRuleManagedByValue(value, "istio-routing")
+	assert.Equal(t, metav1.NamespaceDefault, namespace)
+	assert.Equal(t, "foo", name)
 }

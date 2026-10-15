@@ -1346,6 +1346,10 @@
             "type": "string"
           },
           "title": "AdditionalSubsetNames contains a list of additional names for subset DestinationRules that are not controlled by Argo Rollouts\n+optional"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace of the DestinationRule. Defaults to the Rollout namespace.\n+optional"
         }
       },
       "title": "IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic"
@@ -1398,6 +1402,10 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TCPRoute"
           },
           "description": "A list of TCP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type."
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace of the VirtualService. Defaults to the Rollout namespace. A namespace given in\nthe name (\"name.namespace\") takes precedence over this field.\n+optional"
         }
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"testing"
 
@@ -4142,4 +4143,51 @@ spec:
 	err := r.RemoveManagedRoutes()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to update kubernetes virtual service")
+}
+
+// TestReconcileUpdateVirtualServiceNamespaceField verifies the VirtualService is read and
+// updated in the namespace given by the reference's namespace field
+func TestReconcileUpdateVirtualServiceNamespaceField(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace = "istio-routing"
+	vsvc := strings.Replace(regularVsvc, "namespace: default", "namespace: istio-routing", 1)
+	client := AssertReconcileUpdateVirtualService(t, vsvc, ro)
+	assert.Equal(t, "istio-routing", client.Actions()[0].GetNamespace())
+}
+
+// TestUpdateHashDestinationRuleInOtherNamespace verifies a DestinationRule in another namespace
+// is updated there and records the Rollout namespace in its managed-by annotation
+func TestUpdateHashDestinationRuleInOtherNamespace(t *testing.T) {
+	ro := rolloutWithDestinationRule(nil)
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.Namespace = "istio-routing"
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: istio-routing
+spec:
+  subsets:
+  - name: stable
+  - name: canary
+`)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+	assert.Equal(t, "istio-routing", actions[0].GetNamespace())
+
+	dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace("istio-routing").Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
+	assert.NoError(t, err)
+	assert.Equal(t, "default/rollout", dRule.Annotations[v1alpha1.ManagedByRolloutsKey])
+	assert.Equal(t, "def456", dRule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	assert.Equal(t, "abc123", dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 }
