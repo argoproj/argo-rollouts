@@ -6,7 +6,7 @@ describe('actionErrorMessage', () => {
     it('reports a permission error when the API client throws a 403 response', async () => {
         expect(await actionErrorMessage(response(403, 'denied'), 'Promote')).toEqual({
             title: 'Permission Denied',
-            description: "You don't have permission to promote this rollout. Please check your RBAC permissions.",
+            description: "You don't have permission to promote this rollout.",
         });
     });
 

@@ -26,7 +26,7 @@ export const actionErrorMessage = async (error: any, actionName: string): Promis
     if (status === 403) {
         return {
             title: 'Permission Denied',
-            description: `You don't have permission to ${action} this rollout. Please check your RBAC permissions.`,
+            description: `You don't have permission to ${action} this rollout.`,
         };
     }
 
