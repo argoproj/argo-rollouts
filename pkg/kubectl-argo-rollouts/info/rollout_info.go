@@ -65,7 +65,7 @@ func NewRolloutInfo(
 			if ro.Spec.Strategy.Canary.TrafficRouting == nil {
 				for _, rs := range roInfo.ReplicaSets {
 					if rs.Canary {
-						roInfo.ActualWeight = fmt.Sprintf("%d", (rs.Available*weightutil.MaxTrafficWeight(ro))/ro.Status.AvailableReplicas)
+						roInfo.ActualWeight = fmt.Sprintf("%d", int64(rs.Available)*int64(weightutil.MaxTrafficWeight(ro))/int64(ro.Status.AvailableReplicas))
 					}
 				}
 			} else {
