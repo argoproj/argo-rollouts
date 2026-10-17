@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
@@ -96,6 +97,26 @@ func TestFindNewReplicaSet(t *testing.T) {
 		rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = controller.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
 		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs1})
 		assert.Equal(t, &rs1, actual)
+	})
+	t.Run("FindNewReplicaSet by template when injected metadata overlaps a template label", func(t *testing.T) {
+		// rs has a hash from an older hash implementation, and stableMetadata has overwritten the
+		// template's own "name" label
+		rs := rs1.DeepCopy()
+		rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "stale-hash"
+		rs.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "stale-hash"
+		// the live template is defaulted by the API server
+		podTemplate := corev1.PodTemplate{Template: rs.Spec.Template}
+		corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
+		rs.Spec.Template = podTemplate.Template
+		rs, _ = SyncReplicaSetEphemeralPodMetadata(rs, &v1alpha1.PodTemplateMetadata{Labels: map[string]string{"name": "stable"}})
+		assert.Equal(t, "stable", rs.Spec.Template.Labels["name"])
+		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{rs})
+		assert.Equal(t, rs, actual)
+
+		// a real template change must still be detected
+		changed := ro.DeepCopy()
+		changed.Spec.Template.Spec.Containers[0].Image = "blue"
+		assert.Nil(t, FindNewReplicaSet(changed, []*appsv1.ReplicaSet{rs}))
 	})
 }
 

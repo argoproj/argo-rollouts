@@ -65,6 +65,16 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 		live.Spec.Affinity = RemoveInjectedAntiAffinityRule(live.Spec.Affinity, *rollout)
 
 		desired := rollout.Spec.Template.DeepCopy()
+		// Injecting canary/stable metadata overwrites any template key it shares, and removing it
+		// above deletes the key outright, so drop those keys from desired too before comparing.
+		if injected := ParseExistingPodMetadata(rs); injected != nil {
+			for k := range injected.Labels {
+				delete(desired.Labels, k)
+			}
+			for k := range injected.Annotations {
+				delete(desired.Annotations, k)
+			}
+		}
 		if PodTemplateEqualIgnoreHash(live, desired) {
 			logCtx := logutil.WithRollout(rollout)
 			logCtx.Infof("ComputePodTemplateHash hash changed (expected: %s, actual: %s)", podHash, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
