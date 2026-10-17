@@ -177,11 +177,11 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 						logCtx := logutil.WithRollout(c.rollout)
 						logCtx.Info("rollout enqueue due to scaleDownDelay")
 						c.enqueueRolloutAfter(c.rollout, remainingTime)
-						if err := c.syncNewRSReplicasAnnotation(); err != nil {
-							return false, fmt.Errorf("failed to sync newRS desired-replicas annotation while waiting for abort scale-down deadline: %w", err)
-						}
-						return false, nil
 					}
+					if err := c.syncNewRSReplicasAnnotation(); err != nil {
+						return false, fmt.Errorf("failed to sync newRS desired-replicas annotation while waiting for abort scale-down deadline: %w", err)
+					}
+					return false, nil
 				} else {
 					c.log.Infof("RS '%s' has reached the scaleDownTime", c.newRS.Name)
 					newReplicasCount = int32(0)

@@ -347,6 +347,72 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 	}
 }
 
+func TestReconcileNewReplicaSetAbortDeadlineAcrossResync(t *testing.T) {
+	now := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	timeutil.SetNowTimeFunc(func() time.Time { return now })
+	t.Cleanup(func() { timeutil.SetNowTimeFunc(time.Now) })
+
+	const resyncPeriod = 15 * time.Minute
+	for _, test := range []struct {
+		name             string
+		remaining        time.Duration
+		expectedReplicas int32
+		expectedRequeue  []time.Duration
+	}{
+		{name: "before resync", remaining: time.Minute, expectedReplicas: 1, expectedRequeue: []time.Duration{time.Minute}},
+		{name: "at resync", remaining: resyncPeriod, expectedReplicas: 1},
+		{name: "after resync", remaining: 2 * resyncPeriod, expectedReplicas: 1},
+		{name: "deadline reached", remaining: 0, expectedReplicas: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stable := newCanaryRollout("foo", 2, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+			stable.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{SMI: &v1alpha1.SMITrafficRouting{}}
+			stable.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = ptr.To[int32](1800)
+			rollout := bumpVersion(stable)
+			stableRS := newReplicaSetWithStatus(stable, 2, 2)
+			newRS := newReplicaSetWithStatus(rollout, 1, 1)
+			rollout.Status.StableRS = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			rollout.Status.Abort = true
+			deadline := now.Add(test.remaining).Format(time.RFC3339)
+			newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
+			// A scaling event must sync this annotation without shortening the abort delay.
+			newRS.Annotations[annotations.DesiredReplicasAnnotation] = "1"
+			client := k8sfake.NewSimpleClientset(stableRS, newRS)
+			var requeued []time.Duration
+			roCtx := rolloutContext{
+				log:      logutil.WithRollout(rollout),
+				rollout:  rollout,
+				newRS:    newRS,
+				stableRS: stableRS,
+				allRSs:   []*appsv1.ReplicaSet{stableRS, newRS},
+				reconcilerBase: reconcilerBase{
+					kubeclientset: client,
+					recorder:      record.NewFakeEventRecorder(),
+					resyncPeriod:  resyncPeriod,
+					enqueueRolloutAfter: func(_ any, delay time.Duration) {
+						requeued = append(requeued, delay)
+					},
+				},
+				pauseContext: &pauseContext{rollout: rollout},
+			}
+
+			scaled, err := roCtx.reconcileNewReplicaSet()
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Equal(t, test.expectedReplicas == 0, scaled)
+			updated, err := client.AppsV1().ReplicaSets(newRS.Namespace).Get(context.Background(), newRS.Name, metav1.GetOptions{})
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Equal(t, test.expectedReplicas, *updated.Spec.Replicas)
+			assert.Equal(t, "2", updated.Annotations[annotations.DesiredReplicasAnnotation])
+			assert.Equal(t, deadline, updated.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+			assert.Equal(t, test.expectedRequeue, requeued)
+		})
+	}
+}
+
 // TestReconcileNewReplicaSetAbortDelaySyncsReplicasAnnotation verifies that the abort
 // scale-down-delay paths, which intentionally hold the newRS at its current size, still sync
 // the desired-replicas annotation with spec.replicas. isScalingEvent() compares that
