@@ -347,7 +347,7 @@ func TestParseResponseV2BodyReadError(t *testing.T) {
 	}
 	_, phase, _, err := p.parseResponseV2(v1alpha1.Metric{}, resp)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, phase)
-	assert.ErrorContains(t, err, "Received no bytes in response")
+	assert.ErrorContains(t, err, "Failed to read Datadog API response body")
 }
 
 func TestDatadogSpecDefaults(t *testing.T) {
@@ -637,26 +637,41 @@ func TestRequestTimeout(t *testing.T) {
 	}
 
 	tests := []struct {
-		name            string
-		requestTimeout  v1alpha1.DurationString
-		expectedPhase   v1alpha1.AnalysisPhase
-		expectedMessage string
+		name             string
+		requestTimeout   v1alpha1.DurationString
+		expectedPhase    v1alpha1.AnalysisPhase
+		expectedMessage  string
+		expectedMetadata map[string]string
 	}{
 		{
 			name:           "no timeout falls back to the default and succeeds",
 			requestTimeout: "",
 			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+			expectedMetadata: map[string]string{
+				metadataHTTPStatusCode:   "200",
+				metadataRequestOutcome:   requestOutcomeSuccess,
+				metadataResponseReceived: "true",
+			},
 		},
 		{
 			name:           "generous timeout against slow server succeeds",
 			requestTimeout: "5s",
 			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+			expectedMetadata: map[string]string{
+				metadataHTTPStatusCode:   "200",
+				metadataRequestOutcome:   requestOutcomeSuccess,
+				metadataResponseReceived: "true",
+			},
 		},
 		{
 			name:            "short timeout against slow server fails",
 			requestTimeout:  "10ms",
 			expectedPhase:   v1alpha1.AnalysisPhaseError,
-			expectedMessage: "Client.Timeout",
+			expectedMessage: "Datadog API request timed out after 10ms before receiving an HTTP response",
+			expectedMetadata: map[string]string{
+				metadataRequestOutcome:   requestOutcomeTimeout,
+				metadataResponseReceived: "false",
+			},
 		},
 	}
 
@@ -698,8 +713,108 @@ func TestRequestTimeout(t *testing.T) {
 			measurement := provider.Run(newAnalysisRun(), metric)
 
 			assert.Equal(t, test.expectedPhase, measurement.Phase)
+			assert.Equal(t, test.expectedMetadata, measurement.Metadata)
 			if test.expectedMessage != "" {
 				assert.Contains(t, measurement.Message, test.expectedMessage)
+			}
+		})
+	}
+}
+
+func TestRequestErrorMetadata(t *testing.T) {
+	const expectedApiKey = "0123456789abcdef0123456789abcdef"
+	const expectedAppKey = "0123456789abcdef0123456789abcdef01234567"
+
+	tests := []struct {
+		name            string
+		handler         http.HandlerFunc
+		requestTimeout  v1alpha1.DurationString
+		expectedOutcome string
+		expectedStatus  string
+		expectedMessage string
+	}{
+		{
+			name: "HTTP error preserves status code",
+			handler: func(rw http.ResponseWriter, req *http.Request) {
+				http.Error(rw, `{"errors":["unavailable"]}`, http.StatusServiceUnavailable)
+			},
+			expectedOutcome: requestOutcomeHTTPError,
+			expectedStatus:  "503",
+			expectedMessage: "received non 2xx response code: 503",
+		},
+		{
+			name: "response body read error preserves status code",
+			handler: func(rw http.ResponseWriter, req *http.Request) {
+				rw.Header().Set("Content-Type", "application/json")
+				rw.WriteHeader(http.StatusOK)
+				rw.(http.Flusher).Flush()
+				time.Sleep(100 * time.Millisecond)
+			},
+			requestTimeout:  "10ms",
+			expectedOutcome: requestOutcomeResponseReadError,
+			expectedStatus:  "200",
+			expectedMessage: "Failed to read Datadog API response body",
+		},
+		{
+			name: "transport error has no status code",
+			handler: func(rw http.ResponseWriter, req *http.Request) {
+				hijacker := rw.(http.Hijacker)
+				conn, _, err := hijacker.Hijack()
+				if err == nil {
+					_ = conn.Close()
+				}
+			},
+			expectedOutcome: requestOutcomeTransportError,
+			expectedMessage: "Datadog API request failed before receiving an HTTP response",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(test.handler)
+			defer server.Close()
+
+			tokenSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: DatadogTokensSecretName},
+				Data: map[string][]byte{
+					"address": []byte(server.URL),
+					"api-key": []byte(expectedApiKey),
+					"app-key": []byte(expectedAppKey),
+				},
+			}
+			metric := v1alpha1.Metric{
+				Name:             "request metadata test",
+				SuccessCondition: "result < 0.001",
+				FailureCondition: "result >= 0.001",
+				Provider: v1alpha1.MetricProvider{
+					Datadog: &v1alpha1.DatadogMetric{
+						Interval:       "5m",
+						Query:          "avg:kubernetes.cpu.user.total{*}",
+						ApiVersion:     "v2",
+						RequestTimeout: test.requestTimeout,
+					},
+				},
+			}
+
+			logCtx := log.WithField("test", "test")
+			fakeClient := k8sfake.NewSimpleClientset()
+			fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+				return true, tokenSecret, nil
+			})
+
+			provider, err := NewDatadogProvider(*logCtx, fakeClient, "namespace", metric)
+			assert.NoError(t, err)
+			measurement := provider.Run(newAnalysisRun(), metric)
+
+			assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+			assert.Equal(t, test.expectedOutcome, measurement.Metadata[metadataRequestOutcome])
+			assert.Equal(t, test.expectedStatus, measurement.Metadata[metadataHTTPStatusCode])
+			assert.Contains(t, measurement.Message, test.expectedMessage)
+			if test.expectedStatus == "" {
+				assert.NotContains(t, measurement.Metadata, metadataHTTPStatusCode)
+				assert.Equal(t, "false", measurement.Metadata[metadataResponseReceived])
+			} else {
+				assert.Equal(t, "true", measurement.Metadata[metadataResponseReceived])
 			}
 		})
 	}
