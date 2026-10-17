@@ -61,9 +61,15 @@ type rolloutContext struct {
 	// Used to detect fast rollbacks where we skip pause/analysis steps.
 	newRSWithinDelay bool
 
-	// skipStatusSync ends the pass without a status sync. Set by stageStopNoStatus: the pod-restart
-	// early exit and stage errors (see runStages).
+	// skipStatusSync ends the pass without a status sync (set by stageStopNoStatus).
 	skipStatusSync bool
+
+	// progressionBlocked holds step advancement and full promotion after a stage failure.
+	progressionBlocked bool
+
+	// Set when the experiments/analysis stages complete; see carryOverUnreconciledStatus.
+	experimentsReconciled bool
+	analysisReconciled    bool
 
 	// blueGreenPreviewSvc and blueGreenActiveSvc are set for the duration of runBlueGreenStages.
 	blueGreenPreviewSvc *corev1.Service

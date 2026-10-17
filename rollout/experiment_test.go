@@ -2,14 +2,17 @@ package rollout
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -987,4 +990,90 @@ func TestRolloutCreateExperimentWithDryRunAndMetadata(t *testing.T) {
 	assert.Len(t, createdEx.Spec.DryRun, 2)
 	assert.Equal(t, createdEx.Spec.DryRun[0].MetricName, "someMetric")
 	assert.Equal(t, createdEx.Spec.DryRun[1].MetricName, "someOtherMetric")
+}
+
+// newSuccessfulExperimentStepFixture returns a rollout sitting on an Experiment step whose
+// Experiment has already succeeded, so the only thing left is for the step to advance.
+func newSuccessfulExperimentStepFixture(t *testing.T, backgroundAnalysis bool) (*fixture, *v1alpha1.Rollout, *v1alpha1.Experiment) {
+	f := newFixture(t)
+
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{{
+				Name:     "stable-template",
+				SpecRef:  v1alpha1.StableSpecRef,
+				Replicas: ptr.To[int32](1),
+			}},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	if backgroundAnalysis {
+		at := analysisTemplate("bar")
+		r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+			RolloutAnalysis: v1alpha1.RolloutAnalysis{
+				Templates: []v1alpha1.AnalysisTemplateRef{{TemplateName: at.Name}},
+			},
+		}
+		f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+		f.objects = append(f.objects, at)
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+
+	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
+	ex.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
+	now := metav1.Now()
+	ex.Status.AvailableAt = &now
+	r2.Status.Canary.CurrentExperiment = ex.Name
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.experimentLister = append(f.experimentLister, ex)
+	f.objects = append(f.objects, r2, ex)
+	return f, r2, ex
+}
+
+// A stage that runs after the experiments stage fails. The step cannot advance, so the
+// successful Experiment must stay current; otherwise the next pass creates a replacement.
+func TestRolloutExperimentSuccessfulKeptWhenLaterStageFails(t *testing.T) {
+	f, r2, _ := newSuccessfulExperimentStepFixture(t, true)
+	defer f.Close()
+
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.client.PrependReactor("create", "analysisruns", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("failed to create AnalysisRun")
+	})
+	f.expectCreateAnalysisRunAction(&v1alpha1.AnalysisRun{})
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.runController(getKey(r2, t), true, true, c, i, k8sI)
+
+	// The merge patch omits unchanged fields, so the Experiment name and step index must be absent.
+	patch := f.getPatchedRollout(patchIndex)
+	assert.NotContains(t, patch, `"currentExperiment"`,
+		"a successful Experiment must stay current while the step is held; patch: %s", patch)
+	assert.NotContains(t, patch, `"currentStepIndex"`, "a failed pass must not advance the step; patch: %s", patch)
+}
+
+// The rollout is manually paused on a successful Experiment step. The step does not advance,
+// so the Experiment must stay current instead of being recreated on the next pass.
+func TestRolloutExperimentSuccessfulKeptWhilePaused(t *testing.T) {
+	f, r2, _ := newSuccessfulExperimentStepFixture(t, false)
+	defer f.Close()
+	r2.Spec.Paused = true
+
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	// The merge patch omits unchanged fields, so the Experiment name and step index must be absent.
+	patch := f.getPatchedRollout(patchIndex)
+	assert.NotContains(t, patch, `"currentExperiment"`,
+		"a successful Experiment must stay current while the rollout is paused; patch: %s", patch)
+	assert.NotContains(t, patch, `"currentStepIndex"`, "a paused rollout must not advance the step; patch: %s", patch)
 }
