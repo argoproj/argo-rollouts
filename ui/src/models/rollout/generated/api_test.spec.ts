@@ -39,6 +39,12 @@ describe("RolloutServiceApi", () => {
     const namespace: string = "namespace_example"
     return expect(instance.rolloutServiceListRolloutInfos(namespace, {})).resolves.toBe(null)
   })
+  test("rolloutServicePauseRollout", () => {
+    const body: api.RolloutPauseRolloutRequest = undefined
+    const namespace: string = "namespace_example"
+    const name: string = "name_example"
+    return expect(instance.rolloutServicePauseRollout(body, namespace, name, {})).resolves.toBe(null)
+  })
   test("rolloutServicePromoteRollout", () => {
     const body: api.RolloutPromoteRolloutRequest = undefined
     const namespace: string = "namespace_example"
