@@ -21,6 +21,7 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"k8s.io/client-go/util/workqueue"
 
@@ -388,4 +389,33 @@ func TestLeaseLockName(t *testing.T) {
 			assert.Equal(t, tt.expected, leaseLockName(tt.instanceID))
 		})
 	}
+}
+
+// TestPrimaryControllerExitsOnLostLeadership asserts that losing the lease while the
+// controller is otherwise healthy surfaces as an error from Run. main() turns that into a
+// non-zero exit, so the restart is visible as "Terminated: Error" rather than as a silent
+// "Terminated: Completed" with nothing in the pod status explaining it.
+func TestPrimaryControllerExitsOnLostLeadership(t *testing.T) {
+	f := newFixture(t)
+
+	// The lease is acquired with a Create and renewed with Updates. Failing every Update is
+	// how a saturated or throttled API server looks to the leader election client.
+	f.kubeclient.PrependReactor("update", "leases", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("etcdserver: request timed out")
+	})
+
+	cm := f.newManager(t)
+	electOpts := NewLeaderElectionOptions()
+	electOpts.LeaderElectionNamespace = metav1.NamespaceDefault
+	electOpts.LeaderElectionLeaseDuration = time.Second
+	electOpts.LeaderElectionRenewDeadline = 500 * time.Millisecond
+	electOpts.LeaderElectionRetryPeriod = 100 * time.Millisecond
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	err := cm.Run(ctx, 1, 1, 1, 1, 1, electOpts)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "lost leadership")
+	assert.NoError(t, ctx.Err(), "leadership should have been lost before the test context expired")
 }

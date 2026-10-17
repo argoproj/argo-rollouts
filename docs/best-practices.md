@@ -158,6 +158,42 @@ in memory usage for a cluster with 1290 rollouts by changing
 `RevisionHistoryLimit` from 10 to 0.
 
 
+## Running thousands of Rollouts
+
+A single controller can manage thousands of Rollouts, but the defaults are tuned for
+much smaller clusters. If you are running at that scale, the following settings matter.
+
+### Probe the controller on `/healthz`, not on `/metrics`
+
+Port 8080 serves `/healthz`, which answers immediately and is the endpoint the liveness and
+readiness probes in the [installation manifests](../installation) use.
+
+Do **not** point a probe at `/metrics` on port 8090. Producing that response means walking
+every Rollout, Experiment and AnalysisRun the controller watches, so on a large cluster it
+takes seconds. A probe with a `timeoutSeconds` shorter than that fails, and a readiness
+probe that keeps failing takes the controller out of the metrics `Service` even though it is
+perfectly healthy.
+
+Give Prometheus itself a `scrape_timeout` that comfortably exceeds how long a scrape of your
+largest cluster takes, and a `scrape_interval` that is longer than that again.
+
+### Give the controller enough API server throughput
+
+The controller is rate limited client side by `--qps` (default 40) and `--burst`
+(default 80). When those limits are reached every API call, including the leader election
+lease renewal, starts queueing behind them. If a renewal cannot complete within
+`--leader-election-renew-deadline` (default 10s) the controller loses the lease, logs
+`Lost leadership of lease ...` and exits non-zero so that a standby replica can take over.
+A controller that keeps restarting on its own with that message in its log needs more
+throughput:
+raise `--qps` and `--burst` first, and raise `--leader-election-lease-duration` and
+`--leader-election-renew-deadline` if the API server itself is the bottleneck.
+
+`--rollout-threads` (default 10) controls how many Rollouts are reconciled concurrently.
+Raising it shortens the workqueue but increases the API call rate, so raise `--qps` and
+`--burst` along with it.
+
+
 ## Rollout a ConfigMap change
 
 Argo Rollouts is meant to work on a Kubernetes Deployment. When a ConfigMap is mounted inside one of the Deployment container and a change occurs inside the ConfigMap, it won't trigger a new Rollout by default.
