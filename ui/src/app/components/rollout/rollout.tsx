@@ -25,6 +25,7 @@ import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faChevronCircleDown, faChevronCircleUp, faCircleNotch} from '@fortawesome/free-solid-svg-icons';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 import { notification } from 'antd';
+import {computePauseProgress, PauseProgress} from './pause-timer';
 
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 export interface ImageInfo {
@@ -250,7 +251,15 @@ const Steps = (props: {rollout: RolloutInfo; curStep: number}) => (
             {props.rollout.steps
                 .filter((step) => Object.keys(step).length)
                 .map((step, i, arr) => (
-                    <Step key={`step-${i}`} step={step} complete={i < props.curStep} current={i === props.curStep} last={i === arr.length - 1} />
+                    <Step
+                        key={`step-${i}`}
+                        step={step}
+                        complete={i < props.curStep}
+                        current={i === props.curStep}
+                        last={i === arr.length - 1}
+                        pauseDurationSeconds={props.rollout.pauseDurationSeconds}
+                        pauseRemainingSeconds={props.rollout.pauseRemainingSeconds}
+                    />
                 ))}
         </div>
     </div>
@@ -343,7 +352,57 @@ const parseDuration = (duration: string): string => {
     return `${duration}s`;
 };
 
-const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean}) => {
+// PauseProgressBar fills the step card's background left-to-right as a timed
+// pause elapses. Rather than tick every second, it paints the current position
+// once and then runs a single CSS transition to 100% over the remaining time,
+// so the fill sweeps smoothly and self-completes when the pause ends.
+//
+// Both inputs are whole seconds from the controller, so there is no duration
+// parsing and no dependence on the viewer's clock being correct.
+const PauseProgressBar = (props: {durationSeconds: number; remainingSeconds: number}) => {
+    const initial = React.useRef<PauseProgress | null>();
+    if (initial.current === undefined) {
+        initial.current = computePauseProgress({durationSeconds: props.durationSeconds, remainingSeconds: props.remainingSeconds});
+    }
+
+    // Paint the starting position first, then flip to the target so the browser
+    // animates the transition instead of jumping.
+    const barRef = React.useRef<HTMLDivElement>(null);
+    const [running, setRunning] = React.useState(false);
+    React.useEffect(() => {
+        const el = barRef.current;
+        if (!el) {
+            return;
+        }
+        // Reading a layout property forces the browser to commit the starting
+        // width before we change it. Without this both widths can land in one
+        // style recalculation, leaving nothing to transition from, and the fill
+        // snaps straight to 100%.
+        void el.offsetWidth;
+        const id = requestAnimationFrame(() => setRunning(true));
+        return () => cancelAnimationFrame(id);
+    }, []);
+
+    if (!initial.current) {
+        return null;
+    }
+
+    // The transition must already be in place when the width changes, otherwise
+    // the browser jumps straight to the target instead of animating. So keep it
+    // set on both renders and only flip the width once `running` is true.
+    const {fillPercent, remainingMs} = initial.current;
+
+    return <div ref={barRef} className='steps__step__pause-fill' style={{width: running ? '100%' : `${fillPercent}%`, transition: `width ${remainingMs}ms linear`}} />;
+};
+
+const Step = (props: {
+    step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep;
+    complete?: boolean;
+    current?: boolean;
+    last?: boolean;
+    pauseDurationSeconds?: number;
+    pauseRemainingSeconds?: number;
+}) => {
     const [openedTemplate, setOpenedTemplate] = React.useState('');
     const [openCanary, setOpenCanary] = React.useState(false);
     const [openAnalysis, setOpenAnalysis] = React.useState(false);
@@ -401,6 +460,9 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     return (
         <React.Fragment>
             <div style={{zIndex: 1}} className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
+                {props.current && props.step.pause && (props.pauseDurationSeconds ?? 0) > 0 && (
+                    <PauseProgressBar durationSeconds={props.pauseDurationSeconds} remainingSeconds={props.pauseRemainingSeconds ?? 0} />
+                )}
                 <div
                     className={`steps__step-title ${
                         props.step.experiment ||

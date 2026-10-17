@@ -149,6 +149,9 @@ func (o *GetOptions) PrintRollout(roInfo *rollout.RolloutInfo) {
 		fmt.Fprintf(o.Out, tableFormat, "  Step:", roInfo.Step)
 		fmt.Fprintf(o.Out, tableFormat, "  SetWeight:", roInfo.SetWeight)
 		fmt.Fprintf(o.Out, tableFormat, "  ActualWeight:", roInfo.ActualWeight)
+		if remaining, ok := info.PauseStepRemaining(roInfo); ok {
+			fmt.Fprintf(o.Out, tableFormat, "  Pause:", remaining+" remaining")
+		}
 	}
 	images := info.Images(roInfo)
 	if len(images) > 0 {
