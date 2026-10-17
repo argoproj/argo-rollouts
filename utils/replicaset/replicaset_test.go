@@ -108,15 +108,30 @@ func TestFindNewReplicaSet(t *testing.T) {
 		podTemplate := corev1.PodTemplate{Template: rs.Spec.Template}
 		corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
 		rs.Spec.Template = podTemplate.Template
-		rs, _ = SyncReplicaSetEphemeralPodMetadata(rs, &v1alpha1.PodTemplateMetadata{Labels: map[string]string{"name": "stable"}})
+		rs, _ = SyncReplicaSetEphemeralPodMetadata(rs, &v1alpha1.PodTemplateMetadata{
+			Labels:      map[string]string{"name": "stable"},
+			Annotations: map[string]string{"role": "stable"},
+		})
 		assert.Equal(t, "stable", rs.Spec.Template.Labels["name"])
-		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{rs})
+
+		// spec unchanged since the last reconcile
+		synced := ro.DeepCopy()
+		synced.Generation = 2
+		synced.Status.ObservedGeneration = "2"
+		actual := FindNewReplicaSet(synced, []*appsv1.ReplicaSet{rs})
 		assert.Equal(t, rs, actual)
 
 		// a real template change must still be detected
-		changed := ro.DeepCopy()
+		changed := synced.DeepCopy()
+		changed.Generation = 3
 		changed.Spec.Template.Spec.Containers[0].Image = "blue"
 		assert.Nil(t, FindNewReplicaSet(changed, []*appsv1.ReplicaSet{rs}))
+
+		// including a change to the template value of a key that injected metadata overwrites
+		changedKey := synced.DeepCopy()
+		changedKey.Generation = 3
+		changedKey.Spec.Template.Labels = map[string]string{"name": "red-edited"}
+		assert.Nil(t, FindNewReplicaSet(changedKey, []*appsv1.ReplicaSet{rs}))
 	})
 }
 
