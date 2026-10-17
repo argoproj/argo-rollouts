@@ -744,6 +744,49 @@ func SyncEphemeralPodMetadata(metadata *metav1.ObjectMeta, existingPodMetadata, 
 	return metadata, modified
 }
 
+// RemoveStaleEphemeralPodMetadata removes metadata that a previous ephemeral metadata (e.g. the
+// canaryMetadata of a ReplicaSet which has since been promoted to stable) injected into a pod,
+// but which the ReplicaSet's ephemeral-metadata annotation no longer records, so
+// SyncEphemeralPodMetadata cannot remove it. To avoid touching metadata owned by something else,
+// a key is only removed if the pod still has exactly the value staleMetadata would have injected,
+// the key is not desired, and the pod template does not set it.
+func RemoveStaleEphemeralPodMetadata(metadata *metav1.ObjectMeta, staleMetadata, desiredPodMetadata *v1alpha1.PodTemplateMetadata, template *metav1.ObjectMeta) (*metav1.ObjectMeta, bool) {
+	if staleMetadata == nil {
+		return metadata, false
+	}
+	modified := false
+	metadata = metadata.DeepCopy()
+
+	removeStale := func(current, stale, desired, fromTemplate map[string]string) {
+		for k, v := range stale {
+			if _, ok := desired[k]; ok {
+				continue
+			}
+			if _, ok := fromTemplate[k]; ok {
+				continue
+			}
+			if cur, ok := current[k]; ok && cur == v {
+				delete(current, k)
+				modified = true
+			}
+		}
+	}
+
+	var desiredAnnotations, desiredLabels map[string]string
+	if desiredPodMetadata != nil {
+		desiredAnnotations = desiredPodMetadata.Annotations
+		desiredLabels = desiredPodMetadata.Labels
+	}
+	var templateAnnotations, templateLabels map[string]string
+	if template != nil {
+		templateAnnotations = template.Annotations
+		templateLabels = template.Labels
+	}
+	removeStale(metadata.Annotations, staleMetadata.Annotations, desiredAnnotations, templateAnnotations)
+	removeStale(metadata.Labels, staleMetadata.Labels, desiredLabels, templateLabels)
+	return metadata, modified
+}
+
 // SyncReplicaSetEphemeralPodMetadata injects the desired pod metadata to the ReplicaSet, and
 // removes previously injected metadata (based on the rollout.argoproj.io/ephemeral-metadata
 // annotation) if it is no longer desired. A podMetadata value of nil indicates all ephemeral
