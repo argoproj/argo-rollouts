@@ -1129,6 +1129,52 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAborted(t 
 	f.run(getKey(r1, t))
 }
 
+// TestDynamicScalingAbortReturnsCanaryServiceErrorWhileWeightDrains verifies that a failure to keep the
+// canary Service on the canary ReplicaSet, while the abort weight is still draining, is surfaced to the caller.
+func TestDynamicScalingAbortReturnsCanaryServiceErrorWhileWeightDrains(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{}}}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.DynamicStableScale = true
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{SMI: &v1alpha1.SMITrafficRouting{}}
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Status.Abort = true
+	r1.Status.AbortedAt = &metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 1)
+	rs2 := newReplicaSetWithStatus(r2, 4, 4)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r1)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r1)
+	r2.Status.StableRS = rs1PodHash
+	r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{Weight: 100, ServiceName: "canary", PodTemplateHash: rs2PodHash},
+		Stable: v1alpha1.WeightDestination{Weight: 0, ServiceName: "stable", PodTemplateHash: rs1PodHash},
+	}
+
+	f.kubeobjects = append(f.kubeobjects, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+
+	ctrl, _, k8sI := f.newController(noResyncPeriodFunc)
+	roCtx, err := ctrl.newRolloutContext(r2)
+	assert.NoError(t, err)
+	roCtx.newRS = rs2
+	roCtx.stableRS = rs1
+	assert.NoError(t, k8sI.Core().V1().Services().Informer().GetIndexer().Delete(canarySvc))
+
+	err = roCtx.reconcileTrafficRouting()
+	assert.ErrorContains(t, err, `"canary" not found`)
+	f.fakeTrafficRouting.AssertNotCalled(t, "RemoveManagedRoutes")
+}
+
 // TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAbortedAndResetService verifies we decrease the weight
 // to the canary depending on the availability of the stable ReplicaSet when aborting and also that at the end of the abort
 // we reset the canary service selectors back to the stable service
