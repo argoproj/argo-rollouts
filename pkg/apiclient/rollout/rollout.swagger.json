@@ -2585,6 +2585,10 @@
         "key": {
           "type": "string",
           "description": "Key is the key of the secret to select from."
+        },
+        "sharedSecret": {
+          "type": "boolean",
+          "description": "SharedSecret indicates the secret should be read from the namespace\nmentioned by --analysis-shared-secret-namespace flag."
         }
       }
     },
