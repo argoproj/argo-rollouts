@@ -1,9 +1,12 @@
 package rollout
 
 import (
+	"context"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -79,6 +82,9 @@ func (c *rolloutContext) reconcile() error {
 		// exit early since we modified the rollout
 		return nil
 	}
+	if reset, err := c.resetAnalysisForRetry(); reset || err != nil {
+		return err
+	}
 
 	isScalingEvent, err := c.isScalingEvent()
 	if err != nil {
@@ -95,6 +101,49 @@ func (c *rolloutContext) reconcile() error {
 
 	// Due to the rollout validation before this, when we get here strategy is canary
 	return c.rolloutCanary()
+}
+
+// resetAnalysisForRetry clears the aborted attempt's analysis references and,
+// when pre-promotion analysis is configured, its Blue/Green preview checkpoint.
+// The reset must be persisted before status updates clear AbortedAt;
+// otherwise a later reconciliation can still treat an old run as current.
+// The resource-version check prevents stale cleanup from overwriting a newer attempt.
+func (c *rolloutContext) resetAnalysisForRetry() (bool, error) {
+	if c.rollout.Status.Abort || c.rollout.Status.AbortedAt == nil {
+		return false, nil
+	}
+	next := c.rollout.DeepCopy()
+	var previous []*v1alpha1.AnalysisRun
+	if bg := next.Spec.Strategy.BlueGreen; bg != nil {
+		status := &next.Status.BlueGreen
+		resetPreview := bg.PrePromotionAnalysis != nil && status.ScaleUpPreviewCheckPoint
+		if status.PrePromotionAnalysisRunStatus == nil && status.PostPromotionAnalysisRunStatus == nil && !resetPreview {
+			return false, nil
+		}
+		previous = []*v1alpha1.AnalysisRun{c.currentArs.BlueGreenPrePromotion, c.currentArs.BlueGreenPostPromotion}
+		status.PrePromotionAnalysisRunStatus = nil
+		status.PostPromotionAnalysisRunStatus = nil
+		if bg.PrePromotionAnalysis != nil {
+			status.ScaleUpPreviewCheckPoint = false
+		}
+	} else if next.Spec.Strategy.Canary != nil {
+		status := &next.Status.Canary
+		if status.CurrentStepAnalysisRunStatus == nil && status.CurrentBackgroundAnalysisRunStatus == nil {
+			return false, nil
+		}
+		previous = []*v1alpha1.AnalysisRun{c.currentArs.CanaryStep, c.currentArs.CanaryBackground}
+		status.CurrentStepAnalysisRunStatus = nil
+		status.CurrentBackgroundAnalysisRunStatus = nil
+	}
+	if err := c.cancelAnalysisRuns(previous); err != nil {
+		return false, err
+	}
+	updated, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(next.Namespace).UpdateStatus(context.TODO(), next, metav1.UpdateOptions{})
+	if err != nil {
+		return false, err
+	}
+	c.newRollout = updated
+	return true, nil
 }
 
 func (c *rolloutContext) SetRestartedAt() {
