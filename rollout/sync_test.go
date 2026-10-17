@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strconv"
@@ -29,8 +30,6 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
-
-	"context"
 )
 
 func rs(name string, replicas int, selector map[string]string, timestamp metav1.Time, ownerRef *metav1.OwnerReference) *appsv1.ReplicaSet {
@@ -948,4 +947,111 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	assert.Equal(t, int32(13), roStatus.Status.Replicas)
 	assert.Equal(t, int32(13), roStatus.Status.ReadyReplicas)
 	assert.Equal(t, int32(0), roStatus.Status.UpdatedReplicas)
+}
+
+// setupStaleHPAAnnotationFixture builds a paused canary rollout of 5 replicas whose stable RS is
+// already at 5 but still carries the desired-replicas annotation an HPA left behind (20). Pausing
+// is what makes this stick: reconcileCanaryReplicaSets bails out on haltProgress, so the scaling
+// path that would normally rewrite the annotation never runs. (#4407)
+func setupStaleHPAAnnotationFixture(t *testing.T) (*fixture, *v1alpha1.Rollout, *appsv1.ReplicaSet) {
+	t.Helper()
+	f := newFixture(t)
+	steps := []v1alpha1.CanaryStep{{SetWeight: int32Ptr(10)}}
+	r := newCanaryRollout("foo", 5, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r.Annotations[annotations.RevisionAnnotation] = "1"
+	r.Spec.Paused = true
+	stableRS := newReplicaSetWithStatus(r, 5, 5)
+	stableRS.Annotations[annotations.DesiredReplicasAnnotation] = "20"
+	r.Status.StableRS = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, stableRS)
+	f.replicaSetLister = append(f.replicaSetLister, stableRS)
+	return f, r, stableRS
+}
+
+// TestSyncStaleDesiredReplicasAnnotationWhilePaused covers the HPA-removal scenario on a paused
+// canary rollout: the annotation is realigned with spec.replicas even though no scaling happens.
+func TestSyncStaleDesiredReplicasAnnotationWhilePaused(t *testing.T) {
+	f, r, stableRS := setupStaleHPAAnnotationFixture(t)
+	defer f.Close()
+
+	updatedRSIndex := f.expectUpdateReplicaSetAction(stableRS)
+	f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, "5", updatedRS.Annotations[annotations.DesiredReplicasAnnotation])
+	assert.Equal(t, int32(5), *updatedRS.Spec.Replicas)
+}
+
+// TestSyncStaleDesiredReplicasAnnotationInconclusiveAnalysis covers the other haltProgress branch,
+// where reconciliation is skipped because analysis came back inconclusive.
+func TestSyncStaleDesiredReplicasAnnotationInconclusiveAnalysis(t *testing.T) {
+	f, r, stableRS := setupStaleHPAAnnotationFixture(t)
+	defer f.Close()
+
+	r.Spec.Paused = false
+	now := timeutil.MetaNow()
+	r.Status.PauseConditions = []v1alpha1.PauseCondition{{
+		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
+		StartTime: now,
+	}}
+
+	updatedRSIndex := f.expectUpdateReplicaSetAction(stableRS)
+	f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, "5", updatedRS.Annotations[annotations.DesiredReplicasAnnotation])
+}
+
+// staleAnnotationRolloutContext wires the minimum needed to exercise
+// syncStaleDesiredReplicasAnnotation directly, without a full sync.
+func staleAnnotationRolloutContext(r *v1alpha1.Rollout, rs *appsv1.ReplicaSet, kubeclient *k8sfake.Clientset) *rolloutContext {
+	return &rolloutContext{
+		rollout:  r,
+		stableRS: rs,
+		log:      logutil.WithRollout(r),
+		reconcilerBase: reconcilerBase{
+			kubeclientset: kubeclient,
+			recorder:      record.NewFakeEventRecorder(),
+		},
+	}
+}
+
+// TestSyncStaleDesiredReplicasAnnotationUpdateFailure asserts the update error is surfaced rather
+// than swallowed, so the rollout is requeued and the sync retried.
+func TestSyncStaleDesiredReplicasAnnotationUpdateFailure(t *testing.T) {
+	r := newCanaryRollout("foo", 5, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	rs := newReplicaSetWithStatus(r, 5, 5)
+	rs.Annotations[annotations.DesiredReplicasAnnotation] = "20"
+
+	kubeclient := k8sfake.NewSimpleClientset(rs)
+	kubeclient.PrependReactor("update", "replicasets", func(action testclient.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("simulated update failure")
+	})
+
+	c := staleAnnotationRolloutContext(r, rs, kubeclient)
+	err := c.syncStaleDesiredReplicasAnnotation(context.Background())
+	assert.ErrorContains(t, err, "failed to updateReplicaSet in syncStaleDesiredReplicasAnnotation")
+	// the informer copy must not be mutated when the update fails
+	assert.Equal(t, "20", rs.Annotations[annotations.DesiredReplicasAnnotation])
+}
+
+// TestSyncStaleDesiredReplicasAnnotationNoopWhenSizeDiffers guards the boundary against a real
+// scaling event: the ReplicaSet is not at spec.replicas, so the annotation is left to the scaling
+// path, which rewrites it as part of scaling.
+func TestSyncStaleDesiredReplicasAnnotationNoopWhenSizeDiffers(t *testing.T) {
+	r := newCanaryRollout("foo", 5, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	// RS sits at 3 while the rollout wants 5 -- a genuine scale-up, not a stale annotation.
+	rs := newReplicaSetWithStatus(r, 3, 3)
+	rs.Annotations[annotations.DesiredReplicasAnnotation] = "20"
+
+	kubeclient := k8sfake.NewSimpleClientset(rs)
+	c := staleAnnotationRolloutContext(r, rs, kubeclient)
+
+	assert.NoError(t, c.syncStaleDesiredReplicasAnnotation(context.Background()))
+	assert.Empty(t, kubeclient.Actions())
+	assert.Equal(t, "20", rs.Annotations[annotations.DesiredReplicasAnnotation])
 }
