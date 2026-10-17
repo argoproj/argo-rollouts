@@ -123,6 +123,12 @@ func DownloadPlugins(fd FileDownloader, kubeClient kubernetes.Interface) error {
 			return fmt.Errorf("failed to parse plugin location: %w", err)
 		}
 
+		// Built-in plugins run in-process; there is nothing to download or place on disk.
+		if urlObj.Scheme == "builtin" {
+			log.Infof("Plugin %s is a built-in (in-process) plugin; nothing to download", plugin.Name)
+			continue
+		}
+
 		dir, pluginFile, err := argoConfig.GetPluginDirectoryAndFilename(plugin.Name)
 		if err != nil {
 			return fmt.Errorf("failed to convert plugin name (%s) to directory and filename: (%w)", plugin.Name, err)

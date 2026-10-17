@@ -229,9 +229,10 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 		logCtx = logCtx.WithField("event_reason", opts.EventReason)
 		e.Recorder.Eventf(object, opts.EventType, opts.EventReason, messageFmt, args...)
 
-		// Increment rollout_events_total counter
+		// Increment the events counter (rollout_events_total, or rolloutplugin_events_total for
+		// the RolloutPlugin recorder)
 		kind, namespace, name := logutil.KindNamespaceName(logCtx)
-		if kind == "Rollout" {
+		if kind == "Rollout" || kind == "RolloutPlugin" {
 			e.RolloutEventCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 		}
 
@@ -306,6 +307,37 @@ func getAnalysisRunsFilterWithLabels(ro v1alpha1.Rollout, arInformer argoinforme
 	return arsObj, nil
 }
 
+func getAnalysisRunsForRolloutPlugin(rp v1alpha1.RolloutPlugin, arInformer argoinformers.AnalysisRunInformer) (any, error) {
+	set := labels.Set{v1alpha1.RolloutPluginNameLabel: rp.Name}
+	ars, err := arInformer.Lister().AnalysisRuns(rp.Namespace).List(labels.SelectorFromSet(set))
+	if err != nil {
+		return nil, fmt.Errorf("error getting analysisruns from informer for namespace: %s error: %w", rp.Namespace, err)
+	}
+	if len(ars) == 0 {
+		return nil, nil
+	}
+
+	// Sorting by creation timestamp (newest first)
+	sort.Slice(ars, func(i, j int) bool {
+		ts1 := ars[i].ObjectMeta.CreationTimestamp.Time
+		ts2 := ars[j].ObjectMeta.CreationTimestamp.Time
+		return ts1.After(ts2)
+	})
+
+	var arsObj any
+	arBytes, err := json.Marshal(ars)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to marshal analysisRuns for rolloutPlugin %s: %w", rp.Name, err)
+	}
+
+	err = json.Unmarshal(arBytes, &arsObj)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal analysisRuns for rolloutPlugin %s: %w", rp.Name, err)
+	}
+
+	return arsObj, nil
+}
+
 func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Settings {
 	return api.Settings{
 		SecretName:    NotificationSecret,
@@ -346,6 +378,52 @@ func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Set
 					"analysisRuns": arsObj,
 					"time":         timeExprs,
 					"secrets":      secret.Data,
+				}
+				return vars
+			}, nil
+		},
+	}
+}
+
+// TODO try merging with existing NewAPIFactorySettings if possible
+func NewAPIFactorySettingsForRolloutPlugin(arInformer argoinformers.AnalysisRunInformer) api.Settings {
+	return api.Settings{
+		SecretName:    NotificationSecret,
+		ConfigMapName: NotificationConfigMap,
+		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
+			return func(obj map[string]any, dest services.Destination) map[string]any {
+				var vars = map[string]any{
+					"rolloutPlugin": obj,
+					"time":          timeExprs,
+					"secrets":       secret.Data,
+				}
+
+				if arInformer == nil {
+					log.Infof("Notification is not set for analysisRun Informer: %s", dest)
+					return vars
+				}
+
+				var rp v1alpha1.RolloutPlugin
+				err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, &rp)
+
+				if err != nil {
+					log.Errorf("unable to send notification: bad rolloutPlugin object: %v", err)
+					return vars
+				}
+
+				arsObj, err := getAnalysisRunsForRolloutPlugin(rp, arInformer)
+
+				if err != nil {
+					log.Errorf("Error calling getAnalysisRunsForRolloutPlugin for namespace: %s",
+						rp.Namespace)
+					return vars
+				}
+
+				vars = map[string]any{
+					"rolloutPlugin": obj,
+					"analysisRuns":  arsObj,
+					"time":          timeExprs,
+					"secrets":       secret.Data,
 				}
 				return vars
 			}, nil

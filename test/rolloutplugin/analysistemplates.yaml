@@ -1,0 +1,42 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: sleep-job
+  namespace: argo-rollouts
+spec:
+  metrics:
+  - name: background-check
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: quay.io/prometheus/busybox:latest
+                command: ["sh", "-c"]
+                args: ["echo 'Background analysis running for 60s...'; sleep 60; echo 'Background analysis completed successfully'"]
+              restartPolicy: Never
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: quick-sleep-job
+  namespace: argo-rollouts
+spec:
+  metrics:
+  - name: step-check
+    provider:
+      job:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: quay.io/prometheus/busybox:latest
+                command: ["sh", "-c"]
+                args: ["echo 'Step-based analysis running for 30s...'; sleep 30; echo 'Step analysis completed successfully'"]
+              restartPolicy: Never

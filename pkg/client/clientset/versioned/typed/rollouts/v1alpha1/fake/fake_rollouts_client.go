@@ -48,6 +48,10 @@ func (c *FakeArgoprojV1alpha1) Rollouts(namespace string) v1alpha1.RolloutInterf
 	return newFakeRollouts(c, namespace)
 }
 
+func (c *FakeArgoprojV1alpha1) RolloutPlugins(namespace string) v1alpha1.RolloutPluginInterface {
+	return newFakeRolloutPlugins(c, namespace)
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeArgoprojV1alpha1) RESTClient() rest.Interface {
