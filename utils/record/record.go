@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
+	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
+	"github.com/expr-lang/expr"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	k8sinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -35,6 +38,8 @@ import (
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	argofake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -83,9 +88,12 @@ type EventRecorderAdapter struct {
 	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...any)
 	// apiFactory is a notifications engine API factory
 	apiFactory api.Factory
+	// rolloutsClient is used to persist the notified state annotation on Rollouts, which is what
+	// makes the oncePer field of a trigger condition effective
+	rolloutsClient clientset.Interface
 }
 
-func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, notificationFailedCounter *prometheus.CounterVec, notificationSuccessCounter *prometheus.CounterVec, notificationSendPerformance *prometheus.HistogramVec, apiFactory api.Factory) EventRecorder {
+func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutsClient clientset.Interface, rolloutEventCounter *prometheus.CounterVec, notificationFailedCounter *prometheus.CounterVec, notificationSuccessCounter *prometheus.CounterVec, notificationSendPerformance *prometheus.HistogramVec, apiFactory api.Factory) EventRecorder {
 	// Create event broadcaster
 	// Add argo-rollouts custom resources to the default Kubernetes Scheme so Events can be
 	// logged for argo-rollouts types.
@@ -100,6 +108,7 @@ func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *p
 		NotificationSuccessCounter:  notificationSuccessCounter,
 		NotificationSendPerformance: notificationSendPerformance,
 		apiFactory:                  apiFactory,
+		rolloutsClient:              rolloutsClient,
 	}
 	recorder.eventf = recorder.defaultEventf
 	return recorder
@@ -170,6 +179,7 @@ func NewFakeApiFactory() api.Factory {
 func NewFakeEventRecorder() *FakeEventRecorder {
 	recorder := NewEventRecorder(
 		k8sfake.NewSimpleClientset(),
+		argofake.NewSimpleClientset(),
 		prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "rollout_events_total",
@@ -242,6 +252,11 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 				e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 			}
 
+			// Notifications record their oncePer state on the object, so work on a copy to leave the
+			// caller's object untouched.
+			if ro, ok := object.(*v1alpha1.Rollout); ok {
+				object = ro.DeepCopy()
+			}
 			for _, api := range apis {
 				err := e.sendNotifications(api, object, opts)
 				if err != nil {
@@ -385,6 +400,10 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 
 	emptyCondition := hash("")
 
+	// oncePer relies on the notified state annotation, which is only persisted on Rollouts.
+	state, notifiedAnnotation, canTrackState := e.notifiedState(object)
+	isSelfConfig := cfg.IsSelfServiceConfig
+
 	// We should not return in these loops because we want other configured notifications to still send if they can.
 	errors := []error{}
 	for _, destination := range destinations {
@@ -407,33 +426,111 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 		for _, c := range res {
 			log.Infof("Result when condition hash: %s, templates: %s", c.Key, c.Templates)
 			s := strings.Split(c.Key, ".")[1]
-			if s != emptyCondition && c.Triggered == true {
-				err = notificationsAPI.Send(objMap, c.Templates, destination)
-				if err != nil {
-					log.Errorf("Failed to execute the sending of notification on not empty condition, trigger: %s, destination: %s, namespace config: %s : %v",
-						trigger, destination, notificationsAPI.GetConfig().Namespace, err)
-					e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
-					errors = append(errors, err)
-					continue
-				}
-				e.NotificationSuccessCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
-			} else if s == emptyCondition {
-				err = notificationsAPI.Send(objMap, c.Templates, destination)
-				if err != nil {
-					log.Errorf("Failed to execute the sending of notification on empty condition, trigger: %s, destination: %s, namespace config: %s : %v",
-						trigger, destination, notificationsAPI.GetConfig().Namespace, err)
-					e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
-					errors = append(errors, err)
-					continue
-				}
-				e.NotificationSuccessCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
+			isEmptyCondition := s == emptyCondition
+			if !isEmptyCondition && !c.Triggered {
+				continue
 			}
+			if isEmptyCondition {
+				// The engine only evaluates oncePer when the when condition is true, which never
+				// holds for a condition without a when.
+				c.OncePer = emptyConditionOncePer(cfg, trigger, c.Key, objMap)
+			}
+
+			stateKey := ""
+			if canTrackState && c.OncePer != "" {
+				if !state.SetAlreadyNotified(isSelfConfig, cfg.Namespace, trigger, c, destination, true) {
+					logCtx.Infof("Notification for trigger %s with oncePer %q was already sent to %v", trigger, c.OncePer, destination)
+					continue
+				}
+				stateKey = notificationcontroller.StateItemKey(isSelfConfig, cfg.Namespace, trigger, c, destination)
+			}
+
+			err = notificationsAPI.Send(objMap, c.Templates, destination)
+			if err != nil {
+				// Do not remember a failed delivery so that it is attempted again
+				delete(state, stateKey)
+				conditionKind := "not empty"
+				if isEmptyCondition {
+					conditionKind = "empty"
+				}
+				log.Errorf("Failed to execute the sending of notification on %s condition, trigger: %s, destination: %s, namespace config: %s : %v",
+					conditionKind, trigger, destination, notificationsAPI.GetConfig().Namespace, err)
+				e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
+				errors = append(errors, err)
+				continue
+			}
+			e.NotificationSuccessCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
+		}
+	}
+	if canTrackState {
+		if err := e.persistNotifiedState(object.(*v1alpha1.Rollout), state, notifiedAnnotation); err != nil {
+			log.Errorf("Failed to persist notified state, trigger: %s : %v", trigger, err)
+			errors = append(errors, err)
 		}
 	}
 	if len(errors) == 0 {
 		return nil
 	}
 	return errors
+}
+
+// notifiedState returns the notified state stored on the object together with its raw annotation
+// value. The last return value is false when the state cannot be persisted for the object.
+func (e *EventRecorderAdapter) notifiedState(object runtime.Object) (notificationcontroller.NotificationsState, string, bool) {
+	ro, ok := object.(*v1alpha1.Rollout)
+	if !ok || e.rolloutsClient == nil {
+		return nil, "", false
+	}
+	return notificationcontroller.NewStateFromRes(ro), ro.GetAnnotations()[subscriptions.NotifiedAnnotationKey()], true
+}
+
+// persistNotifiedState patches the notified annotation of the Rollout if the state changed. Only
+// that annotation is patched so concurrent updates of the Rollout are not overwritten. On success
+// the annotation is also set on the given object so that later notifications see it.
+func (e *EventRecorderAdapter) persistNotifiedState(ro *v1alpha1.Rollout, state notificationcontroller.NotificationsState, previous string) error {
+	annotations, err := state.Persist(ro)
+	if err != nil {
+		return err
+	}
+	key := subscriptions.NotifiedAnnotationKey()
+	current, present := annotations[key]
+	if current == previous {
+		return nil
+	}
+	var value any = current
+	if !present {
+		value = nil
+	}
+	patch, err := json.Marshal(map[string]any{"metadata": map[string]any{"annotations": map[string]any{key: value}}})
+	if err != nil {
+		return err
+	}
+	_, err = e.rolloutsClient.ArgoprojV1alpha1().Rollouts(ro.Namespace).Patch(context.Background(), ro.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to patch notified state of rollout %s/%s: %w", ro.Namespace, ro.Name, err)
+	}
+	ro.SetAnnotations(annotations)
+	return nil
+}
+
+// emptyConditionOncePer evaluates the oncePer expression of the condition identified by the
+// result key, which has the form "[<index>].<hash>". It returns an empty string when the condition
+// has no oncePer or when the expression cannot be evaluated.
+func emptyConditionOncePer(cfg api.Config, trigger string, key string, objMap map[string]any) string {
+	var index int
+	if _, err := fmt.Sscanf(key, "[%d].", &index); err != nil {
+		return ""
+	}
+	conditions := cfg.Triggers[trigger]
+	if index < 0 || index >= len(conditions) || conditions[index].OncePer == "" {
+		return ""
+	}
+	val, err := expr.Eval(conditions[index].OncePer, map[string]any{"rollout": objMap, "time": timeExprs})
+	if err != nil {
+		log.Errorf("Failed to execute oncePer expression, trigger: %s : %v", trigger, err)
+		return ""
+	}
+	return fmt.Sprintf("%v", val)
 }
 
 // This function is copied over from notification engine to make sure we honour emptyCondition
