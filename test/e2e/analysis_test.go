@@ -161,7 +161,6 @@ func (s *AnalysisSuite) TestCanaryFailInlineMultipleAnalysis() {
 		ExpectRolloutStatus("Degraded")
 }
 
-// TestBlueGreenAnalysis tests blue-green with pre/post analysis and then fast-tracked rollback
 func (s *AnalysisSuite) TestCanaryStepAnalysisRetry() {
 	s.testCanaryAnalysisRetry(false)
 }
@@ -287,6 +286,7 @@ spec:
 		})
 }
 
+// TestBlueGreenAnalysis tests blue-green with pre/post analysis and then fast-tracked rollback
 func (s *AnalysisSuite) TestBlueGreenAnalysis() {
 	original := `
 apiVersion: argoproj.io/v1alpha1
