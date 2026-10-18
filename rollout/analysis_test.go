@@ -4137,9 +4137,9 @@ func TestBlueGreenCombinedAnalysisRetry(t *testing.T) {
 func testBlueGreenCombinedAnalysisRetry(t *testing.T, requestRetry retryRolloutRequest, onlyCases ...string) {
 	t.Helper()
 	for _, tt := range []struct {
-		name                             string
-		phase                            v1alpha1.AnalysisPhase
-		scaling, manual, timed, postOnly bool
+		name                                       string
+		phase                                      v1alpha1.AnalysisPhase
+		scaling, manual, timed, postOnly, emptyPre bool
 	}{
 		{name: "Failed", phase: v1alpha1.AnalysisPhaseFailed},
 		{name: "Error", phase: v1alpha1.AnalysisPhaseError},
@@ -4147,6 +4147,7 @@ func testBlueGreenCombinedAnalysisRetry(t *testing.T, requestRetry retryRolloutR
 		{name: "ManualPromotion", phase: v1alpha1.AnalysisPhaseFailed, manual: true},
 		{name: "TimedPromotion", phase: v1alpha1.AnalysisPhaseFailed, timed: true},
 		{name: "PostOnlyKeepsApprovedPreview", phase: v1alpha1.AnalysisPhaseFailed, postOnly: true},
+		{name: "PostOnlyEmptyPreTemplatesKeepsApprovedPreview", phase: v1alpha1.AnalysisPhaseFailed, postOnly: true, emptyPre: true},
 	} {
 		if len(onlyCases) > 0 && !slices.Contains(onlyCases, tt.name) {
 			continue
@@ -4170,6 +4171,10 @@ func testBlueGreenCombinedAnalysisRetry(t *testing.T, requestRetry retryRolloutR
 			}
 			if tt.postOnly {
 				bg.PrePromotionAnalysis = nil
+				if tt.emptyPre {
+					// Field ownership can leave an empty block after templates are removed.
+					bg.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{AnalysisRunMetadata: &v1alpha1.AnalysisRunMetadata{}}
+				}
 				bg.AutoPromotionEnabled = ptr.To(false)
 			}
 			rs1 := newReplicaSetWithStatus(r1, 2, 2)
@@ -4388,7 +4393,54 @@ func TestAnalysisRetryPreservesNewerAttempt(t *testing.T) {
 			assert.Equal(t, fresh.Name, actual.Status.Canary.CurrentStepAnalysisRunStatus.Name)
 			assert.Equal(t, phase, actual.Status.Canary.CurrentStepAnalysisRunStatus.Status)
 			assert.Nil(t, actual.Status.AbortedAt)
+			freshAfter, err := f.client.ArgoprojV1alpha1().AnalysisRuns(r2.Namespace).Get(ctx, fresh.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.False(t, freshAfter.Spec.Terminate, "stale retry cleanup must not terminate the newer attempt")
 			assert.Equal(t, old.Name, r2.Status.Canary.CurrentStepAnalysisRunStatus.Name, "retry must not mutate the old snapshot")
 		})
 	}
+}
+
+func TestAnalysisRetryWaitsForCurrentRunLookup(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	ctx := context.Background()
+	at := analysisTemplate("retry-lookup")
+	analysis := v1alpha1.RolloutAnalysis{Templates: []v1alpha1.AnalysisTemplateRef{{TemplateName: at.Name}}}
+	r1 := newCanaryRollout("retry-lookup", 1, nil, []v1alpha1.CanaryStep{{Analysis: &analysis}}, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	r2 = updateCanaryRolloutStatus(r2, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], 2, 1, 2, false)
+	now := timeutil.MetaNow()
+	r2.Status.AbortedAt = &now
+	old := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
+	old.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{Name: old.Name, Status: old.Status.Phase}
+	f.objects = []runtime.Object{r2, at, old}
+	f.rolloutLister = []*v1alpha1.Rollout{r2}
+	f.analysisTemplateLister = []*v1alpha1.AnalysisTemplate{at}
+	f.analysisRunLister = nil // The current run has not reached the informer cache yet.
+	f.replicaSetLister = []*appsv1.ReplicaSet{rs1, rs2}
+	f.kubeobjects = []runtime.Object{rs1, rs2}
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	lookupUnavailable := true
+	f.client.PrependReactor("get", "analysisruns", func(core.Action) (bool, runtime.Object, error) {
+		if !lookupUnavailable {
+			return false, nil, nil
+		}
+		return true, nil, apierrors.NewInternalError(errors.New("analysis lookup temporarily unavailable"))
+	})
+	err := c.syncHandler(ctx, getKey(r2, t))
+	require.Error(t, err, "failed current-run lookup must not advance retry cleanup")
+	actual, err := f.client.ArgoprojV1alpha1().Rollouts(r2.Namespace).Get(ctx, r2.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, actual.Status.Canary.CurrentStepAnalysisRunStatus, "retry must keep the current run until it can be cancelled")
+	assert.Equal(t, old.Name, actual.Status.Canary.CurrentStepAnalysisRunStatus.Name)
+	require.NotNil(t, actual.Status.AbortedAt)
+	lookupUnavailable = false
+	require.NoError(t, c.syncHandler(ctx, getKey(r2, t)))
+	previous, err := f.client.ArgoprojV1alpha1().AnalysisRuns(r2.Namespace).Get(ctx, old.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.True(t, previous.Spec.Terminate, "retry must cancel the previous running attempt after lookup recovers")
 }

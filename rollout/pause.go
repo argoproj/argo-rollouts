@@ -159,7 +159,8 @@ func requiresManualAction(reason v1alpha1.PauseReason, ro *v1alpha1.Rollout) boo
 // completedPrePromotionAnalysis checks if the Pre Promotion Analysis has completed successfully
 func (c *rolloutContext) completedPrePromotionAnalysis() bool {
 	currentAr := c.currentArs.BlueGreenPrePromotion
-	noPrePromotionAnalysis := c.rollout.Spec.Strategy.BlueGreen == nil || c.rollout.Spec.Strategy.BlueGreen.PrePromotionAnalysis == nil
+	bg := c.rollout.Spec.Strategy.BlueGreen
+	noPrePromotionAnalysis := bg == nil || bg.PrePromotionAnalysis == nil || len(bg.PrePromotionAnalysis.Templates) == 0
 	return noPrePromotionAnalysis || currentAr != nil && currentAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
 }
 

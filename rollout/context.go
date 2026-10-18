@@ -107,7 +107,8 @@ func (c *rolloutContext) reconcile() error {
 // when pre-promotion analysis is configured, its Blue/Green preview checkpoint.
 // The reset must be persisted before status updates clear AbortedAt;
 // otherwise a later reconciliation can still treat an old run as current.
-// The resource-version check prevents stale cleanup from overwriting a newer attempt.
+// Persisting the full status with the observed resourceVersion lets Kubernetes reject
+// stale retry cleanup rather than overwrite a newer attempt.
 func (c *rolloutContext) resetAnalysisForRetry() (bool, error) {
 	if c.rollout.Status.Abort || c.rollout.Status.AbortedAt == nil {
 		return false, nil
@@ -116,14 +117,15 @@ func (c *rolloutContext) resetAnalysisForRetry() (bool, error) {
 	var previous []*v1alpha1.AnalysisRun
 	if bg := next.Spec.Strategy.BlueGreen; bg != nil {
 		status := &next.Status.BlueGreen
-		resetPreview := bg.PrePromotionAnalysis != nil && status.ScaleUpPreviewCheckPoint
+		hasPreAnalysis := bg.PrePromotionAnalysis != nil && len(bg.PrePromotionAnalysis.Templates) > 0
+		resetPreview := hasPreAnalysis && status.ScaleUpPreviewCheckPoint
 		if status.PrePromotionAnalysisRunStatus == nil && status.PostPromotionAnalysisRunStatus == nil && !resetPreview {
 			return false, nil
 		}
 		previous = []*v1alpha1.AnalysisRun{c.currentArs.BlueGreenPrePromotion, c.currentArs.BlueGreenPostPromotion}
 		status.PrePromotionAnalysisRunStatus = nil
 		status.PostPromotionAnalysisRunStatus = nil
-		if bg.PrePromotionAnalysis != nil {
+		if hasPreAnalysis {
 			status.ScaleUpPreviewCheckPoint = false
 		}
 	} else if next.Spec.Strategy.Canary != nil {
