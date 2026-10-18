@@ -169,13 +169,12 @@ func (s *AnalysisSuite) TestCanaryBackgroundAnalysisRetry() {
 	s.testCanaryAnalysisRetry(true)
 }
 
-func (s *AnalysisSuite) testCanaryAnalysisRetry(background bool) {
-	template := func(exitCode string) string {
-		return fmt.Sprintf(`
+func analysisRetryJobTemplate(name, exitCode string) string {
+	return fmt.Sprintf(`
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
-  name: canary-retry-job
+  name: %s
 spec:
   args:
   - name: exit-code
@@ -194,8 +193,10 @@ spec:
               - name: job
                 image: nginx:1.19-alpine
                 command: [sh, -c, "exit {{args.exit-code}}"]
-`, exitCode)
-	}
+`, name, exitCode)
+}
+
+func (s *AnalysisSuite) testCanaryAnalysisRetry(background bool) {
 	strategy := `
       steps:
       - setWeight: 50
@@ -214,7 +215,7 @@ spec:
       - setWeight: 100`
 	}
 	when := s.Given().
-		RolloutObjects(template("1")).
+		RolloutObjects(analysisRetryJobTemplate("canary-retry-job", "1")).
 		RolloutObjects(fmt.Sprintf(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -256,7 +257,7 @@ spec:
 		ExpectStableRevision("1").
 		ExpectAnalysisRunCount(1).
 		When().
-		ApplyManifests(template("0")).
+		ApplyManifests(analysisRetryJobTemplate("canary-retry-job", "0")).
 		ScaleRollout(3).
 		RetryRollout()
 	if background {
@@ -480,37 +481,11 @@ spec:
 
 func (s *AnalysisSuite) TestBlueGreenPostPromotionRetry() {
 	// Changing the template's default fixes the analysis without changing the desired revision.
-	template := func(exitCode string) string {
-		return fmt.Sprintf(`
-apiVersion: argoproj.io/v1alpha1
-kind: AnalysisTemplate
-metadata:
-  name: post-retry-job
-spec:
-  args:
-  - name: exit-code
-    value: "%s"
-  metrics:
-  - name: job
-    count: 1
-    provider:
-      job:
-        spec:
-          backoffLimit: 0
-          template:
-            spec:
-              restartPolicy: Never
-              containers:
-              - name: job
-                image: nginx:1.19-alpine
-                command: [sh, -c, "exit {{args.exit-code}}"]
-`, exitCode)
-	}
 	var previousPre, previousPost string
 	s.Given().
 		RolloutObjects(newService("post-retry-active", "post-retry")).
 		RolloutObjects(newService("post-retry-preview", "post-retry")).
-		RolloutObjects(template("1")).
+		RolloutObjects(analysisRetryJobTemplate("post-retry-job", "1")).
 		RolloutObjects(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -576,7 +551,7 @@ spec:
 		}).
 		ExpectStableRevision("1").
 		When().
-		ApplyManifests(template("0")).
+		ApplyManifests(analysisRetryJobTemplate("post-retry-job", "0")).
 		RetryRollout().
 		WaitForRolloutCondition(func(ro *v1alpha1.Rollout) bool {
 			pre := ro.Status.BlueGreen.PrePromotionAnalysisRunStatus
