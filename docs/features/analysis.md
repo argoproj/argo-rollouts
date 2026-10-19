@@ -1267,7 +1267,7 @@ starting the controller with:
 
 ```
 --analysis-shared-secret-namespace <namespace>   # empty (default) = feature disabled
---analysis-shared-secret-strict                   # default: true
+--analysis-shared-secret-mode <mode>             # LabelFilter (default) or AllSecrets
 ```
 
 An argument then opts in to the shared namespace with `secretKeyRef.sharedSecret: true`:
@@ -1289,8 +1289,8 @@ When `sharedSecret` is `false` or unset, the existing behavior is preserved and 
 from the AnalysisRun's own namespace. As before, this applies only to AnalysisRuns — AnalysisTemplates
 do not resolve secrets.
 
-**Strict mode (on by default).** When `--analysis-shared-secret-strict` is `true`, a secret in the
-shared namespace is only readable if it carries the label:
+**`LabelFilter` mode (the default).** When `--analysis-shared-secret-mode` is `LabelFilter`, a secret
+in the shared namespace is only readable if it carries the label:
 
 ```yaml
 apiVersion: v1
@@ -1307,27 +1307,31 @@ data:
 This ensures AnalysisRuns can only read secrets that were explicitly created for this purpose, rather
 than every secret that happens to live in the shared namespace. This mirrors how Argo CD restricts
 [`tokenRef`](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Appset-Any-Namespace/#tokenref-restrictions)
-references with a required label, except strict mode is **on by default** here.
+references with a required label, except the label requirement is **the default** here.
+
+Setting `--analysis-shared-secret-mode` to `AllSecrets` removes the label requirement and lets
+AnalysisRuns read any secret in the configured namespace.
 
 The resulting behavior is:
 
-| Admin flag | Strict mode | Which secrets an AnalysisRun can read from the shared namespace | Risk |
+| `--analysis-shared-secret-namespace` | `--analysis-shared-secret-mode` | Which secrets an AnalysisRun can read from the shared namespace | Risk |
 | --- | --- | --- | --- |
 | unset (default) | — | None — shared secrets are disabled | None |
-| set | on (default) | Only secrets carrying the `argo-rollouts.argoproj.io/shared-secret: "true"` label | Low |
-| set | explicitly off | Any secret in the configured namespace | Highest |
+| set | `LabelFilter` (default) | Only secrets carrying the `argo-rollouts.argoproj.io/shared-secret: "true"` label | Low |
+| set | `AllSecrets` | Any secret in the configured namespace | Highest |
 
 !!! danger "Multi-tenant clusters: shared secrets are readable in plaintext by anyone who can create an AnalysisRun"
 
     Any user who can create an AnalysisRun (directly, or via a Rollout/Experiment that references an
     AnalysisTemplate) can exfiltrate the **plaintext** of every shared secret they are allowed to
     reference — for example by sending it to an attacker-controlled endpoint through a Web metric URL
-    or header, or a Job metric command. Labeling and strict mode limit *which* secrets are reachable;
-    they do **not** keep the value confidential once referenced.
+    or header, or a Job metric command. The label requirement limits *which* secrets are reachable;
+    it does **not** keep the value confidential once referenced.
 
     For a tenant to read unrelated secrets, an administrator must explicitly (1) enable
-    `--analysis-shared-secret-namespace`, (2) disable strict mode **or** label a sensitive secret, and
-    (3) point the flag at a namespace that holds sensitive secrets. Never point this flag at a
+    `--analysis-shared-secret-namespace`, (2) set `--analysis-shared-secret-mode` to `AllSecrets`
+    **or** label a sensitive secret, and (3) point the flag at a namespace that holds sensitive
+    secrets. Never point this flag at a
     namespace containing secrets unrelated to analysis (such as the controller's own namespace, which
     holds the notification secret), and prefer a dedicated namespace that contains only labeled,
     analysis-specific secrets.

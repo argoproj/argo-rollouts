@@ -283,7 +283,7 @@ func TestNewManager(t *testing.T) {
 				rolloutController.DefaultEphemeralMetadataPodRetries,
 				selfService,
 				"",
-				true,
+				analysis.SharedSecretModeLabelFilter,
 			)
 
 			assert.NotNil(t, cm)
@@ -337,7 +337,7 @@ func TestNewAnalysisManager(t *testing.T) {
 		nil,
 		nil,
 		"",
-		true,
+		analysis.SharedSecretModeLabelFilter,
 	)
 
 	assert.NotNil(t, cm)

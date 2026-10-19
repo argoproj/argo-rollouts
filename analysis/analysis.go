@@ -35,6 +35,29 @@ const (
 	sharedSecretLabel = "argo-rollouts.argoproj.io/shared-secret"
 )
 
+type SharedSecretMode string
+
+const (
+	// SharedSecretModeLabelFilter (the default) only allows reading secrets that carry the
+	// argo-rollouts.argoproj.io/shared-secret: "true" label.
+	SharedSecretModeLabelFilter SharedSecretMode = "LabelFilter"
+	// SharedSecretModeAllSecrets allows reading any secret in the configured shared-secret namespace.
+	SharedSecretModeAllSecrets SharedSecretMode = "AllSecrets"
+)
+
+// DefaultSharedSecretMode is the mode used when the flag is not set.
+const DefaultSharedSecretMode = SharedSecretModeLabelFilter
+
+// ValidSharedSecretMode reports whether mode is a recognized shared-secret mode.
+func ValidSharedSecretMode(mode SharedSecretMode) bool {
+	switch mode {
+	case SharedSecretModeLabelFilter, SharedSecretModeAllSecrets:
+		return true
+	default:
+		return false
+	}
+}
+
 // metricTask holds the metric which need to be measured during this reconciliation along with
 // an in-progress measurement
 type metricTask struct {
@@ -289,7 +312,7 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 				return nil, nil, err
 			}
 
-			if ref.SharedSecret && c.sharedSecretStrict {
+			if ref.SharedSecret && c.sharedSecretMode == SharedSecretModeLabelFilter {
 				if secret.Labels[sharedSecretLabel] != "true" {
 					return nil, nil, fmt.Errorf(
 						"failed to resolve analysis argument %q: secret %q in shared secret namespace %q is not labeled for use by AnalysisRuns", arg.Name, ref.Name, secretNamespace)

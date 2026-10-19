@@ -97,12 +97,12 @@ func getKey(analysisRun *v1alpha1.AnalysisRun, t *testing.T) string {
 type resyncFunc func() time.Duration
 
 func (f *fixture) newController(resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
-	return f.newControllerWithSharedSecret(resync, "", false)
+	return f.newControllerWithSharedSecret(resync, "", DefaultSharedSecretMode)
 }
 
 // newControllerWithSharedSecret builds a controller through ControllerConfig with the shared-secret
 // admin settings populated.
-func (f *fixture) newControllerWithSharedSecret(resync resyncFunc, sharedSecretNamespace string, sharedSecretStrict bool) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
+func (f *fixture) newControllerWithSharedSecret(resync resyncFunc, sharedSecretNamespace string, sharedSecretMode SharedSecretMode) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset()
 
@@ -127,7 +127,7 @@ func (f *fixture) newControllerWithSharedSecret(resync resyncFunc, sharedSecretN
 		MetricsServer:                 metricsServer,
 		Recorder:                      record.NewFakeEventRecorder(),
 		AnalysisSharedSecretNamespace: sharedSecretNamespace,
-		SharedSecretStrict:            sharedSecretStrict,
+		SharedSecretMode:              sharedSecretMode,
 	})
 
 	c.enqueueAnalysis = func(obj any) {

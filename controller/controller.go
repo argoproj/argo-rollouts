@@ -206,7 +206,7 @@ func NewAnalysisManager(
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	jobInformerFactory kubeinformers.SharedInformerFactory,
 	analysisSharedSecretNamespace string,
-	analysisSharedSecretStrict bool,
+	analysisSharedSecretMode analysis.SharedSecretMode,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -236,7 +236,7 @@ func NewAnalysisManager(
 		MetricsServer:                 metricsServer,
 		Recorder:                      recorder,
 		AnalysisSharedSecretNamespace: analysisSharedSecretNamespace,
-		SharedSecretStrict:            analysisSharedSecretStrict,
+		SharedSecretMode:              analysisSharedSecretMode,
 	})
 
 	cm := &Manager{
@@ -314,7 +314,7 @@ func NewManager(
 	ephemeralMetadataPodRetries int,
 	selfServiceNotificationEnabled bool,
 	analysisSharedSecretNamespace string,
-	analysisSharedSecretStrict bool,
+	analysisSharedSecretMode analysis.SharedSecretMode,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -405,7 +405,7 @@ func NewManager(
 		MetricsServer:                 metricsServer,
 		Recorder:                      recorder,
 		AnalysisSharedSecretNamespace: analysisSharedSecretNamespace,
-		SharedSecretStrict:            analysisSharedSecretStrict,
+		SharedSecretMode:              analysisSharedSecretMode,
 	})
 
 	serviceController := service.NewController(service.ControllerConfig{
