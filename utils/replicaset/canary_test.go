@@ -1470,6 +1470,8 @@ func TestSyncEphemeralPodMetadata(t *testing.T) {
 	})
 }
 
+// TestRemoveStaleEphemeralPodMetadata verifies that RemoveStaleEphemeralPodMetadata only removes stale
+// keys that still have the injected value and are neither desired nor set by the pod template.
 func TestRemoveStaleEphemeralPodMetadata(t *testing.T) {
 	// A pod of a promoted ReplicaSet which missed the promotion-time sync: the role was later
 	// reset to stable, but the canary-only annotation is still there.

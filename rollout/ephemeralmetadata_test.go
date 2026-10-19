@@ -612,6 +612,8 @@ func TestReconcileEphemeralMetadataSkipsWhenNotConfigured(t *testing.T) {
 	assert.Equal(t, 0, podListCalls)
 }
 
+// TestSyncEphemeralMetadataSkipsPodListOnZeroReplicaRS verifies that syncEphemeralMetadata does not
+// list pods of a ReplicaSet scaled to zero.
 func TestSyncEphemeralMetadataSkipsPodListOnZeroReplicaRS(t *testing.T) {
 	testPodHash := "abc123"
 	zero := int32(0)

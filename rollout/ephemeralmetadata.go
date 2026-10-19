@@ -156,7 +156,8 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	return eg.Wait()
 }
 
-// updatePodMetadataWithRetry attempts to update a pod's ephemeral metadata with exponential backoff retry
+// updatePodMetadataWithRetry attempts to update a pod's ephemeral metadata with exponential backoff retry.
+// It also removes staleMetadata the pod still carries (see RemoveStaleEphemeralPodMetadata).
 func (c *rolloutContext) updatePodMetadataWithRetry(ctx context.Context, pod *corev1.Pod, existingPodMetadata, podMetadata, staleMetadata *v1alpha1.PodTemplateMetadata, podTemplateMetadata *metav1.ObjectMeta) error {
 	fetchedPod := pod.DeepCopy()
 	var lastUpdateErr error
