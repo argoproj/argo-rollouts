@@ -2625,7 +2625,7 @@ func TestResolveArgsUsesSharedSecretNamespaceWhenEnabled(t *testing.T) {
 		},
 	}
 
-	c, _, _ := f.newControllerWithSharedSecret(noResyncPeriodFunc, sharedNamespace, true)
+	c, _, _ := f.newControllerWithSharedSecret(noResyncPeriodFunc, sharedNamespace, SharedSecretModeLabelFilter)
 
 	_, err := f.kubeclient.CoreV1().Secrets(sharedNamespace).
 		Create(context.TODO(), sharedSecret, metav1.CreateOptions{})
@@ -2660,10 +2660,10 @@ func TestResolveArgsUsesSharedSecretNamespaceWhenEnabled(t *testing.T) {
 	assert.Equal(t, "shared-token", *args[0].Value)
 }
 
-// TestResolveArgsReturnsErrorWhenStrictAndSecretUnlabeled verifies that with strict mode on
+// TestResolveArgsReturnsErrorWhenLabelFilterAndSecretUnlabeled verifies that in LabelFilter mode
 // (the default), a shared secret that exists in the configured namespace but is missing the
 // required label is rejected rather than resolved.
-func TestResolveArgsReturnsErrorWhenStrictAndSecretUnlabeled(t *testing.T) {
+func TestResolveArgsReturnsErrorWhenLabelFilterAndSecretUnlabeled(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -2679,7 +2679,7 @@ func TestResolveArgsReturnsErrorWhenStrictAndSecretUnlabeled(t *testing.T) {
 		},
 	}
 
-	c, _, _ := f.newControllerWithSharedSecret(noResyncPeriodFunc, sharedNamespace, true)
+	c, _, _ := f.newControllerWithSharedSecret(noResyncPeriodFunc, sharedNamespace, SharedSecretModeLabelFilter)
 
 	_, err := f.kubeclient.CoreV1().Secrets(sharedNamespace).
 		Create(context.TODO(), unlabeledSecret, metav1.CreateOptions{})
@@ -2710,6 +2710,59 @@ func TestResolveArgsReturnsErrorWhenStrictAndSecretUnlabeled(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "not labeled")
 	assert.ErrorContains(t, err, "token-secret")
+}
+
+// TestResolveArgsDefaultsEmptyModeToLabelFilter verifies that a controller built with an unset
+// shared-secret mode still enforces the label requirement (fail-closed), rather than skipping the
+// check and reading an unlabeled secret.
+func TestResolveArgsDefaultsEmptyModeToLabelFilter(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	sharedNamespace := "shared-secrets"
+
+	unlabeledSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "token-secret",
+			Namespace: sharedNamespace,
+		},
+		Data: map[string][]byte{
+			"apiToken": []byte("shared-token"),
+		},
+	}
+
+	// Pass an empty mode; NewController should normalize it to the secure default.
+	c, _, _ := f.newControllerWithSharedSecret(noResyncPeriodFunc, sharedNamespace, "")
+	require.Equal(t, SharedSecretModeLabelFilter, c.sharedSecretMode)
+
+	_, err := f.kubeclient.CoreV1().Secrets(sharedNamespace).
+		Create(context.TODO(), unlabeledSecret, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	args := []v1alpha1.Argument{
+		{
+			Name: "api-token",
+			ValueFrom: &v1alpha1.ValueFrom{
+				SecretKeyRef: &v1alpha1.SecretKeyRef{
+					Name:         "token-secret",
+					Key:          "apiToken",
+					SharedSecret: true,
+				},
+			},
+		},
+	}
+
+	tasks := []metricTask{
+		{
+			metric: v1alpha1.Metric{
+				Name: "webmetric",
+			},
+		},
+	}
+
+	_, _, err = c.resolveArgs(tasks, args, metav1.NamespaceDefault)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "not labeled")
 }
 
 // TestResolveArgsRejectsSharedSecretWhenNamespaceUnset verifies that a sharedSecret reference is

@@ -76,7 +76,7 @@ type Controller struct {
 	resyncPeriod time.Duration
 
 	analysisSharedSecretNamespace string
-	sharedSecretStrict            bool
+	sharedSecretMode              SharedSecretMode
 }
 
 // ControllerConfig describes the data required to instantiate a new analysis controller
@@ -91,11 +91,21 @@ type ControllerConfig struct {
 	MetricsServer                 *metrics.MetricsServer
 	Recorder                      record.EventRecorder
 	AnalysisSharedSecretNamespace string
-	SharedSecretStrict            bool
+	SharedSecretMode              SharedSecretMode
 }
 
 // NewController returns a new analysis controller
 func NewController(cfg ControllerConfig) *Controller {
+	// Normalize the shared-secret mode so an unset or unrecognized value falls back to the secure
+	// default (LabelFilter) rather than fail-open.
+	sharedSecretMode := cfg.SharedSecretMode
+	if sharedSecretMode == "" {
+		sharedSecretMode = DefaultSharedSecretMode
+	} else if !ValidSharedSecretMode(sharedSecretMode) {
+		log.Warnf("Unrecognized shared-secret mode %q, falling back to %q", sharedSecretMode, DefaultSharedSecretMode)
+		sharedSecretMode = DefaultSharedSecretMode
+	}
+
 	controller := &Controller{
 		kubeclientset:                 cfg.KubeClientSet,
 		argoProjClientset:             cfg.ArgoProjClientset,
@@ -108,7 +118,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		recorder:                      cfg.Recorder,
 		resyncPeriod:                  cfg.ResyncPeriod,
 		analysisSharedSecretNamespace: cfg.AnalysisSharedSecretNamespace,
-		sharedSecretStrict:            cfg.SharedSecretStrict,
+		sharedSecretMode:              sharedSecretMode,
 	}
 
 	controller.enqueueAnalysis = func(obj any) {
