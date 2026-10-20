@@ -31,6 +31,12 @@ message UndoRolloutRequest {
     string namespace = 3;
 }
 
+message PauseRolloutRequest {
+    string name = 1;
+    string namespace = 2;
+    bool paused = 3;
+}
+
 message RestartRolloutRequest {
     string name = 1;
     string namespace = 2;
@@ -228,6 +234,13 @@ service RolloutService {
     rpc AbortRollout(AbortRolloutRequest) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout) {
         option (google.api.http) = {
             put: "/api/v1/rollouts/{namespace}/{name}/abort"
+            body: "*"
+        };
+    }
+
+    rpc PauseRollout(PauseRolloutRequest) returns (github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout) {
+        option (google.api.http) = {
+            put: "/api/v1/rollouts/{namespace}/{name}/pause"
             body: "*"
         };
     }
