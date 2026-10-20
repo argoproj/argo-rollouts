@@ -232,6 +232,63 @@ func TestResolve_DeploymentRef(t *testing.T) {
 	assert.Equal(t, deployment.Spec.Selector, rollout.Spec.Selector)
 }
 
+func TestResolve_WorkloadRefInformerStripsManagedFields(t *testing.T) {
+	rollout := v1alpha1.Rollout{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			WorkloadRef: &v1alpha1.ObjectRef{
+				Name:       "my-deployment",
+				Kind:       "Deployment",
+				APIVersion: "apps/v1",
+			},
+		},
+	}
+
+	deployment := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-deployment",
+			Namespace: "default",
+			ManagedFields: []metav1.ManagedFieldsEntry{{
+				Manager:    "kubectl",
+				Operation:  metav1.ManagedFieldsOperationApply,
+				APIVersion: "apps/v1",
+				FieldsType: "FieldsV1",
+				FieldsV1:   &metav1.FieldsV1{Raw: []byte(`{"f:spec":{"f:template":{}}}`)},
+			}},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "my-app"}},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"test-label": "test-label-val"}},
+			},
+		},
+	}
+
+	discoveryClient := newFakeDiscoClient()
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme.Scheme, deployment)
+
+	resolver, cancel := newResolver(dynamicClient, discoveryClient, fake.NewSimpleClientset())
+	defer cancel()
+
+	require.NoError(t, resolver.Resolve(&rollout))
+	assert.Equal(t, deployment.Spec.Template, rollout.Spec.Template)
+
+	informer, err := resolver.getInformer(appsv1.SchemeGroupVersion.WithKind("Deployment"))
+	require.NoError(t, err)
+	obj, err := informer.Lister().ByNamespace("default").Get("my-deployment")
+	require.NoError(t, err)
+	un, ok := obj.(*unstructured.Unstructured)
+	require.True(t, ok)
+	assert.Nil(t, un.GetManagedFields())
+	assert.Equal(t, "my-deployment", un.GetName())
+}
+
 func TestResolve_ReplicaSetRef(t *testing.T) {
 	rollout := v1alpha1.Rollout{
 		ObjectMeta: v1.ObjectMeta{

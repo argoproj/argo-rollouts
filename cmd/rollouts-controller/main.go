@@ -35,6 +35,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	informerutil "github.com/argoproj/argo-rollouts/utils/informer"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -156,7 +157,8 @@ func newCommand() *cobra.Command {
 			kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
 				resyncDuration,
-				kubeinformers.WithNamespace(namespace))
+				kubeinformers.WithNamespace(namespace),
+				kubeinformers.WithTransform(informerutil.StripManagedFields))
 			// replicaSetInformerFactory uses a label selector to limit the ReplicaSets cached to only
 			// those managed by Rollouts. This reduces memory usage significantly on clusters with large
 			// numbers of ReplicaSets from Deployments or other controllers.
@@ -166,7 +168,8 @@ func newCommand() *cobra.Command {
 				kubeinformers.WithNamespace(namespace),
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 					options.LabelSelector = v1alpha1.DefaultRolloutUniqueLabelKey
-				}))
+				}),
+				kubeinformers.WithTransform(informerutil.StripManagedFields))
 			instanceIDSelector := controllerutil.InstanceIDRequirement(instanceID)
 			instanceIDTweakListFunc := func(options *metav1.ListOptions) {
 				options.LabelSelector = instanceIDSelector.String()
@@ -184,7 +187,8 @@ func newCommand() *cobra.Command {
 				kubeinformers.WithNamespace(jobNs),
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
-				}))
+				}),
+				kubeinformers.WithTransform(informerutil.StripManagedFields))
 			// We need three dynamic informer factories:
 			// 1. The first is the dynamic informer for rollouts, analysisruns, analysistemplates, experiments
 			dynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, namespace, instanceIDTweakListFunc)
@@ -263,6 +267,10 @@ func newCommand() *cobra.Command {
 					kubeInformerFactory,
 					jobInformerFactory)
 			} else {
+				istioVirtualServiceInformer := istioDynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
+				errors.CheckError(informerutil.SetStripManagedFieldsTransform(istioVirtualServiceInformer))
+				istioDestinationRuleInformer := istioDynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
+				errors.CheckError(informerutil.SetStripManagedFieldsTransform(istioDestinationRuleInformer))
 				cm = controller.NewManager(
 					namespace,
 					kubeClient,
@@ -281,8 +289,8 @@ func newCommand() *cobra.Command {
 					tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
 					tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
 					istioPrimaryDynamicClient,
-					istioDynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer(),
-					istioDynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer(),
+					istioVirtualServiceInformer,
+					istioDestinationRuleInformer,
 					notificationConfigMapInformerFactory,
 					notificationSecretInformerFactory,
 					resyncDuration,
