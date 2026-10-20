@@ -30,6 +30,7 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
 // getAllReplicaSetsAndSyncRevision returns all the replica sets for the provided rollout (new and all old), with new RS's and rollout's revision updated.
@@ -1244,6 +1245,14 @@ func (c *rolloutContext) isRollbackWithinWindow() bool {
 	return false
 }
 
+// warnPromoteFullHeld emits an event when a requested full promotion is held.
+func (c *rolloutContext) warnPromoteFullHeld(reason string) {
+	if !c.rollout.Status.PromoteFull {
+		return
+	}
+	c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.PromoteFullHeldReason}, "Full promotion is held: %s", reason)
+}
+
 // shouldFullPromote returns a reason string explaining why a rollout should fully promote, marking
 // the desired ReplicaSet as stable. Returns empty string if the rollout is in middle of update
 func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) string {
@@ -1252,6 +1261,10 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		return "Initial deploy"
 	} else if c.rollout.Spec.Strategy.Canary != nil {
 		if c.pauseContext.IsAborted() {
+			return ""
+		}
+		if weightutil.VerificationPending(newStatus.Canary.Weights) {
+			c.warnPromoteFullHeld("desired traffic weights have not been verified by the traffic provider")
 			return ""
 		}
 		// Block promotion only when canary has fewer available than desired (e.g. still scaling up).
