@@ -1470,6 +1470,73 @@ func TestSyncEphemeralPodMetadata(t *testing.T) {
 	})
 }
 
+// TestRemoveStaleEphemeralPodMetadata verifies that RemoveStaleEphemeralPodMetadata only removes stale
+// keys that still have the injected value and are neither desired nor set by the pod template.
+func TestRemoveStaleEphemeralPodMetadata(t *testing.T) {
+	// A pod of a promoted ReplicaSet which missed the promotion-time sync: the role was later
+	// reset to stable, but the canary-only annotation is still there.
+	meta := metav1.ObjectMeta{
+		Labels: map[string]string{
+			"role": "stable",
+			"app":  "foo",
+		},
+		Annotations: map[string]string{
+			"role":                "stable",
+			"canary-only":         "true",
+			"set-by-someone-else": "other",
+		},
+	}
+	stale := v1alpha1.PodTemplateMetadata{
+		Labels: map[string]string{
+			"role":         "canary",
+			"canary-label": "x",
+		},
+		Annotations: map[string]string{
+			"role":                "canary",
+			"canary-only":         "true",
+			"set-by-someone-else": "true",
+		},
+	}
+	desired := v1alpha1.PodTemplateMetadata{
+		Labels:      map[string]string{"role": "stable"},
+		Annotations: map[string]string{"role": "stable"},
+	}
+
+	t.Run("removes stale keys that still have the injected value", func(t *testing.T) {
+		newMetadata, modified := RemoveStaleEphemeralPodMetadata(&meta, &stale, &desired, &metav1.ObjectMeta{})
+		assert.True(t, modified)
+		assert.Equal(t, map[string]string{"role": "stable", "app": "foo"}, newMetadata.Labels)
+		assert.Equal(t, map[string]string{"role": "stable", "set-by-someone-else": "other"}, newMetadata.Annotations)
+		// the input is not mutated
+		assert.Equal(t, "true", meta.Annotations["canary-only"])
+	})
+	t.Run("keeps keys the pod template sets", func(t *testing.T) {
+		template := metav1.ObjectMeta{Annotations: map[string]string{"canary-only": "true"}}
+		newMetadata, modified := RemoveStaleEphemeralPodMetadata(&meta, &stale, &desired, &template)
+		assert.False(t, modified)
+		assert.Equal(t, meta, *newMetadata)
+	})
+	t.Run("keeps keys that are still desired", func(t *testing.T) {
+		desiredWithKey := desired.DeepCopy()
+		desiredWithKey.Annotations["canary-only"] = "true"
+		newMetadata, modified := RemoveStaleEphemeralPodMetadata(&meta, &stale, desiredWithKey, &metav1.ObjectMeta{})
+		assert.False(t, modified)
+		assert.Equal(t, meta, *newMetadata)
+	})
+	t.Run("keeps keys whose value differs from the injected value", func(t *testing.T) {
+		staleOtherValue := stale.DeepCopy()
+		staleOtherValue.Annotations["canary-only"] = "false"
+		newMetadata, modified := RemoveStaleEphemeralPodMetadata(&meta, staleOtherValue, &desired, nil)
+		assert.False(t, modified)
+		assert.Equal(t, meta, *newMetadata)
+	})
+	t.Run("no-op without stale metadata", func(t *testing.T) {
+		newMetadata, modified := RemoveStaleEphemeralPodMetadata(&meta, nil, &desired, nil)
+		assert.False(t, modified)
+		assert.Equal(t, meta, *newMetadata)
+	})
+}
+
 func TestGetReplicasForScaleDown(t *testing.T) {
 	tests := []struct {
 		rs                 *appsv1.ReplicaSet

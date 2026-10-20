@@ -21,6 +21,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 // TestSyncCanaryEphemeralMetadataInitialRevision verifies when we create a revision 1 ReplicaSet
@@ -551,7 +552,7 @@ func TestSyncEphemeralMetadata(t *testing.T) {
 	}
 
 	// Call the function under test
-	err := ctx.syncEphemeralMetadata(context.Background(), rs, metadata)
+	err := ctx.syncEphemeralMetadata(context.Background(), rs, metadata, nil)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, updateAttempts)
@@ -611,6 +612,8 @@ func TestReconcileEphemeralMetadataSkipsWhenNotConfigured(t *testing.T) {
 	assert.Equal(t, 0, podListCalls)
 }
 
+// TestSyncEphemeralMetadataSkipsPodListOnZeroReplicaRS verifies that syncEphemeralMetadata does not
+// list pods of a ReplicaSet scaled to zero.
 func TestSyncEphemeralMetadataSkipsPodListOnZeroReplicaRS(t *testing.T) {
 	testPodHash := "abc123"
 	zero := int32(0)
@@ -651,7 +654,123 @@ func TestSyncEphemeralMetadataSkipsPodListOnZeroReplicaRS(t *testing.T) {
 		log: logrus.WithField("test", "zero-replica"),
 	}
 
-	err := ctx.syncEphemeralMetadata(context.Background(), rs, nil)
+	err := ctx.syncEphemeralMetadata(context.Background(), rs, nil, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, podListCalls)
+}
+
+// TestReconcileEphemeralMetadataRemovesStaleCanaryMetadataAfterPromotion verifies that a pod of a
+// promoted ReplicaSet which missed the promotion-time sync (e.g. it was created from the canary pod
+// template while the ReplicaSet was being switched to stable) loses its canary-only metadata, even
+// though the ReplicaSet's ephemeral-metadata annotation already records the stable metadata.
+func TestReconcileEphemeralMetadataRemovesStaleCanaryMetadataAfterPromotion(t *testing.T) {
+	canaryMetadata := &v1alpha1.PodTemplateMetadata{
+		Labels:      map[string]string{"role": "canary"},
+		Annotations: map[string]string{"role": "canary", "canary-only": "true"},
+	}
+	stableMetadata := &v1alpha1.PodTemplateMetadata{
+		Labels:      map[string]string{"role": "stable"},
+		Annotations: map[string]string{"role": "stable"},
+	}
+
+	tests := []struct {
+		name     string
+		strategy v1alpha1.RolloutStrategy
+	}{
+		{
+			name: "canary",
+			strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{
+				CanaryMetadata: canaryMetadata,
+				StableMetadata: stableMetadata,
+			}},
+		},
+		{
+			name: "blueGreen",
+			strategy: v1alpha1.RolloutStrategy{BlueGreen: &v1alpha1.BlueGreenStrategy{
+				PreviewMetadata: canaryMetadata,
+				ActiveMetadata:  stableMetadata,
+			}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testPodHash := "abc123"
+			testUID := types.UID("test-uid")
+			stableMetadataJSON := `{"labels":{"role":"stable"},"annotations":{"role":"stable"}}`
+
+			rs := &v1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "promoted-rs",
+					Namespace:   "default",
+					UID:         testUID,
+					Labels:      map[string]string{"rollouts-pod-template-hash": testPodHash},
+					Annotations: map[string]string{replicasetutil.EphemeralMetadataAnnotation: stableMetadataJSON},
+				},
+				Spec: v1.ReplicaSetSpec{
+					Replicas: ptr.To[int32](2),
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"rollouts-pod-template-hash": testPodHash},
+					},
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels:      map[string]string{"role": "stable", "rollouts-pod-template-hash": testPodHash},
+							Annotations: map[string]string{"role": "stable"},
+						},
+					},
+				},
+			}
+			newPod := func(name string, labels, annotations map[string]string) *corev1.Pod {
+				labels["rollouts-pod-template-hash"] = testPodHash
+				return &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        name,
+						Namespace:   "default",
+						Labels:      labels,
+						Annotations: annotations,
+						OwnerReferences: []metav1.OwnerReference{{
+							APIVersion: "apps/v1",
+							Kind:       "ReplicaSet",
+							Name:       rs.Name,
+							UID:        testUID,
+							Controller: ptr.To[bool](true),
+						}},
+					},
+				}
+			}
+			// created from the canary template and missed the promotion-time sync
+			stalePod := newPod("stale-pod",
+				map[string]string{"role": "canary"},
+				map[string]string{"role": "canary", "canary-only": "true"})
+			cleanPod := newPod("clean-pod",
+				map[string]string{"role": "stable"},
+				map[string]string{"role": "stable"})
+
+			kubeclient := k8sfake.NewSimpleClientset(rs, stalePod, cleanPod)
+			ctx := &rolloutContext{
+				reconcilerBase: reconcilerBase{
+					kubeclientset:               kubeclient,
+					ephemeralMetadataThreads:    DefaultEphemeralMetadataThreads,
+					ephemeralMetadataPodRetries: DefaultEphemeralMetadataPodRetries,
+				},
+				log: logrus.WithField("test", "stale-canary-metadata"),
+				rollout: &v1alpha1.Rollout{
+					Spec:   v1alpha1.RolloutSpec{Strategy: test.strategy},
+					Status: v1alpha1.RolloutStatus{StableRS: testPodHash},
+				},
+				newRS:    rs,
+				stableRS: rs,
+			}
+
+			err := ctx.reconcileEphemeralMetadata()
+			assert.NoError(t, err)
+
+			for _, name := range []string{"stale-pod", "clean-pod"} {
+				pod, err := kubeclient.CoreV1().Pods("default").Get(context.Background(), name, metav1.GetOptions{})
+				assert.NoError(t, err)
+				assert.Equal(t, map[string]string{"role": "stable", "rollouts-pod-template-hash": testPodHash}, pod.Labels, name)
+				assert.Equal(t, map[string]string{"role": "stable"}, pod.Annotations, name)
+			}
+		})
+	}
 }
