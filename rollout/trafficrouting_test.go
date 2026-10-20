@@ -441,6 +441,76 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 	f.run(getKey(r2, t))
 }
 
+// When the canary step index is fast-forwarded to the final step (as a rollback within the
+// rollback window does) while the canary ReplicaSet is still scaling up, the desired weight
+// resolves to 100%. The weight must be capped to the share the canary's available replicas can
+// serve, otherwise all traffic is routed to a canary that has only a fraction of its pods.
+func TestRolloutCapWeightToAvailableCanaryReplicas(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](10)},
+		{SetWeight: ptr.To[int32](100)},
+	}
+	// Step index fast-forwarded to the final step (len(steps)).
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10) // stable, fully available
+	rs2 := newReplicaSetWithStatus(r2, 10, 2)  // canary, only 2 of 10 available
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 2, 10, false)
+	r2.Status.CurrentStepIndex = ptr.To[int32](int32(len(steps)))
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.expectPatchRolloutAction(r2)
+
+	setWeightCalled := false
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+		// 2 of 10 canary replicas available -> at most 20% may shift to the canary, not 100%.
+		setWeightCalled = true
+		assert.Equal(t, int32(20), desiredWeight)
+		return nil
+	})
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(ptr.To[bool](true), nil)
+	f.run(getKey(r2, t))
+	assert.True(t, setWeightCalled, "SetWeight was never invoked; cap assertion did not run")
+}
+
+func TestWeightFromAvailableReplicasZeroReplicas(t *testing.T) {
+	cases := map[string]*int32{
+		"nil":  nil,
+		"zero": ptr.To[int32](0),
+	}
+	for name, replicas := range cases {
+		t.Run(name, func(t *testing.T) {
+			ro := newCanaryRollout("foo", 1, nil, nil, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+			rs := newReplicaSetWithStatus(ro, 3, 3)
+			ro.Spec.Replicas = replicas
+			c := &rolloutContext{rollout: ro}
+			assert.Equal(t, int32(0), c.weightFromAvailableReplicas(rs))
+		})
+	}
+}
+
 func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
