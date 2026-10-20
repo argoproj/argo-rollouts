@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -161,6 +163,136 @@ func TestPreviewServiceNotFound(t *testing.T) {
 	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedPreviewSvc, errmsg)
 	assert.JSONEq(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
 
+}
+
+func TestReconcileActiveService(t *testing.T) {
+	cases := []struct {
+		name              string
+		availableReplicas int
+		aborted           bool
+		activeOnCandidate bool
+		scaledDown        bool
+		unsetStableHash   bool
+		missingStableRS   bool
+		paused            bool
+		inconclusive      bool
+		promoteFull       bool
+		wantCandidate     bool
+	}{
+		{name: "unready candidate before promotion", availableReplicas: 0},
+		{name: "partially ready candidate before promotion", availableReplicas: 1},
+		{name: "ready candidate promotes normally", availableReplicas: 2, wantCandidate: true},
+		{name: "full promotion still requires readiness", availableReplicas: 0, promoteFull: true},
+		{name: "aborted with candidate ready", availableReplicas: 2, aborted: true, activeOnCandidate: true},
+		{name: "aborted after one candidate becomes unready", availableReplicas: 1, aborted: true, activeOnCandidate: true},
+		{name: "aborted after all candidates become unready", availableReplicas: 0, aborted: true, activeOnCandidate: true},
+		{name: "aborted after candidate scales to zero", availableReplicas: 0, aborted: true, activeOnCandidate: true, scaledDown: true},
+		{name: "aborted before promotion stays on stable", availableReplicas: 0, aborted: true},
+		{name: "aborted ready candidate without stable hash", availableReplicas: 2, aborted: true, activeOnCandidate: true, unsetStableHash: true, wantCandidate: true},
+		{name: "aborted unready candidate without stable hash", availableReplicas: 0, aborted: true, activeOnCandidate: true, unsetStableHash: true, wantCandidate: true},
+		{name: "aborted ready candidate with missing stable ReplicaSet", availableReplicas: 2, aborted: true, activeOnCandidate: true, missingStableRS: true, wantCandidate: true},
+		{name: "aborted unready candidate with missing stable ReplicaSet", availableReplicas: 0, aborted: true, activeOnCandidate: true, missingStableRS: true, wantCandidate: true},
+		{name: "user pause still halts ready candidate abort", availableReplicas: 2, aborted: true, activeOnCandidate: true, paused: true, wantCandidate: true},
+		{name: "user pause still halts unready candidate abort", availableReplicas: 0, aborted: true, activeOnCandidate: true, paused: true, wantCandidate: true},
+		{name: "inconclusive analysis still halts ready candidate abort", availableReplicas: 2, aborted: true, activeOnCandidate: true, inconclusive: true, wantCandidate: true},
+		{name: "inconclusive analysis still halts unready candidate abort", availableReplicas: 0, aborted: true, activeOnCandidate: true, inconclusive: true, wantCandidate: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			previous := newBlueGreenRollout("abort-recovery", 2, nil, "active", "preview")
+			stable := newReplicaSetWithStatus(previous, 2, 2)
+			rollout := bumpVersion(previous)
+			candidateReplicas := 2
+			if tc.scaledDown {
+				candidateReplicas = 0
+			}
+			candidate := newReplicaSetWithStatus(rollout, candidateReplicas, tc.availableReplicas)
+			stableHash := stable.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			candidateHash := candidate.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			require.NotEmpty(t, stableHash)
+			require.NotEmpty(t, candidateHash)
+			require.NotEqual(t, stableHash, candidateHash)
+
+			if !tc.unsetStableHash {
+				rollout.Status.StableRS = stableHash
+			}
+			rollout.Status.CurrentPodHash = candidateHash
+			rollout.Status.Abort = tc.aborted
+			rollout.Status.PromoteFull = tc.promoteFull
+			rollout.Spec.Paused = tc.paused
+			if tc.inconclusive {
+				rollout.Status.PauseConditions = []v1alpha1.PauseCondition{{
+					Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
+					StartTime: metav1.Now(),
+				}}
+			}
+
+			servingHash := stableHash
+			if tc.activeOnCandidate {
+				servingHash = candidateHash
+			}
+			rollout.Status.BlueGreen.ActiveSelector = servingHash
+			active := newService("active", 80, map[string]string{
+				"foo":                                 "bar",
+				v1alpha1.DefaultRolloutUniqueLabelKey: servingHash,
+			}, rollout)
+			preview := newService("preview", 80, map[string]string{
+				"foo":                                 "bar",
+				v1alpha1.DefaultRolloutUniqueLabelKey: candidateHash,
+			}, rollout)
+
+			f.kubeobjects = append(f.kubeobjects, active, preview)
+			f.replicaSetLister = append(f.replicaSetLister, candidate)
+			if !tc.missingStableRS {
+				f.replicaSetLister = append(f.replicaSetLister, stable)
+			}
+			f.serviceLister = append(f.serviceLister, active, preview)
+
+			controller, _, _ := f.newController(noResyncPeriodFunc)
+			ctx, err := controller.newRolloutContext(rollout)
+			require.NoError(t, err)
+			require.NotNil(t, ctx.newRS)
+			require.Equal(t, candidateHash, ctx.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+			require.Equal(t, int32(tc.availableReplicas), ctx.newRS.Status.AvailableReplicas)
+			if tc.unsetStableHash || tc.missingStableRS {
+				require.Nil(t, ctx.stableRS)
+			} else {
+				require.NotNil(t, ctx.stableRS)
+				require.Equal(t, stableHash, ctx.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+			}
+
+			require.NoError(t, ctx.reconcileActiveService(active))
+			// Reconciliation should be idempotent after any required selector switch.
+			require.NoError(t, ctx.reconcileActiveService(active))
+			updated, err := f.kubeclient.CoreV1().Services(metav1.NamespaceDefault).Get(
+				context.Background(), "active", metav1.GetOptions{},
+			)
+			require.NoError(t, err)
+			wantHash := stableHash
+			if tc.wantCandidate {
+				wantHash = candidateHash
+			}
+			require.Equal(t, wantHash, updated.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+			require.Equal(t, "bar", updated.Spec.Selector["foo"])
+			require.Equal(t, rollout.Name, updated.Annotations[v1alpha1.ManagedByRolloutsKey])
+
+			patches := 0
+			for _, action := range f.kubeclient.Actions() {
+				if action.Matches("patch", "services") {
+					patches++
+				}
+			}
+			wantPatches := 0
+			if servingHash != wantHash {
+				wantPatches = 1
+			}
+			require.Equal(t, wantPatches, patches)
+		})
+	}
 }
 
 func newEndpoints(name string, ips ...string) *corev1.Endpoints {
