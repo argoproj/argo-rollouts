@@ -408,6 +408,15 @@ spec:
           name: metrics
         - containerPort: 8080
           name: healthz
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 10
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             ephemeral-storage: 1Gi
