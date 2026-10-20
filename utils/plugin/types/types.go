@@ -93,6 +93,12 @@ type RpcResourcePlugin interface {
 	Abort(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
 	// Restart returns the workload to baseline state for restart
 	Restart(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
+	// DeletionCleanup is called when the RolloutPlugin is deleted, and retried until it succeeds
+	// since the deletion waits for it. It must leave the workload's spec as it is and only drop the
+	// plugin's claim on it (e.g. its Server-Side Apply field ownership). It is called even if
+	// Validate never passed, so a workloadRef the plugin doesn't manage, or a missing workload,
+	// isn't an error and doesn't block deletion.
+	DeletionCleanup(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
 	// Type returns the type of the resource plugin
 	Type() string
 }

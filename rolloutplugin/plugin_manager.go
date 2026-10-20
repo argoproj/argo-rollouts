@@ -2,6 +2,7 @@ package rolloutplugin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"net/url"
@@ -13,7 +14,7 @@ import (
 )
 
 // BuiltinPluginScheme is the location scheme used in the argo-rollouts-config ConfigMap
-// (under rolloutPlugins) to mark a plugin as a built-in.
+// (under resourcePlugins) to mark a plugin as a built-in.
 const BuiltinPluginScheme = "builtin"
 
 // BuiltinPluginFactory constructs an in-process ResourcePlugin. Factories are defined
@@ -34,13 +35,17 @@ var (
 // variable so tests can substitute a fake without spawning a real plugin subprocess.
 var newRpcPlugin = NewRpcPlugin
 
+// ErrPluginNotEnabled is returned by GetPlugin for a plugin that is not enabled in the
+// resourcePlugins ConfigMap, unlike errors starting an enabled plugin, which may be transient.
+var ErrPluginNotEnabled = errors.New("not enabled in the resourcePlugins ConfigMap")
+
 // DefaultPluginManager implements PluginManager
 type DefaultPluginManager struct {
 	// plugins is a map of plugin name to plugin instance
 	plugins map[string]ResourcePlugin
 
 	// builtinEnabled records which built-in plugins (keyed by builtin://<id> host,
-	// e.g. "statefulset") were enabled via the rolloutPlugins ConfigMap and registered
+	// e.g. "statefulset") were enabled via the resourcePlugins ConfigMap and registered
 	// at startup.
 	builtinEnabled map[string]bool
 
@@ -101,7 +106,7 @@ func (pm *DefaultPluginManager) GetPlugin(name string) (ResourcePlugin, error) {
 	// Only plugins enabled at startup have a workload watch, so anything else (disabled or not
 	// configured) is rejected instead of being started.
 	if !enabled {
-		return nil, fmt.Errorf("plugin '%s' is not enabled in the rolloutPlugins ConfigMap", name)
+		return nil, fmt.Errorf("plugin '%s' is %w", name, ErrPluginNotEnabled)
 	}
 
 	rpcPlugin, err := newRpcPlugin(name, pm.namespace, started)
@@ -156,7 +161,7 @@ func (pm *DefaultPluginManager) Start(ctx context.Context) error {
 	return nil
 }
 
-// RegisterBuiltinPlugins registers every rolloutPlugins ConfigMap entry whose location uses
+// RegisterBuiltinPlugins registers every resourcePlugins ConfigMap entry whose location uses
 // the builtin:// scheme, using the supplied factories keyed by the built-in id (the URL host,
 // e.g. "statefulset" for "builtin://statefulset"). The plugin is registered under the entry's
 // ConfigMap name (e.g. "argoproj/statefulset"), which is what a RolloutPlugin references via
@@ -173,7 +178,7 @@ func (pm *DefaultPluginManager) RegisterBuiltinPlugins(items []types.PluginItem,
 		}
 		u, err := url.Parse(item.Location)
 		if err != nil {
-			return fmt.Errorf("rolloutPlugins entry %q has an invalid location %q: %w", item.Name, item.Location, err)
+			return fmt.Errorf("resourcePlugins entry %q has an invalid location %q: %w", item.Name, item.Location, err)
 		}
 		if u.Scheme != BuiltinPluginScheme {
 			pm.mu.Lock()
@@ -184,11 +189,11 @@ func (pm *DefaultPluginManager) RegisterBuiltinPlugins(items []types.PluginItem,
 		id := u.Host
 		factory, ok := factories[id]
 		if !ok {
-			return fmt.Errorf("rolloutPlugins entry %q references unknown built-in plugin %q", item.Name, id)
+			return fmt.Errorf("resourcePlugins entry %q references unknown built-in plugin %q", item.Name, id)
 		}
 		plugin, err := factory(log.WithField("plugin", item.Name), item.Args)
 		if err != nil {
-			return fmt.Errorf("rolloutPlugins entry %q: failed to create built-in plugin %q: %w", item.Name, id, err)
+			return fmt.Errorf("resourcePlugins entry %q: failed to create built-in plugin %q: %w", item.Name, id, err)
 		}
 		if err := pm.RegisterPlugin(item.Name, plugin); err != nil {
 			return err
@@ -200,7 +205,7 @@ func (pm *DefaultPluginManager) RegisterBuiltinPlugins(items []types.PluginItem,
 	return nil
 }
 
-// EnabledPlugins returns every plugin enabled in the rolloutPlugins ConfigMap, keyed by the
+// EnabledPlugins returns every plugin enabled in the resourcePlugins ConfigMap, keyed by the
 // name a RolloutPlugin references via spec.plugin.name. Builtins are already-registered
 // instances; external plugins are connected here (spawned + handshaked) if they haven't been
 // already, so the result is guaranteed to cover every configured, enabled plugin. Before Start,
@@ -227,7 +232,7 @@ func (pm *DefaultPluginManager) EnabledPlugins() (map[string]ResourcePlugin, err
 
 // IsBuiltinEnabled reports whether the built-in plugin with the given id
 // (the builtin://<id> host, e.g. "statefulset") was enabled via the
-// rolloutPlugins ConfigMap and registered at startup.
+// resourcePlugins ConfigMap and registered at startup.
 func (pm *DefaultPluginManager) IsBuiltinEnabled(id string) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()

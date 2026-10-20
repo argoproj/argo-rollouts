@@ -2,7 +2,9 @@ package rolloutplugin
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -67,7 +69,7 @@ type PluginManager interface {
 	// IsBuiltinEnabled reports whether the built-in plugin with the given id
 	// (the builtin://<id> host, e.g. "statefulset") was enabled in the ConfigMap.
 	IsBuiltinEnabled(id string) bool
-	// EnabledPlugins returns every plugin enabled in the rolloutPlugins ConfigMap (builtin or
+	// EnabledPlugins returns every plugin enabled in the resourcePlugins ConfigMap (builtin or
 	// external), keyed by the name a RolloutPlugin references via spec.plugin.name.
 	EnabledPlugins() (map[string]ResourcePlugin, error)
 }
@@ -114,7 +116,17 @@ type ResourcePlugin interface {
 
 	// Restart returns the workload to baseline state for restart
 	Restart(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error
+
+	// DeletionCleanup is called when the RolloutPlugin is deleted, and retried until it succeeds
+	// since the deletion waits for it. It must leave the workload's spec as it is and only drop the
+	// plugin's claim on it (e.g. its Server-Side Apply field ownership), so another owner such as
+	// Argo CD sees the values the plugin left as drift. It is called even if Validate never
+	// passed, so a workloadRef the plugin doesn't manage, or a missing workload, isn't an error and doesn't block deletion.
+	DeletionCleanup(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error
 }
+
+// DeletionCleanupFinalizer keeps a deleted RolloutPlugin until its plugin's DeletionCleanup succeeds.
+const DeletionCleanupFinalizer = "rolloutplugin.argoproj.io/deletion-cleanup"
 
 // abortRollback calls plugin.Abort (which may only complete one unit of work, e.g. one pod of a
 // multi-replica StatefulSet rollback) and reports whether the rollback has fully converged, along
@@ -136,9 +148,10 @@ func abortRollback(ctx context.Context, plugin ResourcePlugin, rolloutPlugin *v1
 func (r *RolloutPluginReconciler) reconcileAbort(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, reason, abortedMessage, inProgressMessage string, userRequested bool, logCtx *log.Entry) (done bool, result ctrl.Result, err error) {
 	// Every pod already runs the updated revision (e.g. after setWeight: 100 or with a single
 	// replica): there is no older revision left to roll back to.
-	// Ready guards against a workload status that hasn't observed the latest spec yet.
+	// Readiness is not required: a not-Ready pod on the updated revision (e.g. crash-looping)
+	// would otherwise make abortRollback wait forever for UpdatedReplicas to reach 0.
 	nothingToRollBack, nothingToRollBackRevision := "", ""
-	if resourceStatus, statusErr := plugin.GetResourceStatus(ctx, rolloutPlugin); statusErr == nil && resourceStatus != nil && resourceStatus.Ready &&
+	if resourceStatus, statusErr := plugin.GetResourceStatus(ctx, rolloutPlugin); statusErr == nil && resourceStatus != nil &&
 		resourceStatus.CurrentRevision != "" && resourceStatus.CurrentRevision == resourceStatus.UpdatedRevision {
 		nothingToRollBack = fmt.Sprintf("nothing to roll back: all pods already run revision %s", resourceStatus.CurrentRevision)
 		nothingToRollBackRevision = resourceStatus.UpdatedRevision
@@ -263,6 +276,9 @@ func (r *RolloutPluginReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := r.Get(ctx, req.NamespacedName, rolloutPlugin); err != nil {
 		if apierrors.IsNotFound(err) {
 			r.getVersionTracker().Forget(key)
+			if r.MetricsServer != nil {
+				r.MetricsServer.Remove(req.Namespace, req.Name, logutil.RolloutPluginKey)
+			}
 		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -284,7 +300,14 @@ func (r *RolloutPluginReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}()
 
 	if !rolloutPlugin.DeletionTimestamp.IsZero() {
-		return r.handleDeletion(rolloutPlugin, logCtx)
+		return r.handleDeletion(ctx, rolloutPlugin, logCtx)
+	}
+
+	if !slices.Contains(rolloutPlugin.Finalizers, DeletionCleanupFinalizer) {
+		if err := r.setFinalizers(ctx, rolloutPlugin, append(slices.Clone(rolloutPlugin.Finalizers), DeletionCleanupFinalizer)); err != nil {
+			logCtx.WithError(err).Error("Failed to add finalizer")
+			return ctrl.Result{}, err
+		}
 	}
 
 	result, err := r.reconcile(ctx, rolloutPlugin, logCtx)
@@ -297,23 +320,55 @@ func (r *RolloutPluginReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return result, err
 }
 
-// handleDeletion handles the deletion of a RolloutPlugin
-func (r *RolloutPluginReconciler) handleDeletion(rolloutPlugin *v1alpha1.RolloutPlugin, logCtx *log.Entry) (ctrl.Result, error) {
+// handleDeletion runs the plugin's DeletionCleanup, then removes the finalizer so the
+// RolloutPlugin is deleted. Its metrics are removed once it is gone.
+func (r *RolloutPluginReconciler) handleDeletion(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, logCtx *log.Entry) (ctrl.Result, error) {
+	if !slices.Contains(rolloutPlugin.Finalizers, DeletionCleanupFinalizer) {
+		return ctrl.Result{}, nil
+	}
 	logCtx.Info("Handling deletion of RolloutPlugin")
 
-	// Record deletion event
+	plugin, err := r.PluginManager.GetPlugin(rolloutPlugin.Spec.Plugin.Name)
+	if err == nil {
+		err = plugin.DeletionCleanup(ctx, rolloutPlugin)
+	} else if errors.Is(err, ErrPluginNotEnabled) {
+		// A plugin that isn't enabled can't clean up the workload, and won't touch it again.
+		logCtx.WithError(err).Warn("Skipping deletion cleanup")
+		err = nil
+	}
+	if err != nil {
+		msg := fmt.Sprintf("Deletion cleanup failed, deletion will be retried: %v", err)
+		logCtx.Warn(msg)
+		if r.Recorder != nil {
+			r.Recorder.Warnf(rolloutPlugin, record.EventOptions{EventReason: "DeletionCleanupFailed"}, msg)
+		}
+		return ctrl.Result{}, err
+	}
+
+	finalizers := slices.DeleteFunc(slices.Clone(rolloutPlugin.Finalizers), func(f string) bool { return f == DeletionCleanupFinalizer })
+	if err := r.setFinalizers(ctx, rolloutPlugin, finalizers); err != nil {
+		logCtx.WithError(err).Error("Failed to remove finalizer")
+		return ctrl.Result{}, err
+	}
+
 	if r.Recorder != nil {
 		r.Recorder.Eventf(rolloutPlugin, record.EventOptions{
 			EventReason: "RolloutPluginDeleted",
 		}, "RolloutPlugin '%s' deleted", rolloutPlugin.Name)
 	}
-
-	// Clean up metrics for this RolloutPlugin
-	if r.MetricsServer != nil {
-		r.MetricsServer.Remove(rolloutPlugin.Namespace, rolloutPlugin.Name, logutil.RolloutPluginKey)
-	}
-
 	return ctrl.Result{}, nil
+}
+
+// setFinalizers patches the RolloutPlugin's finalizers. The optimistic lock keeps a patch built
+// from a stale read from dropping a finalizer someone else added.
+func (r *RolloutPluginReconciler) setFinalizers(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, finalizers []string) error {
+	patch := client.MergeFromWithOptions(rolloutPlugin.DeepCopy(), client.MergeFromWithOptimisticLock{})
+	rolloutPlugin.Finalizers = finalizers
+	if err := r.Patch(ctx, rolloutPlugin, patch); err != nil {
+		return err
+	}
+	r.recordWrite(rolloutPlugin)
+	return nil
 }
 
 // reconcile performs the main reconciliation logic
@@ -349,7 +404,19 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	plugin, err := r.PluginManager.GetPlugin(rolloutPlugin.Spec.Plugin.Name)
 	if err != nil {
 		logCtx.WithError(err).Error("Failed to get plugin")
-		newStatus.Message = fmt.Sprintf("Plugin '%s' not found. Ensure the plugin is registered in the argo-rollouts-config ConfigMap under 'rolloutPlugins'", rolloutPlugin.Spec.Plugin.Name)
+		if !errors.Is(err, ErrPluginNotEnabled) {
+			// An enabled plugin that failed to start (e.g. its process crashed) may recover, so
+			// retry instead of marking the spec invalid.
+			newStatus.Message = fmt.Sprintf("Failed to get plugin: %v", err)
+			condition := conditions.NewRolloutPluginCondition(
+				v1alpha1.RolloutPluginConditionProgressing,
+				corev1.ConditionFalse,
+				conditions.RolloutPluginReconciliationErrorReason,
+				newStatus.Message)
+			conditions.SetRolloutPluginCondition(newStatus, *condition)
+			return ctrl.Result{RequeueAfter: 1 * time.Second}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
+		}
+		newStatus.Message = fmt.Sprintf("Plugin '%s' not found. Ensure the plugin is registered in the argo-rollouts-config ConfigMap under 'resourcePlugins'", rolloutPlugin.Spec.Plugin.Name)
 		pluginNotFoundCond := conditions.NewRolloutPluginCondition(
 			v1alpha1.RolloutPluginConditionInvalidSpec,
 			corev1.ConditionTrue,
@@ -551,10 +618,19 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	}
 
 	// Clear any stale ReconciliationError condition from a previous failed workload read or
-	// GetResourceStatus.
+	// GetResourceStatus. If a rollout was underway, restore Progressing rather than removing it;
+	// otherwise the next block would take it for a new rollout and restart it from step 0.
 	progCond := conditions.GetRolloutPluginCondition(*newStatus, v1alpha1.RolloutPluginConditionProgressing)
 	if progCond != nil && progCond.Reason == conditions.RolloutPluginReconciliationErrorReason {
-		conditions.RemoveRolloutPluginCondition(newStatus, v1alpha1.RolloutPluginConditionProgressing)
+		if !newStatus.Aborted && newStatus.CurrentRevision != newStatus.UpdatedRevision {
+			conditions.SetRolloutPluginCondition(newStatus, *conditions.NewRolloutPluginCondition(
+				v1alpha1.RolloutPluginConditionProgressing,
+				corev1.ConditionTrue,
+				conditions.RolloutPluginProgressingReason,
+				"RolloutPlugin is progressing"))
+		} else {
+			conditions.RemoveRolloutPluginCondition(newStatus, v1alpha1.RolloutPluginConditionProgressing)
+		}
 	}
 
 	// Update replica counts
@@ -590,6 +666,13 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		newStatus.RestartCount = 0
 		newStatus.RestartedAt = nil
 
+		// A promoteFull requested for the previous revision must not skip the new revision's
+		// steps and analysis.
+		if newStatus.PromoteFull {
+			logCtx.Info("New revision detected, clearing promoteFull requested for the previous revision")
+			newStatus.PromoteFull = false
+		}
+
 		// Reset step index so the new rollout starts from step 0
 		// Without this, a new revision detected mid-rollout
 		// would resume from the old step index, skipping earlier steps including pause steps.
@@ -611,7 +694,6 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 			logCtx.WithField("revision", resourceStatus.UpdatedRevision).Info("Updated revision is the stable revision, rolling back all pods")
 			clearAbortedState(newStatus)
 			newStatus.Abort = false
-			newStatus.PromoteFull = false
 			newStatus.Restart = false
 			stepCount := int32(0)
 			if rolloutPlugin.Spec.Strategy.Canary != nil {
@@ -640,6 +722,11 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 			progCond := conditions.GetRolloutPluginCondition(*newStatus, v1alpha1.RolloutPluginConditionProgressing)
 			if progCond != nil && progCond.Reason == conditions.RolloutPluginTimedOutReason {
 				logCtx.Info("Rollout has timed out, staying in degraded state")
+				// Timed out is not in progress, so this only cancels the AnalysisRuns and
+				// refreshes their status references, as for an aborted rollout below.
+				if _, err := r.reconcileAnalysisRunsForStatus(ctx, rolloutPlugin, newStatus, pCtx, logCtx); err != nil {
+					return ctrl.Result{}, err
+				}
 				pCtx.CalculatePauseStatus(newStatus)
 				return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
 			}
@@ -856,37 +943,37 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 		return ctrl.Result{}, nil
 	}
 
-	if newStatus.PromoteFull {
-		logCtx.Info("PromoteFull is set, skipping remaining steps and promoting immediately")
-
-		// Promote the rollout
-		if err := plugin.PromoteFull(ctx, rolloutPlugin); err != nil {
-			logCtx.WithError(err).Error("Failed to promote during full promotion")
-			newStatus.Message = fmt.Sprintf("Failed to promote: %v", err)
-			return ctrl.Result{}, err
+	// Reconcile analysis runs. A non-empty analysisAbortMessage means an owned AnalysisRun
+	// failed and the rollout should be aborted. A failure (e.g. an AnalysisRun the API server
+	// rejects) is surfaced in status, like a failed GetResourceStatus, and retried.
+	analysisAbortMessage, err := r.reconcileAnalysisRunsForStatus(ctx, rolloutPlugin, newStatus, pCtx, logCtx)
+	if err != nil {
+		newStatus.Message = fmt.Sprintf("Failed to reconcile AnalysisRuns: %v", err)
+		condition := *conditions.NewRolloutPluginCondition(
+			v1alpha1.RolloutPluginConditionProgressing,
+			corev1.ConditionFalse,
+			conditions.RolloutPluginReconciliationErrorReason,
+			newStatus.Message)
+		// The stale-error clear above resets this condition on every reconcile, so keep the
+		// persisted one while the same error repeats rather than rewriting it and re-emitting.
+		if prev := conditions.GetRolloutPluginCondition(rolloutPlugin.Status, v1alpha1.RolloutPluginConditionProgressing); prev != nil &&
+			prev.Reason == condition.Reason && prev.Message == condition.Message {
+			condition = *prev
+		} else if r.Recorder != nil {
+			r.Recorder.Warnf(rolloutPlugin, record.EventOptions{EventReason: conditions.RolloutPluginReconciliationErrorReason},
+				conditions.RolloutPluginReconciliationErrorMessage, err)
 		}
-
-		// Clear PromoteFull flag and pause state
-		newStatus.PromoteFull = false
-		pCtx.ClearPauseConditions()
-		newStatus.PauseConditions = nil
-		newStatus.ControllerPause = false
-
-		// Advance step index to beyond last step so normal completion logic handles the rest.
-		// Keep RolloutInProgress = true so the next reconcile doesn't mistake this for a new rollout
-		stepCount := int32(len(canary.Steps))
-		newStatus.CurrentStepIndex = &stepCount
-		newStatus.Message = "Full promotion in progress, waiting for pods to converge"
-
-		logCtx.Info("Full promotion initiated, waiting for convergence")
+		conditions.SetRolloutPluginCondition(newStatus, condition)
 		return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 	}
 
-	// Reconcile analysis runs. A non-empty analysisAbortMessage means an owned AnalysisRun
-	// failed and the rollout should be aborted.
-	analysisAbortMessage, err := r.reconcileAnalysisRunsForStatus(ctx, rolloutPlugin, newStatus, pCtx, logCtx)
-	if err != nil {
-		return ctrl.Result{}, err
+	// promoteFull stays set until the pods converge (cleared on completion below).
+	// Meanwhile every reconcile clears pauses and reconcileAnalysisRuns cancels the AnalysisRuns,
+	// so an Inconclusive one can't pause the rollout again.
+	if newStatus.PromoteFull {
+		logCtx.Info("PromoteFull is set, skipping remaining steps and promoting")
+		stepCount := int32(len(canary.Steps))
+		newStatus.CurrentStepIndex = &stepCount
 	}
 
 	// Initialize step index if not set
@@ -936,6 +1023,7 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 		}
 
 		logCtx.Info("All canary steps completed and pods converged, completing rollout")
+		newStatus.PromoteFull = false
 
 		// Record completion event
 		if r.Recorder != nil {
@@ -1246,6 +1334,11 @@ func calculateFinalRolloutPluginConditions(rolloutPlugin *v1alpha1.RolloutPlugin
 	isPaused := rolloutPlugin.Spec.Paused || len(newStatus.PauseConditions) > 0
 	var condChanged bool
 
+	// Pod progress resets the spec.timeoutSeconds timer.
+	if conditions.RolloutPluginMadeProgress(rolloutPlugin, newStatus) {
+		conditions.TouchRolloutPluginProgressingCondition(newStatus)
+	}
+
 	existingHealthyCond := conditions.GetRolloutPluginCondition(rolloutPlugin.Status, v1alpha1.RolloutPluginConditionHealthy)
 	if !isPaused && conditions.RolloutPluginIsHealthy(rolloutPlugin, newStatus) {
 		healthyCond := conditions.NewRolloutPluginCondition(
@@ -1501,6 +1594,11 @@ func shouldReconcileRolloutPluginUpdate(oldRP, newRP *v1alpha1.RolloutPlugin) bo
 
 	// Spec edits always reconcile.
 	if oldRP.Generation != newRP.Generation {
+		return true
+	}
+
+	// Deletion started, so the plugin's DeletionCleanup must run.
+	if oldRP.DeletionTimestamp.IsZero() != newRP.DeletionTimestamp.IsZero() {
 		return true
 	}
 

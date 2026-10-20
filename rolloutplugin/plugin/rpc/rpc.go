@@ -17,7 +17,7 @@ type InitPluginArgs struct {
 }
 
 // RolloutPluginArgs carries the RolloutPlugin, shared by every RPC method whose only
-// argument is the RolloutPlugin (Validate, GetResourceStatus, PromoteFull, Abort, Restart).
+// argument is the RolloutPlugin (Validate, GetResourceStatus, PromoteFull, Abort, Restart, DeletionCleanup).
 type RolloutPluginArgs struct {
 	RolloutPlugin v1alpha1.RolloutPlugin
 }
@@ -165,6 +165,17 @@ func (c *PluginRPCClient) Restart(rolloutPlugin *v1alpha1.RolloutPlugin) types.R
 	return resp
 }
 
+// DeletionCleanup drops the plugin's claim on the workload of a deleted RolloutPlugin
+func (c *PluginRPCClient) DeletionCleanup(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
+	var resp types.RpcError
+	var args any = RolloutPluginArgs{RolloutPlugin: *rolloutPlugin}
+	err := c.client.Call("Plugin.DeletionCleanup", &args, &resp)
+	if err != nil {
+		return types.RpcError{ErrorString: fmt.Sprintf("DeletionCleanup rpc call error: %s", err)}
+	}
+	return resp
+}
+
 // Type returns the type of the resource plugin
 func (c *PluginRPCClient) Type() string {
 	var resp string
@@ -278,6 +289,17 @@ func (s *PluginRPCServer) Restart(args any, resp *types.RpcError) error {
 		return nil
 	}
 	*resp = s.Impl.Restart(&restartArgs.RolloutPlugin)
+	return nil
+}
+
+// DeletionCleanup handles the DeletionCleanup RPC call
+func (s *PluginRPCServer) DeletionCleanup(args any, resp *types.RpcError) error {
+	cleanupArgs, ok := args.(*RolloutPluginArgs)
+	if !ok {
+		*resp = types.RpcError{ErrorString: fmt.Sprintf("invalid args %v", args)}
+		return nil
+	}
+	*resp = s.Impl.DeletionCleanup(&cleanupArgs.RolloutPlugin)
 	return nil
 }
 

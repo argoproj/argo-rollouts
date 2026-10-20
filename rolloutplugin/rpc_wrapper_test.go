@@ -45,6 +45,9 @@ func (f *fakeRpcResourcePlugin) Abort(_ *v1alpha1.RolloutPlugin) types.RpcError 
 func (f *fakeRpcResourcePlugin) Restart(_ *v1alpha1.RolloutPlugin) types.RpcError {
 	return f.err
 }
+func (f *fakeRpcResourcePlugin) DeletionCleanup(_ *v1alpha1.RolloutPlugin) types.RpcError {
+	return f.err
+}
 func (f *fakeRpcResourcePlugin) Type() string { return "fake" }
 
 func TestAsError(t *testing.T) {
@@ -78,6 +81,7 @@ func TestRpcPluginWrapper_PropagatesErrors(t *testing.T) {
 		assert.ErrorContains(t, w.PromoteFull(ctx, rp), "failed to promote")
 		assert.ErrorContains(t, w.Abort(ctx, rp), "failed to abort")
 		assert.ErrorContains(t, w.Restart(ctx, rp), "failed to restart")
+		assert.ErrorContains(t, w.DeletionCleanup(ctx, rp), "failed to run deletion cleanup")
 		assert.EqualError(t, w.Validate(ctx, rp), "boom", "validation message is surfaced unprefixed as the InvalidSpec message")
 	})
 
@@ -97,6 +101,7 @@ func TestRpcPluginWrapper_PropagatesErrors(t *testing.T) {
 		assert.NoError(t, w.PromoteFull(ctx, rp))
 		assert.NoError(t, w.Abort(ctx, rp))
 		assert.NoError(t, w.Restart(ctx, rp))
+		assert.NoError(t, w.DeletionCleanup(ctx, rp))
 		assert.NoError(t, w.Validate(ctx, rp))
 	})
 }

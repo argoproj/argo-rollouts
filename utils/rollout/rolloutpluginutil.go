@@ -3,6 +3,8 @@ package rollout
 import (
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
@@ -27,7 +29,7 @@ func CalculateRolloutPluginPhase(spec v1alpha1.RolloutPluginSpec, status v1alpha
 	if len(status.PauseConditions) > 0 {
 		return v1alpha1.RolloutPluginPhasePaused, string(status.PauseConditions[0].Reason)
 	}
-	if conditions.IsRolloutPluginProgressing(&status) {
+	if progCond := conditions.GetRolloutPluginCondition(status, v1alpha1.RolloutPluginConditionProgressing); progCond != nil && progCond.Status == corev1.ConditionTrue {
 		return v1alpha1.RolloutPluginPhaseProgressing, status.Message
 	}
 	if status.CurrentRevision != status.UpdatedRevision {

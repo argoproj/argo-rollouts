@@ -157,7 +157,14 @@ func (r *RolloutPluginReconciler) reconcileAnalysisRuns(ctx context.Context, rp 
 	newCurrentAnalysisRuns := analysisutil.CurrentAnalysisRuns{}
 	var abortMessage string
 
-	if rp.Spec.Strategy.Canary != nil {
+	if rp.Status.PromoteFull {
+		// A full promotion skips the remaining analysis: the current runs are
+		// cancelled and their references dropped.
+		logCtx.Info("Skipping analysis - promoteFull")
+		if err := r.cancelAnalysisRuns(ctx, currentArs.ToArray(), logCtx); err != nil {
+			return "", err
+		}
+	} else if rp.Spec.Strategy.Canary != nil {
 		// Reconcile step-based analysis
 		stepAnalysisRun, stepAbortMessage, err := r.reconcileStepBasedAnalysisRun(ctx, rp, currentArs.CanaryStep, pCtx, logCtx)
 		if err != nil {
@@ -210,7 +217,10 @@ func (r *RolloutPluginReconciler) reconcileAnalysisRuns(ctx context.Context, rp 
 			limitFailedArs = *rp.Spec.Analysis.UnsuccessfulRunHistoryLimit
 		}
 	}
-	liveRevisions := map[string]bool{rp.Status.CurrentRevision: true, rp.Status.UpdatedRevision: true}
+	liveRevisions := map[string]bool{
+		analysisutil.RolloutPluginRevisionLabelValue(rp.Status.CurrentRevision): true,
+		analysisutil.RolloutPluginRevisionLabelValue(rp.Status.UpdatedRevision): true,
+	}
 	arsToDelete := analysisutil.FilterAnalysisRunsToDeleteByRevision(otherArs, liveRevisions, limitSucceedArs, limitFailedArs)
 	if err := r.deleteAnalysisRuns(ctx, arsToDelete, logCtx); err != nil {
 		return "", err
@@ -414,9 +424,9 @@ func (r *RolloutPluginReconciler) createAnalysisRun(ctx context.Context, rp *v1a
 	}
 	maps.Copy(arLabels, map[string]string{
 		v1alpha1.RolloutTypeLabel:           rolloutType,
-		v1alpha1.RolloutPluginNameLabel:     rp.Name,
-		v1alpha1.RolloutPluginRevisionLabel: revision,
+		v1alpha1.RolloutPluginRevisionLabel: analysisutil.RolloutPluginRevisionLabelValue(revision),
 	})
+	annotations[v1alpha1.RolloutPluginRevisionAnnotation] = revision
 	if stepIndex >= 0 {
 		arLabels[v1alpha1.RolloutCanaryStepIndexLabel] = strconv.Itoa(int(stepIndex))
 	}

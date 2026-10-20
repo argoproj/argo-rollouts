@@ -44,6 +44,9 @@ func NewRolloutPluginCollector(rolloutPluginLister rolloutlister.RolloutPluginLi
 // Describe implements the prometheus.Collector interface
 func (c *rolloutPluginCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- MetricRolloutPluginInfo
+	ch <- MetricRolloutPluginWorkloadReplicasDesired
+	ch <- MetricRolloutPluginWorkloadReplicasUpdated
+	ch <- MetricRolloutPluginWorkloadReplicasReady
 }
 
 // Collect implements the prometheus.Collector interface

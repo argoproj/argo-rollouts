@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +43,8 @@ type Plugin struct {
 	logCtx     *log.Entry
 	restConfig *rest.Config
 	client     client.Client
+	// apiReader reads from the API server, for managedFields, which the cache strips.
+	apiReader client.Reader
 
 	// versionTracker records the resourceVersion of this plugin's latest partition patch per
 	// StatefulSet UID, until the cache catches up with it. A cached StatefulSet from before the
@@ -52,7 +55,7 @@ type Plugin struct {
 	versionTracker     *resourceversion.Tracker
 }
 
-// NewPlugin builds the plugin from the args of its rolloutPlugins ConfigMap entry,
+// NewPlugin builds the plugin from the args of its resourcePlugins ConfigMap entry,
 // Supported flags:
 //
 //	--loglevel   log level for this plugin only (defaults to the controller's level)
@@ -352,7 +355,18 @@ func (p *Plugin) Init(ctx context.Context, namespace string) error {
 		return fmt.Errorf("failed to add corev1 to scheme: %w", err)
 	}
 
-	cacheOpts := cache.Options{Scheme: scheme}
+	stripManagedFields := cache.TransformStripManagedFields()
+	cacheOpts := cache.Options{
+		Scheme: scheme,
+		// Pods are read only for their labels, UID, deletion timestamp and status, so their spec
+		// isn't cached; managedFields aren't read for any object.
+		DefaultTransform: func(obj any) (any, error) {
+			if pod, ok := obj.(*corev1.Pod); ok {
+				pod.Spec = corev1.PodSpec{}
+			}
+			return stripManagedFields(obj)
+		},
+	}
 	if namespace != metav1.NamespaceAll {
 		cacheOpts.DefaultNamespaces = map[string]cache.Config{namespace: {}}
 	}
@@ -380,7 +394,12 @@ func (p *Plugin) Init(ctx context.Context, namespace string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create k8s client: %w", err)
 	}
+	apiReader, err := client.New(p.restConfig, client.Options{Scheme: scheme})
+	if err != nil {
+		return fmt.Errorf("failed to create k8s API reader: %w", err)
+	}
 	p.client = k8sClient
+	p.apiReader = apiReader
 	p.logCtx.WithField("namespace", namespace).Info("StatefulSet plugin initialized")
 	return nil
 }
@@ -684,6 +703,43 @@ func (p *Plugin) Restart(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlu
 	}
 
 	p.logCtx.Info("Successfully restarted StatefulSet")
+	return nil
+}
+
+// DeletionCleanup drops this plugin's Server-Side Apply ownership of the partition and leaves its
+// value as it is. Another owner (e.g. Argo CD, ignoring fields this plugin manages) then sees the
+// partition as drift and can restore its own value.
+func (p *Plugin) DeletionCleanup(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	ref := rolloutPlugin.Spec.WorkloadRef
+	if ref.APIVersion != appsv1.SchemeGroupVersion.String() || ref.Kind != "StatefulSet" {
+		return nil
+	}
+	sts := &appsv1.StatefulSet{}
+	if err := p.apiReader.Get(ctx, client.ObjectKey{Namespace: rolloutPlugin.Namespace, Name: ref.Name}, sts); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to get StatefulSet: %w", err)
+	}
+	managedFields := slices.DeleteFunc(slices.Clone(sts.ManagedFields), func(e metav1.ManagedFieldsEntry) bool {
+		return e.Manager == FieldManager
+	})
+	if len(managedFields) == len(sts.ManagedFields) {
+		return nil
+	}
+	if len(managedFields) == 0 {
+		// The API server ignores an empty list; a single empty entry clears them all.
+		managedFields = []metav1.ManagedFieldsEntry{{}}
+	}
+	// A non-apply write that only changes managedFields replaces them as given and records no
+	// new owner.
+	patch := client.MergeFromWithOptions(sts.DeepCopy(), client.MergeFromWithOptimisticLock{})
+	sts.ManagedFields = managedFields
+	if err := p.client.Patch(ctx, sts, patch); err != nil {
+		return fmt.Errorf("failed to drop partition ownership: %w", err)
+	}
+	p.recordWrite(sts)
+	p.logCtx.WithFields(log.Fields{"name": sts.Name, "namespace": sts.Namespace}).Info("Dropped partition ownership")
 	return nil
 }
 
