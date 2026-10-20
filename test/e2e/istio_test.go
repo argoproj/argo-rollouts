@@ -32,16 +32,28 @@ func (s *IstioSuite) SetupSuite() {
 func (s *IstioSuite) TestIstioHostSplit() {
 
 	tests := []struct {
-		filename string
-		hasTls   bool
+		filename     string
+		hasTls       bool
+		maxWeight    int64
+		canaryWeight int64
 	}{
 		{
-			"@istio/istio-host-split.yaml",
-			false,
+			filename:     "@istio/istio-host-split.yaml",
+			hasTls:       false,
+			maxWeight:    100,
+			canaryWeight: 10,
 		},
 		{
-			"@istio/istio-host-http-tls-split.yaml",
-			true,
+			filename:     "@istio/istio-host-http-tls-split.yaml",
+			hasTls:       true,
+			maxWeight:    100,
+			canaryWeight: 10,
+		},
+		{
+			filename:     "@istio/istio-host-split-max-traffic-weight.yaml",
+			hasTls:       false,
+			maxWeight:    1000,
+			canaryWeight: 200,
 		},
 	}
 
@@ -55,10 +67,10 @@ func (s *IstioSuite) TestIstioHostSplit() {
 			Then().
 			Assert(func(t *fixtures.Then) {
 				vsvc := t.GetVirtualService()
-				assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+				assert.Equal(s.T(), tc.maxWeight, vsvc.Spec.HTTP[0].Route[0].Weight)
 				assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
 				if tc.hasTls {
-					assert.Equal(s.T(), int64(100), vsvc.Spec.TLS[0].Route[0].Weight)
+					assert.Equal(s.T(), tc.maxWeight, vsvc.Spec.TLS[0].Route[0].Weight)
 					assert.Equal(s.T(), int64(0), vsvc.Spec.TLS[0].Route[1].Weight)
 				}
 
@@ -73,11 +85,11 @@ func (s *IstioSuite) TestIstioHostSplit() {
 			Then().
 			Assert(func(t *fixtures.Then) {
 				vsvc := t.GetVirtualService()
-				assert.Equal(s.T(), int64(90), vsvc.Spec.HTTP[0].Route[0].Weight)
-				assert.Equal(s.T(), int64(10), vsvc.Spec.HTTP[0].Route[1].Weight)
+				assert.Equal(s.T(), tc.maxWeight-tc.canaryWeight, vsvc.Spec.HTTP[0].Route[0].Weight)
+				assert.Equal(s.T(), tc.canaryWeight, vsvc.Spec.HTTP[0].Route[1].Weight)
 				if tc.hasTls {
-					assert.Equal(s.T(), int64(90), vsvc.Spec.TLS[0].Route[0].Weight)
-					assert.Equal(s.T(), int64(10), vsvc.Spec.TLS[0].Route[1].Weight)
+					assert.Equal(s.T(), tc.maxWeight-tc.canaryWeight, vsvc.Spec.TLS[0].Route[0].Weight)
+					assert.Equal(s.T(), tc.canaryWeight, vsvc.Spec.TLS[0].Route[1].Weight)
 				}
 
 				desired, stable := t.GetServices()
@@ -93,10 +105,10 @@ func (s *IstioSuite) TestIstioHostSplit() {
 			Then().
 			Assert(func(t *fixtures.Then) {
 				vsvc := t.GetVirtualService()
-				assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+				assert.Equal(s.T(), tc.maxWeight, vsvc.Spec.HTTP[0].Route[0].Weight)
 				assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
 				if tc.hasTls {
-					assert.Equal(s.T(), int64(100), vsvc.Spec.TLS[0].Route[0].Weight)
+					assert.Equal(s.T(), tc.maxWeight, vsvc.Spec.TLS[0].Route[0].Weight)
 					assert.Equal(s.T(), int64(0), vsvc.Spec.TLS[0].Route[1].Weight)
 				}
 
