@@ -1,7 +1,6 @@
 package graphite
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -66,10 +65,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
 
-	if len(result) == 0 {
-		return metricutil.MarkMeasurementError(newMeasurement, errors.New("no values found"))
-	}
-
+	// An empty result is not an error: it is passed to the conditions like any other result, so that
+	// they can decide what it means (e.g. no errors were reported in the queried time range).
 	newValue, newStatus, err := p.processResponse(metric, result)
 	newMeasurement.Value = newValue
 	if err != nil {
