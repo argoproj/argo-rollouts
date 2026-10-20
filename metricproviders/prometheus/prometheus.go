@@ -3,6 +3,7 @@ package prometheus
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/api"
@@ -228,6 +230,38 @@ func newHTTPTransport(insecureSkipVerify bool) *http.Transport {
 var secureTransport = newHTTPTransport(false)
 var insecureTransport = newHTTPTransport(true)
 
+// caCertTransports caches one *http.Transport per distinct CACert value. NewPrometheusAPI runs on
+// every metric evaluation, and unlike secureTransport/insecureTransport a CACert-backed transport
+// can't be a single package-level var since the cert bundle is user-supplied and varies per
+// AnalysisRun. Without caching, every evaluation would re-parse the PEM bundle and build a fresh
+// *http.Transport - and therefore a fresh connection pool and TLS session cache - discarding any
+// connection reuse across analysis runs against the same prometheus server. Keyed by the raw
+// CACert string, which is exactly the granularity at which the resulting transport differs.
+var caCertTransports sync.Map // string (caCert) -> *http.Transport
+
+// newHTTPTransportWithCACert returns an HTTP transport which trusts the given PEM-encoded CA
+// certificate bundle, in addition to performing normal TLS verification. This allows connecting
+// to a prometheus server presenting a certificate signed by a private/self-signed CA without
+// disabling TLS verification altogether (i.e. without resorting to Insecure). The transport is
+// built once per distinct caCert value and cached in caCertTransports.
+func newHTTPTransportWithCACert(caCert string) (*http.Transport, error) {
+	if cached, ok := caCertTransports.Load(caCert); ok {
+		return cached.(*http.Transport), nil
+	}
+
+	certPool := x509.NewCertPool()
+	if !certPool.AppendCertsFromPEM([]byte(caCert)) {
+		return nil, errors.New("failed to parse prometheus caCert as a PEM certificate bundle")
+	}
+	transport := newHTTPTransport(false)
+	transport.TLSClientConfig.RootCAs = certPool
+
+	// Another goroutine may have raced us to build the same transport; if so, prefer the
+	// one already stored so we don't hand out two live transports for the same caCert.
+	actual, _ := caCertTransports.LoadOrStore(caCert, transport)
+	return actual.(*http.Transport), nil
+}
+
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	envValuesByKey := make(map[string]string)
@@ -251,9 +285,17 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	}
 
 	var roundTripper http.RoundTripper
-	if metric.Provider.Prometheus.Insecure {
+	switch {
+	case metric.Provider.Prometheus.Insecure:
 		roundTripper = insecureTransport
-	} else {
+	case metric.Provider.Prometheus.CACert != "":
+		caCertTransport, err := newHTTPTransportWithCACert(metric.Provider.Prometheus.CACert)
+		if err != nil {
+			log.Errorf("Error building prometheus caCert transport: %v", err)
+			return nil, err
+		}
+		roundTripper = caCertTransport
+	default:
 		roundTripper = secureTransport
 	}
 
