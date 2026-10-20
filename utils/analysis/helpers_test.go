@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -333,6 +334,41 @@ func TestCreateWithCollisionCounterStillRunning(t *testing.T) {
 	createdRun, err := CreateWithCollisionCounter(logCtx, runIf, run)
 	assert.NoError(t, err)
 	assert.Equal(t, run.Name, createdRun.Name)
+}
+
+func TestCreateWithCollisionCounterTerminatingRun(t *testing.T) {
+	desired := v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					UID:        types.UID("fake-uid"),
+					Controller: ptr.To[bool](true),
+				},
+			},
+		},
+	}
+	existing := desired.DeepCopy()
+	existing.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	existing.Spec.Terminate = true
+	client := fake.NewSimpleClientset(existing)
+	runIf := client.ArgoprojV1alpha1().AnalysisRuns(metav1.NamespaceDefault)
+	logCtx := log.NewEntry(log.New())
+	created, err := CreateWithCollisionCounter(logCtx, runIf, desired)
+	assert.NoError(t, err)
+	if !assert.NotNil(t, created) {
+		return
+	}
+	assert.NotEqual(t, existing.Name, created.Name, "a terminating run cannot serve the fresh attempt")
+	assert.False(t, created.Spec.Terminate)
+
+	history, err := runIf.Get(context.Background(), existing.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	if assert.NotNil(t, history) {
+		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, history.Status.Phase)
+		assert.True(t, history.Spec.Terminate)
+	}
 }
 
 func TestCreateWithCollisionCounter(t *testing.T) {
