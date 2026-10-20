@@ -6,16 +6,22 @@ package e2e
 import (
 	"context"
 	"math"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rolloutplugin"
+	"github.com/argoproj/argo-rollouts/rolloutplugin/plugins/statefulset"
 	"github.com/argoproj/argo-rollouts/test/fixtures"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 )
 
@@ -1540,7 +1546,7 @@ spec:
 }
 
 // TestRolloutPluginStepAnalysisRunLabels tests that step AnalysisRuns get the correct
-// RolloutCanaryStepIndexLabel and RolloutTypeLabel labels.
+// RolloutCanaryStepIndexLabel, RolloutTypeLabel and revision label and annotation.
 func (s *RolloutPluginSuite) TestRolloutPluginStepAnalysisRunLabels() {
 	s.Given().
 		RolloutPluginObjects(`
@@ -1603,6 +1609,7 @@ spec:
 		Then().
 		ExpectRolloutPluginAnalysisRunCount(1).
 		Assert(func(t *fixtures.Then) {
+			revision := t.GetRolloutPlugin().Status.UpdatedRevision
 			aruns := t.GetRolloutPluginAnalysisRuns()
 			for _, ar := range aruns.Items {
 				assert.Equal(s.T(), rov1.RolloutTypeStepLabel, ar.Labels[rov1.RolloutTypeLabel],
@@ -1611,6 +1618,10 @@ spec:
 				assert.True(s.T(), ok, "AnalysisRun should have RolloutCanaryStepIndexLabel")
 				assert.Equal(s.T(), strconv.Itoa(1), stepIdx,
 					"step-index label should match the analysis step index")
+				assert.Equal(s.T(), analysisutil.RolloutPluginRevisionLabelValue(revision), ar.Labels[rov1.RolloutPluginRevisionLabel],
+					"revision label should hold the hashed revision")
+				assert.Equal(s.T(), revision, ar.Annotations[rov1.RolloutPluginRevisionAnnotation],
+					"revision annotation should hold the full revision")
 			}
 		})
 }
@@ -1862,6 +1873,43 @@ func (s *RolloutPluginSuite) TestRolloutPluginNoStepsBlocksPartition() {
 			assert.Equal(s.T(), int32(2), sts.Status.UpdatedReplicas)
 		}).
 		ExpectStatefulSetPartition(rpBlockedPartition)
+}
+
+// TestRolloutPluginDeletionReleasesPartition tests that deleting a RolloutPlugin mid-rollout
+// leaves the StatefulSet as it is and drops the plugin's partition ownership, so another
+// manager can server-side apply the partition without a conflict.
+func (s *RolloutPluginSuite) TestRolloutPluginDeletionReleasesPartition() {
+	pluginOwnsFields := func(sts *appsv1.StatefulSet) bool {
+		return slices.ContainsFunc(sts.ManagedFields, func(e metav1.ManagedFieldsEntry) bool {
+			return e.Manager == statefulset.FieldManager
+		})
+	}
+	s.Given().
+		HealthyRolloutPlugin(rpCanary4Replicas, `
+- setWeight: 50
+- pause: {}`).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
+		Then().
+		ExpectStatefulSetPartition(2).
+		Assert(func(t *fixtures.Then) {
+			assert.Contains(s.T(), t.GetRolloutPlugin().Finalizers, rolloutplugin.DeletionCleanupFinalizer)
+			assert.True(s.T(), pluginOwnsFields(t.GetStatefulSet()), "plugin should own the partition mid-rollout")
+		}).
+		When().
+		DeleteRolloutPlugin().
+		Then().
+		ExpectStatefulSetPartition(2).
+		Assert(func(t *fixtures.Then) {
+			sts := t.GetStatefulSet()
+			assert.False(s.T(), pluginOwnsFields(sts), "plugin should no longer own any StatefulSet field")
+			assert.Equal(s.T(), int32(2), sts.Status.UpdatedReplicas, "deletion should not move any pod")
+		}).
+		When().
+		ApplyStatefulSetPartition(0, "rp-e2e-user").
+		Then().
+		ExpectStatefulSetPartition(0)
 }
 
 // TestRolloutPluginRevertToStable tests that reverting the StatefulSet to the stable template

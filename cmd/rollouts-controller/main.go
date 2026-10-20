@@ -418,7 +418,7 @@ func newCommand() *cobra.Command {
 				// watch namespace so lazily loaded external RPC plugins get the right namespace.
 				pluginManager := rolloutplugin.GetGlobalPluginManager(namespace)
 
-				// Built-in plugins are opt-in via the argo-rollouts-config ConfigMap (rolloutPlugins),
+				// Built-in plugins are opt-in via the argo-rollouts-config ConfigMap (resourcePlugins),
 				// the same as external plugins. An entry with a builtin:// location (e.g.
 				// "builtin://statefulset") registers the corresponding in-process plugin below.
 				builtinFactories := map[string]rolloutplugin.BuiltinPluginFactory{
@@ -531,8 +531,11 @@ func newCommand() *cobra.Command {
 						factory.Start(leaderCtx.Done())
 						for informerType, synced := range factory.WaitForCacheSync(leaderCtx.Done()) {
 							if !synced {
+								if leaderCtx.Err() != nil {
+									return // leadership lost or shutting down
+								}
 								log.Errorf("Failed to wait for RolloutPlugin notification %v cache to sync", informerType)
-								return
+								os.Exit(1)
 							}
 						}
 					}

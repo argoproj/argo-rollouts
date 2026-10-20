@@ -47,6 +47,9 @@ func (p *testPlugin) Abort(_ *v1alpha1.RolloutPlugin) types.RpcError {
 func (p *testPlugin) Restart(_ *v1alpha1.RolloutPlugin) types.RpcError {
 	return types.RpcError{}
 }
+func (p *testPlugin) DeletionCleanup(_ *v1alpha1.RolloutPlugin) types.RpcError {
+	return types.RpcError{}
+}
 func (p *testPlugin) Type() string { return "test" }
 
 func main() {

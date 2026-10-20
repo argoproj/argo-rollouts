@@ -186,7 +186,8 @@ func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, allRSs []*appsv1.Re
 // FilterAnalysisRunsToDeleteByRevision is FilterAnalysisRunsToDelete's counterpart for
 // RolloutPlugin, which targets arbitrary workload kinds (no ReplicaSets to key liveness off of).
 // An AnalysisRun is live (kept, doesn't count against the history limits) if its
-// RolloutPluginRevisionLabel matches a revision in liveRevisions; everything else — including
+// RolloutPluginRevisionLabel matches a value in liveRevisions (revision label values, see
+// RolloutPluginRevisionLabelValue); everything else — including
 // unlabeled runs — is subject to the successful/unsuccessful history limits.
 func FilterAnalysisRunsToDeleteByRevision(ars []*v1alpha1.AnalysisRun, liveRevisions map[string]bool, limitSuccessful int32, limitUnsuccessful int32) []*v1alpha1.AnalysisRun {
 	sort.Sort(sort.Reverse(AnalysisRunByCreationTimestamp(ars)))

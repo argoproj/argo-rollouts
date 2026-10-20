@@ -106,3 +106,8 @@ func (r RpcPluginWrapper) Abort(ctx context.Context, rolloutPlugin *v1alpha1.Rol
 func (r RpcPluginWrapper) Restart(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
 	return asError(r.RpcResourcePlugin.Restart(rolloutPlugin), "restart")
 }
+
+// DeletionCleanup drops the plugin's claim on the workload of a deleted RolloutPlugin
+func (r RpcPluginWrapper) DeletionCleanup(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	return asError(r.RpcResourcePlugin.DeletionCleanup(rolloutPlugin), "run deletion cleanup")
+}

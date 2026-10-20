@@ -308,10 +308,15 @@ func getAnalysisRunsFilterWithLabels(ro v1alpha1.Rollout, arInformer argoinforme
 }
 
 func getAnalysisRunsForRolloutPlugin(rp v1alpha1.RolloutPlugin, arInformer argoinformers.AnalysisRunInformer) (any, error) {
-	set := labels.Set{v1alpha1.RolloutPluginNameLabel: rp.Name}
-	ars, err := arInformer.Lister().AnalysisRuns(rp.Namespace).List(labels.SelectorFromSet(set))
+	allArs, err := arInformer.Lister().AnalysisRuns(rp.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, fmt.Errorf("error getting analysisruns from informer for namespace: %s error: %w", rp.Namespace, err)
+	}
+	ars := make([]*v1alpha1.AnalysisRun, 0, len(allArs))
+	for _, ar := range allArs {
+		if controllerRef := metav1.GetControllerOf(ar); controllerRef != nil && controllerRef.UID == rp.UID {
+			ars = append(ars, ar)
+		}
 	}
 	if len(ars) == 0 {
 		return nil, nil

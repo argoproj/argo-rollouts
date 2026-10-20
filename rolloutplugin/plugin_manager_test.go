@@ -50,6 +50,10 @@ func (f *fakeResourcePlugin) Restart(ctx context.Context, rolloutPlugin *v1alpha
 	return nil
 }
 
+func (f *fakeResourcePlugin) DeletionCleanup(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
+	return nil
+}
+
 func newTestManager() *DefaultPluginManager {
 	return &DefaultPluginManager{
 		plugins:         make(map[string]ResourcePlugin),

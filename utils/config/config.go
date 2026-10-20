@@ -71,8 +71,8 @@ func InitializeConfig(k8sClientset kubernetes.Interface, configMapName string) (
 	}
 
 	var resourcePlugins []types.PluginItem
-	if err = yaml.Unmarshal([]byte(configMapCluster.Data["rolloutPlugins"]), &resourcePlugins); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal rollout plugins while initializing: %w", err)
+	if err = yaml.Unmarshal([]byte(configMapCluster.Data["resourcePlugins"]), &resourcePlugins); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal resource plugins while initializing: %w", err)
 	}
 	for i := range resourcePlugins {
 		resourcePlugins[i].Type = types.PluginTypeResourcePlugin

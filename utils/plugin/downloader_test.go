@@ -247,7 +247,7 @@ func TestPlugin(t *testing.T) {
 			// A builtin:// resource plugin alongside a file:// sibling. The builtin is
 			// in-process and must be skipped (no download/copy), while the file:// one
 			// still resolves onto disk.
-			Data: map[string]string{"rolloutPlugins": "\n  - name: argoproj/statefulset\n    location: builtin://statefulset\n  - name: argoproj-labs/file-plugin\n    location: file://./plugin.go"},
+			Data: map[string]string{"resourcePlugins": "\n  - name: argoproj/statefulset\n    location: builtin://statefulset\n  - name: argoproj-labs/file-plugin\n    location: file://./plugin.go"},
 		}
 		client := fake.NewSimpleClientset(cm)
 

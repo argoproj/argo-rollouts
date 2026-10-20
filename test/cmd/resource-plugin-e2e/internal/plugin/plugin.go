@@ -174,6 +174,11 @@ func (p *RpcPlugin) Restart(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcErro
 	return types.RpcError{}
 }
 
+func (p *RpcPlugin) DeletionCleanup(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
+	p.LogCtx.Infof("DeletionCleanup: name=%s", rolloutPlugin.Spec.WorkloadRef.Name)
+	return types.RpcError{}
+}
+
 func (p *RpcPlugin) Type() string {
 	return "E2EResourcePlugin"
 }

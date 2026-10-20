@@ -183,7 +183,7 @@ jobs:
           go build -gcflags="all=-N -l" -o plugin-bin/e2e-resource-plugin test/cmd/resource-plugin-e2e/main.go
       - name: Install ConfigMaps
         run: |
-          # Seeds argo-rollouts-config with plugin entries (step-plugin, then rolloutPlugins
+          # Seeds argo-rollouts-config with plugin entries (step-plugin, then resourcePlugins
           # merged in). Without this, the controller reads an empty ConfigMap at startup
           # and never registers the built-in statefulset plugin
           kubectl apply -n argo-rollouts -f test/e2e/step-plugin/argo-rollouts-config.yaml

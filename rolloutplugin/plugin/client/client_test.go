@@ -51,6 +51,9 @@ func (p *testRpcPlugin) Abort(_ *v1alpha1.RolloutPlugin) types.RpcError {
 func (p *testRpcPlugin) Restart(_ *v1alpha1.RolloutPlugin) types.RpcError {
 	return types.RpcError{}
 }
+func (p *testRpcPlugin) DeletionCleanup(_ *v1alpha1.RolloutPlugin) types.RpcError {
+	return types.RpcError{}
+}
 func (p *testRpcPlugin) Type() string { return "TestRPCPlugin" }
 
 func setupTestPlugin(t *testing.T) (*goPlugin.Client, goPlugin.ClientProtocol, func()) {

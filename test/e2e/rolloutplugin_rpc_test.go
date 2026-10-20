@@ -41,7 +41,7 @@ func isResourcePluginConfigured(c *fixtures.Common, config *corev1.ConfigMap) bo
 	}
 
 	var resourcePlugins []types.PluginItem
-	if err := yaml.Unmarshal([]byte(config.Data["rolloutPlugins"]), &resourcePlugins); err != nil {
+	if err := yaml.Unmarshal([]byte(config.Data["resourcePlugins"]), &resourcePlugins); err != nil {
 		c.CheckError(err)
 	}
 

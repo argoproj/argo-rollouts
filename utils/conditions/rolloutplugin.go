@@ -191,10 +191,27 @@ func TouchRolloutPluginProgressingCondition(newStatus *v1alpha1.RolloutPluginSta
 	newStatus.Conditions = append(newConditions, touched)
 }
 
-// IsRolloutPluginProgressing returns true if the RolloutPlugin has an active Progressing condition
-func IsRolloutPluginProgressing(status *v1alpha1.RolloutPluginStatus) bool {
-	cond := GetRolloutPluginCondition(*status, v1alpha1.RolloutPluginConditionProgressing)
-	return cond != nil && cond.Status == corev1.ConditionTrue
+// RolloutPluginMadeProgress reports whether newStatus shows progress over the RolloutPlugin's
+// current status, mirroring RolloutProgressing: replicas updated, old replicas scaled down, more
+// ready/available replicas, a new stable revision, or a step change.
+func RolloutPluginMadeProgress(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus) bool {
+	oldStatus := rolloutPlugin.Status
+
+	stepChange := false
+	if newStatus.CurrentStepIndex != nil && oldStatus.CurrentStepIndex != nil {
+		stepChange = *newStatus.CurrentStepIndex != *oldStatus.CurrentStepIndex
+	}
+	strategySpecificProgress := newStatus.CurrentRevision != oldStatus.CurrentRevision ||
+		stepChange || newStatus.CurrentStepHash != oldStatus.CurrentStepHash
+
+	oldStatusOldReplicas := oldStatus.Replicas - oldStatus.UpdatedReplicas
+	newStatusOldReplicas := newStatus.Replicas - newStatus.UpdatedReplicas
+
+	return newStatus.UpdatedReplicas != oldStatus.UpdatedReplicas ||
+		newStatusOldReplicas < oldStatusOldReplicas ||
+		newStatus.ReadyReplicas > oldStatus.ReadyReplicas ||
+		newStatus.AvailableReplicas > oldStatus.AvailableReplicas ||
+		strategySpecificProgress
 }
 
 // IsRolloutPluginInProgress returns true if a rollout is underway: Progressing is True, or it is

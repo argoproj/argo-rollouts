@@ -10,6 +10,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -908,6 +909,19 @@ func (w *When) SetStatefulSetAnnotation(key, value string) *When {
 	return w
 }
 
+// ApplyStatefulSetPartition server-side applies the StatefulSet's partition as fieldManager
+// without forcing, so it fails if another manager owns the partition.
+func (w *When) ApplyStatefulSetPartition(partition int32, fieldManager string) *When {
+	if w.statefulSet == nil {
+		w.t.Fatal("StatefulSet not set")
+	}
+	patchBytes := []byte(fmt.Sprintf(`{"apiVersion":"apps/v1","kind":"StatefulSet","metadata":{"name":"%s"},"spec":{"updateStrategy":{"rollingUpdate":{"partition":%d}}}}`, w.statefulSet.GetName(), partition))
+	_, err := w.kubeClient.AppsV1().StatefulSets(w.namespace).Patch(w.Context, w.statefulSet.GetName(), types.ApplyPatchType, patchBytes, metav1.PatchOptions{FieldManager: fieldManager})
+	w.CheckError(err)
+	w.log.Infof("Applied StatefulSet partition %d as %s", partition, fieldManager)
+	return w
+}
+
 // WaitForStatefulSetReady waits for all StatefulSet pods to be ready
 func (w *When) WaitForStatefulSetReady(timeouts ...time.Duration) *When {
 	if w.statefulSet == nil {
@@ -1265,5 +1279,31 @@ func (w *When) PatchRolloutPluginSpec(patchYaml string) *When {
 	_, err = w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace).Patch(w.Context, w.rolloutPlugin.GetName(), types.MergePatchType, patchJSON, metav1.PatchOptions{})
 	w.CheckError(err)
 	w.log.Infof("Patched RolloutPlugin spec")
+	return w
+}
+
+// DeleteRolloutPlugin deletes the RolloutPlugin and waits until its finalizer has run and the
+// object is gone.
+func (w *When) DeleteRolloutPlugin(timeouts ...time.Duration) *When {
+	if w.rolloutPlugin == nil {
+		w.t.Fatal("RolloutPlugin not set")
+	}
+	timeout := E2EWaitTimeout
+	if len(timeouts) > 0 {
+		timeout = timeouts[0]
+	}
+	rpIf := w.rolloutClient.ArgoprojV1alpha1().RolloutPlugins(w.namespace)
+	w.CheckError(rpIf.Delete(w.Context, w.rolloutPlugin.GetName(), metav1.DeleteOptions{}))
+	w.log.Infof("Deleting RolloutPlugin %s", w.rolloutPlugin.GetName())
+	err := wait.PollUntilContextTimeout(w.Context, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		_, err := rpIf.Get(ctx, w.rolloutPlugin.GetName(), metav1.GetOptions{})
+		if k8serrors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, err
+	})
+	if err != nil {
+		w.t.Fatalf("RolloutPlugin %s not deleted after %v: %v", w.rolloutPlugin.GetName(), timeout, err)
+	}
 	return w
 }

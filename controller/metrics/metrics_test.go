@@ -152,18 +152,20 @@ func TestRemove(t *testing.T) {
 
 	expectedResponse := `analysis_run_reconcile_error{name="name1",namespace="ns"} 1
 experiment_reconcile_error{name="name1",namespace="ns"} 1
-rollout_reconcile_error{name="name1",namespace="ns"} 1`
-
+rollout_reconcile_error{name="name1",namespace="ns"} 1
+rolloutplugin_reconcile_error{name="name1",namespace="ns"} 1`
 	metricsServ := NewMetricsServer(newFakeServerConfig())
 
 	metricsServ.IncError("ns", "name1", logutil.RolloutKey)
 	metricsServ.IncError("ns", "name1", logutil.AnalysisRunKey)
 	metricsServ.IncError("ns", "name1", logutil.ExperimentKey)
+	metricsServ.IncError("ns", "name1", logutil.RolloutPluginKey)
 	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 
 	metricsServ.Remove("ns", "name1", logutil.AnalysisRunKey)
 	metricsServ.Remove("ns", "name1", logutil.ExperimentKey)
 	metricsServ.Remove("ns", "name1", logutil.RolloutKey)
+	metricsServ.Remove("ns", "name1", logutil.RolloutPluginKey)
 
 	//Sleep for 2x the cleanup delay to allow metrics to be removed
 	time.Sleep(defaults.GetMetricCleanupDelaySeconds() * 2)

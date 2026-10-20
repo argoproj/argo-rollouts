@@ -56,6 +56,10 @@ func (p *recordingPlugin) Restart(rp *v1alpha1.RolloutPlugin) types.RpcError {
 	p.record("Restart", rp)
 	return types.RpcError{}
 }
+func (p *recordingPlugin) DeletionCleanup(rp *v1alpha1.RolloutPlugin) types.RpcError {
+	p.record("DeletionCleanup", rp)
+	return types.RpcError{}
+}
 func (p *recordingPlugin) Type() string { return "recording" }
 
 // TestRolloutPluginCrossesRPC verifies every workload method delivers the full RolloutPlugin,
@@ -96,8 +100,9 @@ func TestRolloutPluginCrossesRPC(t *testing.T) {
 	assert.Equal(t, "abort failed", plugin.Abort(rp).ErrorString, "plugin errors must cross RPC")
 	assert.False(t, plugin.Restart(rp).HasError())
 	assert.Equal(t, "config rejected", plugin.Validate(rp).ErrorString, "validation errors must cross RPC")
+	assert.False(t, plugin.DeletionCleanup(rp).HasError())
 
-	for _, method := range []string{"Validate", "GetResourceStatus", "SetWeight", "VerifyWeight", "PromoteFull", "Abort", "Restart"} {
+	for _, method := range []string{"Validate", "GetResourceStatus", "SetWeight", "VerifyWeight", "PromoteFull", "Abort", "Restart", "DeletionCleanup"} {
 		got := impl.received[method]
 		require.NotNil(t, got, method)
 		assert.Equal(t, "team-a", got.Namespace, method)
