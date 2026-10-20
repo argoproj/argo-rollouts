@@ -80,6 +80,7 @@ var (
 	appmeshCRDVersion            = DefaultAppMeshCRDVersion
 	defaultMetricCleanupDelay    = DefaultMetricCleanupDelay
 	defaultDescribeTagsLimit     = DefaultDescribeTagsLimit
+	rolloutsConfigMapName        = DefaultRolloutsConfigMapName
 )
 
 const (
@@ -377,4 +378,14 @@ func GetDescribeTagsLimit() int {
 // SetDescribeTagsLimit sets the limit of resources can be requested in a single call
 func SetDescribeTagsLimit(limit int) {
 	defaultDescribeTagsLimit = limit
+}
+
+// SetRolloutsConfigMapName overrides the name of the ConfigMap used to configure the controller.
+func SetRolloutsConfigMapName(name string) {
+	rolloutsConfigMapName = name
+}
+
+// GetRolloutsConfigMapName returns the name of the ConfigMap used to configure the controller.
+func GetRolloutsConfigMapName() string {
+	return rolloutsConfigMapName
 }
