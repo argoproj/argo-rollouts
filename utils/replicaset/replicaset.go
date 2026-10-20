@@ -57,6 +57,9 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	// of a change in the controller.ComputeHash function (e.g. due to an update of k8s libraries).
 	// When this (rare) situation arises, we do not want to return nil, since nil is considered a
 	// PodTemplate change, which in turn would triggers an unexpected redeploy of the replicaset.
+	// The spec is unchanged since the last reconcile, so a hash miss can only come from a change in
+	// the hash function rather than from the user editing the template.
+	specUnchanged := rollout.Status.ObservedGeneration == strconv.FormatInt(rollout.Generation, 10)
 	for _, rs := range rsList {
 		// Remove injected canary/stable metadata from spec.template.metadata before comparing
 		rsCopy, _ := SyncReplicaSetEphemeralPodMetadata(rs, nil)
@@ -65,6 +68,17 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 		live.Spec.Affinity = RemoveInjectedAntiAffinityRule(live.Spec.Affinity, *rollout)
 
 		desired := rollout.Spec.Template.DeepCopy()
+		// Injecting canary/stable metadata overwrites any template key it shares, and removing it
+		// above deletes the key outright, so drop those keys from desired too before comparing.
+		// Only do this while the spec is unchanged, so an edit to such a key still rolls out.
+		if injected := ParseExistingPodMetadata(rs); injected != nil && specUnchanged {
+			for k := range injected.Labels {
+				delete(desired.Labels, k)
+			}
+			for k := range injected.Annotations {
+				delete(desired.Annotations, k)
+			}
+		}
 		if PodTemplateEqualIgnoreHash(live, desired) {
 			logCtx := logutil.WithRollout(rollout)
 			logCtx.Infof("ComputePodTemplateHash hash changed (expected: %s, actual: %s)", podHash, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
