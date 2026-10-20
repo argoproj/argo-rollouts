@@ -18,6 +18,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	apisixMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix/mocks"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
@@ -2293,4 +2295,91 @@ func TestDynamicStableScaleNewCanarySupersedeShouldNotOverloadStable(t *testing.
 		"SetWeight should not be called when stable lacks capacity with dynamicStableScale; "+
 			"checkReplicasAvailable should return early. Calls observed: %v", setWeightCalls)
 	f.fakeTrafficRouting.AssertNotCalled(t, "UpdateHash", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// runRouteStepWithUnavailableStable reconciles traffic routing while routeStep is the current step and the
+// stable ReplicaSet only has 1 of 10 pods available. It returns the mocked traffic router so callers can
+// assert which calls were made.
+// See: https://github.com/argoproj/argo-rollouts/issues/4561
+func runRouteStepWithUnavailableStable(t *testing.T, routeStep v1alpha1.CanaryStep, managedRoute string) *mocks.TrafficRoutingReconciler {
+	t.Helper()
+
+	// Mirrors the repro in #4561: scale the canary, then apply the route step, then pause.
+	steps := []v1alpha1.CanaryStep{
+		{SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: ptr.To[int32](1)}},
+		routeStep,
+		{Pause: &v1alpha1.RolloutPause{}},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI:           &v1alpha1.SMITrafficRouting{},
+		ManagedRoutes: []v1alpha1.MangedRoutes{{Name: managedRoute}},
+	}
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	// Route steps are only applied for revision > 1, so bump twice.
+	r2 := bumpVersion(bumpVersion(r1))
+
+	// Stable RS was just scaled up (e.g. spec.replicas 1 -> 10) and only has 1 of 10 pods available,
+	// so it cannot take 100% of the traffic yet.
+	stableRS := newReplicaSetWithStatus(r1, 10, 1)
+	canaryRS := newReplicaSetWithStatus(r2, 1, 1)
+	r2.Status.StableRS = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	// Use a mocked traffic router so we can assert which calls reconcileTrafficRouting makes.
+	reconciler := newFakeSingleTrafficRoutingReconciler()
+	roCtx := &rolloutContext{
+		reconcilerBase: reconcilerBase{
+			newTrafficRoutingReconciler: func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
+				return []trafficrouting.TrafficRoutingReconciler{reconciler}, nil
+			},
+		},
+		rollout:      r2,
+		log:          logutil.WithRollout(r2),
+		pauseContext: &pauseContext{rollout: r2},
+		stableRS:     stableRS,
+		newRS:        canaryRS,
+		allRSs:       []*appsv1.ReplicaSet{stableRS, canaryRS},
+		olderRSs:     []*appsv1.ReplicaSet{stableRS},
+	}
+
+	// Current step is the route step
+	roCtx.rollout.Status.CurrentStepIndex = ptr.To[int32](1)
+	roCtx.newStatus.CurrentStepIndex = ptr.To[int32](1)
+
+	assert.NoError(t, roCtx.reconcileTrafficRouting())
+	return reconciler
+}
+
+// TestSetHeaderRouteAppliedWhenStableReplicasNotAvailable verifies that a SetHeaderRoute step is applied even
+// when the stable ReplicaSet does not have enough available replicas, while the weight update is still held back.
+func TestSetHeaderRouteAppliedWhenStableReplicasNotAvailable(t *testing.T) {
+	headerRoute := &v1alpha1.SetHeaderRoute{
+		Name: "test-header",
+		Match: []v1alpha1.HeaderRoutingMatch{{
+			HeaderName:  "X-Test",
+			HeaderValue: &v1alpha1.StringMatch{Exact: "test"},
+		}},
+	}
+
+	reconciler := runRouteStepWithUnavailableStable(t, v1alpha1.CanaryStep{SetHeaderRoute: headerRoute}, headerRoute.Name)
+
+	reconciler.AssertCalled(t, "SetHeaderRoute", headerRoute)
+	reconciler.AssertNotCalled(t, "SetWeight", mock.Anything, mock.Anything)
+}
+
+// TestSetMirrorRouteAppliedWhenStableReplicasNotAvailable verifies that a SetMirrorRoute step is applied even
+// when the stable ReplicaSet does not have enough available replicas, while the weight update is still held back.
+func TestSetMirrorRouteAppliedWhenStableReplicasNotAvailable(t *testing.T) {
+	mirrorRoute := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{Exact: "GET"},
+		}},
+	}
+
+	reconciler := runRouteStepWithUnavailableStable(t, v1alpha1.CanaryStep{SetMirrorRoute: mirrorRoute}, mirrorRoute.Name)
+
+	reconciler.AssertCalled(t, "SetMirrorRoute", mirrorRoute)
+	reconciler.AssertNotCalled(t, "SetWeight", mock.Anything, mock.Anything)
 }
