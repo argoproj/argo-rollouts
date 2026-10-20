@@ -2,10 +2,14 @@ package rollout
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	core "k8s.io/client-go/testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -1809,6 +1813,106 @@ func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
 	assert.JSONEq(t, expectedPatch, patch)
+}
+
+// newUserPausedRolloutMidUpdate returns a canary rollout in the middle of an update (5 stable
+// pods, 0 canary pods at a 20% step) that the user paused with spec.paused and then scaled
+// from 5 to 10 replicas, together with the stable ReplicaSet.
+func newUserPausedRolloutMidUpdate(f *fixture) (*v1alpha1.Rollout, *appsv1.ReplicaSet) {
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](20)}}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], 5, 0, 5, true)
+	r2.Spec.Paused = true
+	r2.Spec.Replicas = ptr.To[int32](10)
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	pausedCondition, _ := newPausedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	return r2, rs1
+}
+
+// newUserPausedRolloutFullyPromoted returns a fully promoted canary rollout (5 replicas) that the
+// user paused with spec.paused and then scaled from 5 to 8 replicas, together with its ReplicaSet.
+func newUserPausedRolloutFullyPromoted(f *fixture) (*v1alpha1.Rollout, *appsv1.ReplicaSet) {
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](20)}}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	r1.Spec.Paused = true
+	r1 = updateCanaryRolloutStatus(r1, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], 5, 5, 5, false)
+	r1.Spec.Replicas = ptr.To[int32](8)
+	pausedCondition, _ := newPausedCondition(true)
+	conditions.SetRolloutCondition(&r1.Status, pausedCondition)
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.objects = append(f.objects, r1)
+	return r1, rs1
+}
+
+// manualPausePatch returns the status patch expected after reconciling a user-paused rollout:
+// the manual pause start time, plus the "manually paused" message when it was not set before.
+func manualPausePatch(r *v1alpha1.Rollout, withMessage bool) string {
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
+	patch := `{"status": {"duration": {"manualPauseStartedAt": "%s"}}}`
+	if withMessage {
+		patch = `{"status": {"message": "manually paused", "duration": {"manualPauseStartedAt": "%s"}}}`
+	}
+	return calculatePatch(r, fmt.Sprintf(patch, now))
+}
+
+// TestCanaryRolloutScaleWhileUserPaused verifies that a scaling event in the middle of an update
+// is honored while the rollout is paused by the user (spec.paused), keeping the canary step ratio.
+func TestCanaryRolloutScaleWhileUserPaused(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	r, rs := newUserPausedRolloutMidUpdate(f)
+
+	updatedIndex := f.expectUpdateReplicaSetAction(rs)
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	assert.Equal(t, int32(8), *f.getUpdatedReplicaSet(updatedIndex).Spec.Replicas)
+	assert.JSONEq(t, manualPausePatch(r, true), f.getPatchedRolloutWithoutConditions(patchIndex))
+}
+
+// TestCanaryRolloutScaleFullyPromotedWhileUserPaused verifies that a fully promoted rollout that
+// is paused by the user (spec.paused) still scales its ReplicaSet when spec.replicas changes,
+// e.g. when an HPA scales it.
+func TestCanaryRolloutScaleFullyPromotedWhileUserPaused(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	r, rs := newUserPausedRolloutFullyPromoted(f)
+
+	updatedIndex := f.expectUpdateReplicaSetAction(rs)
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	assert.Equal(t, int32(8), *f.getUpdatedReplicaSet(updatedIndex).Spec.Replicas)
+	assert.JSONEq(t, manualPausePatch(r, false), f.getPatchedRolloutWithoutConditions(patchIndex))
+}
+
+// TestCanaryRolloutScaleWhileUserPausedReturnsScalingError verifies that a failure to scale
+// during a scaling event on a user-paused rollout is surfaced so the rollout is requeued.
+func TestCanaryRolloutScaleWhileUserPausedReturnsScalingError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	r, rs := newUserPausedRolloutFullyPromoted(f)
+
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.kubeclient.PrependReactor("update", "replicasets", func(action core.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("replicaset update failed")
+	})
+	f.expectUpdateReplicaSetAction(rs)
+	f.runController(getKey(r, t), true, true, c, i, k8sI)
 }
 
 func TestResumeRolloutAfterPauseDuration(t *testing.T) {

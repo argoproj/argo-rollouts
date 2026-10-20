@@ -300,13 +300,14 @@ func (c *rolloutContext) syncReplicasOnly() error {
 			newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 		}
 	}
-	// The controller wants to use the rolloutCanary method to reconcile the rollout if the rollout is not paused.
-	// If there are no scaling events, the rollout should only sync its status
+	// Scale the ReplicaSets directly, bypassing the haltProgress check in reconcileCanaryReplicaSets:
+	// a scaling event must be honored even while the rollout is paused by the user (spec.paused),
+	// otherwise the rollout never reaches the new spec.replicas until it is resumed.
 	if c.rollout.Spec.Strategy.Canary != nil {
-		if _, err := c.reconcileCanaryReplicaSets(); err != nil {
+		if _, err := c.scaleCanaryReplicaSets(); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync
-			return fmt.Errorf("failed to reconcileCanaryReplicaSets in syncReplicasOnly: %w", err)
+			return fmt.Errorf("failed to scaleCanaryReplicaSets in syncReplicasOnly: %w", err)
 		}
 		newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
