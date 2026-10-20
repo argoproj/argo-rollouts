@@ -8,6 +8,8 @@ import (
 
 func init() {
 	gob.RegisterName("RpcError", new(RpcError))
+	gob.RegisterName("ResourceStatus", new(ResourceStatus))
+	gob.RegisterName("WatchedGVK", new(WatchedGVK))
 }
 
 // RpcError is a wrapper around the error type to allow for usage with net/rpc
@@ -23,6 +25,82 @@ func (e RpcError) Error() string {
 // HasError returns true if there is an error
 func (e RpcError) HasError() bool {
 	return e.ErrorString != ""
+}
+
+// ResourceStatus contains the status of a workload resource managed by a RolloutPlugin.
+// This struct is shared between the controller interface and RPC interface to avoid conversions.
+type ResourceStatus struct {
+	Replicas          int32
+	UpdatedReplicas   int32
+	ReadyReplicas     int32
+	AvailableReplicas int32
+	CurrentRevision   string
+	UpdatedRevision   string
+	// Ready reports that every replica is ready, that no pod is left on a revision other than
+	// CurrentRevision or UpdatedRevision while they differ, and that the status reflects the
+	// workload's latest spec, including the plugin's own most recent write. The controller only
+	// completes a rollout or an abort once Ready is true, so a plugin must not report Ready while
+	// its view of the workload predates its own last write.
+	Ready bool
+	// ObservedResourceVersion is the metadata.resourceVersion of the workload this status was
+	// computed from. The controller compares it with the resourceVersion of the watch event that
+	// triggered the reconcile, and retries shortly instead of acting on a view that is older.
+	// Leave empty to opt out of that check.
+	ObservedResourceVersion string
+}
+
+// WatchedGVK identifies the Kubernetes resource kind a plugin manages, as a plain
+// (Group, Version, Kind) triple so it can cross the RPC boundary without depending on
+// k8s.io/apimachinery/pkg/runtime/schema from the plugin's side.
+type WatchedGVK struct {
+	Group   string
+	Version string
+	Kind    string
+}
+
+// RpcResourcePlugin is the RPC interface for resource plugins used in RolloutPlugins.
+// It's nearly identical to the controller's ResourcePlugin interface, but:
+// - Returns RpcError instead of error (for RPC serialization)
+// - No context.Context (can't be serialized over RPC)
+// Built-in plugins implement the controller interface directly.
+// External RPC plugins implement this interface.
+type RpcResourcePlugin interface {
+	// InitPlugin initializes the plugin. It is called once, only after this controller replica
+	// becomes the leader, so it is where a plugin should create its clients and start any watches;
+	// WatchedGVK and Type may be called before it.
+	// namespace is the controller's watch namespace (empty / metav1.NamespaceAll for
+	// cluster-wide, or a specific namespace in --namespaced mode). Plugins should scope
+	// their cache/client to this namespace to respect RBAC boundaries.
+	InitPlugin(namespace string) RpcError
+	// WatchedGVK declares the workload resource kind this plugin manages, so the controller
+	// can register a manager-level watch for it deterministically at startup.
+	// Called once per plugin at startup.
+	WatchedGVK() (WatchedGVK, RpcError)
+	// Validate checks the plugin-specific parts of the RolloutPlugin (e.g. spec.plugin.config,
+	// spec.workloadRef.kind). A non-empty error marks the RolloutPlugin InvalidSpec with the
+	// error message; the controller does not call any other workload method until it passes.
+	Validate(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
+	// GetResourceStatus gets the current status of the workload referenced by
+	// rolloutPlugin.Spec.WorkloadRef in rolloutPlugin.Namespace.
+	GetResourceStatus(rolloutPlugin *v1alpha1.RolloutPlugin) (*ResourceStatus, RpcError)
+	// SetWeight updates the weight (percentage of pods updated)
+	SetWeight(rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) RpcError
+	// VerifyWeight checks if the desired weight has been achieved
+	VerifyWeight(rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) (bool, RpcError)
+	// PromoteFull skips all remaining steps and promotes the new version to stable immediately
+	PromoteFull(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
+	// Abort aborts the rollout and reverts to the stable version.
+	Abort(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
+	// Restart returns the workload to baseline state for restart
+	Restart(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
+	// DeletionCleanup is called when the RolloutPlugin is deleted, and retried until it succeeds
+	// since the deletion waits for it. It must leave the workload's spec as it is and only drop the
+	// plugin's claim on it (e.g. its Server-Side Apply field ownership). It is called even if
+	// Validate never passed, so a workloadRef the plugin doesn't manage, or a missing workload,
+	// isn't an error and doesn't block deletion.
+	DeletionCleanup(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
+	// Type returns the type of the resource plugin
+	Type() string
 }
 
 // RpcVerified is a wrapper around the *bool as used in VerifyWeight for traffic routers. This is needed because
@@ -121,6 +199,8 @@ const (
 	PluginTypeTrafficRouter PluginType = "TrafficRouter"
 	// PluginTypeStep is the type for a Step plugin
 	PluginTypeStep PluginType = "Step"
+	// PluginTypeResourcePlugin is the type for a ResourcePlugin plugin used by RolloutPlugin
+	PluginTypeResourcePlugin PluginType = "ResourcePlugin"
 )
 
 type PluginItem struct {
@@ -132,7 +212,7 @@ type PluginItem struct {
 	Sha256 string `json:"sha256" yaml:"sha256"`
 	// Type of the plugin
 	Type PluginType
-	// Disabled indicates if the plugin should be ignored when referenced in Rollout custom resources. Only valid for a plugin of type Step.
+	// Disabled indicates if the plugin should be ignored when referenced in Rollout or RolloutPlugin custom resources. Only valid for plugins of type Step and ResourcePlugin.
 	Disabled bool `json:"disabled" yaml:"disabled"`
 	// Args holds command line arguments to initialize the plugin
 	Args []string `json:"args" yaml:"args"`

@@ -197,9 +197,8 @@ func NewAnalysisManager(
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
 	resyncPeriod time.Duration,
-	metricsPort int,
+	metricsServer *metrics.MetricsServer,
 	healthzPort int,
-	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	clusterDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	namespaced bool,
@@ -208,17 +207,6 @@ func NewAnalysisManager(
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
-
-	metricsAddr := fmt.Sprintf(listenAddr, metricsPort)
-	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr:                          metricsAddr,
-		RolloutLister:                 nil,
-		AnalysisRunLister:             analysisRunInformer.Lister(),
-		AnalysisTemplateLister:        analysisTemplateInformer.Lister(),
-		ClusterAnalysisTemplateLister: clusterAnalysisTemplateInformer.Lister(),
-		ExperimentLister:              nil,
-		K8SRequestProvider:            k8sRequestProvider,
-	})
 
 	healthzServer := NewHealthzServer(fmt.Sprintf(listenAddr, healthzPort))
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
@@ -294,9 +282,8 @@ func NewManager(
 	notificationSecretInformerFactory kubeinformers.SharedInformerFactory,
 	resyncPeriod time.Duration,
 	instanceID string,
-	metricsPort int,
+	metricsServer *metrics.MetricsServer,
 	healthzPort int,
-	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	nginxIngressClasses []string,
 	albIngressClasses []string,
 	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
@@ -312,17 +299,6 @@ func NewManager(
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
-
-	metricsAddr := fmt.Sprintf(listenAddr, metricsPort)
-	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr:                          metricsAddr,
-		RolloutLister:                 rolloutsInformer.Lister(),
-		AnalysisRunLister:             analysisRunInformer.Lister(),
-		AnalysisTemplateLister:        analysisTemplateInformer.Lister(),
-		ClusterAnalysisTemplateLister: clusterAnalysisTemplateInformer.Lister(),
-		ExperimentLister:              experimentsInformer.Lister(),
-		K8SRequestProvider:            k8sRequestProvider,
-	})
 
 	healthzServer := NewHealthzServer(fmt.Sprintf(listenAddr, healthzPort))
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
@@ -498,7 +474,12 @@ func objectToUnstructured(obj metav1.Object) (*unstructured.Unstructured, error)
 // Run will sync informer caches and start controllers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // controllers to finish processing their current work items.
-func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int, electOpts *LeaderElectionOptions) error {
+// The optional onStartedLeading hook is invoked with
+// the leader context once this instance becomes the leader (or immediately, in single-instance
+// mode). It lets callers start auxiliary controllers — e.g. the RolloutPlugin controller-runtime
+// manager — only on the pod that won leadership, so they share the same lease rather than running
+// on every replica. The hook may be nil.
+func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int, electOpts *LeaderElectionOptions, onStartedLeading func(leaderCtx context.Context)) error {
 	defer runtime.HandleCrash()
 	defer func() {
 		log.Infof("Exiting Main Run function")
@@ -521,7 +502,7 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 
 	if !electOpts.LeaderElect {
 		log.Info("Leader election is turned off. Running in single-instance mode")
-		go c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
+		go c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness, onStartedLeading)
 		<-ctx.Done()
 	} else {
 		// id used to distinguish between multiple controller manager instances
@@ -553,7 +534,7 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) {
 					log.Infof("I am the new leader: %s", id)
-					c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
+					c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness, onStartedLeading)
 				},
 				OnStoppedLeading: func() {
 					log.Infof("OnStoppedLeading called, shutting down: %s, context err: %s", id, ctx.Err())
@@ -586,7 +567,7 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 	return nil
 }
 
-func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int) {
+func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int, onStartedLeading func(leaderCtx context.Context)) {
 	defer runtime.HandleCrash()
 	// Start the informer factories to begin populating the informer caches
 	log.Info("Starting Controllers")
@@ -678,4 +659,11 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 
 	}
 	log.Info("Started controller")
+
+	// Now that this instance is leading, start any auxiliary controllers (e.g. the
+	// RolloutPlugin controller-runtime manager) so they run only on the leader. ctx is the
+	// leader context, so they shut down when leadership is lost along with the controllers above.
+	if onStartedLeading != nil {
+		onStartedLeading(ctx)
+	}
 }

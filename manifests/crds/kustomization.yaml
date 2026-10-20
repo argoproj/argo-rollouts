@@ -7,3 +7,4 @@ resources:
 - analysis-run-crd.yaml
 - analysis-template-crd.yaml
 - cluster-analysis-template-crd.yaml
+- rollout-plugin-crd.yaml

@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-sts
+  namespace: argo-rollouts
+  labels:
+    app: test-sts
+spec:
+  clusterIP: None
+  selector:
+    app: test-sts
+  ports:
+  - port: 80
+    name: web
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-sts
+  namespace: argo-rollouts
+spec:
+  serviceName: test-sts
+  replicas: 5
+  selector:
+    matchLabels:
+      app: test-sts
+  template:
+    metadata:
+      labels:
+        app: test-sts
+        version: v1
+    spec:
+      containers:
+      - name: busybox
+        image: quay.io/prometheus/busybox:latest
+        command: ['sh', '-c', 'echo "Version 1" && sleep 3600']
+        ports:
+        - containerPort: 80
+          name: web
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
