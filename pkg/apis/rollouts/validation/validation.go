@@ -358,7 +358,8 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 					}
 					if match.Method != nil || match.Path != nil {
 						matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
-						if trafficRouting.Istio == nil && len(trafficRouting.Plugins) == 0 {
+						// ALB and Apisix only match on headers, so method and path would be silently ignored
+						if trafficRouting.ALB != nil || trafficRouting.Apisix != nil || (trafficRouting.Istio == nil && len(trafficRouting.Plugins) == 0) {
 							allErrs = append(allErrs, field.Invalid(matchFld, match, InvalidSetHeaderRouteMethodPathPolicy))
 						} else {
 							if match.Method != nil {
