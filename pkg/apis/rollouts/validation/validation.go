@@ -47,6 +47,8 @@ const (
 	InvalidStringMatchMissedValuePolicy = "StringMatch value missed, match value must have one of the following: exact, regex, prefix"
 	// InvalidSetHeaderRouteALBValuePolicy indicates that SetHeaderRouting using with ALB missed the 'exact' value
 	InvalidSetHeaderRouteALBValuePolicy = "SetHeaderRoute match value invalid. ALB supports 'exact' value only"
+	// InvalidSetHeaderRouteMethodPathPolicy indicates that SetHeaderRoute method or path match is used with an unsupported traffic router
+	InvalidSetHeaderRouteMethodPathPolicy = "SetHeaderRoute match on method and path supports Istio and Plugins"
 	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
 	InvalidDurationMessage = "Duration needs to be greater than 0"
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
@@ -353,6 +355,19 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 					} else {
 						matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
 						allErrs = append(allErrs, hasMultipleMatchValues(match.HeaderValue, matchFld)...)
+					}
+					if match.Method != nil || match.Path != nil {
+						matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
+						if trafficRouting.Istio == nil && len(trafficRouting.Plugins) == 0 {
+							allErrs = append(allErrs, field.Invalid(matchFld, match, InvalidSetHeaderRouteMethodPathPolicy))
+						} else {
+							if match.Method != nil {
+								allErrs = append(allErrs, hasMultipleMatchValues(match.Method, matchFld.Child("method"))...)
+							}
+							if match.Path != nil {
+								allErrs = append(allErrs, hasMultipleMatchValues(match.Path, matchFld.Child("path"))...)
+							}
+						}
 					}
 				}
 			}

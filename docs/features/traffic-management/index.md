@@ -105,6 +105,12 @@ Header-based traffic routing is configured using the `setHeaderRoute` step, whic
 - `regex`: Specifies a regular expression pattern to match
 - `prefix`: Specifies a prefix value to match
 
+`method` - (Istio and plugins only, optional) The HTTP method to match, using one of `exact`, `regex` or `prefix`.
+
+`path` - (Istio and plugins only, optional) The URL path to match, using one of `exact`, `regex` or `prefix`.
+
+All conditions inside a single match entry have AND semantics, while the list of match entries has OR semantics.
+
 **Note:** Not all traffic routers support all match types.
 
 To disable header based traffic routing just need to specify empty `setHeaderRoute` with only the name of the route.
@@ -139,6 +145,13 @@ spec:
               - headerName: Custom-Header3 # or Custom-Header3 value match regex: Mozilla(.*)
                 headerValue:
                   regex: Mozilla(.*)
+              - headerName: Custom-Header4 # or Custom-Header4=Mozilla on GET requests to /v1/api (Istio only)
+                headerValue:
+                  exact: Mozilla
+                method:
+                  exact: GET
+                path:
+                  prefix: /v1/api
         - pause: {}
         - setHeaderRoute:
             name: 'set-header-1' # disable header based traffic routing

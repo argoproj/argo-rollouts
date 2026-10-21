@@ -771,6 +771,64 @@ func TestValidateRolloutStrategyCanarySetHeaderRouteIstio(t *testing.T) {
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, InvalideStepRouteNameNotFoundInManagedRoutes, allErrs[0].Detail)
 	})
+
+	t.Run("using SetHeaderRoute step with method and path", func(t *testing.T) {
+		validRo := ro.DeepCopy()
+		routeName := "test"
+		validRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: routeName,
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName:  "agent",
+						HeaderValue: &v1alpha1.StringMatch{Exact: "chrome"},
+						Method:      &v1alpha1.StringMatch{Exact: "GET"},
+						Path:        &v1alpha1.StringMatch{Prefix: "/v1/api"},
+					},
+				},
+			},
+		}}
+		validRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{{Name: routeName}}
+		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
+		assert.Equal(t, 0, len(allErrs))
+	})
+
+	t.Run("using SetHeaderRoute step with method multiple values", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName:  "agent",
+						HeaderValue: &v1alpha1.StringMatch{Exact: "chrome"},
+						Method: &v1alpha1.StringMatch{
+							Exact:  "GET",
+							Prefix: "G",
+						},
+					},
+				},
+			},
+		}}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidStringMatchMultipleValuePolicy, allErrs[0].Detail)
+	})
+
+	t.Run("using SetHeaderRoute step with path missed values", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName:  "agent",
+						HeaderValue: &v1alpha1.StringMatch{Exact: "chrome"},
+						Path:        &v1alpha1.StringMatch{},
+					},
+				},
+			},
+		}}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidStringMatchMissedValuePolicy, allErrs[0].Detail)
+	})
 }
 
 func TestValidateRolloutStrategyCanarySetHeaderRoutingALB(t *testing.T) {
@@ -835,6 +893,24 @@ func TestValidateRolloutStrategyCanarySetHeaderRoutingALB(t *testing.T) {
 		}}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, InvalidSetHeaderRouteALBValuePolicy, allErrs[0].Detail)
+	})
+
+	t.Run("using SetHeaderRouting step with method and path", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName:  "agent",
+						HeaderValue: &v1alpha1.StringMatch{Exact: "chrome"},
+						Method:      &v1alpha1.StringMatch{Exact: "GET"},
+						Path:        &v1alpha1.StringMatch{Prefix: "/v1/api"},
+					},
+				},
+			},
+		}}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidSetHeaderRouteMethodPathPolicy, allErrs[0].Detail)
 	})
 }
 
