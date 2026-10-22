@@ -1013,13 +1013,28 @@ func TestScaleDownProgressively(t *testing.T) {
 			expectedDeploymentReplicas: 4,
 		},
 		{
-			name:                       "Do not scale deployment",
+			// A Deployment scaled back up after the migration (e.g. by a GitOps sync re-applying the
+			// manifest) must be drained again on a later revision, not left running forever.
+			name:                       "Rollout healthy on a later revision - Deployment scaled to 0",
 			deploymentReplicas:         5,
 			newRSReplicas:              5,
 			newRSRevision:              "2",
 			rolloutReplicas:            5,
 			rolloutReadyReplicas:       3,
 			rolloutPhase:               v1alpha1.RolloutPhaseHealthy,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 0,
+		},
+		{
+			// Mid-canary on a later revision the stable ReplicaSet already serves the traffic, so the
+			// Deployment must not be scaled up to make up the difference.
+			name:                       "Rollout progressing on a later revision - Deployment untouched",
+			deploymentReplicas:         5,
+			newRSReplicas:              5,
+			newRSRevision:              "2",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       3,
+			rolloutPhase:               v1alpha1.RolloutPhaseProgressing,
 			abortScaleDownDelaySeconds: 0,
 			expectedDeploymentReplicas: 5,
 		},

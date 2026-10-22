@@ -217,21 +217,24 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 
 	revision, _ := replicasetutil.Revision(c.newRS)
 
-	if revision == 1 && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownProgressively {
-		// NOTE: Progressive deployment scaling is designed for one-time migration from Deployment to Rollout.
-		// It only triggers on revision == 1, which has a limitation: if the initial rollout (revision 1) fails
-		// and users fix the issue causing a new revision (revision 2+), the deployment will never be scaled down.
-		// This matches the behavior of scaleDown: onSuccess and may need to be addressed in a future enhancement.
+	if c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownProgressively {
+		// When healthy: Scale deployment to 0 to prevent external controllers (HPA/KEDA) from interfering.
+		// This is not limited to revision 1: anything that scales the referenced Deployment back up after
+		// the migration (most commonly a GitOps controller re-applying the Deployment manifest with its
+		// original replica count) would otherwise never be scaled down again, leaving the Rollout and the
+		// Deployment both at full size indefinitely. It also covers the case where revision 1 failed and
+		// the fix landed in revision 2+.
 		//
-		// When healthy: Scale deployment to 0 to prevent external controllers (HPA/KEDA) from interfering
-		// When not healthy: Scale deployment based on rollout's ready replicas to maintain availability
+		// When not healthy: only during the initial migration (revision 1) is the Deployment used to make up
+		// the capacity the Rollout has not taken over yet. On later revisions the stable ReplicaSet already
+		// serves that capacity, so scaling the Deployment up would add capacity instead of preserving it.
 		if c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy {
 			var targetScale int32 = 0
 			err = c.scaleDeployment(&targetScale)
 			if err != nil {
 				c.log.Errorf("Failed to scale deployment to 0 during progressive migration: %v", err)
 			}
-		} else {
+		} else if revision == 1 {
 			// scale down the deployment when the rollout has ready replicas or scale up the deployment if rollout fails
 			oldScale := defaults.GetReplicasOrDefault(c.newRS.Spec.Replicas)
 			if c.rollout.Spec.Replicas != nil && (c.rollout.Status.ReadyReplicas > 0 || oldScale > newReplicasCount) {
