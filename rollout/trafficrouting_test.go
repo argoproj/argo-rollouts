@@ -1090,7 +1090,7 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAborted(t 
 
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 	canarySvc := newService("canary", 80, canarySelector, r1)
 	stableSvc := newService("stable", 80, stableSelector, r1)
@@ -1115,6 +1115,7 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAborted(t 
 	f.objects = append(f.objects, r2)
 
 	f.expectPatchRolloutAction(r2)
+	f.expectPatchServiceAction(canarySvc, rs2PodHash)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
