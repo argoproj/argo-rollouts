@@ -143,13 +143,21 @@ func (c *viewController) Start(ctx context.Context) {
 	cache.WaitForCacheSync(ctx.Done(), c.cacheSyncs...)
 }
 
+// Run waits for cancellation, shuts down the queue, and waits for the worker to exit.
+// Callbacks must return when ctx is cancelled so they cannot block shutdown.
 func (c *viewController) Run(ctx context.Context) error {
-	go wait.Until(func() {
-		for c.processNextWorkItem() {
-		}
-	}, time.Second, ctx.Done())
+	workerDone := make(chan struct{})
+	go func() {
+		defer close(workerDone)
+		wait.Until(func() {
+			for c.processNextWorkItem() {
+			}
+		}, time.Second, ctx.Done())
+	}()
 	<-ctx.Done()
 	c.DeregisterCallbacks()
+	c.workqueue.ShutDown()
+	<-workerDone
 	return nil
 }
 
