@@ -32178,6 +32178,40 @@ spec:
                                               regular expression matched
                                             type: string
                                         type: object
+                                      method:
+                                        description: Method What http methods should
+                                          be matched
+                                        properties:
+                                          exact:
+                                            description: Exact The string must match
+                                              exactly
+                                            type: string
+                                          prefix:
+                                            description: Prefix The string will be
+                                              prefixed matched
+                                            type: string
+                                          regex:
+                                            description: Regex The string will be
+                                              regular expression matched
+                                            type: string
+                                        type: object
+                                      path:
+                                        description: Path What url paths should be
+                                          matched
+                                        properties:
+                                          exact:
+                                            description: Exact The string must match
+                                              exactly
+                                            type: string
+                                          prefix:
+                                            description: Prefix The string will be
+                                              prefixed matched
+                                            type: string
+                                          regex:
+                                            description: Regex The string will be
+                                              regular expression matched
+                                            type: string
+                                        type: object
                                     required:
                                     - headerName
                                     - headerValue
