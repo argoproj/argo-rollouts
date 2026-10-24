@@ -135,6 +135,7 @@ Each template has access to the following fields:
 
 - `rollout` holds the rollout object.
 - `recipient` holds the recipient name.
+- `context` holds user-defined context from the notifications ConfigMap.
 
 The `message` field of the template definition allows creating a basic notification for any notification service. You can
 leverage notification service-specific fields to create complex notifications. For example using service-specific you can
@@ -164,6 +165,25 @@ data:
 ```
 
 Each condition might use several templates. Typically each template is responsible for generating a service-specific notification part.
+
+### User-Defined Context
+
+You can define shared context for notification templates by setting `context` in the `argo-rollouts-notification-configmap`
+ConfigMap. The context is parsed as YAML key-value pairs and exposed to templates as `.context`.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-notification-configmap
+data:
+  context: |
+    region: east
+    environmentName: staging
+
+  template.rollout-completed: |
+    message: "Rollout {{ .rollout.metadata.name }} completed in {{ .context.environmentName }} in the {{ .context.region }} region."
+```
 
 ### Notification Metrics
 

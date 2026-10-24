@@ -529,6 +529,10 @@ func TestNewAPIFactorySettings(t *testing.T) {
 	expectedSecrets := map[string][]byte{
 		"notification-secret": []byte("secret-value"),
 	}
+	expectedContext := map[string]any{
+		"argocdUrl":   "https://argocd.example.com",
+		"environment": "development",
+	}
 
 	notificationsSecret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -536,6 +540,15 @@ func TestNewAPIFactorySettings(t *testing.T) {
 			Namespace: "default",
 		},
 		Data: expectedSecrets,
+	}
+	notificationsConfigMap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argo-rollouts-notification-configmap",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"context": "argocdUrl: https://argocd.example.com\nenvironment: development",
+		},
 	}
 
 	type expectedFunc func(obj map[string]interface{}, ar any) map[string]interface{}
@@ -561,6 +574,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"analysisRuns": ar,
 					"time":         timeExprs,
 					"secrets":      expectedSecrets,
+					"context":      expectedContext,
 				}
 			},
 		},
@@ -587,6 +601,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"analysisRuns": nil,
 					"time":         timeExprs,
 					"secrets":      expectedSecrets,
+					"context":      expectedContext,
 				}
 			},
 		},
@@ -602,6 +617,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"rollout": obj,
 					"time":    timeExprs,
 					"secrets": expectedSecrets,
+					"context": expectedContext,
 				}
 			},
 		},
@@ -628,6 +644,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"analysisRuns": nil,
 					"time":         timeExprs,
 					"secrets":      expectedSecrets,
+					"context":      expectedContext,
 				}
 			},
 		},
@@ -637,7 +654,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			settings := NewAPIFactorySettings(test.arInformer(test.ars))
-			getVars, err := settings.InitGetVars(nil, nil, &notificationsSecret)
+			getVars, err := settings.InitGetVars(nil, &notificationsConfigMap, &notificationsSecret)
 			require.NoError(t, err)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
@@ -655,6 +672,112 @@ func TestNewAPIFactorySettings(t *testing.T) {
 			assert.Equal(t, test.expected(obj, arsObj), vars)
 		})
 	}
+}
+
+func TestGetNotificationContext(t *testing.T) {
+	testcases := []struct {
+		name        string
+		configMap   *corev1.ConfigMap
+		expected    map[string]any
+		expectError bool
+	}{
+		{
+			name:      "nil configMap",
+			configMap: nil,
+			expected:  map[string]any{},
+		},
+		{
+			name:      "nil configMap data",
+			configMap: &corev1.ConfigMap{},
+			expected:  map[string]any{},
+		},
+		{
+			name: "no context key",
+			configMap: &corev1.ConfigMap{
+				Data: map[string]string{"notifiers": "service.slack: |"},
+			},
+			expected: map[string]any{},
+		},
+		{
+			name: "empty context",
+			configMap: &corev1.ConfigMap{
+				Data: map[string]string{"context": ""},
+			},
+			expected: map[string]any{},
+		},
+		{
+			name: "string values",
+			configMap: &corev1.ConfigMap{
+				Data: map[string]string{"context": "argocdUrl: https://argocd.example.com\nenvironment: development"},
+			},
+			expected: map[string]any{
+				"argocdUrl":   "https://argocd.example.com",
+				"environment": "development",
+			},
+		},
+		{
+			name: "non-string scalars",
+			configMap: &corev1.ConfigMap{
+				Data: map[string]string{"context": "port: 8080\nenabled: true\nratio: 0.5"},
+			},
+			expected: map[string]any{
+				"port":    float64(8080),
+				"enabled": true,
+				"ratio":   0.5,
+			},
+		},
+		{
+			name: "nested values",
+			configMap: &corev1.ConfigMap{
+				Data: map[string]string{"context": "labels:\n  team: sre"},
+			},
+			expected: map[string]any{
+				"labels": map[string]any{"team": "sre"},
+			},
+		},
+		{
+			name: "malformed yaml",
+			configMap: &corev1.ConfigMap{
+				Data: map[string]string{"context": "argocdUrl: [unclosed"},
+			},
+			expectError: true,
+		},
+	}
+
+	for _, test := range testcases {
+		t.Run(test.name, func(t *testing.T) {
+			context, err := getNotificationContext(test.configMap)
+			if test.expectError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, context)
+		})
+	}
+}
+
+func TestInitGetVarsInvalidNotificationContext(t *testing.T) {
+	notificationsSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argo-rollouts-notification-secret",
+			Namespace: "default",
+		},
+	}
+	notificationsConfigMap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argo-rollouts-notification-configmap",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"context": "argocdUrl: [unclosed",
+		},
+	}
+
+	settings := NewAPIFactorySettings(nil)
+	getVars, err := settings.InitGetVars(nil, &notificationsConfigMap, &notificationsSecret)
+	require.Error(t, err)
+	assert.Nil(t, getVars)
 }
 
 func TestWorkloadRefObjectMap(t *testing.T) {
