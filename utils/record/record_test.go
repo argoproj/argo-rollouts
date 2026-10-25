@@ -529,6 +529,10 @@ func TestNewAPIFactorySettings(t *testing.T) {
 	expectedSecrets := map[string][]byte{
 		"notification-secret": []byte("secret-value"),
 	}
+	expectedContext := map[string]string{
+		"argocdUrl":   "https://argocd.example.com",
+		"environment": "development",
+	}
 
 	notificationsSecret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -536,6 +540,15 @@ func TestNewAPIFactorySettings(t *testing.T) {
 			Namespace: "default",
 		},
 		Data: expectedSecrets,
+	}
+	notificationsConfigMap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argo-rollouts-notification-configmap",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"context": "argocdUrl: https://argocd.example.com\nenvironment: development",
+		},
 	}
 
 	type expectedFunc func(obj map[string]interface{}, ar any) map[string]interface{}
@@ -561,6 +574,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"analysisRuns": ar,
 					"time":         timeExprs,
 					"secrets":      expectedSecrets,
+					"context":      expectedContext,
 				}
 			},
 		},
@@ -587,6 +601,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"analysisRuns": nil,
 					"time":         timeExprs,
 					"secrets":      expectedSecrets,
+					"context":      expectedContext,
 				}
 			},
 		},
@@ -602,6 +617,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"rollout": obj,
 					"time":    timeExprs,
 					"secrets": expectedSecrets,
+					"context": expectedContext,
 				}
 			},
 		},
@@ -628,6 +644,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"analysisRuns": nil,
 					"time":         timeExprs,
 					"secrets":      expectedSecrets,
+					"context":      expectedContext,
 				}
 			},
 		},
@@ -637,7 +654,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			settings := NewAPIFactorySettings(test.arInformer(test.ars))
-			getVars, err := settings.InitGetVars(nil, nil, &notificationsSecret)
+			getVars, err := settings.InitGetVars(nil, &notificationsConfigMap, &notificationsSecret)
 			require.NoError(t, err)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
