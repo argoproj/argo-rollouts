@@ -361,8 +361,8 @@ func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Set
 	}
 }
 
-func getNotificationContext(configMap *corev1.ConfigMap) (map[string]string, error) {
-	notificationContext := map[string]string{}
+func getNotificationContext(configMap *corev1.ConfigMap) (map[string]any, error) {
+	notificationContext := map[string]any{}
 	if configMap == nil || configMap.Data == nil {
 		return notificationContext, nil
 	}
