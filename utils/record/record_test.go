@@ -757,6 +757,29 @@ func TestGetNotificationContext(t *testing.T) {
 	}
 }
 
+func TestInitGetVarsInvalidNotificationContext(t *testing.T) {
+	notificationsSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argo-rollouts-notification-secret",
+			Namespace: "default",
+		},
+	}
+	notificationsConfigMap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argo-rollouts-notification-configmap",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"context": "argocdUrl: [unclosed",
+		},
+	}
+
+	settings := NewAPIFactorySettings(nil)
+	getVars, err := settings.InitGetVars(nil, &notificationsConfigMap, &notificationsSecret)
+	require.Error(t, err)
+	assert.Nil(t, getVars)
+}
+
 func TestWorkloadRefObjectMap(t *testing.T) {
 	ro := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
