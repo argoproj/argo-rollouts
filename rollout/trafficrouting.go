@@ -298,7 +298,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		if (c.newRS == nil || c.newRS.Status.AvailableReplicas == 0) &&
 			c.rollout.Status.Canary.Weights != nil && c.rollout.Status.Canary.Weights.Canary.Weight > 0 {
 			if err := reconciler.SetWeight(desiredWeight, weightDestinations...); err != nil {
-				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
 				return err
 			}
 		}
@@ -310,7 +309,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 
 		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
 		if err != nil {
-			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
 			return err
 		}
 
