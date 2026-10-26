@@ -169,7 +169,9 @@ Each condition might use several templates. Typically each template is responsib
 ### User-Defined Context
 
 You can define shared context for notification templates by setting `context` in the `argo-rollouts-notification-configmap`
-ConfigMap. The context is parsed as YAML key-value pairs and exposed to templates as `.context`.
+ConfigMap. The context is parsed as a flat YAML map of string values and exposed to templates as `.context`. Scalars such
+as numbers and booleans are kept as their text. Nested values are not supported, and a `context` value that is not valid
+YAML, or not a flat map, makes the notification configuration fail to load.
 
 ```yaml
 apiVersion: v1

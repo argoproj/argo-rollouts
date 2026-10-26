@@ -529,7 +529,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 	expectedSecrets := map[string][]byte{
 		"notification-secret": []byte("secret-value"),
 	}
-	expectedContext := map[string]any{
+	expectedContext := map[string]string{
 		"argocdUrl":   "https://argocd.example.com",
 		"environment": "development",
 	}
@@ -678,62 +678,67 @@ func TestGetNotificationContext(t *testing.T) {
 	testcases := []struct {
 		name        string
 		configMap   *corev1.ConfigMap
-		expected    map[string]any
+		expected    map[string]string
 		expectError bool
 	}{
 		{
 			name:      "nil configMap",
 			configMap: nil,
-			expected:  map[string]any{},
+			expected:  map[string]string{},
 		},
 		{
 			name:      "nil configMap data",
 			configMap: &corev1.ConfigMap{},
-			expected:  map[string]any{},
+			expected:  map[string]string{},
 		},
 		{
 			name: "no context key",
 			configMap: &corev1.ConfigMap{
 				Data: map[string]string{"notifiers": "service.slack: |"},
 			},
-			expected: map[string]any{},
+			expected: map[string]string{},
 		},
 		{
 			name: "empty context",
 			configMap: &corev1.ConfigMap{
 				Data: map[string]string{"context": ""},
 			},
-			expected: map[string]any{},
+			expected: map[string]string{},
 		},
 		{
 			name: "string values",
 			configMap: &corev1.ConfigMap{
 				Data: map[string]string{"context": "argocdUrl: https://argocd.example.com\nenvironment: development"},
 			},
-			expected: map[string]any{
+			expected: map[string]string{
 				"argocdUrl":   "https://argocd.example.com",
 				"environment": "development",
 			},
 		},
 		{
-			name: "non-string scalars",
+			name: "non-string scalars are kept as their text",
 			configMap: &corev1.ConfigMap{
 				Data: map[string]string{"context": "port: 8080\nenabled: true\nratio: 0.5"},
 			},
-			expected: map[string]any{
-				"port":    float64(8080),
-				"enabled": true,
-				"ratio":   0.5,
+			expected: map[string]string{
+				"port":    "8080",
+				"enabled": "true",
+				"ratio":   "0.5",
 			},
 		},
 		{
-			name: "nested values",
+			name: "integer above 2^53 is exact",
+			configMap: &corev1.ConfigMap{
+				Data: map[string]string{"context": "accountId: 9007199254740993"},
+			},
+			expected: map[string]string{"accountId": "9007199254740993"},
+		},
+		{
+			name: "nested values are rejected",
 			configMap: &corev1.ConfigMap{
 				Data: map[string]string{"context": "labels:\n  team: sre"},
 			},
-			expected: map[string]any{
-				"labels": map[string]any{"team": "sre"},
-			},
+			expectError: true,
 		},
 		{
 			name: "malformed yaml",
