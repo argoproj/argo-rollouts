@@ -185,7 +185,16 @@ func TestReconcileTrafficRoutingVerifyWeightEndOfRollout(t *testing.T) {
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](false), nil)
-	f.runExpectError(getKey(r2, t), true)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	// An unverified end weight must not fail the reconcile, but must hold promotion.
+	patch := f.getPatchedRollout(patchIndex)
+	assert.NotContains(t, patch, fmt.Sprintf(`"stableRS":"%s"`, rs2PodHash),
+		"stable must not be promoted while the desired weight is unverified; patch: %s", patch)
+	eventsStr := strings.Join(f.events, " ")
+	assert.NotContains(t, eventsStr, "TrafficRoutingError",
+		"an unverified weight at end of rollout is routine and must not emit warning events")
 }
 
 func TestRolloutUseDesiredWeight(t *testing.T) {
