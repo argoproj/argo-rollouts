@@ -32444,6 +32444,10 @@ spec:
                                   name:
                                     description: Name holds the name of the DestinationRule
                                     type: string
+                                  namespace:
+                                    description: Namespace of the DestinationRule.
+                                      Defaults to the Rollout namespace.
+                                    type: string
                                   stableSubsetName:
                                     description: StableSubsetName is the subset name
                                       to modify labels with stable ReplicaSet pod
@@ -32460,6 +32464,11 @@ spec:
                                 properties:
                                   name:
                                     description: Name holds the name of the VirtualService
+                                    type: string
+                                  namespace:
+                                    description: |-
+                                      Namespace of the VirtualService. Defaults to the Rollout namespace. A namespace given in
+                                      the name ("name.namespace") takes precedence over this field.
                                     type: string
                                   routes:
                                     description: A list of HTTP routes within VirtualService
@@ -32522,6 +32531,11 @@ spec:
                                   properties:
                                     name:
                                       description: Name holds the name of the VirtualService
+                                      type: string
+                                    namespace:
+                                      description: |-
+                                        Namespace of the VirtualService. Defaults to the Rollout namespace. A namespace given in
+                                        the name ("name.namespace") takes precedence over this field.
                                       type: string
                                     routes:
                                       description: A list of HTTP routes within VirtualService
