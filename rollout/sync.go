@@ -376,6 +376,15 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 			// This bypasses the normal call to removeScaleDownDelay and then depends on the removal via an update in updateReplicaSet
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
+		if fullScaleDown {
+			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey)
+		} else if newScale < oldScale && replicasetutil.HasScaleDownDeadline(rs) {
+			// A partial scale-down of an old ReplicaSet past its deadline is a gradual scale-down batch.
+			if rsCopy.Annotations == nil {
+				rsCopy.Annotations = map[string]string{}
+			}
+			rsCopy.Annotations[v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey] = timeutil.Now().UTC().Format(time.RFC3339)
+		}
 
 		rs, err = c.updateReplicaSet(ctx, rsCopy)
 		if err != nil {

@@ -376,6 +376,8 @@ func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 					c.enqueueRolloutAfter(c.rollout, *remainingTime)
 				}
 				desiredReplicaCount = rolloutReplicas
+			} else if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.OldReplicaSetScaleDown != nil {
+				desiredReplicaCount = c.nextScaleDownBatch(rs)
 			}
 		}
 	}
@@ -500,4 +502,38 @@ func (c *rolloutContext) isReplicaSetReferencedByIstioDestinationRule(rsPodHash 
 		}
 	}
 	return false
+}
+
+// nextScaleDownBatch returns the replicas to keep for an old stable ReplicaSet whose scale-down deadline has
+// passed, when the canary strategy rate-limits its scale-down. The ReplicaSet keeps its replicas until the
+// interval since the previous batch has passed and, if requested, until the pods of that batch are gone.
+func (c *rolloutContext) nextScaleDownBatch(rs *appsv1.ReplicaSet) int32 {
+	policy := c.rollout.Spec.Strategy.Canary.OldReplicaSetScaleDown
+	current := *rs.Spec.Replicas
+	if policy.WaitForPodTermination && rs.Status.Replicas > current {
+		// The ReplicaSet's status update when the pods are gone requeues the rollout.
+		c.log.Infof("Waiting for pods of RS '%s' to terminate before the next scale-down batch", rs.Name)
+		return current
+	}
+	if policy.IntervalSeconds != nil && *policy.IntervalSeconds > 0 {
+		if lastBatch, ok := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey]; ok {
+			lastBatchTime, err := time.Parse(time.RFC3339, lastBatch)
+			if err != nil {
+				c.log.Warnf("Unable to parse '%s' annotation of RS '%s': %v", v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey, rs.Name, err)
+			} else if remaining := lastBatchTime.Add(time.Duration(*policy.IntervalSeconds) * time.Second).Sub(timeutil.Now()); remaining > 0 {
+				c.enqueueRolloutAfter(c.rollout, remaining)
+				return current
+			}
+		}
+	}
+	batch := defaults.GetOldReplicaSetScaleDownBatchSize(c.rollout)
+	target := current - batch
+	if target <= 0 {
+		return 0
+	}
+	c.log.Infof("Scaling down RS '%s' gradually: %d -> %d", rs.Name, current, target)
+	if policy.IntervalSeconds != nil && *policy.IntervalSeconds > 0 {
+		c.enqueueRolloutAfter(c.rollout, time.Duration(*policy.IntervalSeconds)*time.Second)
+	}
+	return target
 }
