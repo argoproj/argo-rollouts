@@ -4362,3 +4362,29 @@ func TestHttpReconcileMirrorRouteInheritFromConflict(t *testing.T) {
 	})
 	assert.ErrorContains(t, err, "match condition 'uri' conflicts with the inherited route")
 }
+
+func TestHttpReconcileHeaderRouteInheritFromRedirect(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"api"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "legacy"}}
+	obj := unstructuredutil.StrToUnstructuredUnsafe(inheritFromVsvc)
+	httpRoutes, _, err := unstructured.NestedSlice(obj.Object, "spec", "http")
+	assert.NoError(t, err)
+	httpRoutes = append(httpRoutes, map[string]any{
+		"name":     "legacy",
+		"match":    []any{map[string]any{"uri": map[string]any{"prefix": "/legacy"}}},
+		"redirect": map[string]any{"uri": "/api"},
+	})
+	assert.NoError(t, unstructured.SetNestedSlice(obj.Object, httpRoutes, "spec", "http"))
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+		Match: []v1alpha1.HeaderRoutingMatch{{
+			HeaderName:  "agent",
+			HeaderValue: &v1alpha1.StringMatch{Exact: "firefox"},
+		}},
+	})
+	assert.ErrorContains(t, err, "route 'legacy' uses redirect, which can not be inherited by a managed route")
+}

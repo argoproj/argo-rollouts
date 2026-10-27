@@ -96,7 +96,8 @@ The managed route starts with a copy of every field of the inherited route (e.g.
 The `route` and `mirror` fields that Argo Rollouts sets on the managed route replace the inherited values.
 Its match conditions are added to each match condition of the inherited route. The inherited route itself is not modified.
 
-The route referenced by `inheritFrom` must exist in the VirtualService and must not be a managed route. A match condition
+The route referenced by `inheritFrom` must exist in the VirtualService, must not be a managed route and must forward
+traffic, since a route using `redirect`, `directResponse` or `delegate` can not be inherited. A match condition
 of the step that is already set differently on the inherited route (e.g. another `uri`, or another value for the same header)
 is rejected, since both conditions can not be required at once. `inheritFrom` can not be used together with AWS ALB.
 

@@ -1445,6 +1445,9 @@ func (r *Reconciler) inheritManagedRoute(managedRoute map[string]any, httpRoutes
 	if err != nil {
 		return nil, err
 	}
+	if err := validateInheritableRoute(inheritFrom, baseRoute); err != nil {
+		return nil, err
+	}
 	route := runtime.DeepCopyJSON(baseRoute)
 	for key, value := range managedRoute {
 		route[key] = value
@@ -1456,6 +1459,17 @@ func (r *Reconciler) inheritManagedRoute(managedRoute map[string]any, httpRoutes
 		return nil, err
 	}
 	return route, nil
+}
+
+// validateInheritableRoute ensures the route forwards traffic, as Istio does not allow the route destinations of the
+// managed route to be set together with any of the other route actions
+func validateInheritableRoute(routeName string, route map[string]any) error {
+	for _, action := range []string{"redirect", "directResponse", "delegate"} {
+		if _, found := route[action]; found {
+			return fmt.Errorf("route '%s' uses %s, which can not be inherited by a managed route", routeName, action)
+		}
+	}
+	return nil
 }
 
 // getManagedRouteInheritFrom returns the inheritFrom field of the managed route named routeName
