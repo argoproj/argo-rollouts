@@ -1480,7 +1480,7 @@ func findHttpRoute(routeName string, httpRoutesI []any) (map[string]any, error) 
 
 // combineRouteMatches returns every combination of the base matches with the matches, so that each resulting match
 // requires the conditions of both. Headers are merged, while any other condition of the matches replaces the base one.
-func combineRouteMatches(baseMatches []any, matches []any) []any {
+func combineRouteMatches(baseMatches, matches []any) []any {
 	if len(baseMatches) == 0 {
 		return matches
 	}
@@ -1488,28 +1488,42 @@ func combineRouteMatches(baseMatches []any, matches []any) []any {
 		return runtime.DeepCopyJSONValue(baseMatches).([]any)
 	}
 	var combined []any
-	for _, baseMatchI := range baseMatches {
-		for _, matchI := range matches {
-			baseMatch, _ := runtime.DeepCopyJSONValue(baseMatchI).(map[string]any)
-			match, _ := matchI.(map[string]any)
-			if baseMatch == nil {
-				baseMatch = map[string]any{}
-			}
-			for key, value := range match {
-				baseHeaders, isBaseMap := baseMatch[key].(map[string]any)
-				headers, isMap := value.(map[string]any)
-				if key == "headers" && isBaseMap && isMap {
-					for name, headerMatch := range headers {
-						baseHeaders[name] = headerMatch
-					}
-					continue
-				}
-				baseMatch[key] = value
-			}
-			combined = append(combined, baseMatch)
+	for _, baseMatch := range baseMatches {
+		for _, match := range matches {
+			combined = append(combined, combineRouteMatch(baseMatch, match))
 		}
 	}
 	return combined
+}
+
+// combineRouteMatch returns a copy of the base match with the conditions of the match added to it
+func combineRouteMatch(baseMatchI, matchI any) map[string]any {
+	combined, _ := runtime.DeepCopyJSONValue(baseMatchI).(map[string]any)
+	if combined == nil {
+		combined = map[string]any{}
+	}
+	baseHeaders, isBaseMap := combined["headers"].(map[string]any)
+	match, _ := matchI.(map[string]any)
+	for key, value := range match {
+		combined[key] = value
+	}
+	headers, isMap := match["headers"].(map[string]any)
+	if isBaseMap && isMap {
+		combined["headers"] = mergeHeaderMatches(baseHeaders, headers)
+	}
+	return combined
+}
+
+// mergeHeaderMatches returns the header matches of both maps, where the headers override the base headers with the same name
+func mergeHeaderMatches(baseHeaders, headers map[string]any) map[string]any {
+	merged := map[string]any{}
+	for name, headerMatch := range baseHeaders {
+		merged[name] = headerMatch
+	}
+	for name, headerMatch := range headers {
+		merged[name] = headerMatch
+	}
+	return merged
 }
 
 // getVirtualServiceSetWeightRoute This functions goes through the list of Istio Virtual service routes and finds the first
