@@ -1246,3 +1246,65 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		assert.Equal(t, 0, len(allErrs))
 	})
 }
+
+func TestValidateManagedRoutesInheritFrom(t *testing.T) {
+	fldPath := field.NewPath("trafficRouting", "managedRoutes")
+
+	t.Run("inheritFrom a route not managed by the rollout with Istio", func(t *testing.T) {
+		trafficRouting := &v1alpha1.RolloutTrafficRouting{
+			Istio:         &v1alpha1.IstioTrafficRouting{},
+			ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "primary"}, {Name: "mirror-route"}},
+		}
+		assert.Empty(t, ValidateManagedRoutesInheritFrom(trafficRouting, fldPath))
+	})
+
+	t.Run("inheritFrom with plugins", func(t *testing.T) {
+		trafficRouting := &v1alpha1.RolloutTrafficRouting{
+			Plugins:       map[string]json.RawMessage{"plugin": json.RawMessage(`{}`)},
+			ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "primary"}},
+		}
+		assert.Empty(t, ValidateManagedRoutesInheritFrom(trafficRouting, fldPath))
+	})
+
+	t.Run("inheritFrom a managed route", func(t *testing.T) {
+		trafficRouting := &v1alpha1.RolloutTrafficRouting{
+			Istio:         &v1alpha1.IstioTrafficRouting{},
+			ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "mirror-route"}, {Name: "mirror-route"}},
+		}
+		allErrs := ValidateManagedRoutesInheritFrom(trafficRouting, fldPath)
+		assert.Len(t, allErrs, 1)
+		assert.Equal(t, InvalidManagedRouteInheritFromManagedRoute, allErrs[0].Detail)
+		assert.Equal(t, "trafficRouting.managedRoutes[0].inheritFrom", allErrs[0].Field)
+	})
+
+	t.Run("inheritFrom itself", func(t *testing.T) {
+		trafficRouting := &v1alpha1.RolloutTrafficRouting{
+			Istio:         &v1alpha1.IstioTrafficRouting{},
+			ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "header-route"}},
+		}
+		allErrs := ValidateManagedRoutesInheritFrom(trafficRouting, fldPath)
+		assert.Len(t, allErrs, 1)
+		assert.Equal(t, InvalidManagedRouteInheritFromManagedRoute, allErrs[0].Detail)
+	})
+
+	t.Run("inheritFrom with Istio and ALB", func(t *testing.T) {
+		trafficRouting := &v1alpha1.RolloutTrafficRouting{
+			Istio:         &v1alpha1.IstioTrafficRouting{},
+			ALB:           &v1alpha1.ALBTrafficRouting{},
+			ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "primary"}},
+		}
+		allErrs := ValidateManagedRoutesInheritFrom(trafficRouting, fldPath)
+		assert.Len(t, allErrs, 1)
+		assert.Equal(t, InvalidManagedRouteInheritFromPolicy, allErrs[0].Detail)
+	})
+
+	t.Run("inheritFrom with unsupported traffic router", func(t *testing.T) {
+		trafficRouting := &v1alpha1.RolloutTrafficRouting{
+			ALB:           &v1alpha1.ALBTrafficRouting{},
+			ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "primary"}},
+		}
+		allErrs := ValidateManagedRoutesInheritFrom(trafficRouting, fldPath)
+		assert.Len(t, allErrs, 1)
+		assert.Equal(t, InvalidManagedRouteInheritFromPolicy, allErrs[0].Detail)
+	})
+}

@@ -89,6 +89,10 @@ const (
 	// InvalideStepRouteNameNotFoundInManagedRoutes A step has been configured that requires managedRoutes and the route name
 	// is missing from managedRoutes
 	InvalideStepRouteNameNotFoundInManagedRoutes = "Steps define a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
+	// InvalidManagedRouteInheritFromManagedRoute A managed route can only inherit from a route that is not managed by the rollout
+	InvalidManagedRouteInheritFromManagedRoute = "inheritFrom must reference a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
+	// InvalidManagedRouteInheritFromPolicy indicates that inheritFrom is used with an unsupported traffic router
+	InvalidManagedRouteInheritFromPolicy = "inheritFrom supports Istio and Plugins only, and can not be used with ALB"
 )
 
 // allowAllPodValidationOptions allows all pod options to be true for the purposes of rollout pod
@@ -431,7 +435,32 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		}
 
 	}
+	if canary.TrafficRouting != nil {
+		allErrs = append(allErrs, ValidateManagedRoutesInheritFrom(canary.TrafficRouting, fldPath.Child("trafficRouting", "managedRoutes"))...)
+	}
 	allErrs = append(allErrs, ValidateRolloutStrategyAntiAffinity(canary.AntiAffinity, fldPath.Child("antiAffinity"))...)
+	return allErrs
+}
+
+func ValidateManagedRoutesInheritFrom(trafficRouting *v1alpha1.RolloutTrafficRouting, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	for i, managedRoute := range trafficRouting.ManagedRoutes {
+		if managedRoute.InheritFrom == "" {
+			continue
+		}
+		inheritFromFld := fldPath.Index(i).Child("inheritFrom")
+		// ALB would set the managed route without the inherited match conditions
+		if trafficRouting.ALB != nil || (trafficRouting.Istio == nil && len(trafficRouting.Plugins) == 0) {
+			allErrs = append(allErrs, field.Invalid(inheritFromFld, managedRoute.InheritFrom, InvalidManagedRouteInheritFromPolicy))
+			continue
+		}
+		for _, other := range trafficRouting.ManagedRoutes {
+			if managedRoute.InheritFrom == other.Name {
+				allErrs = append(allErrs, field.Invalid(inheritFromFld, managedRoute.InheritFrom, InvalidManagedRouteInheritFromManagedRoute))
+				break
+			}
+		}
+	}
 	return allErrs
 }
 

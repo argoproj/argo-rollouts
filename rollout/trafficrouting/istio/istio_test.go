@@ -4143,3 +4143,248 @@ spec:
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to update kubernetes virtual service")
 }
+
+const inheritFromVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - name: api
+    match:
+    - uri:
+        prefix: /api
+      headers:
+        tenant:
+          exact: acme
+    - uri:
+        prefix: /v2/api
+    rewrite:
+      uri: /
+    corsPolicy:
+      allowOrigins:
+      - exact: https://argoproj.io
+    timeout: 5s
+    route:
+    - destination:
+        host: stable
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0
+  - name: other-workload
+    route:
+    - destination:
+        host: other
+      weight: 100`
+
+func TestHttpReconcileHeaderRouteInheritFrom(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"api"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "api"}}
+	obj := unstructuredutil.StrToUnstructuredUnsafe(inheritFromVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	hr := &v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+		Match: []v1alpha1.HeaderRoutingMatch{{
+			HeaderName:  "agent",
+			HeaderValue: &v1alpha1.StringMatch{Exact: "firefox"},
+		}},
+	}
+	err := r.SetHeaderRoute(hr)
+	assert.NoError(t, err)
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "vsvc", metav1.GetOptions{})
+	assert.NoError(t, err)
+	routes, found, err := unstructured.NestedSlice(iVirtualService.Object, "spec", "http")
+	assert.NoError(t, err)
+	assert.True(t, found)
+	assert.Len(t, routes, 3)
+
+	headerRoute := routes[0].(map[string]any)
+	assert.Equal(t, "header-route", headerRoute["name"])
+	assert.Equal(t, map[string]any{"uri": "/"}, headerRoute["rewrite"])
+	assert.Equal(t, "5s", headerRoute["timeout"])
+	assert.Equal(t, []any{map[string]any{"exact": "https://argoproj.io"}}, headerRoute["corsPolicy"].(map[string]any)["allowOrigins"])
+	assert.Equal(t, []any{
+		map[string]any{
+			"uri": map[string]any{"prefix": "/api"},
+			"headers": map[string]any{
+				"tenant": map[string]any{"exact": "acme"},
+				"agent":  map[string]any{"exact": "firefox"},
+			},
+		},
+		map[string]any{
+			"uri":     map[string]any{"prefix": "/v2/api"},
+			"headers": map[string]any{"agent": map[string]any{"exact": "firefox"}},
+		},
+	}, headerRoute["match"])
+
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+	assert.Len(t, httpRoutes[0].Route, 1)
+	checkDestination(t, httpRoutes[0].Route, "canary", 100)
+
+	// The inherited route is left untouched
+	assert.Equal(t, "api", httpRoutes[1].Name)
+	assert.Len(t, httpRoutes[1].Match, 2)
+	assert.Len(t, httpRoutes[1].Match[0].Headers, 1)
+	checkDestination(t, httpRoutes[1].Route, "stable", 100)
+	assert.Equal(t, "other-workload", httpRoutes[2].Name)
+
+	err = r.RemoveManagedRoutes()
+	assert.NoError(t, err)
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "vsvc", metav1.GetOptions{})
+	assert.NoError(t, err)
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	assert.Len(t, httpRoutes, 2)
+	assert.Equal(t, "api", httpRoutes[0].Name)
+}
+
+func TestHttpReconcileMirrorRouteInheritFrom(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"api"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{{Name: "mirror-route", InheritFrom: "api"}}
+	obj := unstructuredutil.StrToUnstructuredUnsafe(inheritFromVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+	client.ClearActions()
+
+	err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+		Name: "mirror-route",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{Exact: "GET"},
+		}},
+	})
+	assert.NoError(t, err)
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "vsvc", metav1.GetOptions{})
+	assert.NoError(t, err)
+	routes, found, err := unstructured.NestedSlice(iVirtualService.Object, "spec", "http")
+	assert.NoError(t, err)
+	assert.True(t, found)
+	assert.Len(t, routes, 3)
+
+	mirrorRoute := routes[0].(map[string]any)
+	assert.Equal(t, "mirror-route", mirrorRoute["name"])
+	assert.Equal(t, map[string]any{"uri": "/"}, mirrorRoute["rewrite"])
+	assert.Equal(t, "5s", mirrorRoute["timeout"])
+	assert.Equal(t, []any{
+		map[string]any{
+			"uri":     map[string]any{"prefix": "/api"},
+			"headers": map[string]any{"tenant": map[string]any{"exact": "acme"}},
+			"method":  map[string]any{"exact": "GET"},
+		},
+		map[string]any{
+			"uri":    map[string]any{"prefix": "/v2/api"},
+			"method": map[string]any{"exact": "GET"},
+		},
+	}, mirrorRoute["match"])
+
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, "canary", httpRoutes[0].Mirror.Host)
+	checkDestination(t, httpRoutes[0].Route, "stable", 100)
+	assert.Equal(t, "api", httpRoutes[1].Name)
+}
+
+func TestHttpReconcileHeaderRouteInheritFromNotFound(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"api"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "missing"}}
+	obj := unstructuredutil.StrToUnstructuredUnsafe(inheritFromVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+
+	err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+		Match: []v1alpha1.HeaderRoutingMatch{{
+			HeaderName:  "agent",
+			HeaderValue: &v1alpha1.StringMatch{Exact: "firefox"},
+		}},
+	})
+	assert.ErrorContains(t, err, "route 'missing' not found in Istio Virtual Service")
+
+	httpRoutes, err := GetHttpRoutesI(obj)
+	assert.NoError(t, err)
+	routes, err := GetHttpRoutes(httpRoutes)
+	assert.NoError(t, err)
+	err = ValidateHTTPRoutes(ro, []string{"api"}, routes)
+	assert.EqualError(t, err, "managed route 'header-route' inherits from route 'missing' which does not exist in VirtualService")
+}
+
+func TestCombineRouteMatches(t *testing.T) {
+	headerMatch := map[string]any{"headers": map[string]any{"agent": map[string]any{"exact": "firefox"}}}
+
+	// Without base matches, only the managed route matches are used
+	combined, err := combineRouteMatches(nil, []any{headerMatch})
+	assert.NoError(t, err)
+	assert.Equal(t, []any{headerMatch}, combined)
+
+	// An identical condition is kept as is
+	base := []any{map[string]any{"headers": map[string]any{"agent": map[string]any{"exact": "firefox"}, "tenant": map[string]any{"exact": "acme"}}}}
+	combined, err = combineRouteMatches(base, []any{headerMatch})
+	assert.NoError(t, err)
+	assert.Equal(t, base, combined)
+
+	// A different value for the same header conflicts with the base match
+	base = []any{map[string]any{"headers": map[string]any{"agent": map[string]any{"exact": "chrome"}}}}
+	_, err = combineRouteMatches(base, []any{headerMatch})
+	assert.EqualError(t, err, "match condition 'headers.agent' conflicts with the inherited route")
+	// The base matches are not modified
+	assert.Equal(t, map[string]any{"exact": "chrome"}, base[0].(map[string]any)["headers"].(map[string]any)["agent"])
+
+	// A different uri conflicts with the base match
+	base = []any{map[string]any{"uri": map[string]any{"prefix": "/api"}}}
+	_, err = combineRouteMatches(base, []any{map[string]any{"uri": map[string]any{"prefix": "/"}}})
+	assert.EqualError(t, err, "match condition 'uri' conflicts with the inherited route")
+}
+
+func TestHttpReconcileMirrorRouteInheritFromConflict(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"api"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{{Name: "mirror-route", InheritFrom: "api"}}
+	obj := unstructuredutil.StrToUnstructuredUnsafe(inheritFromVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+
+	err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+		Name: "mirror-route",
+		Match: []v1alpha1.RouteMatch{{
+			Path: &v1alpha1.StringMatch{Prefix: "/"},
+		}},
+	})
+	assert.ErrorContains(t, err, "match condition 'uri' conflicts with the inherited route")
+}
+
+func TestHttpReconcileHeaderRouteInheritFromRedirect(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"api"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "legacy"}}
+	obj := unstructuredutil.StrToUnstructuredUnsafe(inheritFromVsvc)
+	httpRoutes, _, err := unstructured.NestedSlice(obj.Object, "spec", "http")
+	assert.NoError(t, err)
+	httpRoutes = append(httpRoutes, map[string]any{
+		"name":     "legacy",
+		"match":    []any{map[string]any{"uri": map[string]any{"prefix": "/legacy"}}},
+		"redirect": map[string]any{"uri": "/api"},
+	})
+	assert.NoError(t, unstructured.SetNestedSlice(obj.Object, httpRoutes, "spec", "http"))
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+		Match: []v1alpha1.HeaderRoutingMatch{{
+			HeaderName:  "agent",
+			HeaderValue: &v1alpha1.StringMatch{Exact: "firefox"},
+		}},
+	})
+	assert.ErrorContains(t, err, "route 'legacy' uses redirect, which can not be inherited by a managed route")
+}
