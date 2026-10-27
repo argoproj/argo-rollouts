@@ -4323,13 +4323,42 @@ func TestCombineRouteMatches(t *testing.T) {
 	headerMatch := map[string]any{"headers": map[string]any{"agent": map[string]any{"exact": "firefox"}}}
 
 	// Without base matches, only the managed route matches are used
-	assert.Equal(t, []any{headerMatch}, combineRouteMatches(nil, []any{headerMatch}))
+	combined, err := combineRouteMatches(nil, []any{headerMatch})
+	assert.NoError(t, err)
+	assert.Equal(t, []any{headerMatch}, combined)
 
-	// The managed route header overrides the base header with the same name
-	base := []any{map[string]any{"headers": map[string]any{"agent": map[string]any{"exact": "chrome"}, "tenant": map[string]any{"exact": "acme"}}}}
-	assert.Equal(t, []any{
-		map[string]any{"headers": map[string]any{"agent": map[string]any{"exact": "firefox"}, "tenant": map[string]any{"exact": "acme"}}},
-	}, combineRouteMatches(base, []any{headerMatch}))
+	// An identical condition is kept as is
+	base := []any{map[string]any{"headers": map[string]any{"agent": map[string]any{"exact": "firefox"}, "tenant": map[string]any{"exact": "acme"}}}}
+	combined, err = combineRouteMatches(base, []any{headerMatch})
+	assert.NoError(t, err)
+	assert.Equal(t, base, combined)
+
+	// A different value for the same header conflicts with the base match
+	base = []any{map[string]any{"headers": map[string]any{"agent": map[string]any{"exact": "chrome"}}}}
+	_, err = combineRouteMatches(base, []any{headerMatch})
+	assert.EqualError(t, err, "match condition 'headers.agent' conflicts with the inherited route")
 	// The base matches are not modified
 	assert.Equal(t, map[string]any{"exact": "chrome"}, base[0].(map[string]any)["headers"].(map[string]any)["agent"])
+
+	// A different uri conflicts with the base match
+	base = []any{map[string]any{"uri": map[string]any{"prefix": "/api"}}}
+	_, err = combineRouteMatches(base, []any{map[string]any{"uri": map[string]any{"prefix": "/"}}})
+	assert.EqualError(t, err, "match condition 'uri' conflicts with the inherited route")
+}
+
+func TestHttpReconcileMirrorRouteInheritFromConflict(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"api"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{{Name: "mirror-route", InheritFrom: "api"}}
+	obj := unstructuredutil.StrToUnstructuredUnsafe(inheritFromVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister, nil)
+
+	err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+		Name: "mirror-route",
+		Match: []v1alpha1.RouteMatch{{
+			Path: &v1alpha1.StringMatch{Prefix: "/"},
+		}},
+	})
+	assert.ErrorContains(t, err, "match condition 'uri' conflicts with the inherited route")
 }

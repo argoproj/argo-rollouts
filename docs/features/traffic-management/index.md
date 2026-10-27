@@ -92,10 +92,13 @@ spec:
 
 By default a managed route only contains the match conditions defined in the `setHeaderRoute` or `setMirrorRoute` step.
 When the managed route should only apply to the traffic of an existing route, set `inheritFrom` to the name of that route.
-The managed route then copies every field of the inherited route (e.g. `rewrite`, `corsPolicy`, `timeout`, `retries`),
-and its match conditions are added to each match condition of the inherited route. The inherited route itself is not modified.
+The managed route starts with a copy of every field of the inherited route (e.g. `rewrite`, `corsPolicy`, `timeout`, `retries`).
+The `route` and `mirror` fields that Argo Rollouts sets on the managed route replace the inherited values.
+Its match conditions are added to each match condition of the inherited route. The inherited route itself is not modified.
 
-The route referenced by `inheritFrom` must exist in the VirtualService and must not be a managed route.
+The route referenced by `inheritFrom` must exist in the VirtualService and must not be a managed route. A match condition
+of the step that is already set differently on the inherited route (e.g. another `uri`, or another value for the same header)
+is rejected, since both conditions can not be required at once. `inheritFrom` can not be used together with AWS ALB.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

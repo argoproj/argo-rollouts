@@ -92,7 +92,7 @@ const (
 	// InvalidManagedRouteInheritFromManagedRoute A managed route can only inherit from a route that is not managed by the rollout
 	InvalidManagedRouteInheritFromManagedRoute = "inheritFrom must reference a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
 	// InvalidManagedRouteInheritFromPolicy indicates that inheritFrom is used with an unsupported traffic router
-	InvalidManagedRouteInheritFromPolicy = "inheritFrom supports Istio and Plugins only"
+	InvalidManagedRouteInheritFromPolicy = "inheritFrom supports Istio and Plugins only, and can not be used with ALB"
 )
 
 // allowAllPodValidationOptions allows all pod options to be true for the purposes of rollout pod
@@ -449,7 +449,8 @@ func ValidateManagedRoutesInheritFrom(trafficRouting *v1alpha1.RolloutTrafficRou
 			continue
 		}
 		inheritFromFld := fldPath.Index(i).Child("inheritFrom")
-		if trafficRouting.Istio == nil && len(trafficRouting.Plugins) == 0 {
+		// ALB would set the managed route without the inherited match conditions
+		if trafficRouting.ALB != nil || (trafficRouting.Istio == nil && len(trafficRouting.Plugins) == 0) {
 			allErrs = append(allErrs, field.Invalid(inheritFromFld, managedRoute.InheritFrom, InvalidManagedRouteInheritFromPolicy))
 			continue
 		}
