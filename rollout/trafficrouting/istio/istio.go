@@ -19,6 +19,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamiclister"
 
@@ -844,7 +845,12 @@ func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(virtualService v1alpha1
 		return err
 	}
 
-	httpRoutesI = append(httpRoutesI, createHeaderRoute(virtualService, obj, headerRouting, canarySvc, canarySubset))
+	headerRoute := createHeaderRoute(virtualService, obj, headerRouting, canarySvc, canarySubset)
+	headerRoute, err = r.inheritManagedRoute(headerRoute, httpRoutesI)
+	if err != nil {
+		return fmt.Errorf("[reconcileVirtualServiceHeaderRoutes] failed to inherit route: %w", err)
+	}
+	httpRoutesI = append(httpRoutesI, headerRoute)
 
 	err = unstructured.SetNestedSlice(obj.Object, httpRoutesI, "spec", Http)
 	if err != nil {
@@ -943,24 +949,14 @@ func createHeaderRoute(virtualService v1alpha1.IstioVirtualService, unVsvc *unst
 }
 
 func createHeaderRouteMatch(hrm v1alpha1.HeaderRoutingMatch) any {
-	res := map[string]any{
-		"headers": map[string]any{hrm.HeaderName: createStringMatch(hrm.HeaderValue)},
-	}
-	if hrm.Method != nil {
-		res["method"] = createStringMatch(hrm.Method)
-	}
-	if hrm.Path != nil {
-		res["uri"] = createStringMatch(hrm.Path)
-	}
-	return res
-}
-
-func createStringMatch(value *v1alpha1.StringMatch) map[string]any {
 	res := map[string]any{}
+	value := hrm.HeaderValue
 	setMapValueIfNotEmpty(res, "exact", value.Exact)
 	setMapValueIfNotEmpty(res, "regex", value.Regex)
 	setMapValueIfNotEmpty(res, "prefix", value.Prefix)
-	return res
+	return map[string]any{
+		"headers": map[string]any{hrm.HeaderName: res},
+	}
 }
 
 func setMapValueIfNotEmpty(m map[string]any, key string, value string) {
@@ -1166,6 +1162,18 @@ func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []V
 	if len(routeNames) == 0 && len(httpRoutesNotWithinManagedRoutes) > 1 {
 		return fmt.Errorf("spec.http[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes")
 	}
+
+	for _, managedRoute := range r.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
+		if managedRoute.InheritFrom == "" {
+			continue
+		}
+		found := slices.ContainsFunc(httpRoutes, func(route VirtualServiceHTTPRoute) bool {
+			return route.Name == managedRoute.InheritFrom
+		})
+		if !found {
+			return fmt.Errorf("managed route '%s' inherits from route '%s' which does not exist in VirtualService", managedRoute.Name, managedRoute.InheritFrom)
+		}
+	}
 	return nil
 }
 
@@ -1343,6 +1351,10 @@ func (r *Reconciler) reconcileVirtualServiceMirrorRoutes(virtualService v1alpha1
 	if !found {
 		return fmt.Errorf(SpecHttpNotFound)
 	}
+	mR, err = r.inheritManagedRoute(mR, vsRoutes)
+	if err != nil {
+		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to inherit route: %w", err)
+	}
 	vsRoutes = append([]any{mR}, vsRoutes...)
 	if err := unstructured.SetNestedSlice(istioVirtualService.Object, vsRoutes, "spec", Http); err != nil {
 		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to update virtual service routes via set nested slice: %w", err)
@@ -1418,6 +1430,86 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 	}
 
 	return mirrorRouteI, nil
+}
+
+// inheritManagedRoute When the managed route has the inheritFrom field set, this returns a copy of the inherited route
+// from httpRoutesI with the fields of the managed route on top of it. The match conditions of both routes are combined,
+// so the managed route only matches requests that also match the inherited route.
+func (r *Reconciler) inheritManagedRoute(managedRoute map[string]any, httpRoutesI []any) (map[string]any, error) {
+	inheritFrom := getManagedRouteInheritFrom(r.rollout, managedRoute["name"])
+	if inheritFrom == "" {
+		return managedRoute, nil
+	}
+	baseRoute, err := findHttpRoute(inheritFrom, httpRoutesI)
+	if err != nil {
+		return nil, err
+	}
+	route := runtime.DeepCopyJSON(baseRoute)
+	for key, value := range managedRoute {
+		route[key] = value
+	}
+	baseMatches, _ := baseRoute["match"].([]any)
+	matches, _ := managedRoute["match"].([]any)
+	route["match"] = combineRouteMatches(baseMatches, matches)
+	return route, nil
+}
+
+// getManagedRouteInheritFrom returns the inheritFrom field of the managed route named routeName
+func getManagedRouteInheritFrom(ro *v1alpha1.Rollout, routeName any) string {
+	for _, managedRoute := range ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
+		if managedRoute.Name == routeName {
+			return managedRoute.InheritFrom
+		}
+	}
+	return ""
+}
+
+// findHttpRoute returns the http route named routeName from httpRoutesI
+func findHttpRoute(routeName string, httpRoutesI []any) (map[string]any, error) {
+	for _, routeI := range httpRoutesI {
+		route, ok := routeI.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("could not cast type to map[string]any to find route name in Istio Virtual Service")
+		}
+		if route["name"] == routeName {
+			return route, nil
+		}
+	}
+	return nil, fmt.Errorf("route '%s' not found in Istio Virtual Service", routeName)
+}
+
+// combineRouteMatches returns every combination of the base matches with the matches, so that each resulting match
+// requires the conditions of both. Headers are merged, while any other condition of the matches replaces the base one.
+func combineRouteMatches(baseMatches []any, matches []any) []any {
+	if len(baseMatches) == 0 {
+		return matches
+	}
+	if len(matches) == 0 {
+		return runtime.DeepCopyJSONValue(baseMatches).([]any)
+	}
+	var combined []any
+	for _, baseMatchI := range baseMatches {
+		for _, matchI := range matches {
+			baseMatch, _ := runtime.DeepCopyJSONValue(baseMatchI).(map[string]any)
+			match, _ := matchI.(map[string]any)
+			if baseMatch == nil {
+				baseMatch = map[string]any{}
+			}
+			for key, value := range match {
+				baseHeaders, isBaseMap := baseMatch[key].(map[string]any)
+				headers, isMap := value.(map[string]any)
+				if key == "headers" && isBaseMap && isMap {
+					for name, headerMatch := range headers {
+						baseHeaders[name] = headerMatch
+					}
+					continue
+				}
+				baseMatch[key] = value
+			}
+			combined = append(combined, baseMatch)
+		}
+	}
+	return combined
 }
 
 // getVirtualServiceSetWeightRoute This functions goes through the list of Istio Virtual service routes and finds the first

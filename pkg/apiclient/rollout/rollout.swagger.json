@@ -1308,14 +1308,6 @@
         "headerValue": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
           "title": "HeaderValue the value of the header"
-        },
-        "method": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
-          "title": "Method What http methods should be matched\n+optional"
-        },
-        "path": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
-          "title": "Path What url paths should be matched\n+optional"
         }
       }
     },
@@ -1489,6 +1481,10 @@
       "properties": {
         "name": {
           "type": "string"
+        },
+        "inheritFrom": {
+          "type": "string",
+          "title": "InheritFrom is the name of an existing route whose configuration is copied into this managed route.\nThe match conditions of the managed route are added to the match conditions of the inherited route.\n+optional"
         }
       }
     },

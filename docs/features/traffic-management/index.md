@@ -86,6 +86,78 @@ spec:
           - name: priority-route-3
 ```
 
+### Inheriting the Configuration of an Existing Route
+
+**Traffic Router Support: Istio**
+
+By default a managed route only contains the match conditions defined in the `setHeaderRoute` or `setMirrorRoute` step.
+When the managed route should only apply to the traffic of an existing route, set `inheritFrom` to the name of that route.
+The managed route then copies every field of the inherited route (e.g. `rewrite`, `corsPolicy`, `timeout`, `retries`),
+and its match conditions are added to each match condition of the inherited route. The inherited route itself is not modified.
+
+The route referenced by `inheritFrom` must exist in the VirtualService and must not be a managed route.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+spec:
+  strategy:
+    canary:
+      trafficRouting:
+        managedRoutes:
+          - name: set-header-1
+            inheritFrom: api # copies the configuration of the "api" route
+        istio:
+          virtualService:
+            name: rollouts-demo-vsvc
+            routes:
+              - api
+      steps:
+        - setHeaderRoute:
+            name: set-header-1
+            match:
+              - headerName: x-canary
+                headerValue:
+                  exact: "true"
+```
+
+With the following route defined in the VirtualService:
+
+```yaml
+  http:
+  - name: api
+    match:
+    - uri:
+        prefix: /api
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: stable-service
+      weight: 100
+    - destination:
+        host: canary-service
+      weight: 0
+```
+
+Argo Rollouts creates the header route below, which only sends the `/api` requests with the `x-canary: true` header to the canary:
+
+```yaml
+  - name: set-header-1
+    match:
+    - uri:
+        prefix: /api
+      headers:
+        x-canary:
+          exact: "true"
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: canary-service
+      weight: 100
+```
+
 ## Traffic Routing Based on Header Values for Canary
 
 **Traffic Router Support: Istio, Apache APISIX, AWS ALB, Gateway API (via plugin)**
@@ -104,12 +176,6 @@ Header-based traffic routing is configured using the `setHeaderRoute` step, whic
 - `exact`: Specifies an exact header value to match
 - `regex`: Specifies a regular expression pattern to match
 - `prefix`: Specifies a prefix value to match
-
-`method` - (Istio and plugins only, optional) The HTTP method to match, using one of `exact`, `regex` or `prefix`.
-
-`path` - (Istio and plugins only, optional) The URL path to match, using one of `exact`, `regex` or `prefix`.
-
-All conditions inside a single match entry have AND semantics, while the list of match entries has OR semantics.
 
 **Note:** Not all traffic routers support all match types.
 
@@ -145,13 +211,6 @@ spec:
               - headerName: Custom-Header3 # or Custom-Header3 value match regex: Mozilla(.*)
                 headerValue:
                   regex: Mozilla(.*)
-              - headerName: Custom-Header4 # or Custom-Header4=Mozilla on GET requests to /v1/api (Istio only)
-                headerValue:
-                  exact: Mozilla
-                method:
-                  exact: GET
-                path:
-                  prefix: /v1/api
         - pause: {}
         - setHeaderRoute:
             name: 'set-header-1' # disable header based traffic routing

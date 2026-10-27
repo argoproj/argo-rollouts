@@ -32178,40 +32178,6 @@ spec:
                                               regular expression matched
                                             type: string
                                         type: object
-                                      method:
-                                        description: Method What http methods should
-                                          be matched
-                                        properties:
-                                          exact:
-                                            description: Exact The string must match
-                                              exactly
-                                            type: string
-                                          prefix:
-                                            description: Prefix The string will be
-                                              prefixed matched
-                                            type: string
-                                          regex:
-                                            description: Regex The string will be
-                                              regular expression matched
-                                            type: string
-                                        type: object
-                                      path:
-                                        description: Path What url paths should be
-                                          matched
-                                        properties:
-                                          exact:
-                                            description: Exact The string must match
-                                              exactly
-                                            type: string
-                                          prefix:
-                                            description: Prefix The string will be
-                                              prefixed matched
-                                            type: string
-                                          regex:
-                                            description: Regex The string will be
-                                              regular expression matched
-                                            type: string
-                                        type: object
                                     required:
                                     - headerName
                                     - headerValue
@@ -32617,6 +32583,11 @@ spec:
                               traffic router.
                             items:
                               properties:
+                                inheritFrom:
+                                  description: |-
+                                    InheritFrom is the name of an existing route whose configuration is copied into this managed route.
+                                    The match conditions of the managed route are added to the match conditions of the inherited route.
+                                  type: string
                                 name:
                                   type: string
                               required:

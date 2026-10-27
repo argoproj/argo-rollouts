@@ -2624,18 +2624,6 @@ func schema_pkg_apis_rollouts_v1alpha1_HeaderRoutingMatch(ref common.ReferenceCa
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StringMatch"),
 						},
 					},
-					"method": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Method What http methods should be matched",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StringMatch"),
-						},
-					},
-					"path": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Path What url paths should be matched",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StringMatch"),
-						},
-					},
 				},
 				Required: []string{"headerName", "headerValue"},
 			},
@@ -3015,6 +3003,13 @@ func schema_pkg_apis_rollouts_v1alpha1_MangedRoutes(ref common.ReferenceCallback
 							Default: "",
 							Type:    []string{"string"},
 							Format:  "",
+						},
+					},
+					"inheritFrom": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InheritFrom is the name of an existing route whose configuration is copied into this managed route. The match conditions of the managed route are added to the match conditions of the inherited route.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

@@ -771,84 +771,6 @@ func TestValidateRolloutStrategyCanarySetHeaderRouteIstio(t *testing.T) {
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, InvalideStepRouteNameNotFoundInManagedRoutes, allErrs[0].Detail)
 	})
-
-	t.Run("using SetHeaderRoute step with method and path", func(t *testing.T) {
-		validRo := ro.DeepCopy()
-		routeName := "test"
-		validRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
-				Name: routeName,
-				Match: []v1alpha1.HeaderRoutingMatch{
-					{
-						HeaderName:  "agent",
-						HeaderValue: &v1alpha1.StringMatch{Exact: "chrome"},
-						Method:      &v1alpha1.StringMatch{Exact: "GET"},
-						Path:        &v1alpha1.StringMatch{Prefix: "/v1/api"},
-					},
-				},
-			},
-		}}
-		validRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{{Name: routeName}}
-		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
-		assert.Equal(t, 0, len(allErrs))
-	})
-
-	t.Run("using SetHeaderRoute step with method multiple values", func(t *testing.T) {
-		invalidRo := ro.DeepCopy()
-		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
-				Match: []v1alpha1.HeaderRoutingMatch{
-					{
-						HeaderName:  "agent",
-						HeaderValue: &v1alpha1.StringMatch{Exact: "chrome"},
-						Method: &v1alpha1.StringMatch{
-							Exact:  "GET",
-							Prefix: "G",
-						},
-					},
-				},
-			},
-		}}
-		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
-		assert.Equal(t, InvalidStringMatchMultipleValuePolicy, allErrs[0].Detail)
-	})
-
-	t.Run("using SetHeaderRoute step with path missed values", func(t *testing.T) {
-		invalidRo := ro.DeepCopy()
-		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
-				Match: []v1alpha1.HeaderRoutingMatch{
-					{
-						HeaderName:  "agent",
-						HeaderValue: &v1alpha1.StringMatch{Exact: "chrome"},
-						Path:        &v1alpha1.StringMatch{},
-					},
-				},
-			},
-		}}
-		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
-		assert.Equal(t, InvalidStringMatchMissedValuePolicy, allErrs[0].Detail)
-	})
-
-	t.Run("using SetHeaderRoute step with method and path combined with ALB", func(t *testing.T) {
-		invalidRo := ro.DeepCopy()
-		invalidRo.Spec.Strategy.Canary.TrafficRouting.ALB = &v1alpha1.ALBTrafficRouting{
-			RootService: "action_name",
-		}
-		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
-				Match: []v1alpha1.HeaderRoutingMatch{
-					{
-						HeaderName:  "agent",
-						HeaderValue: &v1alpha1.StringMatch{Exact: "chrome"},
-						Path:        &v1alpha1.StringMatch{Prefix: "/v1/api"},
-					},
-				},
-			},
-		}}
-		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
-		assert.Equal(t, InvalidSetHeaderRouteMethodPathPolicy, allErrs[0].Detail)
-	})
 }
 
 func TestValidateRolloutStrategyCanarySetHeaderRoutingALB(t *testing.T) {
@@ -913,24 +835,6 @@ func TestValidateRolloutStrategyCanarySetHeaderRoutingALB(t *testing.T) {
 		}}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, InvalidSetHeaderRouteALBValuePolicy, allErrs[0].Detail)
-	})
-
-	t.Run("using SetHeaderRouting step with method and path", func(t *testing.T) {
-		invalidRo := ro.DeepCopy()
-		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
-				Match: []v1alpha1.HeaderRoutingMatch{
-					{
-						HeaderName:  "agent",
-						HeaderValue: &v1alpha1.StringMatch{Exact: "chrome"},
-						Method:      &v1alpha1.StringMatch{Exact: "GET"},
-						Path:        &v1alpha1.StringMatch{Prefix: "/v1/api"},
-					},
-				},
-			},
-		}}
-		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
-		assert.Equal(t, InvalidSetHeaderRouteMethodPathPolicy, allErrs[0].Detail)
 	})
 }
 
@@ -1340,5 +1244,56 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, 0, len(allErrs))
+	})
+}
+
+func TestValidateManagedRoutesInheritFrom(t *testing.T) {
+	fldPath := field.NewPath("trafficRouting", "managedRoutes")
+
+	t.Run("inheritFrom a route not managed by the rollout with Istio", func(t *testing.T) {
+		trafficRouting := &v1alpha1.RolloutTrafficRouting{
+			Istio:         &v1alpha1.IstioTrafficRouting{},
+			ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "primary"}, {Name: "mirror-route"}},
+		}
+		assert.Empty(t, ValidateManagedRoutesInheritFrom(trafficRouting, fldPath))
+	})
+
+	t.Run("inheritFrom with plugins", func(t *testing.T) {
+		trafficRouting := &v1alpha1.RolloutTrafficRouting{
+			Plugins:       map[string]json.RawMessage{"plugin": json.RawMessage(`{}`)},
+			ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "primary"}},
+		}
+		assert.Empty(t, ValidateManagedRoutesInheritFrom(trafficRouting, fldPath))
+	})
+
+	t.Run("inheritFrom a managed route", func(t *testing.T) {
+		trafficRouting := &v1alpha1.RolloutTrafficRouting{
+			Istio:         &v1alpha1.IstioTrafficRouting{},
+			ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "mirror-route"}, {Name: "mirror-route"}},
+		}
+		allErrs := ValidateManagedRoutesInheritFrom(trafficRouting, fldPath)
+		assert.Len(t, allErrs, 1)
+		assert.Equal(t, InvalidManagedRouteInheritFromManagedRoute, allErrs[0].Detail)
+		assert.Equal(t, "trafficRouting.managedRoutes[0].inheritFrom", allErrs[0].Field)
+	})
+
+	t.Run("inheritFrom itself", func(t *testing.T) {
+		trafficRouting := &v1alpha1.RolloutTrafficRouting{
+			Istio:         &v1alpha1.IstioTrafficRouting{},
+			ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "header-route"}},
+		}
+		allErrs := ValidateManagedRoutesInheritFrom(trafficRouting, fldPath)
+		assert.Len(t, allErrs, 1)
+		assert.Equal(t, InvalidManagedRouteInheritFromManagedRoute, allErrs[0].Detail)
+	})
+
+	t.Run("inheritFrom with unsupported traffic router", func(t *testing.T) {
+		trafficRouting := &v1alpha1.RolloutTrafficRouting{
+			ALB:           &v1alpha1.ALBTrafficRouting{},
+			ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "header-route", InheritFrom: "primary"}},
+		}
+		allErrs := ValidateManagedRoutesInheritFrom(trafficRouting, fldPath)
+		assert.Len(t, allErrs, 1)
+		assert.Equal(t, InvalidManagedRouteInheritFromPolicy, allErrs[0].Detail)
 	})
 }

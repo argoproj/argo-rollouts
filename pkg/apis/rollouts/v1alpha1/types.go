@@ -416,6 +416,10 @@ type RolloutTrafficRouting struct {
 
 type MangedRoutes struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// InheritFrom is the name of an existing route whose configuration is copied into this managed route.
+	// The match conditions of the managed route are added to the match conditions of the inherited route.
+	// +optional
+	InheritFrom string `json:"inheritFrom,omitempty" protobuf:"bytes,2,opt,name=inheritFrom"`
 	//Possibly name for future use
 	//canaryRoute bool
 }
@@ -739,12 +743,6 @@ type HeaderRoutingMatch struct {
 	HeaderName string `json:"headerName" protobuf:"bytes,1,opt,name=headerName"`
 	// HeaderValue the value of the header
 	HeaderValue *StringMatch `json:"headerValue" protobuf:"bytes,2,opt,name=headerValue"`
-	// Method What http methods should be matched
-	// +optional
-	Method *StringMatch `json:"method,omitempty" protobuf:"bytes,3,opt,name=method"`
-	// Path What url paths should be matched
-	// +optional
-	Path *StringMatch `json:"path,omitempty" protobuf:"bytes,4,opt,name=path"`
 }
 
 // SetCanaryScale defines how to scale the newRS without changing traffic weight

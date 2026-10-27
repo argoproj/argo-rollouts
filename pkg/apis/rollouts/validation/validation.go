@@ -47,8 +47,6 @@ const (
 	InvalidStringMatchMissedValuePolicy = "StringMatch value missed, match value must have one of the following: exact, regex, prefix"
 	// InvalidSetHeaderRouteALBValuePolicy indicates that SetHeaderRouting using with ALB missed the 'exact' value
 	InvalidSetHeaderRouteALBValuePolicy = "SetHeaderRoute match value invalid. ALB supports 'exact' value only"
-	// InvalidSetHeaderRouteMethodPathPolicy indicates that SetHeaderRoute method or path match is used with an unsupported traffic router
-	InvalidSetHeaderRouteMethodPathPolicy = "SetHeaderRoute match on method and path supports Istio and Plugins"
 	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
 	InvalidDurationMessage = "Duration needs to be greater than 0"
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
@@ -91,6 +89,10 @@ const (
 	// InvalideStepRouteNameNotFoundInManagedRoutes A step has been configured that requires managedRoutes and the route name
 	// is missing from managedRoutes
 	InvalideStepRouteNameNotFoundInManagedRoutes = "Steps define a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
+	// InvalidManagedRouteInheritFromManagedRoute A managed route can only inherit from a route that is not managed by the rollout
+	InvalidManagedRouteInheritFromManagedRoute = "inheritFrom must reference a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
+	// InvalidManagedRouteInheritFromPolicy indicates that inheritFrom is used with an unsupported traffic router
+	InvalidManagedRouteInheritFromPolicy = "inheritFrom supports Istio and Plugins only"
 )
 
 // allowAllPodValidationOptions allows all pod options to be true for the purposes of rollout pod
@@ -356,20 +358,6 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 						matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
 						allErrs = append(allErrs, hasMultipleMatchValues(match.HeaderValue, matchFld)...)
 					}
-					if match.Method != nil || match.Path != nil {
-						matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
-						// ALB and Apisix only match on headers, so method and path would be silently ignored
-						if trafficRouting.ALB != nil || trafficRouting.Apisix != nil || (trafficRouting.Istio == nil && len(trafficRouting.Plugins) == 0) {
-							allErrs = append(allErrs, field.Invalid(matchFld, match, InvalidSetHeaderRouteMethodPathPolicy))
-						} else {
-							if match.Method != nil {
-								allErrs = append(allErrs, hasMultipleMatchValues(match.Method, matchFld.Child("method"))...)
-							}
-							if match.Path != nil {
-								allErrs = append(allErrs, hasMultipleMatchValues(match.Path, matchFld.Child("path"))...)
-							}
-						}
-					}
 				}
 			}
 		}
@@ -447,7 +435,31 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		}
 
 	}
+	if canary.TrafficRouting != nil {
+		allErrs = append(allErrs, ValidateManagedRoutesInheritFrom(canary.TrafficRouting, fldPath.Child("trafficRouting", "managedRoutes"))...)
+	}
 	allErrs = append(allErrs, ValidateRolloutStrategyAntiAffinity(canary.AntiAffinity, fldPath.Child("antiAffinity"))...)
+	return allErrs
+}
+
+func ValidateManagedRoutesInheritFrom(trafficRouting *v1alpha1.RolloutTrafficRouting, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	for i, managedRoute := range trafficRouting.ManagedRoutes {
+		if managedRoute.InheritFrom == "" {
+			continue
+		}
+		inheritFromFld := fldPath.Index(i).Child("inheritFrom")
+		if trafficRouting.Istio == nil && len(trafficRouting.Plugins) == 0 {
+			allErrs = append(allErrs, field.Invalid(inheritFromFld, managedRoute.InheritFrom, InvalidManagedRouteInheritFromPolicy))
+			continue
+		}
+		for _, other := range trafficRouting.ManagedRoutes {
+			if managedRoute.InheritFrom == other.Name {
+				allErrs = append(allErrs, field.Invalid(inheritFromFld, managedRoute.InheritFrom, InvalidManagedRouteInheritFromManagedRoute))
+				break
+			}
+		}
+	}
 	return allErrs
 }
 

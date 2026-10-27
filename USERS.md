@@ -36,7 +36,6 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [HashiCorp](https://www.hashicorp.com/)
 1. [Hepsiburada](https://hepsiburada.com/)
 1. [Ibotta](https://home.ibotta.com/)
-1. [Inter&Co](https://inter.co/)
 1. [Intuit](https://www.intuit.com/)
 1. [Karrot](https://www.daangn.com/)
 1. [KarrotPay](https://www.daangnpay.com/)

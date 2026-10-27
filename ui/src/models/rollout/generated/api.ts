@@ -1181,18 +1181,6 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRouti
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
      */
     headerValue?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch;
-    /**
-     * 
-     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
-     */
-    method?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch;
-    /**
-     * 
-     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
-     */
-    path?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch;
 }
 /**
  * 
@@ -1436,6 +1424,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoute
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
      */
     name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
+     */
+    inheritFrom?: string;
 }
 /**
  * 
