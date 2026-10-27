@@ -1,6 +1,6 @@
 module github.com/argoproj/argo-rollouts
 
-go 1.26.1
+go 1.26.10
 
 require (
 	github.com/argoproj/notifications-engine v0.5.1-0.20260503100631-0cff13b8a717
