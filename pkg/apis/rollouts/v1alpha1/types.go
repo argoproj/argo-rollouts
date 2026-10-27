@@ -151,6 +151,9 @@ const (
 	// DefaultReplicaSetScaleDownDeadlineAnnotationKey is the default key attached to an old stable ReplicaSet after
 	// the rollout transitioned to a new version. It contains the time when the controller can scale down the RS.
 	DefaultReplicaSetScaleDownDeadlineAnnotationKey = "scale-down-deadline"
+	// DefaultReplicaSetScaleDownBatchAnnotationKey is set on an old stable ReplicaSet that is scaled down
+	// gradually (canary oldReplicaSetScaleDown). It contains the time of the last scale-down batch.
+	DefaultReplicaSetScaleDownBatchAnnotationKey = "scale-down-batch-at"
 	// ManagedByRolloutKey is the key used to indicate which rollout(s) manage a resource but doesn't own it.
 	ManagedByRolloutsKey = "argo-rollouts.argoproj.io/managed-by-rollouts"
 	// DefaultReplicaSetRestartAnnotationKey indicates that the ReplicaSet with this annotation was restarted at the
@@ -339,6 +342,25 @@ type CanaryStrategy struct {
 	// Defaults to 100% of total replicas.
 	// +optional
 	ReplicaProgressThreshold *ReplicaProgressThreshold `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,17,opt,name=replicaProgressThreshold"`
+	// OldReplicaSetScaleDown rate-limits the scale-down of the previous stable ReplicaSet once its
+	// scaleDownDelaySeconds has passed, instead of scaling it to zero at once. Only used with trafficRouting.
+	// +optional
+	OldReplicaSetScaleDown *OldReplicaSetScaleDown `json:"oldReplicaSetScaleDown,omitempty" protobuf:"bytes,18,opt,name=oldReplicaSetScaleDown"`
+}
+
+// OldReplicaSetScaleDown configures a gradual scale-down of the previous stable ReplicaSet of a canary.
+type OldReplicaSetScaleDown struct {
+	// MaxUnavailable is the maximum number of pods of the old ReplicaSet removed in one batch.
+	// Value can be an absolute number (ex: 1) or a percentage of the rollout's replicas (ex: 10%),
+	// rounded up. Defaults to 1.
+	// +optional
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty" protobuf:"bytes,1,opt,name=maxUnavailable"`
+	// IntervalSeconds is the minimum time between two batches. Defaults to 0.
+	// +optional
+	IntervalSeconds *int32 `json:"intervalSeconds,omitempty" protobuf:"varint,2,opt,name=intervalSeconds"`
+	// WaitForPodTermination waits until the pods removed by the previous batch are gone before the next batch.
+	// +optional
+	WaitForPodTermination bool `json:"waitForPodTermination,omitempty" protobuf:"varint,3,opt,name=waitForPodTermination"`
 }
 
 // PingPongSpec holds the ping and pong service name.

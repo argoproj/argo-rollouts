@@ -1060,3 +1060,85 @@ func TestScaleDownProgressively(t *testing.T) {
 		})
 	}
 }
+
+func newGradualScaleDownContext(policy *v1alpha1.OldReplicaSetScaleDown) (*rolloutContext, *time.Duration) {
+	rollout := newCanaryRollout("foo", 10, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	rollout.Spec.Strategy.Canary.OldReplicaSetScaleDown = policy
+	var requeuedAfter time.Duration
+	roCtx := &rolloutContext{
+		log:     logutil.WithRollout(rollout),
+		rollout: rollout,
+	}
+	roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) { requeuedAfter = duration }
+	return roCtx, &requeuedAfter
+}
+
+func TestNextScaleDownBatch(t *testing.T) {
+	interval := int32(30)
+	percent := intstr.FromString("30%")
+
+	t.Run("first batch removes one pod by default and requeues after the interval", func(t *testing.T) {
+		roCtx, requeuedAfter := newGradualScaleDownContext(&v1alpha1.OldReplicaSetScaleDown{IntervalSeconds: &interval})
+		oldRS := rs("foo-v1", 10, nil, noTimestamp, nil)
+		assert.Equal(t, int32(9), roCtx.nextScaleDownBatch(oldRS))
+		assert.Equal(t, 30*time.Second, *requeuedAfter)
+	})
+
+	t.Run("percentage of the rollout's replicas is rounded up", func(t *testing.T) {
+		roCtx, _ := newGradualScaleDownContext(&v1alpha1.OldReplicaSetScaleDown{MaxUnavailable: &percent})
+		oldRS := rs("foo-v1", 10, nil, noTimestamp, nil)
+		assert.Equal(t, int32(7), roCtx.nextScaleDownBatch(oldRS))
+	})
+
+	t.Run("last batch scales to zero", func(t *testing.T) {
+		roCtx, _ := newGradualScaleDownContext(&v1alpha1.OldReplicaSetScaleDown{MaxUnavailable: &percent})
+		oldRS := rs("foo-v1", 2, nil, noTimestamp, nil)
+		assert.Equal(t, int32(0), roCtx.nextScaleDownBatch(oldRS))
+	})
+
+	t.Run("waits until the interval since the previous batch has passed", func(t *testing.T) {
+		roCtx, requeuedAfter := newGradualScaleDownContext(&v1alpha1.OldReplicaSetScaleDown{IntervalSeconds: &interval})
+		oldRS := rs("foo-v1", 8, nil, noTimestamp, nil)
+		oldRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey] = timeutil.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
+		assert.Equal(t, int32(8), roCtx.nextScaleDownBatch(oldRS))
+		assert.InDelta(t, float64(20*time.Second), float64(*requeuedAfter), float64(2*time.Second))
+	})
+
+	t.Run("proceeds once the interval has passed", func(t *testing.T) {
+		roCtx, _ := newGradualScaleDownContext(&v1alpha1.OldReplicaSetScaleDown{IntervalSeconds: &interval})
+		oldRS := rs("foo-v1", 8, nil, noTimestamp, nil)
+		oldRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey] = timeutil.Now().Add(-31 * time.Second).UTC().Format(time.RFC3339)
+		assert.Equal(t, int32(7), roCtx.nextScaleDownBatch(oldRS))
+	})
+
+	t.Run("waits for the pods of the previous batch to terminate", func(t *testing.T) {
+		roCtx, _ := newGradualScaleDownContext(&v1alpha1.OldReplicaSetScaleDown{WaitForPodTermination: true})
+		oldRS := rs("foo-v1", 8, nil, noTimestamp, nil)
+		oldRS.Status.Replicas = 9
+		assert.Equal(t, int32(8), roCtx.nextScaleDownBatch(oldRS))
+
+		oldRS.Status.Replicas = 8
+		assert.Equal(t, int32(7), roCtx.nextScaleDownBatch(oldRS))
+	})
+}
+
+func TestScaleReplicaSetRecordsScaleDownBatch(t *testing.T) {
+	interval := int32(30)
+	roCtx, _ := newGradualScaleDownContext(&v1alpha1.OldReplicaSetScaleDown{IntervalSeconds: &interval})
+	oldRS := rs("foo-v1", 10, nil, noTimestamp, nil)
+	oldRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
+	k8sfake := k8sfake.NewSimpleClientset(oldRS)
+	roCtx.kubeclientset = k8sfake
+	roCtx.recorder = record.NewFakeEventRecorder()
+	roCtx.pauseContext = &pauseContext{rollout: roCtx.rollout}
+
+	_, updated, err := roCtx.scaleReplicaSetAndRecordEvent(oldRS, 9)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(9), *updated.Spec.Replicas)
+	assert.NotEmpty(t, updated.Annotations[v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey])
+
+	_, updated, err = roCtx.scaleReplicaSetAndRecordEvent(updated, 0)
+	assert.NoError(t, err)
+	assert.NotContains(t, updated.Annotations, v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey)
+}
