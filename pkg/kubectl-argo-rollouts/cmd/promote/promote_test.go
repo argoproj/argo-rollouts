@@ -252,6 +252,7 @@ func TestPromoteCmdSuccesFirstStep(t *testing.T) {
 				panic(err)
 			}
 			ro.Status.CurrentStepIndex = patchRo.Status.CurrentStepIndex
+			ro.Status.Promote = patchRo.Status.Promote
 		}
 		return true, &ro, nil
 	})
@@ -263,6 +264,7 @@ func TestPromoteCmdSuccesFirstStep(t *testing.T) {
 	err := cmd.Execute()
 	assert.Nil(t, err)
 	assert.Equal(t, int32(1), *ro.Status.CurrentStepIndex)
+	assert.True(t, ro.Status.Promote)
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, stdout, "rollout 'guestbook' promoted\n")

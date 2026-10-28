@@ -31,14 +31,14 @@ To skip analysis, pauses and steps entirely, use '--full' to fully promote the r
 )
 
 const (
-	setCurrentStepIndex                         = `{"status":{"currentStepIndex":%d}}`
+	setCurrentStepIndex                         = `{"status":{"currentStepIndex":%d, "promote":true}}`
 	unpausePatch                                = `{"spec":{"paused":false}}`
-	clearPauseConditionsPatch                   = `{"status":{"pauseConditions":null}}`
-	clearPauseConditionsAndControllerPausePatch = `{"status":{"pauseConditions":null, "controllerPause":false, "currentStepIndex":%d}}`
-	unpauseAndClearPauseConditionsPatch         = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
+	clearPauseConditionsPatch                   = `{"status":{"pauseConditions":null, "promote":true}}`
+	clearPauseConditionsAndControllerPausePatch = `{"status":{"pauseConditions":null, "controllerPause":false, "currentStepIndex":%d, "promote":true}}`
+	unpauseAndClearPauseConditionsPatch         = `{"spec":{"paused":false},"status":{"pauseConditions":null, "promote":true}}`
 	promoteFullPatch                            = `{"status":{"promoteFull":true}}`
-	clearPauseConditionsPatchWithStep           = `{"status":{"pauseConditions":null, "currentStepIndex":%d}}`
-	unpauseAndClearPauseConditionsPatchWithStep = `{"spec":{"paused":false},"status":{"pauseConditions":null, "currentStepIndex":%d}}`
+	clearPauseConditionsPatchWithStep           = `{"status":{"pauseConditions":null, "currentStepIndex":%d, "promote":true}}`
+	unpauseAndClearPauseConditionsPatchWithStep = `{"spec":{"paused":false},"status":{"pauseConditions":null, "currentStepIndex":%d, "promote":true}}`
 	unpauseAndPromoteFullPatch                  = `{"spec":{"paused":false},"status":{"promoteFull":true}}`
 
 	useBothSkipFlagsError         = "Cannot use skip-current-step and skip-all-steps flags at the same time"
