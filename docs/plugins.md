@@ -27,7 +27,7 @@ types to exist such as `<org1>/nginx` and `<org2>/nginx`. These names could be b
 as `argoproj-labs/rollouts-plugin-metric-sample-prometheus` but it is not a requirement.
 
 There will also be a standard for naming repositories under argoproj-labs in the form of `rollouts-plugin-<type>-<tool>`
-where `<type>` is one of `metric`, `step`, or `trafficrouter` and `<tool>` is the software the plugin is for, say nginx.
+where `<type>` is one of `metric`, `step`, `trafficrouter` or `resource` and `<tool>` is the software the plugin is for, say nginx.
 
 ## Plugin Name
 
@@ -58,6 +58,12 @@ data:
     - name: "argoproj-labs/canary-step"
       location: "file:///tmp/argo-rollouts/canary-step-plugin"
       disabled: false
+      args:
+        - "--log-level"
+        - "debug"
+  resourcePlugins: |-
+    - name: "argoproj-labs/my-workload"
+      location: "file:///tmp/argo-rollouts/resource-plugin"
       args:
         - "--log-level"
         - "debug"
@@ -135,10 +141,40 @@ spec:
               command: echo "hello world"
 ```
 
+#### Resource Plugin
+
+You can see that we use the plugin name under `spec.plugin.name` for a [RolloutPlugin](features/rolloutplugin/index.md).
+
+You, as a plugin author, can then put any configuration you need under `spec.plugin.config`. You will also want to document
+what configuration options your plugin supports.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: example-rollout-plugin
+spec:
+  workloadRef:
+    apiVersion: example.com/v1
+    kind: MyWorkload
+    name: my-workload
+  plugin:
+    name: argoproj-labs/my-workload
+    config:
+      someSetting: value
+  strategy:
+    canary:
+      steps:
+        - setWeight: 50
+        - pause: {}
+```
+
 ## Plugin Interfaces
 
-Argo Rollouts currently supports three plugin systems. As a plugin author, your end goal is to implement at least one of these interfaces as
-a hashicorp go-plugin. The interfaces are `MetricsPlugin`, `TrafficRouterPlugin` and `StepPlugin` for each of the respective plugins:
+Argo Rollouts currently supports four plugin systems. As a plugin author, your end goal is to implement at least one of these interfaces as
+a hashicorp go-plugin. The interfaces are `MetricsPlugin`, `TrafficRouterPlugin` and `StepPlugin` for each of the respective plugins below.
+Resource plugins, used only by RolloutPlugin to roll out workloads other than Rollouts, implement `ResourcePlugin`, described in
+[Writing a Resource Plugin](features/rolloutplugin/plugins.md):
 
 ```go
 type MetricProviderPlugin interface {
@@ -216,3 +252,4 @@ There are sample plugins within the argo-rollouts repo that you can use as a ref
 - [Metrics Plugin Sample](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/metrics-plugin-sample)
 - [Traffic Router Plugin Sample](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/trafficrouter-plugin-sample)
 - [Step Plugin Sample](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/step-plugin-sample)
+- [Resource Plugin Sample](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/resource-plugin-e2e)
