@@ -380,9 +380,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey)
 		} else if newScale < oldScale && replicasetutil.HasScaleDownDeadline(rs) {
 			// A partial scale-down of an old ReplicaSet past its deadline is a gradual scale-down batch.
-			if rsCopy.Annotations == nil {
-				rsCopy.Annotations = map[string]string{}
-			}
+			// The deadline annotation guarantees the annotations map exists.
 			rsCopy.Annotations[v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey] = timeutil.Now().UTC().Format(time.RFC3339)
 		}
 
