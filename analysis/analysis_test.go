@@ -1087,6 +1087,105 @@ func TestCalculateNextReconcileUponError(t *testing.T) {
 	}
 }
 
+func TestErrorRetryInterval(t *testing.T) {
+	three := int32(3)
+	one := int32(1)
+	tests := []struct {
+		name              string
+		backoff           *v1alpha1.ErrorRetryBackoff
+		consecutiveErrors int32
+		want              time.Duration
+	}{
+		{name: "no backoff keeps the fixed retry interval", consecutiveErrors: 7, want: DefaultErrorRetryInterval},
+		{name: "defaults on first error", backoff: &v1alpha1.ErrorRetryBackoff{}, consecutiveErrors: 1, want: 10 * time.Second},
+		{name: "defaults double per error", backoff: &v1alpha1.ErrorRetryBackoff{}, consecutiveErrors: 3, want: 40 * time.Second},
+		{name: "defaults cap at five minutes", backoff: &v1alpha1.ErrorRetryBackoff{}, consecutiveErrors: 10, want: 5 * time.Minute},
+		{name: "custom duration and factor", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "30s", Factor: &three}, consecutiveErrors: 3, want: 270 * time.Second},
+		{name: "custom max duration", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "1m", MaxDuration: "2m"}, consecutiveErrors: 4, want: 2 * time.Minute},
+		{name: "factor one is a constant interval", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "1m", Factor: &one}, consecutiveErrors: 20, want: time.Minute},
+		{name: "long error streak does not overflow", backoff: &v1alpha1.ErrorRetryBackoff{MaxDuration: "1h"}, consecutiveErrors: 1000, want: time.Hour},
+		{name: "invalid duration falls back to the fixed interval", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "ten"}, consecutiveErrors: 3, want: DefaultErrorRetryInterval},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metric := v1alpha1.Metric{Name: "success-rate", ErrorRetryBackoff: tt.backoff}
+			got := errorRetryInterval(*log.NewEntry(log.New()), metric, tt.consecutiveErrors)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestGenerateMetricTasksErrorBackoff ensures an errored metric is not retried before its backoff
+// elapses, and is retried once it has.
+func TestGenerateMetricTasksErrorBackoff(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name:              "success-rate",
+				Interval:          "5m",
+				ErrorRetryBackoff: &v1alpha1.ErrorRetryBackoff{},
+			}},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseRunning,
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:             "success-rate",
+				Phase:            v1alpha1.AnalysisPhaseRunning,
+				Error:            3,
+				ConsecutiveError: 3,
+				Measurements: []v1alpha1.Measurement{{
+					Phase:      v1alpha1.AnalysisPhaseError,
+					StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+					FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+				}},
+			}},
+		},
+	}
+	{
+		// third consecutive error backs off for 40s, so 30s later it is not due yet
+		run := run.DeepCopy()
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
+		assert.Equal(t, 0, len(tasks))
+	}
+	{
+		run := run.DeepCopy()
+		finishedAt := metav1.NewTime(time.Now().Add(-50 * time.Second))
+		run.Status.MetricResults[0].Measurements[0].FinishedAt = &finishedAt
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
+		assert.Equal(t, 1, len(tasks))
+	}
+}
+
+// TestCalculateNextReconcileUponErrorBackoff ensures we requeue at the backoff interval when an
+// errored metric has an ErrorRetryBackoff
+func TestCalculateNextReconcileUponErrorBackoff(t *testing.T) {
+	now := metav1.Now()
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name:              "success-rate",
+				Interval:          "5m",
+				ErrorRetryBackoff: &v1alpha1.ErrorRetryBackoff{Duration: "15s"},
+			}},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseRunning,
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:             "success-rate",
+				Phase:            v1alpha1.AnalysisPhaseRunning,
+				Error:            2,
+				ConsecutiveError: 2,
+				Measurements: []v1alpha1.Measurement{{
+					Phase:      v1alpha1.AnalysisPhaseError,
+					StartedAt:  &now,
+					FinishedAt: &now,
+				}},
+			}},
+		},
+	}
+	assert.Equal(t, now.Add(30*time.Second), *calculateNextReconcileTime(run, run.Spec.Metrics))
+}
+
 func TestReconcileAnalysisRunInitial(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

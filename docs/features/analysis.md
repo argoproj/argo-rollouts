@@ -858,6 +858,41 @@ As illustrated, `failureLimit` takes priority if violated. However, if neither i
     * A background analysis with `count` not specified when terminated at the end of the rollout.
     * Any analysis with `count` specified and not yet reached when the rollout is aborted.
 
+## Error Retry Backoff
+
+!!! important
+    `errorRetryBackoff` available since v1.11
+
+When a measurement errors (for example the metric provider times out, or rejects the query with a
+rate limit such as HTTP 429), the controller retries it instead of waiting for the next `interval`.
+By default the retry happens every 10 seconds until `consecutiveErrorLimit` (default `4`)
+consecutive errors are reached, at which point the metric is considered `Error`.
+
+During a longer provider outage, retrying every 10 seconds both exhausts `consecutiveErrorLimit`
+within a minute or two and adds load to a provider that is already rate limiting. Set
+`errorRetryBackoff` to back off exponentially between retries instead:
+
+```yaml hl_lines="4 5 6 7 8"
+  metrics:
+  - name: success-rate
+    interval: 5m
+    consecutiveErrorLimit: 10
+    errorRetryBackoff:
+      duration: 10s     # wait before the first retry (default: 10s)
+      factor: 2         # multiplier applied after each consecutive error (default: 2)
+      maxDuration: 5m   # upper bound of the wait between retries (default: 5m)
+    successCondition: result[0] >= 0.95
+    provider:
+      datadog:
+        apiVersion: v2
+        query: |
+          sum:requests.error.rate{service:{{args.service-name}}}
+```
+
+With the example above, retries happen 10s, 20s, 40s, 80s, 160s and then every 5m after each
+consecutive error, so ten consecutive errors span about 25 minutes instead of under two
+minutes. The backoff resets as soon as a measurement does not error.
+
 ## Dry-Run Mode
 
 !!! important

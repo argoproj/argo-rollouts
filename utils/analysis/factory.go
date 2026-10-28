@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
@@ -216,6 +217,9 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 			return fmt.Errorf("invalid startDelay string: %v", err)
 		}
 	}
+	if err := validateErrorRetryBackoff(metric.ErrorRetryBackoff); err != nil {
+		return err
+	}
 
 	numProviders := 0
 	if metric.Provider.Prometheus != nil {
@@ -260,6 +264,39 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	}
 	if numProviders > 1 {
 		return fmt.Errorf("multiple providers specified")
+	}
+	return nil
+}
+
+// validateErrorRetryBackoff checks that a metric's ErrorRetryBackoff, if set, describes a wait that
+// never shrinks: durations must parse and be positive, and the factor must be at least 1.
+func validateErrorRetryBackoff(backoff *v1alpha1.ErrorRetryBackoff) error {
+	if backoff == nil {
+		return nil
+	}
+	var duration, maxDuration time.Duration
+	var err error
+	if backoff.Duration != "" {
+		if duration, err = backoff.Duration.Duration(); err != nil {
+			return fmt.Errorf("invalid errorRetryBackoff.duration string: %v", err)
+		}
+		if duration <= 0 {
+			return fmt.Errorf("errorRetryBackoff.duration must be > 0")
+		}
+	}
+	if backoff.MaxDuration != "" {
+		if maxDuration, err = backoff.MaxDuration.Duration(); err != nil {
+			return fmt.Errorf("invalid errorRetryBackoff.maxDuration string: %v", err)
+		}
+		if maxDuration <= 0 {
+			return fmt.Errorf("errorRetryBackoff.maxDuration must be > 0")
+		}
+	}
+	if duration > 0 && maxDuration > 0 && maxDuration < duration {
+		return fmt.Errorf("errorRetryBackoff.maxDuration must be >= errorRetryBackoff.duration")
+	}
+	if backoff.Factor != nil && *backoff.Factor < 1 {
+		return fmt.Errorf("errorRetryBackoff.factor must be >= 1")
 	}
 	return nil
 }
