@@ -595,6 +595,11 @@ message CanaryStrategy {
   // Defaults to 100% of total replicas.
   // +optional
   optional ReplicaProgressThreshold replicaProgressThreshold = 17;
+
+  // OldReplicaSetScaleDown rate-limits the scale-down of the previous stable ReplicaSet once its
+  // scaleDownDelaySeconds has passed, instead of scaling it to zero at once. Only used with trafficRouting.
+  // +optional
+  optional OldReplicaSetScaleDown oldReplicaSetScaleDown = 18;
 }
 
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
@@ -1229,6 +1234,23 @@ message ObjectRef {
 
   // Automatically scale down deployment
   optional string scaleDown = 4;
+}
+
+// OldReplicaSetScaleDown configures a gradual scale-down of the previous stable ReplicaSet of a canary.
+message OldReplicaSetScaleDown {
+  // MaxUnavailable is the maximum number of pods of the old ReplicaSet removed in one batch.
+  // Value can be an absolute number (ex: 1) or a percentage of the rollout's replicas (ex: 10%),
+  // rounded up. Defaults to 1.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUnavailable = 1;
+
+  // IntervalSeconds is the minimum time between two batches. Defaults to 0.
+  // +optional
+  optional int32 intervalSeconds = 2;
+
+  // WaitForPodTermination waits until the pods removed by the previous batch are gone before the next batch.
+  // +optional
+  optional bool waitForPodTermination = 3;
 }
 
 // PauseCondition the reason for a pause and when it started

@@ -912,6 +912,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
      */
     replicaProgressThreshold?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OldReplicaSetScaleDown}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    oldReplicaSetScaleDown?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OldReplicaSetScaleDown;
 }
 /**
  * 
@@ -1859,6 +1865,31 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef
      */
     scaleDown?: string;
+}
+/**
+ * OldReplicaSetScaleDown configures a gradual scale-down of the previous stable ReplicaSet of a canary.
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OldReplicaSetScaleDown
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OldReplicaSetScaleDown {
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OldReplicaSetScaleDown
+     */
+    maxUnavailable?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OldReplicaSetScaleDown
+     */
+    intervalSeconds?: number;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OldReplicaSetScaleDown
+     */
+    waitForPodTermination?: boolean;
 }
 /**
  * 
