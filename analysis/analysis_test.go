@@ -571,10 +571,12 @@ func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 }
 func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 	failureLimit := intstr.FromInt(2)
+	count := intstr.FromInt(4)
 	metric := v1alpha1.Metric{
 		Name:         "success-rate",
 		FailureLimit: &failureLimit,
 		Interval:     "60s",
+		Count:        &count,
 	}
 	result := v1alpha1.MetricResult{
 		Failed: 3,
@@ -798,10 +800,12 @@ func TestAssessMetricStatusFailureLimitAndConsecutiveSuccessLimit(t *testing.T) 
 
 func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
 	inconclusiveLimit := intstr.FromInt(2)
+	count := intstr.FromInt(4)
 	metric := v1alpha1.Metric{
 		Name:              "success-rate",
 		InconclusiveLimit: &inconclusiveLimit,
 		Interval:          "60s",
+		Count:             &count,
 	}
 	result := v1alpha1.MetricResult{
 		Inconclusive: 3,
@@ -822,9 +826,11 @@ func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
 }
 
 func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
+	count := intstr.FromInt(6)
 	metric := v1alpha1.Metric{
 		Name:     "success-rate",
 		Interval: "60s",
+		Count:    &count,
 	}
 	result := v1alpha1.MetricResult{
 		ConsecutiveError: 5,
@@ -840,6 +846,39 @@ func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
 	result.ConsecutiveError = 4
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+}
+
+func TestAssessMetricStatusSucceedEarly(t *testing.T) {
+	limit := intstr.FromInt(10)
+	count := intstr.FromInt(12)
+	metric := v1alpha1.Metric{
+		Name:                  "success-rate",
+		Interval:              "60s",
+		InconclusiveLimit:     &limit,
+		FailureLimit:          &limit,
+		ConsecutiveErrorLimit: &limit,
+		Count:                 &count,
+	}
+	result := v1alpha1.MetricResult{
+		ConsecutiveError: 0,
+		Inconclusive:     0,
+		Failed:           1,
+		Count:            2,
+		Measurements: []v1alpha1.Measurement{{
+			Phase:      v1alpha1.AnalysisPhaseFailed,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-120 * time.Second))),
+		}, {
+			Phase:      v1alpha1.AnalysisPhaseSuccessful,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+		}},
+	}
+	// Already have 1 failure, so more than 10 failures possible with 12 - 2 = 10 remaining rounds.
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	// This doesn't hold for 11 - 2 = 9 rounds remaining.
+	count = intstr.FromInt(11)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
 }
 
 func TestAssessMetricStatusCountReached(t *testing.T) {
@@ -1106,8 +1145,8 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
 	{
 		newRun := c.reconcileAnalysisRun(run)
-		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, newRun.Status.MetricResults[0].Phase)
-		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, newRun.Status.Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 		assert.Equal(t, 1, len(newRun.Status.MetricResults[0].Measurements))
 		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Measurements[0].Phase)
 	}
