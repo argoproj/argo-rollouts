@@ -274,7 +274,9 @@ func validateErrorRetryBackoff(backoff *v1alpha1.ErrorRetryBackoff) error {
 	if backoff == nil {
 		return nil
 	}
-	var duration, maxDuration time.Duration
+	// Start from the controller defaults (analysis.DefaultErrorRetryInterval and
+	// analysis.DefaultErrorRetryBackoffMaxDuration) so that setting only one bound is still checked.
+	duration, maxDuration := 10*time.Second, 5*time.Minute
 	var err error
 	if backoff.Duration != "" {
 		if duration, err = backoff.Duration.Duration(); err != nil {
@@ -292,7 +294,7 @@ func validateErrorRetryBackoff(backoff *v1alpha1.ErrorRetryBackoff) error {
 			return fmt.Errorf("errorRetryBackoff.maxDuration must be > 0")
 		}
 	}
-	if duration > 0 && maxDuration > 0 && maxDuration < duration {
+	if maxDuration < duration {
 		return fmt.Errorf("errorRetryBackoff.maxDuration must be >= errorRetryBackoff.duration")
 	}
 	if backoff.Factor != nil && *backoff.Factor < 1 {

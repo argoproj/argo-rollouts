@@ -387,6 +387,8 @@ func TestValidateMetrics(t *testing.T) {
 			{name: "invalid maxDuration", backoff: &v1alpha1.ErrorRetryBackoff{MaxDuration: "ten"}, wantErr: "invalid errorRetryBackoff.maxDuration string"},
 			{name: "non-positive maxDuration", backoff: &v1alpha1.ErrorRetryBackoff{MaxDuration: "0s"}, wantErr: "errorRetryBackoff.maxDuration must be > 0"},
 			{name: "maxDuration below duration", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "1m", MaxDuration: "30s"}, wantErr: "errorRetryBackoff.maxDuration must be >= errorRetryBackoff.duration"},
+			{name: "duration above default maxDuration", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "10m"}, wantErr: "errorRetryBackoff.maxDuration must be >= errorRetryBackoff.duration"},
+			{name: "maxDuration below default duration", backoff: &v1alpha1.ErrorRetryBackoff{MaxDuration: "1s"}, wantErr: "errorRetryBackoff.maxDuration must be >= errorRetryBackoff.duration"},
 			{name: "factor below one", backoff: &v1alpha1.ErrorRetryBackoff{Factor: &zero}, wantErr: "errorRetryBackoff.factor must be >= 1"},
 		}
 		for _, tt := range tests {
