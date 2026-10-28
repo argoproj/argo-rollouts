@@ -1142,3 +1142,22 @@ func TestScaleReplicaSetRecordsScaleDownBatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotContains(t, updated.Annotations, v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey)
 }
+
+func TestNextScaleDownBatchIgnoresUnparsableBatchTime(t *testing.T) {
+	interval := int32(30)
+	roCtx, _ := newGradualScaleDownContext(&v1alpha1.OldReplicaSetScaleDown{IntervalSeconds: &interval})
+	oldRS := rs("foo-v1", 8, nil, noTimestamp, nil)
+	oldRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey] = "not-a-time"
+	assert.Equal(t, int32(7), roCtx.nextScaleDownBatch(oldRS))
+}
+
+func TestScaleDownDelayHelperScalesDownGradually(t *testing.T) {
+	roCtx, _ := newGradualScaleDownContext(&v1alpha1.OldReplicaSetScaleDown{})
+	roCtx.resyncPeriod = 15 * time.Minute
+	oldRS := rs("foo-v1", 10, nil, noTimestamp, nil)
+	oldRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
+
+	_, desired, err := roCtx.scaleDownDelayHelper(oldRS, 0, 10)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(9), desired)
+}
