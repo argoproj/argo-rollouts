@@ -870,13 +870,13 @@ resets once a measurement does not error.
 
 ```yaml hl_lines="4 5 6 7"
   metrics:
-  - name: success-rate
+  - name: error-rate
     interval: 5m
     errorRetryBackoff:
       duration: 10s     # default: 10s
       factor: 2         # default: 2
       maxDuration: 5m   # default: 5m
-    successCondition: result[0] >= 0.95
+    successCondition: result <= 0.05
     provider:
       datadog:
         apiVersion: v2

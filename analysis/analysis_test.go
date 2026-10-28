@@ -1104,6 +1104,7 @@ func TestCalculateNextReconcileUponError(t *testing.T) {
 func TestErrorRetryInterval(t *testing.T) {
 	three := int32(3)
 	one := int32(1)
+	huge := int32(1_000_000_000)
 	tests := []struct {
 		name              string
 		backoff           *v1alpha1.ErrorRetryBackoff
@@ -1118,6 +1119,7 @@ func TestErrorRetryInterval(t *testing.T) {
 		{name: "custom max duration", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "1m", MaxDuration: "2m"}, consecutiveErrors: 4, want: 2 * time.Minute},
 		{name: "factor one is a constant interval", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "1m", Factor: &one}, consecutiveErrors: 20, want: time.Minute},
 		{name: "long error streak does not overflow", backoff: &v1alpha1.ErrorRetryBackoff{MaxDuration: "1h"}, consecutiveErrors: 1000, want: time.Hour},
+		{name: "large factor does not overflow", backoff: &v1alpha1.ErrorRetryBackoff{Factor: &huge}, consecutiveErrors: 2, want: 5 * time.Minute},
 		{name: "invalid duration falls back to the fixed interval", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "ten"}, consecutiveErrors: 3, want: DefaultErrorRetryInterval},
 	}
 	for _, tt := range tests {

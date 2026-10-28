@@ -284,9 +284,12 @@ func errorRetryInterval(logCtx log.Entry, metric v1alpha1.Metric, consecutiveErr
 		return DefaultErrorRetryInterval
 	}
 	factor := time.Duration(ptr.Deref(backoff.Factor, DefaultErrorRetryBackoffFactor))
-	// Multiply step by step rather than with math.Pow so a long error streak saturates at
-	// maxInterval instead of overflowing time.Duration.
+	// Multiply step by step rather than with math.Pow, and stop before a step would pass
+	// maxInterval, so a long error streak or a large factor cannot overflow time.Duration.
 	for i := int32(1); i < consecutiveErrors && interval < maxInterval; i++ {
+		if interval > maxInterval/factor {
+			return maxInterval
+		}
 		interval *= factor
 	}
 	return min(interval, maxInterval)
