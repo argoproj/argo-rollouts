@@ -703,19 +703,6 @@ message DryRun {
   optional string metricName = 1;
 }
 
-// ErrorRetryBackoff defines an exponential backoff for retrying errored measurements. The wait
-// before the Nth consecutive retry is duration * factor^(N-1), capped at maxDuration.
-message ErrorRetryBackoff {
-  // Duration is the wait before the first retry after an error (default: 10s)
-  optional string duration = 1;
-
-  // Factor is the multiplier applied to the wait after each consecutive error (default: 2)
-  optional int32 factor = 2;
-
-  // MaxDuration is the upper bound of the wait between retries (default: 5m)
-  optional string maxDuration = 3;
-}
-
 // Experiment is a specification for an Experiment resource
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -1083,9 +1070,10 @@ message Metric {
   // entire metric to be considered Successful (default: 0, which means it's disabled)
   optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString consecutiveSuccessLimit = 11;
 
-  // ErrorRetryBackoff configures an exponential backoff between retries of a measurement that
-  // errored. When omitted, errored measurements are retried every 10s.
-  optional ErrorRetryBackoff errorRetryBackoff = 12;
+  // ErrorRetryMaxInterval enables an exponential backoff between retries of a measurement that
+  // errored: the wait starts at 10s and doubles after each consecutive error, up to this duration.
+  // When omitted, errored measurements are retried every 10s.
+  optional string errorRetryMaxInterval = 12;
 }
 
 // MetricProvider which external system to use to verify the analysis

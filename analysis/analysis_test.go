@@ -1088,30 +1088,22 @@ func TestCalculateNextReconcileUponError(t *testing.T) {
 }
 
 func TestErrorRetryInterval(t *testing.T) {
-	three := int32(3)
-	one := int32(1)
 	tests := []struct {
-		name              string
-		backoff           *v1alpha1.ErrorRetryBackoff
+		maxInterval       v1alpha1.DurationString
 		consecutiveErrors int32
 		want              time.Duration
 	}{
-		{name: "no backoff keeps the fixed retry interval", consecutiveErrors: 7, want: DefaultErrorRetryInterval},
-		{name: "defaults on first error", backoff: &v1alpha1.ErrorRetryBackoff{}, consecutiveErrors: 1, want: 10 * time.Second},
-		{name: "defaults double per error", backoff: &v1alpha1.ErrorRetryBackoff{}, consecutiveErrors: 3, want: 40 * time.Second},
-		{name: "defaults cap at five minutes", backoff: &v1alpha1.ErrorRetryBackoff{}, consecutiveErrors: 10, want: 5 * time.Minute},
-		{name: "custom duration and factor", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "30s", Factor: &three}, consecutiveErrors: 3, want: 270 * time.Second},
-		{name: "custom max duration", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "1m", MaxDuration: "2m"}, consecutiveErrors: 4, want: 2 * time.Minute},
-		{name: "factor one is a constant interval", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "1m", Factor: &one}, consecutiveErrors: 20, want: time.Minute},
-		{name: "long error streak does not overflow", backoff: &v1alpha1.ErrorRetryBackoff{MaxDuration: "1h"}, consecutiveErrors: 1000, want: time.Hour},
-		{name: "invalid duration falls back to the fixed interval", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "ten"}, consecutiveErrors: 3, want: DefaultErrorRetryInterval},
+		{maxInterval: "", consecutiveErrors: 7, want: DefaultErrorRetryInterval},
+		{maxInterval: "5m", consecutiveErrors: 1, want: 10 * time.Second},
+		{maxInterval: "5m", consecutiveErrors: 3, want: 40 * time.Second},
+		{maxInterval: "5m", consecutiveErrors: 10, want: 5 * time.Minute},
+		{maxInterval: "1h", consecutiveErrors: 1000, want: time.Hour},
+		{maxInterval: "five", consecutiveErrors: 3, want: DefaultErrorRetryInterval},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			metric := v1alpha1.Metric{Name: "success-rate", ErrorRetryBackoff: tt.backoff}
-			got := errorRetryInterval(*log.NewEntry(log.New()), metric, tt.consecutiveErrors)
-			assert.Equal(t, tt.want, got)
-		})
+		metric := v1alpha1.Metric{Name: "success-rate", ErrorRetryMaxInterval: tt.maxInterval}
+		got := errorRetryInterval(*log.NewEntry(log.New()), metric, tt.consecutiveErrors)
+		assert.Equal(t, tt.want, got, "maxInterval=%q consecutiveErrors=%d", tt.maxInterval, tt.consecutiveErrors)
 	}
 }
 
@@ -1121,9 +1113,9 @@ func TestGenerateMetricTasksErrorBackoff(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{{
-				Name:              "success-rate",
-				Interval:          "5m",
-				ErrorRetryBackoff: &v1alpha1.ErrorRetryBackoff{},
+				Name:                  "success-rate",
+				Interval:              "5m",
+				ErrorRetryMaxInterval: "5m",
 			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
@@ -1157,15 +1149,15 @@ func TestGenerateMetricTasksErrorBackoff(t *testing.T) {
 }
 
 // TestCalculateNextReconcileUponErrorBackoff ensures we requeue at the backoff interval when an
-// errored metric has an ErrorRetryBackoff
+// errored metric has an ErrorRetryMaxInterval
 func TestCalculateNextReconcileUponErrorBackoff(t *testing.T) {
 	now := metav1.Now()
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{{
-				Name:              "success-rate",
-				Interval:          "5m",
-				ErrorRetryBackoff: &v1alpha1.ErrorRetryBackoff{Duration: "15s"},
+				Name:                  "success-rate",
+				Interval:              "5m",
+				ErrorRetryMaxInterval: "5m",
 			}},
 		},
 		Status: v1alpha1.AnalysisRunStatus{
@@ -1183,7 +1175,7 @@ func TestCalculateNextReconcileUponErrorBackoff(t *testing.T) {
 			}},
 		},
 	}
-	assert.Equal(t, now.Add(30*time.Second), *calculateNextReconcileTime(run, run.Spec.Metrics))
+	assert.Equal(t, now.Add(20*time.Second), *calculateNextReconcileTime(run, run.Spec.Metrics))
 }
 
 func TestReconcileAnalysisRunInitial(t *testing.T) {

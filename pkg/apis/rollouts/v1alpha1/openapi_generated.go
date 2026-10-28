@@ -66,7 +66,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ClusterAnalysisTemplateList":                     schema_pkg_apis_rollouts_v1alpha1_ClusterAnalysisTemplateList(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DatadogMetric":                                   schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DryRun":                                          schema_pkg_apis_rollouts_v1alpha1_DryRun(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ErrorRetryBackoff":                               schema_pkg_apis_rollouts_v1alpha1_ErrorRetryBackoff(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Experiment":                                      schema_pkg_apis_rollouts_v1alpha1_Experiment(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisRunStatus":                     schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisRunStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentAnalysisTemplateRef":                   schema_pkg_apis_rollouts_v1alpha1_ExperimentAnalysisTemplateRef(ref),
@@ -2056,40 +2055,6 @@ func schema_pkg_apis_rollouts_v1alpha1_DryRun(ref common.ReferenceCallback) comm
 	}
 }
 
-func schema_pkg_apis_rollouts_v1alpha1_ErrorRetryBackoff(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "ErrorRetryBackoff defines an exponential backoff for retrying errored measurements. The wait before the Nth consecutive retry is duration * factor^(N-1), capped at maxDuration.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"duration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Duration is the wait before the first retry after an error (default: 10s)",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"factor": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Factor is the multiplier applied to the wait after each consecutive error (default: 2)",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"maxDuration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaxDuration is the upper bound of the wait between retries (default: 5m)",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func schema_pkg_apis_rollouts_v1alpha1_Experiment(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3229,10 +3194,11 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
-					"errorRetryBackoff": {
+					"errorRetryMaxInterval": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ErrorRetryBackoff configures an exponential backoff between retries of a measurement that errored. When omitted, errored measurements are retried every 10s.",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ErrorRetryBackoff"),
+							Description: "ErrorRetryMaxInterval enables an exponential backoff between retries of a measurement that errored: the wait starts at 10s and doubles after each consecutive error, up to this duration. When omitted, errored measurements are retried every 10s.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -3240,7 +3206,7 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ErrorRetryBackoff", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
