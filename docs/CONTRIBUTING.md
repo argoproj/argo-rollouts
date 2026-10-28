@@ -102,6 +102,9 @@ The rollout controller can be started with the command:
 make start-e2e
 ```
 
+The `StepPluginSuite` and RolloutPlugin suites also need the e2e plugins. Run `make setup-e2e` before
+`make start-e2e` to build them and register them in the `argo-rollouts-config` ConfigMap.
+
 Then run the e2e tests:
 
 ```
@@ -129,6 +132,8 @@ Available test suites [are the following](https://github.com/argoproj/argo-rollo
 * `TestAppMeshSuite`
 * `TestAWSSuite`
 * `StepPluginSuite`
+* `TestRolloutPluginSuite` (also run by `make test-e2e-rolloutplugin`)
+* `TestRolloutPluginRpcSuite`
 * `SMISuite` (SMI is [deprecated](https://www.cncf.io/blog/2023/10/03/cncf-archives-the-service-mesh-interface-smi-project/))
 * `SMIIngressSuite` (SMI is [deprecated](https://www.cncf.io/blog/2023/10/03/cncf-archives-the-service-mesh-interface-smi-project/))
 

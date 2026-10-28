@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 	corev1 "k8s.io/api/core/v1"
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"

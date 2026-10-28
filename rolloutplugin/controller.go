@@ -823,6 +823,12 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		return result, nil
 	}
 
+	// TODOH: ask the plugin to hold a stable workload here (e.g. block a StatefulSet's partition),
+	// so users don't need to set partition >= replicas before creating the RolloutPlugin. Until
+	// then, with the default partition 0, the first template change races the StatefulSet
+	// controller, which starts updating pods before the first SetWeight (or updates them all if
+	// the RolloutPlugin isn't reconciling).
+
 	// No rollout in progress — cancel any lingering analysis runs (e.g. background AR
 	// that was still running when the rollout completed on the previous reconcile). Not
 	// progressing means reconcileAnalysisRuns only cancels, never returns an abort request.

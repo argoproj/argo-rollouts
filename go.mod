@@ -44,7 +44,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260706201446-f0a921348800
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
-	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.34.5
 	k8s.io/apiextensions-apiserver v0.34.5
 	k8s.io/apimachinery v0.34.5
@@ -208,6 +207,7 @@ require (
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/component-helpers v0.34.5 // indirect
 	k8s.io/controller-manager v0.34.5 // indirect
