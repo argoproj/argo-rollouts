@@ -125,10 +125,20 @@ type Metric struct {
 	// ConsecutiveSuccessLimit is the number of consecutive times the measurement must succeed for the
 	// entire metric to be considered Successful (default: 0, which means it's disabled)
 	ConsecutiveSuccessLimit *intstrutil.IntOrString `json:"consecutiveSuccessLimit,omitempty" protobuf:"bytes,11,opt,name=consecutiveSuccessLimit"`
-	// ErrorRetryMaxInterval enables an exponential backoff between retries of a measurement that
-	// errored: the wait starts at 10s and doubles after each consecutive error, up to this duration.
-	// When omitted, errored measurements are retried every 10s.
-	ErrorRetryMaxInterval DurationString `json:"errorRetryMaxInterval,omitempty" protobuf:"bytes,12,opt,name=errorRetryMaxInterval,casttype=DurationString"`
+	// ErrorRetryBackoff configures an exponential backoff between retries of a measurement that
+	// errored. When omitted, errored measurements are retried every 10s.
+	ErrorRetryBackoff *ErrorRetryBackoff `json:"errorRetryBackoff,omitempty" protobuf:"bytes,12,opt,name=errorRetryBackoff"`
+}
+
+// ErrorRetryBackoff defines an exponential backoff for retrying errored measurements. The wait
+// before the Nth consecutive retry is duration * factor^(N-1), capped at maxDuration.
+type ErrorRetryBackoff struct {
+	// Duration is the wait before the first retry after an error (default: 10s)
+	Duration DurationString `json:"duration,omitempty" protobuf:"bytes,1,opt,name=duration,casttype=DurationString"`
+	// Factor is the multiplier applied to the wait after each consecutive error (default: 2)
+	Factor *int32 `json:"factor,omitempty" protobuf:"varint,2,opt,name=factor"`
+	// MaxDuration is the upper bound of the wait between retries (default: 5m)
+	MaxDuration DurationString `json:"maxDuration,omitempty" protobuf:"bytes,3,opt,name=maxDuration,casttype=DurationString"`
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.

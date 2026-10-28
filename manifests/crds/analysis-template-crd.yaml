@@ -161,12 +161,25 @@ spec:
                         the effective count is 1. If only interval is specified, metric runs indefinitely.
                         If count > 1, interval must be specified.
                       x-kubernetes-int-or-string: true
-                    errorRetryMaxInterval:
+                    errorRetryBackoff:
                       description: |-
-                        ErrorRetryMaxInterval enables an exponential backoff between retries of a measurement that
-                        errored: the wait starts at 10s and doubles after each consecutive error, up to this duration.
-                        When omitted, errored measurements are retried every 10s.
-                      type: string
+                        ErrorRetryBackoff configures an exponential backoff between retries of a measurement that
+                        errored. When omitted, errored measurements are retried every 10s.
+                      properties:
+                        duration:
+                          description: 'Duration is the wait before the first retry
+                            after an error (default: 10s)'
+                          type: string
+                        factor:
+                          description: 'Factor is the multiplier applied to the wait
+                            after each consecutive error (default: 2)'
+                          format: int32
+                          type: integer
+                        maxDuration:
+                          description: 'MaxDuration is the upper bound of the wait
+                            between retries (default: 5m)'
+                          type: string
+                      type: object
                     failureCondition:
                       description: |-
                         FailureCondition is an expression which determines if a measurement is considered failed

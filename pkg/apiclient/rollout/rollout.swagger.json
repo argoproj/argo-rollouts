@@ -1263,6 +1263,25 @@
       },
       "description": "DryRun defines the settings for running the analysis in Dry-Run mode."
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ErrorRetryBackoff": {
+      "type": "object",
+      "properties": {
+        "duration": {
+          "type": "string",
+          "title": "Duration is the wait before the first retry after an error (default: 10s)"
+        },
+        "factor": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Factor is the multiplier applied to the wait after each consecutive error (default: 2)"
+        },
+        "maxDuration": {
+          "type": "string",
+          "title": "MaxDuration is the upper bound of the wait between retries (default: 5m)"
+        }
+      },
+      "description": "ErrorRetryBackoff defines an exponential backoff for retrying errored measurements. The wait\nbefore the Nth consecutive retry is duration * factor^(N-1), capped at maxDuration."
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.FieldRef": {
       "type": "object",
       "properties": {
@@ -1583,9 +1602,9 @@
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.util.intstr.IntOrString",
           "title": "ConsecutiveSuccessLimit is the number of consecutive times the measurement must succeed for the\nentire metric to be considered Successful (default: 0, which means it's disabled)"
         },
-        "errorRetryMaxInterval": {
-          "type": "string",
-          "description": "ErrorRetryMaxInterval enables an exponential backoff between retries of a measurement that\nerrored: the wait starts at 10s and doubles after each consecutive error, up to this duration.\nWhen omitted, errored measurements are retried every 10s."
+        "errorRetryBackoff": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ErrorRetryBackoff",
+          "description": "ErrorRetryBackoff configures an exponential backoff between retries of a measurement that\nerrored. When omitted, errored measurements are retried every 10s."
         }
       },
       "title": "Metric defines a metric in which to perform analysis"

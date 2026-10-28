@@ -28,6 +28,10 @@ const (
 	// DefaultErrorRetryInterval is the default interval to retry a measurement upon error, in the
 	// event an interval was not specified
 	DefaultErrorRetryInterval = 10 * time.Second
+	// DefaultErrorRetryBackoffFactor is the default multiplier of an ErrorRetryBackoff
+	DefaultErrorRetryBackoffFactor int32 = 2
+	// DefaultErrorRetryBackoffMaxDuration is the default cap of an ErrorRetryBackoff
+	DefaultErrorRetryBackoffMaxDuration = 5 * time.Minute
 	// SuccessfulAssessmentRunTerminatedResult is used for logging purposes when the metrics evaluation
 	// is successful and the run is terminated.
 	SuccessfulAssessmentRunTerminatedResult = "Metric Assessment Result - Successful: Run Terminated"
@@ -261,21 +265,43 @@ func parseMetricInterval(logCtx log.Entry, metricDurationString v1alpha1.Duratio
 }
 
 // errorRetryInterval returns how long to wait before retrying a metric whose last measurement
-// errored. With ErrorRetryMaxInterval set, the wait doubles for every consecutive error so a
-// provider that is down or rate limiting is not queried every 10s for the whole outage.
+// errored. Without an ErrorRetryBackoff this is DefaultErrorRetryInterval. With one, the wait grows
+// by Factor for every consecutive error, so a provider that is rate limiting or unavailable is not
+// queried every few seconds for the whole outage.
 func errorRetryInterval(logCtx log.Entry, metric v1alpha1.Metric, consecutiveErrors int32) time.Duration {
-	if metric.ErrorRetryMaxInterval == "" {
-		return DefaultErrorRetryInterval
-	}
-	maxInterval, err := parseMetricInterval(logCtx, metric.ErrorRetryMaxInterval)
-	if err != nil {
+	backoff := metric.ErrorRetryBackoff
+	if backoff == nil {
 		return DefaultErrorRetryInterval
 	}
 	interval := DefaultErrorRetryInterval
-	for i := int32(1); i < consecutiveErrors && interval < maxInterval; i++ {
-		interval *= 2
+	if backoff.Duration != "" {
+		parsed, err := parseMetricInterval(logCtx, backoff.Duration)
+		if err != nil {
+			return DefaultErrorRetryInterval
+		}
+		interval = parsed
 	}
-	return min(interval, maxInterval)
+	maxInterval := DefaultErrorRetryBackoffMaxDuration
+	if backoff.MaxDuration != "" {
+		parsed, err := parseMetricInterval(logCtx, backoff.MaxDuration)
+		if err != nil {
+			return DefaultErrorRetryInterval
+		}
+		maxInterval = parsed
+	}
+	factor := DefaultErrorRetryBackoffFactor
+	if backoff.Factor != nil {
+		factor = *backoff.Factor
+	}
+	// Multiply step by step rather than with math.Pow so a long error streak saturates at
+	// maxInterval instead of overflowing time.Duration.
+	for i := int32(1); i < consecutiveErrors && interval < maxInterval; i++ {
+		interval *= time.Duration(factor)
+	}
+	if interval > maxInterval {
+		return maxInterval
+	}
+	return interval
 }
 
 // resolveArgs resolves args for metricTasks, including secret references

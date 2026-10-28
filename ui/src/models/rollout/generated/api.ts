@@ -1119,6 +1119,31 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun {
     metricName?: string;
 }
 /**
+ * ErrorRetryBackoff defines an exponential backoff for retrying errored measurements. The wait before the Nth consecutive retry is duration * factor^(N-1), capped at maxDuration.
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ErrorRetryBackoff
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ErrorRetryBackoff {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ErrorRetryBackoff
+     */
+    duration?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ErrorRetryBackoff
+     */
+    factor?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ErrorRetryBackoff
+     */
+    maxDuration?: string;
+}
+/**
  * 
  * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef
@@ -1566,11 +1591,11 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric {
      */
     consecutiveSuccessLimit?: K8sIoApimachineryPkgUtilIntstrIntOrString;
     /**
-     * ErrorRetryMaxInterval enables an exponential backoff between retries of a measurement that errored: the wait starts at 10s and doubles after each consecutive error, up to this duration. When omitted, errored measurements are retried every 10s.
-     * @type {string}
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ErrorRetryBackoff}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
      */
-    errorRetryMaxInterval?: string;
+    errorRetryBackoff?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ErrorRetryBackoff;
 }
 /**
  * 
