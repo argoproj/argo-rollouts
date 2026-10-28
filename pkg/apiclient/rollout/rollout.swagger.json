@@ -1126,6 +1126,10 @@
         "replicaProgressThreshold": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaProgressThreshold",
           "title": "ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.\nDefaults to 100% of total replicas.\n+optional"
+        },
+        "oldReplicaSetScaleDown": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.OldReplicaSetScaleDown",
+          "title": "OldReplicaSetScaleDown rate-limits the scale-down of the previous stable ReplicaSet once its\nscaleDownDelaySeconds has passed, instead of scaling it to zero at once. Only used with trafficRouting.\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
@@ -1818,6 +1822,25 @@
         }
       },
       "title": "ObjectRef holds a references to the Kubernetes object"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.OldReplicaSetScaleDown": {
+      "type": "object",
+      "properties": {
+        "maxUnavailable": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.util.intstr.IntOrString",
+          "title": "MaxUnavailable is the maximum number of pods of the old ReplicaSet removed in one batch.\nValue can be an absolute number (ex: 1) or a percentage of the rollout's replicas (ex: 10%),\nrounded up. Defaults to 1.\n+optional"
+        },
+        "intervalSeconds": {
+          "type": "integer",
+          "format": "int32",
+          "title": "IntervalSeconds is the minimum time between two batches. Defaults to 0.\n+optional"
+        },
+        "waitForPodTermination": {
+          "type": "boolean",
+          "title": "WaitForPodTermination waits until the pods removed by the previous batch are gone before the next batch.\n+optional"
+        }
+      },
+      "description": "OldReplicaSetScaleDown configures a gradual scale-down of the previous stable ReplicaSet of a canary."
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PauseCondition": {
       "type": "object",
