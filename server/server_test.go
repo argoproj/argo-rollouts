@@ -2,18 +2,25 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	rolloutapi "github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
 	fakeoptions "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
@@ -171,4 +178,60 @@ func TestNewHTTPServer(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestGetNamespaceToleratesMalformedRollout(t *testing.T) {
+	good := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "argoproj.io/v1alpha1",
+		"kind":       "Rollout",
+		"metadata":   map[string]any{"name": "good", "namespace": "ns-a"},
+	}}
+	// resources.limits as a string is accepted by the CRD schema but cannot be
+	// decoded into the typed Rollout struct.
+	malformed := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "argoproj.io/v1alpha1",
+		"kind":       "Rollout",
+		"metadata":   map[string]any{"name": "bad-resources", "namespace": "ns-b"},
+		"spec": map[string]any{
+			"template": map[string]any{
+				"spec": map[string]any{
+					"containers": []any{
+						map[string]any{
+							"name":      "app",
+							"image":     "nginx",
+							"resources": map[string]any{"limits": "memory:6Gi"},
+						},
+					},
+				},
+			},
+		},
+	}}
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(
+		runtime.NewScheme(),
+		map[schema.GroupVersionResource]string{v1alpha1.RolloutGVR: "RolloutList"},
+		good, malformed,
+	)
+
+	// The real API server returns objects that the typed client then fails to
+	// decode; simulate that decoding failure on the typed client.
+	rolloutsClient := fakeroclient.NewSimpleClientset()
+	rolloutsClient.PrependReactor("list", "rollouts", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("json: cannot unmarshal string into Go struct field ResourceRequirements.items.spec.template.spec.containers.resources.limits of type v1.ResourceList")
+	})
+
+	s := &ArgoRolloutsServer{
+		Options: ServerOptions{
+			Namespace:         "argo-rollouts",
+			RolloutsClientset: rolloutsClient,
+			DynamicClientset:  dynamicClient,
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	info, err := s.GetNamespace(ctx, &empty.Empty{})
+
+	require.NoError(t, err)
+	assert.Equal(t, "argo-rollouts", info.Namespace)
+	assert.ElementsMatch(t, []string{"ns-a", "ns-b"}, info.AvailableNamespaces)
 }
