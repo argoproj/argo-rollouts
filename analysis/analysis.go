@@ -273,35 +273,30 @@ func errorRetryInterval(logCtx log.Entry, metric v1alpha1.Metric, consecutiveErr
 	if backoff == nil {
 		return DefaultErrorRetryInterval
 	}
-	interval := DefaultErrorRetryInterval
-	if backoff.Duration != "" {
-		parsed, err := parseMetricInterval(logCtx, backoff.Duration)
-		if err != nil {
-			return DefaultErrorRetryInterval
-		}
-		interval = parsed
+	interval, err := durationOrDefault(backoff.Duration, DefaultErrorRetryInterval)
+	if err != nil {
+		logCtx.Warnf("Failed to parse errorRetryBackoff.duration: %v", err)
+		return DefaultErrorRetryInterval
 	}
-	maxInterval := DefaultErrorRetryBackoffMaxDuration
-	if backoff.MaxDuration != "" {
-		parsed, err := parseMetricInterval(logCtx, backoff.MaxDuration)
-		if err != nil {
-			return DefaultErrorRetryInterval
-		}
-		maxInterval = parsed
+	maxInterval, err := durationOrDefault(backoff.MaxDuration, DefaultErrorRetryBackoffMaxDuration)
+	if err != nil {
+		logCtx.Warnf("Failed to parse errorRetryBackoff.maxDuration: %v", err)
+		return DefaultErrorRetryInterval
 	}
-	factor := DefaultErrorRetryBackoffFactor
-	if backoff.Factor != nil {
-		factor = *backoff.Factor
-	}
+	factor := time.Duration(ptr.Deref(backoff.Factor, DefaultErrorRetryBackoffFactor))
 	// Multiply step by step rather than with math.Pow so a long error streak saturates at
 	// maxInterval instead of overflowing time.Duration.
 	for i := int32(1); i < consecutiveErrors && interval < maxInterval; i++ {
-		interval *= time.Duration(factor)
+		interval *= factor
 	}
-	if interval > maxInterval {
-		return maxInterval
+	return min(interval, maxInterval)
+}
+
+func durationOrDefault(d v1alpha1.DurationString, def time.Duration) (time.Duration, error) {
+	if d == "" {
+		return def, nil
 	}
-	return interval
+	return d.Duration()
 }
 
 // resolveArgs resolves args for metricTasks, including secret references
