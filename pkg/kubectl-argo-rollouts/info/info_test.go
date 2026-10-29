@@ -7,7 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
@@ -177,4 +180,197 @@ func TestRolloutInfoMetadata(t *testing.T) {
 	assert.Equal(t, roInfo.ObjectMeta.Annotations, rolloutObjs.Rollouts[0].Annotations)
 	assert.Equal(t, roInfo.ObjectMeta.Labels, rolloutObjs.Rollouts[0].Labels)
 	assert.Equal(t, roInfo.ObjectMeta.Generation, rolloutObjs.Rollouts[0].Generation)
+}
+
+// TestRolloutInfoPauseDurationSeconds pins the normalization of every duration
+// form time.ParseDuration accepts, so clients never reimplement the grammar.
+// See RolloutPause.DurationSeconds for the contract.
+func TestRolloutInfoPauseDurationSeconds(t *testing.T) {
+	tests := []struct {
+		name     string
+		duration *intstr.IntOrString
+		expected int32
+	}{
+		{"integer duration is seconds", v1alpha1.DurationFromInt(30), 30},
+		{"bare string duration is seconds", v1alpha1.DurationFromString("300"), 300},
+		{"seconds unit", v1alpha1.DurationFromString("30s"), 30},
+		{"minutes unit", v1alpha1.DurationFromString("15m"), 900},
+		{"hours unit", v1alpha1.DurationFromString("1h"), 3600},
+		{"compound hours and minutes", v1alpha1.DurationFromString("1h30m"), 5400},
+		{"compound hours minutes and seconds", v1alpha1.DurationFromString("2h45m30s"), 9930},
+		{"fractional hours", v1alpha1.DurationFromString("1.5h"), 5400},
+		{"fractional minutes", v1alpha1.DurationFromString("0.5m"), 30},
+		{"sub-second duration truncates toward zero", v1alpha1.DurationFromString("500ms"), 0},
+		{"mixed sub-second duration truncates toward zero", v1alpha1.DurationFromString("1500ms"), 1},
+		{"microseconds truncate toward zero", v1alpha1.DurationFromString("100us"), 0},
+		{"negative duration is preserved", v1alpha1.DurationFromString("-5m"), -300},
+		{"unparseable duration reports -1", v1alpha1.DurationFromString("1z"), -1},
+		{"indefinite pause reports 0", nil, 0},
+	}
+
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	timeutil.SetNowTimeFunc(func() time.Time { return now })
+	defer timeutil.SetNowTimeFunc(time.Now)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ro := pausedCanary(tc.duration, metav1.NewTime(now))
+			assert.Equal(t, tc.expected, NewRolloutInfo(ro, nil, nil, nil, nil, nil).PauseDurationSeconds)
+		})
+	}
+}
+
+// TestRolloutInfoPauseRemainingSeconds covers the snapshot field clients render
+// from directly. It is clamped to [0, duration] so a client never has to guard
+// against a negative or over-long value.
+func TestRolloutInfoPauseRemainingSeconds(t *testing.T) {
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	timeutil.SetNowTimeFunc(func() time.Time { return now })
+	defer timeutil.SetNowTimeFunc(time.Now)
+
+	dur := intstr.FromString("1h30m")
+
+	tests := []struct {
+		name      string
+		startedAt time.Time
+		expected  int32
+	}{
+		{"just paused reports the full duration", now, 5400},
+		{"a third elapsed", now.Add(-30 * time.Minute), 3600},
+		{"nearly done", now.Add(-89 * time.Minute), 60},
+		{"elapsed clamps to zero", now.Add(-2 * time.Hour), 0},
+		{"start time in the future clamps to the duration", now.Add(10 * time.Minute), 5400},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			roInfo := NewRolloutInfo(pausedCanary(&dur, metav1.NewTime(tc.startedAt)), nil, nil, nil, nil, nil)
+			assert.Equal(t, tc.expected, roInfo.PauseRemainingSeconds)
+			assert.Equal(t, int32(5400), roInfo.PauseDurationSeconds)
+			assert.LessOrEqual(t, roInfo.PauseRemainingSeconds, roInfo.PauseDurationSeconds, "remaining must never exceed duration")
+			assert.GreaterOrEqual(t, roInfo.PauseRemainingSeconds, int32(0), "remaining must never be negative")
+		})
+	}
+}
+
+// TestRolloutInfoPauseNotInProgress verifies both fields stay zero unless the
+// rollout is actually paused on a timed canary step, so clients can treat
+// pauseDurationSeconds > 0 as "a timed pause is running".
+func TestRolloutInfoPauseNotInProgress(t *testing.T) {
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	timeutil.SetNowTimeFunc(func() time.Time { return now })
+	defer timeutil.SetNowTimeFunc(time.Now)
+
+	dur := intstr.FromString("15m")
+	steps := []v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{Duration: &dur}}}
+
+	notPaused := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Spec:       v1alpha1.RolloutSpec{Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{Steps: steps}}},
+		Status:     v1alpha1.RolloutStatus{CurrentStepIndex: ptr.To[int32](0)},
+	}
+	roInfo := NewRolloutInfo(notPaused, nil, nil, nil, nil, nil)
+	assert.Equal(t, int32(0), roInfo.PauseDurationSeconds)
+	assert.Equal(t, int32(0), roInfo.PauseRemainingSeconds)
+
+	blueGreenPause := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test2", Namespace: "default"},
+		Spec:       v1alpha1.RolloutSpec{Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{Steps: steps}}},
+		Status: v1alpha1.RolloutStatus{
+			CurrentStepIndex: ptr.To[int32](0),
+			PauseConditions: []v1alpha1.PauseCondition{
+				{Reason: v1alpha1.PauseReasonBlueGreenPause, StartTime: metav1.NewTime(now)},
+			},
+		},
+	}
+	roInfo = NewRolloutInfo(blueGreenPause, nil, nil, nil, nil, nil)
+	assert.Equal(t, int32(0), roInfo.PauseDurationSeconds)
+	assert.Equal(t, int32(0), roInfo.PauseRemainingSeconds)
+
+	// An indefinite pause is in progress, but there is nothing to count down.
+	indefinite := pausedCanary(nil, metav1.NewTime(now))
+	roInfo = NewRolloutInfo(indefinite, nil, nil, nil, nil, nil)
+	assert.Equal(t, int32(0), roInfo.PauseDurationSeconds)
+	assert.Equal(t, int32(0), roInfo.PauseRemainingSeconds)
+}
+
+// TestRolloutInfoPauseOnNonPauseStep covers status that disagrees with itself:
+// a canary pause condition is recorded, but the current step index does not
+// point at a pause step. There is nothing to count down, so both fields stay 0
+// rather than reporting a duration from an unrelated step.
+func TestRolloutInfoPauseOnNonPauseStep(t *testing.T) {
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	timeutil.SetNowTimeFunc(func() time.Time { return now })
+	defer timeutil.SetNowTimeFunc(time.Now)
+
+	pausedOn := func(steps []v1alpha1.CanaryStep, idx int32) *rollout.RolloutInfo {
+		ro := &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec:       v1alpha1.RolloutSpec{Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{Steps: steps}}},
+			Status: v1alpha1.RolloutStatus{
+				CurrentStepIndex: ptr.To[int32](idx),
+				PauseConditions: []v1alpha1.PauseCondition{
+					{Reason: v1alpha1.PauseReasonBlueGreenPause, StartTime: metav1.NewTime(now)},
+					{Reason: v1alpha1.PauseReasonCanaryPauseStep, StartTime: metav1.NewTime(now)},
+				},
+			},
+		}
+		return NewRolloutInfo(ro, nil, nil, nil, nil, nil)
+	}
+
+	// Current step is a setWeight, not a pause.
+	roInfo := pausedOn([]v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](20)}}, 0)
+	assert.Equal(t, int32(0), roInfo.PauseDurationSeconds)
+	assert.Equal(t, int32(0), roInfo.PauseRemainingSeconds)
+
+	// Step index past the end of the configured steps.
+	dur := intstr.FromString("15m")
+	roInfo = pausedOn([]v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{Duration: &dur}}}, 5)
+	assert.Equal(t, int32(0), roInfo.PauseDurationSeconds)
+	assert.Equal(t, int32(0), roInfo.PauseRemainingSeconds)
+
+	// No canary steps configured at all.
+	roInfo = pausedOn(nil, 0)
+	assert.Equal(t, int32(0), roInfo.PauseDurationSeconds)
+	assert.Equal(t, int32(0), roInfo.PauseRemainingSeconds)
+}
+
+// pausedCanary builds a canary rollout paused on a single pause step.
+func pausedCanary(duration *intstr.IntOrString, startTime metav1.Time) *v1alpha1.Rollout {
+	return &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Spec: v1alpha1.RolloutSpec{Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{
+			Steps: []v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{Duration: duration}}},
+		}}},
+		Status: v1alpha1.RolloutStatus{
+			CurrentStepIndex: ptr.To[int32](0),
+			PauseConditions: []v1alpha1.PauseCondition{
+				{Reason: v1alpha1.PauseReasonCanaryPauseStep, StartTime: startTime},
+			},
+		},
+	}
+}
+
+func TestPauseStepRemaining(t *testing.T) {
+	// The controller already did the arithmetic; this only formats.
+	remaining, ok := PauseStepRemaining(&rollout.RolloutInfo{PauseDurationSeconds: 5400, PauseRemainingSeconds: 3600})
+	assert.True(t, ok)
+	assert.Equal(t, "60m", remaining)
+
+	remaining, ok = PauseStepRemaining(&rollout.RolloutInfo{PauseDurationSeconds: 40, PauseRemainingSeconds: 15})
+	assert.True(t, ok)
+	assert.Equal(t, "15s", remaining)
+
+	// Elapsed, but the controller has not advanced the step yet.
+	remaining, ok = PauseStepRemaining(&rollout.RolloutInfo{PauseDurationSeconds: 40, PauseRemainingSeconds: 0})
+	assert.True(t, ok)
+	assert.Equal(t, "0s", remaining)
+
+	// Indefinite pause, or not paused on a step.
+	_, ok = PauseStepRemaining(&rollout.RolloutInfo{PauseDurationSeconds: 0})
+	assert.False(t, ok)
+
+	// Duration the controller could not parse.
+	_, ok = PauseStepRemaining(&rollout.RolloutInfo{PauseDurationSeconds: -1})
+	assert.False(t, ok)
 }
