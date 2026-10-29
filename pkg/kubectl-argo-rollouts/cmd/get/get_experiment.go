@@ -57,7 +57,10 @@ func NewCmdGetExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 			} else {
 				expUpdates := make(chan *rollout.ExperimentInfo)
 				controller.RegisterCallback(func(expInfo *rollout.ExperimentInfo) {
-					expUpdates <- expInfo
+					select {
+					case expUpdates <- expInfo:
+					case <-ctx.Done():
+					}
 				})
 				go getOptions.WatchExperiment(ctx.Done(), expUpdates)
 				controller.Run(ctx)

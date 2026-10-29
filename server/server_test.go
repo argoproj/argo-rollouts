@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -46,6 +47,81 @@ func TestGetRollout(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, expected, actual)
+}
+
+type rolloutInfoWatchStream struct {
+	grpc.ServerStream
+	ctx         context.Context
+	sendStarted chan struct{}
+	updates     chan *rolloutapi.RolloutInfo
+}
+
+func (s *rolloutInfoWatchStream) Context() context.Context {
+	return s.ctx
+}
+
+func (s *rolloutInfoWatchStream) Send(info *rolloutapi.RolloutInfo) error {
+	select {
+	case s.sendStarted <- struct{}{}:
+	default:
+	}
+	select {
+	case s.updates <- info:
+		return nil
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	}
+}
+
+func TestWatchRolloutInfoCancellation(t *testing.T) {
+	for _, slowClient := range []bool{false, true} {
+		name := "receiving client"
+		if slowClient {
+			name = "blocked client"
+		}
+		t.Run(name, func(t *testing.T) {
+			objects := testdata.NewCanaryRollout()
+			expected := objects.Rollouts[0]
+			s := newTestServer(t, objects.AllObjects()...)
+			for i := 0; i < 5; i++ {
+				ctx, cancel := context.WithCancel(context.Background())
+				t.Cleanup(cancel)
+				stream := &rolloutInfoWatchStream{
+					ctx:         ctx,
+					sendStarted: make(chan struct{}, 1),
+					updates:     make(chan *rolloutapi.RolloutInfo),
+				}
+				done := make(chan error, 1)
+				go func() {
+					done <- s.WatchRolloutInfo(&rolloutapi.RolloutInfoQuery{
+						Namespace: expected.Namespace,
+						Name:      expected.Name,
+					}, stream)
+				}()
+				if slowClient {
+					select {
+					case <-stream.sendStarted:
+					case <-time.After(5 * time.Second):
+						t.Fatal("watch did not send its initial update")
+					}
+				} else {
+					select {
+					case update := <-stream.updates:
+						assert.Equal(t, expected.Name, update.ObjectMeta.Name)
+					case <-time.After(5 * time.Second):
+						t.Fatal("watch did not deliver its initial update")
+					}
+				}
+				cancel()
+				select {
+				case err := <-done:
+					require.NoError(t, err)
+				case <-time.After(5 * time.Second):
+					t.Fatal("watch did not stop after cancellation")
+				}
+			}
+		})
+	}
 }
 
 func TestSetRolloutImageReturnsRollout(t *testing.T) {
