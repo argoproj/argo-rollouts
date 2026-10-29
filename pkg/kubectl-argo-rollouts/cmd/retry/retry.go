@@ -16,7 +16,9 @@ import (
 )
 
 const (
-	retryRolloutPatch    = `{"status":{"abort":false}}`
+	// Detach analysis from the aborted attempt so retry evaluates fresh runs when
+	// their normal readiness, promotion and starting-step gates allow it.
+	retryRolloutPatch    = `{"status":{"abort":false,"blueGreen":{"prePromotionAnalysisRunStatus":null,"postPromotionAnalysisRunStatus":null},"canary":{"currentStepAnalysisRunStatus":null,"currentBackgroundAnalysisRunStatus":null}}}`
 	retryExperimentPatch = `{"status":null}`
 )
 
@@ -85,8 +87,16 @@ func NewCmdRetryRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 // RetryRollout retries a rollout after it's been aborted
 func RetryRollout(rolloutIf clientset.RolloutInterface, name string) (*v1alpha1.Rollout, error) {
 	ctx := context.TODO()
+	ro, err := rolloutIf.Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	// Retrying a non-aborted rollout must not detach its active analysis.
+	if !ro.Status.Abort {
+		return ro, nil
+	}
 	// attempt using status subresource, first
-	ro, err := rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(retryRolloutPatch), metav1.PatchOptions{}, "status")
+	ro, err = rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(retryRolloutPatch), metav1.PatchOptions{}, "status")
 	if err != nil && k8serrors.IsNotFound(err) {
 		ro, err = rolloutIf.Patch(ctx, name, types.MergePatchType, []byte(retryRolloutPatch), metav1.PatchOptions{})
 	}
