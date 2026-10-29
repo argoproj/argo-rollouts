@@ -1276,6 +1276,28 @@ func TestAtDesiredReplicaCountsForCanary(t *testing.T) {
 		assert.Equal(t, true, atDesiredReplicaCounts)
 	})
 
+	t.Run("basic canary is not at desired counts while an older replicaset still has unavailable replicas", func(t *testing.T) {
+		// An older, never-ready canary (e.g. an interrupted update) still holds the only surge
+		// replica, so the new canary cannot be scaled up yet. The setWeight step must not complete.
+		rollout := newRollout(2, 1, intstr.FromString("34%"), intstr.FromInt(0), "current", "stable", nil, nil)
+		newReplicaSet := newRS("current", 0, 0)
+		stableReplicaSet := newRS("stable", 2, 2)
+		stableReplicaSet.Status.Replicas = 2
+		olderReplicaSet := newRS("older", 1, 0)
+		olderReplicaSet.Status.Replicas = 1
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, []*appsv1.ReplicaSet{olderReplicaSet}, nil)
+		assert.Equal(t, false, atDesiredReplicaCounts)
+
+		// Once the older replicaset is scaled down and the canary is available, the step completes.
+		*olderReplicaSet.Spec.Replicas = 0
+		olderReplicaSet.Status.Replicas = 0
+		newReplicaSet = newRS("current", 1, 1)
+		newReplicaSet.Status.Replicas = 1
+		atDesiredReplicaCounts = AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, []*appsv1.ReplicaSet{olderReplicaSet}, nil)
+		assert.Equal(t, true, atDesiredReplicaCounts)
+	})
+
 	t.Run("test that when status field lags behind spec.replicas we fail", func(t *testing.T) {
 		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
 			Weight:             ptr.To[int32](2),
