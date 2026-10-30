@@ -94,6 +94,11 @@ spec:
                                   name:
                                     description: Name is the name of the secret
                                     type: string
+                                  sharedSecret:
+                                    description: |-
+                                      SharedSecret indicates the secret should be read from the namespace
+                                      mentioned by --analysis-shared-secret-namespace flag.
+                                    type: boolean
                                 required:
                                 - key
                                 - name
