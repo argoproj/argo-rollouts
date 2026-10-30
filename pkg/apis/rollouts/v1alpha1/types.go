@@ -342,13 +342,13 @@ type CanaryStrategy struct {
 	// Defaults to 100% of total replicas.
 	// +optional
 	ReplicaProgressThreshold *ReplicaProgressThreshold `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,17,opt,name=replicaProgressThreshold"`
-	// OldReplicaSetScaleDown rate-limits the scale-down of the previous stable ReplicaSet once its
-	// scaleDownDelaySeconds has passed, instead of scaling it to zero at once. Only used with trafficRouting.
+	// OldReplicaSetScaleDown rate-limits the scale-down of old ReplicaSets once their
+	// scaleDownDelaySeconds has passed, instead of scaling them to zero at once. Only used with trafficRouting.
 	// +optional
 	OldReplicaSetScaleDown *OldReplicaSetScaleDown `json:"oldReplicaSetScaleDown,omitempty" protobuf:"bytes,18,opt,name=oldReplicaSetScaleDown"`
 }
 
-// OldReplicaSetScaleDown configures a gradual scale-down of the previous stable ReplicaSet of a canary.
+// OldReplicaSetScaleDown configures a gradual scale-down of the old ReplicaSets of a canary.
 type OldReplicaSetScaleDown struct {
 	// MaxUnavailable is the maximum number of pods of the old ReplicaSet removed in one batch.
 	// Value can be an absolute number (ex: 1) or a percentage of the rollout's replicas (ex: 10%),
