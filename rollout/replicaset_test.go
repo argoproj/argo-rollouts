@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -1070,6 +1071,7 @@ func newGradualScaleDownContext(policy *v1alpha1.OldReplicaSetScaleDown) (*rollo
 		log:     logutil.WithRollout(rollout),
 		rollout: rollout,
 	}
+	roCtx.kubeclientset = k8sfake.NewSimpleClientset()
 	roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) { requeuedAfter = duration }
 	return roCtx, &requeuedAfter
 }
@@ -1119,6 +1121,28 @@ func TestNextScaleDownBatch(t *testing.T) {
 		assert.Equal(t, int32(8), roCtx.nextScaleDownBatch(oldRS))
 
 		oldRS.Status.Replicas = 8
+		assert.Equal(t, int32(7), roCtx.nextScaleDownBatch(oldRS))
+	})
+
+	t.Run("waits for terminating pods that status.replicas no longer counts", func(t *testing.T) {
+		roCtx, requeuedAfter := newGradualScaleDownContext(&v1alpha1.OldReplicaSetScaleDown{WaitForPodTermination: true})
+		oldRS := rs("foo-v1", 8, nil, noTimestamp, nil)
+		oldRS.Status.Replicas = 8
+		deleting := metav1.Now()
+		terminatingPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+			Name:              "foo-v1-abc",
+			Namespace:         oldRS.Namespace,
+			Labels:            oldRS.Spec.Selector.MatchLabels,
+			DeletionTimestamp: &deleting,
+			Finalizers:        []string{"example.com/slow"},
+			OwnerReferences:   []metav1.OwnerReference{*metav1.NewControllerRef(oldRS, appsv1.SchemeGroupVersion.WithKind("ReplicaSet"))},
+		}}
+		roCtx.kubeclientset = k8sfake.NewSimpleClientset(terminatingPod)
+
+		assert.Equal(t, int32(8), roCtx.nextScaleDownBatch(oldRS))
+		assert.Equal(t, podTerminationPollInterval, *requeuedAfter)
+
+		roCtx.kubeclientset = k8sfake.NewSimpleClientset()
 		assert.Equal(t, int32(7), roCtx.nextScaleDownBatch(oldRS))
 	})
 }
