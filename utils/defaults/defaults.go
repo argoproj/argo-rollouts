@@ -1,6 +1,7 @@
 package defaults
 
 import (
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -387,7 +388,8 @@ func GetOldReplicaSetScaleDownBatchSize(rollout *v1alpha1.Rollout) int32 {
 		rollout.Spec.Strategy.Canary.OldReplicaSetScaleDown.MaxUnavailable != nil {
 		value, err := intstr.GetScaledValueFromIntOrPercent(rollout.Spec.Strategy.Canary.OldReplicaSetScaleDown.MaxUnavailable, int(GetReplicasOrDefault(rollout.Spec.Replicas)), true)
 		if err == nil && value > 1 {
-			batch = int32(value)
+			// A batch larger than the ReplicaSet scales it to zero, so clamping keeps the conversion safe.
+			batch = int32(min(value, math.MaxInt32))
 		}
 	}
 	return batch

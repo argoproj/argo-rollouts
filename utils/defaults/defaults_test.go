@@ -1,6 +1,7 @@
 package defaults
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -443,4 +444,6 @@ func TestGetOldReplicaSetScaleDownBatchSize(t *testing.T) {
 	assert.Equal(t, int32(3), GetOldReplicaSetScaleDownBatchSize(rollout(&v1alpha1.OldReplicaSetScaleDown{MaxUnavailable: ptr.To(intstr.FromInt(3))})))
 	assert.Equal(t, int32(3), GetOldReplicaSetScaleDownBatchSize(rollout(&v1alpha1.OldReplicaSetScaleDown{MaxUnavailable: ptr.To(intstr.FromString("25%"))})))
 	assert.Equal(t, int32(1), GetOldReplicaSetScaleDownBatchSize(rollout(&v1alpha1.OldReplicaSetScaleDown{MaxUnavailable: ptr.To(intstr.FromString("1%"))})))
+	// A percentage that scales beyond int32 is clamped instead of overflowing to a negative batch.
+	assert.Equal(t, int32(math.MaxInt32), GetOldReplicaSetScaleDownBatchSize(rollout(&v1alpha1.OldReplicaSetScaleDown{MaxUnavailable: ptr.To(intstr.FromString("99999999999%"))})))
 }
