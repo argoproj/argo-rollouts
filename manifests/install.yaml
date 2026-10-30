@@ -31698,6 +31698,31 @@ spec:
                           MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
                         format: int32
                         type: integer
+                      oldReplicaSetScaleDown:
+                        description: |-
+                          OldReplicaSetScaleDown rate-limits the scale-down of old ReplicaSets once their
+                          scaleDownDelaySeconds has passed, instead of scaling them to zero at once. Only used with trafficRouting.
+                        properties:
+                          intervalSeconds:
+                            description: IntervalSeconds is the minimum time between
+                              two batches. Defaults to 0.
+                            format: int32
+                            type: integer
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: |-
+                              MaxUnavailable is the maximum number of pods of the old ReplicaSet removed in one batch.
+                              Value can be an absolute number (ex: 1) or a percentage of the rollout's replicas (ex: 10%),
+                              rounded up. Defaults to 1.
+                            x-kubernetes-int-or-string: true
+                          waitForPodTermination:
+                            description: WaitForPodTermination waits until the pods
+                              removed by the previous batch are gone before the next
+                              batch.
+                            type: boolean
+                        type: object
                       pingPong:
                         description: PingPongSpec holds the ping and pong services
                         properties:

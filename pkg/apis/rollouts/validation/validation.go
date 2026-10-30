@@ -76,6 +76,12 @@ const (
 	InvalidCanaryDynamicStableScale = "Canary dynamicStableScale can only be used with traffic routing"
 	// InvalidCanaryDynamicStableScaleWithScaleDownDelay indicates that canary.dynamicStableScale cannot be used with scaleDownDelaySeconds
 	InvalidCanaryDynamicStableScaleWithScaleDownDelay = "Canary dynamicStableScale cannot be used with scaleDownDelaySeconds"
+	// InvalidCanaryOldReplicaSetScaleDown indicates that canary.oldReplicaSetScaleDown cannot be used
+	InvalidCanaryOldReplicaSetScaleDown = "Canary oldReplicaSetScaleDown can only be used with traffic routing and without dynamicStableScale"
+	// InvalidCanaryOldReplicaSetScaleDownMaxUnavailable indicates an invalid canary.oldReplicaSetScaleDown.maxUnavailable
+	InvalidCanaryOldReplicaSetScaleDownMaxUnavailable = "Canary oldReplicaSetScaleDown.maxUnavailable must be greater than 0"
+	// InvalidCanaryOldReplicaSetScaleDownInterval indicates an invalid canary.oldReplicaSetScaleDown.intervalSeconds
+	InvalidCanaryOldReplicaSetScaleDownInterval = "Canary oldReplicaSetScaleDown.intervalSeconds must not be negative"
 	// InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins indicates that canary.maxTrafficWeight cannot be used
 	InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins = "Canary maxTrafficWeight in traffic routing only supported in Nginx and Plugins"
 	// InvalidPingPongProvidedMessage indicates that both ping and pong service must be set to use Ping-Pong feature
@@ -292,6 +298,22 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		}
 		if canary.CanaryService == "" {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("canaryService"), canary.CanaryService, InvalidTrafficRoutingMessage))
+		}
+	}
+
+	if scaleDown := canary.OldReplicaSetScaleDown; scaleDown != nil {
+		scaleDownPath := fldPath.Child("oldReplicaSetScaleDown")
+		if canary.TrafficRouting == nil || canary.DynamicStableScale {
+			allErrs = append(allErrs, field.Invalid(scaleDownPath, scaleDown, InvalidCanaryOldReplicaSetScaleDown))
+		}
+		if scaleDown.MaxUnavailable != nil {
+			value, err := intstr.GetScaledValueFromIntOrPercent(scaleDown.MaxUnavailable, 100, true)
+			if err != nil || value <= 0 {
+				allErrs = append(allErrs, field.Invalid(scaleDownPath.Child("maxUnavailable"), scaleDown.MaxUnavailable.String(), InvalidCanaryOldReplicaSetScaleDownMaxUnavailable))
+			}
+		}
+		if scaleDown.IntervalSeconds != nil && *scaleDown.IntervalSeconds < 0 {
+			allErrs = append(allErrs, field.Invalid(scaleDownPath.Child("intervalSeconds"), *scaleDown.IntervalSeconds, InvalidCanaryOldReplicaSetScaleDownInterval))
 		}
 	}
 
