@@ -1129,7 +1129,7 @@
         },
         "oldReplicaSetScaleDown": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.OldReplicaSetScaleDown",
-          "title": "OldReplicaSetScaleDown rate-limits the scale-down of the previous stable ReplicaSet once its\nscaleDownDelaySeconds has passed, instead of scaling it to zero at once. Only used with trafficRouting.\n+optional"
+          "title": "OldReplicaSetScaleDown rate-limits the scale-down of old ReplicaSets once their\nscaleDownDelaySeconds has passed, instead of scaling them to zero at once. Only used with trafficRouting.\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
@@ -1840,7 +1840,7 @@
           "title": "WaitForPodTermination waits until the pods removed by the previous batch are gone before the next batch.\n+optional"
         }
       },
-      "description": "OldReplicaSetScaleDown configures a gradual scale-down of the previous stable ReplicaSet of a canary."
+      "description": "OldReplicaSetScaleDown configures a gradual scale-down of the old ReplicaSets of a canary."
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PauseCondition": {
       "type": "object",

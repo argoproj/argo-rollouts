@@ -380,7 +380,7 @@ func SetDescribeTagsLimit(limit int) {
 	defaultDescribeTagsLimit = limit
 }
 
-// GetOldReplicaSetScaleDownBatchSize returns how many pods of the previous stable ReplicaSet a canary scales down
+// GetOldReplicaSetScaleDownBatchSize returns how many pods of an old ReplicaSet a canary scales down
 // per batch when oldReplicaSetScaleDown is set. Percentages are of the rollout's replicas, rounded up. It is at least 1.
 func GetOldReplicaSetScaleDownBatchSize(rollout *v1alpha1.Rollout) int32 {
 	batch := int32(1)

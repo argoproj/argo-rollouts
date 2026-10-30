@@ -31700,8 +31700,8 @@ spec:
                         type: integer
                       oldReplicaSetScaleDown:
                         description: |-
-                          OldReplicaSetScaleDown rate-limits the scale-down of the previous stable ReplicaSet once its
-                          scaleDownDelaySeconds has passed, instead of scaling it to zero at once. Only used with trafficRouting.
+                          OldReplicaSetScaleDown rate-limits the scale-down of old ReplicaSets once their
+                          scaleDownDelaySeconds has passed, instead of scaling them to zero at once. Only used with trafficRouting.
                         properties:
                           intervalSeconds:
                             description: IntervalSeconds is the minimum time between
