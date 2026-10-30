@@ -29,7 +29,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	register "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
@@ -459,8 +458,20 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
 	if rollout.Spec.Replicas == nil {
 		logCtx.Info("Defaulting .spec.replica to 1")
-		r.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
-		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
+		// Patch only spec.replicas; see setRolloutRevision for why a full Update
+		// must be avoided here.
+		patch, err := json.Marshal(map[string]any{
+			"metadata": map[string]any{
+				"resourceVersion": r.ResourceVersion,
+			},
+			"spec": map[string]any{
+				"replicas": defaults.DefaultReplicas,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Patch(ctx, r.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}

@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -117,9 +118,25 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 
 func (c *rolloutContext) setRolloutRevision(revision string) error {
 	if annotations.SetRolloutRevision(c.rollout, revision) {
-		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
+		// Patch only the annotation. A full Update would write back the normalized
+		// in-memory copy (see remarshalRollout) and make the controller the
+		// managed-fields owner of every field whose serialization changed, such as
+		// resource quantities or empty lists. The resourceVersion keeps the
+		// optimistic-concurrency check that Update had.
+		patch, err := json.Marshal(map[string]any{
+			"metadata": map[string]any{
+				"resourceVersion": c.rollout.ResourceVersion,
+				"annotations": map[string]string{
+					annotations.RevisionAnnotation: revision,
+				},
+			},
+		})
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout revision")
+			return err
+		}
+		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Patch(context.TODO(), c.rollout.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			c.log.WithError(err).Error("Error: patching rollout revision")
 			return err
 		}
 		c.newRollout = updatedRollout.DeepCopy()
