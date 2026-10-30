@@ -1905,15 +1905,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -2743,22 +2740,16 @@ spec:
                                                     x-kubernetes-list-type: map
                                                   limits:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Limits describes the maximum amount of compute resources allowed.
                                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                   requests:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Requests describes the minimum amount of compute resources required.
                                                       If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -3603,15 +3594,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -4424,22 +4412,16 @@ spec:
                                                     x-kubernetes-list-type: map
                                                   limits:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Limits describes the maximum amount of compute resources allowed.
                                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                   requests:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Requests describes the minimum amount of compute resources required.
                                                       If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -5306,15 +5288,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -6144,22 +6123,16 @@ spec:
                                                     x-kubernetes-list-type: map
                                                   limits:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Limits describes the maximum amount of compute resources allowed.
                                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                   requests:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Requests describes the minimum amount of compute resources required.
                                                       If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -6829,11 +6802,8 @@ spec:
                                           type: object
                                         overhead:
                                           additionalProperties:
-                                            anyOf:
-                                            - type: integer
-                                            - type: string
                                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                            x-kubernetes-int-or-string: true
+                                            x-kubernetes-preserve-unknown-fields: true
                                           description: |-
                                             Overhead represents the resource overhead associated with running a pod for a given RuntimeClass.
                                             This field will be autopopulated at admission time by the RuntimeClass admission controller. If
@@ -6991,22 +6961,16 @@ spec:
                                               x-kubernetes-list-type: map
                                             limits:
                                               additionalProperties:
-                                                anyOf:
-                                                - type: integer
-                                                - type: string
                                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                x-kubernetes-int-or-string: true
+                                                x-kubernetes-preserve-unknown-fields: true
                                               description: |-
                                                 Limits describes the maximum amount of compute resources allowed.
                                                 More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                               type: object
                                             requests:
                                               additionalProperties:
-                                                anyOf:
-                                                - type: integer
-                                                - type: string
                                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                x-kubernetes-int-or-string: true
+                                                x-kubernetes-preserve-unknown-fields: true
                                               description: |-
                                                 Requests describes the minimum amount of compute resources required.
                                                 If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -7983,15 +7947,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -8019,9 +7980,6 @@ spec:
                                                       More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
                                                     type: string
                                                   sizeLimit:
-                                                    anyOf:
-                                                    - type: integer
-                                                    - type: string
                                                     description: |-
                                                       sizeLimit is the total amount of local storage required for this EmptyDir volume.
                                                       The size limit is also applicable for memory medium.
@@ -8030,7 +7988,7 @@ spec:
                                                       The default is nil which means that the limit is undefined.
                                                       More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
                                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                    x-kubernetes-int-or-string: true
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                 type: object
                                               ephemeral:
                                                 description: |-
@@ -8198,22 +8156,16 @@ spec:
                                                             properties:
                                                               limits:
                                                                 additionalProperties:
-                                                                  anyOf:
-                                                                  - type: integer
-                                                                  - type: string
                                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                  x-kubernetes-int-or-string: true
+                                                                  x-kubernetes-preserve-unknown-fields: true
                                                                 description: |-
                                                                   Limits describes the maximum amount of compute resources allowed.
                                                                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                                 type: object
                                                               requests:
                                                                 additionalProperties:
-                                                                  anyOf:
-                                                                  - type: integer
-                                                                  - type: string
                                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                  x-kubernetes-int-or-string: true
+                                                                  x-kubernetes-preserve-unknown-fields: true
                                                                 description: |-
                                                                   Requests describes the minimum amount of compute resources required.
                                                                   If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -9015,9 +8967,6 @@ spec:
                                                                           vars'
                                                                         type: string
                                                                       divisor:
-                                                                        anyOf:
-                                                                        - type: integer
-                                                                        - type: string
                                                                         description: Specifies
                                                                           the output
                                                                           format of
@@ -9026,7 +8975,7 @@ spec:
                                                                           defaults
                                                                           to "1"
                                                                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                        x-kubernetes-int-or-string: true
+                                                                        x-kubernetes-preserve-unknown-fields: true
                                                                       resource:
                                                                         description: 'Required:
                                                                           resource
@@ -12117,15 +12066,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -12955,22 +12901,16 @@ spec:
                                                     x-kubernetes-list-type: map
                                                   limits:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Limits describes the maximum amount of compute resources allowed.
                                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                   requests:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Requests describes the minimum amount of compute resources required.
                                                       If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -13815,15 +13755,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -14636,22 +14573,16 @@ spec:
                                                     x-kubernetes-list-type: map
                                                   limits:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Limits describes the maximum amount of compute resources allowed.
                                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                   requests:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Requests describes the minimum amount of compute resources required.
                                                       If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -15518,15 +15449,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -16356,22 +16284,16 @@ spec:
                                                     x-kubernetes-list-type: map
                                                   limits:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Limits describes the maximum amount of compute resources allowed.
                                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                   requests:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Requests describes the minimum amount of compute resources required.
                                                       If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -17041,11 +16963,8 @@ spec:
                                           type: object
                                         overhead:
                                           additionalProperties:
-                                            anyOf:
-                                            - type: integer
-                                            - type: string
                                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                            x-kubernetes-int-or-string: true
+                                            x-kubernetes-preserve-unknown-fields: true
                                           description: |-
                                             Overhead represents the resource overhead associated with running a pod for a given RuntimeClass.
                                             This field will be autopopulated at admission time by the RuntimeClass admission controller. If
@@ -17203,22 +17122,16 @@ spec:
                                               x-kubernetes-list-type: map
                                             limits:
                                               additionalProperties:
-                                                anyOf:
-                                                - type: integer
-                                                - type: string
                                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                x-kubernetes-int-or-string: true
+                                                x-kubernetes-preserve-unknown-fields: true
                                               description: |-
                                                 Limits describes the maximum amount of compute resources allowed.
                                                 More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                               type: object
                                             requests:
                                               additionalProperties:
-                                                anyOf:
-                                                - type: integer
-                                                - type: string
                                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                x-kubernetes-int-or-string: true
+                                                x-kubernetes-preserve-unknown-fields: true
                                               description: |-
                                                 Requests describes the minimum amount of compute resources required.
                                                 If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -18195,15 +18108,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -18231,9 +18141,6 @@ spec:
                                                       More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
                                                     type: string
                                                   sizeLimit:
-                                                    anyOf:
-                                                    - type: integer
-                                                    - type: string
                                                     description: |-
                                                       sizeLimit is the total amount of local storage required for this EmptyDir volume.
                                                       The size limit is also applicable for memory medium.
@@ -18242,7 +18149,7 @@ spec:
                                                       The default is nil which means that the limit is undefined.
                                                       More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
                                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                    x-kubernetes-int-or-string: true
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                 type: object
                                               ephemeral:
                                                 description: |-
@@ -18410,22 +18317,16 @@ spec:
                                                             properties:
                                                               limits:
                                                                 additionalProperties:
-                                                                  anyOf:
-                                                                  - type: integer
-                                                                  - type: string
                                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                  x-kubernetes-int-or-string: true
+                                                                  x-kubernetes-preserve-unknown-fields: true
                                                                 description: |-
                                                                   Limits describes the maximum amount of compute resources allowed.
                                                                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                                 type: object
                                                               requests:
                                                                 additionalProperties:
-                                                                  anyOf:
-                                                                  - type: integer
-                                                                  - type: string
                                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                  x-kubernetes-int-or-string: true
+                                                                  x-kubernetes-preserve-unknown-fields: true
                                                                 description: |-
                                                                   Requests describes the minimum amount of compute resources required.
                                                                   If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -19227,9 +19128,6 @@ spec:
                                                                           vars'
                                                                         type: string
                                                                       divisor:
-                                                                        anyOf:
-                                                                        - type: integer
-                                                                        - type: string
                                                                         description: Specifies
                                                                           the output
                                                                           format of
@@ -19238,7 +19136,7 @@ spec:
                                                                           defaults
                                                                           to "1"
                                                                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                        x-kubernetes-int-or-string: true
+                                                                        x-kubernetes-preserve-unknown-fields: true
                                                                       resource:
                                                                         description: 'Required:
                                                                           resource
@@ -22124,15 +22022,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -22962,22 +22857,16 @@ spec:
                                                     x-kubernetes-list-type: map
                                                   limits:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Limits describes the maximum amount of compute resources allowed.
                                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                   requests:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Requests describes the minimum amount of compute resources required.
                                                       If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -23822,15 +23711,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -24643,22 +24529,16 @@ spec:
                                                     x-kubernetes-list-type: map
                                                   limits:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Limits describes the maximum amount of compute resources allowed.
                                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                   requests:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Requests describes the minimum amount of compute resources required.
                                                       If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -25525,15 +25405,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -26363,22 +26240,16 @@ spec:
                                                     x-kubernetes-list-type: map
                                                   limits:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Limits describes the maximum amount of compute resources allowed.
                                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                   requests:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Requests describes the minimum amount of compute resources required.
                                                       If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -27048,11 +26919,8 @@ spec:
                                           type: object
                                         overhead:
                                           additionalProperties:
-                                            anyOf:
-                                            - type: integer
-                                            - type: string
                                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                            x-kubernetes-int-or-string: true
+                                            x-kubernetes-preserve-unknown-fields: true
                                           description: |-
                                             Overhead represents the resource overhead associated with running a pod for a given RuntimeClass.
                                             This field will be autopopulated at admission time by the RuntimeClass admission controller. If
@@ -27210,22 +27078,16 @@ spec:
                                               x-kubernetes-list-type: map
                                             limits:
                                               additionalProperties:
-                                                anyOf:
-                                                - type: integer
-                                                - type: string
                                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                x-kubernetes-int-or-string: true
+                                                x-kubernetes-preserve-unknown-fields: true
                                               description: |-
                                                 Limits describes the maximum amount of compute resources allowed.
                                                 More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                               type: object
                                             requests:
                                               additionalProperties:
-                                                anyOf:
-                                                - type: integer
-                                                - type: string
                                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                x-kubernetes-int-or-string: true
+                                                x-kubernetes-preserve-unknown-fields: true
                                               description: |-
                                                 Requests describes the minimum amount of compute resources required.
                                                 If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -28202,15 +28064,12 @@ spec:
                                                                 for env vars'
                                                               type: string
                                                             divisor:
-                                                              anyOf:
-                                                              - type: integer
-                                                              - type: string
                                                               description: Specifies
                                                                 the output format
                                                                 of the exposed resources,
                                                                 defaults to "1"
                                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                              x-kubernetes-int-or-string: true
+                                                              x-kubernetes-preserve-unknown-fields: true
                                                             resource:
                                                               description: 'Required:
                                                                 resource to select'
@@ -28238,9 +28097,6 @@ spec:
                                                       More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
                                                     type: string
                                                   sizeLimit:
-                                                    anyOf:
-                                                    - type: integer
-                                                    - type: string
                                                     description: |-
                                                       sizeLimit is the total amount of local storage required for this EmptyDir volume.
                                                       The size limit is also applicable for memory medium.
@@ -28249,7 +28105,7 @@ spec:
                                                       The default is nil which means that the limit is undefined.
                                                       More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
                                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                    x-kubernetes-int-or-string: true
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                 type: object
                                               ephemeral:
                                                 description: |-
@@ -28417,22 +28273,16 @@ spec:
                                                             properties:
                                                               limits:
                                                                 additionalProperties:
-                                                                  anyOf:
-                                                                  - type: integer
-                                                                  - type: string
                                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                  x-kubernetes-int-or-string: true
+                                                                  x-kubernetes-preserve-unknown-fields: true
                                                                 description: |-
                                                                   Limits describes the maximum amount of compute resources allowed.
                                                                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                                 type: object
                                                               requests:
                                                                 additionalProperties:
-                                                                  anyOf:
-                                                                  - type: integer
-                                                                  - type: string
                                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                  x-kubernetes-int-or-string: true
+                                                                  x-kubernetes-preserve-unknown-fields: true
                                                                 description: |-
                                                                   Requests describes the minimum amount of compute resources required.
                                                                   If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -29234,9 +29084,6 @@ spec:
                                                                           vars'
                                                                         type: string
                                                                       divisor:
-                                                                        anyOf:
-                                                                        - type: integer
-                                                                        - type: string
                                                                         description: Specifies
                                                                           the output
                                                                           format of
@@ -29245,7 +29092,7 @@ spec:
                                                                           defaults
                                                                           to "1"
                                                                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                                        x-kubernetes-int-or-string: true
+                                                                        x-kubernetes-preserve-unknown-fields: true
                                                                       resource:
                                                                         description: 'Required:
                                                                           resource
@@ -31634,14 +31481,11 @@ spec:
                                                     vars'
                                                   type: string
                                                 divisor:
-                                                  anyOf:
-                                                  - type: integer
-                                                  - type: string
                                                   description: Specifies the output
                                                     format of the exposed resources,
                                                     defaults to "1"
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                  x-kubernetes-int-or-string: true
+                                                  x-kubernetes-preserve-unknown-fields: true
                                                 resource:
                                                   description: 'Required: resource
                                                     to select'
@@ -32435,22 +32279,16 @@ spec:
                                         x-kubernetes-list-type: map
                                       limits:
                                         additionalProperties:
-                                          anyOf:
-                                          - type: integer
-                                          - type: string
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                          x-kubernetes-int-or-string: true
+                                          x-kubernetes-preserve-unknown-fields: true
                                         description: |-
                                           Limits describes the maximum amount of compute resources allowed.
                                           More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                         type: object
                                       requests:
                                         additionalProperties:
-                                          anyOf:
-                                          - type: integer
-                                          - type: string
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                          x-kubernetes-int-or-string: true
+                                          x-kubernetes-preserve-unknown-fields: true
                                         description: |-
                                           Requests describes the minimum amount of compute resources required.
                                           If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -33262,14 +33100,11 @@ spec:
                                                     vars'
                                                   type: string
                                                 divisor:
-                                                  anyOf:
-                                                  - type: integer
-                                                  - type: string
                                                   description: Specifies the output
                                                     format of the exposed resources,
                                                     defaults to "1"
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                  x-kubernetes-int-or-string: true
+                                                  x-kubernetes-preserve-unknown-fields: true
                                                 resource:
                                                   description: 'Required: resource
                                                     to select'
@@ -34046,22 +33881,16 @@ spec:
                                         x-kubernetes-list-type: map
                                       limits:
                                         additionalProperties:
-                                          anyOf:
-                                          - type: integer
-                                          - type: string
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                          x-kubernetes-int-or-string: true
+                                          x-kubernetes-preserve-unknown-fields: true
                                         description: |-
                                           Limits describes the maximum amount of compute resources allowed.
                                           More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                         type: object
                                       requests:
                                         additionalProperties:
-                                          anyOf:
-                                          - type: integer
-                                          - type: string
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                          x-kubernetes-int-or-string: true
+                                          x-kubernetes-preserve-unknown-fields: true
                                         description: |-
                                           Requests describes the minimum amount of compute resources required.
                                           If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -34893,14 +34722,11 @@ spec:
                                                     vars'
                                                   type: string
                                                 divisor:
-                                                  anyOf:
-                                                  - type: integer
-                                                  - type: string
                                                   description: Specifies the output
                                                     format of the exposed resources,
                                                     defaults to "1"
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                  x-kubernetes-int-or-string: true
+                                                  x-kubernetes-preserve-unknown-fields: true
                                                 resource:
                                                   description: 'Required: resource
                                                     to select'
@@ -35694,22 +35520,16 @@ spec:
                                         x-kubernetes-list-type: map
                                       limits:
                                         additionalProperties:
-                                          anyOf:
-                                          - type: integer
-                                          - type: string
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                          x-kubernetes-int-or-string: true
+                                          x-kubernetes-preserve-unknown-fields: true
                                         description: |-
                                           Limits describes the maximum amount of compute resources allowed.
                                           More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                         type: object
                                       requests:
                                         additionalProperties:
-                                          anyOf:
-                                          - type: integer
-                                          - type: string
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                          x-kubernetes-int-or-string: true
+                                          x-kubernetes-preserve-unknown-fields: true
                                         description: |-
                                           Requests describes the minimum amount of compute resources required.
                                           If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -36359,11 +36179,8 @@ spec:
                               type: object
                             overhead:
                               additionalProperties:
-                                anyOf:
-                                - type: integer
-                                - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
+                                x-kubernetes-preserve-unknown-fields: true
                               description: |-
                                 Overhead represents the resource overhead associated with running a pod for a given RuntimeClass.
                                 This field will be autopopulated at admission time by the RuntimeClass admission controller. If
@@ -36520,22 +36337,16 @@ spec:
                                   x-kubernetes-list-type: map
                                 limits:
                                   additionalProperties:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                    x-kubernetes-int-or-string: true
+                                    x-kubernetes-preserve-unknown-fields: true
                                   description: |-
                                     Limits describes the maximum amount of compute resources allowed.
                                     More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                   type: object
                                 requests:
                                   additionalProperties:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                    x-kubernetes-int-or-string: true
+                                    x-kubernetes-preserve-unknown-fields: true
                                   description: |-
                                     Requests describes the minimum amount of compute resources required.
                                     If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -37484,14 +37295,11 @@ spec:
                                                     vars'
                                                   type: string
                                                 divisor:
-                                                  anyOf:
-                                                  - type: integer
-                                                  - type: string
                                                   description: Specifies the output
                                                     format of the exposed resources,
                                                     defaults to "1"
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                  x-kubernetes-int-or-string: true
+                                                  x-kubernetes-preserve-unknown-fields: true
                                                 resource:
                                                   description: 'Required: resource
                                                     to select'
@@ -37519,9 +37327,6 @@ spec:
                                           More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
                                         type: string
                                       sizeLimit:
-                                        anyOf:
-                                        - type: integer
-                                        - type: string
                                         description: |-
                                           sizeLimit is the total amount of local storage required for this EmptyDir volume.
                                           The size limit is also applicable for memory medium.
@@ -37530,7 +37335,7 @@ spec:
                                           The default is nil which means that the limit is undefined.
                                           More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
                                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                        x-kubernetes-int-or-string: true
+                                        x-kubernetes-preserve-unknown-fields: true
                                     type: object
                                   ephemeral:
                                     description: |-
@@ -37694,22 +37499,16 @@ spec:
                                                 properties:
                                                   limits:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Limits describes the maximum amount of compute resources allowed.
                                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                   requests:
                                                     additionalProperties:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     description: |-
                                                       Requests describes the minimum amount of compute resources required.
                                                       If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -38463,15 +38262,12 @@ spec:
                                                               optional for env vars'
                                                             type: string
                                                           divisor:
-                                                            anyOf:
-                                                            - type: integer
-                                                            - type: string
                                                             description: Specifies
                                                               the output format of
                                                               the exposed resources,
                                                               defaults to "1"
                                                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                            x-kubernetes-int-or-string: true
+                                                            x-kubernetes-preserve-unknown-fields: true
                                                           resource:
                                                             description: 'Required:
                                                               resource to select'
@@ -42027,14 +41823,11 @@ spec:
                                               for volumes, optional for env vars'
                                             type: string
                                           divisor:
-                                            anyOf:
-                                            - type: integer
-                                            - type: string
                                             description: Specifies the output format
                                               of the exposed resources, defaults to
                                               "1"
                                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                            x-kubernetes-int-or-string: true
+                                            x-kubernetes-preserve-unknown-fields: true
                                           resource:
                                             description: 'Required: resource to select'
                                             type: string
@@ -42817,22 +42610,16 @@ spec:
                                   x-kubernetes-list-type: map
                                 limits:
                                   additionalProperties:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                    x-kubernetes-int-or-string: true
+                                    x-kubernetes-preserve-unknown-fields: true
                                   description: |-
                                     Limits describes the maximum amount of compute resources allowed.
                                     More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                   type: object
                                 requests:
                                   additionalProperties:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                    x-kubernetes-int-or-string: true
+                                    x-kubernetes-preserve-unknown-fields: true
                                   description: |-
                                     Requests describes the minimum amount of compute resources required.
                                     If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -43639,14 +43426,11 @@ spec:
                                               for volumes, optional for env vars'
                                             type: string
                                           divisor:
-                                            anyOf:
-                                            - type: integer
-                                            - type: string
                                             description: Specifies the output format
                                               of the exposed resources, defaults to
                                               "1"
                                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                            x-kubernetes-int-or-string: true
+                                            x-kubernetes-preserve-unknown-fields: true
                                           resource:
                                             description: 'Required: resource to select'
                                             type: string
@@ -44409,22 +44193,16 @@ spec:
                                   x-kubernetes-list-type: map
                                 limits:
                                   additionalProperties:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                    x-kubernetes-int-or-string: true
+                                    x-kubernetes-preserve-unknown-fields: true
                                   description: |-
                                     Limits describes the maximum amount of compute resources allowed.
                                     More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                   type: object
                                 requests:
                                   additionalProperties:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                    x-kubernetes-int-or-string: true
+                                    x-kubernetes-preserve-unknown-fields: true
                                   description: |-
                                     Requests describes the minimum amount of compute resources required.
                                     If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -45250,14 +45028,11 @@ spec:
                                               for volumes, optional for env vars'
                                             type: string
                                           divisor:
-                                            anyOf:
-                                            - type: integer
-                                            - type: string
                                             description: Specifies the output format
                                               of the exposed resources, defaults to
                                               "1"
                                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                            x-kubernetes-int-or-string: true
+                                            x-kubernetes-preserve-unknown-fields: true
                                           resource:
                                             description: 'Required: resource to select'
                                             type: string
@@ -46040,22 +45815,16 @@ spec:
                                   x-kubernetes-list-type: map
                                 limits:
                                   additionalProperties:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                    x-kubernetes-int-or-string: true
+                                    x-kubernetes-preserve-unknown-fields: true
                                   description: |-
                                     Limits describes the maximum amount of compute resources allowed.
                                     More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                   type: object
                                 requests:
                                   additionalProperties:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                    x-kubernetes-int-or-string: true
+                                    x-kubernetes-preserve-unknown-fields: true
                                   description: |-
                                     Requests describes the minimum amount of compute resources required.
                                     If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -46702,11 +46471,8 @@ spec:
                         type: object
                       overhead:
                         additionalProperties:
-                          anyOf:
-                          - type: integer
-                          - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                          x-kubernetes-int-or-string: true
+                          x-kubernetes-preserve-unknown-fields: true
                         description: |-
                           Overhead represents the resource overhead associated with running a pod for a given RuntimeClass.
                           This field will be autopopulated at admission time by the RuntimeClass admission controller. If
@@ -46862,22 +46628,16 @@ spec:
                             x-kubernetes-list-type: map
                           limits:
                             additionalProperties:
-                              anyOf:
-                              - type: integer
-                              - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                              x-kubernetes-int-or-string: true
+                              x-kubernetes-preserve-unknown-fields: true
                             description: |-
                               Limits describes the maximum amount of compute resources allowed.
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                           requests:
                             additionalProperties:
-                              anyOf:
-                              - type: integer
-                              - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                              x-kubernetes-int-or-string: true
+                              x-kubernetes-preserve-unknown-fields: true
                             description: |-
                               Requests describes the minimum amount of compute resources required.
                               If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -47820,14 +47580,11 @@ spec:
                                               for volumes, optional for env vars'
                                             type: string
                                           divisor:
-                                            anyOf:
-                                            - type: integer
-                                            - type: string
                                             description: Specifies the output format
                                               of the exposed resources, defaults to
                                               "1"
                                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                            x-kubernetes-int-or-string: true
+                                            x-kubernetes-preserve-unknown-fields: true
                                           resource:
                                             description: 'Required: resource to select'
                                             type: string
@@ -47854,9 +47611,6 @@ spec:
                                     More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
                                   type: string
                                 sizeLimit:
-                                  anyOf:
-                                  - type: integer
-                                  - type: string
                                   description: |-
                                     sizeLimit is the total amount of local storage required for this EmptyDir volume.
                                     The size limit is also applicable for memory medium.
@@ -47865,7 +47619,7 @@ spec:
                                     The default is nil which means that the limit is undefined.
                                     More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                  x-kubernetes-int-or-string: true
+                                  x-kubernetes-preserve-unknown-fields: true
                               type: object
                             ephemeral:
                               description: |-
@@ -48029,22 +47783,16 @@ spec:
                                           properties:
                                             limits:
                                               additionalProperties:
-                                                anyOf:
-                                                - type: integer
-                                                - type: string
                                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                x-kubernetes-int-or-string: true
+                                                x-kubernetes-preserve-unknown-fields: true
                                               description: |-
                                                 Limits describes the maximum amount of compute resources allowed.
                                                 More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                               type: object
                                             requests:
                                               additionalProperties:
-                                                anyOf:
-                                                - type: integer
-                                                - type: string
                                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                x-kubernetes-int-or-string: true
+                                                x-kubernetes-preserve-unknown-fields: true
                                               description: |-
                                                 Requests describes the minimum amount of compute resources required.
                                                 If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
@@ -48785,14 +48533,11 @@ spec:
                                                         for env vars'
                                                       type: string
                                                     divisor:
-                                                      anyOf:
-                                                      - type: integer
-                                                      - type: string
                                                       description: Specifies the output
                                                         format of the exposed resources,
                                                         defaults to "1"
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                                      x-kubernetes-int-or-string: true
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     resource:
                                                       description: 'Required: resource
                                                         to select'

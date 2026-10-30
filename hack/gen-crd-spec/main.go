@@ -76,6 +76,7 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 
 	for i := range objs {
 		obj := objs[i]
+		relaxQuantityValidation(obj)
 		createMetadataValidation(obj)
 		crd := toCRD(obj)
 		crds = append(crds, crd)
@@ -183,6 +184,43 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 		unstructured.SetNestedSlice(un.Object, analysisJobValidated, prePath...)
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
+	}
+}
+
+// quantityPattern is the regex controller-gen emits for resource.Quantity fields.
+const quantityPattern = `^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$`
+
+// relaxQuantityValidation lets resource.Quantity fields accept numbers.
+// controller-gen emits x-kubernetes-int-or-string for Quantity, which rejects
+// decimals such as cpu: 0.5 that Kubernetes accepts on built-in types (#479).
+// A structural schema cannot express int-or-number-or-string, so the node is
+// left untyped and keeps the pattern, which still validates string values.
+func relaxQuantityValidation(un *unstructured.Unstructured) {
+	versions, _, _ := unstructured.NestedSlice(un.Object, "spec", "versions")
+	for _, v := range versions {
+		version := v.(map[string]any)
+		schema, _, _ := unstructured.NestedMap(version, "schema", "openAPIV3Schema")
+		relaxQuantityNodes(schema)
+		checkErr(unstructured.SetNestedMap(version, schema, "schema", "openAPIV3Schema"))
+	}
+	checkErr(unstructured.SetNestedSlice(un.Object, versions, "spec", "versions"))
+}
+
+func relaxQuantityNodes(node any) {
+	switch v := node.(type) {
+	case map[string]any:
+		if intOrString, _ := v["x-kubernetes-int-or-string"].(bool); intOrString && v["pattern"] == quantityPattern {
+			delete(v, "anyOf")
+			delete(v, "x-kubernetes-int-or-string")
+			v["x-kubernetes-preserve-unknown-fields"] = true
+		}
+		for _, child := range v {
+			relaxQuantityNodes(child)
+		}
+	case []any:
+		for _, child := range v {
+			relaxQuantityNodes(child)
+		}
 	}
 }
 
