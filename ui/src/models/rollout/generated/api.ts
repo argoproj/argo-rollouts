@@ -1867,7 +1867,7 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef {
     scaleDown?: string;
 }
 /**
- * OldReplicaSetScaleDown configures a gradual scale-down of the previous stable ReplicaSet of a canary.
+ * OldReplicaSetScaleDown configures a gradual scale-down of the old ReplicaSets of a canary.
  * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OldReplicaSetScaleDown
  */

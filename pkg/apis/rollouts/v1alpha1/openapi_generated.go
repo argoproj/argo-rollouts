@@ -1675,7 +1675,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 					},
 					"oldReplicaSetScaleDown": {
 						SchemaProps: spec.SchemaProps{
-							Description: "OldReplicaSetScaleDown rate-limits the scale-down of the previous stable ReplicaSet once its scaleDownDelaySeconds has passed, instead of scaling it to zero at once. Only used with trafficRouting.",
+							Description: "OldReplicaSetScaleDown rate-limits the scale-down of old ReplicaSets once their scaleDownDelaySeconds has passed, instead of scaling them to zero at once. Only used with trafficRouting.",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OldReplicaSetScaleDown"),
 						},
 					},
@@ -3639,7 +3639,7 @@ func schema_pkg_apis_rollouts_v1alpha1_OldReplicaSetScaleDown(ref common.Referen
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "OldReplicaSetScaleDown configures a gradual scale-down of the previous stable ReplicaSet of a canary.",
+				Description: "OldReplicaSetScaleDown configures a gradual scale-down of the old ReplicaSets of a canary.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"maxUnavailable": {
