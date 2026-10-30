@@ -62,6 +62,9 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 		// We recorded a run in the rollout status, but it didn't appear in the lister.
 		// Perform a get to see if it truly exists.
 		ar, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(rollout.Namespace).Get(ctx, arStatus.Name, metav1.GetOptions{})
+		if err != nil && !k8serrors.IsNotFound(err) {
+			return nil, err
+		}
 		if err == nil && ar != nil {
 			logutil.WithRollout(rollout).Infof("Found analysis run '%s' missing from informer cache", ar.Name)
 			ownedByRollout = append(ownedByRollout, ar)
