@@ -171,10 +171,16 @@ func TestIncAnalysisRunReconcile(t *testing.T) {
 	expectedResponse := `# HELP analysis_run_reconcile Analysis Run reconciliation performance.
 # TYPE analysis_run_reconcile histogram
 analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="0.01"} 1
-analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="0.15"} 1
+analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="0.05"} 1
+analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="0.1"} 1
 analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="0.25"} 1
 analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="0.5"} 1
 analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="1"} 1
+analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="2.5"} 1
+analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="5"} 1
+analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="10"} 1
+analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="30"} 1
+analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="60"} 1
 analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="+Inf"} 1
 analysis_run_reconcile_sum{name="ar-test",namespace="ar-namespace"} 0.001
 analysis_run_reconcile_count{name="ar-test",namespace="ar-namespace"} 1`
