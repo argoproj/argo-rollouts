@@ -50,7 +50,7 @@ metadata:
   name: abort-retry-promote
 spec:
   strategy:
-    canary: 
+    canary:
       steps:
       - setWeight: 50
       - pause: {duration: 3s}
@@ -420,14 +420,21 @@ spec:
 `)
 }
 
+// TestMalformedRollout verifies that the API server rejects a Rollout with an invalid resource
+// quantity. The CRD schema validates container resources like it does for a Deployment, so such
+// objects never reach the controller.
 func (s *FunctionalSuite) TestMalformedRollout() {
 	s.Given().
-		HealthyRollout(`@expectedfailures/malformed-rollout.yaml`)
+		RolloutObjects(`@expectedfailures/malformed-rollout.yaml`).
+		When().
+		ApplyManifestsExpectError("resources.requests.memory in body should match")
 }
 
 func (s *FunctionalSuite) TestMalformedRolloutEphemeralCtr() {
 	s.Given().
-		HealthyRollout(`@expectedfailures/malformed-rollout-ephemeral.yaml`)
+		RolloutObjects(`@expectedfailures/malformed-rollout-ephemeral.yaml`).
+		When().
+		ApplyManifestsExpectError("resources.requests.memory in body should match")
 }
 
 // TestContainerResourceFormats verifies resource requests are accepted in multiple formats and not
@@ -1231,7 +1238,7 @@ spec:
       labels:
         app: rollout-ref-deployment
   strategy:
-    blueGreen: 
+    blueGreen:
       activeService: rollout-bluegreen-active
 `).
 		When().
@@ -1271,7 +1278,7 @@ spec:
     kind: Deployment
     name: rollout-ref-deployment
   strategy:
-    blueGreen: 
+    blueGreen:
       activeService: rollout-bluegreen-active
 `).
 		When().
@@ -1622,29 +1629,29 @@ spec:
 		ExpectDeploymentReplicasCount("The Deployment has been scaled to 0 replicas after Rollout", "rollout-ref-deployment", 0).
 		ExpectRollout("Rollout phase is healthy", func(r *v1alpha1.Rollout) bool {
 			return r.Status.Phase == v1alpha1.RolloutPhaseHealthy
-}).
-    When().
-    // Simulate KEDA-like scaling event by increasing Rollout replicas
-    ScaleRolloutWithWorkloadRef(6).
-    WaitForRolloutAvailableReplicas(6).
+		}).
+		When().
+		// Simulate KEDA-like scaling event by increasing Rollout replicas
+		ScaleRolloutWithWorkloadRef(6).
+		WaitForRolloutAvailableReplicas(6).
 		Sleep(3*time.Second). // Give time for any potential Deployment scaling
 		Then().
-    // Verify Deployment STILL stays at 0 replicas (this is the key test for the fix)
-    ExpectDeploymentReplicasCount("Deployment should remain at 0 replicas during scaling events", "rollout-ref-deployment", 0).
-    ExpectReplicaCounts(6, 6, 6, 6, 6). // All replicas should come from Rollout
-    When().
-    // Test scaling down as well
-    ScaleRolloutWithWorkloadRef(2).
-    WaitForRolloutAvailableReplicas(2).
+		// Verify Deployment STILL stays at 0 replicas (this is the key test for the fix)
+		ExpectDeploymentReplicasCount("Deployment should remain at 0 replicas during scaling events", "rollout-ref-deployment", 0).
+		ExpectReplicaCounts(6, 6, 6, 6, 6). // All replicas should come from Rollout
+		When().
+		// Test scaling down as well
+		ScaleRolloutWithWorkloadRef(2).
+		WaitForRolloutAvailableReplicas(2).
 		Sleep(3*time.Second).
 		Then().
 		// Deployment should still be at 0
 		ExpectDeploymentReplicasCount("Deployment should remain at 0 replicas during scale down", "rollout-ref-deployment", 0).
 		ExpectReplicaCounts(2, 2, 2, 2, 2).
-    When().
-    // Test a blue-green update to ensure Deployment doesn't scale during revision changes
-    UpdateWorkloadRef("rollout-ref-deployment").
-    WaitForRolloutStatus("Progressing").
+		When().
+		// Test a blue-green update to ensure Deployment doesn't scale during revision changes
+		UpdateWorkloadRef("rollout-ref-deployment").
+		WaitForRolloutStatus("Progressing").
 		WaitForRolloutStatus("Healthy").
 		Sleep(2*time.Second).
 		Then().
@@ -1720,7 +1727,7 @@ spec:
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
-    Sleep(3*time.Second). // Give time for Deployment to scale down
+		Sleep(3*time.Second). // Give time for Deployment to scale down
 		Then().
 		// Verify progressive migration completed - Deployment should be at 0
 		ExpectDeploymentReplicasCount("The Deployment has been scaled to 0 replicas after canary migration", "rollout-ref-canary", 0).
@@ -1729,7 +1736,7 @@ spec:
 		}).
 		When().
 		// Simulate scaling event by increasing Rollout replicas
-    ScaleRolloutWithWorkloadRef(8).        
+		ScaleRolloutWithWorkloadRef(8).
 		WaitForRolloutAvailableReplicas(8).
 		Sleep(3*time.Second). // Give time for any potential Deployment scaling
 		Then().

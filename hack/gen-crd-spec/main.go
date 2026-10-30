@@ -31,49 +31,12 @@ const metadataValidation = `properties:
    type: object
 type: object`
 
-var preserveUnknownFields = map[string]any{
-	"x-kubernetes-preserve-unknown-fields": true,
-}
-
 var crdPaths = map[string]string{
 	"Rollout":                 "manifests/crds/rollout-crd.yaml",
 	"Experiment":              "manifests/crds/experiment-crd.yaml",
 	"AnalysisTemplate":        "manifests/crds/analysis-template-crd.yaml",
 	"ClusterAnalysisTemplate": "manifests/crds/cluster-analysis-template-crd.yaml",
 	"AnalysisRun":             "manifests/crds/analysis-run-crd.yaml",
-}
-
-func setValidationOverride(un *unstructured.Unstructured, fieldOverride map[string]any, path string) {
-	// Prepare variables
-	preSchemaPath := []string{"spec", "versions"}
-	objVersions, _, _ := unstructured.NestedSlice(un.Object, preSchemaPath...)
-
-	schemaPath := []string{"schema", "openAPIV3Schema"}
-	for _, part := range strings.Split(path, ".") {
-		if strings.HasSuffix(part, "[]") {
-			part = strings.TrimSuffix(part, "[]")
-			schemaPath = append(schemaPath, "properties", part, "items")
-		} else {
-			schemaPath = append(schemaPath, "properties", part)
-		}
-	}
-
-	// Loop over version's slice
-	var finalOverride []any
-	for _, v := range objVersions {
-		unstructured.SetNestedMap(v.(map[string]any), fieldOverride, schemaPath...)
-
-		_, ok, err := unstructured.NestedFieldNoCopy(v.(map[string]any), schemaPath...)
-		checkErr(err)
-		if !ok {
-			panic(fmt.Sprintf("%s not found for kind %s", schemaPath, crdKind(un)))
-		} else {
-			finalOverride = append(finalOverride, v)
-		}
-	}
-
-	// Write back to top object
-	unstructured.SetNestedSlice(un.Object, finalOverride, preSchemaPath...)
 }
 
 func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
@@ -113,7 +76,6 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 
 	for i := range objs {
 		obj := objs[i]
-		removeK8S118Fields(obj)
 		createMetadataValidation(obj)
 		crd := toCRD(obj)
 		crds = append(crds, crd)
@@ -219,44 +181,6 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 			analysisJobValidated = append(analysisJobValidated, v)
 		}
 		unstructured.SetNestedSlice(un.Object, analysisJobValidated, prePath...)
-	default:
-		panic(fmt.Sprintf("unknown kind: %s", kind))
-	}
-}
-
-func removeK8S118Fields(un *unstructured.Unstructured) {
-	kind := crdKind(un)
-	switch kind {
-	case "Rollout":
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.containers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.containers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.initContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.initContainers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.ephemeralContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.ephemeralContainers[].resources.requests")
-		// Replace this with "spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
-		// when it's ok to only support k8s 1.17+
-		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.volumes")
-	case "Experiment":
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.initContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.initContainers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.ephemeralContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.ephemeralContainers[].resources.requests")
-		// Replace this with "spec.templates[].template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
-		// when it's ok to only support k8s 1.17+
-		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.volumes")
-	case "ClusterAnalysisTemplate", "AnalysisTemplate", "AnalysisRun":
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.initContainers[].resources.requests")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.limits")
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.ephemeralContainers[].resources.requests")
-		// Replace this with "spec.metrics[].provider.job.spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
-		// when it's ok to only support k8s 1.17+
-		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.volumes")
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}
