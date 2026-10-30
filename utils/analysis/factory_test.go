@@ -372,6 +372,43 @@ func TestValidateMetrics(t *testing.T) {
 		err := ValidateMetrics(spec.Metrics)
 		assert.EqualError(t, err, "metrics[0]: consecutiveErrorLimit must be >= 0")
 	})
+	t.Run("Validate errorRetryBackoff", func(t *testing.T) {
+		zero := int32(0)
+		three := int32(3)
+		tests := []struct {
+			name    string
+			backoff *v1alpha1.ErrorRetryBackoff
+			wantErr string
+		}{
+			{name: "empty backoff uses defaults", backoff: &v1alpha1.ErrorRetryBackoff{}},
+			{name: "fully specified", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "10s", Factor: &three, MaxDuration: "10m"}},
+			{name: "invalid duration", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "ten"}, wantErr: "invalid errorRetryBackoff.duration string"},
+			{name: "non-positive duration", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "0s"}, wantErr: "errorRetryBackoff.duration must be > 0"},
+			{name: "invalid maxDuration", backoff: &v1alpha1.ErrorRetryBackoff{MaxDuration: "ten"}, wantErr: "invalid errorRetryBackoff.maxDuration string"},
+			{name: "non-positive maxDuration", backoff: &v1alpha1.ErrorRetryBackoff{MaxDuration: "0s"}, wantErr: "errorRetryBackoff.maxDuration must be > 0"},
+			{name: "maxDuration below duration", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "1m", MaxDuration: "30s"}, wantErr: "errorRetryBackoff.maxDuration must be >= errorRetryBackoff.duration"},
+			{name: "duration above default maxDuration", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "10m"}, wantErr: "errorRetryBackoff.maxDuration must be >= errorRetryBackoff.duration"},
+			{name: "maxDuration below default duration", backoff: &v1alpha1.ErrorRetryBackoff{MaxDuration: "1s"}, wantErr: "errorRetryBackoff.maxDuration must be >= errorRetryBackoff.duration"},
+			{name: "factor below one", backoff: &v1alpha1.ErrorRetryBackoff{Factor: &zero}, wantErr: "errorRetryBackoff.factor must be >= 1"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				metrics := []v1alpha1.Metric{{
+					Name:              "success-rate",
+					ErrorRetryBackoff: tt.backoff,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				}}
+				err := ValidateMetrics(metrics)
+				if tt.wantErr == "" {
+					assert.NoError(t, err)
+					return
+				}
+				assert.ErrorContains(t, err, tt.wantErr)
+			})
+		}
+	})
 	t.Run("Ensure metric has provider", func(t *testing.T) {
 		count := intstr.FromInt(1)
 		spec := v1alpha1.AnalysisTemplateSpec{

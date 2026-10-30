@@ -422,6 +422,14 @@ func TestGenerateMetricTasksError(t *testing.T) {
 		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 1, len(tasks))
 	}
+	{
+		// the 5th consecutive error backs off for 160s, so 120s later it is not due yet
+		run := run.DeepCopy()
+		run.Spec.Metrics[0].ErrorRetryBackoff = &v1alpha1.ErrorRetryBackoff{}
+		run.Status.MetricResults[0].ConsecutiveError = 5
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
+		assert.Equal(t, 0, len(tasks))
+	}
 }
 
 func TestAssessRunStatus(t *testing.T) {
@@ -1084,6 +1092,42 @@ func TestCalculateNextReconcileUponError(t *testing.T) {
 		run := run.DeepCopy()
 		run.Spec.Metrics[0].Interval = "5m"
 		assert.Equal(t, now.Add(DefaultErrorRetryInterval), *calculateNextReconcileTime(run, run.Spec.Metrics))
+	}
+	{
+		run := run.DeepCopy()
+		run.Spec.Metrics[0].ErrorRetryBackoff = &v1alpha1.ErrorRetryBackoff{Duration: "15s"}
+		run.Status.MetricResults[0].ConsecutiveError = 2
+		assert.Equal(t, now.Add(30*time.Second), *calculateNextReconcileTime(run, run.Spec.Metrics))
+	}
+}
+
+func TestErrorRetryInterval(t *testing.T) {
+	three := int32(3)
+	one := int32(1)
+	huge := int32(1_000_000_000)
+	tests := []struct {
+		name              string
+		backoff           *v1alpha1.ErrorRetryBackoff
+		consecutiveErrors int32
+		want              time.Duration
+	}{
+		{name: "no backoff keeps the fixed retry interval", consecutiveErrors: 7, want: DefaultErrorRetryInterval},
+		{name: "defaults on first error", backoff: &v1alpha1.ErrorRetryBackoff{}, consecutiveErrors: 1, want: 10 * time.Second},
+		{name: "defaults double per error", backoff: &v1alpha1.ErrorRetryBackoff{}, consecutiveErrors: 3, want: 40 * time.Second},
+		{name: "defaults cap at five minutes", backoff: &v1alpha1.ErrorRetryBackoff{}, consecutiveErrors: 10, want: 5 * time.Minute},
+		{name: "custom duration and factor", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "30s", Factor: &three}, consecutiveErrors: 3, want: 270 * time.Second},
+		{name: "custom max duration", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "1m", MaxDuration: "2m"}, consecutiveErrors: 4, want: 2 * time.Minute},
+		{name: "factor one is a constant interval", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "1m", Factor: &one}, consecutiveErrors: 20, want: time.Minute},
+		{name: "long error streak does not overflow", backoff: &v1alpha1.ErrorRetryBackoff{MaxDuration: "1h"}, consecutiveErrors: 1000, want: time.Hour},
+		{name: "large factor does not overflow", backoff: &v1alpha1.ErrorRetryBackoff{Factor: &huge}, consecutiveErrors: 2, want: 5 * time.Minute},
+		{name: "invalid duration falls back to the fixed interval", backoff: &v1alpha1.ErrorRetryBackoff{Duration: "ten"}, consecutiveErrors: 3, want: DefaultErrorRetryInterval},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metric := v1alpha1.Metric{Name: "success-rate", ErrorRetryBackoff: tt.backoff}
+			got := errorRetryInterval(*log.NewEntry(log.New()), metric, tt.consecutiveErrors)
+			assert.Equal(t, tt.want, got)
+		})
 	}
 }
 
