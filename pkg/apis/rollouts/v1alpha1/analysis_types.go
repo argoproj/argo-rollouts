@@ -470,7 +470,7 @@ type SecretKeyRef struct {
 	Key string `json:"key" protobuf:"bytes,2,opt,name=key"`
 	// SharedSecret indicates the secret should be read from the namespace
 	// mentioned by --analysis-shared-secret-namespace flag.
-	SharedSecret bool `json:"sharedSecret,omitempty" protobuf:"bytes,3,opt,name=sharedSecret"`
+	SharedSecret bool `json:"sharedSecret,omitempty" protobuf:"varint,3,opt,name=sharedSecret"`
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource
