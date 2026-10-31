@@ -119,7 +119,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                     }
                 } catch (error) {
                     // Don't wait for the error body to be read before the button stops loading
-                    handleActionError(error, props.action);
+                    handleActionError(error, props.action).catch((notificationError) => console.error(`Error notifying about ${props.action} failure:`, notificationError));
                 } finally {
                     setLoading(false);
                 }
