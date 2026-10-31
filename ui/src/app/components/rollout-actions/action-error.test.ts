@@ -27,6 +27,14 @@ describe('Rollout action error notification', () => {
         });
     });
 
+    it('ignores message and error fields that are not strings', async () => {
+        const error = jsonResponse(500, {error: {reason: 'nested'}, message: ['not', 'a', 'string']});
+        expect(await getActionErrorNotification(error, 'Abort')).toEqual({
+            message: 'Failed to abort rollout',
+            description: 'An unexpected error occurred. Please try again.',
+        });
+    });
+
     it('falls back to a generic message when the response body is not JSON', async () => {
         const error = new Response('upstream connect error', {status: 502});
         expect(await getActionErrorNotification(error, 'Restart')).toEqual({

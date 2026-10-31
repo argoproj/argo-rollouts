@@ -118,7 +118,8 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                         await props.callback();
                     }
                 } catch (error) {
-                    await handleActionError(error, props.action);
+                    // Don't wait for the error body to be read before the button stops loading
+                    handleActionError(error, props.action);
                 } finally {
                     setLoading(false);
                 }

@@ -9,11 +9,13 @@ const unexpectedErrorDescription = 'An unexpected error occurred. Please try aga
 // non-2xx status, and with an Error when the request itself fails.
 const isResponse = (error: any): error is Response => typeof error?.status === 'number' && typeof error?.json === 'function';
 
+const asString = (value: any): string => (typeof value === 'string' ? value : '');
+
 // Error bodies from the API server have the form {"error": "...", "code": 5, "message": "..."}.
 const getResponseMessage = async (response: Response): Promise<string> => {
     try {
         const body = await response.json();
-        return body?.message || body?.error || '';
+        return asString(body?.message) || asString(body?.error);
     } catch {
         return '';
     }
@@ -30,5 +32,5 @@ export const getActionErrorNotification = async (error: any, actionName: string)
         }
         return {message: `Failed to ${action} rollout`, description: (await getResponseMessage(error)) || unexpectedErrorDescription};
     }
-    return {message: `Failed to ${action} rollout`, description: error?.message || unexpectedErrorDescription};
+    return {message: `Failed to ${action} rollout`, description: asString(error?.message) || unexpectedErrorDescription};
 };
