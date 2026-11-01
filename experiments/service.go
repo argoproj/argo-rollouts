@@ -3,6 +3,7 @@ package experiments
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
@@ -89,6 +90,12 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 			controllerRef := metav1.GetControllerOf(svc)
 			if controllerRef == nil || controllerRef.UID != ec.ex.UID || svc.Annotations == nil || svc.Annotations[v1alpha1.ExperimentNameAnnotationKey] != ec.ex.Name || svc.Annotations[v1alpha1.ExperimentTemplateNameAnnotationKey] != template.Name {
 				return nil, fmt.Errorf("service %s already exists and is not owned by experiment template %s", serviceName, template.Name)
+			}
+			// The template ReplicaSet was recreated with a new pod-template-hash (e.g. on retry)
+			if !reflect.DeepEqual(svc.Spec.Selector, selector) {
+				svc = svc.DeepCopy()
+				svc.Spec.Selector = selector
+				return ec.kubeclientset.CoreV1().Services(ec.ex.Namespace).Update(ctx, svc, metav1.UpdateOptions{})
 			}
 			return svc, nil
 		} else {
