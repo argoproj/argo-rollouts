@@ -2872,6 +2872,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRe
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef
      */
     key?: string;
+    /**
+     * SharedSecret indicates the secret should be read from the namespace mentioned by --analysis-shared-secret-namespace flag.
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef
+     */
+    sharedSecret?: boolean;
 }
 /**
  * 
