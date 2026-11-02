@@ -249,6 +249,8 @@ func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 		f.run(getKey(r2, t))
 
 		f.verifyPatchedRolloutAborted(patchIndex, "foo-"+rs2PodHash)
+		// the abort must produce a single RolloutAborted event, otherwise notifications fire twice
+		f.assertEvents([]string{conditions.RolloutAbortedReason, conditions.RolloutNotCompletedReason})
 	}
 
 	for _, tc := range tests {
