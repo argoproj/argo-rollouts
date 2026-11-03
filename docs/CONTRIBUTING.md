@@ -8,6 +8,8 @@ Argo Rollouts is written in Golang. If you do not have a good grounding in Go, t
 
 Install:
 
+- [Git](https://git-scm.com/downloads)
+- [curl](https://curl.se/download.html) (Linux)
 - [docker](https://docs.docker.com/install/#supported-platforms)
 - [golang](https://golang.org/)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
@@ -23,14 +25,21 @@ Argo Rollout additionally uses the following tools
 - `protoc` to generate proto related files. `swagger-codegen` is pinned and run in Docker by `hack/swagger-codegen.sh`, so it does not need to be installed.
 - `pnpm` to build the UI ([install via Corepack](https://nodejs.org/api/corepack.html): `corepack enable`)
 
-Run the following commands to install them:
+Set up environment variables (e.g. in `~/.bashrc`):
+
+```bash
+export GOPATH=~/go
+export PATH="$PATH:$GOPATH/bin"
+```
+
+Install `golangci-lint`:
 
 ```bash
 # macOS
 brew install golangci-lint
 
-# linux
-go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+# Linux (the same version used in CI)
+curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b "$GOPATH/bin" v2.11.1
 ```
 
 Brew users can quickly install the lot:
@@ -39,18 +48,12 @@ Brew users can quickly install the lot:
 brew install go kubectl kustomize golangci-lint protobuf k3d
 ```
 
-Set up environment variables (e.g. is `~/.bashrc`):
-
-```bash
-export GOPATH=~/go
-export PATH=$PATH:$GOPATH/bin
-```
-
 Checkout the code:
 
 ```bash
-go get -u github.com/argoproj/argo-rollouts
-cd ~/go/src/github.com/argoproj/argo-rollouts
+mkdir -p "$GOPATH/src/github.com/argoproj"
+git clone https://github.com/argoproj/argo-rollouts.git "$GOPATH/src/github.com/argoproj/argo-rollouts"
+cd "$GOPATH/src/github.com/argoproj/argo-rollouts"
 ```
 
 ## Building
