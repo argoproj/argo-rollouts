@@ -852,8 +852,13 @@ func (c *rolloutContext) evaluateProgressDeadlineAbort(newStatus *v1alpha1.Rollo
 	if c.newRS != nil {
 		msg = fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, c.newRS.Name)
 	}
-	// calculateRolloutConditions emits the RolloutAborted event for this abort
 	c.pauseContext.AddAbort(msg)
+	// calculateRolloutConditions emits the RolloutAborted event for this abort while IsAborted is
+	// true. A RemoveAbort in the same reconcile (full promotion, rollback within the window) keeps
+	// it false, so the event is emitted here instead, once, when the abort is first recorded.
+	if !c.pauseContext.IsAborted() && !c.rollout.Status.Abort {
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
+	}
 }
 
 func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutStatus) {
