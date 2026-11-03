@@ -5,6 +5,8 @@ package e2e
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -592,6 +594,17 @@ spec:
 
 // TestMultipleAnalysis verifies we merge analysis templates properly when multiple are specified
 func (s *AnalysisSuite) TestMultipleAnalysis() {
+	// Local web metric endpoint (the e2e controller runs on the same host as the tests).
+	// Only succeeds when the rollout's args override the templates' SHOULD-NOT-USE defaults.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repos/argoproj/argo-rollouts" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
 	s.Given().
 		RolloutObjects(`
 apiVersion: argoproj.io/v1alpha1
@@ -608,12 +621,12 @@ spec:
     count: 1
     provider:
       web:
-        url: https://{{args.host}}/repos/{{args.repo}}
+        url: http://{{args.host}}/repos/{{args.repo}}
   - name: metric-2
     count: 1
     provider:
       web:
-        url: https://{{args.host}}/repos/{{args.repo}}`).
+        url: http://{{args.host}}/repos/{{args.repo}}`).
 		RolloutObjects(`
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
@@ -629,13 +642,13 @@ spec:
     count: 1
     provider:
       web:
-        url: https://{{args.host}}/repos/{{args.repo}}
+        url: http://{{args.host}}/repos/{{args.repo}}
   - name: metric-4
     count: 1
     provider:
       web:
-        url: https://{{args.host}}/repos/{{args.repo}}`).
-		RolloutObjects(`
+        url: http://{{args.host}}/repos/{{args.repo}}`).
+		RolloutObjects(fmt.Sprintf(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -653,7 +666,7 @@ spec:
           - templateName: template-b
           args:
           - name: host
-            value: api.github.com
+            value: %s
           - name: repo
             value: argoproj/argo-rollouts
   template:
@@ -667,7 +680,7 @@ spec:
         resources:
           requests:
             memory: 16Mi
-            cpu: 5m`).
+            cpu: 5m`, server.Listener.Addr().String())).
 		When().
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
