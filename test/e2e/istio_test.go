@@ -570,3 +570,62 @@ func (s *IstioSuite) TestIstioSubsetSplitInStableDownscaleAfterCanaryAbort() {
 
 	s.TearDownSuite()
 }
+
+// TestIstioRollbackWithinWindowCapsCanaryWeight verifies that a "rollback within window", which
+// fast-forwards the canary step index to the final step, does not shift 100% of traffic onto a
+// canary ReplicaSet that is still scaling up. The weight must be capped to the canary's available
+// proportion. Here the rolled-back canary is held at 1 of 4 available, so the canary route weight
+// must be 25, not 100. Without the cap in reconcileTrafficRouting the weight is 100 with only one
+// pod ready, which blackholes traffic (Envoy "no healthy upstream").
+func (s *IstioSuite) TestIstioRollbackWithinWindowCapsCanaryWeight() {
+	s.Given().
+		RolloutObjects("@istio/istio-rollback-window-cold-canary.yaml").
+		When().
+		ApplyManifests().
+		MarkPodsReady("1", 4). // revision 1 fully available
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec(`
+metadata:
+  labels:
+    rev: two
+spec:
+  template:
+    metadata:
+      labels:
+        rev: two`). // update to revision 2
+		MarkPodsReady("2", 4).           // single setWeight:100 step scales the canary straight to 4
+		WaitForRolloutStatus("Healthy"). // revision 2 promoted to stable
+		WaitForRevisionPodCount("1", 0). // ensure the rollback target is fully cold first
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight) // stable (rev 2)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)   // canary
+		}).
+		When().
+		UpdateSpec(`
+metadata:
+  labels:
+    rev: one
+spec:
+  template:
+    metadata:
+      labels:
+        rev: one`). // rollback to revision 1's pod template -> within window -> fast-forward
+		MarkPodsReady("3", 1). // reused RS is now revision 3; only 1 of 4 pods available
+		// Wait on observable state (the controller writing the canary weight) instead of sleeping:
+		// after the rollback the weight settles to the capped 25 (fix) or the un-capped 100 (no fix).
+		WaitForRolloutCondition(func(ro *v1alpha1.Rollout) bool {
+			return ro.Status.Canary.Weights != nil && ro.Status.Canary.Weights.Canary.Weight >= 25
+		}, "canary weight applied after rollback").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			// Canary (rolled-back revision 1) is only 1/4 available, so its weight is capped to
+			// 100*1/4 = 25 rather than the fast-forwarded 100. Stable keeps the remaining 75.
+			assert.Equal(s.T(), int64(75), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(25), vsvc.Spec.HTTP[0].Route[1].Weight)
+		})
+
+	s.TearDownSuite()
+}
